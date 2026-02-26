@@ -20,8 +20,8 @@ class Settings(BaseSettings):
     titan_image_model_id: str = "amazon.titan-image-generator-v2:0"
 
     # ── Post-processing ───────────────────────────────────────────────────
-    stability_remove_bg_model_id: str = "stability.stable-image-remove-background-v1:0"
-    stability_upscale_model_id: str = "stability.stable-creative-upscale-v1:0"
+    stability_remove_bg_model_id: str = "us.stability.stable-image-remove-background-v1:0"
+    stability_upscale_model_id: str = "us.stability.stable-creative-upscale-v1:0"
 
     # ── Voice ─────────────────────────────────────────────────────────────
     nova_sonic_model_id: str = "amazon.nova-2-sonic-v1:0"
