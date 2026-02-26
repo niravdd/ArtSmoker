@@ -115,6 +115,14 @@
                 });
             },
 
+            /** Import references from a local directory or S3 URI */
+            importPath(id, path, autoAnalyze = true) {
+                return request(`/api/styles/${encodeURIComponent(id)}/import`, {
+                    method: 'POST',
+                    body: { path, auto_analyze: autoAnalyze },
+                });
+            },
+
             /** Trigger AI analysis of a style's references */
             analyze(id) {
                 return request(`/api/styles/${encodeURIComponent(id)}/analyze`, {

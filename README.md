@@ -18,15 +18,21 @@ For each prompt, Claude Opus creates **Options** — fundamentally different des
 
 ### Asset type awareness
 
-The same prompt produces structurally different images depending on the selected asset type:
+The selected **Asset Type** fundamentally changes how the AI interprets your prompt — not just the image model, but every stage of the pipeline. When you type "hospital" and select different asset types, you get completely different outputs:
 
-| Type | What you get |
-|------|-------------|
-| Game Asset | Single isolated object, centered, transparent background, clean edges |
-| Character | Full-body design, expressive pose, readable silhouette |
-| Icon | Bold single symbol, high contrast, reads at 64px |
-| Marketing Banner | Full scenic illustration, text-safe zone, cinematic composition |
-| Environment | Layered landscape with depth, atmosphere, and mood |
+| Type | Composition | Framing | Technical Approach |
+|------|-------------|---------|-------------------|
+| **Game Asset** | Single isolated object on transparent background. No scene, no text, no UI. | Straight-on or isometric, object fills 70-80% of frame. | Clean sharp edges for bg removal, consistent top-left lighting, no ground shadows. Designed to compose with other game assets at various scales. |
+| **Character** | Full-body or 3/4-body figure, isolated on clean background. One character only. | Character fills 60-75% vertical, head-to-toe, slightly off-center. | Strong readable silhouette (identifiable from silhouette alone), expressive pose conveying personality, clear facial features and costume details. |
+| **Icon** | Single bold recognizable symbol, centered with generous padding. Maximum simplicity. | Front-facing or slight 3/4 tilt, breathing room at edges. | Must read clearly at 64x64 pixels. High contrast, 3-5 colors maximum, bold shapes, no thin lines or fine detail. |
+| **Marketing Banner** | Full scenic illustration with dramatic composition. Text-safe zone reserved on one side. | Wide cinematic feel, camera pulled back to show a scene. | Rich saturated colors, dramatic lighting (rim light, volumetric rays), depth-of-field for visual hierarchy. Publication-ready quality. |
+| **Environment** | Full landscape with foreground/midground/background depth layers, leading lines. | Wide establishing shot, horizon at upper or lower third. | Atmospheric perspective (distant objects lighter/hazier), environmental storytelling through details, mood-setting lighting. |
+
+This matters at every stage:
+
+- **"Improve with AI" button** — When you click Improve, Claude uses the asset type to reshape your brief into a detailed generation prompt. The same input "hospital" becomes an isolated sprite prompt for Game Asset, but a cinematic scene prompt for Marketing Banner.
+- **Concept generation** — When generating multiple options, Claude Opus creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone.
+- **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with space for a headline.
 
 ## Prerequisites
 
@@ -71,17 +77,20 @@ On startup, the app validates your AWS credentials and Bedrock access. Check the
 
 1. Go to the **Generator** tab.
 2. Type a prompt (e.g. "cute cartoon cat").
-3. Pick an asset type, dimensions, and how many options/variations you want.
-4. Click **Generate**.
-5. Browse the options row (different concepts) and variations row (seed variants).
-6. Click any image to preview full-size, then download PNG or SVG.
+3. **Select an asset type** — this shapes everything the AI produces (see table above). A "warrior" as a Game Asset looks completely different from a "warrior" as a Marketing Banner.
+4. Optionally click **"Improve with AI"** — Claude refines your brief into a detailed generation prompt, respecting the selected asset type and style. You can review the refined version and accept or revert.
+5. Set dimensions and how many options/variations you want.
+6. Click **Generate**.
+7. Browse the **options row** (different concepts) and **variations row** (seed variants of the selected concept).
+8. Click any image to preview full-size, then download PNG or SVG.
+9. Use the **reset button** (circular arrow) to clear results and start fresh.
 
 ### Use a style profile
 
 1. Go to the **Style Library** tab.
-2. Create a style and upload reference images from your game (or use directory import via the API).
-3. Click **Analyze** — Claude extracts the visual style.
-4. Back in Generator, select your style from the dropdown — all generated assets will match it.
+2. Click **Create New Style** — enter a name and paste a local directory path or S3 URI (`s3://bucket/prefix`) in the "Import References From" field. The system imports all images and auto-analyzes with Claude Opus.
+3. Alternatively, create a style first, then open it and use the drag-and-drop upload zone or the import field to add references, then click **Analyze**.
+4. Back in Generator, select your style from the dropdown — all generated assets will match its visual identity (palette, perspective, rendering style, mood).
 
 ### Voice input
 
@@ -108,7 +117,7 @@ Key endpoints:
 |----------|---------|
 | `POST /api/generate/` | Generate assets (options x variations) |
 | `POST /api/styles/` | Create a style profile |
-| `POST /api/styles/{id}/import-directory` | Bulk-import reference images from a local folder |
+| `POST /api/styles/{id}/import` | Bulk-import references from a local folder or S3 URI |
 | `POST /api/styles/{id}/analyze` | Trigger AI style analysis |
 | `POST /api/refine-prompt/` | Preview a refined prompt |
 | `POST /api/transcribe/` | Voice-to-text |

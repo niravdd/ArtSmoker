@@ -1,0 +1,16 @@
+{
+  "id": "ada81722-596d-479e-b1e7-74bf1f238857_v2",
+  "batch_id": "ada81722-596d-479e-b1e7-74bf1f238857",
+  "variant_index": 2,
+  "prompt": "Victorian Character in Steam Punk Anime Style",
+  "refined_prompt": "Full-body steampunk anime character, Victorian aristocrat aesthetic, 3/4 view slightly off-center. Young woman in elaborate brass-buttoned corset jacket, layered bustle skirt with copper gears and clockwork details, tall lace-up boots. Wearing aviator goggles pushed up on forehead, mechanical arm gauntlet with glowing amber tubes, top hat adorned with tiny spinning cogs. Long auburn hair with braided updo. Expressive confident pose, one hand resting on ornate brass pocket watch chain. Anime-style large expressive eyes, detailed linework, cel-shaded illustration. Color palette: deep burgundy, antique brass, copper, ivory, warm amber glows. Dramatic rim lighting from below with warm golden-orange tones, soft cool highlights. Strong readable silhouette. Isolated on clean white background. Sharp crisp details on costume accessories. High quality digital illustration, detailed costume design, professional character concept art style.",
+  "style_id": null,
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 1435045054,
+  "png_path": "/api/gallery/ada81722-596d-479e-b1e7-74bf1f238857_v2/png",
+  "svg_path": null,
+  "created_at": "2026-02-26T04:36:32.090425"
+}

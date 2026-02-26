@@ -133,13 +133,20 @@
                                 <div id="prompt-editor-container"></div>
                             </div>
 
-                            <!-- Generate Button -->
-                            <button id="btn-generate" class="btn btn-primary btn-lg w-full text-base">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                                </svg>
-                                Generate
-                            </button>
+                            <!-- Generate / Reset Buttons -->
+                            <div class="flex gap-3">
+                                <button id="btn-generate" class="btn btn-primary btn-lg flex-1 text-base">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    Generate
+                                </button>
+                                <button id="btn-reset" class="btn btn-secondary btn-lg" title="Reset view">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                </button>
+                            </div>
 
                             <!-- OPTIONS ROW (different concepts) -->
                             <div id="gen-options-section" class="hidden">
@@ -231,6 +238,10 @@
                 if (this._promptEditor) this._promptEditor.setContext({ assetType: this._getAssetType() });
             });
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
+            document.getElementById('btn-reset')?.addEventListener('click', () => {
+                if (this._result && !confirm('Reset the generator? Current results will be cleared.')) return;
+                window.resetView('generator');
+            });
         },
 
         async _loadStyles() {

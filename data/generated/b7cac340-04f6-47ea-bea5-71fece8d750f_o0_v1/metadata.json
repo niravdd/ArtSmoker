@@ -1,0 +1,19 @@
+{
+  "id": "b7cac340-04f6-47ea-bea5-71fece8d750f_o0_v1",
+  "batch_id": "b7cac340-04f6-47ea-bea5-71fece8d750f",
+  "option_index": 0,
+  "variant_index": 1,
+  "prompt": "a fierce dragon",
+  "refined_prompt": "Full-body character design of a massive Eastern-inspired dragon standing upright on powerful hind legs, 3/4 view facing the viewer. Serpentine body with elongated neck, flowing whiskers and antler-like horns. Layered jade-green and gold scales with bioluminescent patterns running along the spine. Muscular clawed forelimbs held forward in a commanding gesture. Fierce narrow eyes glowing amber, fanged mouth slightly open with wisps of ethereal blue flame escaping between teeth. Long sinuous tail curling behind, ending in a flame-shaped tuft. Ornate natural armor ridges along shoulders and spine resembling ancient temple carvings. Character fills 70% of vertical frame, slightly off-center. Clean white background. Strong dramatic lighting from below casting sharp shadows upward. Highly detailed scales and textures. Painterly fantasy illustration style with rich saturated colors. Powerful regal silhouette with flowing curves contrasting angular spines. Expressive pose conveying ancient wisdom and contained fury.",
+  "style_id": null,
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 512,
+  "height": 512,
+  "seed": 1570907412,
+  "png_path": "/api/gallery/b7cac340-04f6-47ea-bea5-71fece8d750f_o0_v1/png",
+  "svg_path": null,
+  "png_filename": "a-fierce-dragon_opt1_var2.png",
+  "svg_filename": null,
+  "created_at": "2026-02-26T04:56:43.100018"
+}

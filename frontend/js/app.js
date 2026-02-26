@@ -1,8 +1,8 @@
 /**
  * ArtSmoker — Main Application
  *
- * Client-side hash router, global helpers (loading, toast),
- * and view initialization.
+ * Client-side hash router with DOM caching (views survive navigation),
+ * global helpers (loading, toast), and view initialization.
  */
 (function () {
     'use strict';
@@ -20,8 +20,12 @@
     const DEFAULT_ROUTE = 'generator';
     let currentRoute = null;
 
+    // DOM cache: once a view is rendered, keep its DOM alive
+    const _viewCache = {};   // route -> HTMLElement (wrapper div)
+    const _viewInited = {};  // route -> true if init() has been called
+
     // ============================================================
-    //  Router
+    //  Router (DOM-caching)
     // ============================================================
 
     function getRoute() {
@@ -32,7 +36,6 @@
     async function navigate() {
         const route = getRoute();
         if (route === currentRoute) return;
-        currentRoute = route;
 
         const app = document.getElementById('app');
         if (!app) return;
@@ -40,43 +43,76 @@
         const routeDef = ROUTES[route];
         if (!routeDef || !routeDef.component) {
             app.innerHTML = '<p class="text-center py-12 text-brand-text-muted">Page not found.</p>';
+            currentRoute = null;
             return;
         }
 
+        // Hide the current view (don't destroy it)
+        if (currentRoute && _viewCache[currentRoute]) {
+            _viewCache[currentRoute].style.display = 'none';
+        }
+
+        currentRoute = route;
+
         // Update active nav link
         document.querySelectorAll('.nav-link').forEach((link) => {
-            const nav = link.dataset.nav;
-            link.classList.toggle('active', nav === route);
+            link.classList.toggle('active', link.dataset.nav === route);
         });
 
         // Close mobile menu if open
         document.getElementById('mobile-menu')?.classList.add('hidden');
 
-        // Render the view
-        const component = routeDef.component;
-        app.innerHTML = component.render();
+        // If this view was already rendered, just show it
+        if (_viewCache[route]) {
+            _viewCache[route].style.display = '';
+            // Notify component it's visible again (for refreshes like gallery)
+            if (typeof routeDef.component.onShow === 'function') {
+                routeDef.component.onShow();
+            }
+            return;
+        }
 
-        // Initialize the component (attach events, load data)
-        if (typeof component.init === 'function') {
+        // First visit: render, cache, and init
+        const wrapper = document.createElement('div');
+        wrapper.dataset.view = route;
+        wrapper.innerHTML = routeDef.component.render();
+        app.appendChild(wrapper);
+        _viewCache[route] = wrapper;
+
+        if (typeof routeDef.component.init === 'function' && !_viewInited[route]) {
+            _viewInited[route] = true;
             try {
-                await component.init();
+                await routeDef.component.init();
             } catch (err) {
                 console.error(`Error initializing ${route}:`, err);
             }
         }
     }
 
-    // Listen for hash changes (back/forward, link clicks)
+    /**
+     * Reset a view — destroys its cached DOM so it re-renders fresh next time.
+     * Call from a component: window.resetView('generator')
+     */
+    window.resetView = function (route) {
+        if (_viewCache[route]) {
+            _viewCache[route].remove();
+            delete _viewCache[route];
+            delete _viewInited[route];
+        }
+        // If we're currently on that route, re-navigate to rebuild it
+        if (currentRoute === route) {
+            currentRoute = null;
+            navigate();
+        }
+    };
+
+    // Listen for hash changes
     window.addEventListener('hashchange', navigate);
 
     // ============================================================
     //  Global Helpers
     // ============================================================
 
-    /**
-     * Show the full-page loading overlay.
-     * @param {string} [text='Loading...']
-     */
     window.showLoading = function (text) {
         const overlay = document.getElementById('loading-overlay');
         const textEl = document.getElementById('loading-text');
@@ -84,18 +120,11 @@
         if (textEl) textEl.textContent = text || 'Loading...';
     };
 
-    /** Hide the loading overlay. */
     window.hideLoading = function () {
         const overlay = document.getElementById('loading-overlay');
         if (overlay) overlay.classList.add('hidden');
     };
 
-    /**
-     * Show a toast notification.
-     * @param {string} message
-     * @param {'success'|'error'|'warning'|'info'} [type='info']
-     * @param {number} [duration=4000] - ms before auto-dismiss
-     */
     window.showToast = function (message, type, duration) {
         type = type || 'info';
         duration = duration || 4000;
@@ -109,7 +138,6 @@
             warning: `<svg class="w-5 h-5 text-yellow-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>`,
             info:    `<svg class="w-5 h-5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`,
         };
-
         const bgMap = {
             success: 'border-green-500/30',
             error:   'border-red-500/30',
@@ -130,14 +158,9 @@
         `;
 
         container.appendChild(toast);
-
-        // Close on click
         toast.querySelector('.toast-close').addEventListener('click', () => dismissToast(toast));
 
-        // Auto-dismiss
         const timer = setTimeout(() => dismissToast(toast), duration);
-
-        // Pause auto-dismiss on hover
         toast.addEventListener('mouseenter', () => clearTimeout(timer));
         toast.addEventListener('mouseleave', () => {
             setTimeout(() => dismissToast(toast), 2000);
@@ -170,7 +193,6 @@
     //  Boot
     // ============================================================
 
-    // Set the hash to default if empty, then navigate
     if (!window.location.hash || window.location.hash === '#') {
         window.location.hash = '#' + DEFAULT_ROUTE;
     }

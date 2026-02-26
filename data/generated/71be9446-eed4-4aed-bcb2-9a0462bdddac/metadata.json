@@ -1,0 +1,16 @@
+{
+  "id": "71be9446-eed4-4aed-bcb2-9a0462bdddac",
+  "prompt": "a cute cartoon cat",
+  "refined_prompt": "Cute cartoon cat game sprite, chibi style, sitting pose, large expressive eyes, soft rounded shapes, pastel orange and cream fur with white chest patch, pink inner ears, tiny pink nose, cheerful smile. Clean flat colors with subtle cel shading, bold dark outlines for crisp edge definition. Soft ambient lighting from above, minimal shadows. Vibrant saturated palette with warm tones. Isolated on pure white background for easy background removal. Centered composition, symmetrical, works well at small and large scales. High detail, professional 2D game asset quality, sharp clean edges, no gradients, cartoon illustration style suitable for mobile or indie game UI.",
+  "style_id": null,
+  "asset_type": "game_asset",
+  "image_model": "nova_canvas",
+  "width": 512,
+  "height": 512,
+  "remove_background": false,
+  "generate_svg": false,
+  "upscale": false,
+  "png_path": "/Users/niravdd/Documents/GitHub/ArtSmoker/data/generated/71be9446-eed4-4aed-bcb2-9a0462bdddac/asset.png",
+  "svg_path": null,
+  "created_at": "2026-02-26T04:19:48.852440"
+}

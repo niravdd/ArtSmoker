@@ -1,0 +1,19 @@
+{
+  "id": "b7cac340-04f6-47ea-bea5-71fece8d750f_o1_v0",
+  "batch_id": "b7cac340-04f6-47ea-bea5-71fece8d750f",
+  "option_index": 1,
+  "variant_index": 0,
+  "prompt": "a fierce dragon",
+  "refined_prompt": "Full-body character design of a compact Western wyvern-type dragon in aggressive crouching pose, facing viewer at slight angle. Stocky muscular build like a pit bull crossed with a bat, low to the ground. Charcoal-black and deep crimson scales, battle-scarred with cracked and chipped armor plating across chest and shoulders. Short thick neck, broad skull with broken horn stub on one side, intact curved horn on the other. Glowing molten-orange eyes with slit pupils, snarling mouth revealing rows of jagged teeth dripping with embers. Massive leathery wings half-spread behind creating a dramatic jagged silhouette. Thick armored tail with spiked mace-like tip raised aggressively. Smoke curling from nostrils and between scales where inner fire glows through cracks. Off-center composition on clean background. Hard top-down lighting with warm rim light from below suggesting volcanic heat. Gritty detailed rendering style reminiscent of dark fantasy concept art. Heavy textured brushwork. Intimidating feral silhouette.",
+  "style_id": null,
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 512,
+  "height": 512,
+  "seed": 1210816567,
+  "png_path": "/api/gallery/b7cac340-04f6-47ea-bea5-71fece8d750f_o1_v0/png",
+  "svg_path": null,
+  "png_filename": "a-fierce-dragon_opt2_var1.png",
+  "svg_filename": null,
+  "created_at": "2026-02-26T04:56:43.050696"
+}

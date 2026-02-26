@@ -11,6 +11,7 @@
         _items: [],
         _styles: [],
         _loading: false,
+        _lastLoadTime: 0,
 
         render() {
             return `
@@ -91,6 +92,14 @@
             await this._loadItems();
         },
 
+        /** Called when navigating back to gallery (view already cached) */
+        onShow() {
+            // Refresh if more than 10 seconds since last load (new assets may exist)
+            if (Date.now() - this._lastLoadTime > 10000) {
+                this._loadItems();
+            }
+        },
+
         // --------------------------------------------------------
         //  Data
         // --------------------------------------------------------
@@ -133,6 +142,7 @@
             try {
                 const data = await API.gallery.list(params);
                 this._items = Array.isArray(data) ? data : (data.items || data.gallery || []);
+                this._lastLoadTime = Date.now();
                 this._renderGrid();
             } catch (err) {
                 console.error('Gallery load error:', err);

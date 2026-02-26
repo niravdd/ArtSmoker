@@ -1,0 +1,16 @@
+{
+  "id": "bfdce12c-bb5a-407c-8147-09b82b3aa2ba",
+  "prompt": "Victorian Character in Steam Punk Anime Style",
+  "refined_prompt": "Full-body Victorian steampunk anime character, young woman wearing a structured corset jacket with brass buckles and gears, layered bustle skirt, leather gloves, top hat adorned with goggles and copper cogs, mechanical arm prosthetic with glowing amber tubes. Anime art style with clean cel-shaded linework, expressive large eyes, stylized proportions. Rich color palette of deep burgundy, aged brass, copper, and ivory. Dramatic rim lighting with warm amber glow from bioluminescent steam vents. Sharp clean edges on solid neutral background for easy extraction. Intricate texture details on fabric and metalwork. Centered composition, full character visible, game sprite format, high detail, professional quality, 2D illustrated style suitable for game UI scaling.",
+  "style_id": null,
+  "asset_type": "game_asset",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "remove_background": false,
+  "generate_svg": false,
+  "upscale": false,
+  "png_path": "/Users/niravdd/Documents/GitHub/ArtSmoker/data/generated/bfdce12c-bb5a-407c-8147-09b82b3aa2ba/asset.png",
+  "svg_path": null,
+  "created_at": "2026-02-26T04:20:44.376057"
+}

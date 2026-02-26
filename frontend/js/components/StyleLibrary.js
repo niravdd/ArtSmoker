@@ -64,6 +64,11 @@
                                 <label class="block text-sm font-medium mb-1" for="style-hints">Generation Hints</label>
                                 <textarea id="style-hints" class="input" rows="2" placeholder="Additional hints for the AI when generating..."></textarea>
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1" for="style-import-path">Import References From</label>
+                                <input id="style-import-path" class="input" type="text" placeholder="/path/to/images  or  s3://bucket/prefix">
+                                <p class="text-[10px] text-brand-text-muted mt-1">Optional — local directory or S3 URI. Images will be imported and auto-analyzed.</p>
+                            </div>
                             <div class="flex justify-end gap-2 pt-2">
                                 <button type="button" class="btn-cancel-modal btn btn-secondary">Cancel</button>
                                 <button type="submit" class="btn btn-primary">
@@ -285,6 +290,38 @@
                             <p class="text-xs text-brand-text-muted/60">or click to browse</p>
                             <input type="file" class="ref-file-input hidden" multiple accept="image/*" />
                         </div>
+
+                        <!-- Import from path -->
+                        <div class="mt-4 p-4 rounded-lg border border-brand-border bg-brand-bg/40 space-y-3">
+                            <h4 class="text-sm font-medium flex items-center gap-2">
+                                <svg class="w-4 h-4 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                </svg>
+                                Import from directory or S3
+                            </h4>
+                            <div class="flex gap-2">
+                                <input
+                                    type="text"
+                                    id="import-path-input"
+                                    class="input flex-1"
+                                    placeholder="/path/to/images  or  s3://bucket/prefix"
+                                />
+                                <button id="btn-import-path" class="btn btn-secondary btn-sm whitespace-nowrap">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                                    </svg>
+                                    Import
+                                </button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <label class="toggle toggle-sm">
+                                    <input type="checkbox" id="import-auto-analyze" checked>
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="text-xs text-brand-text-muted">Auto-analyze after import</span>
+                            </div>
+                            <p class="text-[10px] text-brand-text-muted/60">Accepts local/network paths or S3 URIs. Images (.png, .jpg, .gif, .webp, etc.) will be imported as references.</p>
+                        </div>
                     </div>
 
                     <!-- Analyze Button -->
@@ -356,6 +393,38 @@
                 });
             }
 
+            // Import from path button
+            document.getElementById('btn-import-path')?.addEventListener('click', async () => {
+                const input = document.getElementById('import-path-input');
+                const path = input?.value.trim();
+                if (!path) {
+                    window.showToast?.('Enter a directory path or S3 URI', 'warning');
+                    return;
+                }
+                const autoAnalyze = document.getElementById('import-auto-analyze')?.checked ?? true;
+                const btn = document.getElementById('btn-import-path');
+                const origHTML = btn.innerHTML;
+                btn.innerHTML = '<span class="spinner-sm"></span> Importing...';
+                btn.disabled = true;
+                try {
+                    await API.styles.importPath(style.id, path, autoAnalyze);
+                    window.showToast?.('References imported' + (autoAnalyze ? ' and analyzed' : ''), 'success');
+                    this._showDetail(style.id);
+                    await this._loadStyles();
+                } catch (err) {
+                    btn.innerHTML = origHTML;
+                    btn.disabled = false;
+                }
+            });
+
+            // Enter key in import input
+            document.getElementById('import-path-input')?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    document.getElementById('btn-import-path')?.click();
+                }
+            });
+
             // Analyze button
             document.querySelector('.btn-analyze')?.addEventListener('click', async () => {
                 const btn = document.querySelector('.btn-analyze');
@@ -400,18 +469,22 @@
             const hintsField = document.getElementById('style-hints');
             if (!modal) return;
 
+            const importField = document.getElementById('style-import-path');
+
             if (style) {
                 title.textContent = 'Edit Style';
                 idField.value = style.id;
                 nameField.value = style.name || '';
                 descField.value = style.description || '';
                 hintsField.value = style.generation_hints || '';
+                if (importField) importField.value = '';
             } else {
                 title.textContent = 'Create New Style';
                 idField.value = '';
                 nameField.value = '';
                 descField.value = '';
                 hintsField.value = '';
+                if (importField) importField.value = '';
             }
 
             modal.classList.remove('hidden');
@@ -427,32 +500,50 @@
             const name = document.getElementById('style-name').value.trim();
             const description = document.getElementById('style-description').value.trim();
             const generation_hints = document.getElementById('style-hints').value.trim();
+            const importPath = document.getElementById('style-import-path').value.trim();
 
             if (!name) {
-                window.showToast && window.showToast('Name is required', 'warning');
+                window.showToast?.('Name is required', 'warning');
                 return;
             }
 
             const data = { name, description, generation_hints };
 
             try {
-                window.showLoading && window.showLoading('Saving...');
-                if (idField.value) {
-                    await API.styles.update(idField.value, data);
-                    window.showToast && window.showToast('Style updated', 'success');
+                let styleId = idField.value;
+
+                if (styleId) {
+                    window.showLoading?.('Saving...');
+                    await API.styles.update(styleId, data);
+                    window.showToast?.('Style updated', 'success');
                 } else {
+                    window.showLoading?.('Creating style...');
                     const created = await API.styles.create(data);
-                    window.showToast && window.showToast('Style created', 'success');
-                    // If detail was open, refresh; otherwise the grid refresh is enough
-                    if (created && created.id) {
-                        this._showDetail(created.id);
+                    styleId = created?.id;
+                    window.showToast?.('Style created', 'success');
+                }
+
+                // Import references if a path was provided
+                if (importPath && styleId) {
+                    window.showLoading?.('Importing references & analyzing...');
+                    try {
+                        await API.styles.importPath(styleId, importPath, true);
+                        window.showToast?.('References imported and analyzed', 'success');
+                    } catch (err) {
+                        window.showToast?.('Style created but import failed: ' + err.message, 'warning');
                     }
                 }
-                window.hideLoading && window.hideLoading();
+
+                window.hideLoading?.();
                 this._closeModal();
                 await this._loadStyles();
+
+                // Open the detail view if we just created
+                if (styleId && !idField.value) {
+                    this._showDetail(styleId);
+                }
             } catch (err) {
-                window.hideLoading && window.hideLoading();
+                window.hideLoading?.();
             }
         },
 

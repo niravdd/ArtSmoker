@@ -1,0 +1,16 @@
+{
+  "id": "75490f65-cbd6-48f0-a1f9-bbd7fa9fce04_v0",
+  "batch_id": "75490f65-cbd6-48f0-a1f9-bbd7fa9fce04",
+  "variant_index": 0,
+  "prompt": "a red mushroom house",
+  "refined_prompt": "Pixel art style in-game building sprite, a charming red mushroom house with white polka dots on the cap roof, warm wooden brown door centered on the stem base, small round windows with yellow glow. Single isolated object centered on transparent background, straight-on front view filling 75% of frame. Clean crisp pixel edges, consistent top-left directional lighting with subtle highlights on mushroom cap rim. Vibrant red and white color palette, earthy brown stem walls, saturated storybook tones. No shadows on ground, no background elements, no text or UI. High detail pixel art, game-ready asset, scales cleanly at multiple resolutions.",
+  "style_id": null,
+  "asset_type": "game_asset",
+  "image_model": "nova_canvas",
+  "width": 512,
+  "height": 512,
+  "seed": 1514193194,
+  "png_path": "/api/gallery/75490f65-cbd6-48f0-a1f9-bbd7fa9fce04_v0/png",
+  "svg_path": null,
+  "created_at": "2026-02-26T04:35:12.606431"
+}

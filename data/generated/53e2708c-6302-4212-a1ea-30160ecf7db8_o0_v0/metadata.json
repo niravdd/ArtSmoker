@@ -1,0 +1,17 @@
+{
+  "id": "53e2708c-6302-4212-a1ea-30160ecf7db8_o0_v0",
+  "batch_id": "53e2708c-6302-4212-a1ea-30160ecf7db8",
+  "option_index": 0,
+  "variant_index": 0,
+  "prompt": "a warrior",
+  "refined_prompt": "Full-body character design of a massive, battle-scarred Viking berserker, male, towering and broad-shouldered with a barrel chest. Wild matted red hair and thick braided beard adorned with iron rings. Bare-chested revealing ritual scars and faded blue woad tattoos across torso and arms. Wears heavy fur-lined leather war skirt, iron-studded belt, and weathered hide boots wrapped with leather straps. Wields an enormous double-headed war axe resting on one shoulder. Expression is a ferocious snarl, baring teeth, wild eyes filled with berserker rage. A wolf pelt draped over one shoulder with the skull still attached as a pauldron. Strong top-down lighting casting dramatic shadows under brow and jaw. 3/4 body view, slightly off-center, facing viewer at slight angle. Clean white background. Readable chunky silhouette with broad shoulders tapering to heavy stance. Painted in a realistic painterly style with visible brushwork and muted earth tones accented by the fiery red hair.",
+  "style_id": null,
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 512,
+  "height": 512,
+  "seed": 2088460604,
+  "png_path": "/api/gallery/53e2708c-6302-4212-a1ea-30160ecf7db8_o0_v0/png",
+  "svg_path": null,
+  "created_at": "2026-02-26T04:50:28.417551"
+}

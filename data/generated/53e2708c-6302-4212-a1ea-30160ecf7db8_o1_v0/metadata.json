@@ -1,0 +1,17 @@
+{
+  "id": "53e2708c-6302-4212-a1ea-30160ecf7db8_o1_v0",
+  "batch_id": "53e2708c-6302-4212-a1ea-30160ecf7db8",
+  "option_index": 1,
+  "variant_index": 0,
+  "prompt": "a warrior",
+  "refined_prompt": "Full-body character design of an elegant ancient Japanese onna-bugeisha, female samurai warrior. Slender yet poised figure in ornate black-lacquered o-yoroi armor with deep indigo and gold silk lacing. Delicate but fierce face with precise eyeliner, pale skin, dark hair swept into a high topknot secured with a golden kanzashi pin. She holds a naginata vertically at her side, blade gleaming with reflected light. A flowing silk sash trails from her waist adding graceful movement to the silhouette. Expression is calm, composed, with piercing determined eyes \u2014 quiet lethality. Small details: mon crest on chest plate, subtle cherry blossom motif etched into arm guards. Soft diffused lighting from the front-left, gentle rim light on armor edges. 3/4 view angled slightly right, full body visible head to toe, off-center composition. Clean neutral background. Refined narrow silhouette contrasting with the wide naginata blade. Semi-realistic anime-influenced illustration style with cel-shading and rich color palette.",
+  "style_id": null,
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 512,
+  "height": 512,
+  "seed": 418869581,
+  "png_path": "/api/gallery/53e2708c-6302-4212-a1ea-30160ecf7db8_o1_v0/png",
+  "svg_path": null,
+  "created_at": "2026-02-26T04:50:28.496425"
+}

@@ -190,50 +190,121 @@ async def get_reference_image(style_id: str, filename: str):
     return FileResponse(path)
 
 
-class DirectoryImportRequest(BaseModel):
-    directory_path: str
+class ImportRequest(BaseModel):
+    path: str
     auto_analyze: bool = True
 
 
-@router.post("/{style_id}/import-directory", response_model=StyleProfile)
-async def import_directory(style_id: str, body: DirectoryImportRequest):
-    """Import all image files from a local directory as reference images.
-
-    Scans the directory (non-recursively) for common image file types,
-    copies them into the style's references folder, then optionally
-    triggers style analysis.
-    """
-    profile = _load_or_404(style_id)
-
-    src_dir = Path(body.directory_path).expanduser().resolve()
+def _import_from_local(src: str, style_id: str, available: int) -> list[str]:
+    """Import images from a local/network directory path."""
+    src_dir = Path(src).expanduser().resolve()
     if not src_dir.is_dir():
-        raise HTTPException(
-            status_code=400,
-            detail=f"Directory not found: {body.directory_path}",
-        )
+        raise HTTPException(400, detail=f"Directory not found: {src}")
 
-    # Collect image files
     image_files = sorted(
         f for f in src_dir.iterdir()
         if f.is_file() and f.suffix.lower() in _IMAGE_EXTENSIONS
     )
     if not image_files:
-        raise HTTPException(
-            status_code=400,
-            detail=f"No image files found in {body.directory_path}",
-        )
+        raise HTTPException(400, detail=f"No image files found in {src}")
 
-    # Enforce limit
-    current_count = len(profile.reference_images)
-    available = settings.max_reference_images - current_count
-    to_import = image_files[:available] if available < len(image_files) else image_files
-
+    to_import = image_files[:available]
     saved: list[str] = []
     for img_path in to_import:
         data = img_path.read_bytes()
         store.save_reference_image(style_id, img_path.name, data)
         saved.append(img_path.name)
         logger.info("Imported reference: %s/%s (%d bytes)", style_id, img_path.name, len(data))
+    return saved
+
+
+def _import_from_s3(src: str, style_id: str, available: int) -> list[str]:
+    """Import images from an S3 URI (s3://bucket/prefix)."""
+    import boto3
+
+    # Parse s3://bucket/prefix
+    stripped = src[5:]  # remove "s3://"
+    slash_idx = stripped.find("/")
+    if slash_idx == -1:
+        bucket = stripped
+        prefix = ""
+    else:
+        bucket = stripped[:slash_idx]
+        prefix = stripped[slash_idx + 1:].rstrip("/")
+
+    session_kwargs = {}
+    if settings.aws_profile:
+        session_kwargs["profile_name"] = settings.aws_profile
+    session = boto3.Session(**session_kwargs)
+    s3 = session.client("s3")
+
+    # List objects under the prefix
+    list_kwargs = {"Bucket": bucket}
+    if prefix:
+        list_kwargs["Prefix"] = prefix + "/" if not prefix.endswith("/") else prefix
+
+    try:
+        response = s3.list_objects_v2(**list_kwargs)
+    except Exception as exc:
+        raise HTTPException(400, detail=f"Failed to list S3 objects: {exc}") from exc
+
+    contents = response.get("Contents", [])
+    if not contents:
+        raise HTTPException(400, detail=f"No objects found at {src}")
+
+    # Filter to image files
+    image_keys = [
+        obj["Key"] for obj in contents
+        if any(obj["Key"].lower().endswith(ext) for ext in _IMAGE_EXTENSIONS)
+        and not obj["Key"].endswith("/")
+    ]
+    if not image_keys:
+        raise HTTPException(400, detail=f"No image files found at {src}")
+
+    to_import = image_keys[:available]
+    saved: list[str] = []
+    for key in to_import:
+        filename = key.rsplit("/", 1)[-1]
+        try:
+            obj = s3.get_object(Bucket=bucket, Key=key)
+            data = obj["Body"].read()
+            store.save_reference_image(style_id, filename, data)
+            saved.append(filename)
+            logger.info("Imported from S3: %s/%s (%d bytes)", style_id, filename, len(data))
+        except Exception as exc:
+            logger.warning("Failed to download s3://%s/%s: %s", bucket, key, exc)
+
+    if not saved:
+        raise HTTPException(502, detail="Failed to download any images from S3")
+    return saved
+
+
+@router.post("/{style_id}/import", response_model=StyleProfile)
+async def import_references(style_id: str, body: ImportRequest):
+    """Import reference images from a local directory or S3 URI.
+
+    Accepts:
+      - Local/network paths:  /path/to/images, ~/Downloads/assets
+      - S3 URIs:              s3://bucket-name/prefix/path
+
+    Images are copied into the style's references folder. Optionally
+    triggers AI style analysis after import.
+    """
+    profile = _load_or_404(style_id)
+
+    current_count = len(profile.reference_images)
+    available = settings.max_reference_images - current_count
+    if available <= 0:
+        raise HTTPException(
+            400,
+            detail=f"Style already has {current_count}/{settings.max_reference_images} reference images.",
+        )
+
+    src = body.path.strip()
+    if src.startswith("s3://"):
+        saved = _import_from_s3(src, style_id, available)
+    else:
+        saved = _import_from_local(src, style_id, available)
 
     # Update profile's reference list
     all_refs = store.list_reference_images(style_id)
@@ -241,11 +312,7 @@ async def import_directory(style_id: str, body: DirectoryImportRequest):
     merged["reference_images"] = all_refs
     store.save_style_profile(style_id, merged)
 
-    logger.info(
-        "Imported %d images from %s into style '%s' (%d skipped due to limit)",
-        len(saved), body.directory_path, style_id,
-        len(image_files) - len(to_import),
-    )
+    logger.info("Imported %d images from %s into style '%s'", len(saved), src, style_id)
 
     # Optionally auto-analyze
     if body.auto_analyze and all_refs:
@@ -260,7 +327,6 @@ async def import_directory(style_id: str, body: DirectoryImportRequest):
         except Exception:
             logger.exception("Auto-analysis failed for '%s'; images still imported.", style_id)
 
-    # Return the final profile
     final = store.load_style_profile(style_id)
     return StyleProfile(**final)
 

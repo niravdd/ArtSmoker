@@ -8,9 +8,11 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 
 from backend.config import settings
 from backend.routers import gallery, generate, refine, styles, transcribe
@@ -80,6 +82,19 @@ app = FastAPI(
     description="AI-Powered Game Asset Generation",
     lifespan=lifespan,
 )
+
+# ── No-cache for frontend assets (development) ───────────────────────────
+
+class NoCacheStaticMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response: Response = await call_next(request)
+        if not request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        return response
+
+
+app.add_middleware(NoCacheStaticMiddleware)
 
 # ── CORS (development mode — allow all origins) ───────────────────────────
 app.add_middleware(

@@ -197,7 +197,7 @@
 
                 const result = await API.refinePrompt(payload);
                 this._originalText = text;
-                this._refinedText = result.refined_prompt || result.prompt || result;
+                this._refinedText = result.refined || result.refined_prompt || result;
 
                 // Show comparison panel
                 this._refineOriginal.textContent = this._originalText;
