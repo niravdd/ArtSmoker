@@ -1,0 +1,42 @@
+"""Application configuration — AWS model IDs, paths, defaults."""
+
+from pathlib import Path
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    # ── AWS ───────────────────────────────────────────────────────────────
+    aws_region_models: str = "us-west-2"
+    aws_region_images: str = "us-east-1"
+    aws_profile: str | None = None
+
+    # ── Claude ────────────────────────────────────────────────────────────
+    claude_sonnet_model_id: str = "anthropic.claude-sonnet-4-6-20250514-v1:0"
+    claude_opus_model_id: str = "anthropic.claude-opus-4-6-20250514-v1:0"
+    claude_fallback_model_id: str = "anthropic.claude-3-5-sonnet-20241022-v2:0"
+
+    # ── Image generation ──────────────────────────────────────────────────
+    nova_canvas_model_id: str = "amazon.nova-canvas-v1:0"
+    titan_image_model_id: str = "amazon.titan-image-generator-v2:0"
+
+    # ── Post-processing ───────────────────────────────────────────────────
+    stability_remove_bg_model_id: str = "stability.stable-image-remove-background-v1:0"
+    stability_upscale_model_id: str = "stability.stable-creative-upscale-v1:0"
+
+    # ── Voice ─────────────────────────────────────────────────────────────
+    nova_sonic_model_id: str = "amazon.nova-2-sonic-v1:0"
+
+    # ── Paths ─────────────────────────────────────────────────────────────
+    data_dir: Path = Path(__file__).resolve().parent.parent / "data"
+    styles_dir: Path = data_dir / "styles"
+    generated_dir: Path = data_dir / "generated"
+
+    # ── Generation defaults ───────────────────────────────────────────────
+    default_image_width: int = 1024
+    default_image_height: int = 1024
+    max_reference_images: int = 10
+
+    model_config = {"env_prefix": "ARTSMOKER_"}
+
+
+settings = Settings()

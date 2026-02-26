@@ -1,0 +1,8 @@
+fastapi>=0.115
+uvicorn[standard]>=0.34
+boto3>=1.36
+python-multipart>=0.0.20
+pydantic>=2.10
+pydantic-settings>=2.7
+Pillow>=11.1
+aiofiles>=24.1
