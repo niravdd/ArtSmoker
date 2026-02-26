@@ -1,0 +1,20 @@
+{
+  "id": "0b44c428-9761-47e3-9332-b730be526a96_o2_v1",
+  "batch_id": "0b44c428-9761-47e3-9332-b730be526a96",
+  "option_index": 2,
+  "variant_index": 1,
+  "original_prompt": null,
+  "prompt": "school building in this city",
+  "refined_prompt": "Full-body flat 2D vector character design of a young energetic student mascot representing an urban school, slightly off-center, dynamic pose mid-stride. Round friendly face with simple geometric features, big teal (#4ecdc4) eyes, wide grin. Wearing an oversized hoodie in muted grey-lavender (#c8c7ce) printed with a flat geometric school building silhouette across the chest in deep near-black (#2d2d2d). Sneakers in vibrant teal-cyan (#3ab5a8) with white (#ffffff) soles. A mortarboard graduation cap sits tilted playfully on the head. One hand grips a pencil like a sword, the other clutches books to the hip. A small city school pennant flag in teal peeks from the backpack. Solid soft light grey background (#e0dfe6). No outlines, no gradients, no textures, pure flat color blocking, hard-edged smooth fills, crisp geometric shapes, strong readable silhouette, minimalist icon-ready compact composition, pure vector aesthetic throughout.",
+  "style_id": "starter-kit-city-builder",
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 1524082195,
+  "png_path": "/api/gallery/0b44c428-9761-47e3-9332-b730be526a96_o2_v1/png",
+  "svg_path": "/api/gallery/0b44c428-9761-47e3-9332-b730be526a96_o2_v1/svg",
+  "png_filename": "school-building-in-this-city_opt3_var2.png",
+  "svg_filename": "school-building-in-this-city_opt3_var2.svg",
+  "created_at": "2026-02-26T07:21:24.718727"
+}

@@ -1,0 +1,20 @@
+{
+  "id": "0b44c428-9761-47e3-9332-b730be526a96_o0_v1",
+  "batch_id": "0b44c428-9761-47e3-9332-b730be526a96",
+  "option_index": 0,
+  "variant_index": 1,
+  "original_prompt": null,
+  "prompt": "school building in this city",
+  "refined_prompt": "Full-body flat 2D vector character design of a cheerful anthropomorphic school building character, slightly off-center, 3/4 view facing viewer. The character has a rectangular torso shaped like a classic school facade with a peaked roof forming a hat, windows as eyes with bright teal-cyan (#4ecdc4) glowing panes, a double-door mouth smiling wide. Thin geometric limbs in deep near-black (#2d2d2d), carrying an oversized backpack in muted grey-lavender (#c8c7ce). A tiny clock tower crowns the head. A small flag on top in vibrant teal (#3ab5a8). Playful confident stance with one arm raised waving. Clean white (#ffffff) architectural details, solid soft light grey background (#e0dfe6). No outlines, no gradients, pure flat color blocking, hard-edged fills, minimalist silhouette-driven, crisp geometric shapes, zero textures, limited muted palette with teal accents, compact composition suited for icon-sized display, pure vector aesthetic.",
+  "style_id": "starter-kit-city-builder",
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 138285882,
+  "png_path": "/api/gallery/0b44c428-9761-47e3-9332-b730be526a96_o0_v1/png",
+  "svg_path": "/api/gallery/0b44c428-9761-47e3-9332-b730be526a96_o0_v1/svg",
+  "png_filename": "school-building-in-this-city_opt1_var2.png",
+  "svg_filename": "school-building-in-this-city_opt1_var2.svg",
+  "created_at": "2026-02-26T07:21:19.520104"
+}

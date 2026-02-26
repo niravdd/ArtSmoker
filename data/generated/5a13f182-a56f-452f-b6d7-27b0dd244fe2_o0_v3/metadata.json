@@ -1,0 +1,20 @@
+{
+  "id": "5a13f182-a56f-452f-b6d7-27b0dd244fe2_o0_v3",
+  "batch_id": "5a13f182-a56f-452f-b6d7-27b0dd244fe2",
+  "option_index": 0,
+  "variant_index": 3,
+  "original_prompt": null,
+  "prompt": "school building in this city with a couple children shown around it",
+  "refined_prompt": "Flat 2D vector illustration of a single cheerful child character, full-body view, slightly off-center, facing 3/4 angle. A small girl with a round head, short pigtails in deep near-black #2d2d2d, wearing a crisp white #ffffff collared shirt and a muted grey-lavender #c8c7ce jumper dress, teal-cyan #4ecdc4 backpack on her shoulders, small teal shoes. She holds a large flat geometric school building shape under one arm like a book \u2014 the building rendered as a simplified blocky icon with teal #3ab5a8 windows and a white door. A tiny second child silhouette in #1a1a1a peeks from behind the building shape. Clean readable silhouette, no outlines, solid hard-edged fills, zero gradients, solid soft light grey #e0dfe6 background, bright playful mood, minimalist vector aesthetic, compact composition for small-scale display.",
+  "style_id": "starter-kit-city-builder",
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 795090228,
+  "png_path": "/api/gallery/5a13f182-a56f-452f-b6d7-27b0dd244fe2_o0_v3/png",
+  "svg_path": "/api/gallery/5a13f182-a56f-452f-b6d7-27b0dd244fe2_o0_v3/svg",
+  "png_filename": "school-building-in-this-city-with-a_opt1_var4.png",
+  "svg_filename": "school-building-in-this-city-with-a_opt1_var4.svg",
+  "created_at": "2026-02-26T07:19:57.539836"
+}
