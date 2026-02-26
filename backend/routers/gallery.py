@@ -59,6 +59,7 @@ async def list_gallery(
                 asset_type=meta.get("asset_type", ""),
                 png_url=f"/api/gallery/{aid}/png",
                 svg_url=svg_url,
+                num_variants=1,
                 created_at=created_at,
             )
         )
@@ -93,7 +94,13 @@ async def get_asset_png(asset_id: str):
             status_code=404,
             detail=f"PNG file not found for asset '{asset_id}'.",
         )
-    return FileResponse(path, media_type="image/png")
+    meta = store.load_generation_metadata(asset_id)
+    filename = (meta or {}).get("png_filename", f"{asset_id}.png")
+    return FileResponse(
+        path,
+        media_type="image/png",
+        filename=filename,
+    )
 
 
 @router.get("/{asset_id}/svg")
@@ -105,4 +112,10 @@ async def get_asset_svg(asset_id: str):
             status_code=404,
             detail=f"SVG file not found for asset '{asset_id}'.",
         )
-    return FileResponse(path, media_type="image/svg+xml")
+    meta = store.load_generation_metadata(asset_id)
+    filename = (meta or {}).get("svg_filename", f"{asset_id}.svg")
+    return FileResponse(
+        path,
+        media_type="image/svg+xml",
+        filename=filename,
+    )

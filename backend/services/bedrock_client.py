@@ -42,6 +42,85 @@ def get_images_client():
     return _get_client(settings.aws_region_images)
 
 
+# ── Startup validation ────────────────────────────────────────────────────
+
+def validate_aws_credentials() -> dict:
+    """Validate AWS credentials and Bedrock model access on startup.
+
+    Returns a dict with check results:
+        {
+            "credentials": True/False,
+            "identity": "arn:aws:...",
+            "models_region": True/False,
+            "images_region": True/False,
+            "errors": ["..."]
+        }
+    """
+    result = {
+        "credentials": False,
+        "identity": None,
+        "models_region": False,
+        "images_region": False,
+        "errors": [],
+    }
+
+    # 1. Check credentials resolve (STS GetCallerIdentity)
+    try:
+        session_kwargs = {}
+        if settings.aws_profile:
+            session_kwargs["profile_name"] = settings.aws_profile
+        session = boto3.Session(**session_kwargs)
+        sts = session.client("sts")
+        identity = sts.get_caller_identity()
+        result["credentials"] = True
+        result["identity"] = identity.get("Arn", "unknown")
+        logger.info("AWS credentials valid: %s", result["identity"])
+    except Exception as exc:
+        msg = f"AWS credentials not configured or invalid: {exc}"
+        result["errors"].append(msg)
+        logger.error(msg)
+        return result
+
+    # 2. Check Bedrock access in models region (us-west-2)
+    try:
+        client = get_models_client()
+        client.converse(
+            modelId=settings.claude_sonnet_model_id,
+            messages=[{"role": "user", "content": [{"text": "hi"}]}],
+            inferenceConfig={"maxTokens": 1, "temperature": 0},
+        )
+        result["models_region"] = True
+        logger.info("Bedrock models region (%s) OK — Claude accessible.", settings.aws_region_models)
+    except Exception as exc:
+        msg = f"Bedrock models region ({settings.aws_region_models}): {exc}"
+        result["errors"].append(msg)
+        logger.warning(msg)
+
+    # 3. Check Bedrock access in images region (us-east-1)
+    try:
+        client = get_images_client()
+        # Light check: invoke Nova Canvas with an intentionally tiny/fast request
+        # We just need to confirm access, not generate a real image
+        client.invoke_model(
+            modelId=settings.nova_canvas_model_id,
+            contentType="application/json",
+            accept="application/json",
+            body='{"taskType":"TEXT_IMAGE","textToImageParams":{"text":"test"},"imageGenerationConfig":{"numberOfImages":1,"width":512,"height":512}}',
+        )
+        result["images_region"] = True
+        logger.info("Bedrock images region (%s) OK — Nova Canvas accessible.", settings.aws_region_images)
+    except client.exceptions.ValidationException:
+        # ValidationException means we reached the model — access works
+        result["images_region"] = True
+        logger.info("Bedrock images region (%s) OK — Nova Canvas accessible.", settings.aws_region_images)
+    except Exception as exc:
+        msg = f"Bedrock images region ({settings.aws_region_images}): {exc}"
+        result["errors"].append(msg)
+        logger.warning(msg)
+
+    return result
+
+
 # ── Claude helpers ────────────────────────────────────────────────────────
 
 def _pick_claude_model(complexity: str) -> str:

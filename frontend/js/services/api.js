@@ -68,7 +68,7 @@
         styles: {
             /** List all styles */
             list() {
-                return request('/api/styles');
+                return request('/api/styles/');
             },
 
             /** Get a single style by ID */
@@ -78,7 +78,7 @@
 
             /** Create a new style */
             create(data) {
-                return request('/api/styles', {
+                return request('/api/styles/', {
                     method: 'POST',
                     body: data,
                 });
@@ -132,7 +132,7 @@
 
         /** Generate an image */
         generate(data) {
-            return request('/api/generate', {
+            return request('/api/generate/', {
                 method: 'POST',
                 body: data,
             });
@@ -140,7 +140,7 @@
 
         /** Refine / improve a prompt via AI */
         refinePrompt(data) {
-            return request('/api/refine-prompt', {
+            return request('/api/refine-prompt/', {
                 method: 'POST',
                 body: data,
             });
@@ -150,7 +150,7 @@
         transcribe(audioBlob) {
             const fd = new FormData();
             fd.append('file', audioBlob, 'recording.webm');
-            return request('/api/transcribe', {
+            return request('/api/transcribe/', {
                 method: 'POST',
                 body: fd,
             });
@@ -167,7 +167,7 @@
                     }
                 });
                 const query = qs.toString();
-                return request(`/api/gallery${query ? '?' + query : ''}`);
+                return request(`/api/gallery/${query ? '?' + query : ''}`);
             },
 
             /** Get a single gallery item */

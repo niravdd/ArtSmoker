@@ -14,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 
 from backend.config import settings
 from backend.routers import gallery, generate, refine, styles, transcribe
+from backend.services.bedrock_client import validate_aws_credentials
 
 logger = logging.getLogger(__name__)
 
@@ -23,14 +24,49 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 # ── Lifespan ───────────────────────────────────────────────────────────────
 
+_aws_status: dict = {}
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler — runs on startup and shutdown."""
+    global _aws_status
+
     # Startup: ensure data directories exist
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.styles_dir.mkdir(parents=True, exist_ok=True)
     settings.generated_dir.mkdir(parents=True, exist_ok=True)
     logger.info("Data directories ensured: %s", settings.data_dir)
+
+    # Validate AWS credentials and Bedrock access
+    logger.info("Validating AWS credentials and Bedrock model access...")
+    _aws_status = validate_aws_credentials()
+
+    if not _aws_status["credentials"]:
+        logger.error(
+            "\n"
+            "╔══════════════════════════════════════════════════════════════╗\n"
+            "║  AWS CREDENTIALS NOT FOUND                                 ║\n"
+            "║                                                            ║\n"
+            "║  ArtSmoker requires valid AWS credentials with Bedrock     ║\n"
+            "║  access. Configure credentials via one of:                 ║\n"
+            "║    • Environment vars: AWS_ACCESS_KEY_ID + SECRET          ║\n"
+            "║    • AWS CLI profile:  aws configure                       ║\n"
+            "║    • Named profile:    ARTSMOKER_AWS_PROFILE=myprofile     ║\n"
+            "║    • Instance role (EC2/Lambda/ECS)                        ║\n"
+            "║                                                            ║\n"
+            "║  See SPEC.md for required IAM permissions.                 ║\n"
+            "╚══════════════════════════════════════════════════════════════╝"
+        )
+    elif _aws_status["errors"]:
+        logger.warning(
+            "AWS credentials valid (%s) but some Bedrock checks failed:\n  %s",
+            _aws_status["identity"],
+            "\n  ".join(_aws_status["errors"]),
+        )
+    else:
+        logger.info("All AWS checks passed. Identity: %s", _aws_status["identity"])
+
     logger.info("ArtSmoker backend started.")
     yield
     # Shutdown
@@ -66,8 +102,17 @@ app.include_router(gallery.router)
 
 @app.get("/api/health", tags=["health"])
 async def health_check():
-    """Health check endpoint for monitoring and load balancers."""
-    return {"status": "ok"}
+    """Health check endpoint — includes AWS credential and Bedrock status."""
+    return {
+        "status": "ok" if _aws_status.get("credentials") else "degraded",
+        "aws": {
+            "credentials": _aws_status.get("credentials", False),
+            "identity": _aws_status.get("identity"),
+            "bedrock_models": _aws_status.get("models_region", False),
+            "bedrock_images": _aws_status.get("images_region", False),
+            "errors": _aws_status.get("errors", []),
+        },
+    }
 
 
 # ── Static files (frontend) ───────────────────────────────────────────────

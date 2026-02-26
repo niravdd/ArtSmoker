@@ -11,8 +11,8 @@ class Settings(BaseSettings):
     aws_profile: str | None = None
 
     # ── Claude ────────────────────────────────────────────────────────────
-    claude_sonnet_model_id: str = "anthropic.claude-sonnet-4-6-20250514-v1:0"
-    claude_opus_model_id: str = "anthropic.claude-opus-4-6-20250514-v1:0"
+    claude_sonnet_model_id: str = "us.anthropic.claude-sonnet-4-6"
+    claude_opus_model_id: str = "us.anthropic.claude-opus-4-6-v1"
     claude_fallback_model_id: str = "anthropic.claude-3-5-sonnet-20241022-v2:0"
 
     # ── Image generation ──────────────────────────────────────────────────

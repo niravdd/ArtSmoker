@@ -24,6 +24,8 @@ class GenerationRequest(BaseModel):
     image_model: ImageModel = ImageModel.NOVA_CANVAS
     width: int = 1024
     height: int = 1024
+    num_options: int = Field(default=5, ge=1, le=5)
+    num_variations: int = Field(default=5, ge=1, le=5)
     remove_background: bool = True
     generate_svg: bool = True
     upscale: bool = False
