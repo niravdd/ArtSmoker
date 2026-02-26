@@ -159,6 +159,18 @@
                                 <div id="gen-options-grid" class="grid grid-cols-5 gap-3"></div>
                             </div>
 
+                            <!-- Prompt info (original + AI-improved) -->
+                            <div id="gen-prompt-info" class="hidden card-static p-4 space-y-3">
+                                <div id="gen-original-prompt-section">
+                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">Original prompt</p>
+                                    <p id="gen-original-prompt-text" class="text-sm text-brand-text/80 leading-relaxed"></p>
+                                </div>
+                                <div id="gen-used-prompt-section">
+                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">AI-improved prompt (sent to generator)</p>
+                                    <p id="gen-used-prompt-text" class="text-sm text-brand-text/60 leading-relaxed"></p>
+                                </div>
+                            </div>
+
                             <!-- Concept prompt display -->
                             <div id="gen-concept-prompt" class="hidden card-static p-3">
                                 <p class="text-xs text-brand-text-muted mb-1 font-medium">Concept prompt:</p>
@@ -279,8 +291,11 @@
             const numVariations = parseInt(document.getElementById('gen-num-variations').value, 10) || 5;
             const total = numOptions * numVariations;
 
+            const originalPrompt = this._promptEditor ? this._promptEditor.getOriginalText().trim() : prompt;
+
             const payload = {
                 prompt,
+                original_prompt: originalPrompt !== prompt ? originalPrompt : null,
                 style_id: this._getStyleId() || null,
                 asset_type: this._getAssetType(),
                 image_model: document.getElementById('gen-model').value,
@@ -328,6 +343,7 @@
                 document.getElementById('gen-options-section')?.classList.add('hidden');
                 document.getElementById('gen-variations-section')?.classList.add('hidden');
                 document.getElementById('gen-concept-prompt')?.classList.add('hidden');
+                document.getElementById('gen-prompt-info')?.classList.add('hidden');
             } else {
                 btn.disabled = false;
                 btn.innerHTML = `
@@ -344,7 +360,27 @@
         _renderResults(result) {
             const options = result.options || [];
 
-            // Show options row (use first variant of each option as thumbnail)
+            // Show original vs used prompt
+            const infoSection = document.getElementById('gen-prompt-info');
+            const origSection = document.getElementById('gen-original-prompt-section');
+            const origText = document.getElementById('gen-original-prompt-text');
+            const usedText = document.getElementById('gen-used-prompt-text');
+            if (infoSection) {
+                infoSection.classList.remove('hidden');
+                if (result.original_prompt && result.original_prompt !== result.prompt) {
+                    origSection?.classList.remove('hidden');
+                    if (origText) origText.textContent = result.original_prompt;
+                    if (usedText) usedText.textContent = result.prompt;
+                } else {
+                    // No AI improvement was used — just show the prompt
+                    origSection?.classList.add('hidden');
+                    if (usedText) usedText.textContent = result.prompt;
+                    const usedLabel = document.querySelector('#gen-used-prompt-section > p:first-child');
+                    if (usedLabel) usedLabel.textContent = 'PROMPT';
+                }
+            }
+
+            // Show options row
             this._renderOptionsRow(options);
 
             // Select first option, first variant
@@ -534,6 +570,55 @@
                         dlSvg.classList.add('hidden');
                     }
                 }
+            }
+        },
+
+        // ── Load batch from Gallery ──────────────────────────────────
+
+        async loadBatch(batchId) {
+            // Navigate to generator view first
+            window.location.hash = '#generator';
+
+            // Ensure the generator view is visible and initialized
+            // (the DOM-caching router will show the existing view)
+            await new Promise(r => setTimeout(r, 100));
+
+            window.showLoading?.('Loading batch...');
+            try {
+                const result = await API.gallery.getBatch(batchId);
+                this._result = result;
+                this._selectedOption = 0;
+                this._selectedVariant = 0;
+
+                // Populate the prompt editor with the original or current prompt
+                if (this._promptEditor) {
+                    const displayPrompt = result.prompt || '';
+                    this._promptEditor.setText(displayPrompt);
+                    // Store original so getOriginalText() returns the right thing
+                    if (result.original_prompt) {
+                        this._promptEditor._originalText = result.original_prompt;
+                    }
+                }
+
+                // Set sidebar controls to match the batch settings
+                const styleSel = document.getElementById('gen-style');
+                if (styleSel && result.style_id) styleSel.value = result.style_id;
+
+                const typeSel = document.getElementById('gen-asset-type');
+                if (typeSel && result.asset_type) typeSel.value = result.asset_type;
+
+                const modelSel = document.getElementById('gen-model');
+                if (modelSel && result.image_model) modelSel.value = result.image_model;
+
+                // Render the results
+                this._renderResults(result);
+                this._selectOption(0);
+
+                window.hideLoading?.();
+                window.showToast?.(`Batch loaded: ${result.num_options} options x ${result.num_variations} variations`, 'success');
+            } catch (err) {
+                window.hideLoading?.();
+                console.error('Failed to load batch:', err);
             }
         },
 

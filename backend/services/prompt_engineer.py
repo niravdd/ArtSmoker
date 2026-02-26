@@ -25,17 +25,21 @@ _ASSET_TYPE_CONTEXT: dict[AssetType, str] = {
         "DO NOT: Include text, UI elements, multiple objects, or scene backgrounds."
     ),
     AssetType.MARKETING_BANNER: (
-        "OUTPUT TYPE: Marketing / promotional banner image.\n"
+        "OUTPUT TYPE: Marketing / promotional banner backdrop (illustration only, NO TEXT).\n"
         "COMPOSITION: Full-scene illustration with dramatic composition. Reserve "
-        "the left or right third as a clear 'safe zone' for headline text overlay "
-        "(lower visual detail in that zone). Strong focal point in the opposite area.\n"
+        "the left or right third as a clear, visually quiet 'safe zone' where text "
+        "will be added later in a design tool. This zone should have low detail, "
+        "muted tones, or subtle gradient — easy to overlay text onto. Strong focal "
+        "point in the opposite area.\n"
         "FRAMING: Wide/cinematic aspect ratio feel even within a square canvas. "
         "Camera pulled back to show an environment or hero scene.\n"
         "TECHNICAL: Rich, saturated colors with dramatic lighting (rim light, "
         "volumetric rays, or golden hour). Polished, publication-ready quality. "
         "Subtle depth-of-field for visual hierarchy.\n"
-        "DO NOT: Leave the image sparse or icon-like. This must feel like a "
-        "full illustration you'd see on an app store page or social media ad."
+        "DO NOT: Render any text, letters, words, titles, or typography in the image. "
+        "Image generation models cannot produce readable text. The text-safe zone "
+        "must be empty — the user will add text in post-production. Also do not "
+        "leave the image sparse or icon-like. This must feel like a full illustration."
     ),
     AssetType.ICON: (
         "OUTPUT TYPE: App icon / UI icon / in-game button icon.\n"
@@ -109,7 +113,7 @@ Respond with ONLY the refined prompt — no preamble, no quotation marks.
 
 _MARKETING_PROMPT_TEMPLATE = """\
 You are a senior creative director specialising in game marketing materials.
-Craft a highly detailed image-generation prompt for a marketing banner.
+Craft a highly detailed image-generation prompt for a marketing banner BACKDROP.
 
 {style_section}
 
@@ -117,18 +121,22 @@ User's brief:
 "{user_prompt}"
 
 Requirements:
-- The banner must be visually striking and suitable for digital advertising.
+- The banner must be a visually striking ILLUSTRATION ONLY — no text, no letters,
+  no words, no typography of any kind. AI image models cannot render readable text.
+- If the user mentions a title or text (like "CARNIVAL SAGA"), ignore it for the
+  image prompt. Instead, leave a clean, visually quiet area where text can be
+  overlaid later in a design tool.
 - Include a clear focal point with dramatic lighting and rich color.
-- Leave a well-defined "safe zone" on the left or right third for headline text overlay.
+- Leave a well-defined "safe zone" on the left or right third — low detail, muted
+  tones, suitable for text overlay in post-production.
 - Ensure the composition works at common banner aspect ratios (16:9, 3:1, 1:1).
 - Incorporate any style hints so the banner is consistent with the game's visual identity.
 - Specify professional quality markers: "high resolution", "polished", "publication ready".
 - Mention specific lighting direction, color grading, and atmosphere.
 
-CRITICAL: The prompt MUST be under 900 characters total. Be concise but descriptive.
+CRITICAL: The prompt MUST be under 900 characters. NO TEXT IN THE IMAGE.
 
-Respond with ONLY the refined prompt — no preamble, no quotation marks, no
-explanation.
+Respond with ONLY the refined prompt — no preamble, no quotation marks.
 """
 
 

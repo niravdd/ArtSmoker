@@ -109,6 +109,7 @@ def _build_variant(
         "batch_id": batch_id,
         "option_index": option_index,
         "variant_index": variant_index,
+        "original_prompt": body.original_prompt,
         "prompt": body.prompt,
         "refined_prompt": refined_prompt,
         "style_id": body.style_id,
@@ -235,6 +236,7 @@ async def generate_asset(body: GenerationRequest):
     result = GenerationResult(
         id=batch_id,
         prompt=body.prompt,
+        original_prompt=body.original_prompt,
         style_id=body.style_id,
         asset_type=body.asset_type.value,
         image_model=body.image_model.value,

@@ -178,9 +178,14 @@
                 return request(`/api/gallery/${query ? '?' + query : ''}`);
             },
 
-            /** Get a single gallery item */
+            /** Get a single gallery item's full metadata */
             get(id) {
                 return request(`/api/gallery/${encodeURIComponent(id)}`);
+            },
+
+            /** Get full batch (options × variations) for reloading into Generator */
+            getBatch(batchId) {
+                return request(`/api/gallery/batch/${encodeURIComponent(batchId)}`);
             },
 
             /** PNG download URL */

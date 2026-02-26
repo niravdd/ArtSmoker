@@ -85,6 +85,69 @@ async def list_gallery(
     return items
 
 
+@router.get("/batch/{batch_id}")
+async def get_batch(batch_id: str):
+    """Reconstruct a full batch result (options × variations) from a batch_id.
+
+    Returns a structure matching GenerationResult so the frontend can
+    reload a previous generation into the Generator view.
+    """
+    asset_ids = store.list_generated_ids()
+    # Collect all variants belonging to this batch
+    batch_items: list[dict] = []
+    for aid in asset_ids:
+        if not aid.startswith(batch_id + "_"):
+            continue
+        meta = _get_meta(aid)
+        if meta and meta.get("batch_id") == batch_id:
+            batch_items.append(meta)
+
+    if not batch_items:
+        raise HTTPException(404, detail=f"Batch '{batch_id}' not found.")
+
+    # Sort by option_index then variant_index
+    batch_items.sort(key=lambda m: (m.get("option_index", 0), m.get("variant_index", 0)))
+
+    # Group into options
+    options_map: dict[int, dict] = {}
+    for meta in batch_items:
+        oi = meta.get("option_index", 0)
+        if oi not in options_map:
+            options_map[oi] = {
+                "option_index": oi,
+                "refined_prompt": meta.get("refined_prompt", ""),
+                "variants": [],
+            }
+        svg_url = f"/api/gallery/{meta['id']}/svg" if meta.get("svg_path") else None
+        options_map[oi]["variants"].append({
+            "id": meta["id"],
+            "variant_index": meta.get("variant_index", 0),
+            "png_path": f"/api/gallery/{meta['id']}/png",
+            "svg_path": svg_url,
+            "png_filename": meta.get("png_filename", f"{meta['id']}.png"),
+            "svg_filename": meta.get("svg_filename"),
+        })
+
+    options = [options_map[k] for k in sorted(options_map.keys())]
+
+    # Use first item for shared metadata
+    first = batch_items[0]
+    return {
+        "id": batch_id,
+        "prompt": first.get("prompt", ""),
+        "original_prompt": first.get("original_prompt"),
+        "style_id": first.get("style_id"),
+        "asset_type": first.get("asset_type", ""),
+        "image_model": first.get("image_model", ""),
+        "width": first.get("width", 1024),
+        "height": first.get("height", 1024),
+        "num_options": len(options),
+        "num_variations": max((len(o["variants"]) for o in options), default=1),
+        "options": options,
+        "created_at": first.get("created_at"),
+    }
+
+
 @router.get("/{asset_id}")
 async def get_asset_metadata(asset_id: str):
     """Get the full metadata dictionary for a generated asset."""

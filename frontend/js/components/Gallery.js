@@ -190,9 +190,6 @@
                     if (item) AssetViewer.open(item);
                 });
             });
-
-            // Lazy load images using IntersectionObserver
-            this._setupLazyLoad(grid);
         },
 
         _cardHTML(item) {
@@ -204,11 +201,10 @@
 
             return `
                 <div class="gallery-card card cursor-pointer overflow-hidden group" data-id="${this._esc(item.id)}">
-                    <div class="img-hover-zoom aspect-[4/3] bg-brand-bg flex items-center justify-center overflow-hidden">
-                        <img data-src="${pngUrl}" alt="Generated asset"
-                             class="lazy-img w-full h-full object-cover opacity-0 transition-opacity duration-300"
+                    <div class="img-hover-zoom aspect-[4/3] bg-brand-bg flex items-center justify-center overflow-hidden relative">
+                        <img src="${pngUrl}" alt="Generated asset"
+                             class="w-full h-full object-cover"
                              loading="lazy" />
-                        <div class="lazy-placeholder absolute inset-0 skeleton"></div>
                     </div>
                     <div class="p-4 space-y-2">
                         <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${this._esc(truncPrompt) || '<em class="text-brand-text-muted">No prompt</em>'}</p>
@@ -220,41 +216,6 @@
                     </div>
                 </div>
             `;
-        },
-
-        _setupLazyLoad(container) {
-            const images = container.querySelectorAll('.lazy-img');
-            if ('IntersectionObserver' in window) {
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach((entry) => {
-                        if (entry.isIntersecting) {
-                            const img = entry.target;
-                            img.src = img.dataset.src;
-                            img.onload = () => {
-                                img.classList.remove('opacity-0');
-                                const placeholder = img.parentElement.querySelector('.lazy-placeholder');
-                                if (placeholder) placeholder.remove();
-                            };
-                            img.onerror = () => {
-                                const placeholder = img.parentElement.querySelector('.lazy-placeholder');
-                                if (placeholder) {
-                                    placeholder.classList.remove('skeleton');
-                                    placeholder.innerHTML = '<span class="text-xs text-brand-text-muted/40 absolute inset-0 flex items-center justify-center">Image unavailable</span>';
-                                }
-                            };
-                            observer.unobserve(img);
-                        }
-                    });
-                }, { rootMargin: '200px' });
-
-                images.forEach((img) => observer.observe(img));
-            } else {
-                // Fallback: load all
-                images.forEach((img) => {
-                    img.src = img.dataset.src;
-                    img.classList.remove('opacity-0');
-                });
-            }
         },
 
         _skeletons(n) {

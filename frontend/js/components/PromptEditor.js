@@ -35,6 +35,11 @@
             return this._textareaEl.value;
         }
 
+        /** Get the original user prompt before any AI improvement, or current text if never refined. */
+        getOriginalText() {
+            return this._originalText || this._textareaEl.value;
+        }
+
         setText(text) {
             this._textareaEl.value = text;
             this._updateCharCount();
@@ -216,7 +221,7 @@
         _hideRefinePanel() {
             this._refinePanel.classList.add('hidden');
             this._refinedText = null;
-            this._originalText = null;
+            // Keep _originalText — it's needed even after accepting the refinement
         }
     }
 
