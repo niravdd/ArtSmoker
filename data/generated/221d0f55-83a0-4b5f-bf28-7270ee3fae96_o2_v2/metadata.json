@@ -1,0 +1,23 @@
+{
+  "id": "221d0f55-83a0-4b5f-bf28-7270ee3fae96_o2_v2",
+  "batch_id": "221d0f55-83a0-4b5f-bf28-7270ee3fae96",
+  "option_index": 2,
+  "variant_index": 2,
+  "original_prompt": "Create Christmas Themed Marketing Banner for a new Carnival Saga event in the game.",
+  "prompt": "Wide cinematic banner backdrop, mobile game illustration style. Right two-thirds: festive carnival scene with chibi characters in Santa hats and colorful carnival costumes, celebrating joyfully under golden volumetric light rays. Giant decorated Christmas tree wrapped in carnival ribbons, confetti streamers, and glowing ornaments bursts upward as focal point. Characters have large expressive eyes, oversized heads, vibrant deep indigo, amber gold, emerald green, hot pink, and sky blue outfits with glossy highlights. Floating snowflakes mix with golden sparkle particles and bokeh light orbs. Warm rim lighting with cool purple-blue atmospheric depth. Left third reserved as text-safe zone: deep navy-to-teal soft gradient, minimal detail, subtle bokeh only, muted and clean for text overlay. Hand-painted soft shading, no hard outlines, forms defined by color contrast. Brazilian carnival energy fused with Christmas warmth. Rich saturated festive palette, dramatic golden-hour lighting, subtle depth-of-field.",
+  "refined_prompt": "Wide cinematic banner, mobile game illustration style. Right two-thirds: low-angle heroic shot looking upward at a massive burst of fireworks and golden sparkle explosions in a deep indigo sky, illuminating a group of seven chibi characters stacked in a playful human pyramid formation. Each character has oversized head, huge gleaming eyes, wearing unique fusion outfits blending Santa coats with elaborate carnival feather collars and sequined details in sky blue, amber gold, hot pink, emerald green, and purple. A decorated Christmas tree stands behind them glowing with multicolored carnival lanterns instead of traditional ornaments. Confetti streamers cascade downward mixing with gentle snowflakes. Warm golden volumetric light radiates from behind the pyramid, creating dramatic silhouette rim lighting against cool teal atmospheric haze. Soft painted rendering, no hard outlines, forms defined by color contrast and glossy highlights. Left third: deep navy-to-teal atmospheric gradient fading to quiet",
+  "style_id": "ludo-club",
+  "asset_type": "marketing_banner",
+  "image_model": "stable_image_ultra",
+  "width": 1024,
+  "height": 1024,
+  "seed": 1555948452,
+  "remove_background": false,
+  "generate_svg": false,
+  "upscale": false,
+  "png_path": "/api/gallery/221d0f55-83a0-4b5f-bf28-7270ee3fae96_o2_v2/png",
+  "svg_path": null,
+  "png_filename": "wide-cinematic-banner-backdrop-mobile_opt3_var3.png",
+  "svg_filename": null,
+  "created_at": "2026-02-27T06:01:56.199402"
+}

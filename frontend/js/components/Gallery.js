@@ -7,11 +7,15 @@
 (function () {
     'use strict';
 
+    const PAGE_SIZE = 100;
+
     window.Gallery = {
         _items: [],
         _styles: [],
         _loading: false,
         _lastLoadTime: 0,
+        _offset: 0,
+        _hasMore: false,
 
         render() {
             return `
@@ -68,9 +72,17 @@
                         </div>
                     </div>
 
+                    <!-- Item count -->
+                    <div id="gal-count" class="text-xs text-brand-text-muted hidden"></div>
+
                     <!-- Gallery Grid -->
                     <div id="gallery-grid" class="gallery-grid">
                         ${this._skeletons(8)}
+                    </div>
+
+                    <!-- Load More -->
+                    <div id="gal-load-more" class="hidden text-center py-4">
+                        <button id="btn-load-more" class="btn btn-secondary btn-sm">Load More</button>
                     </div>
                 </div>
             `;
@@ -81,22 +93,24 @@
             this._loadStylesFilter();
 
             // Filter apply button
-            document.getElementById('gal-apply-filter')?.addEventListener('click', () => this._loadItems());
+            document.getElementById('gal-apply-filter')?.addEventListener('click', () => this._loadItems(true));
 
-            // Also apply on enter or dropdown change for convenience
+            // Also apply on dropdown change
             ['gal-filter-style', 'gal-filter-type', 'gal-sort'].forEach((id) => {
-                document.getElementById(id)?.addEventListener('change', () => this._loadItems());
+                document.getElementById(id)?.addEventListener('change', () => this._loadItems(true));
             });
 
+            // Load More button
+            document.getElementById('btn-load-more')?.addEventListener('click', () => this._loadMore());
+
             // Load items
-            await this._loadItems();
+            await this._loadItems(true);
         },
 
         /** Called when navigating back to gallery (view already cached) */
         onShow() {
-            // Refresh if more than 10 seconds since last load (new assets may exist)
             if (Date.now() - this._lastLoadTime > 10000) {
-                this._loadItems();
+                this._loadItems(true);
             }
         },
 
@@ -123,32 +137,57 @@
             });
         },
 
-        async _loadItems() {
+        async _loadItems(reset = true) {
             if (this._loading) return;
             this._loading = true;
 
             const grid = document.getElementById('gallery-grid');
-            if (grid) grid.innerHTML = this._skeletons(8);
 
-            const params = {};
+            if (reset) {
+                this._items = [];
+                this._offset = 0;
+                if (grid) grid.innerHTML = this._skeletons(8);
+            }
+
+            const params = { limit: PAGE_SIZE, offset: this._offset };
             const styleId = document.getElementById('gal-filter-style')?.value;
             const assetType = document.getElementById('gal-filter-type')?.value;
-            const sort = document.getElementById('gal-sort')?.value;
 
             if (styleId) params.style_id = styleId;
             if (assetType) params.asset_type = assetType;
-            if (sort) params.sort = sort;
 
             try {
                 const data = await API.gallery.list(params);
-                this._items = Array.isArray(data) ? data : (data.items || data.gallery || []);
+                const page = Array.isArray(data) ? data : (data.items || data.gallery || []);
+                this._items.push(...page);
+                this._offset += page.length;
+                this._hasMore = page.length === PAGE_SIZE;
                 this._lastLoadTime = Date.now();
                 this._renderGrid();
+                this._updateLoadMore();
             } catch (err) {
                 console.error('Gallery load error:', err);
-                if (grid) grid.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Failed to load gallery.</div>`;
+                if (grid && this._items.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Failed to load gallery.</div>`;
+                }
             } finally {
                 this._loading = false;
+            }
+        },
+
+        async _loadMore() {
+            await this._loadItems(false);
+        },
+
+        _updateLoadMore() {
+            const section = document.getElementById('gal-load-more');
+            if (section) {
+                section.classList.toggle('hidden', !this._hasMore);
+            }
+            const countEl = document.getElementById('gal-count');
+            if (countEl) {
+                countEl.classList.remove('hidden');
+                countEl.textContent = `${this._items.length} asset${this._items.length !== 1 ? 's' : ''}${this._hasMore ? ' (more available)' : ''}`;
             }
         },
 

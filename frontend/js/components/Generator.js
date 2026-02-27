@@ -18,7 +18,9 @@
 
     const MODELS = [
         { value: 'nova_canvas', label: 'Nova Canvas' },
-        { value: 'titan_image', label: 'Titan Image' },
+        { value: 'titan_image', label: 'Titan Image v2' },
+        { value: 'sd35_large', label: 'SD 3.5 Large' },
+        { value: 'stable_image_ultra', label: 'Stable Image Ultra' },
     ];
 
     const SIZE_PRESETS = [
@@ -603,13 +605,42 @@
 
                 // Set sidebar controls to match the batch settings
                 const styleSel = document.getElementById('gen-style');
-                if (styleSel && result.style_id) styleSel.value = result.style_id;
+                if (styleSel) styleSel.value = result.style_id || '';
 
                 const typeSel = document.getElementById('gen-asset-type');
                 if (typeSel && result.asset_type) typeSel.value = result.asset_type;
 
                 const modelSel = document.getElementById('gen-model');
                 if (modelSel && result.image_model) modelSel.value = result.image_model;
+
+                // Restore dimension preset
+                const sizeSel = document.getElementById('gen-size');
+                if (sizeSel && result.width && result.height) {
+                    const sizeStr = `${result.width} x ${result.height}`;
+                    for (let i = 0; i < sizeSel.options.length; i++) {
+                        if (sizeSel.options[i].text === sizeStr) {
+                            sizeSel.value = i;
+                            break;
+                        }
+                    }
+                }
+
+                // Restore toggle switches
+                const removeBg = document.getElementById('gen-remove-bg');
+                if (removeBg) removeBg.checked = result.remove_background ?? false;
+
+                const genSvg = document.getElementById('gen-svg');
+                if (genSvg) genSvg.checked = result.generate_svg ?? false;
+
+                const upscale = document.getElementById('gen-upscale');
+                if (upscale) upscale.checked = result.upscale ?? false;
+
+                // Restore options/variations counts
+                const optsSel = document.getElementById('gen-num-options');
+                if (optsSel && result.num_options) optsSel.value = result.num_options;
+
+                const varsSel = document.getElementById('gen-num-variations');
+                if (varsSel && result.num_variations) varsSel.value = result.num_variations;
 
                 // Render the results
                 this._renderResults(result);

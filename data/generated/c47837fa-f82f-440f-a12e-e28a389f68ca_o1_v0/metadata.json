@@ -1,0 +1,23 @@
+{
+  "id": "c47837fa-f82f-440f-a12e-e28a389f68ca_o1_v0",
+  "batch_id": "c47837fa-f82f-440f-a12e-e28a389f68ca",
+  "option_index": 1,
+  "variant_index": 0,
+  "original_prompt": "Design a male character appropriate to the theme & art style",
+  "prompt": "Full-body male character, 3/4 view, slightly off-center, isolated on clean white background. Low-poly cel-shaded style, no ink outlines, geometric faceted triangulated surfaces. Young adventurer with whimsical silhouette \u2014 spiky hair in deep blue #4A6AB0, warm orange #F0A050 scarf, lavender #C8A0E8 jacket with angular panels, teal #50C8A0 belt and boots, red #E05040 accent details on shoulders. Dark charcoal #3C3848 trousers with geometric seams. Near-white #F0E8F0 undershirt. Expressive confident pose, slight forward lean, one hand raised casually. Clean readable silhouette identifiable at small scale. Flat cel-shaded color fills, soft ambient pastel lighting from above matching lavender-to-sky-blue wash. Clear facial features, bright eyes, subtle smile conveying playful personality. Character fills 70% of vertical frame, full body head-to-toe visible, space above head. Game-ready character art, playful whimsical mood, consistent geometric low-poly aesthetic throughout costume and figure.",
+  "refined_prompt": "Full-body male character, 3/4 view, slightly off-center on clean white background. Low-poly cel-shaded style, no ink outlines, geometric faceted triangulated surfaces. Lanky tall young adventurer with an elongated whimsical silhouette \u2014 tall swept-back spiky hair in deep blue #4A6AB0 like a flame shape, thin warm orange #F0A050 scarf trailing long behind one shoulder, fitted lavender #C8A0E8 asymmetric jacket with one short sleeve and one long sleeve featuring angular geometric panels, red #E05040 epaulet accents on shoulders. Slim teal #50C8A0 laced boots reaching mid-calf with angular buckles and matching thin belt. Dark charcoal #3C3848 tapered trousers with sharp diagonal geometric seams. Near-white #F0E8F0 high-collar undershirt. Dynamic pose leaning back slightly, one hand raised near chin with finger pointing upward knowingly, weight on back foot. Narrow bright eyes, sly half-smile conveying clever mischievous personality. Soft ambient pastel lighting from above, lavender-to-sky-blue gradient",
+  "style_id": "game-starter-kit",
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 1145138015,
+  "remove_background": false,
+  "generate_svg": false,
+  "upscale": false,
+  "png_path": "/api/gallery/c47837fa-f82f-440f-a12e-e28a389f68ca_o1_v0/png",
+  "svg_path": null,
+  "png_filename": "full-body-male-character-34-view_opt2_var1.png",
+  "svg_filename": null,
+  "created_at": "2026-02-27T05:30:27.937505"
+}

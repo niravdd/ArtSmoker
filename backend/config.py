@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     # ── Image generation ──────────────────────────────────────────────────
     nova_canvas_model_id: str = "amazon.nova-canvas-v1:0"
     titan_image_model_id: str = "amazon.titan-image-generator-v2:0"
+    sd35_large_model_id: str = "stability.sd3-5-large-v1:0"
+    stable_image_ultra_model_id: str = "stability.stable-image-ultra-v1:1"
 
     # ── Post-processing ───────────────────────────────────────────────────
     stability_remove_bg_model_id: str = "us.stability.stable-image-remove-background-v1:0"

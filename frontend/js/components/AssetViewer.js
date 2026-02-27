@@ -14,6 +14,8 @@
     const MODEL_LABELS = {
         nova_canvas: 'Amazon Nova Canvas',
         titan_image: 'Amazon Titan Image v2',
+        sd35_large: 'Stable Diffusion 3.5 Large',
+        stable_image_ultra: 'Stable Image Ultra',
     };
 
     const TYPE_LABELS = {

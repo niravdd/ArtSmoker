@@ -35,6 +35,8 @@ AI Pipeline (AWS Bedrock)
     +-- Claude Opus 4.6        — Complex tasks: style analysis, concept generation, marketing copy
     +-- Nova Canvas             — Primary image generation (text-to-image)
     +-- Titan Image v2          — Alternative image generation
+    +-- SD 3.5 Large            — Image generation (Stability AI)
+    +-- Stable Image Ultra      — Image generation (Stability AI premium)
     +-- Stability AI            — Background removal, upscaling
     +-- Nova Sonic              — Speech-to-text transcription (bidirectional streaming)
     |
@@ -60,7 +62,7 @@ ArtSmoker/
 │   ├── services/
 │   │   ├── style_analyzer.py      # Claude Opus: multi-image style analysis → profile
 │   │   ├── prompt_engineer.py     # Claude Sonnet/Opus: prompt refinement + concept generation
-│   │   ├── image_generator.py     # Nova Canvas / Titan Image: generate images
+│   │   ├── image_generator.py     # Nova Canvas / Titan Image / SD 3.5 Large / Stable Image Ultra: generate images
 │   │   ├── post_processor.py      # Stability AI: bg removal, upscale; vtracer/potrace: SVG
 │   │   ├── transcriber.py         # Nova Sonic: bidirectional streaming speech-to-text
 │   │   └── bedrock_client.py      # Shared Bedrock client with connection pooling
@@ -161,7 +163,7 @@ User prompt: "hospital building"
     For each concept prompt, generate num_variations images in parallel:
          |
          v
-    [Image Generation — Nova Canvas or Titan Image]
+    [Image Generation — Nova Canvas, Titan Image, SD 3.5 Large, or Stable Image Ultra]
     Input: refined prompt + random seed per variation
     Output: PNG image (default 1024x1024)
          |
@@ -271,7 +273,7 @@ If there is only one option, the options row is hidden. If there is only one var
 |-----------|-----------|--------|
 | Backend | FastAPI (Python 3.11+) | Async, fast, Pydantic models, auto-docs |
 | Frontend | Vanilla JS + Tailwind CSS | No build step, fast to iterate, lightweight |
-| AI Models | Bedrock (boto3) | Nova Canvas, Titan Image, Claude, Nova Sonic, Stability |
+| AI Models | Bedrock (boto3) | Nova Canvas, Titan Image, SD 3.5 Large, Stable Image Ultra, Claude, Nova Sonic, Stability |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) | Cascade of vector tracing methods |
 | Storage | Local filesystem | Simple start, S3-compatible interface for later migration |
 
@@ -280,13 +282,16 @@ If there is only one option, the options row is hidden. If there is only one var
 **Default AWS Profile**: None — uses the standard AWS credential chain (configurable via `ARTSMOKER_AWS_PROFILE`).
 
 **Two-region architecture**:
-- `us-west-2` (`aws_region_models`): Claude models, Stability AI models.
+- `us-west-2` (`aws_region_models`): Claude models, Stability AI models (including SD 3.5 Large, Stable Image Ultra).
 - `us-east-1` (`aws_region_images`): Nova Canvas, Titan Image, Nova Sonic.
 
 **Bedrock client** (`backend/services/bedrock_client.py`):
 - Lazy-initialized boto3 clients keyed by region with connection pooling (10 max pool connections).
 - Adaptive retry configuration (3 max attempts).
 - `invoke_claude(prompt, complexity, images, max_tokens, temperature)` — routes to Sonnet or Opus based on complexity parameter.
+- `invoke_sd35_large(prompt, seed, width, height)` — generates images via SD 3.5 Large.
+- `invoke_stable_image_ultra(prompt, seed, width, height)` — generates images via Stable Image Ultra.
+- `_dimensions_to_aspect_ratio(width, height)` — maps pixel dimensions to the closest Stability AI supported aspect ratio (1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21). Used by both Stability generation methods.
 - Uses the Bedrock **Converse API** for Claude invocations (supports text + vision inputs).
 
 **Claude Model Selection Logic:**
@@ -304,9 +309,13 @@ If there is only one option, the options row is hidden. If there is only one var
 | Titan Image v2 | `amazon.titan-image-generator-v2:0` | us-east-1 | Alternative image generation |
 | Stability Remove BG | `us.stability.stable-image-remove-background-v1:0` | us-west-2 | Background removal |
 | Stability Upscale | `us.stability.stable-creative-upscale-v1:0` | us-west-2 | Image upscaling |
+| SD 3.5 Large | `stability.sd3-5-large-v1:0` | us-west-2 | Image generation (Stability AI) |
+| Stable Image Ultra | `stability.stable-image-ultra-v1:1` | us-west-2 | Image generation (Stability AI premium) |
 | Nova Sonic | `amazon.nova-2-sonic-v1:0` | us-east-1 | Speech-to-text |
 
-> Note: Claude and Stability AI model IDs use **US inference profiles** (`us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, `us.stability.stable-image-remove-background-v1:0`, `us.stability.stable-creative-upscale-v1:0`) rather than full versioned model IDs.
+> Note: Claude and Stability AI post-processing model IDs use **US inference profiles** (`us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, `us.stability.stable-image-remove-background-v1:0`, `us.stability.stable-creative-upscale-v1:0`) rather than full versioned model IDs. SD 3.5 Large and Stable Image Ultra use **direct model IDs** (not inference profiles).
+
+> Note: Stability AI generation models (SD 3.5 Large, Stable Image Ultra) use **aspect ratios** instead of exact pixel dimensions. The backend provides a `_dimensions_to_aspect_ratio()` helper that maps width×height to the closest supported ratio: 1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21.
 
 ### 9. Post-Processing Pipeline
 
@@ -384,7 +393,7 @@ Fields:
 - `original_prompt` (optional, `str | None`): The user's pre-AI-improvement prompt, tracked for provenance.
 - `style_id` (optional): Style profile to apply.
 - `asset_type` (default `game_asset`): One of `game_asset`, `marketing_banner`, `icon`, `character`, `environment`.
-- `image_model` (default `nova_canvas`): One of `nova_canvas`, `titan_image`.
+- `image_model` (default `nova_canvas`): One of `nova_canvas`, `titan_image`, `sd35_large`, `stable_image_ultra`. Defined by the `ImageModel` enum: `NOVA_CANVAS = "nova_canvas"`, `TITAN_IMAGE = "titan_image"`, `SD35_LARGE = "sd35_large"`, `STABLE_IMAGE_ULTRA = "stable_image_ultra"`.
 - `width` / `height` (default 1024): Output dimensions in pixels.
 - `num_options` (default 5, range 1-5): Number of distinct concept designs.
 - `num_variations` (default 5, range 1-5): Number of seed variants per option.
@@ -487,7 +496,7 @@ In the AWS Console, go to **Amazon Bedrock → Model access** and ensure the fol
 |-------|--------|-------------------|
 | Claude Sonnet 4.6, Claude Opus 4.6 | us-west-2 | Anthropic models |
 | Nova Canvas, Titan Image v2, Nova Sonic | us-east-1 | Amazon models |
-| Stability AI (Remove BG, Upscale) | us-west-2 | Stability AI models |
+| Stability AI (Remove BG, Upscale, SD 3.5 Large, Stable Image Ultra) | us-west-2 | Stability AI models |
 
 > Model access is regional. You need to enable models in **both** us-west-2 and us-east-1.
 
@@ -504,7 +513,9 @@ Results are logged to the console and available at `GET /api/health`. If credent
 
 All per-generation settings (style, asset type, image model, dimensions, options/variations counts, post-processing toggles) are controlled through the **frontend UI**.
 
-Infrastructure settings live in `backend/config.py` with sensible defaults that work out of the box. Model IDs, regions, and paths are all preconfigured and rarely need overriding. If needed, any setting can be overridden via an environment variable prefixed with `ARTSMOKER_` — see `backend/config.py` for the full list.
+Infrastructure settings live in `backend/config.py` with sensible defaults that work out of the box. Model IDs, regions, and paths are all preconfigured and rarely need overriding. If needed, any setting can be overridden via an environment variable prefixed with `ARTSMOKER_` — see `backend/config.py` for the full list. Image generation model ID settings include:
+- `sd35_large_model_id: str = "stability.sd3-5-large-v1:0"`
+- `stable_image_ultra_model_id: str = "stability.stable-image-ultra-v1:1"`
 
 ## Verification
 

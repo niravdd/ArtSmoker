@@ -1,0 +1,37 @@
+{
+  "id": "game-starter-kit",
+  "name": "Game Starter Kit",
+  "description": "",
+  "created_at": "2026-02-27 05:28:46.634766",
+  "reference_images": [
+    "blob_shadow.png",
+    "burst.png",
+    "colormap.png",
+    "crosshair-repeater.png",
+    "crosshair.png",
+    "hit.png",
+    "icon.png",
+    "screenshot.png",
+    "skybox.png",
+    "splash-screen.png"
+  ],
+  "analyzed_style": {
+    "perspective": "first-person",
+    "palette": [
+      "#C8A0E8",
+      "#7EB4F0",
+      "#F0A050",
+      "#E05040",
+      "#4A6AB0",
+      "#50C8A0",
+      "#3C3848",
+      "#F0E8F0"
+    ],
+    "rendering": "low-poly cel-shaded",
+    "line_weight": "no outlines",
+    "mood": "bright and playful",
+    "scale": "wide environment shot",
+    "background": "gradient wash with soft pastel purple-to-blue sky and wispy clouds"
+  },
+  "generation_hints": "First-person perspective wide environment shot, low-poly cel-shaded rendering with no outlines, bright and playful mood, pastel purple-to-blue gradient sky with wispy soft clouds, character designs using palette of lavender #C8A0E8, sky blue #7EB4F0, warm orange #F0A050, red #E05040, deep blue #4A6AB0, teal #50C8A0, dark charcoal #3C3848, and near-white #F0E8F0, game-ready character art with clean geometric faceted forms, flat cel-shaded color fills without ink outlines, expressive and whimsical silhouettes suited for a playful game aesthetic, consistent low-poly triangulated surfaces across all character designs, soft ambient lighting matching the pastel sky background wash."
+}

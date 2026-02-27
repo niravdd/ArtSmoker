@@ -2,7 +2,7 @@
 
 AI-powered 2D game asset generation platform. Generate game-ready sprites, characters, icons, environments, and marketing banners from text or voice prompts — styled to match your game's visual identity.
 
-Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, Stability AI).
+Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, SD 3.5 Large, Stable Image Ultra, Stability AI).
 
 ## What it does
 
@@ -48,7 +48,7 @@ In the AWS Console, enable these models under **Amazon Bedrock > Model access**:
 
 | Region | Models to enable |
 |--------|-----------------|
-| us-west-2 | Claude Sonnet 4.6, Claude Opus 4.6, Stability AI (Remove BG, Upscale) |
+| us-west-2 | Claude Sonnet 4.6, Claude Opus 4.6, SD 3.5 Large, Stable Image Ultra, Stability AI (Remove BG, Upscale) |
 | us-east-1 | Nova Canvas, Titan Image v2, Nova Sonic |
 
 Required IAM permissions: `bedrock:InvokeModel` and `bedrock:Converse` (or the managed policy `AmazonBedrockFullAccess`).
@@ -113,13 +113,26 @@ Click the microphone button next to the prompt editor to dictate your prompt. Th
 
 Switching between Generator, Gallery, and Style Library preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in Generator is the only way to clear its state.
 
+### Image generation models
+
+Four image models are available, each with different strengths:
+
+| Model | Provider | Quality | Dimension handling |
+|-------|----------|---------|-------------------|
+| **Nova Canvas** | Amazon | Good, fast | Exact pixel dimensions (width x height) |
+| **Titan Image v2** | Amazon | Good, fast | Exact pixel dimensions (width x height) |
+| **SD 3.5 Large** | Stability AI | Excellent (best open model) | Aspect ratios (auto-mapped from dimensions) |
+| **Stable Image Ultra** | Stability AI | Highest (premium model) | Aspect ratios (auto-mapped from dimensions) |
+
+The Stability AI models (SD 3.5 Large, Stable Image Ultra) accept aspect ratios (1:1, 16:9, 3:2, etc.) instead of exact pixel dimensions. When you select a width and height in the UI, the backend automatically maps to the closest supported aspect ratio.
+
 ## Tech stack
 
 | Layer | Technology |
 |-------|-----------|
 | Backend | FastAPI (Python), boto3 |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
-| AI | Claude Sonnet/Opus 4.6, Nova Canvas, Titan Image v2, Stability AI, Nova Sonic |
+| AI | Claude Sonnet/Opus 4.6, Nova Canvas, Titan Image v2, SD 3.5 Large, Stable Image Ultra, Stability AI, Nova Sonic |
 | Storage | Local filesystem (S3-ready interface) |
 | Dev | No-cache middleware for static files during development; client-side error logging via `POST /api/log` |
 

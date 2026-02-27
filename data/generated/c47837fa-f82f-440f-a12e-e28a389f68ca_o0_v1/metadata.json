@@ -1,0 +1,23 @@
+{
+  "id": "c47837fa-f82f-440f-a12e-e28a389f68ca_o0_v1",
+  "batch_id": "c47837fa-f82f-440f-a12e-e28a389f68ca",
+  "option_index": 0,
+  "variant_index": 1,
+  "original_prompt": "Design a male character appropriate to the theme & art style",
+  "prompt": "Full-body male character, 3/4 view, slightly off-center, isolated on clean white background. Low-poly cel-shaded style, no ink outlines, geometric faceted triangulated surfaces. Young adventurer with whimsical silhouette \u2014 spiky hair in deep blue #4A6AB0, warm orange #F0A050 scarf, lavender #C8A0E8 jacket with angular panels, teal #50C8A0 belt and boots, red #E05040 accent details on shoulders. Dark charcoal #3C3848 trousers with geometric seams. Near-white #F0E8F0 undershirt. Expressive confident pose, slight forward lean, one hand raised casually. Clean readable silhouette identifiable at small scale. Flat cel-shaded color fills, soft ambient pastel lighting from above matching lavender-to-sky-blue wash. Clear facial features, bright eyes, subtle smile conveying playful personality. Character fills 70% of vertical frame, full body head-to-toe visible, space above head. Game-ready character art, playful whimsical mood, consistent geometric low-poly aesthetic throughout costume and figure.",
+  "refined_prompt": "Full-body male character, 3/4 view, slightly off-center on clean white background. Low-poly cel-shaded style, no ink outlines, geometric faceted triangulated surfaces. Stocky young adventurer with a broad whimsical silhouette \u2014 chunky spiky hair in deep blue #4A6AB0 jutting outward like crystal shards, oversized warm orange #F0A050 scarf wrapped loosely billowing behind him, boxy lavender #C8A0E8 jacket with sharp angular paneled shoulders featuring red #E05040 diamond accent patches, wide teal #50C8A0 utility belt with geometric pouches and chunky blocky boots. Dark charcoal #3C3848 baggy trousers with visible triangulated seam lines. Near-white #F0E8F0 undershirt peeking at collar. Confident power stance, legs planted wide, one hand raised in a casual wave with spread fingers, slight forward lean. Bright expressive eyes, wide subtle smile conveying playful bravado. Soft ambient pastel lighting from above with lavender-to-sky-blue wash. Flat cel-shaded color fills, clean readable silhouette at small",
+  "style_id": "game-starter-kit",
+  "asset_type": "character",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 1838535291,
+  "remove_background": false,
+  "generate_svg": false,
+  "upscale": false,
+  "png_path": "/api/gallery/c47837fa-f82f-440f-a12e-e28a389f68ca_o0_v1/png",
+  "svg_path": null,
+  "png_filename": "full-body-male-character-34-view_opt1_var2.png",
+  "svg_filename": null,
+  "created_at": "2026-02-27T05:30:28.265894"
+}

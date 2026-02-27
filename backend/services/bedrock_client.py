@@ -258,6 +258,73 @@ def invoke_titan_image(
     return base64.b64decode(result["images"][0])
 
 
+def _dimensions_to_aspect_ratio(width: int, height: int) -> str:
+    """Convert pixel dimensions to the nearest Stability AI aspect ratio string."""
+    ratio = width / height
+    # Stability supports: 1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21
+    aspect_ratios = [
+        (1.0, "1:1"), (16/9, "16:9"), (9/16, "9:16"),
+        (3/2, "3:2"), (2/3, "2:3"), (4/5, "4:5"), (5/4, "5:4"),
+        (21/9, "21:9"), (9/21, "9:21"),
+    ]
+    closest = min(aspect_ratios, key=lambda x: abs(x[0] - ratio))
+    return closest[1]
+
+
+def invoke_sd35_large(
+    prompt: str,
+    *,
+    width: int = 1024,
+    height: int = 1024,
+    seed: int | None = None,
+) -> bytes:
+    """Generate an image with Stable Diffusion 3.5 Large. Returns PNG bytes."""
+    client = get_models_client()
+    body = {
+        "prompt": prompt,
+        "output_format": "png",
+        "aspect_ratio": _dimensions_to_aspect_ratio(width, height),
+    }
+    if seed is not None:
+        body["seed"] = seed
+
+    response = client.invoke_model(
+        modelId=settings.sd35_large_model_id,
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(body),
+    )
+    result = json.loads(response["body"].read())
+    return base64.b64decode(result["images"][0])
+
+
+def invoke_stable_image_ultra(
+    prompt: str,
+    *,
+    width: int = 1024,
+    height: int = 1024,
+    seed: int | None = None,
+) -> bytes:
+    """Generate an image with Stable Image Ultra. Returns PNG bytes."""
+    client = get_models_client()
+    body = {
+        "prompt": prompt,
+        "output_format": "png",
+        "aspect_ratio": _dimensions_to_aspect_ratio(width, height),
+    }
+    if seed is not None:
+        body["seed"] = seed
+
+    response = client.invoke_model(
+        modelId=settings.stable_image_ultra_model_id,
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(body),
+    )
+    result = json.loads(response["body"].read())
+    return base64.b64decode(result["images"][0])
+
+
 # ── Post-processing helpers ──────────────────────────────────────────────
 
 def invoke_remove_background(image_bytes: bytes) -> bytes:

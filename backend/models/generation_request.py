@@ -15,6 +15,8 @@ class AssetType(str, Enum):
 class ImageModel(str, Enum):
     NOVA_CANVAS = "nova_canvas"
     TITAN_IMAGE = "titan_image"
+    SD35_LARGE = "sd35_large"
+    STABLE_IMAGE_ULTRA = "stable_image_ultra"
 
 
 class GenerationRequest(BaseModel):
