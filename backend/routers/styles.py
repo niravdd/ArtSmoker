@@ -23,6 +23,27 @@ from backend.storage.local_store import store
 
 _IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".tif"}
 
+
+def _auto_reanalyze(style_id: str, hints: str = "") -> None:
+    """Re-run style analysis in the background if reference images exist.
+
+    Silently catches errors — callers should not fail if re-analysis fails.
+    """
+    refs = store.list_reference_images(style_id)
+    if not refs:
+        return
+    try:
+        analyzed: AnalyzedStyle = analyze_style(style_id, user_hints=hints)
+        new_hints: str = generate_hints(style_id, analyzed, user_hints=hints)
+        data = store.load_style_profile(style_id)
+        if data:
+            data["analyzed_style"] = analyzed.model_dump()
+            data["generation_hints"] = new_hints
+            store.save_style_profile(style_id, data)
+        logger.info("Auto re-analysis complete for style '%s'.", style_id)
+    except Exception:
+        logger.exception("Auto re-analysis failed for style '%s'; changes still saved.", style_id)
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/styles", tags=["styles"])
@@ -72,6 +93,7 @@ async def create_style(body: StyleProfileCreate):
         id=style_id,
         name=body.name,
         description=body.description,
+        generation_hints=body.generation_hints,
         created_at=datetime.utcnow(),
     )
     store.save_style_profile(style_id, profile.model_dump(mode="json"))
@@ -121,6 +143,15 @@ async def update_style(style_id: str, body: StyleProfileUpdate):
     updated_profile = StyleProfile(**merged)
     store.save_style_profile(style_id, updated_profile.model_dump(mode="json"))
     logger.info("Updated style profile: %s (fields: %s)", style_id, list(update_data.keys()))
+
+    # Re-analyze if generation_hints changed
+    if "generation_hints" in update_data and update_data["generation_hints"] != profile.generation_hints:
+        _auto_reanalyze(style_id, hints=updated_profile.generation_hints)
+        # Reload after re-analysis
+        data = store.load_style_profile(style_id)
+        if data:
+            updated_profile = StyleProfile(**data)
+
     return updated_profile
 
 
@@ -172,6 +203,9 @@ async def upload_references(style_id: str, files: list[UploadFile]):
     merged["reference_images"] = all_refs
     store.save_style_profile(style_id, merged)
 
+    # Re-analyze with updated references
+    _auto_reanalyze(style_id, hints=profile.generation_hints)
+
     return saved_filenames
 
 
@@ -197,24 +231,31 @@ class ImportRequest(BaseModel):
 
 def _import_from_local(src: str, style_id: str, available: int) -> list[str]:
     """Import images from a local/network directory path."""
-    src_dir = Path(src).expanduser().resolve()
+    src_dir = Path(src.strip().strip('"').strip("'")).expanduser().resolve()
     if not src_dir.is_dir():
         raise HTTPException(400, detail=f"Directory not found: {src}")
 
+    # Recursively find all image files in subdirectories
     image_files = sorted(
-        f for f in src_dir.iterdir()
+        f for f in src_dir.rglob("*")
         if f.is_file() and f.suffix.lower() in _IMAGE_EXTENSIONS
     )
     if not image_files:
-        raise HTTPException(400, detail=f"No image files found in {src}")
+        raise HTTPException(400, detail=f"No image files found in {src} (searched recursively)")
 
     to_import = image_files[:available]
     saved: list[str] = []
+    seen_names: set[str] = set()
     for img_path in to_import:
-        data = img_path.read_bytes()
-        store.save_reference_image(style_id, img_path.name, data)
-        saved.append(img_path.name)
-        logger.info("Imported reference: %s/%s (%d bytes)", style_id, img_path.name, len(data))
+        # Deduplicate filenames from different subdirectories by prefixing
+        filename = img_path.name
+        if filename in seen_names:
+            # Prefix with parent directory name to avoid collision
+            filename = f"{img_path.parent.name}_{filename}"
+        seen_names.add(filename)
+        store.link_reference_image(style_id, filename, img_path)
+        saved.append(filename)
+        logger.info("Linked reference: %s/%s -> %s", style_id, filename, img_path.resolve())
     return saved
 
 
@@ -238,17 +279,21 @@ def _import_from_s3(src: str, style_id: str, available: int) -> list[str]:
     session = boto3.Session(**session_kwargs)
     s3 = session.client("s3")
 
-    # List objects under the prefix
+    # List all objects under the prefix (paginated, recursive)
     list_kwargs = {"Bucket": bucket}
     if prefix:
         list_kwargs["Prefix"] = prefix + "/" if not prefix.endswith("/") else prefix
 
+    contents = []
     try:
-        response = s3.list_objects_v2(**list_kwargs)
+        while True:
+            response = s3.list_objects_v2(**list_kwargs)
+            contents.extend(response.get("Contents", []))
+            if not response.get("IsTruncated"):
+                break
+            list_kwargs["ContinuationToken"] = response["NextContinuationToken"]
     except Exception as exc:
         raise HTTPException(400, detail=f"Failed to list S3 objects: {exc}") from exc
-
-    contents = response.get("Contents", [])
     if not contents:
         raise HTTPException(400, detail=f"No objects found at {src}")
 
@@ -300,7 +345,7 @@ async def import_references(style_id: str, body: ImportRequest):
             detail=f"Style already has {current_count}/{settings.max_reference_images} reference images.",
         )
 
-    src = body.path.strip()
+    src = body.path.strip().strip('"').strip("'")
     if src.startswith("s3://"):
         saved = _import_from_s3(src, style_id, available)
     else:
@@ -317,8 +362,9 @@ async def import_references(style_id: str, body: ImportRequest):
     # Optionally auto-analyze
     if body.auto_analyze and all_refs:
         try:
-            analyzed: AnalyzedStyle = analyze_style(style_id)
-            hints: str = generate_hints(style_id, analyzed)
+            existing_hints = profile.generation_hints or ""
+            analyzed: AnalyzedStyle = analyze_style(style_id, user_hints=existing_hints)
+            hints: str = generate_hints(style_id, analyzed, user_hints=existing_hints)
             merged = store.load_style_profile(style_id) or merged
             merged["analyzed_style"] = analyzed.model_dump()
             merged["generation_hints"] = hints
@@ -348,8 +394,9 @@ async def analyze_style_endpoint(style_id: str):
         )
 
     try:
-        analyzed: AnalyzedStyle = analyze_style(style_id)
-        hints: str = generate_hints(style_id, analyzed)
+        existing_hints = profile.generation_hints or ""
+        analyzed: AnalyzedStyle = analyze_style(style_id, user_hints=existing_hints)
+        hints: str = generate_hints(style_id, analyzed, user_hints=existing_hints)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     except ValueError as exc:

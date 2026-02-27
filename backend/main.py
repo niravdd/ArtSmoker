@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from backend.config import settings
-from backend.routers import gallery, generate, refine, styles, transcribe
+from backend.routers import browse, gallery, generate, refine, styles, transcribe
 from backend.services.bedrock_client import validate_aws_credentials
 
 logger = logging.getLogger(__name__)
@@ -111,6 +111,7 @@ app.include_router(generate.router)
 app.include_router(refine.router)
 app.include_router(transcribe.router)
 app.include_router(gallery.router)
+app.include_router(browse.router)
 
 
 # ── Health check ───────────────────────────────────────────────────────────
@@ -128,6 +129,33 @@ async def health_check():
             "errors": _aws_status.get("errors", []),
         },
     }
+
+
+# ── Client-side log endpoint ──────────────────────────────────────────────
+
+_client_logger = logging.getLogger("artsmoker.client")
+
+
+@app.post("/api/log", tags=["system"])
+async def client_log(request: Request):
+    """Receive log entries from the frontend for server-side recording."""
+    body = await request.json()
+    level = body.get("level", "info").lower()
+    message = body.get("message", "")
+    context = body.get("context", "")
+
+    log_line = f"[CLIENT] {message}"
+    if context:
+        log_line += f" | {context}"
+
+    if level == "error":
+        _client_logger.error(log_line)
+    elif level == "warning":
+        _client_logger.warning(log_line)
+    else:
+        _client_logger.info(log_line)
+
+    return {"ok": True}
 
 
 # ── Static files (frontend) ───────────────────────────────────────────────

@@ -1,0 +1,37 @@
+{
+  "id": "ludo-club",
+  "name": "Ludo Club",
+  "description": "Ludo Club Weekly Event Samples",
+  "created_at": "2026-02-27 00:49:54.701623",
+  "reference_images": [
+    "carnival_Saga_1x128.png",
+    "carnival_Saga_bgtop_540x440.png",
+    "carnivalsaga_Dice_1024.png",
+    "carnivalsaga_Dice_283.png",
+    "carnivalsaga_Lobbyicon.png",
+    "carnivalsaga_Notification_512x256_Dice.png",
+    "carnivalsaga_Notification_512x256_Frame.png",
+    "carnivalsaga_glow.png",
+    "carnivalsaga_logo_Name_530X277.png",
+    "event_quest_Carnival_Saga_lockBg_523X480.png"
+  ],
+  "analyzed_style": {
+    "perspective": "front-facing 3/4 with slight low-angle heroic framing",
+    "palette": [
+      "#1a1a4e",
+      "#f5a623",
+      "#2ecc71",
+      "#e74c8b",
+      "#3498db",
+      "#8e44ad",
+      "#f1c40f",
+      "#e67e22"
+    ],
+    "rendering": "stylized digital painting with soft gradients, glossy highlights, and hand-painted texture \u2014 mobile game illustration style",
+    "line_weight": "no hard outlines; form defined by color contrast, soft edges, and painted shading with occasional subtle dark contour accents",
+    "mood": "bright, festive, and exuberant \u2014 Brazilian carnival energy with warm tropical joy and celebratory spectacle",
+    "scale": "mixed \u2014 ranges from icon-sized micro detail to medium character portraits to wide crowd panoramas, unified by consistent character proportions (chibi-adjacent with large heads and expressive eyes)",
+    "background": "deep blue-to-teal atmospheric gradient with bokeh light effects, confetti particles, and golden sparkle overlays; environment suggested rather than detailed"
+  },
+  "generation_hints": "Front-facing 3/4 composition with slight low-angle heroic framing, stylized digital painting rendered in mobile game illustration style, soft gradients and glossy highlights with hand-painted texture, no hard outlines with forms defined by color contrast and soft painted shading with subtle dark contour accents, deep navy-to-teal atmospheric background gradient with bokeh light orbs, floating confetti particles, and golden sparkle overlays, chibi-adjacent character proportions with large expressive eyes and oversized heads, vibrant festive palette of deep indigo, amber gold, emerald green, hot pink, sky blue, purple, yellow, and burnt orange, Brazilian carnival energy with warm tropical joy and celebratory exuberance, environment suggested atmospherically rather than detailed, mixed scale unified by consistent character proportions."
+}

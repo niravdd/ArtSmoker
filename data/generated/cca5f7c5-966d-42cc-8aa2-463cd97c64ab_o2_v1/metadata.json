@@ -1,0 +1,20 @@
+{
+  "id": "cca5f7c5-966d-42cc-8aa2-463cd97c64ab_o2_v1",
+  "batch_id": "cca5f7c5-966d-42cc-8aa2-463cd97c64ab",
+  "option_index": 2,
+  "variant_index": 1,
+  "original_prompt": null,
+  "prompt": "Hopital building",
+  "refined_prompt": "Flat 2D vector illustration of a tall vertical hospital tower, centered, straight-on view, narrow skyscraper-like proportions with stacked modular cube sections stepping inward as they rise creating a tiered zigzag silhouette, rendered primarily in white (#ffffff) with grey-lavender (#c8c7ce) shadow faces on right sides of each stepped section, each tier features a single large teal-cyan (#4ecdc4) rectangular window, topmost tier crowned with a small geometric cross shape in near-black (#1a1a1a), base section slightly wider in dark (#2d2d2d) forming a solid grounded entrance podium, no outlines no strokes no gradients no textures, crisp hard-edged geometric solid fills, isolated on #e0dfe6 solid background, tight compact composition for icon scale, minimalist silhouette-driven form, fills ~75% of frame vertically, clean edges for extraction, flat color blocking pure vector",
+  "style_id": "starter-kit-city-builder",
+  "asset_type": "game_asset",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 623377417,
+  "png_path": "/api/gallery/cca5f7c5-966d-42cc-8aa2-463cd97c64ab_o2_v1/png",
+  "svg_path": null,
+  "png_filename": "hopital-building_opt3_var2.png",
+  "svg_filename": null,
+  "created_at": "2026-02-27T00:33:35.302506"
+}

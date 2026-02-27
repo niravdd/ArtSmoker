@@ -198,5 +198,28 @@
                 return `/api/gallery/${encodeURIComponent(id)}/svg`;
             },
         },
+
+        /** Send a log entry to the server for recording */
+        log(level, message, context) {
+            // Fire-and-forget — don't block on this
+            fetch('/api/log', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ level, message, context: context || '' }),
+            }).catch(() => {}); // silently ignore if server is down
+        },
+
+        /** File & S3 browser */
+        browse: {
+            local(path) {
+                return request(`/api/browse/local?path=${encodeURIComponent(path || '~')}`);
+            },
+            s3Buckets() {
+                return request('/api/browse/s3/buckets');
+            },
+            s3(bucket, prefix) {
+                return request(`/api/browse/s3?bucket=${encodeURIComponent(bucket)}&prefix=${encodeURIComponent(prefix || '')}`);
+            },
+        },
     };
 })();

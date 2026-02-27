@@ -27,6 +27,7 @@ class StyleProfile(BaseModel):
 class StyleProfileCreate(BaseModel):
     name: str
     description: str = ""
+    generation_hints: str = ""
 
 
 class StyleProfileUpdate(BaseModel):

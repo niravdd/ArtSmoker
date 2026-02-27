@@ -20,11 +20,13 @@ Browser (Vanilla JS + Tailwind CSS)
     v
 FastAPI Backend (Python)
     |
-    +-- /api/styles        — CRUD for style profiles + directory import
+    +-- /api/styles        — CRUD for style profiles + directory/S3 import
     +-- /api/generate       — Two-level asset generation pipeline
     +-- /api/transcribe     — Voice-to-text via Nova Sonic
     +-- /api/refine-prompt  — LLM prompt improvement (preview)
     +-- /api/gallery        — Generated asset browsing + file serving
+    +-- /api/browse         — Server-side file browser (local + S3)
+    +-- /api/log            — Client-side error logging
     |
     v
 AI Pipeline (AWS Bedrock)
@@ -121,19 +123,20 @@ A style profile captures the visual DNA of a game's art:
 **Pydantic models** (`backend/models/style_profile.py`):
 - `AnalyzedStyle` — structured fields: perspective, palette (list of hex strings), rendering, line_weight, mood, scale, background.
 - `StyleProfile` — full profile with id, name, description, created_at, reference_images, analyzed_style, generation_hints.
-- `StyleProfileCreate` — name + description for creation.
+- `StyleProfileCreate` — name + description + optional `generation_hints` for creation.
 - `StyleProfileUpdate` — optional name, description, analyzed_style, generation_hints for partial updates.
 
 **Workflow:**
-1. User creates a style profile (name + description).
-2. User uploads 1-10 reference images via file upload or **directory import** (bulk import from a local folder path).
-3. Claude Opus 4.6 (vision) analyzes all images together, extracting structured style attributes as JSON.
-4. Claude Sonnet 4.6 distils the analysis into a concise `generation_hints` paragraph (max 120 words).
+1. User creates a style profile (name + description + optional `generation_hints`).
+2. User uploads 1-10 reference images via file upload or **directory import** (bulk import from a local folder path or S3 prefix).
+3. Claude Opus 4.6 (vision) analyzes all images together via `analyze_style(style_id, user_hints)`, extracting structured style attributes as JSON. The analysis is **context-aware** — Claude sees both the images AND the user's existing `generation_hints` (passed as "Artist's Guidance") so it understands the user's intent.
+4. Claude Sonnet 4.6 distils the analysis into a concise `generation_hints` paragraph (max 120 words) via `generate_hints(style_id, analyzed_style, user_hints)`, also receiving the user's guidance as context.
 5. Profile is cached as `profile.json` inside `data/styles/{style_id}/`.
 6. User can manually edit/refine the profile.
 7. Profile's `generation_hints` are incorporated into every generation prompt.
+8. **Auto re-analysis**: Style analysis is automatically re-triggered when (a) reference images are uploaded via the upload endpoint, or (b) `generation_hints` are changed via PATCH and the new value differs from the previous one. Both paths use a shared `_auto_reanalyze()` helper.
 
-**Directory import**: The `POST /api/styles/{id}/import-directory` endpoint accepts a local directory path, scans it (non-recursively) for image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif), copies them into the style's references folder, and optionally auto-triggers Claude Opus style analysis. The total reference image count is capped at `max_reference_images` (default 10).
+**Directory/S3 import**: The `POST /api/styles/{id}/import` endpoint accepts a local directory path or S3 prefix. Body: `{ "path": "...", "auto_analyze": true }`. It scans **recursively** (using `rglob`) for all image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif) in all subdirectories. **Local imports use symlinks** (not copies) to avoid disk duplication. S3 imports download files to the references folder; the S3 client paginates through all objects (handles >1000 keys). Browser uploads copy files normally. Filenames from different subdirectories are **deduplicated** by prefixing with the parent directory name when collisions are detected. The total reference image count is capped at `max_reference_images` (default 10). Optionally auto-triggers Claude Opus style analysis after import.
 
 ### 2. Two-Level Asset Generation Pipeline
 
@@ -185,7 +188,7 @@ Each `AssetType` has detailed structural directives in `prompt_engineer.py` cove
 | Asset Type | Key Directives |
 |---|---|
 | `game_asset` | **OUTPUT**: In-game sprite/tile/object. **COMPOSITION**: Single object, centered, isolated on transparent background. **FRAMING**: Straight-on or style's canonical perspective, fill 70-80% of frame. **TECHNICAL**: Clean sharp edges, consistent lighting (top-left default), no ground shadows. **DO NOT**: Include text, UI, multiple objects, or scene backgrounds. |
-| `marketing_banner` | **OUTPUT**: Promotional banner. **COMPOSITION**: Full-scene illustration, reserve left/right third as text-safe zone, strong focal point opposite. **FRAMING**: Wide/cinematic feel, camera pulled back. **TECHNICAL**: Rich saturated colors, dramatic lighting, depth-of-field. **DO NOT**: Make it sparse or icon-like. |
+| `marketing_banner` | **OUTPUT**: Promotional banner. **COMPOSITION**: Full-scene illustration, reserve left/right third as text-safe zone (must be empty for post-production overlay), strong focal point opposite. **FRAMING**: Wide/cinematic feel, camera pulled back. **TECHNICAL**: Rich saturated colors, dramatic lighting, depth-of-field. **NO TEXT** — do not render any text, letters, words, or typography; the text-safe zone must remain empty. **DO NOT**: Make it sparse or icon-like. Marketing prompt template also strips text requests from the user prompt and instructs Claude to ignore title/text mentions. |
 | `icon` | **OUTPUT**: App/UI/button icon. **COMPOSITION**: Single bold recognizable symbol, centered with 15% padding. **FRAMING**: Front-facing or slight 3/4 tilt. **TECHNICAL**: Must read at 64x64, high contrast, 3-5 colors, bold shapes. **DO NOT**: Add complexity, fine detail, or scene context. |
 | `character` | **OUTPUT**: Character design/portrait. **COMPOSITION**: Full/3/4-body, slightly off-center, facing viewer or 3/4 view. Isolated on clean background. **FRAMING**: Fill 60-75% vertical, head-to-toe or head-to-knee. **TECHNICAL**: Strong readable silhouette, expressive pose, consistent lighting. **DO NOT**: Crop limbs awkwardly, add backgrounds, include multiple characters. |
 | `environment` | **OUTPUT**: Environment/background/landscape. **COMPOSITION**: Full scenic illustration with foreground/midground/background depth layers, leading lines. **FRAMING**: Wide establishing shot, horizon at upper/lower third. **TECHNICAL**: Atmospheric perspective, environmental storytelling, mood-setting lighting. **DO NOT**: Make it flat or icon-like. |
@@ -198,6 +201,7 @@ Each `AssetType` has detailed structural directives in `prompt_engineer.py` cove
 GenerationResult
 ├── id: str                      # Batch UUID
 ├── prompt: str                  # Original user prompt
+├── original_prompt: str | None  # Pre-AI-improvement prompt
 ├── style_id: str | None
 ├── asset_type: str
 ├── image_model: str
@@ -218,7 +222,7 @@ GenerationResult
 └── created_at: datetime
 ```
 
-Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`.
+Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant also stores `original_prompt` alongside the other generation fields.
 
 **GalleryItem** — a flat summary model for the gallery listing endpoint:
 - id, prompt, style_id, asset_type, png_url, svg_url, created_at.
@@ -233,13 +237,22 @@ Each variant is stored in its own directory under `data/generated/{asset_id}/` w
 
 ### 6. Frontend Design
 
-Clean, modern single-page application with three main views, served as static files mounted at `/` by FastAPI.
+Clean, modern single-page application served as static files mounted at `/` by FastAPI.
+
+**DOM caching router**: Views survive navigation. Each view's DOM is cached and shown/hidden instead of destroyed/recreated on route changes. `window.resetView(route)` destroys the cache for a specific view to force a fresh start.
+
+**No-cache middleware**: During development, frontend static files are served with no-cache headers to ensure changes are reflected immediately.
+
+**Client-side error logging**: All toast errors/warnings and unhandled JS errors are sent to `POST /api/log` and logged server-side with a `[CLIENT]` prefix for unified debugging.
 
 **Style Library** — Grid of style profiles with thumbnails. Upload new styles, upload reference images, trigger AI analysis.
+- **Create modal**: Includes "Import References From" section with Local and S3 browse buttons for importing reference images at creation time.
+- **Detail view**: Has an "Import & Analyze" button (always auto-analyzes after import, no toggle). The analysis button is contextual: "Analyze Style" when no analysis exists, "Re-Analyze Style" when one does.
+- **Server-side file browser modal**: Used for both local and S3 browsing. Single-click selects a file/folder, double-click navigates into a directory. Back button and ".." entry navigate to the parent directory.
 
 **Generator** — The main workspace with a two-tier result display:
 - **Left sidebar**: Art style selector, asset type, image model, dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), toggle switches for background removal, SVG conversion, and upscaling.
-- **Center panel**: Prompt editor (text + voice input), generate button, results display.
+- **Center panel**: Prompt editor (text + voice input), Generate button (indigo) and Reset button (amber) at equal width. After generation, shows both the original prompt and the AI-improved prompt. `loadBatch(batchId)` method restores a previous batch from the Gallery into the Generator view.
 - **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge, and a truncated concept prompt. Click to select an option.
 - **Concept prompt display**: Shows the full refined prompt for the selected option.
 - **Variations row** (emerald borders): Shows seed variants of the selected option. Click to select a variation.
@@ -248,7 +261,9 @@ Clean, modern single-page application with three main views, served as static fi
 
 If there is only one option, the options row is hidden. If there is only one variation, the variations row is hidden.
 
-**Gallery** — Grid of all generated assets. Filter by style and asset type. Click to preview/download.
+**Gallery** — Grid of all generated assets sorted newest-first. Images load immediately (no IntersectionObserver). Backend maintains an in-memory metadata cache for fast listing. Supports pagination via `limit` and `offset` query parameters. Filter by style and asset type. Click to preview/download. Auto-refreshes via `onShow()` when navigating back to the Gallery view.
+
+**AssetViewer** — Full-size preview + download. Fetches full metadata from `GET /api/gallery/{id}` on open. Displays all available fields: original prompt, AI-improved prompt, generation prompt, style, asset type, image model (with friendly labels), dimensions, seed, batch ID, option/variation index, filename, and creation date. Includes a "Reload in Generator" button that sends the batch back to the Generator view.
 
 ### 7. Technology Choices
 
@@ -262,7 +277,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 ### 8. AWS Configuration
 
-**Default AWS Profile**: `gtisengard` (configurable via `ARTSMOKER_AWS_PROFILE`).
+**Default AWS Profile**: None — uses the standard AWS credential chain (configurable via `ARTSMOKER_AWS_PROFILE`).
 
 **Two-region architecture**:
 - `us-west-2` (`aws_region_models`): Claude models, Stability AI models.
@@ -287,11 +302,11 @@ If there is only one option, the options row is hidden. If there is only one var
 | Claude 3.5 Sonnet v2 (fallback) | `anthropic.claude-3-5-sonnet-20241022-v2:0` | us-west-2 | Fallback on access denied |
 | Nova Canvas | `amazon.nova-canvas-v1:0` | us-east-1 | Primary image generation |
 | Titan Image v2 | `amazon.titan-image-generator-v2:0` | us-east-1 | Alternative image generation |
-| Stability Remove BG | `stability.stable-image-remove-background-v1:0` | us-west-2 | Background removal |
-| Stability Upscale | `stability.stable-creative-upscale-v1:0` | us-west-2 | Image upscaling |
+| Stability Remove BG | `us.stability.stable-image-remove-background-v1:0` | us-west-2 | Background removal |
+| Stability Upscale | `us.stability.stable-creative-upscale-v1:0` | us-west-2 | Image upscaling |
 | Nova Sonic | `amazon.nova-2-sonic-v1:0` | us-east-1 | Speech-to-text |
 
-> Note: Claude model IDs use **US inference profiles** (`us.anthropic.claude-sonnet-4-6` and `us.anthropic.claude-opus-4-6-v1`) rather than full versioned model IDs.
+> Note: Claude and Stability AI model IDs use **US inference profiles** (`us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, `us.stability.stable-image-remove-background-v1:0`, `us.stability.stable-creative-upscale-v1:0`) rather than full versioned model IDs.
 
 ### 9. Post-Processing Pipeline
 
@@ -312,7 +327,10 @@ Each step is independently fault-tolerant — failures are logged but do not abo
 
 **Style storage** (`data/styles/{style_id}/`):
 - `profile.json` — serialized StyleProfile.
-- `references/` — uploaded reference images.
+- `references/` — uploaded reference images. Local directory imports are stored as **symlinks** to avoid disk duplication; S3 downloads and browser uploads are stored as copies.
+
+**Key methods**:
+- `link_reference_image(style_id, filename, source_path)` — creates a symlink in the style's references folder pointing to the source file. Used by the local directory import path.
 
 **Generated asset storage** (`data/generated/{asset_id}/`):
 - `asset.png` — final processed PNG.
@@ -327,15 +345,15 @@ Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/styles/` | Create a new style profile (name + description). ID is auto-generated as a slug. Returns 409 on duplicate. |
+| POST | `/api/styles/` | Create a new style profile (name + description + optional generation_hints). ID is auto-generated as a slug. Returns 409 on duplicate. |
 | GET | `/api/styles/` | List all style profiles. |
 | GET | `/api/styles/{id}` | Get a single style profile by identifier. |
-| PATCH | `/api/styles/{id}` | Partially update a style profile (name, description, analyzed_style, generation_hints). |
+| PATCH | `/api/styles/{id}` | Partially update a style profile (name, description, analyzed_style, generation_hints). Auto-triggers re-analysis when `generation_hints` change (new value differs from previous). |
 | DELETE | `/api/styles/{id}` | Delete a style profile and all its associated data (references, profile.json). |
-| POST | `/api/styles/{id}/references` | Upload reference images (multipart file upload). Enforces max_reference_images limit (default 10). |
+| POST | `/api/styles/{id}/references` | Upload reference images (multipart file upload). Enforces max_reference_images limit (default 10). Auto-triggers re-analysis after upload. |
 | GET | `/api/styles/{id}/references/{filename}` | Serve a reference image file. |
-| POST | `/api/styles/{id}/import-directory` | Import all image files from a local directory path. Body: `{ "directory_path": "/path/to/images", "auto_analyze": true }`. Optionally triggers style analysis after import. |
-| POST | `/api/styles/{id}/analyze` | Trigger AI style analysis on reference images. Claude Opus analyzes images, Claude Sonnet generates hints. Both are persisted to the profile. |
+| POST | `/api/styles/{id}/import` | Import image files from a local directory path or S3 prefix. Body: `{ "path": "/path/to/images", "auto_analyze": true }`. Scans recursively for all image files in subdirectories. Local imports use symlinks (not copies). S3 imports download files (paginates through >1000 keys). Filenames are deduplicated by prefixing with parent directory name. Optionally triggers style analysis after import. |
+| POST | `/api/styles/{id}/analyze` | Trigger AI style analysis on reference images. Claude Opus analyzes images (context-aware, receives existing generation_hints as "Artist's Guidance"), Claude Sonnet generates hints. Both are persisted to the profile. |
 
 ### Generation
 
@@ -347,6 +365,7 @@ Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 ```json
 {
   "prompt": "hospital building",
+  "original_prompt": "hospital",
   "style_id": "city-builder-kenney",
   "asset_type": "game_asset",
   "image_model": "nova_canvas",
@@ -362,6 +381,7 @@ Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 
 Fields:
 - `prompt` (required): User's description of the desired asset.
+- `original_prompt` (optional, `str | None`): The user's pre-AI-improvement prompt, tracked for provenance.
 - `style_id` (optional): Style profile to apply.
 - `asset_type` (default `game_asset`): One of `game_asset`, `marketing_banner`, `icon`, `character`, `environment`.
 - `image_model` (default `nova_canvas`): One of `nova_canvas`, `titan_image`.
@@ -412,16 +432,26 @@ Fields:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/gallery/` | List generated assets. Supports query params: `style_id`, `asset_type`. Returns list of `GalleryItem`. |
+| GET | `/api/gallery/` | List generated assets. Supports query params: `style_id`, `asset_type`, `limit` (default 100, max 500), `offset` (default 0). Returns list of `GalleryItem`, sorted newest-first. Uses in-memory metadata cache. |
 | GET | `/api/gallery/{id}` | Get the full metadata dictionary for a generated asset. |
 | GET | `/api/gallery/{id}/png` | Download the PNG file. `Content-Disposition` header uses the smart filename (e.g. `prompt-slug_opt1_var2.png`). |
 | GET | `/api/gallery/{id}/svg` | Download the SVG file. `Content-Disposition` header uses the smart filename. |
+| GET | `/api/gallery/batch/{batch_id}` | Reconstruct the full options x variations structure for a batch. Used to reload a previous batch into the Generator view. |
+
+### Browse
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/browse/local?path=~` | Browse local filesystem directories. Returns list of files and subdirectories at the given path. Used by the Style Library file browser modal. |
+| GET | `/api/browse/s3/buckets` | List available S3 buckets. |
+| GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. Returns list of objects and common prefixes. |
 
 ### System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/health` | Health check — returns status + AWS credential/Bedrock validation results. |
+| POST | `/api/log` | Receive client-side log entries. Body: `{ "level": "error", "message": "...", "context": {} }`. Logged server-side with `[CLIENT]` prefix. |
 | GET | `/docs` | Swagger UI (auto-generated by FastAPI). |
 
 ## Prerequisites: AWS Setup

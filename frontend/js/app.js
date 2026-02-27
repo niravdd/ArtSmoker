@@ -165,6 +165,11 @@
         toast.addEventListener('mouseleave', () => {
             setTimeout(() => dismissToast(toast), 2000);
         });
+
+        // Send errors and warnings to the server for logging
+        if ((type === 'error' || type === 'warning') && typeof API !== 'undefined') {
+            API.log(type, message);
+        }
     };
 
     function dismissToast(toast) {
@@ -197,5 +202,22 @@
         window.location.hash = '#' + DEFAULT_ROUTE;
     }
     navigate();
+
+    // ============================================================
+    //  Global error logging to server
+    // ============================================================
+
+    window.addEventListener('error', (e) => {
+        if (typeof API !== 'undefined') {
+            API.log('error', e.message || 'Uncaught error', `${e.filename}:${e.lineno}:${e.colno}`);
+        }
+    });
+
+    window.addEventListener('unhandledrejection', (e) => {
+        if (typeof API !== 'undefined') {
+            const msg = e.reason?.message || e.reason || 'Unhandled promise rejection';
+            API.log('error', String(msg), e.reason?.stack?.split('\n')[1]?.trim() || '');
+        }
+    });
 
 })();
