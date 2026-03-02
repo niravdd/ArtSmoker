@@ -91,11 +91,12 @@ Generated results survive navigation — switching to Gallery or Style Library a
 
 1. Go to the **Style Library** tab.
 2. Click **Create New Style** — enter a name and optionally add generation hints. In the create modal, use the **"Import References From"** section with **Local** and **S3** browse buttons to select a source directory or bucket path. Browsing opens a server-side file/directory browser modal (single-click selects an item, double-click navigates into directories). Imported references are auto-analyzed on creation.
-3. Local directory imports scan **recursively** through all subdirectories; files are **symlinked** (no duplication). S3 imports list recursively with pagination and **download** files locally.
-4. In the style detail view, use **"Import & Analyze"** to add more references and trigger analysis in one step. Drag-and-drop upload is also supported and **auto re-analyzes** when new images are added.
-5. **"Re-Analyze Style"** appears after the initial analysis, letting you manually re-run analysis at any time.
-6. **Generation hints** are part of the analysis context — Claude Opus receives both reference images and your hints as "Artist's Guidance" when analyzing, so the style profile understands intent, not just visual appearance. Editing generation hints also triggers **automatic re-analysis**.
-7. Back in Generator, select your style from the dropdown — all generated assets will match its visual identity (palette, perspective, rendering style, mood).
+3. Local directory imports scan **recursively** through all subdirectories; files are **symlinked** (no duplication). S3 imports list recursively with pagination and **download** files locally. Up to **50 reference images** are imported per style.
+4. **Smart sampling for analysis**: When a style has more than 15 references, the analyzer selects a diverse representative subset of 15 for the Claude Opus vision call — ensuring coverage across filename groups and file-size diversity. Claude is told how many total images exist vs. how many it is seeing.
+5. In the style detail view, use **"Import & Analyze"** to add more references and trigger analysis in one step. Drag-and-drop upload is also supported and **auto re-analyzes** when new images are added.
+6. **"Re-Analyze Style"** appears after the initial analysis, letting you manually re-run analysis at any time.
+7. **Generation hints** are part of the analysis context — Claude Opus receives both reference images and your hints as "Artist's Guidance" when analyzing, so the style profile understands intent, not just visual appearance. Editing generation hints also triggers **automatic re-analysis**.
+8. Back in Generator, select your style from the dropdown — all generated assets will match its visual identity (palette, perspective, rendering style, mood).
 
 ### Gallery
 
@@ -180,6 +181,17 @@ ArtSmoker/
 ├── SPEC.md                  # Full technical specification (rebuild blueprint)
 └── README.md                # This file
 ```
+
+## Configurable limits
+
+Two settings in `backend/config.py` control reference image handling and can be overridden via environment variables:
+
+| Setting | Env Variable | Default | Purpose |
+|---------|-------------|---------|---------|
+| `max_reference_images` | `ARTSMOKER_MAX_REFERENCE_IMAGES` | 50 | Max images imported per style |
+| `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 15 | Max images sent to Claude Opus per analysis call |
+
+Reducing `max_analysis_images` reduces Claude Opus vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
 
 ## Full specification
 

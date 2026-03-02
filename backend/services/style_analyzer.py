@@ -1,10 +1,13 @@
 """Style analysis service — uses Claude Opus vision to extract style profiles
 from reference images, and Claude Sonnet to distil generation hints."""
 
+import hashlib
 import json
 import logging
+import random
 from pathlib import Path
 
+from backend.config import settings
 from backend.models.style_profile import AnalyzedStyle
 from backend.services.bedrock_client import invoke_claude
 from backend.storage.local_store import store
@@ -66,6 +69,70 @@ Respond with ONLY the hints paragraph — no preamble, no bullet points.
 """
 
 
+# ── Smart sampling ────────────────────────────────────────────────────────
+
+def _smart_sample(
+    images: list[tuple[str, bytes]],
+    n: int,
+) -> list[tuple[str, bytes]]:
+    """Select a diverse representative subset of images for analysis.
+
+    Strategy:
+    1. Always include the first and last image (alphabetically).
+    2. Sort remaining by file size and pick at evenly-spaced intervals.
+       Different file sizes suggest different content/complexity, giving
+       Claude a broader view of the style's range.
+    3. Also ensure images from different "groups" (subdirectory prefixes
+       in the filename) are represented when possible.
+    """
+    if len(images) <= n:
+        return images
+
+    selected: dict[str, tuple[str, bytes]] = {}
+
+    # Always include first and last (alphabetically sorted by name)
+    selected[images[0][0]] = images[0]
+    selected[images[-1][0]] = images[-1]
+
+    # Group by filename prefix (before underscore or first letter)
+    # to ensure subdirectory diversity
+    groups: dict[str, list[tuple[str, bytes]]] = {}
+    for name, data in images:
+        prefix = name.split("_")[0] if "_" in name else name[0].lower()
+        groups.setdefault(prefix, []).append((name, data))
+
+    # Pick one from each group first (round-robin)
+    group_keys = sorted(groups.keys())
+    for key in group_keys:
+        if len(selected) >= n:
+            break
+        # Pick the median-sized image from each group
+        group = sorted(groups[key], key=lambda x: len(x[1]))
+        mid = group[len(group) // 2]
+        if mid[0] not in selected:
+            selected[mid[0]] = mid
+
+    # Fill remaining slots by file-size diversity (evenly-spaced intervals)
+    if len(selected) < n:
+        remaining = [(name, data) for name, data in images if name not in selected]
+        remaining.sort(key=lambda x: len(x[1]))
+        needed = n - len(selected)
+        step = max(1, len(remaining) // (needed + 1))
+        for i in range(0, len(remaining), step):
+            if len(selected) >= n:
+                break
+            name, data = remaining[i]
+            if name not in selected:
+                selected[name] = (name, data)
+
+    result = list(selected.values())
+    logger.info(
+        "Smart sample: %d images selected from %d total (%d groups detected).",
+        len(result), len(images), len(groups),
+    )
+    return result
+
+
 # ── Public API ────────────────────────────────────────────────────────────
 
 def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
@@ -92,36 +159,62 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
             f"Style '{style_id}' has no reference images to analyze."
         )
 
-    image_bytes_list: list[bytes] = []
+    # Read all available images with their sizes for smart sampling
+    all_images: list[tuple[str, bytes]] = []
     for filename in ref_filenames:
         img_path: Path | None = store.get_reference_image_path(style_id, filename)
         if img_path is None:
             logger.warning("Reference image not found on disk: %s/%s", style_id, filename)
             continue
-        image_bytes_list.append(img_path.read_bytes())
+        all_images.append((filename, img_path.read_bytes()))
 
-    if not image_bytes_list:
+    if not all_images:
         raise FileNotFoundError(
             f"Style '{style_id}' reference images listed but none readable on disk."
         )
 
+    # Smart sampling: if we have more images than the analysis limit,
+    # select a diverse representative subset
+    max_for_analysis = settings.max_analysis_images
+    if len(all_images) > max_for_analysis:
+        sampled = _smart_sample(all_images, max_for_analysis)
+        logger.info(
+            "Sampled %d/%d images for analysis of style '%s'.",
+            len(sampled), len(all_images), style_id,
+        )
+        image_bytes_list = [img for _, img in sampled]
+    else:
+        image_bytes_list = [img for _, img in all_images]
+
     # Build the user guidance section
+    total_count = len(all_images)
+    sample_count = len(image_bytes_list)
+
+    guidance_parts = []
     if user_hints:
-        guidance = (
+        guidance_parts.append(
             "=== ARTIST'S GUIDANCE ===\n"
             "The artist has provided the following description of this style. Use it\n"
             "to inform your analysis — it may describe intent, naming, or context\n"
             "that is not visible in the images alone:\n"
-            f'"{user_hints}"\n'
+            f'"{user_hints}"'
         )
-    else:
-        guidance = ""
+    if sample_count < total_count:
+        guidance_parts.append(
+            f"=== NOTE ===\n"
+            f"You are seeing {sample_count} representative images sampled from a "
+            f"collection of {total_count} total reference images. The sample was "
+            f"chosen to represent the full diversity of the style. Base your analysis "
+            f"on these images as representative of the complete set."
+        )
+
+    guidance = "\n\n".join(guidance_parts)
 
     prompt = _ANALYSIS_PROMPT.format(user_guidance_section=guidance)
 
     logger.info(
-        "Analyzing %d reference image(s) for style '%s' (user hints: %s) using Claude Opus.",
-        len(image_bytes_list), style_id, bool(user_hints),
+        "Analyzing %d/%d reference image(s) for style '%s' (user hints: %s) using Claude Opus.",
+        sample_count, total_count, style_id, bool(user_hints),
     )
 
     raw_response = invoke_claude(

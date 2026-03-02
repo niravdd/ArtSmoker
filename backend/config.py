@@ -36,7 +36,8 @@ class Settings(BaseSettings):
     # ── Generation defaults ───────────────────────────────────────────────
     default_image_width: int = 1024
     default_image_height: int = 1024
-    max_reference_images: int = 10
+    max_reference_images: int = 50
+    max_analysis_images: int = 15
 
     model_config = {"env_prefix": "ARTSMOKER_"}
 

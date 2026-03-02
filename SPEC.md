@@ -60,7 +60,7 @@ ArtSmoker/
 │   │   ├── refine.py              # Prompt refinement preview endpoint
 │   │   └── gallery.py             # Generated asset browsing + file serving
 │   ├── services/
-│   │   ├── style_analyzer.py      # Claude Opus: multi-image style analysis → profile
+│   │   ├── style_analyzer.py      # Claude Opus: multi-image style analysis → profile (includes _smart_sample())
 │   │   ├── prompt_engineer.py     # Claude Sonnet/Opus: prompt refinement + concept generation
 │   │   ├── image_generator.py     # Nova Canvas / Titan Image / SD 3.5 Large / Stable Image Ultra: generate images
 │   │   ├── post_processor.py      # Stability AI: bg removal, upscale; vtracer/potrace: SVG
@@ -130,15 +130,21 @@ A style profile captures the visual DNA of a game's art:
 
 **Workflow:**
 1. User creates a style profile (name + description + optional `generation_hints`).
-2. User uploads 1-10 reference images via file upload or **directory import** (bulk import from a local folder path or S3 prefix).
-3. Claude Opus 4.6 (vision) analyzes all images together via `analyze_style(style_id, user_hints)`, extracting structured style attributes as JSON. The analysis is **context-aware** — Claude sees both the images AND the user's existing `generation_hints` (passed as "Artist's Guidance") so it understands the user's intent.
-4. Claude Sonnet 4.6 distils the analysis into a concise `generation_hints` paragraph (max 120 words) via `generate_hints(style_id, analyzed_style, user_hints)`, also receiving the user's guidance as context.
-5. Profile is cached as `profile.json` inside `data/styles/{style_id}/`.
-6. User can manually edit/refine the profile.
-7. Profile's `generation_hints` are incorporated into every generation prompt.
-8. **Auto re-analysis**: Style analysis is automatically re-triggered when (a) reference images are uploaded via the upload endpoint, or (b) `generation_hints` are changed via PATCH and the new value differs from the previous one. Both paths use a shared `_auto_reanalyze()` helper.
+2. User uploads 1-50 reference images via file upload or **directory import** (bulk import from a local folder path or S3 prefix). The cap is configurable via `max_reference_images` (default 50, env: `ARTSMOKER_MAX_REFERENCE_IMAGES`).
+3. **Smart sampling for analysis**: When a style has more than `max_analysis_images` (default 15, env: `ARTSMOKER_MAX_ANALYSIS_IMAGES`) reference images, the `_smart_sample()` function in `style_analyzer.py` selects a diverse representative subset for the Claude Opus vision call. Sampling strategy:
+   - Always includes the first and last image (alphabetically).
+   - Groups images by filename prefix (subdirectory origin) and picks at least one from each group.
+   - Fills remaining slots by file-size diversity (evenly-spaced intervals across the size range, since different sizes suggest different content/complexity).
+   - Claude is told how many total images exist vs. how many it is seeing (e.g. "You are seeing 15 representative images sampled from a collection of 50 total reference images").
+   When the image count is at or below `max_analysis_images`, all images are sent directly.
+4. Claude Opus 4.6 (vision) analyzes the (sampled) images via `analyze_style(style_id, user_hints)`, extracting structured style attributes as JSON. The analysis is **context-aware** — Claude sees both the images AND the user's existing `generation_hints` (passed as "Artist's Guidance") so it understands the user's intent.
+5. Claude Sonnet 4.6 distils the analysis into a concise `generation_hints` paragraph (max 120 words) via `generate_hints(style_id, analyzed_style, user_hints)`, also receiving the user's guidance as context.
+6. Profile is cached as `profile.json` inside `data/styles/{style_id}/`.
+7. User can manually edit/refine the profile.
+8. Profile's `generation_hints` are incorporated into every generation prompt.
+9. **Auto re-analysis**: Style analysis is automatically re-triggered when (a) reference images are uploaded via the upload endpoint, or (b) `generation_hints` are changed via PATCH and the new value differs from the previous one. Both paths use a shared `_auto_reanalyze()` helper.
 
-**Directory/S3 import**: The `POST /api/styles/{id}/import` endpoint accepts a local directory path or S3 prefix. Body: `{ "path": "...", "auto_analyze": true }`. It scans **recursively** (using `rglob`) for all image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif) in all subdirectories. **Local imports use symlinks** (not copies) to avoid disk duplication. S3 imports download files to the references folder; the S3 client paginates through all objects (handles >1000 keys). Browser uploads copy files normally. Filenames from different subdirectories are **deduplicated** by prefixing with the parent directory name when collisions are detected. The total reference image count is capped at `max_reference_images` (default 10). Optionally auto-triggers Claude Opus style analysis after import.
+**Directory/S3 import**: The `POST /api/styles/{id}/import` endpoint accepts a local directory path or S3 prefix. Body: `{ "path": "...", "auto_analyze": true }`. It scans **recursively** (using `rglob`) for all image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif) in all subdirectories. **Local imports use symlinks** (not copies) to avoid disk duplication. S3 imports download files to the references folder; the S3 client paginates through all objects (handles >1000 keys). Browser uploads copy files normally. Filenames from different subdirectories are **deduplicated** by prefixing with the parent directory name when collisions are detected. The total reference image count is capped at `max_reference_images` (default 50, env: `ARTSMOKER_MAX_REFERENCE_IMAGES`). Optionally auto-triggers Claude Opus style analysis after import.
 
 ### 2. Two-Level Asset Generation Pipeline
 
@@ -359,10 +365,10 @@ Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 | GET | `/api/styles/{id}` | Get a single style profile by identifier. |
 | PATCH | `/api/styles/{id}` | Partially update a style profile (name, description, analyzed_style, generation_hints). Auto-triggers re-analysis when `generation_hints` change (new value differs from previous). |
 | DELETE | `/api/styles/{id}` | Delete a style profile and all its associated data (references, profile.json). |
-| POST | `/api/styles/{id}/references` | Upload reference images (multipart file upload). Enforces max_reference_images limit (default 10). Auto-triggers re-analysis after upload. |
+| POST | `/api/styles/{id}/references` | Upload reference images (multipart file upload). Enforces max_reference_images limit (default 50). Auto-triggers re-analysis after upload. |
 | GET | `/api/styles/{id}/references/{filename}` | Serve a reference image file. |
 | POST | `/api/styles/{id}/import` | Import image files from a local directory path or S3 prefix. Body: `{ "path": "/path/to/images", "auto_analyze": true }`. Scans recursively for all image files in subdirectories. Local imports use symlinks (not copies). S3 imports download files (paginates through >1000 keys). Filenames are deduplicated by prefixing with parent directory name. Optionally triggers style analysis after import. |
-| POST | `/api/styles/{id}/analyze` | Trigger AI style analysis on reference images. Claude Opus analyzes images (context-aware, receives existing generation_hints as "Artist's Guidance"), Claude Sonnet generates hints. Both are persisted to the profile. |
+| POST | `/api/styles/{id}/analyze` | Trigger AI style analysis on reference images. If the style has more than `max_analysis_images` (default 15) references, smart sampling selects a diverse subset. Claude Opus analyzes images (context-aware, receives existing generation_hints as "Artist's Guidance"), Claude Sonnet generates hints. Both are persisted to the profile. |
 
 ### Generation
 
@@ -513,7 +519,13 @@ Results are logged to the console and available at `GET /api/health`. If credent
 
 All per-generation settings (style, asset type, image model, dimensions, options/variations counts, post-processing toggles) are controlled through the **frontend UI**.
 
-Infrastructure settings live in `backend/config.py` with sensible defaults that work out of the box. Model IDs, regions, and paths are all preconfigured and rarely need overriding. If needed, any setting can be overridden via an environment variable prefixed with `ARTSMOKER_` — see `backend/config.py` for the full list. Image generation model ID settings include:
+Infrastructure settings live in `backend/config.py` with sensible defaults that work out of the box. Model IDs, regions, and paths are all preconfigured and rarely need overriding. If needed, any setting can be overridden via an environment variable prefixed with `ARTSMOKER_` — see `backend/config.py` for the full list.
+
+**Reference image and analysis limits** (for cost management):
+- `max_reference_images: int = 50` (env: `ARTSMOKER_MAX_REFERENCE_IMAGES`) — max images imported per style. Limits storage.
+- `max_analysis_images: int = 15` (env: `ARTSMOKER_MAX_ANALYSIS_IMAGES`) — max images sent to Claude Opus per analysis call. When a style exceeds this count, `_smart_sample()` selects a diverse subset. Reducing this value reduces Claude Opus vision costs per analysis.
+
+**Image generation model ID settings**:
 - `sd35_large_model_id: str = "stability.sd3-5-large-v1:0"`
 - `stable_image_ultra_model_id: str = "stability.stable-image-ultra-v1:1"`
 
