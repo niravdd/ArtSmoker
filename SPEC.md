@@ -1,5 +1,46 @@
 # ArtSmoker — AI-Powered Game Asset Generation Platform
 
+## Table of Contents
+
+- [Context](#context)
+- [Architecture Overview](#architecture-overview)
+- [Project Structure](#project-structure)
+- [Detailed Component Design](#detailed-component-design)
+  - [1. Style Profile System](#1-style-profile-system)
+  - [2. Two-Level Asset Generation Pipeline](#2-two-level-asset-generation-pipeline)
+  - [3. Strong Asset-Type Differentiation](#3-strong-asset-type-differentiation)
+  - [4. Result Model Structure](#4-result-model-structure)
+  - [5. Voice Input (Nova Sonic)](#5-voice-input-nova-sonic)
+  - [6. Frontend Design](#6-frontend-design)
+  - [7. Technology Choices](#7-technology-choices)
+  - [8. AWS Configuration](#8-aws-configuration)
+  - [9. Post-Processing Pipeline](#9-post-processing-pipeline)
+  - [10. Storage Layer](#10-storage-layer)
+- [API Reference](#api-reference)
+  - [Styles](#styles)
+  - [Generation](#generation)
+  - [Prompt Refinement](#prompt-refinement)
+  - [Voice Transcription](#voice-transcription)
+  - [Gallery](#gallery)
+  - [Type Studio](#type-studio)
+  - [Browse](#browse)
+  - [System](#system)
+- [Prerequisites: AWS Setup](#prerequisites-aws-setup)
+- [Configuration](#configuration)
+- [Verification](#verification)
+- [AWS Bedrock Pricing & Cost Breakdown](#aws-bedrock-pricing--cost-breakdown)
+  - [Per-Unit Pricing](#per-unit-pricing)
+  - [Style Analysis Cost](#style-analysis-cost-one-time-per-style)
+  - [Generation Cost Scenarios](#generation-cost-scenarios)
+  - [Full Cost Examples](#full-cost-examples)
+- [Deployment & Scaling Roadmap](#deployment--scaling-roadmap)
+  - [Phase 1: Local Development](#phase-1-current--local-development-done)
+  - [Phase 2: App Runner + S3](#phase-2-containerized-deployment--app-runner--s3)
+  - [Phase 3: CloudFront + Async](#phase-3-optimized-delivery--cloudfront--async-generation)
+  - [Phase 4: Multi-Tenant](#phase-4-multi-tenant-platform)
+
+---
+
 ## Context
 
 A web-based platform that generates 2D game assets and marketing materials using AWS Bedrock AI models. The platform accepts text or voice prompts, learns visual styles from user-uploaded reference art, and produces game-ready assets (PNG + SVG). It is designed to be generic and scalable — any game studio can upload their art theme and generate consistent new assets.

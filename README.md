@@ -235,8 +235,10 @@ All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/
 
 Add-ons per image: **Remove Background** $0.07 | **Creative Upscale** $0.60 | **SVG** free
 
-> **Tip**: Creative Upscale ($0.60/image) is the most expensive operation. Use it on your final chosen asset, not the full batch. The upscale endpoint uses JPEG output to stay under Stability AI's 16 MB response limit, with automatic retry and exponential backoff for throttling. See [SPEC.md](SPEC.md) for detailed cost breakdowns and monthly projections.
+> **Tip**: Creative Upscale ($0.60/image) is the most expensive operation. Use it on your final chosen asset, not the full batch.
+
+For detailed per-operation breakdowns, worked examples ($0.02 cheapest to $20.30 premium), and monthly team projections, see the **[full pricing section in SPEC.md](SPEC.md#aws-bedrock-pricing--cost-breakdown)**.
 
 ## Full specification
 
-See **[SPEC.md](SPEC.md)** for the complete technical specification — architecture, component design, model configuration, API reference, and enough detail to rebuild the project from scratch.
+See **[SPEC.md](SPEC.md)** for the complete technical specification — architecture, component design, model configuration, API reference, pricing, deployment roadmap, and enough detail to rebuild the project from scratch.
