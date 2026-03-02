@@ -229,6 +229,8 @@ User prompt: "hospital building"
 
 **Parallel execution**: All option-variation combinations are dispatched to a `ThreadPoolExecutor` with `max_workers=min(total, 5)` to limit Bedrock API throttling.
 
+**Real-time progress via SSE**: The `/stream` endpoint uses Server-Sent Events (SSE) for real-time progress updates during generation. Event types: `started` (generation kicked off), `stage` (pipeline phase — `prompts`/`generating`/`finalizing`), `image_done` (per-image with `completed`/`total` count), `image_error` (per-image failure), and `complete` (final result).
+
 **Smart filenames**: Each generated image gets a human-readable filename derived from the user's prompt slug plus the option/variation indices: `a-fierce-dragon_opt1_var2.png`. These filenames are stored in per-asset `metadata.json` and served via `Content-Disposition` headers on the gallery file endpoints.
 
 **Prompt length limit**: Amazon Nova Canvas enforces a 1024-character prompt limit. The prompt engineer instructs Claude to keep outputs under **900 characters**, and there is a hard truncation fallback at 1024 characters (breaking on word boundaries) in `refine_prompt()`, `refine_marketing_prompt()`, and `generate_concept_prompts()`.
@@ -428,6 +430,8 @@ The post-processing pipeline (`backend/services/post_processor.py`) applies thre
    - **potrace** (fallback): Monochrome bitmap tracing. Converts PNG to BMP via Pillow first.
    - **Pillow embedded raster** (last resort): Wraps the PNG as a base64 data URI inside an SVG element. Not a true vector but ensures SVG output is always available.
 
+**Creative Upscale details**: Uses JPEG output format to avoid Stability AI's 16MB response payload limit, then converts back to PNG. Includes retry with exponential backoff (up to 5 attempts) for API throttling. Thread pool concurrency is reduced to 3 workers when upscale is enabled to avoid rate limits.
+
 Each step is independently fault-tolerant — failures are logged but do not abort the pipeline.
 
 ### 10. Storage Layer
@@ -439,7 +443,7 @@ Each step is independently fault-tolerant — failures are logged but do not abo
 - `references/` — uploaded reference images. Local directory imports are stored as **symlinks** to avoid disk duplication; S3 downloads and browser uploads are stored as copies.
 
 **Key methods**:
-- `link_reference_image(style_id, filename, source_path)` — creates a symlink in the style's references folder pointing to the source file. Used by the local directory import path.
+- `link_reference_image(style_id, filename, source_path)` — creates a **relative symlink** (via `os.path.relpath()`) in the style's references folder pointing to the source file. Used by the local directory import path. Relative symlinks survive directory moves and work across machines (unlike absolute symlinks). S3 and browser uploads still copy files.
 
 **Generated asset storage** (`data/generated/{asset_id}/`):
 - `asset.png` — final processed PNG.
@@ -794,6 +798,19 @@ Developer machine
 - Frontend served as static files by FastAPI's `StaticFiles` mount.
 - Storage: local filesystem under `data/`.
 - No authentication, single user.
+
+#### EC2 Quick Start
+
+For a lightweight production deployment (1-2 concurrent users), an EC2 instance is the simplest path:
+
+- **Recommended instance**: t3.small (2 vCPU, 2 GB RAM, ~$15/month).
+- **Run with gunicorn** for production:
+  ```bash
+  gunicorn backend.main:app -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+  ```
+- **IAM role**: Attach an IAM role with `bedrock:InvokeModel` + `bedrock:Converse` permissions — no access keys needed on the instance.
+- **No race conditions for concurrent users** — each generation uses unique UUIDs, file writes don't overlap.
+- **Migrating style data**: Style references use relative symlinks, so they work across machines as long as the source art directories maintain the same relative position to the ArtSmoker project.
 
 ### Phase 2: Containerized Deployment — App Runner + S3
 

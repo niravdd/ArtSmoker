@@ -71,6 +71,17 @@ uvicorn backend.main:app --reload
 
 Open **http://localhost:8000**
 
+### Production deployment (EC2)
+
+Recommended: t3.small (~$15/month) for 1-2 concurrent users.
+
+```bash
+gunicorn backend.main:app -w 2 -k uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 --timeout 300
+```
+
+Attach an IAM role with `bedrock:InvokeModel` and `bedrock:Converse` permissions.
+
 On startup, the app validates your AWS credentials and Bedrock access. Check the console output or hit `/api/health` to see the status.
 
 ## Usage
@@ -143,13 +154,15 @@ All generated assets (images, text overlays, standalone text) land in the Galler
 9. Click any image to preview full-size, then download PNG or SVG.
 10. Use the **reset button** (amber circular arrow) to clear generated results and start fresh.
 
+Generation progress is streamed in real time via SSE — the UI shows which image is being generated (e.g. "Generating images... 12/25"), elapsed time, and current pipeline stage (prompts, generating, finalizing).
+
 Generated results survive navigation — switching tabs and back preserves the 2D Image Studio's DOM state. Only the reset button clears it.
 
 ### Use a style profile
 
 1. Go to the **Style Library** tab.
 2. Click **Create New Style** — enter a name and optionally add generation hints. In the create modal, use the **"Import References From"** section with **Local** and **S3** browse buttons to select a source directory or bucket path. Browsing opens a server-side file/directory browser modal (single-click selects an item, double-click navigates into directories). Imported references are auto-analyzed on creation.
-3. Local directory imports scan **recursively** through all subdirectories; files are **symlinked** (no duplication). S3 imports list recursively with pagination and **download** files locally. Up to **50 reference images** are imported per style.
+3. Local directory imports scan **recursively** through all subdirectories; files are **symlinked** using **relative symlinks** (no duplication, portable across machines — symlinks work as long as source art directories maintain the same relative position to the project). S3 imports list recursively with pagination and **download** files locally. Up to **50 reference images** are imported per style.
 4. **Smart sampling for analysis**: When a style has more than 15 references, the analyzer selects a diverse representative subset of 15 for the AI vision call — ensuring coverage across filename groups and file-size diversity. The AI is told how many total images exist vs. how many it is seeing.
 5. In the style detail view, use **"Import & Analyze"** to add more references and trigger analysis in one step. Drag-and-drop upload is also supported and **auto re-analyzes** when new images are added.
 6. **"Re-Analyze Style"** appears after the initial analysis, letting you manually re-run analysis at any time.
@@ -318,6 +331,8 @@ Includes prompt refinement/concept generation + image generation:
 | Remove Background | $0.07 | $0.07 | $0.35 | $1.75 |
 | Creative Upscale | $0.60 | $0.60 | $3.00 | $15.00 |
 | Convert to SVG | $0.00 | $0.00 | $0.00 | $0.00 |
+
+> **Creative Upscale note**: Handles Stability AI's 16MB response payload limit automatically by using JPEG output format internally, then converting back to PNG. Includes retry with exponential backoff for API throttling.
 
 ### Worked examples
 

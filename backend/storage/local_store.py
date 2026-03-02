@@ -58,13 +58,15 @@ class LocalStore:
         return path
 
     def link_reference_image(self, style_id: str, filename: str, source_path: Path) -> Path:
-        """Create a symlink to a local image instead of copying it."""
+        """Create a relative symlink to a local image instead of copying it."""
+        import os
         link_path = self.style_dir(style_id) / "references" / filename
         link_path.parent.mkdir(parents=True, exist_ok=True)
-        # Remove existing file/link if present (to allow re-import)
         if link_path.exists() or link_path.is_symlink():
             link_path.unlink()
-        link_path.symlink_to(source_path.resolve())
+        # Use relative path so symlinks survive directory moves
+        rel_target = os.path.relpath(source_path.resolve(), link_path.parent.resolve())
+        link_path.symlink_to(rel_target)
         return link_path
 
     def list_reference_images(self, style_id: str) -> list[str]:
