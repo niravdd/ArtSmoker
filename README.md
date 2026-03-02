@@ -1,20 +1,22 @@
 # ArtSmoker
 
-AI-powered 2D game asset generation platform. Generate game-ready sprites, characters, icons, environments, and marketing banners from text or voice prompts — styled to match your game's visual identity.
+*Smoke-testing your artwork!*
+
+AI-powered 2D game asset generation platform. Generate game-ready sprites, characters, icons, environments, and marketing banners from text or voice prompts — styled to match your game's visual identity. Add text overlays and generate standalone text assets with AI-designed typography.
 
 Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, SD 3.5 Large, Stable Image Ultra, Stability AI).
 
 ## What it does
 
 1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally).
-2. **AI learns your style** — Claude Opus analyzes the visual DNA (palette, perspective, rendering, mood). Analysis is context-aware: if you provide generation hints, Claude receives them as "Artist's Guidance" alongside the reference images, so the analysis understands your intent, not just what's visible.
+2. **AI learns your style** — AI analyzes the visual DNA (palette, perspective, rendering, mood). Analysis is context-aware: if you provide generation hints, the AI receives them as "Artist's Guidance" alongside the reference images, so the analysis understands your intent, not just what's visible.
 3. **Describe what you need** — type or speak a prompt like "hospital building" or "fire mage character".
 4. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
 5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`).
 
 ### Two-level generation
 
-For each prompt, Claude Opus creates **Options** — fundamentally different design interpretations (e.g. for "a warrior": Viking berserker, Japanese samurai, tribal fighter, cyber-soldier, Greek hoplite). For each option, the image model produces **Variations** — different random seeds giving subtle visual differences. This gives artists a broad creative palette to choose from.
+For each prompt, the AI creates **Options** — fundamentally different design interpretations (e.g. for "a warrior": Viking berserker, Japanese samurai, tribal fighter, cyber-soldier, Greek hoplite). For each option, the image model produces **Variations** — different random seeds giving subtle visual differences. This gives artists a broad creative palette to choose from.
 
 ### Asset type awareness
 
@@ -30,8 +32,8 @@ The selected **Asset Type** fundamentally changes how the AI interprets your pro
 
 This matters at every stage:
 
-- **"Improve with AI" button** — When you click Improve, Claude uses the asset type to reshape your brief into a detailed generation prompt, respecting the selected asset type and style. You can review the refined version and accept or revert.
-- **Concept generation** — When generating multiple options, Claude Opus creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
+- **"Improve with AI" button** — When you click Improve, the AI uses the asset type to reshape your brief into a detailed generation prompt, respecting the selected asset type and style. You can review the refined version and accept or revert.
+- **Concept generation** — When generating multiple options, the AI creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
 - **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with a clean zone for headline overlay.
 
 ## Prerequisites
@@ -73,38 +75,53 @@ On startup, the app validates your AWS credentials and Bedrock access. Check the
 
 ## Usage
 
-### Generate assets (no style)
+### 2D Image Studio (generate assets)
 
-1. Go to the **Generator** tab.
+1. Go to the **2D Image Studio** tab.
 2. Type a prompt (e.g. "cute cartoon cat").
 3. **Select an asset type** — this shapes everything the AI produces (see table above). A "warrior" as a Game Asset looks completely different from a "warrior" as a Marketing Banner.
-4. Optionally click **"Improve with AI"** — Claude refines your brief into a detailed generation prompt, respecting the selected asset type and style. Both the original prompt and the AI-improved prompt are tracked and displayed. You can review the refined version and accept or revert.
+4. Optionally click **"Improve with AI"** — the AI refines your brief into a detailed generation prompt, respecting the selected asset type and style. Both the original prompt and the AI-improved prompt are tracked and displayed. You can review the refined version and accept or revert.
 5. Set dimensions and how many options/variations you want.
-6. Click **Generate**.
-7. Browse the **options row** (different concepts) and **variations row** (seed variants of the selected concept).
-8. Click any image to preview full-size, then download PNG or SVG.
-9. Use the **reset button** (amber circular arrow) to clear generated results and start fresh.
+6. Configure **Pre-Processing** (applied during generation) and **Post-Processing** (applied after generation, with an "Apply" button). SVG conversion is on by default.
+7. Click **Generate**.
+8. Browse the **options row** (different concepts) and **variations row** (seed variants of the selected concept).
+9. Click any image to preview full-size, then download PNG or SVG.
+10. Use the **reset button** (amber circular arrow) to clear generated results and start fresh.
 
-Generated results survive navigation — switching to Gallery or Style Library and back preserves the Generator's DOM state. Only the reset button clears it.
+Generated results survive navigation — switching tabs and back preserves the 2D Image Studio's DOM state. Only the reset button clears it.
 
 ### Use a style profile
 
 1. Go to the **Style Library** tab.
 2. Click **Create New Style** — enter a name and optionally add generation hints. In the create modal, use the **"Import References From"** section with **Local** and **S3** browse buttons to select a source directory or bucket path. Browsing opens a server-side file/directory browser modal (single-click selects an item, double-click navigates into directories). Imported references are auto-analyzed on creation.
 3. Local directory imports scan **recursively** through all subdirectories; files are **symlinked** (no duplication). S3 imports list recursively with pagination and **download** files locally. Up to **50 reference images** are imported per style.
-4. **Smart sampling for analysis**: When a style has more than 15 references, the analyzer selects a diverse representative subset of 15 for the Claude Opus vision call — ensuring coverage across filename groups and file-size diversity. Claude is told how many total images exist vs. how many it is seeing.
+4. **Smart sampling for analysis**: When a style has more than 15 references, the analyzer selects a diverse representative subset of 15 for the AI vision call — ensuring coverage across filename groups and file-size diversity. The AI is told how many total images exist vs. how many it is seeing.
 5. In the style detail view, use **"Import & Analyze"** to add more references and trigger analysis in one step. Drag-and-drop upload is also supported and **auto re-analyzes** when new images are added.
 6. **"Re-Analyze Style"** appears after the initial analysis, letting you manually re-run analysis at any time.
-7. **Generation hints** are part of the analysis context — Claude Opus receives both reference images and your hints as "Artist's Guidance" when analyzing, so the style profile understands intent, not just visual appearance. Editing generation hints also triggers **automatic re-analysis**.
-8. Back in Generator, select your style from the dropdown — all generated assets will match its visual identity (palette, perspective, rendering style, mood).
+7. **Generation hints** are part of the analysis context — the AI receives both reference images and your hints as "Artist's Guidance" when analyzing, so the style profile understands intent, not just visual appearance. Editing generation hints also triggers **automatic re-analysis**.
+8. Back in the **2D Image Studio**, select your style from the dropdown — all generated assets will match its visual identity (palette, perspective, rendering style, mood).
+
+### Type Studio
+
+Add text to images or generate standalone text assets with AI-designed typography.
+
+- **Two modes**: "On Image" composites text onto a gallery image; "Standalone" renders text on a transparent background.
+- **Multi-line text editor** with per-line font selection and positioning controls.
+- **AI-designed layouts** — the AI suggests colors, sizes, positions, and effects (shadow, outline, glow). Request 1–5 layout options for different creative directions.
+- **Font picker with live preview** — style fonts listed first, then global fonts, then system fonts.
+- **Pre-Processing / Post-Processing** — same workflow as 2D Image Studio, with an "Apply" button for post-processing. SVG conversion is on by default.
+- Results are saved as new gallery assets (originals are never overwritten).
 
 ### Gallery
 
+- **Search bar** for instant filtering across all assets.
+- **Multi-select** with checkboxes for bulk delete.
 - Images load immediately with an in-memory metadata cache. Sorted newest-first.
 - Pagination support (limit/offset) for large collections.
 - Gallery auto-refreshes when you navigate back to it.
+- **Contextual action buttons** per asset based on type: **"2D Studio"** (indigo) to reload in the image studio, **"Add Text"** (emerald) to open in Type Studio, **"Edit in Type Studio"** (purple) for text assets.
 - Click any image to open the **AssetViewer** modal with full metadata: original prompt, AI-improved prompt, generation prompt, style, asset type, image model (friendly names), dimensions, seed, batch ID, option/variation index, filename, and creation date.
-- Click **"Reload in Generator"** in the AssetViewer to restore the entire batch — all options, variations, prompts, and settings — for refinement and re-generation.
+- **Style snapshot**: Each asset stores a snapshot of the style used at generation time (name, description, hints, analysis). If the original style is later deleted, the asset retains the full context. Backward compatible — older assets without snapshots display normally.
 
 ### Voice input
 
@@ -112,7 +129,7 @@ Click the microphone button next to the prompt editor to dictate your prompt. Th
 
 ### View state preservation
 
-Switching between Generator, Gallery, and Style Library preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in Generator is the only way to clear its state.
+Navigation order: **Style Library → 2D Image Studio → Type Studio → Gallery**. Switching between views preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in 2D Image Studio is the only way to clear its state.
 
 ### Image generation models
 
@@ -148,12 +165,17 @@ Key endpoints:
 | Endpoint | Purpose |
 |----------|---------|
 | `POST /api/generate/` | Generate assets (options x variations) |
+| `POST /api/generate/post-process` | Apply processing to existing assets |
 | `POST /api/styles/` | Create a style profile |
 | `POST /api/styles/{id}/import` | Bulk-import references from a local folder or S3 URI |
 | `POST /api/styles/{id}/analyze` | Trigger AI style analysis |
 | `POST /api/refine-prompt/` | Preview a refined prompt |
 | `POST /api/transcribe/` | Voice-to-text |
 | `GET /api/gallery/` | Browse generated assets (supports limit/offset pagination) |
+| `DELETE /api/gallery/` | Bulk delete assets |
+| `POST /api/type-studio/preview` | Render text overlay preview |
+| `POST /api/type-studio/suggest` | AI layout suggestion for text |
+| `GET /api/type-studio/fonts` | List available fonts |
 | `GET /api/browse/local?path=~` | Browse local directory contents |
 | `GET /api/browse/s3/buckets` | List available S3 buckets |
 | `GET /api/browse/s3?bucket=name&prefix=path` | Browse S3 bucket contents |
@@ -174,7 +196,15 @@ ArtSmoker/
 ├── frontend/
 │   ├── index.html           # SPA entry point
 │   ├── css/styles.css       # Dark theme + animations
-│   └── js/                  # Components + API client
+│   └── js/
+│       ├── components/
+│       │   ├── Generator.js     # 2D Image Studio
+│       │   ├── TypeStudio.js    # Type Studio
+│       │   ├── Gallery.js       # Gallery + asset viewer
+│       │   ├── StyleLibrary.js  # Style management
+│       │   └── ...              # PromptEditor, VoiceInput, etc.
+│       ├── services/            # API client
+│       └── app.js               # SPA router + navigation
 ├── data/
 │   ├── styles/              # Style profiles + reference images
 │   └── generated/           # Output assets + metadata
@@ -189,9 +219,23 @@ Two settings in `backend/config.py` control reference image handling and can be 
 | Setting | Env Variable | Default | Purpose |
 |---------|-------------|---------|---------|
 | `max_reference_images` | `ARTSMOKER_MAX_REFERENCE_IMAGES` | 50 | Max images imported per style |
-| `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 15 | Max images sent to Claude Opus per analysis call |
+| `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 15 | Max images sent to AI per analysis call |
 
-Reducing `max_analysis_images` reduces Claude Opus vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
+Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
+
+## Cost per generation
+
+All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/). Style analysis is a one-time cost (~$0.14 per style). Generation costs depend on batch size and model:
+
+| Scenario | Nova Canvas | Titan Image v2 | SD 3.5 Large | Stable Image Ultra |
+|----------|------------|----------------|-------------|-------------------|
+| 1 option × 1 variation | $0.07 | $0.02 | $0.09 | $0.15 |
+| 1 option × 5 variations | $0.31 | $0.06 | $0.41 | $0.71 |
+| 5 options × 5 variations | $1.55 | $0.30 | $2.05 | $3.55 |
+
+Add-ons per image: **Remove Background** $0.07 | **Creative Upscale** $0.60 | **SVG** free
+
+> **Tip**: Creative Upscale ($0.60/image) is the most expensive operation. Use it on your final chosen asset, not the full batch. The upscale endpoint uses JPEG output to stay under Stability AI's 16 MB response limit, with automatic retry and exponential backoff for throttling. See [SPEC.md](SPEC.md) for detailed cost breakdowns and monthly projections.
 
 ## Full specification
 

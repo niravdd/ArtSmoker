@@ -138,11 +138,76 @@
             },
         },
 
-        /** Generate an image */
+        /** Generate images (synchronous fallback) */
         generate(data) {
             return request('/api/generate/', {
                 method: 'POST',
                 body: data,
+            });
+        },
+
+        /** Apply post-processing to existing gallery assets */
+        postProcess(data) {
+            return request('/api/generate/post-process', {
+                method: 'POST',
+                body: data,
+            });
+        },
+
+        /**
+         * Generate images with SSE streaming progress.
+         * @param {object} data - GenerationRequest payload
+         * @param {function} onEvent - called with each progress event
+         * @returns {Promise<object>} the final GenerationResult
+         */
+        generateStream(data, onEvent) {
+            return new Promise((resolve, reject) => {
+                fetch('/api/generate/stream', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data),
+                }).then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => {
+                            reject(new Error(err.detail || `HTTP ${response.status}`));
+                        });
+                    }
+                    const reader = response.body.getReader();
+                    const decoder = new TextDecoder();
+                    let buffer = '';
+                    let finalResult = null;
+
+                    function read() {
+                        reader.read().then(({ done, value }) => {
+                            if (done) {
+                                if (finalResult) resolve(finalResult);
+                                else reject(new Error('Stream ended without result'));
+                                return;
+                            }
+                            buffer += decoder.decode(value, { stream: true });
+                            const lines = buffer.split('\n');
+                            buffer = lines.pop() || '';
+
+                            for (const line of lines) {
+                                if (line.startsWith('data: ')) {
+                                    try {
+                                        const evt = JSON.parse(line.slice(6));
+                                        if (onEvent) onEvent(evt);
+                                        if (evt.type === 'complete' && evt.result) {
+                                            finalResult = evt.result;
+                                        }
+                                        if (evt.type === 'error') {
+                                            reject(new Error(evt.detail || 'Generation failed'));
+                                            return;
+                                        }
+                                    } catch (_) {}
+                                }
+                            }
+                            read();
+                        }).catch(reject);
+                    }
+                    read();
+                }).catch(reject);
             });
         },
 
@@ -183,6 +248,14 @@
                 return request(`/api/gallery/${encodeURIComponent(id)}`);
             },
 
+            /** Delete one or more gallery assets permanently */
+            delete(ids) {
+                return request('/api/gallery/', {
+                    method: 'DELETE',
+                    body: { ids: Array.isArray(ids) ? ids : [ids] },
+                });
+            },
+
             /** Get full batch (options × variations) for reloading into Generator */
             getBatch(batchId) {
                 return request(`/api/gallery/batch/${encodeURIComponent(batchId)}`);
@@ -207,6 +280,31 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ level, message, context: context || '' }),
             }).catch(() => {}); // silently ignore if server is down
+        },
+
+        /** Type Studio */
+        typeStudio: {
+            /** List available fonts, optionally filtered by style */
+            fonts(styleId) {
+                const qs = styleId ? `?style_id=${encodeURIComponent(styleId)}` : '';
+                return request(`/api/type-studio/fonts${qs}`);
+            },
+
+            /** Ask AI for a layout suggestion */
+            suggest(data) {
+                return request('/api/type-studio/suggest', {
+                    method: 'POST',
+                    body: data,
+                });
+            },
+
+            /** Render text preview and save as gallery asset */
+            preview(data) {
+                return request('/api/type-studio/preview', {
+                    method: 'POST',
+                    body: data,
+                });
+            },
         },
 
         /** File & S3 browser */

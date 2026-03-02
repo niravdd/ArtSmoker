@@ -5,6 +5,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 
 from backend.models.generation_result import GalleryItem
 from backend.storage.local_store import store
@@ -13,18 +14,16 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/gallery", tags=["gallery"])
 
-# In-memory metadata cache to avoid repeated JSON reads
+# Metadata cache — populated during listing, invalidated by post-processing
 _meta_cache: dict[str, dict] = {}
 
 
 def _get_meta(asset_id: str) -> dict | None:
-    """Load metadata with caching."""
-    if asset_id not in _meta_cache:
-        meta = store.load_generation_metadata(asset_id)
-        if meta is None:
-            return None
+    """Load metadata — always reads from disk for freshness."""
+    meta = store.load_generation_metadata(asset_id)
+    if meta is not None:
         _meta_cache[asset_id] = meta
-    return _meta_cache[asset_id]
+    return meta
 
 
 @router.get("/", response_model=list[GalleryItem])
@@ -137,6 +136,7 @@ async def get_batch(batch_id: str):
         "prompt": first.get("prompt", ""),
         "original_prompt": first.get("original_prompt"),
         "style_id": first.get("style_id"),
+        "style_snapshot": first.get("style_snapshot"),
         "asset_type": first.get("asset_type", ""),
         "image_model": first.get("image_model", ""),
         "width": first.get("width", 1024),
@@ -149,6 +149,26 @@ async def get_batch(batch_id: str):
         "options": options,
         "created_at": first.get("created_at"),
     }
+
+
+class DeleteRequest(BaseModel):
+    ids: list[str]
+
+
+@router.delete("/")
+async def delete_assets(body: DeleteRequest):
+    """Delete one or more gallery assets permanently."""
+    deleted = []
+    not_found = []
+    for asset_id in body.ids:
+        if store.delete_generated_asset(asset_id):
+            # Clear from metadata cache
+            _meta_cache.pop(asset_id, None)
+            deleted.append(asset_id)
+            logger.info("Deleted gallery asset: %s", asset_id)
+        else:
+            not_found.append(asset_id)
+    return {"deleted": deleted, "not_found": not_found}
 
 
 @router.get("/{asset_id}")

@@ -34,16 +34,19 @@
     <nav class="sticky top-0 z-50 bg-brand-surface/95 backdrop-blur-md border-b border-brand-border shadow-lg">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
-                <!-- Logo -->
-                <a href="#generator" class="flex items-center gap-3 group">
+                <!-- Logo + Tagline -->
+                <a href="#image-studio" class="flex items-center gap-3 group">
                     <div class="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-accent to-purple-500 flex items-center justify-center shadow-md group-hover:shadow-brand-accent/30 transition-shadow">
                         <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                         </svg>
                     </div>
-                    <span class="text-xl font-bold bg-gradient-to-r from-brand-accent to-purple-400 bg-clip-text text-transparent">
-                        ArtSmoker
-                    </span>
+                    <div class="flex flex-col">
+                        <span class="text-xl font-bold bg-gradient-to-r from-brand-accent to-purple-400 bg-clip-text text-transparent leading-tight">
+                            ArtSmoker
+                        </span>
+                        <span class="text-[10px] text-brand-text-muted/60 leading-tight hidden sm:block">Smoke-testing your artwork!</span>
+                    </div>
                 </a>
 
                 <!-- Desktop Navigation Links -->
@@ -54,11 +57,17 @@
                         </svg>
                         Style Library
                     </a>
-                    <a href="#generator" class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/5" data-nav="generator">
+                    <a href="#image-studio" class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/5" data-nav="image-studio">
                         <svg class="w-4 h-4 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                         </svg>
-                        Generator
+                        2D Image Studio
+                    </a>
+                    <a href="#type-studio" class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/5" data-nav="type-studio">
+                        <svg class="w-4 h-4 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/>
+                        </svg>
+                        Type Studio
                     </a>
                     <a href="#gallery" class="nav-link px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 hover:bg-white/5" data-nav="gallery">
                         <svg class="w-4 h-4 inline-block mr-1.5 -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -81,7 +90,8 @@
         <div id="mobile-menu" class="hidden sm:hidden border-t border-brand-border">
             <div class="px-4 py-3 space-y-1">
                 <a href="#styles" class="nav-link block px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/5" data-nav="styles">Style Library</a>
-                <a href="#generator" class="nav-link block px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/5" data-nav="generator">Generator</a>
+                <a href="#image-studio" class="nav-link block px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/5" data-nav="image-studio">2D Image Studio</a>
+                <a href="#type-studio" class="nav-link block px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/5" data-nav="type-studio">Type Studio</a>
                 <a href="#gallery" class="nav-link block px-4 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-white/5" data-nav="gallery">Gallery</a>
             </div>
         </div>
@@ -104,7 +114,6 @@
 
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed bottom-6 right-6 z-[90] flex flex-col gap-3 pointer-events-none">
-        <!-- Toasts are appended here dynamically -->
     </div>
 
     <!-- Scripts -->
@@ -114,6 +123,7 @@
     <script src="js/components/AssetViewer.js"></script>
     <script src="js/components/StyleLibrary.js"></script>
     <script src="js/components/Generator.js"></script>
+    <script src="js/components/TypeStudio.js"></script>
     <script src="js/components/Gallery.js"></script>
     <script src="js/app.js"></script>
 </body>

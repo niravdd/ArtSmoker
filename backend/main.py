@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from backend.config import settings
-from backend.routers import browse, gallery, generate, refine, styles, transcribe
+from backend.routers import browse, gallery, generate, refine, styles, transcribe, typestudio
 from backend.services.bedrock_client import validate_aws_credentials
 
 logger = logging.getLogger(__name__)
@@ -112,6 +112,7 @@ app.include_router(refine.router)
 app.include_router(transcribe.router)
 app.include_router(gallery.router)
 app.include_router(browse.router)
+app.include_router(typestudio.router)
 
 
 # ── Health check ───────────────────────────────────────────────────────────

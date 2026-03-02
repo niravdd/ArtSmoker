@@ -12,12 +12,15 @@
     // ============================================================
 
     const ROUTES = {
-        generator: { component: window.Generator, label: 'Generator' },
-        styles:    { component: window.StyleLibrary, label: 'Style Library' },
-        gallery:   { component: window.Gallery, label: 'Gallery' },
+        'image-studio': { component: window.Generator, label: '2D Image Studio' },
+        'type-studio':  { component: window.TypeStudio, label: 'Type Studio' },
+        styles:         { component: window.StyleLibrary, label: 'Style Library' },
+        gallery:        { component: window.Gallery, label: 'Gallery' },
+        // Legacy alias so old #generator links still work
+        generator:      { component: window.Generator, label: '2D Image Studio', alias: true },
     };
 
-    const DEFAULT_ROUTE = 'generator';
+    const DEFAULT_ROUTE = 'image-studio';
     let currentRoute = null;
 
     // DOM cache: once a view is rendered, keep its DOM alive

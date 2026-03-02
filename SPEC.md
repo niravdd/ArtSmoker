@@ -14,17 +14,19 @@ Browser (Vanilla JS + Tailwind CSS)
     +-- Voice input (MediaRecorder → Nova Sonic for transcription)
     +-- Text input with inline LLM prompt refinement
     +-- Style library management (upload, browse, edit, directory import)
-    +-- Two-tier generation UI (options × variations)
+    +-- 2D Image Studio: two-tier generation UI (options × variations)
+    +-- Type Studio: text overlay system (on-image + standalone)
     +-- Generated asset gallery with export
     |
     v
 FastAPI Backend (Python)
     |
     +-- /api/styles        — CRUD for style profiles + directory/S3 import
-    +-- /api/generate       — Two-level asset generation pipeline
+    +-- /api/generate       — Two-level asset generation pipeline + post-processing
+    +-- /api/type-studio    — Text overlay: font listing, AI layout, preview/render
     +-- /api/transcribe     — Voice-to-text via Nova Sonic
     +-- /api/refine-prompt  — LLM prompt improvement (preview)
-    +-- /api/gallery        — Generated asset browsing + file serving
+    +-- /api/gallery        — Generated asset browsing + file serving + bulk delete
     +-- /api/browse         — Server-side file browser (local + S3)
     +-- /api/log            — Client-side error logging
     |
@@ -81,7 +83,8 @@ ArtSmoker/
 │   │   ├── app.js                 # Main app logic, routing
 │   │   ├── components/
 │   │   │   ├── StyleLibrary.js    # Style profile browser + uploader
-│   │   │   ├── Generator.js       # Two-tier generation UI (options + variations)
+│   │   │   ├── ImageStudio.js     # 2D Image Studio: two-tier generation UI (options + variations)
+│   │   │   ├── TypeStudio.js      # Type Studio: text overlay system (on-image + standalone)
 │   │   │   ├── VoiceInput.js      # Voice recording + transcription
 │   │   │   ├── PromptEditor.js    # Text input with inline LLM refinement
 │   │   │   ├── Gallery.js         # Generated assets grid
@@ -232,6 +235,19 @@ GenerationResult
 
 Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant also stores `original_prompt` alongside the other generation fields.
 
+**Style snapshot in metadata**: Each generated asset (from both 2D Image Studio and Type Studio) stores a `style_snapshot` object capturing the style's state at generation time:
+```json
+{
+  "style_snapshot": {
+    "name": "Kenney City Builder",
+    "description": "Low-poly isometric city buildings",
+    "generation_hints": "Isometric low-poly game asset, flat shading...",
+    "analyzed_style": { "perspective": "...", "palette": [...], ... }
+  }
+}
+```
+This ensures that if the original style profile is later deleted or modified, the asset retains the full style context that was used during its creation. The AssetViewer shows the style name from `style_snapshot` as a fallback when the original style no longer exists. The gallery batch endpoint (`GET /api/gallery/batch/{batch_id}`) includes the `style_snapshot` in each variant's metadata.
+
 **GalleryItem** — a flat summary model for the gallery listing endpoint:
 - id, prompt, style_id, asset_type, png_url, svg_url, created_at.
 
@@ -247,6 +263,10 @@ Each variant is stored in its own directory under `data/generated/{asset_id}/` w
 
 Clean, modern single-page application served as static files mounted at `/` by FastAPI.
 
+**Navigation**: The top nav shows the ArtSmoker logo with the tagline "Smoke-testing your artwork!" followed by four views in order: **Style Library** (`#styles`) → **2D Image Studio** (`#image-studio`) → **Type Studio** (`#type-studio`) → **Gallery** (`#gallery`).
+
+**No Claude branding in frontend**: All user-facing UI references use "AI" generically — never "Claude". For example, buttons say "AI Improve" not "Claude Improve", and labels say "AI-improved prompt" not "Claude-improved prompt".
+
 **DOM caching router**: Views survive navigation. Each view's DOM is cached and shown/hidden instead of destroyed/recreated on route changes. `window.resetView(route)` destroys the cache for a specific view to force a fresh start.
 
 **No-cache middleware**: During development, frontend static files are served with no-cache headers to ensure changes are reflected immediately.
@@ -258,9 +278,10 @@ Clean, modern single-page application served as static files mounted at `/` by F
 - **Detail view**: Has an "Import & Analyze" button (always auto-analyzes after import, no toggle). The analysis button is contextual: "Analyze Style" when no analysis exists, "Re-Analyze Style" when one does.
 - **Server-side file browser modal**: Used for both local and S3 browsing. Single-click selects a file/folder, double-click navigates into a directory. Back button and ".." entry navigate to the parent directory.
 
-**Generator** — The main workspace with a two-tier result display:
-- **Left sidebar**: Art style selector, asset type, image model, dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), toggle switches for background removal, SVG conversion, and upscaling.
-- **Center panel**: Prompt editor (text + voice input), Generate button (indigo) and Reset button (amber) at equal width. After generation, shows both the original prompt and the AI-improved prompt. `loadBatch(batchId)` method restores a previous batch from the Gallery into the Generator view.
+**2D Image Studio** (`#image-studio`) — The main image generation workspace with a two-tier result display:
+- **Left sidebar**: Art style selector, asset type, image model, dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), processing toggle switches (see below).
+- **Processing options**: Toggle switches for Remove Background, SVG Conversion (on by default), and Upscale. Before generation these are labeled **"Pre-Processing"** (applied during generation). After generation completes, the label switches to **"Post-Processing"** and an **"Apply to Current Results"** button appears, allowing users to re-apply processing to the existing generated images without re-generating (calls `POST /api/generate/post-process`).
+- **Center panel**: Prompt editor (text + voice input), Generate button (indigo) and Reset button (amber) at equal width. After generation, shows both the original prompt and the AI-improved prompt. `loadBatch(batchId)` method restores a previous batch from the Gallery into the 2D Image Studio view.
 - **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge, and a truncated concept prompt. Click to select an option.
 - **Concept prompt display**: Shows the full refined prompt for the selected option.
 - **Variations row** (emerald borders): Shows seed variants of the selected option. Click to select a variation.
@@ -269,9 +290,40 @@ Clean, modern single-page application served as static files mounted at `/` by F
 
 If there is only one option, the options row is hidden. If there is only one variation, the variations row is hidden.
 
-**Gallery** — Grid of all generated assets sorted newest-first. Images load immediately (no IntersectionObserver). Backend maintains an in-memory metadata cache for fast listing. Supports pagination via `limit` and `offset` query parameters. Filter by style and asset type. Click to preview/download. Auto-refreshes via `onShow()` when navigating back to the Gallery view.
+**Type Studio** (`#type-studio`) — Full text overlay system for creating titled/branded versions of gallery images or standalone text compositions.
 
-**AssetViewer** — Full-size preview + download. Fetches full metadata from `GET /api/gallery/{id}` on open. Displays all available fields: original prompt, AI-improved prompt, generation prompt, style, asset type, image model (with friendly labels), dimensions, seed, batch ID, option/variation index, filename, and creation date. Includes a "Reload in Generator" button that sends the batch back to the Generator view.
+- **Two modes**:
+  - **"On Image"** — Composites text onto a selected gallery image. User picks a base image from the gallery as the background.
+  - **"Standalone"** — Renders text on a transparent background (no base image).
+
+- **Multi-line text editor**: Users enter one or more lines of text. Each line supports:
+  - Individual **font selection** from the font picker.
+  - **Position hints** (e.g. top-center, bottom-left) to guide AI layout placement.
+
+- **AI layout suggestion**: The backend (`POST /api/type-studio/suggest`) uses AI to suggest text layout parameters including position, size, color, and effects for each line. Returns **1-5 layout options** representing different creative directions (e.g. bold centered vs. subtle corner placement). The user selects their preferred layout option before rendering.
+
+- **Pillow rendering**: The backend (`POST /api/type-studio/preview`) renders the final composition using Pillow with support for **shadow**, **outline**, and **glow** text effects. The rendered result is saved as a new gallery asset.
+
+- **Font picker**: Shows fonts in priority order:
+  1. **Style-specific fonts** — fonts associated with the selected style profile (shown first).
+  2. **Global fonts** — project-wide custom fonts.
+  3. **System fonts** — detected from the host OS.
+  All fonts show a **live preview** of the selected text in the picker dropdown. Fonts are served via `GET /api/type-studio/font-file/{source}/{filename}`.
+
+- **Processing options**: Same toggle switches as 2D Image Studio (Remove BG, SVG Conversion on by default, Upscale) with the same Pre-Processing → Post-Processing label behavior and "Apply to Current Results" button.
+
+- **Gallery integration**: Results are saved as new gallery assets with full metadata (including `source: "type-studio"`, base image reference if applicable, text content, font choices, layout parameters, and `style_snapshot`). Assets created in Type Studio can be loaded back from the Gallery via an **"Edit in Type Studio"** button in the AssetViewer.
+
+**Gallery** (`#gallery`) — Grid of all generated assets sorted newest-first. Images load immediately (no IntersectionObserver). Backend always reads metadata fresh from disk (no cache-first strategy — ensures consistency after post-processing updates). Supports pagination via `limit` and `offset` query parameters. Filter by style and asset type. Auto-refreshes via `onShow()` when navigating back to the Gallery view.
+- **Search bar**: Instant filtering across prompts, style names, and asset types as the user types.
+- **Multi-select**: Checkboxes on each asset card for bulk selection. A **"Delete Selected"** button triggers `DELETE /api/gallery/` with `{ids: [...]}` for bulk deletion.
+- Click any asset to open the AssetViewer.
+
+**AssetViewer** — Full-size preview + download. Fetches full metadata from `GET /api/gallery/{id}` on open. Displays all available fields: original prompt, AI-improved prompt, generation prompt, style (from `style_snapshot` as fallback if the original style was deleted), asset type, image model (with friendly labels), dimensions, seed, batch ID, option/variation index, filename, and creation date. The **SVG tab/button is hidden** when no SVG file exists for the asset. Metadata display adapts for Type Studio assets (shows text content, font choices, layout parameters instead of generation prompts).
+- **Contextual action buttons**:
+  - **"2D Studio"** (indigo) — visible for image-type assets only. Sends the batch back to the 2D Image Studio view.
+  - **"Add Text"** (emerald) — visible for image-type assets only. Opens Type Studio in "On Image" mode with this asset as the base image.
+  - **"Edit in Type Studio"** (purple) — visible for type-studio assets only. Loads the asset back into Type Studio for re-editing.
 
 ### 7. Technology Choices
 
@@ -281,6 +333,7 @@ If there is only one option, the options row is hidden. If there is only one var
 | Frontend | Vanilla JS + Tailwind CSS | No build step, fast to iterate, lightweight |
 | AI Models | Bedrock (boto3) | Nova Canvas, Titan Image, SD 3.5 Large, Stable Image Ultra, Claude, Nova Sonic, Stability |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) | Cascade of vector tracing methods |
+| Text Rendering | Pillow (Python Imaging Library) | Text overlay composition with shadow, outline, glow effects |
 | Storage | Local filesystem | Simple start, S3-compatible interface for later migration |
 
 ### 8. AWS Configuration
@@ -375,6 +428,7 @@ Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/generate/` | Generate assets (full two-level pipeline). Returns `GenerationResult` with options and variants. |
+| POST | `/api/generate/post-process` | Apply post-processing to existing generated assets. Accepts asset IDs and processing flags (remove_background, generate_svg, upscale). Updates the assets in-place and refreshes their metadata on disk. Used by the "Apply to Current Results" button in both studios. |
 
 **Request body** (`GenerationRequest`):
 ```json
@@ -447,11 +501,21 @@ Fields:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/gallery/` | List generated assets. Supports query params: `style_id`, `asset_type`, `limit` (default 100, max 500), `offset` (default 0). Returns list of `GalleryItem`, sorted newest-first. Uses in-memory metadata cache. |
-| GET | `/api/gallery/{id}` | Get the full metadata dictionary for a generated asset. |
+| GET | `/api/gallery/` | List generated assets. Supports query params: `style_id`, `asset_type`, `limit` (default 100, max 500), `offset` (default 0). Returns list of `GalleryItem`, sorted newest-first. Always reads metadata fresh from disk (no cache-first strategy). |
+| GET | `/api/gallery/{id}` | Get the full metadata dictionary for a generated asset (includes `style_snapshot`). |
 | GET | `/api/gallery/{id}/png` | Download the PNG file. `Content-Disposition` header uses the smart filename (e.g. `prompt-slug_opt1_var2.png`). |
 | GET | `/api/gallery/{id}/svg` | Download the SVG file. `Content-Disposition` header uses the smart filename. |
-| GET | `/api/gallery/batch/{batch_id}` | Reconstruct the full options x variations structure for a batch. Used to reload a previous batch into the Generator view. |
+| DELETE | `/api/gallery/` | Bulk delete assets. Request body: `{ "ids": ["asset_id_1", "asset_id_2", ...] }`. Deletes the asset directories and their contents from disk. Returns count of deleted assets. |
+| GET | `/api/gallery/batch/{batch_id}` | Reconstruct the full options x variations structure for a batch (includes `style_snapshot` per variant). Used to reload a previous batch into the 2D Image Studio view. |
+
+### Type Studio
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/type-studio/fonts` | List available fonts grouped by source. Returns style-specific fonts (for the given `style_id` query param), global project fonts, and detected system fonts. Each entry includes font name, filename, source, and a preview URL. |
+| GET | `/api/type-studio/font-file/{source}/{filename}` | Serve a font file (TTF/OTF/WOFF2) for rendering or live preview. `source` is one of `style`, `global`, or `system`. |
+| POST | `/api/type-studio/suggest` | AI layout suggestion. Accepts text lines, font choices, position hints, mode ("on_image" or "standalone"), optional base image ID, and style_id. Returns 1-5 layout options, each with per-line position (x, y), font size, color, and effects (shadow, outline, glow) representing different creative directions. |
+| POST | `/api/type-studio/preview` | Render and save the text overlay. Accepts text lines, selected layout option, font choices, mode, optional base image ID, style_id, and processing flags. Pillow renders the composition with the specified effects. Saves the result as a new gallery asset with full metadata (including `style_snapshot`) and returns the new asset ID and URLs. |
 
 ### Browse
 
@@ -538,18 +602,127 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 2. **Open frontend**: Navigate to `http://localhost:8000` — the frontend is served as static files by FastAPI.
 3. **Create a style profile**: Use the Style Library view to create a profile and upload reference images (or use directory import).
 4. **Trigger style analysis**: Click analyze — verify Claude extracts structured style attributes and generation hints.
-5. **Generate assets**:
+5. **Generate assets in 2D Image Studio**:
    - Enter a prompt like "hospital building", select the style, choose asset type.
    - Set options to 3 and variations to 3 (9 total images) for a quick test.
    - Click Generate — verify the options row shows 3 distinct concept designs.
    - Click an option — verify the variations row shows 3 seed variants with emerald borders.
    - Click a variation — verify the main preview updates and the download bar shows the smart filename.
-6. **Download files**: Click PNG/SVG download buttons — verify the file is named with the prompt slug (e.g. `hospital-building_opt2_var1.png`).
-7. **Test voice input**: Record audio — verify transcription appears in the prompt editor.
-8. **Test prompt refinement**: Type a brief prompt, click "Improve" — verify the refined prompt is more detailed.
-9. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
-10. **Browse gallery**: Switch to Gallery view — verify generated assets appear with filtering by style and asset type.
-11. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented.
+6. **Test post-processing**: After generation, verify the label switches to "Post-Processing". Toggle a processing option and click "Apply to Current Results" — verify assets are updated without re-generating.
+7. **Download files**: Click PNG/SVG download buttons — verify the file is named with the prompt slug (e.g. `hospital-building_opt2_var1.png`).
+8. **Test voice input**: Record audio — verify transcription appears in the prompt editor.
+9. **Test prompt refinement**: Type a brief prompt, click "Improve" — verify the refined prompt is more detailed.
+10. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
+11. **Test Type Studio**: Navigate to Type Studio, enter text lines, select fonts, request AI layout suggestions. Verify 1-5 layout options are returned. Select a layout and render — verify the result is saved to the gallery.
+12. **Browse gallery**: Switch to Gallery view — verify generated assets appear with filtering by style and asset type. Test the search bar for instant filtering. Test multi-select and bulk delete.
+13. **Test AssetViewer buttons**: Open an image asset — verify "2D Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears.
+14. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
+15. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented.
+
+## AWS Bedrock Pricing & Cost Breakdown
+
+All prices below are from the official [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions (us-west-2, us-east-1). Prices are on-demand, per-request.
+
+### Per-Unit Pricing
+
+| Service | Model | Per-Unit Cost | Unit |
+|---------|-------|--------------|------|
+| **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00 input / $15.00 output | per 1M tokens |
+| **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00 input / $25.00 output | per 1M tokens |
+| **Claude Opus 4.6 (vision)** | same | ~$0.008 | per 1024×1024 image input |
+| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | per image (1024×1024, premium) |
+| **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | per image (1024×1024) |
+| **SD 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
+| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | per image |
+| **Remove Background** | `stability.stable-image-remove-background-v1:0` | $0.07 | per image |
+| **Creative Upscale** | `stability.stable-creative-upscale-v1:0` | $0.60 | per image |
+| **SVG Conversion** | vtracer / potrace / Pillow (local) | $0.00 | free — runs locally |
+
+> **Vision token formula**: Claude charges image inputs as tokens: `tokens = (width × height) / 750`. A 1024×1024 image ≈ 1,398 tokens. At Opus $5.00/MTok input = ~$0.007 per image.
+
+### Style Analysis Cost (one-time per style)
+
+For a style with **20 reference images** (15 sent to Claude after smart sampling):
+
+| Step | Model | Calculation | Cost |
+|------|-------|-------------|------|
+| Analyze images | Claude Opus 4.6 (vision) | 15 images × ~1,398 tokens + ~500 prompt tokens = ~21,470 input tokens; ~1,000 output tokens | ~$0.13 |
+| Generate hints | Claude Sonnet 4.6 | ~800 input + ~200 output tokens | ~$0.005 |
+| **Total per style analysis** | | | **~$0.14** |
+
+### Generation Cost Scenarios
+
+The generation cost depends on the image model chosen and the options×variations count. Prompt refinement cost is constant per batch.
+
+**Base cost per batch** (prompt refinement/concept generation):
+
+| Options | Prompt Step | Model | Approx. Cost |
+|---------|-----------|-------|-------------|
+| 1 option | Single prompt refinement | Claude Sonnet 4.6 | ~$0.005 |
+| 5 options | Concept generation (5 prompts) | Claude Opus 4.6 | ~$0.05 |
+
+**Image generation cost per batch** (the dominant cost):
+
+| Scenario | Images | Nova Canvas | Titan Image v2 | SD 3.5 Large | Stable Image Ultra |
+|----------|--------|-------------|----------------|--------------|-------------------|
+| 1 option × 1 variation | 1 | $0.06 | $0.01 | $0.08 | $0.14 |
+| 1 option × 5 variations | 5 | $0.30 | $0.05 | $0.40 | $0.70 |
+| 5 options × 1 variation | 5 | $0.30 | $0.05 | $0.40 | $0.70 |
+| 5 options × 5 variations | 25 | $1.50 | $0.25 | $2.00 | $3.50 |
+
+**Post-processing add-ons** (per image, optional):
+
+| Add-on | Per Image | 1 image | 5 images | 25 images |
+|--------|-----------|---------|----------|-----------|
+| Remove Background | $0.07 | $0.07 | $0.35 | $1.75 |
+| Creative Upscale | $0.60 | $0.60 | $3.00 | $15.00 |
+| Convert to SVG | $0.00 | $0.00 | $0.00 | $0.00 |
+
+### Full Cost Examples
+
+**Example 1: Quick single asset (cheapest)**
+1 option × 1 variation, Titan Image v2, no post-processing:
+
+| Step | Cost |
+|------|------|
+| Prompt refinement (Sonnet) | $0.005 |
+| 1 image (Titan) | $0.01 |
+| **Total** | **~$0.02** |
+
+**Example 2: Standard workflow (5 variations to choose from)**
+1 option × 5 variations, Nova Canvas, Remove BG on:
+
+| Step | Cost |
+|------|------|
+| Prompt refinement (Sonnet) | $0.005 |
+| 5 images (Nova Canvas) | $0.30 |
+| 5× Remove Background | $0.35 |
+| **Total** | **~$0.66** |
+
+**Example 3: Full creative exploration (5 concepts × 5 variations)**
+5 options × 5 variations, SD 3.5 Large, Remove BG + SVG:
+
+| Step | Cost |
+|------|------|
+| Concept generation (Opus) | $0.05 |
+| 25 images (SD 3.5 Large) | $2.00 |
+| 25× Remove Background | $1.75 |
+| 25× SVG Conversion | $0.00 |
+| **Total** | **~$3.80** |
+
+**Example 4: Premium with upscale (most expensive)**
+5 options × 5 variations, Stable Image Ultra, Remove BG + Upscale + SVG:
+
+| Step | Cost |
+|------|------|
+| Concept generation (Opus) | $0.05 |
+| 25 images (Ultra) | $3.50 |
+| 25× Remove Background | $1.75 |
+| 25× Creative Upscale | $15.00 |
+| 25× SVG Conversion | $0.00 |
+| **Total** | **~$20.30** |
+
+> **Key takeaway**: Image generation is cheap ($0.01–$0.14/image). **Creative Upscale is the big cost driver at $0.60/image** — use it selectively on your final chosen assets, not on the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free.
 
 ## Deployment & Scaling Roadmap
 
@@ -707,16 +880,15 @@ DynamoDB
 
 ### Cost Estimates (Phase 2)
 
-Rough monthly costs for a small team (10 users, ~500 generation batches/month at 5×5):
+Rough monthly costs for a small team (10 users, ~500 generation batches/month). See the **AWS Bedrock Pricing & Cost Breakdown** section above for detailed per-operation costs.
 
-| Service | Estimated Cost |
-|---------|---------------|
-| App Runner (1 instance, 1 vCPU, 2GB) | ~$30/month |
-| S3 (50GB storage + transfers) | ~$5/month |
-| Bedrock — Claude Opus (500 concept generations) | ~$15-25/month |
-| Bedrock — Claude Sonnet (prompt refinement, style analysis) | ~$5-10/month |
-| Bedrock — Nova Canvas (12,500 images) | ~$500-1000/month |
-| Bedrock — Stability AI (background removal, upscale) | ~$250-500/month |
-| **Total** | **~$800-1,600/month** |
+| Service | 5×5 Nova Canvas (no upscale) | 3×3 Titan (no upscale) |
+|---------|------------------------------|------------------------|
+| App Runner (1 instance) | ~$30/month | ~$30/month |
+| S3 (50GB) | ~$5/month | ~$5/month |
+| Claude (prompts + concepts) | ~$27/month | ~$5/month |
+| Image generation | ~$750/month | ~$45/month |
+| Remove Background | ~$875/month | ~$315/month |
+| **Total** | **~$1,687/month** | **~$400/month** |
 
-> The dominant cost is image generation. Reducing the default from 5×5 (25 images) to 3×3 (9 images) cuts Bedrock image costs by ~64%. Post-processing (background removal, upscale) is optional and can be toggled off to save further.
+> **Biggest cost levers**: Image model choice (Titan at $0.01 vs Ultra at $0.14 = 14× difference), batch size (3×3 = 9 images vs 5×5 = 25 = 2.8× difference), and Creative Upscale ($0.60/image — only use on final selected assets).

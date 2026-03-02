@@ -103,21 +103,37 @@
                                     </div>
                                 </div>
 
-                                <!-- Toggles -->
-                                <div class="space-y-3 pt-2">
+                            </div>
+
+                            <!-- Processing Options -->
+                            <div class="card-static p-5 space-y-4">
+                                <h2 class="text-sm font-semibold flex items-center gap-2 text-brand-text-muted uppercase tracking-wide">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343"/>
+                                    </svg>
+                                    <span id="gen-processing-label">Pre-Processing</span>
+                                </h2>
+                                <div class="space-y-3">
                                     <div class="flex items-center justify-between">
                                         <label class="text-sm">Remove Background</label>
                                         <label class="toggle"><input type="checkbox" id="gen-remove-bg"><span class="toggle-slider"></span></label>
                                     </div>
                                     <div class="flex items-center justify-between">
                                         <label class="text-sm">Convert to SVG</label>
-                                        <label class="toggle"><input type="checkbox" id="gen-svg"><span class="toggle-slider"></span></label>
+                                        <label class="toggle"><input type="checkbox" id="gen-svg" checked><span class="toggle-slider"></span></label>
                                     </div>
                                     <div class="flex items-center justify-between">
                                         <label class="text-sm">Upscale</label>
                                         <label class="toggle"><input type="checkbox" id="gen-upscale"><span class="toggle-slider"></span></label>
                                     </div>
                                 </div>
+                                <button id="btn-apply-postprocess" class="btn btn-secondary btn-sm w-full hidden">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Apply to Current Results
+                                </button>
+                                <p id="pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">Toggle settings above, then click Apply to re-process existing images without regenerating.</p>
                             </div>
                         </aside>
 
@@ -200,10 +216,16 @@
                                         </svg>
                                         <p class="text-brand-text-muted/40 text-sm">Your generated images will appear here</p>
                                     </div>
-                                    <div id="gen-loading" class="hidden absolute inset-0 bg-brand-bg/60 flex flex-col items-center justify-center gap-4">
+                                    <div id="gen-loading" class="hidden absolute inset-0 bg-brand-bg/60 flex flex-col items-center justify-center gap-4 px-8">
                                         <div class="loading-spinner w-10 h-10 border-4 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
                                         <p id="gen-loading-text" class="text-sm text-brand-text-muted font-medium">Generating...</p>
-                                        <p class="text-xs text-brand-text-muted/60">This may take a moment</p>
+                                        <p id="gen-loading-sub" class="text-xs text-brand-text-muted/60"></p>
+                                        <div class="w-full max-w-xs mt-2">
+                                            <div class="h-1.5 bg-brand-border rounded-full overflow-hidden">
+                                                <div id="gen-progress-bar" class="h-full bg-brand-accent rounded-full transition-all duration-1000 ease-out" style="width: 0%"></div>
+                                            </div>
+                                            <p id="gen-loading-elapsed" class="text-[10px] text-brand-text-muted/40 text-center mt-1.5"></p>
+                                        </div>
                                     </div>
                                     <img id="gen-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="Generated image" />
                                 </div>
@@ -235,6 +257,11 @@
             `;
         },
 
+        /** Called when navigating back to Generator (view already cached) */
+        onShow() {
+            this._loadStyles();
+        },
+
         async init() {
             await this._loadStyles();
 
@@ -253,9 +280,10 @@
                 if (this._promptEditor) this._promptEditor.setContext({ assetType: this._getAssetType() });
             });
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
+            document.getElementById('btn-apply-postprocess')?.addEventListener('click', () => this._handlePostProcess());
             document.getElementById('btn-reset')?.addEventListener('click', () => {
                 if (this._result && !confirm('Reset the generator? Current results will be cleared.')) return;
-                window.resetView('generator');
+                window.resetView('image-studio');
             });
         },
 
@@ -267,6 +295,7 @@
 
             const sel = document.getElementById('gen-style');
             if (!sel) return;
+            const currentValue = sel.value;
             const none = sel.querySelector('option');
             sel.innerHTML = '';
             sel.appendChild(none);
@@ -276,6 +305,8 @@
                 opt.textContent = s.name;
                 sel.appendChild(opt);
             });
+            // Restore previous selection if it still exists
+            if (currentValue) sel.value = currentValue;
         },
 
         // ── Generation ──────────────────────────────────────────────
@@ -311,10 +342,12 @@
                 upscale: document.getElementById('gen-upscale').checked,
             };
 
-            this._setGenerating(true, total);
+            this._setGenerating(true, total, payload);
 
             try {
-                const result = await API.generate(payload);
+                const result = await API.generateStream(payload, (evt) => {
+                    this._handleProgressEvent(evt, total);
+                });
                 this._result = result;
                 this._selectedOption = 0;
                 this._selectedVariant = 0;
@@ -328,18 +361,77 @@
             }
         },
 
-        _setGenerating(on, total) {
+        async _handlePostProcess() {
+            if (!this._result) {
+                window.showToast?.('Generate images first', 'warning');
+                return;
+            }
+
+            // Collect all variant asset IDs from current results
+            const assetIds = [];
+            for (const opt of (this._result.options || [])) {
+                for (const v of (opt.variants || [])) {
+                    assetIds.push(v.id);
+                }
+            }
+            if (assetIds.length === 0) {
+                window.showToast?.('No images to process', 'warning');
+                return;
+            }
+
+            const removeBg = document.getElementById('gen-remove-bg').checked;
+            const genSvg = document.getElementById('gen-svg').checked;
+            const upscale = document.getElementById('gen-upscale').checked;
+
+            if (!removeBg && !genSvg && !upscale) {
+                window.showToast?.('Enable at least one post-processing option', 'warning');
+                return;
+            }
+
+            const btn = document.getElementById('btn-apply-postprocess');
+            const origHTML = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-sm"></span> Processing...';
+            btn.disabled = true;
+
+            try {
+                const result = await API.postProcess({
+                    asset_ids: assetIds,
+                    remove_background: removeBg,
+                    generate_svg: genSvg,
+                    upscale: upscale,
+                });
+                const count = (result.processed || []).length;
+                window.showToast?.(`Post-processing applied to ${count} image${count !== 1 ? 's' : ''}`, 'success');
+
+                // Refresh the preview to show updated images (cache-bust)
+                const img = document.getElementById('gen-result-img');
+                if (img && img.src) {
+                    img.src = img.src.split('?')[0] + '?t=' + Date.now();
+                }
+            } catch (err) {
+                console.error('Post-process error:', err);
+            } finally {
+                btn.innerHTML = origHTML;
+                btn.disabled = false;
+            }
+        },
+
+        _progressTimer: null,
+
+        _setGenerating(on, total, payload) {
             this._generating = on;
             const btn = document.getElementById('btn-generate');
             const loadingEl = document.getElementById('gen-loading');
             const loadingText = document.getElementById('gen-loading-text');
+            const loadingSub = document.getElementById('gen-loading-sub');
+            const progressBar = document.getElementById('gen-progress-bar');
+            const elapsed = document.getElementById('gen-loading-elapsed');
             const placeholder = document.getElementById('gen-placeholder');
 
             if (on) {
                 btn.disabled = true;
                 btn.innerHTML = '<span class="spinner-sm"></span> Generating...';
                 loadingEl?.classList.remove('hidden');
-                if (loadingText) loadingText.textContent = `Generating ${total} image${total > 1 ? 's' : ''}...`;
                 placeholder?.classList.add('hidden');
                 document.getElementById('gen-result-img')?.classList.add('hidden');
                 document.getElementById('gen-download-bar')?.classList.add('hidden');
@@ -347,6 +439,9 @@
                 document.getElementById('gen-variations-section')?.classList.add('hidden');
                 document.getElementById('gen-concept-prompt')?.classList.add('hidden');
                 document.getElementById('gen-prompt-info')?.classList.add('hidden');
+
+                // Start progress simulation
+                this._startProgress(total, payload);
             } else {
                 btn.disabled = false;
                 btn.innerHTML = `
@@ -355,6 +450,87 @@
                     </svg>
                     Generate`;
                 loadingEl?.classList.add('hidden');
+                this._stopProgress();
+            }
+        },
+
+        _startProgress(total, payload) {
+            this._stopProgress();
+
+            const elapsedEl = document.getElementById('gen-loading-elapsed');
+            const text = document.getElementById('gen-loading-text');
+            const sub = document.getElementById('gen-loading-sub');
+            const bar = document.getElementById('gen-progress-bar');
+            const startTime = Date.now();
+
+            if (text) text.textContent = 'Starting...';
+            if (sub) sub.textContent = `${total} image${total > 1 ? 's' : ''} queued`;
+            if (bar) bar.style.width = '2%';
+
+            // Elapsed timer
+            const tick = setInterval(() => {
+                const secs = Math.floor((Date.now() - startTime) / 1000);
+                const min = Math.floor(secs / 60);
+                const sec = secs % 60;
+                if (elapsedEl) elapsedEl.textContent = min > 0 ? `${min}m ${sec}s elapsed` : `${sec}s elapsed`;
+            }, 1000);
+
+            this._progressTimer = { tick };
+        },
+
+        _stopProgress() {
+            if (this._progressTimer) {
+                clearInterval(this._progressTimer.tick);
+                this._progressTimer = null;
+            }
+        },
+
+        _handleProgressEvent(evt, total) {
+            const text = document.getElementById('gen-loading-text');
+            const sub = document.getElementById('gen-loading-sub');
+            const bar = document.getElementById('gen-progress-bar');
+
+            switch (evt.type) {
+                case 'started':
+                    if (text) text.textContent = 'Starting generation...';
+                    if (bar) bar.style.width = '5%';
+                    break;
+
+                case 'stage':
+                    if (text) text.textContent = evt.message || evt.stage;
+                    if (evt.stage === 'prompts') {
+                        if (sub) sub.textContent = 'AI is creating concept prompts';
+                        if (bar) bar.style.width = '10%';
+                    } else if (evt.stage === 'generating') {
+                        if (sub) sub.textContent = `${evt.prompts_done || ''} concept${(evt.prompts_done || 0) > 1 ? 's' : ''} ready`;
+                        if (bar) bar.style.width = '20%';
+                    } else if (evt.stage === 'finalizing') {
+                        if (sub) sub.textContent = 'Saving assets and metadata';
+                        if (bar) bar.style.width = '95%';
+                    }
+                    break;
+
+                case 'image_done': {
+                    const done = evt.completed || 0;
+                    const tot = evt.total || total;
+                    const pct = 20 + Math.round((done / tot) * 70);
+                    if (text) text.textContent = `Generating images... ${done}/${tot}`;
+                    if (sub) sub.textContent = `Option ${(evt.option || 0) + 1}, Variation ${(evt.variation || 0) + 1} complete`;
+                    if (bar) bar.style.width = Math.min(pct, 92) + '%';
+                    break;
+                }
+
+                case 'image_error': {
+                    const done = evt.completed || 0;
+                    const tot = evt.total || total;
+                    if (sub) sub.textContent = `Option ${(evt.option || 0) + 1}, Variation ${(evt.variation || 0) + 1} failed — continuing`;
+                    break;
+                }
+
+                case 'complete':
+                    if (bar) bar.style.width = '100%';
+                    if (text) text.textContent = 'Done!';
+                    break;
             }
         },
 
@@ -362,6 +538,12 @@
 
         _renderResults(result) {
             const options = result.options || [];
+
+            // Switch to "Post-Processing" mode now that results exist
+            const labelEl = document.getElementById('gen-processing-label');
+            if (labelEl) labelEl.textContent = 'Post-Processing';
+            document.getElementById('btn-apply-postprocess')?.classList.remove('hidden');
+            document.getElementById('pp-hint')?.classList.remove('hidden');
 
             // Show original vs used prompt
             const infoSection = document.getElementById('gen-prompt-info');
@@ -580,7 +762,7 @@
 
         async loadBatch(batchId) {
             // Navigate to generator view first
-            window.location.hash = '#generator';
+            window.location.hash = '#image-studio';
 
             // Ensure the generator view is visible and initialized
             // (the DOM-caching router will show the existing view)

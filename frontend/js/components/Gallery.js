@@ -16,6 +16,7 @@
         _lastLoadTime: 0,
         _offset: 0,
         _hasMore: false,
+        _selected: new Set(),
 
         render() {
             return `
@@ -26,7 +27,7 @@
                             <h1 class="text-2xl font-bold">Gallery</h1>
                             <p class="text-sm text-brand-text-muted mt-1">Browse your generated art assets</p>
                         </div>
-                        <a href="#generator" class="btn btn-primary btn-sm">
+                        <a href="#image-studio" class="btn btn-primary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
@@ -34,8 +35,34 @@
                         </a>
                     </div>
 
-                    <!-- Filter Bar -->
-                    <div class="card-static p-4">
+                    <!-- Selection bar (hidden until items are selected) -->
+                    <div id="gal-selection-bar" class="hidden card-static p-3 bg-red-950/30 border-red-500/30 flex items-center justify-between gap-4">
+                        <div class="flex items-center gap-3">
+                            <button id="gal-select-all" class="btn btn-secondary btn-sm text-xs">Select All</button>
+                            <button id="gal-deselect-all" class="btn btn-secondary btn-sm text-xs">Deselect All</button>
+                            <span id="gal-selected-count" class="text-sm text-red-300 font-medium"></span>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <span class="text-[10px] text-red-400/70">Deletion is permanent and cannot be undone</span>
+                            <button id="gal-delete-btn" class="btn btn-sm bg-red-600 hover:bg-red-500 text-white">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                                </svg>
+                                Delete Selected
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Search + Filter Bar -->
+                    <div class="card-static p-4 space-y-3">
+                        <!-- Search -->
+                        <div class="relative">
+                            <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+                            </svg>
+                            <input type="text" id="gal-search" class="input w-full pl-10" placeholder="Search prompts, styles, types...">
+                        </div>
+                        <!-- Filters -->
                         <div class="flex flex-wrap items-center gap-3">
                             <div class="flex-1 min-w-[160px]">
                                 <label class="block text-xs text-brand-text-muted mb-1">Style</label>
@@ -100,8 +127,27 @@
                 document.getElementById(id)?.addEventListener('change', () => this._loadItems(true));
             });
 
+            // Search with debounce
+            let searchTimer;
+            document.getElementById('gal-search')?.addEventListener('input', () => {
+                clearTimeout(searchTimer);
+                searchTimer = setTimeout(() => this._applySearch(), 300);
+            });
+
             // Load More button
             document.getElementById('btn-load-more')?.addEventListener('click', () => this._loadMore());
+
+            // Selection / Delete
+            document.getElementById('gal-select-all')?.addEventListener('click', () => {
+                const items = this._filteredItems !== null ? this._filteredItems : this._items;
+                items.forEach(i => this._selected.add(i.id));
+                this._updateSelectionUI();
+            });
+            document.getElementById('gal-deselect-all')?.addEventListener('click', () => {
+                this._selected.clear();
+                this._updateSelectionUI();
+            });
+            document.getElementById('gal-delete-btn')?.addEventListener('click', () => this._handleDelete());
 
             // Load items
             await this._loadItems(true);
@@ -179,6 +225,61 @@
             await this._loadItems(false);
         },
 
+        _updateSelectionUI() {
+            const bar = document.getElementById('gal-selection-bar');
+            const count = document.getElementById('gal-selected-count');
+            const n = this._selected.size;
+            if (bar) bar.classList.toggle('hidden', n === 0);
+            if (count) count.textContent = `${n} item${n !== 1 ? 's' : ''} selected`;
+
+            // Sync checkboxes
+            document.querySelectorAll('.gal-select-cb').forEach(cb => {
+                cb.checked = this._selected.has(cb.dataset.id);
+                const card = cb.closest('.gallery-card');
+                if (card) {
+                    card.classList.toggle('ring-2', cb.checked);
+                    card.classList.toggle('ring-red-500/50', cb.checked);
+                }
+            });
+        },
+
+        async _handleDelete() {
+            const ids = Array.from(this._selected);
+            if (ids.length === 0) return;
+
+            if (!confirm(`Permanently delete ${ids.length} asset${ids.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+
+            window.showLoading?.(`Deleting ${ids.length} asset${ids.length !== 1 ? 's' : ''}...`);
+            try {
+                const result = await API.gallery.delete(ids);
+                window.hideLoading?.();
+                this._selected.clear();
+                window.showToast?.(`${(result.deleted || []).length} asset${(result.deleted || []).length !== 1 ? 's' : ''} deleted`, 'success');
+                await this._loadItems(true);
+            } catch (err) {
+                window.hideLoading?.();
+            }
+        },
+
+        _applySearch() {
+            const query = (document.getElementById('gal-search')?.value || '').toLowerCase().trim();
+            if (!query) {
+                this._filteredItems = null;
+            } else {
+                this._filteredItems = this._items.filter(item => {
+                    const text = [
+                        item.prompt || '',
+                        item.style_id || '',
+                        item.asset_type || '',
+                        item.id || '',
+                    ].join(' ').toLowerCase();
+                    return text.includes(query);
+                });
+            }
+            this._renderGrid();
+            this._updateLoadMore();
+        },
+
         _updateLoadMore() {
             const section = document.getElementById('gal-load-more');
             if (section) {
@@ -187,7 +288,9 @@
             const countEl = document.getElementById('gal-count');
             if (countEl) {
                 countEl.classList.remove('hidden');
-                countEl.textContent = `${this._items.length} asset${this._items.length !== 1 ? 's' : ''}${this._hasMore ? ' (more available)' : ''}`;
+                const displayItems = this._filteredItems !== null ? this._filteredItems : this._items;
+                const searchNote = this._filteredItems !== null ? ` (${displayItems.length} matching)` : '';
+                countEl.textContent = `${this._items.length} asset${this._items.length !== 1 ? 's' : ''}${searchNote}${this._hasMore ? ' — more available' : ''}`;
             }
         },
 
@@ -195,9 +298,23 @@
         //  Rendering
         // --------------------------------------------------------
 
+        _filteredItems: null,
+
         _renderGrid() {
             const grid = document.getElementById('gallery-grid');
             if (!grid) return;
+
+            const displayItems = this._filteredItems !== null ? this._filteredItems : this._items;
+
+            if (displayItems.length === 0 && this._items.length > 0) {
+                // Search returned no results
+                grid.innerHTML = `
+                    <div class="col-span-full text-center py-12 text-brand-text-muted">
+                        <p class="text-sm">No assets match your search.</p>
+                    </div>
+                `;
+                return;
+            }
 
             if (this._items.length === 0) {
                 grid.innerHTML = `
@@ -208,7 +325,7 @@
                         </svg>
                         <h3 class="text-lg font-semibold text-brand-text mb-1">No Assets Yet</h3>
                         <p class="text-brand-text-muted text-sm mb-4">Generate your first image to see it here.</p>
-                        <a href="#generator" class="btn btn-primary btn-sm">
+                        <a href="#image-studio" class="btn btn-primary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
@@ -219,16 +336,36 @@
                 return;
             }
 
-            grid.innerHTML = this._items.map((item) => this._cardHTML(item)).join('');
+            grid.innerHTML = displayItems.map((item) => this._cardHTML(item)).join('');
 
-            // Attach click events
+            // Card click → open viewer
             grid.querySelectorAll('.gallery-card').forEach((card) => {
                 card.addEventListener('click', () => {
                     const id = card.dataset.id;
-                    const item = this._items.find((i) => String(i.id) === String(id));
+                    const item = displayItems.find((i) => String(i.id) === String(id));
                     if (item) AssetViewer.open(item);
                 });
             });
+
+            // Checkbox change → toggle selection
+            grid.querySelectorAll('.gal-select-cb').forEach((cb) => {
+                cb.addEventListener('change', () => {
+                    const id = cb.dataset.id;
+                    if (cb.checked) {
+                        this._selected.add(id);
+                    } else {
+                        this._selected.delete(id);
+                    }
+                    // Update card ring highlight
+                    const card = cb.closest('.gallery-card');
+                    if (card) card.classList.toggle('ring-2', cb.checked);
+                    if (card) card.classList.toggle('ring-red-500/50', cb.checked);
+                    this._updateSelectionUI();
+                });
+            });
+
+            // Sync selection bar visibility after render
+            this._updateSelectionUI();
         },
 
         _cardHTML(item) {
@@ -237,13 +374,18 @@
             const styleName = item.style_name || this._findStyleName(item.style_id) || '';
             const prompt = item.prompt || '';
             const truncPrompt = prompt.length > 80 ? prompt.substring(0, 80) + '...' : prompt;
+            const isSelected = this._selected.has(item.id);
 
             return `
-                <div class="gallery-card card cursor-pointer overflow-hidden group" data-id="${this._esc(item.id)}">
+                <div class="gallery-card card cursor-pointer overflow-hidden group ${isSelected ? 'ring-2 ring-red-500/50' : ''}" data-id="${this._esc(item.id)}">
                     <div class="img-hover-zoom aspect-[4/3] bg-brand-bg flex items-center justify-center overflow-hidden relative">
                         <img src="${pngUrl}" alt="Generated asset"
                              class="w-full h-full object-cover"
                              loading="lazy" />
+                        <label class="gal-checkbox absolute top-2 left-2 z-10" onclick="event.stopPropagation()">
+                            <input type="checkbox" class="gal-select-cb w-4 h-4 rounded border-brand-border bg-brand-bg/80 text-red-500 focus:ring-red-500 cursor-pointer"
+                                data-id="${this._esc(item.id)}" ${isSelected ? 'checked' : ''} />
+                        </label>
                     </div>
                     <div class="p-4 space-y-2">
                         <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${this._esc(truncPrompt) || '<em class="text-brand-text-muted">No prompt</em>'}</p>

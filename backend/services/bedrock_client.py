@@ -343,16 +343,46 @@ def invoke_remove_background(image_bytes: bytes) -> bytes:
 
 
 def invoke_upscale(image_bytes: bytes, prompt: str = "") -> bytes:
-    """Upscale image using Stability AI Creative Upscale. Returns PNG bytes."""
+    """Upscale image using Stability AI Creative Upscale. Returns PNG bytes.
+
+    Uses JPEG output to avoid the 16MB response payload limit, then
+    converts back to PNG. Retries on throttling (ServiceUnavailable).
+    """
+    import time
+
     client = get_models_client()
-    response = client.invoke_model(
-        modelId=settings.stability_upscale_model_id,
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps({
-            "image": base64.b64encode(image_bytes).decode(),
-            "prompt": prompt or "high quality upscale",
-        }),
-    )
+    body_payload = json.dumps({
+        "image": base64.b64encode(image_bytes).decode(),
+        "prompt": prompt or "high quality upscale",
+        "output_format": "jpeg",
+    })
+
+    # Retry with exponential backoff for throttling
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            response = client.invoke_model(
+                modelId=settings.stability_upscale_model_id,
+                contentType="application/json",
+                accept="application/json",
+                body=body_payload,
+            )
+            break
+        except client.exceptions.ServiceUnavailableException:
+            if attempt == max_retries - 1:
+                raise
+            wait = 2 ** attempt + 1
+            logger.warning("Upscale throttled, retrying in %ds (attempt %d/%d)", wait, attempt + 1, max_retries)
+            time.sleep(wait)
+
     result = json.loads(response["body"].read())
+    jpeg_bytes = base64.b64decode(result["images"][0] if "images" in result else result["image"])
+
+    # Convert JPEG to PNG for consistency
+    from PIL import Image as PILImage
+    import io
+    img = PILImage.open(io.BytesIO(jpeg_bytes))
+    png_buf = io.BytesIO()
+    img.save(png_buf, format="PNG")
+    return png_buf.getvalue()
     return base64.b64decode(result["image"])

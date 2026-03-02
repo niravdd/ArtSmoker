@@ -110,5 +110,12 @@ class LocalStore:
         path = self.generated_asset_dir(asset_id) / filename
         return path if path.exists() else None
 
+    def delete_generated_asset(self, asset_id: str) -> bool:
+        d = self.generated_dir / asset_id
+        if d.exists() and d.is_dir():
+            shutil.rmtree(d)
+            return True
+        return False
+
 
 store = LocalStore()

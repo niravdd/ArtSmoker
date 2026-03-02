@@ -537,6 +537,25 @@ select.input {
     background-color: #0f172a;
 }
 
+/* --- Type Studio Mode Toggle --- */
+.ts-mode-btn {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid transparent;
+    transition: all 0.2s ease;
+}
+
+.ts-mode-btn:hover {
+    color: var(--text);
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.ts-mode-btn.ts-mode-active {
+    background: var(--accent);
+    color: white;
+    border-color: var(--accent);
+}
+
 /* --- Fade Utility --- */
 .fade-in {
     animation: fadeIn 0.3s ease-out;
