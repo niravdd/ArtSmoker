@@ -75,6 +75,61 @@ On startup, the app validates your AWS credentials and Bedrock access. Check the
 
 ## Usage
 
+### Workflow overview
+
+```
+                            ┌─────────────────┐
+                            │   ArtSmoker      │
+                            └────────┬────────┘
+                                     │
+                      ┌──────────────┼──────────────┐
+                      │              │              │
+                      ▼              ▼              ▼
+              ┌──────────────┐ ┌──────────┐ ┌──────────────┐
+              │Style Library │ │2D Image  │ │ Type Studio  │
+              │              │ │  Studio  │ │              │
+              │ Upload art   │ │ Generate │ │ Add text to  │
+              │ Analyze style│ │ images   │ │ images or    │
+              │ Set fonts    │ │ from     │ │ standalone   │
+              │              │ │ prompts  │ │ text assets  │
+              └──────┬───────┘ └────┬─────┘ └──────┬───────┘
+                     │              │              │
+                     │    ┌─────────┴─────────┐    │
+                     │    │  Style selected?   │    │
+                     │    │  (optional)        │    │
+                     └───►│  Enhances output   │◄───┘
+                          └─────────┬─────────┘
+                                    │
+                                    ▼
+                          ┌─────────────────┐
+                          │    Gallery       │
+                          │                 │
+                          │ Browse all      │
+                          │ Search/filter   │
+                          │ Select & delete │
+                          └────────┬────────┘
+                                   │
+                    ┌──────────────┼──────────────┐
+                    │              │              │
+                    ▼              ▼              ▼
+            ┌──────────────┐ ┌──────────┐ ┌──────────────┐
+            │ Download     │ │ Reload   │ │ Add Text     │
+            │ PNG / SVG    │ │ in 2D    │ │ in Type      │
+            │              │ │ Image    │ │ Studio       │
+            │              │ │ Studio   │ │              │
+            │              │ │ (refine &│ │ (overlay     │
+            │              │ │  regen)  │ │  text)       │
+            └──────────────┘ └──────────┘ └──────────────┘
+```
+
+**Three entry points, one gallery:**
+
+- **Start with a style** — upload reference art in the Style Library, let AI analyze it, then generate in either studio. The style guides all output.
+- **Start without a style** — jump straight into 2D Image Studio or Type Studio. AI uses its best judgement.
+- **Start from the Gallery** — pick any previously generated asset and reload it in either studio for refinement, or add text to it, or download it as PNG/SVG.
+
+All generated assets (images, text overlays, standalone text) land in the Gallery. Nothing is overwritten — each generation creates new assets.
+
 ### 2D Image Studio (generate assets)
 
 1. Go to the **2D Image Studio** tab.
