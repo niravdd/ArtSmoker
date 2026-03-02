@@ -278,21 +278,57 @@ Two settings in `backend/config.py` control reference image handling and can be 
 
 Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
 
-## Cost per generation
+## AWS Bedrock Pricing & Cost Breakdown
 
-All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/). Style analysis is a one-time cost (~$0.14 per style). Generation costs depend on batch size and model:
+All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions. See also [SPEC.md](SPEC.md#aws-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
+
+### Per-unit pricing
+
+| Service | Model | Cost | Unit |
+|---------|-------|------|------|
+| **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00 input / $15.00 output | per 1M tokens |
+| **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00 input / $25.00 output | per 1M tokens |
+| **Claude Opus (vision)** | same | ~$0.008 | per 1024x1024 image input |
+| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | per image (1024x1024 premium) |
+| **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | per image |
+| **SD 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
+| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | per image |
+| **Remove Background** | Stability AI | $0.07 | per image |
+| **Creative Upscale** | Stability AI | $0.60 | per image |
+| **SVG Conversion** | Local (vtracer/potrace) | $0.00 | free |
+
+### Style analysis cost (one-time per style)
+
+~**$0.14** for a style with 20 reference images (15 sent to Claude Opus after smart sampling).
+
+### Generation cost by batch size
+
+Includes prompt refinement/concept generation + image generation:
 
 | Scenario | Nova Canvas | Titan Image v2 | SD 3.5 Large | Stable Image Ultra |
 |----------|------------|----------------|-------------|-------------------|
-| 1 option × 1 variation | $0.07 | $0.02 | $0.09 | $0.15 |
-| 1 option × 5 variations | $0.31 | $0.06 | $0.41 | $0.71 |
-| 5 options × 5 variations | $1.55 | $0.30 | $2.05 | $3.55 |
+| 1 option × 1 variation | ~$0.07 | ~$0.02 | ~$0.09 | ~$0.15 |
+| 1 option × 5 variations | ~$0.31 | ~$0.06 | ~$0.41 | ~$0.71 |
+| 5 options × 5 variations | ~$1.55 | ~$0.30 | ~$2.05 | ~$3.55 |
 
-Add-ons per image: **Remove Background** $0.07 | **Creative Upscale** $0.60 | **SVG** free
+### Post-processing add-ons (per image)
 
-> **Tip**: Creative Upscale ($0.60/image) is the most expensive operation. Use it on your final chosen asset, not the full batch.
+| Add-on | Per image | 1 image | 5 images | 25 images |
+|--------|-----------|---------|----------|-----------|
+| Remove Background | $0.07 | $0.07 | $0.35 | $1.75 |
+| Creative Upscale | $0.60 | $0.60 | $3.00 | $15.00 |
+| Convert to SVG | $0.00 | $0.00 | $0.00 | $0.00 |
 
-For detailed per-operation breakdowns, worked examples ($0.02 cheapest to $20.30 premium), and monthly team projections, see the **[full pricing section in SPEC.md](SPEC.md#aws-bedrock-pricing--cost-breakdown)**.
+### Worked examples
+
+| Example | Configuration | Total Cost |
+|---------|-------------|-----------|
+| **Cheapest** | 1×1, Titan Image, no processing | ~$0.02 |
+| **Standard** | 1×5, Nova Canvas, Remove BG | ~$0.66 |
+| **Full exploration** | 5×5, SD 3.5 Large, Remove BG + SVG | ~$3.80 |
+| **Premium** | 5×5, Stable Image Ultra, Remove BG + Upscale + SVG | ~$20.30 |
+
+> **Key takeaway**: Image generation itself is cheap ($0.01–$0.14/image). **Creative Upscale at $0.60/image is the dominant cost** — use it selectively on your final chosen assets, not the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free (runs locally).
 
 ## Full specification
 
