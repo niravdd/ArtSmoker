@@ -158,6 +158,8 @@ Generation progress is streamed in real time via SSE — the UI shows which imag
 
 Generated results survive navigation — switching tabs and back preserves the 2D Image Studio's DOM state. Only the reset button clears it.
 
+**Content moderation**: If your prompt is blocked by the image model's content moderation filters, ArtSmoker shows a dialog explaining why and suggesting a safe rewrite. Common triggers include copyrighted IP names (e.g. "Mario", "Master Chief"), violence/weapon language, and adult content references. The AI preserves your creative intent while removing the specific triggers — you can review and edit the suggested rewrite before accepting it. Tip: the **"Improve with AI"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
+
 ### Use a style profile
 
 1. Go to the **Style Library** tab.
@@ -212,6 +214,8 @@ Four image models are available, each with different strengths:
 
 The Stability AI models (SD 3.5 Large, Stable Image Ultra) accept aspect ratios (1:1, 16:9, 3:2, etc.) instead of exact pixel dimensions. When you select a width and height in the UI, the backend automatically maps to the closest supported aspect ratio.
 
+> **Moderation sensitivity varies by model**: Nova Canvas is the strictest — it rejects prompts with copyrighted names, weapons, and combat language more aggressively. SD 3.5 Large is more relaxed for action/combat themes. If you're generating battle scenes or edgy content, try SD 3.5 Large or Stable Image Ultra first.
+
 ## Tech stack
 
 | Layer | Technology |
@@ -234,6 +238,7 @@ Key endpoints:
 |----------|---------|
 | `POST /api/generate/` | Generate assets (options x variations) |
 | `POST /api/generate/post-process` | Apply processing to existing assets |
+| `POST /api/generate/analyze-moderation` | Analyze a moderation-blocked prompt and suggest a safe rewrite |
 | `POST /api/styles/` | Create a style profile |
 | `POST /api/styles/{id}/import` | Bulk-import references from a local folder or S3 URI |
 | `POST /api/styles/{id}/analyze` | Trigger AI style analysis |

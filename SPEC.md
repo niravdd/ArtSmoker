@@ -246,6 +246,8 @@ User prompt: "hospital building"
 
 **Prompt length limit**: Amazon Nova Canvas enforces a 1024-character prompt limit. The prompt engineer instructs Claude to keep outputs under **900 characters**, and there is a hard truncation fallback at 1024 characters (breaking on word boundaries) in `refine_prompt()`, `refine_marketing_prompt()`, and `generate_concept_prompts()`.
 
+**Content moderation handling**: When an image generation call fails due to the model's built-in content moderation filters (prompt rejected as policy-violating), the system detects the failure pattern and surfaces it to the frontend as a moderation-specific error rather than a generic failure. The `POST /api/generate/analyze-moderation` endpoint sends the flagged prompt to Claude Sonnet, which returns: a list of specific issues that likely triggered moderation (e.g. copyrighted IP references, violence/weapon language, adult content), a friendly user-facing explanation, and a rewritten prompt that preserves the original creative intent while avoiding moderation triggers. Non-retriable errors (content moderation, policy blocks) are detected and skip the retry loop entirely — no wasted attempts on prompts that will always be rejected. All image model functions (`invoke_nova_canvas`, `invoke_titan_image`, `invoke_sd35_large`, `invoke_stable_image_ultra`) now return the actual error message from the model instead of crashing with a `KeyError` on missing image data.
+
 ### 3. Strong Asset-Type Differentiation
 
 Each `AssetType` has detailed structural directives in `prompt_engineer.py` covering five dimensions. These are injected into the prompt template with instructions to follow them **precisely**. The same user prompt produces fundamentally different images depending on the asset type.
@@ -287,7 +289,7 @@ GenerationResult
 └── created_at: datetime
 ```
 
-Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant also stores `original_prompt` alongside the other generation fields.
+Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant also stores `original_prompt` alongside the other generation fields. A `moderation_original` field stores the pre-moderation-rewrite prompt when applicable. Full prompt lineage is: `original_prompt` (user's raw input) -> AI-improved prompt -> `moderation_original` (if the prompt was rewritten to pass moderation) -> `prompt` (final prompt sent to the image model).
 
 **Style snapshot in metadata**: Each generated asset (from both 2D Image Studio and Type Studio) stores a `style_snapshot` object capturing the style's state at generation time:
 ```json
@@ -343,6 +345,8 @@ Clean, modern single-page application served as static files mounted at `/` by F
 - **Download bar**: Shows the smart filename (e.g. `a-fierce-dragon_opt1_var2.png`) and provides PNG + SVG download buttons using the human-readable filenames.
 
 If there is only one option, the options row is hidden. If there is only one variation, the variations row is hidden.
+
+- **Content moderation dialog**: An amber-themed modal that appears when more than 50% of variants in a batch fail due to content moderation. The dialog displays an AI-analyzed list of specific issues that triggered moderation, a friendly explanation, an editable rewritten prompt (suggested by Claude Sonnet via `POST /api/generate/analyze-moderation`), and a collapsible section showing the original flagged prompt. The **"Use This Prompt"** button replaces the prompt editor text with the rewritten version while preserving full prompt lineage (`moderation_original` is set). The dialog does **not** auto-modify prompts — it recommends a rewrite and the user decides whether to accept, edit, or dismiss.
 
 **Type Studio** (`#type-studio`) — Full text overlay system for creating titled/branded versions of gallery images or standalone text compositions.
 
@@ -485,6 +489,25 @@ Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 |--------|----------|-------------|
 | POST | `/api/generate/` | Generate assets (full two-level pipeline). Returns `GenerationResult` with options and variants. |
 | POST | `/api/generate/post-process` | Apply post-processing to existing generated assets. Accepts asset IDs and processing flags (remove_background, generate_svg, upscale). Updates the assets in-place and refreshes their metadata on disk. Used by the "Apply to Current Results" button in both studios. |
+| POST | `/api/generate/analyze-moderation` | Analyze a prompt that was rejected by content moderation. Sends the flagged prompt to Claude Sonnet for analysis. Returns a list of specific issues, a friendly explanation, and a rewritten prompt that preserves creative intent while avoiding moderation triggers. |
+
+**Moderation analysis request body**:
+```json
+{
+  "prompt": "the flagged prompt text",
+  "error_message": "the error message returned by the image model",
+  "image_model": "nova_canvas"
+}
+```
+
+**Moderation analysis response**:
+```json
+{
+  "issues": ["copyrighted character name", "explicit violence reference"],
+  "explanation": "The prompt was flagged because it references a copyrighted character...",
+  "rewritten_prompt": "A armored fantasy warrior with a glowing sword..."
+}
+```
 
 **Request body** (`GenerationRequest`):
 ```json
