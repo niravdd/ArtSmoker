@@ -4,18 +4,23 @@
   "description": "Starter Kit City Builder",
   "created_at": "2026-02-26 05:51:53.404048",
   "reference_images": [
+    "coin.png",
+    "colormap.png",
     "icon.png",
+    "instructions.png",
+    "screenshot.png",
+    "selector.png",
     "splash-screen.png"
   ],
   "analyzed_style": {
     "perspective": "flat 2D",
     "palette": [
       "#e0dfe6",
-      "#2d2d2d",
       "#4ecdc4",
-      "#ffffff",
       "#3ab5a8",
+      "#2d2d2d",
       "#1a1a1a",
+      "#ffffff",
       "#c8c7ce"
     ],
     "rendering": "vector flat",
@@ -24,5 +29,5 @@
     "scale": "icon-sized micro detail",
     "background": "solid color"
   },
-  "generation_hints": "Flat 2D vector illustration, no outlines or strokes, solid color background using soft light grey (#e0dfe6), limited palette of muted grey-lavender tones (#c8c7ce, #e0dfe6), deep near-black (#2d2d2d, #1a1a1a), clean white (#ffffff), and vibrant teal-cyan accents (#4ecdc4, #3ab5a8), bright and playful mood, icon-sized micro detail with crisp geometric shapes, smooth hard-edged fills, zero gradients or textures, minimalist silhouette-driven forms, tight compact composition suited for small-scale display, pure vector aesthetic with flat color blocking throughout."
+  "generation_hints": "Flat 2D vector illustration, no outlines or strokes, solid soft light grey background (#e0dfe6), limited palette of muted grey-lavender (#c8c7ce, #e0dfe6), deep near-black (#2d2d2d, #1a1a1a), clean white (#ffffff), and vibrant teal-cyan accents (#4ecdc4, #3ab5a8), bright and playful mood, icon-sized micro detail, crisp geometric shapes, smooth hard-edged flat color fills, zero gradients or textures, minimalist silhouette-driven forms, tight compact composition optimized for small-scale display, pure vector aesthetic with flat color blocking throughout, no shading or drop shadows, clean negative space, bold shape simplification."
 }
