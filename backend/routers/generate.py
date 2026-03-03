@@ -120,6 +120,7 @@ def _build_variant(
         "option_index": option_index,
         "variant_index": variant_index,
         "original_prompt": body.original_prompt,
+        "moderation_original": body.moderation_original,
         "prompt": body.prompt,
         "refined_prompt": refined_prompt,
         "style_id": body.style_id,
@@ -359,6 +360,56 @@ async def generate_asset_stream(body: GenerationRequest):
             "X-Accel-Buffering": "no",
         },
     )
+
+
+# ── Moderation analysis ───────────────────────────────────────────────────
+
+class ModerationRequest(BaseModel):
+    prompt: str
+    error_message: str = ""
+    image_model: str = "nova_canvas"
+
+
+@router.post("/analyze-moderation")
+async def analyze_moderation(body: ModerationRequest):
+    """Analyze why a prompt was flagged by content moderation and suggest a safe rewrite.
+
+    Returns the analysis, the rewritten prompt, and a list of flagged issues.
+    """
+    from backend.services.bedrock_client import invoke_claude
+
+    analysis_prompt = f"""A user's image generation prompt was blocked by AWS Bedrock's content moderation system for the model "{body.image_model}".
+
+The error was: "{body.error_message}"
+
+The original prompt was:
+"{body.prompt}"
+
+Please analyze this and respond with ONLY a JSON object (no markdown fences):
+{{
+  "issues": [
+    "Brief description of each issue that likely triggered moderation (e.g. 'Reference to copyrighted IP: One Piece', 'Violence: fighting with swords toward camera')"
+  ],
+  "explanation": "A friendly 1-2 sentence explanation for the user about why their prompt was flagged",
+  "rewritten_prompt": "A rewritten version of the prompt that preserves the creative intent but avoids all moderation triggers. Keep it under 900 characters. Remove copyrighted IP names, soften violence/weapon language, and rephrase any potentially sensitive content."
+}}"""
+
+    try:
+        raw = invoke_claude(analysis_prompt, complexity="fast", max_tokens=2048, temperature=0.3)
+        # Parse JSON
+        import re as _re
+        cleaned = raw.strip()
+        cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", cleaned)
+        cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
+        result = json.loads(cleaned.strip())
+        return result
+    except Exception as exc:
+        logger.exception("Moderation analysis failed")
+        return {
+            "issues": ["Unable to analyze — the AI service returned an error"],
+            "explanation": "The prompt was blocked by content moderation. Try removing references to violence, copyrighted characters, or sensitive content.",
+            "rewritten_prompt": "",
+        }
 
 
 # ── Post-processing on existing assets ────────────────────────────────────

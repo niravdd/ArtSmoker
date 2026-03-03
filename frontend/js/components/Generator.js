@@ -326,10 +326,12 @@
             const total = numOptions * numVariations;
 
             const originalPrompt = this._promptEditor ? this._promptEditor.getOriginalText().trim() : prompt;
+            const moderationOriginal = this._promptEditor?._moderationOriginal || null;
 
             const payload = {
                 prompt,
                 original_prompt: originalPrompt !== prompt ? originalPrompt : null,
+                moderation_original: moderationOriginal || null,
                 style_id: this._getStyleId() || null,
                 asset_type: this._getAssetType(),
                 image_model: document.getElementById('gen-model').value,
@@ -343,19 +345,41 @@
             };
 
             this._setGenerating(true, total, payload);
+            this._moderationErrors = [];
 
             try {
                 const result = await API.generateStream(payload, (evt) => {
                     this._handleProgressEvent(evt, total);
+                    // Track moderation-related errors
+                    if (evt.type === 'image_error' && evt.error) {
+                        const errLower = (evt.error || '').toLowerCase();
+                        if (errLower.includes('generation failed') || errLower.includes('moderation') || errLower.includes('blocked')) {
+                            this._moderationErrors.push(evt.error);
+                        }
+                    }
                 });
                 this._result = result;
                 this._selectedOption = 0;
                 this._selectedVariant = 0;
                 this._renderResults(result);
                 const totalGenerated = (result.options || []).reduce((n, o) => n + (o.variants || []).length, 0);
-                window.showToast?.(`${totalGenerated} images generated across ${(result.options || []).length} options!`, 'success');
+
+                // Check if most variants failed due to moderation
+                const totalExpected = total;
+                if (totalGenerated === 0 || (this._moderationErrors.length > totalExpected / 2)) {
+                    this._showModerationDialog(prompt, this._moderationErrors[0] || 'Content moderation blocked this prompt', payload);
+                } else if (totalGenerated > 0) {
+                    window.showToast?.(`${totalGenerated} images generated across ${(result.options || []).length} options!`, 'success');
+                    if (this._moderationErrors.length > 0) {
+                        window.showToast?.(`${this._moderationErrors.length} variant(s) were blocked by content moderation`, 'warning');
+                    }
+                }
             } catch (err) {
                 console.error('Generation error:', err);
+                const errMsg = err.message || String(err);
+                if (errMsg.toLowerCase().includes('generation failed') || errMsg.toLowerCase().includes('all') ) {
+                    this._showModerationDialog(prompt, this._moderationErrors[0] || errMsg, payload);
+                }
             } finally {
                 this._setGenerating(false);
             }
@@ -413,6 +437,131 @@
             } finally {
                 btn.innerHTML = origHTML;
                 btn.disabled = false;
+            }
+        },
+
+        // ── Moderation Dialog ────────────────────────────────────────
+
+        _moderationErrors: [],
+
+        async _showModerationDialog(originalPrompt, errorMessage, payload) {
+            // Remove any existing dialog
+            document.getElementById('moderation-dialog')?.remove();
+
+            // Show loading state while AI analyzes
+            const dialog = document.createElement('div');
+            dialog.id = 'moderation-dialog';
+            dialog.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
+            dialog.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+                    <div class="flex items-center gap-3 px-6 py-4 border-b border-brand-border bg-amber-950/30">
+                        <svg class="w-6 h-6 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                        </svg>
+                        <h2 class="text-lg font-semibold text-amber-300">Content Moderation Issue</h2>
+                        <button class="mod-close ml-auto p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="flex-1 overflow-auto p-6" id="mod-content">
+                        <div class="flex items-center justify-center py-8 gap-3 text-brand-text-muted">
+                            <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
+                            Analyzing your prompt for moderation issues...
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+            dialog.querySelector('.mod-close').addEventListener('click', () => dialog.remove());
+            dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.remove(); });
+
+            // Call AI to analyze
+            try {
+                const analysis = await API.analyzeModeration({
+                    prompt: originalPrompt,
+                    error_message: errorMessage,
+                    image_model: payload?.image_model || 'nova_canvas',
+                });
+
+                const content = document.getElementById('mod-content');
+                if (!content) return;
+
+                content.innerHTML = `
+                    <div class="space-y-5">
+                        <div>
+                            <p class="text-sm text-brand-text/90 leading-relaxed">${this._escapeHtml(analysis.explanation || 'Your prompt was blocked by the image model\'s content moderation filters.')}</p>
+                        </div>
+
+                        ${(analysis.issues || []).length > 0 ? `
+                        <div>
+                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">Issues Detected</h3>
+                            <ul class="space-y-1.5">
+                                ${analysis.issues.map(issue => `
+                                    <li class="flex items-start gap-2 text-sm text-brand-text-muted">
+                                        <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01"/>
+                                        </svg>
+                                        ${this._escapeHtml(issue)}
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>` : ''}
+
+                        <div>
+                            <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2">Recommended Rewrite</h3>
+                            <textarea id="mod-rewritten-prompt" class="input w-full min-h-[120px] text-sm">${this._escapeHtml(analysis.rewritten_prompt || '')}</textarea>
+                            <p class="text-[10px] text-brand-text-muted mt-1">You can edit this before using it. The original prompt is preserved in your history.</p>
+                        </div>
+
+                        <div>
+                            <details class="text-xs">
+                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">View original prompt</summary>
+                                <p class="mt-2 p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._escapeHtml(originalPrompt)}</p>
+                            </details>
+                        </div>
+
+                        <div class="flex gap-3 pt-2">
+                            <button id="mod-use-rewrite" class="btn btn-primary flex-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                </svg>
+                                Use This Prompt
+                            </button>
+                            <button id="mod-dismiss" class="btn btn-secondary">
+                                Dismiss
+                            </button>
+                        </div>
+                    </div>
+                `;
+
+                // Wire up buttons
+                document.getElementById('mod-use-rewrite')?.addEventListener('click', () => {
+                    const rewritten = document.getElementById('mod-rewritten-prompt')?.value?.trim();
+                    if (rewritten && this._promptEditor) {
+                        // Store the moderation-refined prompt lineage
+                        this._promptEditor._moderationOriginal = originalPrompt;
+                        this._promptEditor.setText(rewritten);
+                    }
+                    dialog.remove();
+                    window.showToast?.('Prompt updated — click Generate to try again', 'success');
+                });
+
+                document.getElementById('mod-dismiss')?.addEventListener('click', () => dialog.remove());
+
+            } catch (err) {
+                const content = document.getElementById('mod-content');
+                if (content) {
+                    content.innerHTML = `
+                        <div class="text-center py-8">
+                            <p class="text-red-400 mb-2">Failed to analyze the prompt</p>
+                            <p class="text-sm text-brand-text-muted">Try rephrasing your prompt to remove references to violence, copyrighted characters, or sensitive content.</p>
+                            <button class="mod-close-btn btn btn-secondary btn-sm mt-4">Close</button>
+                        </div>
+                    `;
+                    content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
+                }
             }
         },
 

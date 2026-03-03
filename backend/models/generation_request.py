@@ -22,6 +22,7 @@ class ImageModel(str, Enum):
 class GenerationRequest(BaseModel):
     prompt: str
     original_prompt: str | None = None
+    moderation_original: str | None = None  # Pre-moderation-rewrite prompt
     style_id: str | None = None
     asset_type: AssetType = AssetType.GAME_ASSET
     image_model: ImageModel = ImageModel.NOVA_CANVAS

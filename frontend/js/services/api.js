@@ -146,6 +146,14 @@
             });
         },
 
+        /** Analyze a moderation-blocked prompt and get a safe rewrite */
+        analyzeModeration(data) {
+            return request('/api/generate/analyze-moderation', {
+                method: 'POST',
+                body: data,
+            });
+        },
+
         /** Apply post-processing to existing gallery assets */
         postProcess(data) {
             return request('/api/generate/post-process', {
