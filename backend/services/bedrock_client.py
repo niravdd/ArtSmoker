@@ -222,6 +222,10 @@ def invoke_nova_canvas(
         body=json.dumps(body),
     )
     result = json.loads(response["body"].read())
+    if "images" not in result:
+        error_msg = result.get("error", result.get("message", str(result)))
+        logger.error("Nova Canvas returned no images: %s", error_msg)
+        raise RuntimeError(f"Nova Canvas generation failed: {error_msg}")
     return base64.b64decode(result["images"][0])
 
 
@@ -255,6 +259,10 @@ def invoke_titan_image(
         body=json.dumps(body),
     )
     result = json.loads(response["body"].read())
+    if "images" not in result:
+        error_msg = result.get("error", result.get("message", str(result)))
+        logger.error("Titan Image returned no images: %s", error_msg)
+        raise RuntimeError(f"Titan Image generation failed: {error_msg}")
     return base64.b64decode(result["images"][0])
 
 
@@ -295,6 +303,10 @@ def invoke_sd35_large(
         body=json.dumps(body),
     )
     result = json.loads(response["body"].read())
+    if "images" not in result:
+        error_msg = result.get("error", result.get("message", str(result)))
+        logger.error("SD 3.5 Large returned no images: %s", error_msg)
+        raise RuntimeError(f"SD 3.5 Large generation failed: {error_msg}")
     return base64.b64decode(result["images"][0])
 
 
@@ -322,6 +334,10 @@ def invoke_stable_image_ultra(
         body=json.dumps(body),
     )
     result = json.loads(response["body"].read())
+    if "images" not in result:
+        error_msg = result.get("error", result.get("message", str(result)))
+        logger.error("Stable Image Ultra returned no images: %s", error_msg)
+        raise RuntimeError(f"Stable Image Ultra generation failed: {error_msg}")
     return base64.b64decode(result["images"][0])
 
 

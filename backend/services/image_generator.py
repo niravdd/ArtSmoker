@@ -68,7 +68,12 @@ def generate_image(
         except Exception as exc:
             last_exc = exc
             exc_str = str(exc).lower()
-            retriable = any(k in exc_str for k in [
+            # Content moderation / prompt rejection errors are NOT retriable
+            non_retriable = any(k in exc_str for k in [
+                "content moderation", "generation failed", "not allowed",
+                "blocked", "unsafe", "policy",
+            ])
+            retriable = not non_retriable and any(k in exc_str for k in [
                 "throttl", "too many", "service unavailable",
                 "timed out", "connection", "rate exceeded",
             ])
