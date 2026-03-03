@@ -108,6 +108,7 @@ ArtSmoker/
 │   │   ├── image_generator.py     # Nova Canvas / Titan Image / SD 3.5 Large / Stable Image Ultra: generate images
 │   │   ├── post_processor.py      # Stability AI: bg removal, upscale; vtracer/potrace: SVG
 │   │   ├── transcriber.py         # Nova Sonic: bidirectional streaming speech-to-text
+│   │   ├── texture_extractor.py   # glTF/GLB texture extraction (base64, binary chunks, external refs)
 │   │   └── bedrock_client.py      # Shared Bedrock client with connection pooling
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update models
@@ -188,7 +189,15 @@ A style profile captures the visual DNA of a game's art:
 8. Profile's `generation_hints` are incorporated into every generation prompt.
 9. **Auto re-analysis**: Style analysis is automatically re-triggered when (a) reference images are uploaded via the upload endpoint, or (b) `generation_hints` are changed via PATCH and the new value differs from the previous one. Both paths use a shared `_auto_reanalyze()` helper.
 
-**Directory/S3 import**: The `POST /api/styles/{id}/import` endpoint accepts a local directory path or S3 prefix. Body: `{ "path": "...", "auto_analyze": true }`. It scans **recursively** (using `rglob`) for all image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif) in all subdirectories. **Local imports use symlinks** (not copies) to avoid disk duplication. S3 imports download files to the references folder; the S3 client paginates through all objects (handles >1000 keys). Browser uploads copy files normally. Filenames from different subdirectories are **deduplicated** by prefixing with the parent directory name when collisions are detected. The total reference image count is capped at `max_reference_images` (default 50, env: `ARTSMOKER_MAX_REFERENCE_IMAGES`). Optionally auto-triggers Claude Opus style analysis after import.
+**Directory/S3 import**: The `POST /api/styles/{id}/import` endpoint accepts a local directory path or S3 prefix. Body: `{ "path": "...", "auto_analyze": true }`. It scans **recursively** (using `rglob`) for all supported asset files in all subdirectories.
+
+**Supported import formats** (centralized in `config.py`):
+- **Image formats** (`IMAGE_EXTENSIONS`): .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga (Targa), .ico, .svg
+- **3D model texture extraction** (`MODEL_EXTENSIONS_WITH_TEXTURES`): .glb (binary glTF), .gltf (JSON glTF) — embedded textures (base64 data URIs, binary buffer chunks) and external texture references are extracted automatically via `backend/services/texture_extractor.py`
+
+**How 3D model extraction works**: During directory import, after scanning for image files, the system also scans for .glb/.gltf files and extracts embedded textures. The `texture_extractor.py` service parses glTF JSON (base64 data URIs, external file references) and GLB binary containers (buffer view chunks). Extracted textures are saved as **copies** (not symlinked, since they come from binary data). Filenames are prefixed with the model name to avoid collisions (e.g. `castle_texture0.png`).
+
+**Local imports use symlinks** (not copies) to avoid disk duplication for standard image files. S3 imports download files to the references folder; the S3 client paginates through all objects (handles >1000 keys). Browser uploads copy files normally. Filenames from different subdirectories are **deduplicated** by prefixing with the parent directory name when collisions are detected. The total reference image count is capped at `max_reference_images` (default 50, env: `ARTSMOKER_MAX_REFERENCE_IMAGES`). Optionally auto-triggers Claude Opus style analysis after import.
 
 ### 2. Two-Level Asset Generation Pipeline
 
@@ -442,7 +451,7 @@ Each step is independently fault-tolerant — failures are logged but do not abo
 
 **Style storage** (`data/styles/{style_id}/`):
 - `profile.json` — serialized StyleProfile.
-- `references/` — uploaded reference images. Local directory imports are stored as **symlinks** to avoid disk duplication; S3 downloads and browser uploads are stored as copies.
+- `references/` — uploaded reference images. Local directory imports are stored as **symlinks** to avoid disk duplication; S3 downloads and browser uploads are stored as copies. Textures extracted from 3D models (.glb/.gltf) are stored as **copies** (not symlinked, since they originate from binary data) with filenames prefixed by the source model name (e.g. `castle_texture0.png`).
 
 **Key methods**:
 - `link_reference_image(style_id, filename, source_path)` — creates a **relative symlink** (via `os.path.relpath()`) in the style's references folder pointing to the source file. Used by the local directory import path. Relative symlinks survive directory moves and work across machines (unlike absolute symlinks). S3 and browser uploads still copy files.
@@ -467,7 +476,7 @@ Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 | DELETE | `/api/styles/{id}` | Delete a style profile and all its associated data (references, profile.json). |
 | POST | `/api/styles/{id}/references` | Upload reference images (multipart file upload). Enforces max_reference_images limit (default 50). Auto-triggers re-analysis after upload. |
 | GET | `/api/styles/{id}/references/{filename}` | Serve a reference image file. |
-| POST | `/api/styles/{id}/import` | Import image files from a local directory path or S3 prefix. Body: `{ "path": "/path/to/images", "auto_analyze": true }`. Scans recursively for all image files in subdirectories. Local imports use symlinks (not copies). S3 imports download files (paginates through >1000 keys). Filenames are deduplicated by prefixing with parent directory name. Optionally triggers style analysis after import. |
+| POST | `/api/styles/{id}/import` | Import asset files from a local directory path or S3 prefix. Body: `{ "path": "/path/to/images", "auto_analyze": true }`. Scans recursively for image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) and 3D models (.glb, .gltf) with automatic texture extraction. Local image imports use symlinks (not copies); extracted textures are saved as copies. S3 imports download files (paginates through >1000 keys). Filenames are deduplicated by prefixing with parent/model name. Optionally triggers style analysis after import. |
 | POST | `/api/styles/{id}/analyze` | Trigger AI style analysis on reference images. If the style has more than `max_analysis_images` (default 15) references, smart sampling selects a diverse subset. Claude Opus analyzes images (context-aware, receives existing generation_hints as "Artist's Guidance"), Claude Sonnet generates hints. Both are persisted to the profile. |
 
 ### Generation
@@ -568,9 +577,9 @@ Fields:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/browse/local?path=~` | Browse local filesystem directories. Returns list of files and subdirectories at the given path. Used by the Style Library file browser modal. |
+| GET | `/api/browse/local?path=~` | Browse local filesystem directories. Returns list of files and subdirectories at the given path. Recognizes all supported asset formats: images (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) and 3D models (.glb, .gltf). Used by the Style Library file browser modal. |
 | GET | `/api/browse/s3/buckets` | List available S3 buckets. |
-| GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. Returns list of objects and common prefixes. |
+| GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. Returns list of objects and common prefixes. Recognizes the same asset formats as the local browser. |
 
 ### System
 

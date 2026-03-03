@@ -8,7 +8,7 @@ Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, SD 3.5 Large, Stable Ima
 
 ## What it does
 
-1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally).
+1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally). Supports a wide range of formats: .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus automatic texture extraction from 3D models (.glb, .gltf).
 2. **AI learns your style** — AI analyzes the visual DNA (palette, perspective, rendering, mood). Analysis is context-aware: if you provide generation hints, the AI receives them as "Artist's Guidance" alongside the reference images, so the analysis understands your intent, not just what's visible.
 3. **Describe what you need** — type or speak a prompt like "hospital building" or "fire mage character".
 4. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
@@ -162,7 +162,7 @@ Generated results survive navigation — switching tabs and back preserves the 2
 
 1. Go to the **Style Library** tab.
 2. Click **Create New Style** — enter a name and optionally add generation hints. In the create modal, use the **"Import References From"** section with **Local** and **S3** browse buttons to select a source directory or bucket path. Browsing opens a server-side file/directory browser modal (single-click selects an item, double-click navigates into directories). Imported references are auto-analyzed on creation.
-3. Local directory imports scan **recursively** through all subdirectories; files are **symlinked** using **relative symlinks** (no duplication, portable across machines — symlinks work as long as source art directories maintain the same relative position to the project). S3 imports list recursively with pagination and **download** files locally. Up to **50 reference images** are imported per style.
+3. Local directory imports scan **recursively** through all subdirectories for images (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) and 3D models (.glb, .gltf). Image files are **symlinked** using **relative symlinks** (no duplication, portable across machines). 3D model files (.glb/.gltf) have their embedded textures **automatically extracted** — base64 data URIs, binary buffer chunks, and external texture references are all handled. Extracted textures are saved as copies (prefixed with the model name to avoid collisions). S3 imports list recursively with pagination and **download** files locally. Up to **50 reference images** are imported per style. Supported extensions are centralized in `backend/config.py` (`IMAGE_EXTENSIONS` and `MODEL_EXTENSIONS_WITH_TEXTURES`).
 4. **Smart sampling for analysis**: When a style has more than 15 references, the analyzer selects a diverse representative subset of 15 for the AI vision call — ensuring coverage across filename groups and file-size diversity. The AI is told how many total images exist vs. how many it is seeing.
 5. In the style detail view, use **"Import & Analyze"** to add more references and trigger analysis in one step. Drag-and-drop upload is also supported and **auto re-analyzes** when new images are added.
 6. **"Re-Analyze Style"** appears after the initial analysis, letting you manually re-run analysis at any time.
@@ -258,7 +258,7 @@ ArtSmoker/
 │   ├── main.py              # FastAPI app + startup validation
 │   ├── config.py            # Settings (AWS, models, paths)
 │   ├── routers/             # API endpoints
-│   ├── services/            # AI pipeline (Bedrock integration)
+│   ├── services/            # AI pipeline (Bedrock integration), texture extraction
 │   ├── models/              # Pydantic request/response models
 │   └── storage/             # Local filesystem (S3-compatible interface)
 ├── frontend/
