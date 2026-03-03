@@ -154,7 +154,7 @@ All generated assets (images, text overlays, standalone text) land in the Galler
 9. Click any image to preview full-size, then download PNG or SVG.
 10. Use the **reset button** (amber circular arrow) to clear generated results and start fresh.
 
-Generation progress is streamed in real time via SSE — the UI shows which image is being generated (e.g. "Generating images... 12/25"), elapsed time, and current pipeline stage (prompts, generating, finalizing).
+Generation progress is streamed in real time via SSE — the UI shows which image is being generated (e.g. "Generating images... 12/25"), elapsed time, and current pipeline stage. If the API is throttled, you'll see "API throttled — waiting to retry..." with the delay, then "Retrying... (attempt 2/3)" — each image retries up to 3 times with exponential backoff so large batches don't lose variants to transient throttling.
 
 Generated results survive navigation — switching tabs and back preserves the 2D Image Studio's DOM state. Only the reset button clears it.
 

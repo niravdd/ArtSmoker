@@ -1,0 +1,23 @@
+{
+  "id": "e3826bfb-46fb-4b4f-83be-e5edb3bacc0e_o1_v0",
+  "batch_id": "e3826bfb-46fb-4b4f-83be-e5edb3bacc0e",
+  "option_index": 1,
+  "variant_index": 0,
+  "original_prompt": "Diwali celebration art work",
+  "prompt": "Wide cinematic Diwali celebration banner illustration, stylized mobile-game digital painting. Left third serves as quiet safe zone with deep indigo #1a0a3e gradient fading softly, minimal detail for text overlay. Right two-thirds feature dramatic focal scene: ornate temple silhouette glowing with thousands of warm diyas, golden volumetric light rays piercing deep navy-purple sky bursting with vibrant fireworks in coral-red #e8432a, emerald #2ecc71, violet #8b5cf6, hot pink #ff6fb5. Foreground: richly dressed celebrants in festive attire, floating rangoli patterns, marigold garlands, glittering gold #ffd700 and amber #f5a623 bokeh particles cascading like confetti. Glossy painted highlights define forms without hard outlines. Rim lighting in sky blue #1e90ff outlines figures dramatically. Warm ambient glow emanates from clustered diya lamps. Subtle depth-of-field blurs distant festive crowd into jewel-toned bokeh. Saturated celebratory palette, publication-ready polished quality, no text, no typography.",
+  "refined_prompt": "Wide cinematic Diwali banner, stylized mobile-game digital painting, elevated bird's-eye-to-three-quarter aerial perspective. Left third: deep indigo #1a0a3e to dark purple soft gradient, visually quiet empty safe zone for text overlay. Right two-thirds: winding sacred river reflecting thousands of floating diya boats, each glowing amber #f5a623 and gold #ffd700, creating rivers of light. Ornate ghats and stepped architecture rise along the riverbank adorned with marigold garlands and rangoli patterns. Sky above explodes with layered firework starbursts in hot pink #ff6fb5, coral-red #e8432a, emerald #2ecc71, violet #8b5cf6. Small festive figures in colorful attire gather along illuminated steps. Glittering gold particles and confetti drift across scene. Sky blue #1e90ff rim light edges architectural forms. Warm volumetric glow rises from massed floating diyas. Background temples silhouetted against purple sky. Depth-of-field blurs far shore into dreamy bokeh. Glossy highlights, soft painted gradients,",
+  "style_id": "ludo-club-deeper",
+  "asset_type": "marketing_banner",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 807897975,
+  "remove_background": false,
+  "generate_svg": true,
+  "upscale": false,
+  "png_path": "/api/gallery/e3826bfb-46fb-4b4f-83be-e5edb3bacc0e_o1_v0/png",
+  "svg_path": "/api/gallery/e3826bfb-46fb-4b4f-83be-e5edb3bacc0e_o1_v0/svg",
+  "png_filename": "wide-cinematic-diwali-celebration_opt2_var1.png",
+  "svg_filename": null,
+  "created_at": "2026-03-02T04:15:44.422538"
+}

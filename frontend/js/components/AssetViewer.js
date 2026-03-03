@@ -304,20 +304,23 @@
             });
 
             // Add Text in Type Studio
-            this._overlay.querySelector('.btn-add-text')?.addEventListener('click', () => {
+            this._overlay.querySelector('.btn-add-text')?.addEventListener('click', async () => {
                 const item = this._item;
                 if (!item) return;
                 this.close();
                 window.location.hash = '#type-studio';
-                setTimeout(() => {
-                    if (window.TypeStudio && typeof window.TypeStudio.loadSourceImage === 'function') {
-                        window.TypeStudio.loadSourceImage(item.id, item.style_id);
-                    }
-                }, 200);
+                // Wait for Type Studio DOM to be ready
+                const start = Date.now();
+                while (!document.getElementById('ts-style') && (Date.now() - start) < 5000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                if (window.TypeStudio?.loadSourceImage) {
+                    window.TypeStudio.loadSourceImage(item.id, item.style_id);
+                }
             });
 
             // Edit in Type Studio (reload previous Type Studio work)
-            this._overlay.querySelector('.btn-reload-type')?.addEventListener('click', () => {
+            this._overlay.querySelector('.btn-reload-type')?.addEventListener('click', async () => {
                 const meta = this._meta;
                 if (!meta) {
                     window.showToast?.('Metadata not loaded yet', 'warning');
@@ -325,11 +328,13 @@
                 }
                 this.close();
                 window.location.hash = '#type-studio';
-                setTimeout(() => {
-                    if (window.TypeStudio && typeof window.TypeStudio.loadFromMeta === 'function') {
-                        window.TypeStudio.loadFromMeta(meta);
-                    }
-                }, 200);
+                const start = Date.now();
+                while (!document.getElementById('ts-style') && (Date.now() - start) < 5000) {
+                    await new Promise(r => setTimeout(r, 100));
+                }
+                if (window.TypeStudio?.loadFromMeta) {
+                    window.TypeStudio.loadFromMeta(meta);
+                }
             });
         },
 

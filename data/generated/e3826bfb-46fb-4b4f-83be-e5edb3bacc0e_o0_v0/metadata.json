@@ -1,0 +1,23 @@
+{
+  "id": "e3826bfb-46fb-4b4f-83be-e5edb3bacc0e_o0_v0",
+  "batch_id": "e3826bfb-46fb-4b4f-83be-e5edb3bacc0e",
+  "option_index": 0,
+  "variant_index": 0,
+  "original_prompt": "Diwali celebration art work",
+  "prompt": "Wide cinematic Diwali celebration banner illustration, stylized mobile-game digital painting. Left third serves as quiet safe zone with deep indigo #1a0a3e gradient fading softly, minimal detail for text overlay. Right two-thirds feature dramatic focal scene: ornate temple silhouette glowing with thousands of warm diyas, golden volumetric light rays piercing deep navy-purple sky bursting with vibrant fireworks in coral-red #e8432a, emerald #2ecc71, violet #8b5cf6, hot pink #ff6fb5. Foreground: richly dressed celebrants in festive attire, floating rangoli patterns, marigold garlands, glittering gold #ffd700 and amber #f5a623 bokeh particles cascading like confetti. Glossy painted highlights define forms without hard outlines. Rim lighting in sky blue #1e90ff outlines figures dramatically. Warm ambient glow emanates from clustered diya lamps. Subtle depth-of-field blurs distant festive crowd into jewel-toned bokeh. Saturated celebratory palette, publication-ready polished quality, no text, no typography.",
+  "refined_prompt": "Wide cinematic Diwali banner, stylized mobile-game digital painting, front-facing 3/4 perspective with slight top-down tilt. Left third: deep indigo #1a0a3e smooth gradient, minimal detail, quiet safe zone for text. Right two-thirds: grand ornate temple silhouette from below, thousands of warm glowing diyas lining every arch and dome, golden #ffd700 volumetric light rays streaming upward into deep navy-to-purple sky. Massive fireworks bursting in coral-red #e8432a, emerald #2ecc71, violet #8b5cf6, hot pink #ff6fb5. Foreground: joyful celebrants in richly embroidered saris and kurtas, arms raised in celebration, surrounded by floating rangoli mandalas and cascading marigold garlands. Amber #f5a623 and gold bokeh particles fall like confetti. Sky blue #1e90ff rim lighting outlines figures dramatically. Glossy painted highlights, soft gradients, no hard outlines. Clustered diya lamps emit warm ambient glow. Distant festive crowd blurs into jewel-toned bokeh. Saturated vibrant palette, polished",
+  "style_id": "ludo-club-deeper",
+  "asset_type": "marketing_banner",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 892239067,
+  "remove_background": false,
+  "generate_svg": true,
+  "upscale": false,
+  "png_path": "/api/gallery/e3826bfb-46fb-4b4f-83be-e5edb3bacc0e_o0_v0/png",
+  "svg_path": "/api/gallery/e3826bfb-46fb-4b4f-83be-e5edb3bacc0e_o0_v0/svg",
+  "png_filename": "wide-cinematic-diwali-celebration_opt1_var1.png",
+  "svg_filename": null,
+  "created_at": "2026-03-02T04:15:46.428210"
+}

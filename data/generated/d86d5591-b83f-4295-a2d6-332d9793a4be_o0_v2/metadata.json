@@ -1,0 +1,46 @@
+{
+  "id": "d86d5591-b83f-4295-a2d6-332d9793a4be_o0_v2",
+  "batch_id": "d86d5591-b83f-4295-a2d6-332d9793a4be",
+  "option_index": 0,
+  "variant_index": 2,
+  "original_prompt": "Easter Event Marketing BAnner",
+  "prompt": "Wide cinematic Easter event banner illustration, no text. Right third reserved as soft quiet safe zone with muted pastel lavender gradient fading gently. Left two-thirds feature dramatic focal scene: giant ornate golden Easter egg centerpiece adorned with jeweled floral patterns, cracked open spilling volumetric golden light rays and confetti. Playful cartoon chicks, decorative Easter eggs, tropical flowers, and vibrant feathers scattered throughout. Deep indigo #1a0a3e to violet #8b5cf6 background with festive bokeh crowd lighting. Palette: amber #f5a623, coral-red #e8432a, emerald #2ecc71, hot pink #ff6fb5, sky blue #1e90ff, gold #ffd700. Celebratory Brazilian carnival energy meets Easter festivity, colorful confetti burst, glossy painted highlights, soft gradients defining form. Rim lighting and warm volumetric rays emanate from egg centerpiece. Stylized mobile-game digital painting style, polished publication-ready quality, subtle depth-of-field, rich saturated colors, dramatic stage lighting",
+  "refined_prompt": "Wide cinematic Easter banner, left two-thirds: massive ornate golden egg centerpiece cracked open at top like a treasure chest, volumetric gold light rays bursting upward, jeweled floral filigree patterns across shell, playful cartoon chicks hatching from smaller eggs at base, tropical hibiscus and plumeria flowers scattered around, vibrant feathers floating mid-air, colorful confetti explosion, deep indigo #1a0a3e to violet #8b5cf6 gradient background with festive bokeh stage lights, emerald #2ecc71 grass mound base, coral-red #e8432a and hot pink #ff6fb5 decorative eggs, amber #f5a623 rim lighting, glossy painted highlights, soft gradients no outlines, Brazilian carnival energy, 3/4 front-facing slight top-down tilt, right third muted pastel lavender gradient quiet safe zone for text overlay, stylized mobile-game digital painting, polished publication-ready, subtle depth-of-field, dramatic warm volumetric rays, saturated colors",
+  "style_id": "ludo-club-deeper",
+  "style_snapshot": {
+    "name": "Ludo Club - Deeper",
+    "description": "",
+    "generation_hints": "Front-facing 3/4 perspective with slight top-down tilt, stylized mobile-game digital painting style, deep navy-to-purple gradient backgrounds with festive crowd bokeh and stage lighting, vibrant palette strictly using deep indigo #1a0a3e, amber #f5a623, coral-red #e8432a, emerald #2ecc71, violet #8b5cf6, hot pink #ff6fb5, sky blue #1e90ff, and gold #ffd700, glossy highlights and soft painted gradients defining form without hard outlines, Brazilian carnival energy with celebratory confetti, vibrant feathers and tropical joy, mixed-scale compositions including hero banners with grouped characters, medium close-up 3D dice assets, and small collectible icon tiles, thin decorative borders on UI elements, warm ambient glow for object showcases, character styling and in-game assets must remain consistent with established visual theme throughout.",
+    "analyzed_style": {
+      "perspective": "front-facing 3/4 with slight top-down tilt",
+      "palette": [
+        "#1a0a3e",
+        "#f5a623",
+        "#e8432a",
+        "#2ecc71",
+        "#8b5cf6",
+        "#ff6fb5",
+        "#1e90ff",
+        "#ffd700"
+      ],
+      "rendering": "stylized digital painting with glossy highlights and soft gradients, mobile-game illustration style",
+      "line_weight": "no hard outlines; form defined by color contrast, soft edges, and painted highlights with occasional thin decorative borders on UI elements",
+      "mood": "bright, festive, and exuberant \u2014 Brazilian carnival energy with celebratory confetti, vibrant feathers, and warm tropical joy",
+      "scale": "mixed \u2014 hero banner compositions with grouped characters, medium close-up 3D-rendered dice objects, and small icon-sized collectible tiles",
+      "background": "deep navy-to-purple gradients for UI panels; detailed festive crowd scenes with bokeh confetti and stage lighting for hero art; warm ambient interior glow for object showcases"
+    }
+  },
+  "asset_type": "marketing_banner",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 611141595,
+  "remove_background": false,
+  "generate_svg": true,
+  "upscale": false,
+  "png_path": "/api/gallery/d86d5591-b83f-4295-a2d6-332d9793a4be_o0_v2/png",
+  "svg_path": "/api/gallery/d86d5591-b83f-4295-a2d6-332d9793a4be_o0_v2/svg",
+  "png_filename": "wide-cinematic-easter-event-banner_opt1_var3.png",
+  "svg_filename": "wide-cinematic-easter-event-banner_opt1_var3.svg",
+  "created_at": "2026-03-03T00:51:24.712256"
+}

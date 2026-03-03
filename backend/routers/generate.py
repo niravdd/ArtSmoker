@@ -55,6 +55,7 @@ def _generate_single_image(
     refined_prompt: str,
     body: GenerationRequest,
     seed: int,
+    status_callback=None,
 ) -> tuple[bytes, str | None]:
     image_bytes = generate_image(
         refined_prompt=refined_prompt,
@@ -62,6 +63,7 @@ def _generate_single_image(
         width=body.width,
         height=body.height,
         seed=seed,
+        status_callback=status_callback,
     )
     svg_output_path = (
         store.generated_asset_dir(asset_id) / "asset.svg"
@@ -94,11 +96,19 @@ def _build_variant(
 ) -> VariantResult:
     asset_id = f"{batch_id}_o{option_index}_v{variant_index}"
 
+    # Create a status callback that enriches events with option/variant info
+    def _status_cb(event):
+        if progress_queue:
+            event["option"] = option_index
+            event["variation"] = variant_index
+            progress_queue.put(event)
+
     final_bytes, svg_url = _generate_single_image(
         asset_id=asset_id,
         refined_prompt=refined_prompt,
         body=body,
         seed=seed,
+        status_callback=_status_cb,
     )
 
     png_filename = f"{prompt_slug}_opt{option_index + 1}_var{variant_index + 1}.png"

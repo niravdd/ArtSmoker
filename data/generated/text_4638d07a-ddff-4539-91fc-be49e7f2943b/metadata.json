@@ -1,0 +1,82 @@
+{
+  "id": "text_4638d07a-ddff-4539-91fc-be49e7f2943b",
+  "type": "type-studio",
+  "source_image_id": "e3826bfb-46fb-4b4f-83be-e5edb3bacc0e_o0_v0",
+  "style_id": null,
+  "style_note": null,
+  "lines": [
+    {
+      "text": "Diwali Carnival Saga!",
+      "font": "Apple Chancery.ttf",
+      "position": "bottom-center"
+    },
+    {
+      "text": "Play now to win the jackpot!",
+      "font": "Academy Engraved LET Fonts.ttf",
+      "position": "below-previous"
+    }
+  ],
+  "layout_spec": {
+    "lines": [
+      {
+        "text": "Diwali Carnival Saga!",
+        "x": 82,
+        "y": 840,
+        "font_size": 78,
+        "color": "#FFD700",
+        "font": "Apple Chancery.ttf",
+        "effects": {
+          "shadow": {
+            "offset": [
+              4,
+              4
+            ],
+            "color": "#8B0000",
+            "opacity": 0.8
+          },
+          "outline": {
+            "width": 3,
+            "color": "#FF4500"
+          },
+          "glow": {
+            "radius": 12,
+            "color": "#FF8C00",
+            "opacity": 0.6
+          }
+        }
+      },
+      {
+        "text": "Play now to win the jackpot!",
+        "x": 168,
+        "y": 935,
+        "font_size": 40,
+        "color": "#FFFDE7",
+        "font": "Academy Engraved LET Fonts.ttf",
+        "effects": {
+          "shadow": {
+            "offset": [
+              2,
+              2
+            ],
+            "color": "#000000",
+            "opacity": 0.7
+          },
+          "outline": {
+            "width": 2,
+            "color": "#B8860B"
+          },
+          "glow": {
+            "radius": 6,
+            "color": "#FFD700",
+            "opacity": 0.35
+          }
+        }
+      }
+    ],
+    "canvas_width": 1024,
+    "canvas_height": 1024
+  },
+  "asset_type": "type_studio_composite",
+  "prompt": "Diwali Carnival Saga! | Play now to win the jackpot!",
+  "created_at": "2026-03-02T05:36:36.890105"
+}

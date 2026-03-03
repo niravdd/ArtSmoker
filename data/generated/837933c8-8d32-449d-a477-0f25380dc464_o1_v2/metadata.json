@@ -1,0 +1,23 @@
+{
+  "id": "837933c8-8d32-449d-a477-0f25380dc464_o1_v2",
+  "batch_id": "837933c8-8d32-449d-a477-0f25380dc464",
+  "option_index": 1,
+  "variant_index": 2,
+  "original_prompt": null,
+  "prompt": "Christmas Themed Carnival Saga Background image",
+  "refined_prompt": "Single centered game background asset, front-facing 3/4 perspective with slight top-down tilt, stylized mobile-game digital painting, a towering ornate carnival float sleigh hybrid structure as isolated decorative backdrop piece, deep navy-to-purple gradient #1a0a3e to #8b5cf6, the sleigh base crafted from gingerbread with gold #ffd700 filigree scrollwork, massive coral-red #e8432a poinsettia blooms mixed with hot pink #ff6fb5 tropical hibiscus cascading down sides, emerald #2ecc71 holly and banana leaf arrangements, amber #f5a623 lanterns hanging from curving antler-like supports, sky blue #1e90ff ice crystal accents and snowflake motifs embedded in structure, violet #8b5cf6 samba drum shapes repurposed as gift boxes stacked high, glossy painted gradients no hard outlines, warm ambient glow emanating from within, scattered confetti particles, clean sharp edges transparent background ready, top-left directional lighting, no text no UI no characters, fills 75% frame",
+  "style_id": "ludo-club-deeper",
+  "asset_type": "game_asset",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 985400712,
+  "remove_background": false,
+  "generate_svg": false,
+  "upscale": true,
+  "png_path": "/api/gallery/837933c8-8d32-449d-a477-0f25380dc464_o1_v2/png",
+  "svg_path": null,
+  "png_filename": "christmas-themed-carnival-saga_opt2_var3.png",
+  "svg_filename": null,
+  "created_at": "2026-03-02T00:24:28.565745"
+}

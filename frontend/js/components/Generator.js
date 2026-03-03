@@ -527,6 +527,18 @@
                     break;
                 }
 
+                case 'throttled': {
+                    if (text) text.textContent = 'API throttled — waiting to retry...';
+                    if (sub) sub.textContent = `Option ${(evt.option || 0) + 1}, Variation ${(evt.variation || 0) + 1} — waiting ${evt.delay || '?'}s`;
+                    break;
+                }
+
+                case 'retry': {
+                    if (text) text.textContent = `Retrying... (attempt ${evt.attempt || '?'}/${evt.max_retries || '?'})`;
+                    if (sub) sub.textContent = `Option ${(evt.option || 0) + 1}, Variation ${(evt.variation || 0) + 1}`;
+                    break;
+                }
+
                 case 'complete':
                     if (bar) bar.style.width = '100%';
                     if (text) text.textContent = 'Done!';
@@ -764,9 +776,13 @@
             // Navigate to generator view first
             window.location.hash = '#image-studio';
 
-            // Ensure the generator view is visible and initialized
-            // (the DOM-caching router will show the existing view)
-            await new Promise(r => setTimeout(r, 100));
+            // Wait until the view's DOM is actually ready
+            // (navigate() is async — init() loads styles from API which takes time)
+            const maxWait = 5000;
+            const start = Date.now();
+            while (!document.getElementById('gen-preview') && (Date.now() - start) < maxWait) {
+                await new Promise(r => setTimeout(r, 100));
+            }
 
             window.showLoading?.('Loading batch...');
             try {
@@ -826,7 +842,6 @@
 
                 // Render the results
                 this._renderResults(result);
-                this._selectOption(0);
 
                 window.hideLoading?.();
                 window.showToast?.(`Batch loaded: ${result.num_options} options x ${result.num_variations} variations`, 'success');

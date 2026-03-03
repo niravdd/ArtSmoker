@@ -1,0 +1,46 @@
+{
+  "id": "ade22c68-2c70-40d4-b685-3ac12a097cae_o2_v2",
+  "batch_id": "ade22c68-2c70-40d4-b685-3ac12a097cae",
+  "option_index": 2,
+  "variant_index": 2,
+  "original_prompt": "Design a machine gun for the game",
+  "prompt": "Wide cinematic low-poly cel-shaded illustration of a stylized machine gun as hero prop, dramatic three-quarter angle, floating against a pastel purple-to-blue gradient sky with wispy geometric clouds. Bold polygonal facets in steel blue #4A6FA5 and deep navy #2D2D3D form the weapon body, coral #FF6B4A accents on barrel and grip details, amber #FFB347 glowing muzzle with volumetric light rays, mint #5BC4A0 highlights on magazine. Rich geometric environment backdrop with floating low-poly terrain fragments and sparkle particles. Dramatic rim lighting from upper right, soft diffuse fill, warm cream #F0E6D6 ambient glow. Strong focal point centered-right with the weapon heroically lit. Left third reserved as visually quiet safe zone \u2014 smooth lavender #C9A0DC gradient fade, minimal detail, muted tones for text overlay. Cheerful saturated color blocking, clean faceted shading, no outlines, vibrant harmonious palette, polished publication-ready quality, subtle depth-of-field, bold simplified geometry, no text,",
+  "refined_prompt": "Wide cinematic low-poly cel-shaded illustration, dramatic upward camera angle from ground level, stylized machine gun mounted heroically atop a geometric crystal pedestal centered-right, weapon in deep navy #2D2D3D and steel blue #4A6FA5 facets, coral #FF6B4A trigger guard glowing, amber #FFB347 energy radiating upward from muzzle in volumetric rays, mint #5BC4A0 crystalline pedestal base. Surrounding environment: floating low-poly islands with geometric trees in lavender and sky blue #7EB3E0, pastel purple gradient sky with angular aurora ribbons. Sparkle particles cascading like rain. Warm cream #F0E6D6 ambient haze. Left third fades to quiet smooth lavender #C9A0DC gradient with no detail for text. Bold color blocking, faceted shading, no outlines, no text",
+  "style_id": "starter-kit-fps-styling",
+  "style_snapshot": {
+    "name": "Starter Kit FPS Styling",
+    "description": "",
+    "generation_hints": "First-person perspective, wide environment shot, low-poly cel-shaded rendering with no outlines, bright and playful mood, pastel purple-to-blue gradient sky with wispy clouds, soft diffuse lighting, flat geometric facets with clean color fills, palette featuring lavender #C9A0DC, sky blue #7EB3E0, coral #FF6B4A, amber #FFB347, steel blue #4A6FA5, deep navy #2D2D3D, mint #5BC4A0, and warm cream #F0E6D6, bold simplified polygonal shapes, cheerful saturated accents against soft pastel backgrounds, minimal shadow complexity with faceted shading only, clean stylized geometry, vibrant yet harmonious color blocking.",
+    "analyzed_style": {
+      "perspective": "first-person",
+      "palette": [
+        "#C9A0DC",
+        "#7EB3E0",
+        "#FF6B4A",
+        "#FFB347",
+        "#4A6FA5",
+        "#2D2D3D",
+        "#5BC4A0",
+        "#F0E6D6"
+      ],
+      "rendering": "low-poly cel-shaded",
+      "line_weight": "no outlines",
+      "mood": "bright and playful",
+      "scale": "wide environment shot",
+      "background": "gradient wash with soft pastel purple-to-blue sky and wispy clouds"
+    }
+  },
+  "asset_type": "marketing_banner",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 586545827,
+  "remove_background": false,
+  "generate_svg": true,
+  "upscale": false,
+  "png_path": "/api/gallery/ade22c68-2c70-40d4-b685-3ac12a097cae_o2_v2/png",
+  "svg_path": "/api/gallery/ade22c68-2c70-40d4-b685-3ac12a097cae_o2_v2/svg",
+  "png_filename": "wide-cinematic-low-poly-cel-shaded_opt3_var3.png",
+  "svg_filename": "wide-cinematic-low-poly-cel-shaded_opt3_var3.svg",
+  "created_at": "2026-03-03T05:07:57.255840"
+}

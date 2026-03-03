@@ -227,9 +227,11 @@ User prompt: "hospital building"
     Output per variant: PNG (transparent) + SVG, stored with smart filenames
 ```
 
-**Parallel execution**: All option-variation combinations are dispatched to a `ThreadPoolExecutor` with `max_workers=min(total, 5)` to limit Bedrock API throttling.
+**Parallel execution**: All option-variation combinations are dispatched to a `ThreadPoolExecutor` with `max_workers=min(total, 5)` (reduced to 3 when upscale is enabled) to limit Bedrock API throttling.
 
-**Real-time progress via SSE**: The `/stream` endpoint uses Server-Sent Events (SSE) for real-time progress updates during generation. Event types: `started` (generation kicked off), `stage` (pipeline phase — `prompts`/`generating`/`finalizing`), `image_done` (per-image with `completed`/`total` count), `image_error` (per-image failure), and `complete` (final result).
+**Image generation retry**: Each image generation call retries up to 3 times with exponential backoff (2s, 5s, 9s + jitter) on throttling, rate-limit, service-unavailable, and connection errors. This ensures that large batches (e.g. 5×5 = 25 images) don't lose variants to transient API throttling. Retry status is streamed to the frontend in real-time.
+
+**Real-time progress via SSE**: The `/stream` endpoint uses Server-Sent Events (SSE) for real-time progress updates during generation. Event types: `started` (generation kicked off), `stage` (pipeline phase — `prompts`/`generating`/`finalizing`), `image_done` (per-image with `completed`/`total` count), `image_error` (per-image failure), `throttled` (API rate-limited, waiting to retry with delay shown), `retry` (retrying after throttle, shows attempt count), and `complete` (final result).
 
 **Smart filenames**: Each generated image gets a human-readable filename derived from the user's prompt slug plus the option/variation indices: `a-fierce-dragon_opt1_var2.png`. These filenames are stored in per-asset `metadata.json` and served via `Content-Disposition` headers on the gallery file endpoints.
 
