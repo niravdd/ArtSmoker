@@ -11,7 +11,8 @@ from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
-from backend.config import settings
+from backend.config import IMAGE_EXTENSIONS as _IMAGE_EXTENSIONS, MODEL_EXTENSIONS_WITH_TEXTURES, settings
+from backend.services.texture_extractor import extract_textures
 from backend.models.style_profile import (
     AnalyzedStyle,
     StyleProfile,
@@ -20,8 +21,6 @@ from backend.models.style_profile import (
 )
 from backend.services.style_analyzer import analyze_style, generate_hints
 from backend.storage.local_store import store
-
-_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".tif"}
 
 
 def _auto_reanalyze(style_id: str, hints: str = "") -> None:
@@ -240,22 +239,53 @@ def _import_from_local(src: str, style_id: str, available: int) -> list[str]:
         f for f in src_dir.rglob("*")
         if f.is_file() and f.suffix.lower() in _IMAGE_EXTENSIONS
     )
-    if not image_files:
-        raise HTTPException(400, detail=f"No image files found in {src} (searched recursively)")
 
-    to_import = image_files[:available]
+    # Also find 3D model files that may contain embedded textures
+    model_files = sorted(
+        f for f in src_dir.rglob("*")
+        if f.is_file() and f.suffix.lower() in MODEL_EXTENSIONS_WITH_TEXTURES
+    )
+
+    if not image_files and not model_files:
+        raise HTTPException(400, detail=f"No image or 3D model files found in {src} (searched recursively)")
+
     saved: list[str] = []
     seen_names: set[str] = set()
+
+    # 1. Import direct image files (symlinked)
+    to_import = image_files[:available]
     for img_path in to_import:
-        # Deduplicate filenames from different subdirectories by prefixing
         filename = img_path.name
         if filename in seen_names:
-            # Prefix with parent directory name to avoid collision
             filename = f"{img_path.parent.name}_{filename}"
         seen_names.add(filename)
         store.link_reference_image(style_id, filename, img_path)
         saved.append(filename)
         logger.info("Linked reference: %s/%s -> %s", style_id, filename, img_path.resolve())
+
+    # 2. Extract textures from 3D model files (copied, not linked)
+    remaining = available - len(saved)
+    if remaining > 0 and model_files:
+        for model_path in model_files:
+            if remaining <= 0:
+                break
+            try:
+                textures = extract_textures(model_path)
+                for tex_name, tex_bytes in textures:
+                    if remaining <= 0:
+                        break
+                    # Prefix with model filename to avoid collisions
+                    prefixed = f"{model_path.stem}_{tex_name}"
+                    if prefixed in seen_names:
+                        continue
+                    seen_names.add(prefixed)
+                    store.save_reference_image(style_id, prefixed, tex_bytes)
+                    saved.append(prefixed)
+                    remaining -= 1
+                    logger.info("Extracted texture: %s/%s from %s (%d bytes)",
+                                style_id, prefixed, model_path.name, len(tex_bytes))
+            except Exception as exc:
+                logger.warning("Failed to extract textures from %s: %s", model_path, exc)
     return saved
 
 

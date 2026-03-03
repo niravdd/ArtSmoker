@@ -6,7 +6,7 @@ from pathlib import Path
 import boto3
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.config import settings
+from backend.config import IMAGE_EXTENSIONS, MODEL_EXTENSIONS_WITH_TEXTURES, settings
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +30,7 @@ async def browse_local(path: str = Query(default="~")):
         # with the file highlighted
         target = target.parent
 
-    image_exts = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".tif"}
+    asset_exts = IMAGE_EXTENSIONS | MODEL_EXTENSIONS_WITH_TEXTURES
     items = []
 
     try:
@@ -43,7 +43,7 @@ async def browse_local(path: str = Query(default="~")):
                     "type": "directory",
                     "path": str(entry),
                 })
-            elif entry.is_file() and entry.suffix.lower() in image_exts:
+            elif entry.is_file() and entry.suffix.lower() in asset_exts:
                 items.append({
                     "name": entry.name,
                     "type": "file",
@@ -95,7 +95,7 @@ async def browse_s3(
 
     Returns 'directories' (common prefixes) and image files.
     """
-    image_exts = {".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".tif"}
+    asset_exts = IMAGE_EXTENSIONS | MODEL_EXTENSIONS_WITH_TEXTURES
 
     # Ensure prefix ends with / if non-empty
     if prefix and not prefix.endswith("/"):
@@ -129,7 +129,7 @@ async def browse_s3(
         if key == prefix:
             continue
         name = key.rsplit("/", 1)[-1]
-        if any(name.lower().endswith(ext) for ext in image_exts):
+        if any(name.lower().endswith(ext) for ext in asset_exts):
             files.append({
                 "name": name,
                 "type": "file",

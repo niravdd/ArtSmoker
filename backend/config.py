@@ -43,3 +43,14 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+# Centralized set of supported image/asset extensions for import
+IMAGE_EXTENSIONS = {
+    ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".webp", ".tiff", ".tif",
+    ".tga", ".ico", ".svg",
+}
+
+# 3D model formats that may contain embedded textures (extracted separately)
+MODEL_EXTENSIONS_WITH_TEXTURES = {
+    ".glb", ".gltf",
+}
