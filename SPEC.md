@@ -26,6 +26,10 @@
   - [Browse](#browse)
   - [System](#system)
 - [Prerequisites: AWS Setup](#prerequisites-aws-setup)
+  - [AWS Credentials](#aws-credentials)
+  - [Required IAM Permissions](#required-iam-permissions)
+  - [Bedrock Model Access](#bedrock-model-access)
+  - [Startup Validation](#startup-validation)
 - [Configuration](#configuration)
 - [Verification](#verification)
 - [AWS Bedrock Pricing & Cost Breakdown](#aws-bedrock-pricing--cost-breakdown)
@@ -34,10 +38,13 @@
   - [Generation Cost Scenarios](#generation-cost-scenarios)
   - [Full Cost Examples](#full-cost-examples)
 - [Deployment & Scaling Roadmap](#deployment--scaling-roadmap)
+  - [Why not Lambda](#why-not-lambda)
   - [Phase 1: Local Development](#phase-1-current--local-development-done)
   - [Phase 2: App Runner + S3](#phase-2-containerized-deployment--app-runner--s3)
   - [Phase 3: CloudFront + Async](#phase-3-optimized-delivery--cloudfront--async-generation)
   - [Phase 4: Multi-Tenant](#phase-4-multi-tenant-platform)
+  - [Infrastructure Summary](#infrastructure-summary)
+  - [Cost Estimates (Phase 2)](#cost-estimates-phase-2)
 
 ---
 
@@ -240,13 +247,15 @@ User prompt: "hospital building"
 
 **Image generation retry**: Each image generation call retries up to 3 times with exponential backoff (2s, 5s, 9s + jitter) on throttling, rate-limit, service-unavailable, and connection errors. This ensures that large batches (e.g. 5×5 = 25 images) don't lose variants to transient API throttling. Retry status is streamed to the frontend in real-time.
 
-**Real-time progress via SSE**: The `/stream` endpoint uses Server-Sent Events (SSE) for real-time progress updates during generation. Event types: `started` (generation kicked off), `stage` (pipeline phase — `prompts`/`generating`/`finalizing`), `image_done` (per-image with `completed`/`total` count), `image_error` (per-image failure), `throttled` (API rate-limited, waiting to retry with delay shown), `retry` (retrying after throttle, shows attempt count), and `complete` (final result).
+**Real-time progress via SSE**: The `/stream` endpoint uses Server-Sent Events (SSE) for real-time progress updates during generation. Event types: `started` (generation kicked off), `stage` (pipeline phase — `prompts`/`generating`/`finalizing`), `canary` (testing prompt against moderation with a single image before dispatching the full batch), `image_done` (per-image with `completed`/`total` count), `image_error` (per-image failure), `throttled` (API rate-limited, waiting to retry with delay shown), `retry` (retrying after throttle, shows attempt count), `moderation_blocked` (canary or batch stopped due to content moderation), and `complete` (final result).
 
 **Smart filenames**: Each generated image gets a human-readable filename derived from the user's prompt slug plus the option/variation indices: `a-fierce-dragon_opt1_var2.png`. These filenames are stored in per-asset `metadata.json` and served via `Content-Disposition` headers on the gallery file endpoints.
 
 **Prompt length limit**: Amazon Nova Canvas enforces a 1024-character prompt limit. The prompt engineer instructs Claude to keep outputs under **900 characters**, and there is a hard truncation fallback at 1024 characters (breaking on word boundaries) in `refine_prompt()`, `refine_marketing_prompt()`, and `generate_concept_prompts()`.
 
 **Content moderation handling**: When an image generation call fails due to the model's built-in content moderation filters (prompt rejected as policy-violating), the system detects the failure pattern and surfaces it to the frontend as a moderation-specific error rather than a generic failure. The `POST /api/generate/analyze-moderation` endpoint sends the flagged prompt to Claude Sonnet, which returns: a list of specific issues that likely triggered moderation (e.g. copyrighted IP references, violence/weapon language, adult content), a friendly user-facing explanation, and a rewritten prompt that preserves the original creative intent while avoiding moderation triggers. Non-retriable errors (content moderation, policy blocks) are detected and skip the retry loop entirely — no wasted attempts on prompts that will always be rejected. All image model functions (`invoke_nova_canvas`, `invoke_titan_image`, `invoke_sd35_large`, `invoke_stable_image_ultra`) now return the actual error message from the model instead of crashing with a `KeyError` on missing image data.
+
+**Canary request and batch cancellation**: Before dispatching the full parallel batch, the system generates a single "canary" image first using the first option's prompt. If the canary is blocked by content moderation, the entire batch stops immediately — costing only 1 wasted API call instead of N×M×3 (options × variations × retry attempts). If the canary passes, the remaining tasks dispatch in parallel with a shared `threading.Event` cancel flag. If any task in the parallel batch encounters a non-retriable moderation error, it sets the cancel flag and all remaining tasks skip their API calls. This two-phase approach (canary + cooperative cancellation) minimizes wasted API spend on prompts that will be rejected across the board. Two additional SSE events support this flow: `canary` (emitted when the canary image is being tested against the prompt) and `moderation_blocked` (emitted when the canary or batch is stopped due to moderation).
 
 ### 3. Strong Asset-Type Differentiation
 
@@ -647,6 +656,7 @@ In the AWS Console, go to **Amazon Bedrock → Model access** and ensure the fol
 | Nova Canvas, Titan Image v2, Nova Sonic | us-east-1 | Amazon models |
 | Stability AI (Remove BG, Upscale, SD 3.5 Large, Stable Image Ultra) | us-west-2 | Stability AI models |
 
+> [!IMPORTANT]
 > Model access is regional. You need to enable models in **both** us-west-2 and us-east-1.
 
 ### Startup Validation
@@ -717,6 +727,7 @@ All prices below are from the official [AWS Bedrock Pricing page](https://aws.am
 | **Creative Upscale** | `stability.stable-creative-upscale-v1:0` | $0.60 | per image |
 | **SVG Conversion** | vtracer / potrace / Pillow (local) | $0.00 | free — runs locally |
 
+> [!NOTE]
 > **Vision token formula**: Claude charges image inputs as tokens: `tokens = (width × height) / 750`. A 1024×1024 image ≈ 1,398 tokens. At Opus $5.00/MTok input = ~$0.007 per image.
 
 ### Style Analysis Cost (one-time per style)
@@ -801,6 +812,7 @@ The generation cost depends on the image model chosen and the options×variation
 | 25× SVG Conversion | $0.00 |
 | **Total** | **~$20.30** |
 
+> [!TIP]
 > **Key takeaway**: Image generation is cheap ($0.01–$0.14/image). **Creative Upscale is the big cost driver at $0.60/image** — use it selectively on your final chosen assets, not on the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free.
 
 ## Deployment & Scaling Roadmap
@@ -983,4 +995,5 @@ Rough monthly costs for a small team (10 users, ~500 generation batches/month). 
 | Remove Background | ~$875/month | ~$315/month |
 | **Total** | **~$1,687/month** | **~$400/month** |
 
+> [!TIP]
 > **Biggest cost levers**: Image model choice (Titan at $0.01 vs Ultra at $0.14 = 14× difference), batch size (3×3 = 9 images vs 5×5 = 25 = 2.8× difference), and Creative Upscale ($0.60/image — only use on final selected assets).

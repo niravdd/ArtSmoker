@@ -1,5 +1,10 @@
 # ArtSmoker
 
+![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
+![AWS Bedrock](https://img.shields.io/badge/AWS-Bedrock-orange?logo=amazonaws&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-yellow)
+
 *Smoke-testing your artwork!*
 
 AI-powered 2D game asset generation platform. Generate game-ready sprites, characters, icons, environments, and marketing banners from text or voice prompts — styled to match your game's visual identity. Add text overlays and generate standalone text assets with AI-designed typography.
@@ -13,6 +18,15 @@ Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, SD 3.5 Large, Stable Ima
 3. **Describe what you need** — type or speak a prompt like "hospital building" or "fire mage character".
 4. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
 5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`).
+
+### Features at a Glance
+
+- 🎨 **Style Library** — Upload art, AI learns your visual identity
+- 🖼️ **2D Image Studio** — Generate images with options × variations
+- ✍️ **Type Studio** — AI-designed text overlays with font picker
+- 📁 **Gallery** — Browse, search, download, reload, delete
+- 🔄 **Real-time progress** — SSE streaming with retry/throttle visibility
+- 🛡️ **Smart moderation** — Canary testing, AI-assisted prompt rewriting
 
 ### Two-level generation
 
@@ -53,7 +67,8 @@ In the AWS Console, enable these models under **Amazon Bedrock > Model access**:
 | us-west-2 | Claude Sonnet 4.6, Claude Opus 4.6, SD 3.5 Large, Stable Image Ultra, Stability AI (Remove BG, Upscale) |
 | us-east-1 | Nova Canvas, Titan Image v2, Nova Sonic |
 
-Required IAM permissions: `bedrock:InvokeModel` and `bedrock:Converse` (or the managed policy `AmazonBedrockFullAccess`).
+> [!IMPORTANT]
+> Required IAM permissions: `bedrock:InvokeModel` and `bedrock:Converse` (or the managed policy `AmazonBedrockFullAccess`).
 
 ## Quick start
 
@@ -160,6 +175,8 @@ Generated results survive navigation — switching tabs and back preserves the 2
 
 **Content moderation**: If your prompt is blocked by the image model's content moderation filters, ArtSmoker shows a dialog explaining why and suggesting a safe rewrite. Common triggers include copyrighted IP names (e.g. "Mario", "Master Chief"), violence/weapon language, and adult content references. The AI preserves your creative intent while removing the specific triggers — you can review and edit the suggested rewrite before accepting it. Tip: the **"Improve with AI"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
 
+**Smart canary testing**: Before generating the full batch, ArtSmoker sends a single "canary" image request to test the prompt against the model's moderation filters. If the canary is blocked, the batch stops immediately (1 wasted API call instead of N×M×3). If the canary passes, remaining tasks run in parallel with cooperative cancellation — if any task hits a moderation block, the rest skip their API calls automatically.
+
 ### Use a style profile
 
 1. Go to the **Style Library** tab.
@@ -214,6 +231,7 @@ Four image models are available, each with different strengths:
 
 The Stability AI models (SD 3.5 Large, Stable Image Ultra) accept aspect ratios (1:1, 16:9, 3:2, etc.) instead of exact pixel dimensions. When you select a width and height in the UI, the backend automatically maps to the closest supported aspect ratio.
 
+> [!NOTE]
 > **Moderation sensitivity varies by model**: Nova Canvas is the strictest — it rejects prompts with copyrighted names, weapons, and combat language more aggressively. SD 3.5 Large is more relaxed for action/combat themes. If you're generating battle scenes or edgy content, try SD 3.5 Large or Stable Image Ultra first.
 
 ## Tech stack
@@ -337,6 +355,7 @@ Includes prompt refinement/concept generation + image generation:
 | Creative Upscale | $0.60 | $0.60 | $3.00 | $15.00 |
 | Convert to SVG | $0.00 | $0.00 | $0.00 | $0.00 |
 
+> [!TIP]
 > **Creative Upscale note**: Handles Stability AI's 16MB response payload limit automatically by using JPEG output format internally, then converting back to PNG. Includes retry with exponential backoff for API throttling.
 
 ### Worked examples
@@ -348,6 +367,7 @@ Includes prompt refinement/concept generation + image generation:
 | **Full exploration** | 5×5, SD 3.5 Large, Remove BG + SVG | ~$3.80 |
 | **Premium** | 5×5, Stable Image Ultra, Remove BG + Upscale + SVG | ~$20.30 |
 
+> [!TIP]
 > **Key takeaway**: Image generation itself is cheap ($0.01–$0.14/image). **Creative Upscale at $0.60/image is the dominant cost** — use it selectively on your final chosen assets, not the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free (runs locally).
 
 ## Full specification
