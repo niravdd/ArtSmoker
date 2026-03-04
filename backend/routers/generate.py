@@ -12,6 +12,7 @@ import logging
 import queue
 import random
 import re
+import threading
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import datetime
 from uuid import uuid4
@@ -93,8 +94,13 @@ def _build_variant(
     prompt_slug: str,
     style_snapshot: dict | None = None,
     progress_queue: queue.Queue | None = None,
+    cancel_event: threading.Event | None = None,
 ) -> VariantResult:
     asset_id = f"{batch_id}_o{option_index}_v{variant_index}"
+
+    # Check if batch has been cancelled (moderation block on another task)
+    if cancel_event and cancel_event.is_set():
+        raise RuntimeError("Batch cancelled due to content moderation block on another variant")
 
     # Create a status callback that enriches events with option/variant info
     def _status_cb(event):
@@ -215,55 +221,124 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     emit({"type": "stage", "stage": "generating",
           "message": f"Generating {total} images...", "prompts_done": len(concept_prompts)})
 
-    # Build tasks
     prompt_slug = _slugify_prompt(body.prompt)
-    all_tasks = []
-    for oi, concept_prompt in enumerate(concept_prompts):
-        seeds = random.sample(range(0, _SEED_MAX), n_vars)
-        for vi in range(n_vars):
-            all_tasks.append((oi, vi, concept_prompt, seeds[vi]))
-
-    # Generate images with progress tracking
     progress_q = queue.Queue()
     variant_map: dict[int, list[VariantResult]] = {i: [] for i in range(n_opts)}
     errors: list[str] = []
     completed = 0
 
-    max_workers = 3 if body.upscale else min(total, 5)
-    with ThreadPoolExecutor(max_workers=max_workers) as pool:
-        futures = {}
-        for oi, vi, prompt, seed in all_tasks:
-            future = pool.submit(
-                _build_variant,
-                batch_id=batch_id,
-                option_index=oi,
-                variant_index=vi,
-                refined_prompt=prompt,
-                body=body,
-                seed=seed,
-                prompt_slug=prompt_slug,
-                style_snapshot=style_snapshot,
-                progress_queue=progress_q,
-            )
-            futures[future] = (oi, vi)
+    # ── Canary request: test first concept prompt before dispatching batch ──
+    canary_seed = random.randint(0, _SEED_MAX)
+    emit({"type": "stage", "stage": "canary",
+          "message": "Testing prompt with image model..."})
+    try:
+        _canary_result = _build_variant(
+            batch_id=batch_id,
+            option_index=0,
+            variant_index=0,
+            refined_prompt=concept_prompts[0],
+            body=body,
+            seed=canary_seed,
+            prompt_slug=prompt_slug,
+            style_snapshot=style_snapshot,
+            progress_queue=progress_q,
+        )
+        variant_map[0].append(_canary_result)
+        completed += 1
+        # Drain canary progress events
+        while not progress_q.empty():
+            evt = progress_q.get_nowait()
+            evt["completed"] = completed
+            evt["total"] = total
+            emit(evt)
+        emit({"type": "image_done", "option": 0, "variation": 0,
+              "completed": completed, "total": total})
+    except Exception as canary_exc:
+        # Canary failed — check if it's a moderation/non-retriable error
+        exc_str = str(canary_exc).lower()
+        is_moderation = any(k in exc_str for k in [
+            "generation failed", "moderation", "blocked", "not allowed",
+            "unsafe", "policy",
+        ])
+        if is_moderation:
+            # Don't dispatch any more tasks — report immediately
+            logger.warning("Canary request blocked by moderation in batch %s: %s", batch_id, canary_exc)
+            emit({"type": "moderation_blocked", "error": str(canary_exc),
+                  "message": "Image generation blocked by content moderation"})
+            errors.append(f"canary: {canary_exc}")
+            # Skip the entire parallel batch
+            emit({"type": "stage", "stage": "finalizing", "message": "Finalizing..."})
+            # Fall through to assemble whatever we have (nothing)
+        else:
+            # Retriable/transient error on canary — still try the batch
+            logger.warning("Canary failed with transient error, proceeding with batch: %s", canary_exc)
+            completed += 1
+            errors.append(f"o0_v0: {canary_exc}")
 
-        for future in as_completed(futures):
-            oi, vi = futures[future]
-            try:
-                variant_map[oi].append(future.result())
-                completed += 1
-                # Drain the progress queue
-                while not progress_q.empty():
-                    evt = progress_q.get_nowait()
-                    evt["completed"] = completed
-                    evt["total"] = total
-                    emit(evt)
-            except Exception as exc:
-                completed += 1
-                logger.exception("Option %d / Variant %d failed in batch %s.", oi, vi, batch_id)
-                errors.append(f"o{oi}_v{vi}: {exc}")
-                emit({"type": "image_error", "option": oi, "variation": vi,
-                      "completed": completed, "total": total, "error": str(exc)})
+    # ── Parallel batch: dispatch remaining tasks (skip canary's o0_v0) ──
+    cancel_event = threading.Event()
+
+    # Build remaining tasks (exclude o0_v0 which was the canary)
+    all_tasks = []
+    for oi, concept_prompt in enumerate(concept_prompts):
+        seeds = random.sample(range(0, _SEED_MAX), n_vars)
+        for vi in range(n_vars):
+            if oi == 0 and vi == 0:
+                continue  # Already done as canary
+            all_tasks.append((oi, vi, concept_prompt, seeds[vi]))
+
+    if all_tasks and not cancel_event.is_set():
+        emit({"type": "stage", "stage": "generating",
+              "message": f"Generating remaining {len(all_tasks)} images..."})
+
+        max_workers = 3 if body.upscale else min(len(all_tasks), 5)
+        with ThreadPoolExecutor(max_workers=max_workers) as pool:
+            futures = {}
+            for oi, vi, prompt, seed in all_tasks:
+                future = pool.submit(
+                    _build_variant,
+                    batch_id=batch_id,
+                    option_index=oi,
+                    variant_index=vi,
+                    refined_prompt=prompt,
+                    body=body,
+                    seed=seed,
+                    prompt_slug=prompt_slug,
+                    style_snapshot=style_snapshot,
+                    progress_queue=progress_q,
+                    cancel_event=cancel_event,
+                )
+                futures[future] = (oi, vi)
+
+            for future in as_completed(futures):
+                oi, vi = futures[future]
+                try:
+                    variant_map[oi].append(future.result())
+                    completed += 1
+                    while not progress_q.empty():
+                        evt = progress_q.get_nowait()
+                        evt["completed"] = completed
+                        evt["total"] = total
+                        emit(evt)
+                except Exception as exc:
+                    completed += 1
+                    exc_str = str(exc).lower()
+                    is_moderation = any(k in exc_str for k in [
+                        "generation failed", "moderation", "blocked",
+                        "not allowed", "unsafe", "policy", "cancelled",
+                    ])
+                    if is_moderation and not cancel_event.is_set():
+                        # First moderation failure in batch — cancel remaining
+                        cancel_event.set()
+                        logger.warning("Moderation block in batch %s, cancelling remaining tasks.", batch_id)
+                        emit({"type": "moderation_blocked", "error": str(exc),
+                              "option": oi, "variation": vi,
+                              "message": "Content moderation blocked — cancelling remaining"})
+                    elif not cancel_event.is_set():
+                        logger.exception("Option %d / Variant %d failed in batch %s.", oi, vi, batch_id)
+                    errors.append(f"o{oi}_v{vi}: {exc}")
+                    emit({"type": "image_error", "option": oi, "variation": vi,
+                          "completed": completed, "total": total, "error": str(exc)})
 
     # Assemble
     options = []

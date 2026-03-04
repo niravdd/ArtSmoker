@@ -688,6 +688,20 @@
                     break;
                 }
 
+                case 'canary':
+                    if (text) text.textContent = evt.message || 'Testing prompt...';
+                    if (sub) sub.textContent = 'Verifying prompt passes content moderation';
+                    if (bar) bar.style.width = '15%';
+                    break;
+
+                case 'moderation_blocked':
+                    if (text) text.textContent = 'Content moderation blocked';
+                    if (sub) sub.textContent = evt.message || 'Stopping generation — prompt needs revision';
+                    if (bar) bar.style.width = '100%';
+                    // Track for the dialog
+                    this._moderationErrors.push(evt.error || 'Content moderation blocked');
+                    break;
+
                 case 'complete':
                     if (bar) bar.style.width = '100%';
                     if (text) text.textContent = 'Done!';
