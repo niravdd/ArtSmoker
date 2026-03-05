@@ -12,6 +12,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from backend.config import IMAGE_EXTENSIONS as _IMAGE_EXTENSIONS, MODEL_EXTENSIONS_WITH_TEXTURES, settings
+from backend.services.import_dedup import deduplicate_imports
 from backend.services.texture_extractor import extract_textures
 from backend.models.style_profile import (
     AnalyzedStyle,
@@ -235,7 +236,7 @@ def _import_from_local(src: str, style_id: str, available: int) -> list[str]:
         raise HTTPException(400, detail=f"Directory not found: {src}")
 
     # Recursively find all image files in subdirectories
-    image_files = sorted(
+    all_image_files = sorted(
         f for f in src_dir.rglob("*")
         if f.is_file() and f.suffix.lower() in _IMAGE_EXTENSIONS
     )
@@ -246,15 +247,22 @@ def _import_from_local(src: str, style_id: str, available: int) -> list[str]:
         if f.is_file() and f.suffix.lower() in MODEL_EXTENSIONS_WITH_TEXTURES
     )
 
-    if not image_files and not model_files:
+    if not all_image_files and not model_files:
         raise HTTPException(400, detail=f"No image or 3D model files found in {src} (searched recursively)")
+
+    # Smart deduplication: strip rotation variants and animation frames,
+    # prioritize rendered output folders over raw/intermediate files
+    image_files = deduplicate_imports(all_image_files, src_dir, max_count=available)
+    logger.info(
+        "Import for style '%s': %d total files → %d after deduplication (limit %d)",
+        style_id, len(all_image_files), len(image_files), available,
+    )
 
     saved: list[str] = []
     seen_names: set[str] = set()
 
-    # 1. Import direct image files (symlinked)
-    to_import = image_files[:available]
-    for img_path in to_import:
+    # 1. Import deduplicated image files (symlinked)
+    for img_path in image_files:
         filename = img_path.name
         if filename in seen_names:
             filename = f"{img_path.parent.name}_{filename}"

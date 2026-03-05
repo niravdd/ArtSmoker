@@ -1,0 +1,46 @@
+{
+  "id": "72945055-9642-420b-954b-c40dffd26789_o4_v2",
+  "batch_id": "72945055-9642-420b-954b-c40dffd26789",
+  "option_index": 4,
+  "variant_index": 2,
+  "original_prompt": "Office Building",
+  "moderation_original": null,
+  "prompt": "Flat 2D vector office building sprite, single centered asset, isolated on solid soft light grey #e0dfe6 background. Minimal geometric skyscraper silhouette, deep near-black #2d2d2d facade with clean rectangular grid of crisp white #ffffff windows arranged in neat rows. Teal-cyan #4ecdc4 accent on entrance doorway and rooftop trim. Bold simplified block shape, slightly tapered tower form, flat color fills only, zero gradients or textures, no outlines or strokes. Straight-on front elevation perspective, asset fills 75% of frame. Hard-edged geometric shapes, muted grey-lavender #c8c7ce for subtle architectural divisions. Consistent flat top-left lighting implied through color blocking alone, no drop shadows, no shading. Icon-scale micro detail, clean negative space, pure vector aesthetic, minimalist silhouette-driven design. Sharp edges for easy background removal, composes cleanly at small scale.",
+  "refined_prompt": "Flat 2D vector office building sprite, single centered asset on solid #e0dfe6 background. Rounded-top art deco inspired office tower, deep near-black #2d2d2d body with smooth semicircular crown instead of flat roof. Crisp white #ffffff windows arranged in arched pairs stacked in 6 rows following the building curvature. Three strong vertical muted grey-lavender #c8c7ce pilaster strips dividing facade into sections. Vibrant teal-cyan #4ecdc4 decorative band wrapping below the dome crown and bold rectangular entrance at base. Compact stocky proportions, straight-on front elevation, fills 75% of frame. Zero gradients zero textures no outlines no strokes no shading no drop shadows. Hard-edged flat color fills, pure vector aesthetic, minimalist geometric silhouette, icon-scale micro detail, clean negative space, sharp edges for compositing.",
+  "style_id": "starter-kit-city-builder",
+  "style_snapshot": {
+    "name": "Starter Kit City Builder",
+    "description": "Starter Kit City Builder",
+    "generation_hints": "Flat 2D vector illustration, no outlines or strokes, solid soft light grey background (#e0dfe6), limited palette of muted grey-lavender (#c8c7ce, #e0dfe6), deep near-black (#2d2d2d, #1a1a1a), clean white (#ffffff), and vibrant teal-cyan accents (#4ecdc4, #3ab5a8), bright and playful mood, icon-sized micro detail, crisp geometric shapes, smooth hard-edged flat color fills, zero gradients or textures, minimalist silhouette-driven forms, tight compact composition optimized for small-scale display, pure vector aesthetic with flat color blocking throughout, no shading or drop shadows, clean negative space, bold shape simplification.",
+    "analyzed_style": {
+      "perspective": "flat 2D",
+      "palette": [
+        "#e0dfe6",
+        "#4ecdc4",
+        "#3ab5a8",
+        "#2d2d2d",
+        "#1a1a1a",
+        "#ffffff",
+        "#c8c7ce"
+      ],
+      "rendering": "vector flat",
+      "line_weight": "no outlines",
+      "mood": "bright and playful",
+      "scale": "icon-sized micro detail",
+      "background": "solid color"
+    }
+  },
+  "asset_type": "game_asset",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 614197344,
+  "remove_background": false,
+  "generate_svg": true,
+  "upscale": false,
+  "png_path": "/api/gallery/72945055-9642-420b-954b-c40dffd26789_o4_v2/png",
+  "svg_path": "/api/gallery/72945055-9642-420b-954b-c40dffd26789_o4_v2/svg",
+  "png_filename": "flat-2d-vector-office-building-sprite_opt5_var3.png",
+  "svg_filename": "flat-2d-vector-office-building-sprite_opt5_var3.svg",
+  "created_at": "2026-03-05T05:33:04.386393"
+}

@@ -17,25 +17,39 @@ logger = logging.getLogger(__name__)
 # ── Prompt templates ──────────────────────────────────────────────────────
 
 _ANALYSIS_PROMPT = """\
-You are an expert art director and visual style analyst. Carefully study the
-reference images provided and extract a unified style profile as JSON.
+You are an expert art director and visual style analyst specializing in game
+asset production. Carefully study ALL the reference images provided. These are
+individual game asset sprites — typically isolated objects on transparent
+backgrounds. Analyze the RENDERING STYLE, not the composition (since each
+image shows a single object).
 
 {user_guidance_section}
 
-Analyze the following attributes:
-- **perspective**: The dominant camera/viewpoint (e.g. "top-down 3/4", "isometric",
-  "side-scroll", "first-person", "flat 2D").
-- **palette**: A list of 5-8 dominant hex color codes (e.g. ["#1a1a2e", "#e94560"]).
-- **rendering**: The rendering technique (e.g. "cel-shaded", "pixel art",
-  "watercolor", "vector flat", "realistic PBR").
-- **line_weight**: Describe the line work (e.g. "thick black outlines",
-  "no outlines", "thin sketch lines", "variable brush strokes").
-- **mood**: The overall emotional feel (e.g. "dark and moody", "bright and playful",
-  "serene pastoral", "gritty cyberpunk").
-- **scale**: Relative scale of subjects (e.g. "close-up character portrait",
-  "wide environment shot", "icon-sized micro detail").
-- **background**: Background treatment (e.g. "transparent", "gradient wash",
-  "detailed environment", "solid color").
+Analyze these attributes by examining the full set of images together:
+
+- **perspective**: Camera/viewpoint used consistently across assets (e.g.
+  "isometric 30-degree dimetric", "top-down orthographic", "side-scroll",
+  "3/4 top-down"). Be specific about the angle.
+- **palette**: 5-8 dominant hex colors, grouped by material where possible
+  (e.g. "stone: #A0926B, wood: #8B7355, metal: #4A4A4A, accent: #C44B3F").
+- **rendering**: Precise rendering technique. Not just "3D" but specifics like
+  "pre-rendered 3D to 2D sprites with soft ambient occlusion and subtle surface
+  textures (visible stone mortar, wood grain)". Mention texture detail level.
+- **line_weight**: How edges and forms are defined (e.g. "no outlines, form
+  defined by material shading and soft shadow edges" or "thin dark outlines
+  with interior detail lines").
+- **mood**: Overall emotional/thematic feel (e.g. "dark medieval dungeon,
+  slightly whimsical miniature scale" or "bright cheerful cartoon city").
+- **scale**: Proportions and sizing system (e.g. "chunky miniature proportions,
+  ~128px isometric tile grid, slightly exaggerated toylike scale").
+- **background**: Background treatment (e.g. "transparent with semi-transparent
+  drop shadow at base, consistent 45-degree shadow angle").
+- **materials**: Key material rendering details — how stone, wood, metal,
+  fabric etc. are differentiated visually. This is crucial for generating
+  new assets that match.
+- **detail_level**: Level of surface detail (e.g. "medium — visible mortar
+  lines on stone, wood plank grain, simplified metal reflections, no fine
+  ornamentation").
 
 Return ONLY valid JSON matching this exact schema (no markdown fences, no extra text):
 {{
@@ -45,29 +59,62 @@ Return ONLY valid JSON matching this exact schema (no markdown fences, no extra 
   "line_weight": "...",
   "mood": "...",
   "scale": "...",
-  "background": "..."
+  "background": "...",
+  "materials": "...",
+  "detail_level": "..."
 }}
 """
 
 _HINTS_PROMPT_TEMPLATE = """\
-You are a concise prompt-engineering assistant. Given the analyzed visual style
-and the artist's own guidance below, write a single paragraph (max 120 words)
-of comma-separated generation hints that an image model should follow to
-reproduce this style faithfully.
+You are a concise prompt-engineering expert for AI image generation. Given the
+analyzed visual style below, write generation hints that an AI image model
+MUST follow to produce assets matching this exact style.
 
 Analyzed style (from AI vision analysis of reference images):
 {style_json}
 
 {user_guidance_section}
 
-Your output should combine the objective visual analysis with the artist's
-intent. The artist's guidance takes priority where it provides additional
-context that the visual analysis alone might miss (e.g. the name of the style,
-the intended use case, or the emotional tone).
+Write a SINGLE PARAGRAPH (max 200 words) that covers ALL of these in order:
+1. Perspective/camera angle (be specific — "isometric 30-degree dimetric" not just "isometric")
+2. Rendering technique with material specifics (how stone, wood, metal look)
+3. Color palette (name the key material colors)
+4. Proportions and scale (chunky? realistic? miniature?)
+5. Edge treatment (outlines? shading-defined? soft edges?)
+6. Shadow and lighting (direction, softness, transparency)
+7. Detail level (what surface details are visible, what is simplified)
+8. Background treatment
+
+The hints should be specific enough that an image model can produce an asset
+that seamlessly blends with the existing reference images. Generic descriptions
+like "isometric, earth tones" are NOT sufficient. Be precise about materials,
+proportions, and rendering details.
 
 Respond with ONLY the hints paragraph — no preamble, no bullet points.
 """
 
+
+# ── Cohesion check prompt (Phase 1 — fast, cheap via Sonnet) ──────────────
+
+_COHESION_CHECK_PROMPT = """\
+You are a visual style analyst. Look at these reference images and determine
+whether they represent a SINGLE cohesive visual style or a DIVERSE collection
+with multiple themes/styles.
+
+Respond with ONLY a JSON object (no markdown fences):
+{{
+  "cohesion": "high" | "medium" | "low",
+  "reasoning": "One sentence explaining why",
+  "common_patterns": "What is consistent across ALL images (if anything)",
+  "variation_areas": "What varies between images (if anything)"
+}}
+
+- "high": All images share the same rendering style, perspective, palette, and
+  design language. Variations are only in subject matter, not visual treatment.
+- "medium": Images share structural patterns (sizing, composition, quality level)
+  but themes/palettes differ (e.g. multiple event themes for the same game).
+- "low": Images are from completely different visual styles with little in common.
+"""
 
 # ── Smart sampling ────────────────────────────────────────────────────────
 
@@ -186,10 +233,52 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
     else:
         image_bytes_list = [img for _, img in all_images]
 
-    # Build the user guidance section
+    # ── Phase 1: Cohesion check (fast, cheap — Sonnet with 8 images) ──
     total_count = len(all_images)
     sample_count = len(image_bytes_list)
 
+    cohesion_sample = image_bytes_list[:min(8, sample_count)]
+    cohesion_info = ""
+    try:
+        logger.info("Phase 1: Checking cohesion for style '%s' with %d images (Sonnet).", style_id, len(cohesion_sample))
+        cohesion_raw = invoke_claude(
+            _COHESION_CHECK_PROMPT,
+            complexity="fast",
+            images=cohesion_sample,
+            max_tokens=512,
+            temperature=0.2,
+        )
+        # Parse cohesion result
+        cleaned_coh = cohesion_raw.strip()
+        if cleaned_coh.startswith("```"):
+            cleaned_coh = cleaned_coh[cleaned_coh.index("\n") + 1:]
+        if cleaned_coh.endswith("```"):
+            cleaned_coh = cleaned_coh[:-3]
+        cohesion_data = json.loads(cleaned_coh.strip())
+        cohesion_level = cohesion_data.get("cohesion", "medium")
+        cohesion_info = (
+            f"=== COHESION ASSESSMENT (from pre-analysis) ===\n"
+            f"Cohesion level: {cohesion_level}\n"
+            f"Common patterns: {cohesion_data.get('common_patterns', 'N/A')}\n"
+            f"Variation areas: {cohesion_data.get('variation_areas', 'N/A')}\n"
+        )
+        if cohesion_level == "low":
+            cohesion_info += (
+                "\nIMPORTANT: These images are diverse. Focus on extracting what IS "
+                "consistent (production quality, sizing conventions, composition "
+                "patterns, design language) rather than forcing a single palette or theme."
+            )
+        elif cohesion_level == "medium":
+            cohesion_info += (
+                "\nNOTE: These images share structural patterns but differ in theme. "
+                "Extract the common design language and production standards. For "
+                "palette, identify the overall color approach rather than specific colors."
+            )
+        logger.info("Phase 1 result for '%s': cohesion=%s", style_id, cohesion_level)
+    except Exception as exc:
+        logger.warning("Cohesion check failed for '%s', proceeding without: %s", style_id, exc)
+
+    # ── Phase 2: Full analysis (Opus with all sampled images) ──
     guidance_parts = []
     if user_hints:
         guidance_parts.append(
@@ -199,6 +288,8 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
             "that is not visible in the images alone:\n"
             f'"{user_hints}"'
         )
+    if cohesion_info:
+        guidance_parts.append(cohesion_info)
     if sample_count < total_count:
         guidance_parts.append(
             f"=== NOTE ===\n"
@@ -213,7 +304,7 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
     prompt = _ANALYSIS_PROMPT.format(user_guidance_section=guidance)
 
     logger.info(
-        "Analyzing %d/%d reference image(s) for style '%s' (user hints: %s) using Claude Opus.",
+        "Phase 2: Analyzing %d/%d reference image(s) for style '%s' (user hints: %s) using Claude Opus.",
         sample_count, total_count, style_id, bool(user_hints),
     )
 

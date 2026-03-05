@@ -1,0 +1,46 @@
+{
+  "id": "84b5aac5-8178-4a53-8a2a-10b0355d4959_o2_v2",
+  "batch_id": "84b5aac5-8178-4a53-8a2a-10b0355d4959",
+  "option_index": 2,
+  "variant_index": 2,
+  "original_prompt": "Draw an ambulance",
+  "moderation_original": null,
+  "prompt": "Flat 2D vector ambulance sprite, centered on solid soft light grey background (#e0dfe6), filling 75% of frame. Side-profile view, clean geometric silhouette. White boxy vehicle body (#ffffff) with deep near-black wheels (#1a1a2d) and bold teal-cyan cross symbol (#4ecdc4) on side panel. Teal-cyan emergency light bar (#3ab5a8) on roof. Near-black windows (#2d2d2d), minimal rectangular shapes. Muted grey-lavender panel details (#c8c7ce). Zero gradients, zero textures, zero drop shadows, zero outlines. Pure flat color blocking throughout. Hard crisp edges for clean background removal. Top-left directional light implied through shape only. Bold simplified geometric forms optimized for icon-scale display. Single isolated object, no scene, no ground, no UI, no text. Tight compact composition, vector aesthetic, minimalist silhouette-driven design.",
+  "refined_prompt": "Flat 2D vector ambulance sprite, side-profile view, centered on solid soft light grey (#e0dfe6) background, filling 75% of frame. Chibi super-deformed proportions with extremely short wheelbase and oversized cab section. Huge near-black windshield (#2d2d2d) taking up most of the front, tiny white body (#ffffff) with exaggerated round wheel wells, large near-black wheels (#1a1a1a) almost half the vehicle height, prominent teal-cyan plus symbol (#4ecdc4) centered on small side panel, dome-shaped teal-cyan emergency light (#3ab5a8) on roof, grey-lavender (#c8c7ce) rear panel detail. Playful toy-like silhouette, maximally simplified shapes. Zero gradients, zero textures, zero outlines, zero shadows. Pure flat color blocking, hard crisp edges, icon-scale micro detail, single isolated object, no scene, no ground, no text.",
+  "style_id": "starter-kit-city-builder",
+  "style_snapshot": {
+    "name": "Starter Kit City Builder",
+    "description": "Starter Kit City Builder",
+    "generation_hints": "Flat 2D vector illustration, no outlines or strokes, solid soft light grey background (#e0dfe6), limited palette of muted grey-lavender (#c8c7ce, #e0dfe6), deep near-black (#2d2d2d, #1a1a1a), clean white (#ffffff), and vibrant teal-cyan accents (#4ecdc4, #3ab5a8), bright and playful mood, icon-sized micro detail, crisp geometric shapes, smooth hard-edged flat color fills, zero gradients or textures, minimalist silhouette-driven forms, tight compact composition optimized for small-scale display, pure vector aesthetic with flat color blocking throughout, no shading or drop shadows, clean negative space, bold shape simplification.",
+    "analyzed_style": {
+      "perspective": "flat 2D",
+      "palette": [
+        "#e0dfe6",
+        "#4ecdc4",
+        "#3ab5a8",
+        "#2d2d2d",
+        "#1a1a1a",
+        "#ffffff",
+        "#c8c7ce"
+      ],
+      "rendering": "vector flat",
+      "line_weight": "no outlines",
+      "mood": "bright and playful",
+      "scale": "icon-sized micro detail",
+      "background": "solid color"
+    }
+  },
+  "asset_type": "game_asset",
+  "image_model": "nova_canvas",
+  "width": 1024,
+  "height": 1024,
+  "seed": 1238670326,
+  "remove_background": false,
+  "generate_svg": true,
+  "upscale": false,
+  "png_path": "/api/gallery/84b5aac5-8178-4a53-8a2a-10b0355d4959_o2_v2/png",
+  "svg_path": "/api/gallery/84b5aac5-8178-4a53-8a2a-10b0355d4959_o2_v2/svg",
+  "png_filename": "flat-2d-vector-ambulance-sprite_opt3_var3.png",
+  "svg_filename": "flat-2d-vector-ambulance-sprite_opt3_var3.svg",
+  "created_at": "2026-03-04T06:03:51.155606"
+}

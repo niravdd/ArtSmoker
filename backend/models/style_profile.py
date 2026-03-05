@@ -12,6 +12,8 @@ class AnalyzedStyle(BaseModel):
     mood: str = ""
     scale: str = ""
     background: str = "transparent"
+    materials: str = ""
+    detail_level: str = ""
 
 
 class StyleProfile(BaseModel):

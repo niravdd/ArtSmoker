@@ -13,8 +13,8 @@ Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, SD 3.5 Large, Stable Ima
 
 ## What it does
 
-1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally). Supports a wide range of formats: .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus automatic texture extraction from 3D models (.glb, .gltf).
-2. **AI learns your style** — AI analyzes the visual DNA (palette, perspective, rendering, mood). Analysis is context-aware: if you provide generation hints, the AI receives them as "Artist's Guidance" alongside the reference images, so the analysis understands your intent, not just what's visible.
+1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally). **Smart deduplication** always runs on every import regardless of file count — even small sets can have cross-folder duplicates. Removes rotation variants (barrel_N/E/S/W.png keeps only barrel_S.png) and animation frames (Idle0-Idle8 keeps only Idle), with folder prioritization (Samples > Isometric > Characters > Angle). A 747-file Kenney pack deduplicates to 99 unique objects. Supports a wide range of formats: .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus automatic texture extraction from 3D models (.glb, .gltf).
+2. **AI learns your style** — Two-phase cohesion-aware analysis: first, a cheap Sonnet check (8 images) determines whether your collection is unified, structurally consistent, or diverse. Then Opus analyzes the full reference set guided by that cohesion assessment — so diverse collections get useful hints about production patterns, not a diluted generic description. Analysis is context-aware: if you provide generation hints, the AI receives them as "Artist's Guidance" alongside the reference images, so the analysis understands your intent, not just what's visible.
 3. **Describe what you need** — type or speak a prompt like "hospital building" or "fire mage character".
 4. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
 5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`).
@@ -181,8 +181,8 @@ Generated results survive navigation — switching tabs and back preserves the 2
 
 1. Go to the **Style Library** tab.
 2. Click **Create New Style** — enter a name and optionally add generation hints. In the create modal, use the **"Import References From"** section with **Local** and **S3** browse buttons to select a source directory or bucket path. Browsing opens a server-side file/directory browser modal (single-click selects an item, double-click navigates into directories). Imported references are auto-analyzed on creation.
-3. Local directory imports scan **recursively** through all subdirectories for images (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) and 3D models (.glb, .gltf). Image files are **symlinked** using **relative symlinks** (no duplication, portable across machines). 3D model files (.glb/.gltf) have their embedded textures **automatically extracted** — base64 data URIs, binary buffer chunks, and external texture references are all handled. Extracted textures are saved as copies (prefixed with the model name to avoid collisions). S3 imports list recursively with pagination and **download** files locally. Up to **50 reference images** are imported per style. Supported extensions are centralized in `backend/config.py` (`IMAGE_EXTENSIONS` and `MODEL_EXTENSIONS_WITH_TEXTURES`).
-4. **Smart sampling for analysis**: When a style has more than 15 references, the analyzer selects a diverse representative subset of 15 for the AI vision call — ensuring coverage across filename groups and file-size diversity. The AI is told how many total images exist vs. how many it is seeing.
+3. Local directory imports scan **recursively** through all subdirectories for images (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) and 3D models (.glb, .gltf). Image files are **symlinked** using **relative symlinks** (no duplication, portable across machines). 3D model files (.glb/.gltf) have their embedded textures **automatically extracted** — base64 data URIs, binary buffer chunks, and external texture references are all handled. Extracted textures are saved as copies (prefixed with the model name to avoid collisions). S3 imports list recursively with pagination and **download** files locally. Up to **100 reference images** are imported per style. Supported extensions are centralized in `backend/config.py` (`IMAGE_EXTENSIONS` and `MODEL_EXTENSIONS_WITH_TEXTURES`).
+4. **Two-phase cohesion-aware analysis**: Phase 1 sends 8 images to Claude Sonnet to determine cohesion level (high/medium/low) — high means unified style, medium means shared structure with different themes, low means diverse styles. Phase 2 feeds the cohesion assessment to Claude Opus alongside the reference images, guiding it to analyze appropriately for the collection type. When a style has more than 20 references, the analyzer selects a diverse representative subset of 20 for the Opus vision call — ensuring coverage across filename groups and file-size diversity. The AI is told how many total images exist vs. how many it is seeing. The analysis prompt is specifically designed for game assets on transparent backgrounds — asks for material-specific rendering details, proportion system, and shadow/lighting specifics. Extracts 9 style attributes including `materials` (how stone, wood, metal are rendered) and `detail_level` (what surface details are visible vs simplified). Generation hints are expanded to 200 words covering 8 dimensions: perspective, rendering, materials, color palette, proportions, edge treatment, shadow/lighting, detail level, and background — specific enough that generated assets visually blend with existing references.
 5. In the style detail view, use **"Import & Analyze"** to add more references and trigger analysis in one step. Drag-and-drop upload is also supported and **auto re-analyzes** when new images are added.
 6. **"Re-Analyze Style"** appears after the initial analysis, letting you manually re-run analysis at any time.
 7. **Generation hints** are part of the analysis context — the AI receives both reference images and your hints as "Artist's Guidance" when analyzing, so the style profile understands intent, not just visual appearance. Editing generation hints also triggers **automatic re-analysis**.
@@ -309,8 +309,8 @@ Two settings in `backend/config.py` control reference image handling and can be 
 
 | Setting | Env Variable | Default | Purpose |
 |---------|-------------|---------|---------|
-| `max_reference_images` | `ARTSMOKER_MAX_REFERENCE_IMAGES` | 50 | Max images imported per style |
-| `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 15 | Max images sent to AI per analysis call |
+| `max_reference_images` | `ARTSMOKER_MAX_REFERENCE_IMAGES` | 100 | Max images imported per style |
+| `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 20 | Max images sent to AI per analysis call |
 
 Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
 
@@ -335,7 +335,7 @@ All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/
 
 ### Style analysis cost (one-time per style)
 
-~**$0.14** for a style with 20 reference images (15 sent to Claude Opus after smart sampling).
+~**$0.14** per style (20 images sent to Claude Opus + 8 images cohesion check at Claude Sonnet). The cohesion check adds ~$0.01 (Sonnet with 8 images is very cheap).
 
 ### Generation cost by batch size
 

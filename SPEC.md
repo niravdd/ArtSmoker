@@ -81,8 +81,8 @@ FastAPI Backend (Python)
     v
 AI Pipeline (AWS Bedrock)
     |
-    +-- Claude Sonnet 4.6      — Fast tasks: prompt refinement, generation hints
-    +-- Claude Opus 4.6        — Complex tasks: style analysis, concept generation, marketing copy
+    +-- Claude Sonnet 4.6      — Fast tasks: prompt refinement, generation hints, cohesion check (Phase 1)
+    +-- Claude Opus 4.6        — Complex tasks: style analysis (Phase 2), concept generation, marketing copy
     +-- Nova Canvas             — Primary image generation (text-to-image)
     +-- Titan Image v2          — Alternative image generation
     +-- SD 3.5 Large            — Image generation (Stability AI)
@@ -110,12 +110,13 @@ ArtSmoker/
 │   │   ├── refine.py              # Prompt refinement preview endpoint
 │   │   └── gallery.py             # Generated asset browsing + file serving
 │   ├── services/
-│   │   ├── style_analyzer.py      # Claude Opus: multi-image style analysis → profile (includes _smart_sample())
+│   │   ├── style_analyzer.py      # Two-phase style analysis: Sonnet cohesion check → Opus full analysis (includes _smart_sample())
 │   │   ├── prompt_engineer.py     # Claude Sonnet/Opus: prompt refinement + concept generation
 │   │   ├── image_generator.py     # Nova Canvas / Titan Image / SD 3.5 Large / Stable Image Ultra: generate images
 │   │   ├── post_processor.py      # Stability AI: bg removal, upscale; vtracer/potrace: SVG
 │   │   ├── transcriber.py         # Nova Sonic: bidirectional streaming speech-to-text
 │   │   ├── texture_extractor.py   # glTF/GLB texture extraction (base64, binary chunks, external refs)
+│   │   ├── import_dedup.py        # Smart deduplication for directory imports (rotation variants, animation frames, folder priority)
 │   │   └── bedrock_client.py      # Shared Bedrock client with connection pooling
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update models
@@ -168,29 +169,38 @@ A style profile captures the visual DNA of a game's art:
     "line_weight": "no outlines, form defined by color planes",
     "mood": "cheerful, clean, toylike",
     "scale": "1-unit grid tiles, buildings 1-3 units tall",
-    "background": "transparent"
+    "background": "transparent",
+    "materials": "stone rendered as uniform flat gray planes, wood as warm brown blocks, metal as light blue-gray surfaces — no textures or gradients",
+    "detail_level": "minimal surface detail, no visible grain or weathering, forms defined entirely by color planes and sharp edges"
   },
   "generation_hints": "Isometric low-poly game asset, flat shading, cheerful colors, transparent background, single object centered, no shadows, Kenney style"
 }
 ```
 
 **Pydantic models** (`backend/models/style_profile.py`):
-- `AnalyzedStyle` — structured fields: perspective, palette (list of hex strings), rendering, line_weight, mood, scale, background.
+- `AnalyzedStyle` — 9 structured fields: perspective, palette (list of hex strings), rendering, line_weight, mood, scale, background, materials (how stone, wood, metal are rendered), detail_level (what surface details are visible vs simplified).
 - `StyleProfile` — full profile with id, name, description, created_at, reference_images, analyzed_style, generation_hints.
 - `StyleProfileCreate` — name + description + optional `generation_hints` for creation.
 - `StyleProfileUpdate` — optional name, description, analyzed_style, generation_hints for partial updates.
 
 **Workflow:**
 1. User creates a style profile (name + description + optional `generation_hints`).
-2. User uploads 1-50 reference images via file upload or **directory import** (bulk import from a local folder path or S3 prefix). The cap is configurable via `max_reference_images` (default 50, env: `ARTSMOKER_MAX_REFERENCE_IMAGES`).
-3. **Smart sampling for analysis**: When a style has more than `max_analysis_images` (default 15, env: `ARTSMOKER_MAX_ANALYSIS_IMAGES`) reference images, the `_smart_sample()` function in `style_analyzer.py` selects a diverse representative subset for the Claude Opus vision call. Sampling strategy:
+2. User uploads 1-100 reference images via file upload or **directory import** (bulk import from a local folder path or S3 prefix). The cap is configurable via `max_reference_images` (default 100, env: `ARTSMOKER_MAX_REFERENCE_IMAGES`).
+3. **Smart sampling for analysis**: When a style has more than `max_analysis_images` (default 20, env: `ARTSMOKER_MAX_ANALYSIS_IMAGES`) reference images, the `_smart_sample()` function in `style_analyzer.py` selects a diverse representative subset for the Claude Opus vision call. Sampling strategy:
    - Always includes the first and last image (alphabetically).
    - Groups images by filename prefix (subdirectory origin) and picks at least one from each group.
    - Fills remaining slots by file-size diversity (evenly-spaced intervals across the size range, since different sizes suggest different content/complexity).
-   - Claude is told how many total images exist vs. how many it is seeing (e.g. "You are seeing 15 representative images sampled from a collection of 50 total reference images").
+   - Claude is told how many total images exist vs. how many it is seeing (e.g. "You are seeing 20 representative images sampled from a collection of 80 total reference images").
    When the image count is at or below `max_analysis_images`, all images are sent directly.
-4. Claude Opus 4.6 (vision) analyzes the (sampled) images via `analyze_style(style_id, user_hints)`, extracting structured style attributes as JSON. The analysis is **context-aware** — Claude sees both the images AND the user's existing `generation_hints` (passed as "Artist's Guidance") so it understands the user's intent.
-5. Claude Sonnet 4.6 distils the analysis into a concise `generation_hints` paragraph (max 120 words) via `generate_hints(style_id, analyzed_style, user_hints)`, also receiving the user's guidance as context.
+4. **Two-phase cohesion-aware analysis** via `analyze_style(style_id, user_hints)`:
+   - **Phase 1 — Cohesion check (Claude Sonnet, cheap)**: Sends 8 representative images to Claude Sonnet to determine collection cohesion level (high/medium/low):
+     - **High cohesion**: All images share the same style — the Phase 2 prompt extracts a unified style profile.
+     - **Medium cohesion**: Structural patterns are shared but themes differ — the Phase 2 prompt extracts design language and production standards.
+     - **Low cohesion**: Diverse styles — the Phase 2 prompt focuses on what IS consistent (quality standards, sizing conventions, composition patterns).
+   - **Phase 2 — Full analysis (Claude Opus, vision)**: The cohesion assessment from Phase 1 is fed to Claude Opus alongside the (sampled) reference images, guiding it to analyze appropriately for the collection type. This means diverse collections get useful hints about production patterns, not a diluted "colorful game art" generic description.
+   - The analysis prompt is specifically designed for game assets on transparent backgrounds — it asks for material-specific rendering details (how stone, wood, metal are rendered), proportion system, and shadow/lighting specifics. The analysis is **context-aware** — Claude sees both the images AND the user's existing `generation_hints` (passed as "Artist's Guidance") so it understands the user's intent.
+   - The cohesion check adds ~$0.01 per analysis (Sonnet with 8 images is very cheap).
+5. Claude Sonnet 4.6 distils the analysis into a concise `generation_hints` paragraph (max 200 words) via `generate_hints(style_id, analyzed_style, user_hints)`, also receiving the user's guidance as context. The hints cover 8 dimensions: perspective, rendering with material specifics, color palette by material, proportions, edge treatment, shadow/lighting, detail level, and background — specific enough that generated assets should visually blend with existing reference images.
 6. Profile is cached as `profile.json` inside `data/styles/{style_id}/`.
 7. User can manually edit/refine the profile.
 8. Profile's `generation_hints` are incorporated into every generation prompt.
@@ -198,13 +208,20 @@ A style profile captures the visual DNA of a game's art:
 
 **Directory/S3 import**: The `POST /api/styles/{id}/import` endpoint accepts a local directory path or S3 prefix. Body: `{ "path": "...", "auto_analyze": true }`. It scans **recursively** (using `rglob`) for all supported asset files in all subdirectories.
 
+**Smart deduplication on import** (`backend/services/import_dedup.py`): Deduplication always runs on every import regardless of file count — even small sets can have cross-folder duplicates. The system deduplicates rotation variants and animation frames before importing, ensuring Claude sees the full vocabulary of unique objects rather than 15 copies of the same barrel from different angles.
+- **Rotation variants**: Files like `barrel_N.png`, `barrel_E.png`, `barrel_S.png`, `barrel_W.png` are recognized as rotations of the same object — only the south-facing variant (`barrel_S.png`) is kept.
+- **Animation frames**: Files like `Male_0_Idle0.png` through `Male_0_Idle8.png` are recognized as frames of the same animation — only the base frame (`Idle`) is kept.
+- **Folder prioritization**: When the same object appears in multiple subdirectories (e.g. rendered at different angles), folders are scored by priority: `Samples`/`Screenshots` (highest) > `Isometric`/`rendered` > `Characters` > `Angle` (lowest, skipped entirely if an `Isometric` variant exists).
+- **Implementation**: `deduplicate_imports()` calls `_get_canonical_key()` per file to compute a normalized key, then selects the best representative per key using folder priority scoring.
+- **Impact**: A 747-file Kenney isometric dungeon pack deduplicates to 99 unique objects — a 7x reduction that keeps the full object vocabulary within the reference image budget.
+
 **Supported import formats** (centralized in `config.py`):
 - **Image formats** (`IMAGE_EXTENSIONS`): .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga (Targa), .ico, .svg
 - **3D model texture extraction** (`MODEL_EXTENSIONS_WITH_TEXTURES`): .glb (binary glTF), .gltf (JSON glTF) — embedded textures (base64 data URIs, binary buffer chunks) and external texture references are extracted automatically via `backend/services/texture_extractor.py`
 
 **How 3D model extraction works**: During directory import, after scanning for image files, the system also scans for .glb/.gltf files and extracts embedded textures. The `texture_extractor.py` service parses glTF JSON (base64 data URIs, external file references) and GLB binary containers (buffer view chunks). Extracted textures are saved as **copies** (not symlinked, since they come from binary data). Filenames are prefixed with the model name to avoid collisions (e.g. `castle_texture0.png`).
 
-**Local imports use symlinks** (not copies) to avoid disk duplication for standard image files. S3 imports download files to the references folder; the S3 client paginates through all objects (handles >1000 keys). Browser uploads copy files normally. Filenames from different subdirectories are **deduplicated** by prefixing with the parent directory name when collisions are detected. The total reference image count is capped at `max_reference_images` (default 50, env: `ARTSMOKER_MAX_REFERENCE_IMAGES`). Optionally auto-triggers Claude Opus style analysis after import.
+**Local imports use symlinks** (not copies) to avoid disk duplication for standard image files. S3 imports download files to the references folder; the S3 client paginates through all objects (handles >1000 keys). Browser uploads copy files normally. Filenames from different subdirectories are **deduplicated** by prefixing with the parent directory name when collisions are detected. The total reference image count is capped at `max_reference_images` (default 100, env: `ARTSMOKER_MAX_REFERENCE_IMAGES`). Optionally auto-triggers Claude Opus style analysis after import.
 
 ### 2. Two-Level Asset Generation Pipeline
 
@@ -487,10 +504,10 @@ Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 | GET | `/api/styles/{id}` | Get a single style profile by identifier. |
 | PATCH | `/api/styles/{id}` | Partially update a style profile (name, description, analyzed_style, generation_hints). Auto-triggers re-analysis when `generation_hints` change (new value differs from previous). |
 | DELETE | `/api/styles/{id}` | Delete a style profile and all its associated data (references, profile.json). |
-| POST | `/api/styles/{id}/references` | Upload reference images (multipart file upload). Enforces max_reference_images limit (default 50). Auto-triggers re-analysis after upload. |
+| POST | `/api/styles/{id}/references` | Upload reference images (multipart file upload). Enforces max_reference_images limit (default 100). Auto-triggers re-analysis after upload. |
 | GET | `/api/styles/{id}/references/{filename}` | Serve a reference image file. |
 | POST | `/api/styles/{id}/import` | Import asset files from a local directory path or S3 prefix. Body: `{ "path": "/path/to/images", "auto_analyze": true }`. Scans recursively for image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) and 3D models (.glb, .gltf) with automatic texture extraction. Local image imports use symlinks (not copies); extracted textures are saved as copies. S3 imports download files (paginates through >1000 keys). Filenames are deduplicated by prefixing with parent/model name. Optionally triggers style analysis after import. |
-| POST | `/api/styles/{id}/analyze` | Trigger AI style analysis on reference images. If the style has more than `max_analysis_images` (default 15) references, smart sampling selects a diverse subset. Claude Opus analyzes images (context-aware, receives existing generation_hints as "Artist's Guidance"), Claude Sonnet generates hints. Both are persisted to the profile. |
+| POST | `/api/styles/{id}/analyze` | Trigger AI style analysis on reference images. If the style has more than `max_analysis_images` (default 20) references, smart sampling selects a diverse subset. Two-phase analysis: Claude Sonnet cohesion check (8 images), then Claude Opus full analysis guided by cohesion level. Claude Sonnet generates hints. All persisted to the profile. |
 
 ### Generation
 
@@ -675,8 +692,8 @@ All per-generation settings (style, asset type, image model, dimensions, options
 Infrastructure settings live in `backend/config.py` with sensible defaults that work out of the box. Model IDs, regions, and paths are all preconfigured and rarely need overriding. If needed, any setting can be overridden via an environment variable prefixed with `ARTSMOKER_` — see `backend/config.py` for the full list.
 
 **Reference image and analysis limits** (for cost management):
-- `max_reference_images: int = 50` (env: `ARTSMOKER_MAX_REFERENCE_IMAGES`) — max images imported per style. Limits storage.
-- `max_analysis_images: int = 15` (env: `ARTSMOKER_MAX_ANALYSIS_IMAGES`) — max images sent to Claude Opus per analysis call. When a style exceeds this count, `_smart_sample()` selects a diverse subset. Reducing this value reduces Claude Opus vision costs per analysis.
+- `max_reference_images: int = 100` (env: `ARTSMOKER_MAX_REFERENCE_IMAGES`) — max images imported per style. Limits storage.
+- `max_analysis_images: int = 20` (env: `ARTSMOKER_MAX_ANALYSIS_IMAGES`) — max images sent to Claude Opus per analysis call. When a style exceeds this count, `_smart_sample()` selects a diverse subset. Reducing this value reduces Claude Opus vision costs per analysis.
 
 **Image generation model ID settings**:
 - `sd35_large_model_id: str = "stability.sd3-5-large-v1:0"`
@@ -732,11 +749,12 @@ All prices below are from the official [AWS Bedrock Pricing page](https://aws.am
 
 ### Style Analysis Cost (one-time per style)
 
-For a style with **20 reference images** (15 sent to Claude after smart sampling):
+For a style with **100 reference images** (20 sent to Claude Opus after smart sampling, 8 sent to Claude Sonnet for cohesion check):
 
 | Step | Model | Calculation | Cost |
 |------|-------|-------------|------|
-| Analyze images | Claude Opus 4.6 (vision) | 15 images × ~1,398 tokens + ~500 prompt tokens = ~21,470 input tokens; ~1,000 output tokens | ~$0.13 |
+| Cohesion check (Phase 1) | Claude Sonnet 4.6 (vision) | 8 images (game sprites, smaller than 1024×1024) + ~500 prompt tokens; ~500 output tokens | ~$0.01 |
+| Analyze images (Phase 2) | Claude Opus 4.6 (vision) | 20 images (game sprites) + ~500 prompt tokens; ~1,500 output tokens | ~$0.12 |
 | Generate hints | Claude Sonnet 4.6 | ~800 input + ~200 output tokens | ~$0.005 |
 | **Total per style analysis** | | | **~$0.14** |
 
