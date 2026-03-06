@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "last_updated": "2026-03-06",
+  "categories": {
+    "fast_llm": {
+      "label": "Fast LLM (Prompt Refinement)",
+      "description": "Used for prompt refinement, pre-screening, cohesion checks, hints generation. Should be fast and affordable.",
+      "current": "us.anthropic.claude-sonnet-4-6",
+      "region": "us-west-2",
+      "provider": "Anthropic",
+      "api_type": "converse"
+    },
+    "complex_llm": {
+      "label": "Complex LLM (Style Analysis & Creative)",
+      "description": "Used for style analysis (vision), concept generation, marketing prompts, moderation analysis, Type Studio layout design. Should be the most capable model available.",
+      "current": "us.anthropic.claude-opus-4-6-v1",
+      "region": "us-west-2",
+      "provider": "Anthropic",
+      "api_type": "converse"
+    },
+    "fallback_llm": {
+      "label": "Fallback LLM",
+      "description": "Used when primary Claude models return AccessDeniedException. Should be a widely available model.",
+      "current": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "region": "us-west-2",
+      "provider": "Anthropic",
+      "api_type": "converse"
+    },
+    "voice": {
+      "label": "Voice Transcription",
+      "description": "Speech-to-text for voice input.",
+      "current": "amazon.nova-2-sonic-v1:0",
+      "region": "us-east-1",
+      "provider": "Amazon",
+      "api_type": "streaming"
+    }
+  },
+  "image_models": {
+    "nova_canvas": {
+      "label": "Amazon Nova Canvas",
+      "model_id": "amazon.nova-canvas-v1:0",
+      "region": "us-east-1",
+      "provider": "Amazon",
+      "enabled": true,
+      "prompt_limit": 900,
+      "supports_dimensions": true,
+      "supports_aspect_ratio": false,
+      "moderation_strictness": "very_strict",
+      "request_format": {
+        "type": "nova_canvas",
+        "body_template": {
+          "taskType": "TEXT_IMAGE",
+          "textToImageParams": {"text": "{prompt}"},
+          "imageGenerationConfig": {
+            "numberOfImages": 1,
+            "width": "{width}",
+            "height": "{height}",
+            "quality": "premium"
+          }
+        },
+        "seed_path": "imageGenerationConfig.seed",
+        "response_image_path": "images[0]",
+        "response_format": "base64"
+      }
+    },
+    "titan_image": {
+      "label": "Amazon Titan Image v2",
+      "model_id": "amazon.titan-image-generator-v2:0",
+      "region": "us-east-1",
+      "provider": "Amazon",
+      "enabled": true,
+      "prompt_limit": 480,
+      "supports_dimensions": true,
+      "supports_aspect_ratio": false,
+      "moderation_strictness": "strict",
+      "request_format": {
+        "type": "titan_image",
+        "body_template": {
+          "taskType": "TEXT_IMAGE",
+          "textToImageParams": {"text": "{prompt}"},
+          "imageGenerationConfig": {
+            "numberOfImages": 1,
+            "width": "{width}",
+            "height": "{height}"
+          }
+        },
+        "seed_path": "imageGenerationConfig.seed",
+        "response_image_path": "images[0]",
+        "response_format": "base64"
+      }
+    },
+    "sd35_large": {
+      "label": "Stable Diffusion 3.5 Large",
+      "model_id": "stability.sd3-5-large-v1:0",
+      "region": "us-west-2",
+      "provider": "Stability AI",
+      "enabled": true,
+      "prompt_limit": 2000,
+      "supports_dimensions": false,
+      "supports_aspect_ratio": true,
+      "moderation_strictness": "moderate",
+      "request_format": {
+        "type": "stability",
+        "body_template": {
+          "prompt": "{prompt}",
+          "output_format": "png",
+          "aspect_ratio": "{aspect_ratio}"
+        },
+        "seed_path": "seed",
+        "response_image_path": "images[0]",
+        "response_format": "base64"
+      }
+    },
+    "stable_image_ultra": {
+      "label": "Stable Image Ultra",
+      "model_id": "stability.stable-image-ultra-v1:1",
+      "region": "us-west-2",
+      "provider": "Stability AI",
+      "enabled": true,
+      "prompt_limit": 2000,
+      "supports_dimensions": false,
+      "supports_aspect_ratio": true,
+      "moderation_strictness": "moderate",
+      "request_format": {
+        "type": "stability",
+        "body_template": {
+          "prompt": "{prompt}",
+          "output_format": "png",
+          "aspect_ratio": "{aspect_ratio}"
+        },
+        "seed_path": "seed",
+        "response_image_path": "images[0]",
+        "response_format": "base64"
+      }
+    }
+  },
+  "post_processing": {
+    "remove_background": {
+      "label": "Remove Background",
+      "model_id": "us.stability.stable-image-remove-background-v1:0",
+      "region": "us-west-2",
+      "provider": "Stability AI",
+      "enabled": true
+    },
+    "upscale": {
+      "label": "Creative Upscale",
+      "model_id": "us.stability.stable-creative-upscale-v1:0",
+      "region": "us-west-2",
+      "provider": "Stability AI",
+      "enabled": true
+    }
+  }
+}

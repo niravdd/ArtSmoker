@@ -16,6 +16,7 @@
   - [8. AWS Configuration](#8-aws-configuration)
   - [9. Post-Processing Pipeline](#9-post-processing-pipeline)
   - [10. Storage Layer](#10-storage-layer)
+  - [11. Model Registry](#11-model-registry)
 - [API Reference](#api-reference)
   - [Styles](#styles)
   - [Generation](#generation)
@@ -24,6 +25,7 @@
   - [Gallery](#gallery)
   - [Type Studio](#type-studio)
   - [Browse](#browse)
+  - [Admin (Model Management)](#admin-model-management)
   - [System](#system)
 - [Prerequisites: AWS Setup](#prerequisites-aws-setup)
   - [AWS Credentials](#aws-credentials)
@@ -76,6 +78,7 @@ FastAPI Backend (Python)
     +-- /api/refine-prompt  — LLM prompt improvement (preview)
     +-- /api/gallery        — Generated asset browsing + file serving + bulk delete
     +-- /api/browse         — Server-side file browser (local + S3)
+    +-- /api/admin          — Model registry management + Bedrock discovery
     +-- /api/log            — Client-side error logging
     |
     v
@@ -85,7 +88,7 @@ AI Pipeline (AWS Bedrock)
     +-- Claude Opus 4.6        — Complex tasks: style analysis (Phase 2), concept generation, marketing copy
     +-- Nova Canvas             — Primary image generation (text-to-image)
     +-- Titan Image v2          — Alternative image generation
-    +-- SD 3.5 Large            — Image generation (Stability AI)
+    +-- Stable Diffusion 3.5 Large            — Image generation (Stability AI)
     +-- Stable Image Ultra      — Image generation (Stability AI premium)
     +-- Stability AI            — Background removal, upscaling
     +-- Nova Sonic              — Speech-to-text transcription (bidirectional streaming)
@@ -103,16 +106,19 @@ ArtSmoker/
 ├── backend/
 │   ├── main.py                    # FastAPI app, CORS, lifespan, static mount
 │   ├── config.py                  # AWS config, model IDs, paths, defaults
+│   ├── model_registry.json        # Persisted model configuration (LLMs, image models, post-processing)
 │   ├── routers/
 │   │   ├── styles.py              # Style profile CRUD + directory import + analysis
 │   │   ├── generate.py            # Two-level asset generation (options × variations)
 │   │   ├── transcribe.py          # Voice transcription endpoint
 │   │   ├── refine.py              # Prompt refinement preview endpoint
-│   │   └── gallery.py             # Generated asset browsing + file serving
+│   │   ├── gallery.py             # Generated asset browsing + file serving
+│   │   └── admin.py               # Model registry admin API + Bedrock model discovery
 │   ├── services/
+│   │   ├── model_registry.py      # Model registry manager: loads/saves model_registry.json, provides config to system
 │   │   ├── style_analyzer.py      # Two-phase style analysis: Sonnet cohesion check → Opus full analysis (includes _smart_sample())
 │   │   ├── prompt_engineer.py     # Claude Sonnet/Opus: prompt refinement + concept generation
-│   │   ├── image_generator.py     # Nova Canvas / Titan Image / SD 3.5 Large / Stable Image Ultra: generate images
+│   │   ├── image_generator.py     # Nova Canvas / Titan Image / Stable Diffusion 3.5 Large / Stable Image Ultra: generate images
 │   │   ├── post_processor.py      # Stability AI: bg removal, upscale; vtracer/potrace: SVG
 │   │   ├── transcriber.py         # Nova Sonic: bidirectional streaming speech-to-text
 │   │   ├── texture_extractor.py   # glTF/GLB texture extraction (base64, binary chunks, external refs)
@@ -138,7 +144,8 @@ ArtSmoker/
 │   │   │   ├── VoiceInput.js      # Voice recording + transcription
 │   │   │   ├── PromptEditor.js    # Text input with inline LLM refinement
 │   │   │   ├── Gallery.js         # Generated assets grid
-│   │   │   └── AssetViewer.js     # Full-size preview + download
+│   │   │   ├── AssetViewer.js     # Full-size preview + download
+│   │   │   └── ModelSettings.js   # Model registry admin UI (modal)
 │   │   └── services/
 │   │       └── api.js             # Backend API client
 │   └── assets/                    # Static assets (icons, etc.)
@@ -246,7 +253,7 @@ User prompt: "hospital building"
     For each concept prompt, generate num_variations images in parallel:
          |
          v
-    [Image Generation — Nova Canvas, Titan Image, SD 3.5 Large, or Stable Image Ultra]
+    [Image Generation — Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, or Stable Image Ultra]
     Input: refined prompt + random seed per variation
     Output: PNG image (default 1024x1024)
          |
@@ -268,15 +275,38 @@ User prompt: "hospital building"
 
 **Smart filenames**: Each generated image gets a human-readable filename derived from the user's prompt slug plus the option/variation indices: `a-fierce-dragon_opt1_var2.png`. These filenames are stored in per-asset `metadata.json` and served via `Content-Disposition` headers on the gallery file endpoints.
 
-**Prompt length limit**: Amazon Nova Canvas enforces a 1024-character prompt limit. The prompt engineer instructs Claude to keep outputs under **900 characters**, and there is a hard truncation fallback at 1024 characters (breaking on word boundaries) in `refine_prompt()`, `refine_marketing_prompt()`, and `generate_concept_prompts()`.
+**Dynamic prompt length limits by model**: Each image model has a different prompt capacity, stored in the model registry (`prompt_limit` field per model):
 
-**Content moderation handling**: When an image generation call fails due to the model's built-in content moderation filters (prompt rejected as policy-violating), the system detects the failure pattern and surfaces it to the frontend as a moderation-specific error rather than a generic failure. The `POST /api/generate/analyze-moderation` endpoint sends the flagged prompt to Claude Sonnet, which returns: a list of specific issues that likely triggered moderation (e.g. copyrighted IP references, violence/weapon language, adult content), a friendly user-facing explanation, and a rewritten prompt that preserves the original creative intent while avoiding moderation triggers. Non-retriable errors (content moderation, policy blocks) are detected and skip the retry loop entirely — no wasted attempts on prompts that will always be rejected. All image model functions (`invoke_nova_canvas`, `invoke_titan_image`, `invoke_sd35_large`, `invoke_stable_image_ultra`) now return the actual error message from the model instead of crashing with a `KeyError` on missing image data.
+| Model | Prompt Limit (chars) |
+|-------|---------------------|
+| Nova Canvas | 900 |
+| Titan Image v2 | 480 |
+| Stable Diffusion 3.5 Large | 2000 |
+| Stable Image Ultra | 2000 |
+
+The active limit is passed to all prompt refinement functions (`refine_prompt()`, `refine_marketing_prompt()`, `generate_concept_prompts()`) and adjusts automatically when the user switches models. Stable Diffusion 3.5 Large and Stable Image Ultra get 2x richer prompts with more room for detail, composition, and quality directives. A hard truncation fallback (breaking on word boundaries) still applies per model.
+
+**Content moderation handling — smart model switching**: When an image generation call fails due to the model's built-in content moderation filters, the system uses a tiered recovery strategy:
+
+1. **Try alternative models FIRST** (preserving the prompt): When the selected model blocks a prompt, the system tries other image models that may have more relaxed moderation. The prompt stays unchanged — only the model switches. If an alternative model accepts the prompt, a **model switch dialog** (emerald-themed) informs the user: "Your prompt works with Stable Diffusion 3.5 Large".
+2. **Rewrite as LAST RESORT**: Only when ALL available models reject the prompt does the system invoke `POST /api/generate/analyze-moderation` to analyze and rewrite. A **rewrite dialog** (amber-themed) presents the suggested safe rewrite with verified canary testing.
+3. **Pre-check toggle** ("Prompt Pre-Check"): An optional toggle that pre-screens prompts via Claude Sonnet before any image generation. When enabled, a **pre-check dialog** (indigo-themed) proactively warns the user about likely moderation issues before spending on image API calls.
+4. **Prompt refusal detection**: Catches Claude "I'm sorry" / refusal responses during prompt refinement and shows a **prompt refusal dialog** (red-themed) with a clear explanation instead of sending garbage to the image model (e.g. when requesting real people).
+
+The `POST /api/generate/analyze-moderation` endpoint sends the flagged prompt to Claude Sonnet, which returns: a list of specific issues that likely triggered moderation (e.g. copyrighted IP references, violence/weapon language, adult content), a friendly user-facing explanation, and a rewritten prompt that preserves the original creative intent while avoiding moderation triggers. Non-retriable errors (content moderation, policy blocks) are detected and skip the retry loop entirely — no wasted attempts on prompts that will always be rejected. All image model functions (`invoke_nova_canvas`, `invoke_titan_image`, `invoke_sd35_large`, `invoke_stable_image_ultra`) now return the actual error message from the model instead of crashing with a `KeyError` on missing image data.
 
 **Canary request and batch cancellation**: Before dispatching the full parallel batch, the system generates a single "canary" image first using the first option's prompt. If the canary is blocked by content moderation, the entire batch stops immediately — costing only 1 wasted API call instead of N×M×3 (options × variations × retry attempts). If the canary passes, the remaining tasks dispatch in parallel with a shared `threading.Event` cancel flag. If any task in the parallel batch encounters a non-retriable moderation error, it sets the cancel flag and all remaining tasks skip their API calls. This two-phase approach (canary + cooperative cancellation) minimizes wasted API spend on prompts that will be rejected across the board. Two additional SSE events support this flow: `canary` (emitted when the canary image is being tested against the prompt) and `moderation_blocked` (emitted when the canary or batch is stopped due to moderation).
 
 ### 3. Strong Asset-Type Differentiation
 
-Each `AssetType` has detailed structural directives in `prompt_engineer.py` covering five dimensions. These are injected into the prompt template with instructions to follow them **precisely**. The same user prompt produces fundamentally different images depending on the asset type.
+Each `AssetType` has detailed structural directives in `prompt_engineer.py` covering five dimensions. These are injected into the prompt template with instructions to follow them as **guides**, not rigid templates. The same user prompt produces fundamentally different images depending on the asset type.
+
+**Smart prompt refinement — "USER INTENT IS KING"**: The prompt refinement pipeline treats the user's explicit words as the highest-priority signal, overriding style guide defaults and asset type templates when they conflict:
+
+- **User overrides style**: If the user says "real-world like" but the style guide says "toylike", the user's intent wins. The style guide informs the general aesthetic, but explicit user directives take precedence.
+- **User overrides asset type**: If the user describes something that doesn't match the rigid asset type template (e.g. a tileable pattern selected under "game_asset"), the AI intelligently interprets what the user is actually describing — isolated object vs tileable panel vs scene vs texture — rather than forcing the template structure.
+- **Asset type is a GUIDE**: The structural directives (composition, framing, technical approach) are starting points that the AI adapts based on the user's description, not a rigid mold.
+- **Prompt refusal detection**: The system catches Claude "I'm sorry" / refusal responses during refinement and surfaces a clear dialog to the user instead of silently sending the refusal text as an image prompt.
 
 | Asset Type | Key Directives |
 |---|---|
@@ -347,7 +377,7 @@ Clean, modern single-page application served as static files mounted at `/` by F
 
 **Navigation**: The top nav shows the ArtSmoker logo with the tagline "Smoke-testing your artwork!" followed by four views in order: **Style Library** (`#styles`) → **2D Image Studio** (`#image-studio`) → **Type Studio** (`#type-studio`) → **Gallery** (`#gallery`).
 
-**No Claude branding in frontend**: All user-facing UI references use "AI" generically — never "Claude". For example, buttons say "AI Improve" not "Claude Improve", and labels say "AI-improved prompt" not "Claude-improved prompt".
+**No Claude branding in frontend**: All user-facing UI references use "AI" generically — never "Claude". For example, buttons say "AI Improve" not "Claude Improve", and labels say "AI-improved prompt" not "Claude-improved prompt". Image model names use their full display names: "Stable Diffusion 3.5 Large" (not "SD 3.5 Large").
 
 **DOM caching router**: Views survive navigation. Each view's DOM is cached and shown/hidden instead of destroyed/recreated on route changes. `window.resetView(route)` destroys the cache for a specific view to force a fresh start.
 
@@ -361,10 +391,17 @@ Clean, modern single-page application served as static files mounted at `/` by F
 - **Server-side file browser modal**: Used for both local and S3 browsing. Single-click selects a file/folder, double-click navigates into a directory. Back button and ".." entry navigate to the parent directory.
 
 **2D Image Studio** (`#image-studio`) — The main image generation workspace with a two-tier result display:
-- **Left sidebar**: Art style selector, asset type, image model, dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), processing toggle switches (see below).
-- **Processing options**: Toggle switches for Remove Background, SVG Conversion (on by default), and Upscale. Before generation these are labeled **"Pre-Processing"** (applied during generation). After generation completes, the label switches to **"Post-Processing"** and an **"Apply to Current Results"** button appears, allowing users to re-apply processing to the existing generated images without re-generating (calls `POST /api/generate/post-process`).
-- **Center panel**: Prompt editor (text + voice input), Generate button (indigo) and Reset button (amber) at equal width. After generation, shows both the original prompt and the AI-improved prompt. `loadBatch(batchId)` method restores a previous batch from the Gallery into the 2D Image Studio view.
-- **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge, and a truncated concept prompt. Click to select an option.
+- **Left sidebar**: Art style selector, asset type, image model, dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), processing toggle switches (see below). Includes a **"Model Settings"** button that opens the Model Registry admin UI (see [Model Registry](#11-model-registry)).
+- **Processing options**: Toggle switches for Remove Background, SVG Conversion (on by default), Upscale, and **Prompt Pre-Check** (pre-screens prompts via Claude Sonnet before image generation). Options row is placed **below** the prompt areas (images grouped together). Before generation these are labeled **"Pre-Processing"** (applied during generation). After generation completes, the label switches to **"Post-Processing"** and an **"Apply to Current Results"** button appears, allowing users to re-apply processing to the existing generated images without re-generating (calls `POST /api/generate/post-process`).
+- **Two-area prompt editor** (center panel): The prompt editor uses a two-textarea design:
+  - **Top textarea** (user input): Where the user writes their prompt. This area is **never overwritten** by the system — it always contains the user's original words.
+  - **"Compose Generation Prompt" button**: Creates an AI-enhanced version in a second area below. The composed prompt combines: user prompt + style guidelines + asset type directives + AI-enhanced details.
+  - **Composed prompt area** (green-tinted, below): Displays the AI-composed generation prompt. This is what gets sent to the image model.
+  - **Dynamic note under button**: Reflects current style selection — "Your prompt will be composed with the selected style guidelines..." when a style is active, vs "No style selected — AI will enhance with composition, lighting, and quality details" when no style is selected.
+  - **Flow**: If a composed prompt exists, it is sent directly to the image model (no double-refinement). If the user skips Compose and clicks Generate, the backend auto-refines and shows the result in the composed area via SSE (`prompts_ready` event). Editing the original prompt **clears** the composed prompt (forces re-composition).
+  - **Prompt info section**: After generation, shows original prompt, composed prompt, and concept prompts for full lineage visibility.
+  - Voice input and `loadBatch(batchId)` restore a previous batch from the Gallery into the 2D Image Studio view. `ensurePromptEditor()` is called on show/loadBatch for robust initialization.
+- **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge, and a truncated concept prompt. Click to select an option — clicking an option or variation thumbnail also **scrolls to the full preview**.
 - **Concept prompt display**: Shows the full refined prompt for the selected option.
 - **Variations row** (emerald borders): Shows seed variants of the selected option. Click to select a variation.
 - **Main preview**: Large preview of the selected variant with checkerboard transparency background.
@@ -372,7 +409,12 @@ Clean, modern single-page application served as static files mounted at `/` by F
 
 If there is only one option, the options row is hidden. If there is only one variation, the variations row is hidden.
 
-- **Content moderation dialog**: An amber-themed modal that appears when more than 50% of variants in a batch fail due to content moderation. The dialog displays an AI-analyzed list of specific issues that triggered moderation, a friendly explanation, an editable rewritten prompt (suggested by Claude Sonnet via `POST /api/generate/analyze-moderation`), and a collapsible section showing the original flagged prompt. The **"Use This Prompt"** button replaces the prompt editor text with the rewritten version while preserving full prompt lineage (`moderation_original` is set). The dialog does **not** auto-modify prompts — it recommends a rewrite and the user decides whether to accept, edit, or dismiss.
+- **Content moderation dialogs** — four distinct themed modals handle different moderation scenarios:
+  - **Model switch dialog** (emerald): Appears when the prompt was blocked by the selected model but works with an alternative. Shows "Your prompt works with Stable Diffusion 3.5 Large" and lets the user accept the model switch.
+  - **Rewrite dialog** (amber): Appears only when ALL models reject the prompt (last resort). Displays AI-analyzed issues, a friendly explanation, an editable rewritten prompt (via `POST /api/generate/analyze-moderation`), and a collapsible section showing the original flagged prompt. Verified via canary testing before presenting. The **"Use This Prompt"** button replaces the prompt editor text while preserving full prompt lineage (`moderation_original` is set).
+  - **Pre-check dialog** (indigo): Proactive warning before generating, shown when the "Prompt Pre-Check" toggle is enabled and Claude Sonnet detects likely moderation issues.
+  - **Prompt refusal dialog** (red): Appears when Claude declines to refine a prompt (e.g. requests involving real people). Shows a clear explanation instead of sending unusable text to the image model.
+  All dialogs are non-destructive — they recommend actions and the user decides whether to accept, edit, or dismiss.
 
 **Type Studio** (`#type-studio`) — Full text overlay system for creating titled/branded versions of gallery images or standalone text compositions.
 
@@ -415,7 +457,7 @@ If there is only one option, the options row is hidden. If there is only one var
 |-----------|-----------|--------|
 | Backend | FastAPI (Python 3.11+) | Async, fast, Pydantic models, auto-docs |
 | Frontend | Vanilla JS + Tailwind CSS | No build step, fast to iterate, lightweight |
-| AI Models | Bedrock (boto3) | Nova Canvas, Titan Image, SD 3.5 Large, Stable Image Ultra, Claude, Nova Sonic, Stability |
+| AI Models | Bedrock (boto3) | Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Claude, Nova Sonic, Stability |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) | Cascade of vector tracing methods |
 | Text Rendering | Pillow (Python Imaging Library) | Text overlay composition with shadow, outline, glow effects |
 | Storage | Local filesystem | Simple start, S3-compatible interface for later migration |
@@ -425,14 +467,14 @@ If there is only one option, the options row is hidden. If there is only one var
 **Default AWS Profile**: None — uses the standard AWS credential chain (configurable via `ARTSMOKER_AWS_PROFILE`).
 
 **Two-region architecture**:
-- `us-west-2` (`aws_region_models`): Claude models, Stability AI models (including SD 3.5 Large, Stable Image Ultra).
+- `us-west-2` (`aws_region_models`): Claude models, Stability AI models (including Stable Diffusion 3.5 Large, Stable Image Ultra).
 - `us-east-1` (`aws_region_images`): Nova Canvas, Titan Image, Nova Sonic.
 
 **Bedrock client** (`backend/services/bedrock_client.py`):
 - Lazy-initialized boto3 clients keyed by region with connection pooling (10 max pool connections).
 - Adaptive retry configuration (3 max attempts).
 - `invoke_claude(prompt, complexity, images, max_tokens, temperature)` — routes to Sonnet or Opus based on complexity parameter.
-- `invoke_sd35_large(prompt, seed, width, height)` — generates images via SD 3.5 Large.
+- `invoke_sd35_large(prompt, seed, width, height)` — generates images via Stable Diffusion 3.5 Large.
 - `invoke_stable_image_ultra(prompt, seed, width, height)` — generates images via Stable Image Ultra.
 - `_dimensions_to_aspect_ratio(width, height)` — maps pixel dimensions to the closest Stability AI supported aspect ratio (1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21). Used by both Stability generation methods.
 - Uses the Bedrock **Converse API** for Claude invocations (supports text + vision inputs).
@@ -452,13 +494,13 @@ If there is only one option, the options row is hidden. If there is only one var
 | Titan Image v2 | `amazon.titan-image-generator-v2:0` | us-east-1 | Alternative image generation |
 | Stability Remove BG | `us.stability.stable-image-remove-background-v1:0` | us-west-2 | Background removal |
 | Stability Upscale | `us.stability.stable-creative-upscale-v1:0` | us-west-2 | Image upscaling |
-| SD 3.5 Large | `stability.sd3-5-large-v1:0` | us-west-2 | Image generation (Stability AI) |
+| Stable Diffusion 3.5 Large | `stability.sd3-5-large-v1:0` | us-west-2 | Image generation (Stability AI) |
 | Stable Image Ultra | `stability.stable-image-ultra-v1:1` | us-west-2 | Image generation (Stability AI premium) |
 | Nova Sonic | `amazon.nova-2-sonic-v1:0` | us-east-1 | Speech-to-text |
 
-> Note: Claude and Stability AI post-processing model IDs use **US inference profiles** (`us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, `us.stability.stable-image-remove-background-v1:0`, `us.stability.stable-creative-upscale-v1:0`) rather than full versioned model IDs. SD 3.5 Large and Stable Image Ultra use **direct model IDs** (not inference profiles).
+> Note: Claude and Stability AI post-processing model IDs use **US inference profiles** (`us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, `us.stability.stable-image-remove-background-v1:0`, `us.stability.stable-creative-upscale-v1:0`) rather than full versioned model IDs. Stable Diffusion 3.5 Large and Stable Image Ultra use **direct model IDs** (not inference profiles).
 
-> Note: Stability AI generation models (SD 3.5 Large, Stable Image Ultra) use **aspect ratios** instead of exact pixel dimensions. The backend provides a `_dimensions_to_aspect_ratio()` helper that maps width×height to the closest supported ratio: 1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21.
+> Note: Stability AI generation models (Stable Diffusion 3.5 Large, Stable Image Ultra) use **aspect ratios** instead of exact pixel dimensions. The backend provides a `_dimensions_to_aspect_ratio()` helper that maps width×height to the closest supported ratio: 1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21.
 
 ### 9. Post-Processing Pipeline
 
@@ -492,6 +534,46 @@ Each step is independently fault-tolerant — failures are logged but do not abo
 - `metadata.json` — full generation metadata (prompt, refined_prompt, style_id, asset_type, seed, filenames, etc.).
 
 Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
+
+### 11. Model Registry
+
+The model registry (`backend/model_registry.json` + `backend/services/model_registry.py`) provides centralized, persisted configuration for all AI models used by the system. The registry file lives alongside the backend code (not in `data/`) and is managed through an admin API and frontend UI.
+
+**Registry structure** — three configurable categories:
+
+1. **LLM categories** (`categories`): Named model slots for different purposes:
+   - `fast_llm` — Claude Sonnet 4.6 (prompt refinement, hints, pre-check)
+   - `complex_llm` — Claude Opus 4.6 (style analysis, concept generation)
+   - `fallback_llm` — Fallback model on access denied
+   - `voice` — Nova Sonic (speech-to-text)
+   Each category stores: `model_id`, `region`, `enabled`.
+
+2. **Image models** (`image_models`): Keyed by internal name (e.g. `nova_canvas`, `sd35_large`). Each entry stores:
+   - `model_id` — Bedrock model identifier
+   - `region` — AWS region
+   - `prompt_limit` — maximum prompt characters (drives dynamic prompt sizing)
+   - `moderation_strictness` — relative strictness level (used by smart model switching)
+   - `request_format` — model-specific API format details
+   - `enabled` — whether the model is available for selection
+
+3. **Post-processing** (`post_processing`): Configuration for `remove_background` and `upscale` services with model IDs and regions.
+
+**Backward compatibility**: Generated assets reference model keys (e.g. `nova_canvas`, `sd35_large`), not raw Bedrock model IDs. This means changing a model ID in the registry does not break old asset metadata.
+
+**Model registry service** (`backend/services/model_registry.py`):
+- Loads `model_registry.json` on startup, provides model configs to the rest of the system.
+- `get_image_model_config(key)` — returns the full config for an image model.
+- `get_category_config(name)` — returns the config for an LLM category.
+- `update_image_model(key, updates)` / `update_category(name, updates)` — persists changes.
+- `add_image_model(key, config)` — adds a new image model entry.
+
+**Admin API** (`backend/routers/admin.py`): See [Admin (Model Management)](#admin-model-management) in the API Reference.
+
+**Frontend UI** (`frontend/js/components/ModelSettings.js`):
+- Modal accessible via the **"Model Settings"** button in the 2D Image Studio sidebar.
+- Shows all current models (LLM categories and image models) with their regions, model IDs, and enabled/disabled status.
+- Model IDs are editable inline; changes are saved via PATCH to the admin API.
+- **Discover section**: Pick an AWS region and see available Bedrock models. The discovery endpoint calls `ListFoundationModels`, deduplicates model versions (e.g. 128 raw results to ~96 unique models), and groups by capability (image generators, text/LLM, vision).
 
 ## API Reference
 
@@ -630,6 +712,16 @@ Fields:
 | GET | `/api/browse/s3/buckets` | List available S3 buckets. |
 | GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. Returns list of objects and common prefixes. Recognizes the same asset formats as the local browser. |
 
+### Admin (Model Management)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/admin/models` | Get the full model registry (all categories, image models, post-processing config). |
+| PATCH | `/api/admin/models/category/{name}` | Update an LLM category (e.g. `fast_llm`, `complex_llm`). Accepts partial updates: `model_id`, `region`, `enabled`. |
+| PATCH | `/api/admin/models/image/{key}` | Update an image model (e.g. `nova_canvas`, `sd35_large`). Accepts partial updates: `model_id`, `region`, `prompt_limit`, `moderation_strictness`, `enabled`. |
+| POST | `/api/admin/models/image` | Add a new image model to the registry. Body: `{ "key": "...", "model_id": "...", "region": "...", ... }`. |
+| GET | `/api/admin/discover/{region}` | Discover available Bedrock models in a region. Calls `ListFoundationModels`, deduplicates model versions (~128 raw to ~96 unique), groups by capability (image generators, text/LLM, vision). |
+
 ### System
 
 | Method | Endpoint | Description |
@@ -659,9 +751,10 @@ The IAM principal (user, role, or SSO session) needs the following:
 ```
 bedrock:InvokeModel          — for all image models (Nova Canvas, Titan Image, Stability AI)
 bedrock:Converse             — for Claude models (Sonnet, Opus)
+bedrock:ListFoundationModels — for model discovery in the admin UI
 ```
 
-These translate to the AWS managed policy `AmazonBedrockFullAccess`, or a scoped policy on `bedrock:InvokeModel` and `bedrock:Converse` for the specific model ARNs.
+These translate to the AWS managed policy `AmazonBedrockFullAccess`, or a scoped policy on the above actions for the specific model ARNs.
 
 ### Bedrock Model Access
 
@@ -671,7 +764,7 @@ In the AWS Console, go to **Amazon Bedrock → Model access** and ensure the fol
 |-------|--------|-------------------|
 | Claude Sonnet 4.6, Claude Opus 4.6 | us-west-2 | Anthropic models |
 | Nova Canvas, Titan Image v2, Nova Sonic | us-east-1 | Amazon models |
-| Stability AI (Remove BG, Upscale, SD 3.5 Large, Stable Image Ultra) | us-west-2 | Stability AI models |
+| Stability AI (Remove BG, Upscale, Stable Diffusion 3.5 Large, Stable Image Ultra) | us-west-2 | Stability AI models |
 
 > [!IMPORTANT]
 > Model access is regional. You need to enable models in **both** us-west-2 and us-east-1.
@@ -689,15 +782,16 @@ Results are logged to the console and available at `GET /api/health`. If credent
 
 All per-generation settings (style, asset type, image model, dimensions, options/variations counts, post-processing toggles) are controlled through the **frontend UI**.
 
-Infrastructure settings live in `backend/config.py` with sensible defaults that work out of the box. Model IDs, regions, and paths are all preconfigured and rarely need overriding. If needed, any setting can be overridden via an environment variable prefixed with `ARTSMOKER_` — see `backend/config.py` for the full list.
+Infrastructure settings live in `backend/config.py` with sensible defaults that work out of the box. Static paths and environment overrides are in config.py; model IDs, regions, prompt limits, and moderation strictness are in the **model registry** (`backend/model_registry.json`), editable via the Admin API or the frontend Model Settings UI. If needed, any config.py setting can be overridden via an environment variable prefixed with `ARTSMOKER_` — see `backend/config.py` for the full list.
+
+**Model registry** (`backend/model_registry.json`):
+- All model IDs, regions, prompt limits, and capabilities are centralized here. See [Model Registry](#11-model-registry) for the full structure.
+- Editable at runtime via the Admin API (`/api/admin/models`) or the frontend Model Settings modal.
+- Lives alongside backend code (not in `data/`) — it is system configuration, not user data.
 
 **Reference image and analysis limits** (for cost management):
 - `max_reference_images: int = 100` (env: `ARTSMOKER_MAX_REFERENCE_IMAGES`) — max images imported per style. Limits storage.
 - `max_analysis_images: int = 20` (env: `ARTSMOKER_MAX_ANALYSIS_IMAGES`) — max images sent to Claude Opus per analysis call. When a style exceeds this count, `_smart_sample()` selects a diverse subset. Reducing this value reduces Claude Opus vision costs per analysis.
-
-**Image generation model ID settings**:
-- `sd35_large_model_id: str = "stability.sd3-5-large-v1:0"`
-- `stable_image_ultra_model_id: str = "stability.stable-image-ultra-v1:1"`
 
 ## Verification
 
@@ -717,13 +811,16 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 6. **Test post-processing**: After generation, verify the label switches to "Post-Processing". Toggle a processing option and click "Apply to Current Results" — verify assets are updated without re-generating.
 7. **Download files**: Click PNG/SVG download buttons — verify the file is named with the prompt slug (e.g. `hospital-building_opt2_var1.png`).
 8. **Test voice input**: Record audio — verify transcription appears in the prompt editor.
-9. **Test prompt refinement**: Type a brief prompt, click "Improve" — verify the refined prompt is more detailed.
-10. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
-11. **Test Type Studio**: Navigate to Type Studio, enter text lines, select fonts, request AI layout suggestions. Verify 1-5 layout options are returned. Select a layout and render — verify the result is saved to the gallery.
-12. **Browse gallery**: Switch to Gallery view — verify generated assets appear with filtering by style and asset type. Test the search bar for instant filtering. Test multi-select and bulk delete.
-13. **Test AssetViewer buttons**: Open an image asset — verify "2D Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears.
-14. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
-15. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented.
+9. **Test two-area prompt editor**: Type a prompt, click "Compose Generation Prompt" — verify the composed prompt appears in the green-tinted area below. Verify the note under the button reflects whether a style is selected. Edit the original prompt — verify the composed area clears. Click Generate without composing — verify the backend auto-refines and populates the composed area via SSE.
+10. **Test prompt refinement**: Type a brief prompt, click "Compose Generation Prompt" — verify the refined prompt respects user intent over style defaults.
+11. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
+12. **Test Type Studio**: Navigate to Type Studio, enter text lines, select fonts, request AI layout suggestions. Verify 1-5 layout options are returned. Select a layout and render — verify the result is saved to the gallery.
+13. **Browse gallery**: Switch to Gallery view — verify generated assets appear with filtering by style and asset type. Test the search bar for instant filtering. Test multi-select and bulk delete.
+14. **Test AssetViewer buttons**: Open an image asset — verify "2D Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears.
+15. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
+16. **Test Model Settings**: Click "Model Settings" in the 2D Image Studio sidebar — verify the modal shows all LLM categories and image models. Try editing a model ID and saving. Use the Discover section to list models in a region.
+17. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears.
+18. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`).
 
 ## AWS Bedrock Pricing & Cost Breakdown
 
@@ -738,7 +835,7 @@ All prices below are from the official [AWS Bedrock Pricing page](https://aws.am
 | **Claude Opus 4.6 (vision)** | same | ~$0.008 | per 1024×1024 image input |
 | **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | per image (1024×1024, premium) |
 | **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | per image (1024×1024) |
-| **SD 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
+| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | per image |
 | **Remove Background** | `stability.stable-image-remove-background-v1:0` | $0.07 | per image |
 | **Creative Upscale** | `stability.stable-creative-upscale-v1:0` | $0.60 | per image |
@@ -771,7 +868,7 @@ The generation cost depends on the image model chosen and the options×variation
 
 **Image generation cost per batch** (the dominant cost):
 
-| Scenario | Images | Nova Canvas | Titan Image v2 | SD 3.5 Large | Stable Image Ultra |
+| Scenario | Images | Nova Canvas | Titan Image v2 | Stable Diffusion 3.5 Large | Stable Image Ultra |
 |----------|--------|-------------|----------------|--------------|-------------------|
 | 1 option × 1 variation | 1 | $0.06 | $0.01 | $0.08 | $0.14 |
 | 1 option × 5 variations | 5 | $0.30 | $0.05 | $0.40 | $0.70 |
@@ -808,12 +905,12 @@ The generation cost depends on the image model chosen and the options×variation
 | **Total** | **~$0.66** |
 
 **Example 3: Full creative exploration (5 concepts × 5 variations)**
-5 options × 5 variations, SD 3.5 Large, Remove BG + SVG:
+5 options × 5 variations, Stable Diffusion 3.5 Large, Remove BG + SVG:
 
 | Step | Cost |
 |------|------|
 | Concept generation (Opus) | $0.05 |
-| 25 images (SD 3.5 Large) | $2.00 |
+| 25 images (Stable Diffusion 3.5 Large) | $2.00 |
 | 25× Remove Background | $1.75 |
 | 25× SVG Conversion | $0.00 |
 | **Total** | **~$3.80** |

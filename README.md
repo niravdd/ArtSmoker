@@ -9,7 +9,7 @@
 
 AI-powered 2D game asset generation platform. Generate game-ready sprites, characters, icons, environments, and marketing banners from text or voice prompts — styled to match your game's visual identity. Add text overlays and generate standalone text assets with AI-designed typography.
 
-Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, SD 3.5 Large, Stable Image Ultra, Stability AI).
+Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI).
 
 ## What it does
 
@@ -22,11 +22,12 @@ Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, SD 3.5 Large, Stable Ima
 ### Features at a Glance
 
 - 🎨 **Style Library** — Upload art, AI learns your visual identity
-- 🖼️ **2D Image Studio** — Generate images with options × variations
+- 🖼️ **2D Image Studio** — Generate images with options × variations, two-area prompt editor
 - ✍️ **Type Studio** — AI-designed text overlays with font picker
 - 📁 **Gallery** — Browse, search, download, reload, delete
 - 🔄 **Real-time progress** — SSE streaming with retry/throttle visibility
-- 🛡️ **Smart moderation** — Canary testing, AI-assisted prompt rewriting
+- 🛡️ **Smart moderation** — Canary testing, auto model switching, AI-assisted rewriting
+- ⚙️ **Model Registry** — Admin UI for all AI models, Bedrock discovery, per-model prompt limits
 
 ### Two-level generation
 
@@ -46,7 +47,7 @@ The selected **Asset Type** fundamentally changes how the AI interprets your pro
 
 This matters at every stage:
 
-- **"Improve with AI" button** — When you click Improve, the AI uses the asset type to reshape your brief into a detailed generation prompt, respecting the selected asset type and style. You can review the refined version and accept or revert.
+- **"Compose Generation Prompt" button** — When you click Compose, the AI uses the asset type to reshape your brief into a detailed generation prompt, combining your words with style guidelines and asset type directives. Your explicit intent always overrides style defaults. You can review the composed version before generating.
 - **Concept generation** — When generating multiple options, the AI creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
 - **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with a clean zone for headline overlay.
 
@@ -64,11 +65,11 @@ In the AWS Console, enable these models under **Amazon Bedrock > Model access**:
 
 | Region | Models to enable |
 |--------|-----------------|
-| us-west-2 | Claude Sonnet 4.6, Claude Opus 4.6, SD 3.5 Large, Stable Image Ultra, Stability AI (Remove BG, Upscale) |
+| us-west-2 | Claude Sonnet 4.6, Claude Opus 4.6, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (Remove BG, Upscale) |
 | us-east-1 | Nova Canvas, Titan Image v2, Nova Sonic |
 
 > [!IMPORTANT]
-> Required IAM permissions: `bedrock:InvokeModel` and `bedrock:Converse` (or the managed policy `AmazonBedrockFullAccess`).
+> Required IAM permissions: `bedrock:InvokeModel`, `bedrock:Converse`, and `bedrock:ListFoundationModels` (for model discovery). Or use the managed policy `AmazonBedrockFullAccess`.
 
 ## Quick start
 
@@ -159,21 +160,22 @@ All generated assets (images, text overlays, standalone text) land in the Galler
 ### 2D Image Studio (generate assets)
 
 1. Go to the **2D Image Studio** tab.
-2. Type a prompt (e.g. "cute cartoon cat").
+2. Type a prompt (e.g. "cute cartoon cat") in the **top textarea** — this area is never overwritten by the system.
 3. **Select an asset type** — this shapes everything the AI produces (see table above). A "warrior" as a Game Asset looks completely different from a "warrior" as a Marketing Banner.
-4. Optionally click **"Improve with AI"** — the AI refines your brief into a detailed generation prompt, respecting the selected asset type and style. Both the original prompt and the AI-improved prompt are tracked and displayed. You can review the refined version and accept or revert.
+4. Optionally click **"Compose Generation Prompt"** — the AI creates an enhanced version in a second green-tinted area below, combining your prompt with style guidelines, asset type directives, and AI-enhanced details. The note under the button dynamically reflects your style selection. You can review and edit the composed prompt before generating.
 5. Set dimensions and how many options/variations you want.
-6. Configure **Pre-Processing** (applied during generation) and **Post-Processing** (applied after generation, with an "Apply" button). SVG conversion is on by default.
-7. Click **Generate**.
-8. Browse the **options row** (different concepts) and **variations row** (seed variants of the selected concept).
+6. Configure **Pre-Processing** (applied during generation) and **Post-Processing** (applied after generation, with an "Apply" button). SVG conversion is on by default. Enable **Prompt Pre-Check** to pre-screen prompts before image generation.
+7. Click **Generate**. If you skip the Compose step, the backend auto-refines and shows the result in the composed area via SSE.
+8. Browse the **options row** (different concepts) and **variations row** (seed variants of the selected concept). Clicking a thumbnail scrolls to the full preview.
 9. Click any image to preview full-size, then download PNG or SVG.
 10. Use the **reset button** (amber circular arrow) to clear generated results and start fresh.
+11. Use **"Model Settings"** in the sidebar to view/edit model configuration and discover available Bedrock models.
 
 Generation progress is streamed in real time via SSE — the UI shows which image is being generated (e.g. "Generating images... 12/25"), elapsed time, and current pipeline stage. If the API is throttled, you'll see "API throttled — waiting to retry..." with the delay, then "Retrying... (attempt 2/3)" — each image retries up to 3 times with exponential backoff so large batches don't lose variants to transient throttling.
 
 Generated results survive navigation — switching tabs and back preserves the 2D Image Studio's DOM state. Only the reset button clears it.
 
-**Content moderation**: If your prompt is blocked by the image model's content moderation filters, ArtSmoker shows a dialog explaining why and suggesting a safe rewrite. Common triggers include copyrighted IP names (e.g. "Mario", "Master Chief"), violence/weapon language, and adult content references. The AI preserves your creative intent while removing the specific triggers — you can review and edit the suggested rewrite before accepting it. Tip: the **"Improve with AI"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
+**Smart content moderation**: When your prompt is blocked by the image model's content moderation filters, ArtSmoker tries **alternative models first** (preserving your prompt) before suggesting a rewrite as a last resort. If a less strict model accepts your prompt, you'll see an emerald "model switch" dialog. Only when all models reject does an amber "rewrite" dialog appear with a safe rewrite suggestion. Enable the **"Prompt Pre-Check"** toggle to pre-screen prompts via AI before image generation (indigo dialog). Common triggers include copyrighted IP names (e.g. "Mario", "Master Chief"), violence/weapon language, and adult content references. Tip: the **"Compose Generation Prompt"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
 
 **Smart canary testing**: Before generating the full batch, ArtSmoker sends a single "canary" image request to test the prompt against the model's moderation filters. If the canary is blocked, the batch stops immediately (1 wasted API call instead of N×M×3). If the canary passes, remaining tasks run in parallel with cooperative cancellation — if any task hits a moderation block, the rest skip their API calls automatically.
 
@@ -218,21 +220,31 @@ Click the microphone button next to the prompt editor to dictate your prompt. Th
 
 Navigation order: **Style Library → 2D Image Studio → Type Studio → Gallery**. Switching between views preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in 2D Image Studio is the only way to clear its state.
 
+### Model management
+
+All AI model configuration (LLM categories, image models, post-processing) is centralized in `backend/model_registry.json` and manageable through the UI:
+
+- Click **"Model Settings"** in the 2D Image Studio sidebar to open the admin modal.
+- View and edit all model IDs, regions, prompt limits, and enabled/disabled status.
+- **Discover models**: Select an AWS region to see available Bedrock models, grouped by capability (image generators, text/LLM, vision). Discovery deduplicates model versions (~128 raw to ~96 unique).
+- Changes are persisted immediately via the Admin API (`/api/admin/models`).
+- The registry is backward compatible — existing assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs.
+
 ### Image generation models
 
-Four image models are available, each with different strengths:
+Four image models are available, each with different strengths. Prompt limits are configurable per model via the Model Registry:
 
-| Model | Provider | Quality | Dimension handling |
-|-------|----------|---------|-------------------|
-| **Nova Canvas** | Amazon | Good, fast | Exact pixel dimensions (width x height) |
-| **Titan Image v2** | Amazon | Good, fast | Exact pixel dimensions (width x height) |
-| **SD 3.5 Large** | Stability AI | Excellent (best open model) | Aspect ratios (auto-mapped from dimensions) |
-| **Stable Image Ultra** | Stability AI | Highest (premium model) | Aspect ratios (auto-mapped from dimensions) |
+| Model | Provider | Quality | Prompt Limit | Dimension handling |
+|-------|----------|---------|-------------|-------------------|
+| **Nova Canvas** | Amazon | Good, fast | 900 chars | Exact pixel dimensions (width x height) |
+| **Titan Image v2** | Amazon | Good, fast | 480 chars | Exact pixel dimensions (width x height) |
+| **Stable Diffusion 3.5 Large** | Stability AI | Excellent (best open model) | 2000 chars | Aspect ratios (auto-mapped from dimensions) |
+| **Stable Image Ultra** | Stability AI | Highest (premium model) | 2000 chars | Aspect ratios (auto-mapped from dimensions) |
 
-The Stability AI models (SD 3.5 Large, Stable Image Ultra) accept aspect ratios (1:1, 16:9, 3:2, etc.) instead of exact pixel dimensions. When you select a width and height in the UI, the backend automatically maps to the closest supported aspect ratio.
+The Stability AI models (Stable Diffusion 3.5 Large, Stable Image Ultra) accept aspect ratios (1:1, 16:9, 3:2, etc.) instead of exact pixel dimensions. When you select a width and height in the UI, the backend automatically maps to the closest supported aspect ratio.
 
 > [!NOTE]
-> **Moderation sensitivity varies by model**: Nova Canvas is the strictest — it rejects prompts with copyrighted names, weapons, and combat language more aggressively. SD 3.5 Large is more relaxed for action/combat themes. If you're generating battle scenes or edgy content, try SD 3.5 Large or Stable Image Ultra first.
+> **Moderation sensitivity varies by model**: Nova Canvas is the strictest — it rejects prompts with copyrighted names, weapons, and combat language more aggressively. Stable Diffusion 3.5 Large is more relaxed for action/combat themes. ArtSmoker handles this automatically — when a prompt is blocked, the system tries alternative models with lower moderation strictness before suggesting a rewrite.
 
 ## Tech stack
 
@@ -240,7 +252,7 @@ The Stability AI models (SD 3.5 Large, Stable Image Ultra) accept aspect ratios 
 |-------|-----------|
 | Backend | FastAPI (Python), boto3 |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
-| AI | Claude Sonnet/Opus 4.6, Nova Canvas, Titan Image v2, SD 3.5 Large, Stable Image Ultra, Stability AI, Nova Sonic |
+| AI | Claude Sonnet/Opus 4.6, Nova Canvas, Titan Image v2, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI, Nova Sonic |
 | Storage | Local filesystem (S3-ready interface) |
 | Dev | No-cache middleware for static files during development; client-side error logging via `POST /api/log` |
 
@@ -270,6 +282,11 @@ Key endpoints:
 | `GET /api/browse/local?path=~` | Browse local directory contents |
 | `GET /api/browse/s3/buckets` | List available S3 buckets |
 | `GET /api/browse/s3?bucket=name&prefix=path` | Browse S3 bucket contents |
+| `GET /api/admin/models` | Get full model registry (LLMs, image models, post-processing) |
+| `PATCH /api/admin/models/category/{name}` | Update an LLM category config |
+| `PATCH /api/admin/models/image/{key}` | Update an image model config |
+| `POST /api/admin/models/image` | Add a new image model |
+| `GET /api/admin/discover/{region}` | Discover available Bedrock models in a region |
 | `POST /api/log` | Client-side error/warning logging (recorded as `[CLIENT]` in server console) |
 | `GET /api/health` | Health check + AWS status |
 
@@ -279,9 +296,10 @@ Key endpoints:
 ArtSmoker/
 ├── backend/
 │   ├── main.py              # FastAPI app + startup validation
-│   ├── config.py            # Settings (AWS, models, paths)
-│   ├── routers/             # API endpoints
-│   ├── services/            # AI pipeline (Bedrock integration), texture extraction
+│   ├── config.py            # Settings (AWS, paths, limits)
+│   ├── model_registry.json  # Persisted model configuration (LLMs, image models, post-processing)
+│   ├── routers/             # API endpoints (including admin.py for model management)
+│   ├── services/            # AI pipeline, model_registry.py, texture extraction
 │   ├── models/              # Pydantic request/response models
 │   └── storage/             # Local filesystem (S3-compatible interface)
 ├── frontend/
@@ -293,6 +311,7 @@ ArtSmoker/
 │       │   ├── TypeStudio.js    # Type Studio
 │       │   ├── Gallery.js       # Gallery + asset viewer
 │       │   ├── StyleLibrary.js  # Style management
+│       │   ├── ModelSettings.js # Model registry admin UI (modal)
 │       │   └── ...              # PromptEditor, VoiceInput, etc.
 │       ├── services/            # API client
 │       └── app.js               # SPA router + navigation
@@ -327,7 +346,7 @@ All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/
 | **Claude Opus (vision)** | same | ~$0.008 | per 1024x1024 image input |
 | **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | per image (1024x1024 premium) |
 | **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | per image |
-| **SD 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
+| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | per image |
 | **Remove Background** | Stability AI | $0.07 | per image |
 | **Creative Upscale** | Stability AI | $0.60 | per image |
@@ -341,7 +360,7 @@ All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/
 
 Includes prompt refinement/concept generation + image generation:
 
-| Scenario | Nova Canvas | Titan Image v2 | SD 3.5 Large | Stable Image Ultra |
+| Scenario | Nova Canvas | Titan Image v2 | Stable Diffusion 3.5 Large | Stable Image Ultra |
 |----------|------------|----------------|-------------|-------------------|
 | 1 option × 1 variation | ~$0.07 | ~$0.02 | ~$0.09 | ~$0.15 |
 | 1 option × 5 variations | ~$0.31 | ~$0.06 | ~$0.41 | ~$0.71 |
@@ -364,7 +383,7 @@ Includes prompt refinement/concept generation + image generation:
 |---------|-------------|-----------|
 | **Cheapest** | 1×1, Titan Image, no processing | ~$0.02 |
 | **Standard** | 1×5, Nova Canvas, Remove BG | ~$0.66 |
-| **Full exploration** | 5×5, SD 3.5 Large, Remove BG + SVG | ~$3.80 |
+| **Full exploration** | 5×5, Stable Diffusion 3.5 Large, Remove BG + SVG | ~$3.80 |
 | **Premium** | 5×5, Stable Image Ultra, Remove BG + Upscale + SVG | ~$20.30 |
 
 > [!TIP]

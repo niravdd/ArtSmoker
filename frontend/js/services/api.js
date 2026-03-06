@@ -298,6 +298,39 @@
             }).catch(() => {}); // silently ignore if server is down
         },
 
+        /** Admin — Model Registry */
+        admin: {
+            getModels() {
+                return request('/api/admin/models');
+            },
+            updateCategory(name, data) {
+                return request(`/api/admin/models/category/${encodeURIComponent(name)}`, {
+                    method: 'PATCH', body: data,
+                });
+            },
+            updateImageModel(key, data) {
+                return request(`/api/admin/models/image/${encodeURIComponent(key)}`, {
+                    method: 'PATCH', body: data,
+                });
+            },
+            addImageModel(data) {
+                return request('/api/admin/models/image', {
+                    method: 'POST', body: data,
+                });
+            },
+            updatePostProcess(key, data) {
+                return request(`/api/admin/models/postprocess/${encodeURIComponent(key)}`, {
+                    method: 'PATCH', body: data,
+                });
+            },
+            discover(region) {
+                return request(`/api/admin/discover/${encodeURIComponent(region)}`);
+            },
+            reload() {
+                return request('/api/admin/models/reload', { method: 'POST' });
+            },
+        },
+
         /** Type Studio */
         typeStudio: {
             /** List available fonts, optionally filtered by style */
