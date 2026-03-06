@@ -21,12 +21,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
-from backend.models.generation_request import AssetType, GenerationRequest
+from backend.models.generation_request import AssetType, GenerationRequest, ImageModel
 from backend.models.generation_result import GenerationResult, OptionResult, VariantResult
 from backend.models.style_profile import StyleProfile
 from backend.services.image_generator import generate_image
 from backend.services.post_processor import process_asset
 from backend.services.prompt_engineer import (
+    PromptRefusalError,
     generate_concept_prompts,
     refine_marketing_prompt,
     refine_prompt,
@@ -109,6 +110,10 @@ def _build_variant(
             event["variation"] = variant_index
             progress_queue.put(event)
 
+    # Check again right before the expensive API call
+    if cancel_event and cancel_event.is_set():
+        raise RuntimeError("Batch cancelled due to content moderation block")
+
     final_bytes, svg_url = _generate_single_image(
         asset_id=asset_id,
         refined_prompt=refined_prompt,
@@ -116,6 +121,10 @@ def _build_variant(
         seed=seed,
         status_callback=_status_cb,
     )
+
+    # Check after generation but before saving (another task may have triggered cancel)
+    if cancel_event and cancel_event.is_set():
+        raise RuntimeError("Batch cancelled due to content moderation block")
 
     png_filename = f"{prompt_slug}_opt{option_index + 1}_var{variant_index + 1}.png"
     svg_filename = f"{prompt_slug}_opt{option_index + 1}_var{variant_index + 1}.svg" if svg_url else None
@@ -201,28 +210,63 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             "analyzed_style": style_profile.analyzed_style.model_dump() if style_profile.analyzed_style else None,
         }
 
-    # Generate concept prompts
-    emit({"type": "stage", "stage": "prompts",
-          "message": f"Creating {n_opts} concept prompt{'s' if n_opts > 1 else ''}..."})
+    # Generate concept prompts (skip if pre-composed by the user)
+    if body.pre_composed and n_opts == 1:
+        # User already composed the prompt via "Compose Generation Prompt" — use as-is
+        concept_prompts = [body.prompt]
+        emit({"type": "stage", "stage": "prompts",
+              "message": "Using your composed prompt..."})
+        logger.info("Using pre-composed prompt for batch %s (skipping refinement).", batch_id)
+    else:
+        emit({"type": "stage", "stage": "prompts",
+              "message": f"Creating {n_opts} concept prompt{'s' if n_opts > 1 else ''}..."})
 
-    try:
-        if n_opts == 1:
-            if body.asset_type == AssetType.MARKETING_BANNER:
-                concept_prompts = [refine_marketing_prompt(body.prompt, style_profile)]
+    if not body.pre_composed or n_opts > 1:
+        model_id = body.image_model.value
+        try:
+            if body.pre_composed and n_opts > 1:
+                concept_prompts = generate_concept_prompts(
+                    body.prompt, style_profile, body.asset_type, n_opts, image_model=model_id,
+                )
+            elif n_opts == 1:
+                if body.asset_type == AssetType.MARKETING_BANNER:
+                    concept_prompts = [refine_marketing_prompt(body.prompt, style_profile, image_model=model_id)]
+                else:
+                    concept_prompts = [refine_prompt(body.prompt, style_profile, body.asset_type, image_model=model_id)]
             else:
-                concept_prompts = [refine_prompt(body.prompt, style_profile, body.asset_type)]
-        else:
-            concept_prompts = generate_concept_prompts(
-                body.prompt, style_profile, body.asset_type, n_opts,
+                concept_prompts = generate_concept_prompts(
+                    body.prompt, style_profile, body.asset_type, n_opts, image_model=model_id,
+                )
+        except PromptRefusalError as refusal:
+            logger.warning("Claude refused to refine prompt: %s", refusal.reason[:200])
+            emit({"type": "prompt_refused",
+                  "reason": refusal.reason,
+                  "original_response": refusal.original_response[:500],
+                  "message": "The AI declined to process this prompt due to content concerns."})
+            emit({"type": "stage", "stage": "finalizing", "message": "Prompt refused."})
+            result = GenerationResult(
+                id=batch_id, prompt=body.prompt, original_prompt=body.original_prompt,
+                moderation_original=body.moderation_original, style_id=body.style_id,
+                asset_type=body.asset_type.value, image_model=body.image_model.value,
+                width=body.width, height=body.height,
+                num_options=n_opts, num_variations=n_vars, options=[],
             )
-    except Exception as exc:
-        raise HTTPException(502, detail=f"Prompt generation failed: {exc}") from exc
+            emit({"type": "complete", "result": result.model_dump(mode="json"), "prompt_refused": True})
+            return result
+        except Exception as exc:
+            raise HTTPException(502, detail=f"Prompt generation failed: {exc}") from exc
+
+    # Emit the composed/refined prompts so the frontend can display them
+    emit({"type": "prompts_ready",
+          "prompts": concept_prompts,
+          "pre_composed": body.pre_composed})
 
     emit({"type": "stage", "stage": "generating",
           "message": f"Generating {total} images...", "prompts_done": len(concept_prompts)})
 
     prompt_slug = _slugify_prompt(body.prompt)
     progress_q = queue.Queue()
+    cancel_event = threading.Event()
     variant_map: dict[int, list[VariantResult]] = {i: [] for i in range(n_opts)}
     errors: list[str] = []
     completed = 0
@@ -266,9 +310,11 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             emit({"type": "moderation_blocked", "error": str(canary_exc),
                   "message": "Image generation blocked by content moderation"})
             errors.append(f"canary: {canary_exc}")
+            # Set cancel event so the batch and assembly know moderation triggered
+            cancel_event.set()
             # Skip the entire parallel batch
-            emit({"type": "stage", "stage": "finalizing", "message": "Finalizing..."})
-            # Fall through to assemble whatever we have (nothing)
+            emit({"type": "stage", "stage": "finalizing", "message": "Generation cancelled due to content moderation."})
+            # Fall through — cancel_event.is_set() will be checked in assembly
         else:
             # Retriable/transient error on canary — still try the batch
             logger.warning("Canary failed with transient error, proceeding with batch: %s", canary_exc)
@@ -276,7 +322,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             errors.append(f"o0_v0: {canary_exc}")
 
     # ── Parallel batch: dispatch remaining tasks (skip canary's o0_v0) ──
-    cancel_event = threading.Event()
+    # (cancel_event already created above, may be set by canary moderation block)
 
     # Build remaining tasks (exclude o0_v0 which was the canary)
     all_tasks = []
@@ -340,15 +386,49 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                     emit({"type": "image_error", "option": oi, "variation": vi,
                           "completed": completed, "total": total, "error": str(exc)})
 
-    # Assemble
+    # Check if moderation blocked the batch
+    moderation_triggered = cancel_event.is_set()
+
+    if moderation_triggered:
+        # Do NOT assemble or return partial results — the batch is tainted
+        # The moderation_blocked event was already emitted
+        logger.warning("Batch %s cancelled due to moderation. Cleaning up partial results.", batch_id)
+        # Clean up any partially saved assets
+        for oi_variants in variant_map.values():
+            for v in oi_variants:
+                try:
+                    store.delete_generated_asset(v.id)
+                except Exception:
+                    pass
+        emit({"type": "stage", "stage": "finalizing", "message": "Generation cancelled due to content moderation."})
+
+        result = GenerationResult(
+            id=batch_id,
+            prompt=body.prompt,
+            original_prompt=body.original_prompt,
+            moderation_original=body.moderation_original,
+            style_id=body.style_id,
+            asset_type=body.asset_type.value,
+            image_model=body.image_model.value,
+            width=body.width,
+            height=body.height,
+            num_options=n_opts,
+            num_variations=n_vars,
+            options=[],  # Empty — moderation blocked
+        )
+        emit({"type": "complete", "result": result.model_dump(mode="json"), "moderation_blocked": True})
+        return result
+
+    # Assemble successful results
     options = []
     for oi in range(n_opts):
         variants = sorted(variant_map.get(oi, []), key=lambda v: v.variant_index)
-        options.append(OptionResult(
-            option_index=oi,
-            refined_prompt=concept_prompts[oi],
-            variants=variants,
-        ))
+        if variants:  # Only include options that have at least one variant
+            options.append(OptionResult(
+                option_index=oi,
+                refined_prompt=concept_prompts[oi],
+                variants=variants,
+            ))
 
     succeeded = sum(len(o.variants) for o in options)
     if succeeded == 0:
@@ -437,54 +517,270 @@ async def generate_asset_stream(body: GenerationRequest):
     )
 
 
+# ── Pre-screen (Safe Mode) ─────────────────────────────────────────────────
+
+class PreScreenRequest(BaseModel):
+    prompt: str
+    image_model: str = "nova_canvas"
+
+
+@router.post("/pre-screen")
+async def pre_screen_prompt(body: PreScreenRequest):
+    """Quick pre-screen using Claude Sonnet (fast, cheap) to check if a prompt
+    will likely trigger moderation on the selected model.
+
+    Returns: likely_safe, issues, suggested_model (if the prompt is better
+    suited for a more permissive model).
+    """
+    from backend.services.bedrock_client import invoke_claude
+    import re as _re
+
+    model_labels = {
+        "nova_canvas": "Nova Canvas",
+        "titan_image": "Titan Image v2",
+        "sd35_large": "Stable Diffusion 3.5 Large",
+        "stable_image_ultra": "Stable Image Ultra",
+    }
+    model_label = model_labels.get(body.image_model, body.image_model)
+
+    screen_prompt = f"""You are a content moderation analyst for AI image generation models.
+
+Analyze this prompt for the model "{model_label}":
+"{body.prompt}"
+
+Model strictness levels:
+- Nova Canvas: VERY strict — blocks weapons, combat, fighting, copyrighted IP, aggressive poses
+- Titan Image v2: Strict — similar to Nova Canvas
+- Stable Diffusion 3.5 Large: Moderate — allows stylized weapons, fantasy combat, action poses. Blocks explicit violence, gore, real weapons
+- Stable Image Ultra: Moderate — similar to Stable Diffusion 3.5 Large
+
+Will this prompt likely be BLOCKED by {model_label}?
+
+Respond with ONLY a JSON object (no markdown):
+{{
+  "likely_safe": true/false,
+  "issues": ["specific concern 1", "specific concern 2"],
+  "explanation": "Brief explanation for the user",
+  "suggested_model": "model_id that would likely accept this prompt, or null if all would accept"
+}}"""
+
+    try:
+        raw = invoke_claude(screen_prompt, complexity="fast", max_tokens=512, temperature=0.2)
+        cleaned = raw.strip()
+        cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", cleaned)
+        cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
+        result = json.loads(cleaned.strip())
+
+        # Add model label for suggested_model
+        suggested = result.get("suggested_model")
+        if suggested and suggested in model_labels:
+            result["suggested_model_label"] = model_labels[suggested]
+
+        return result
+    except Exception as exc:
+        logger.warning("Pre-screen failed: %s", exc)
+        return {"likely_safe": True, "issues": [], "explanation": "Pre-screening unavailable", "suggested_model": None}
+
+
 # ── Moderation analysis ───────────────────────────────────────────────────
 
 class ModerationRequest(BaseModel):
     prompt: str
     error_message: str = ""
     image_model: str = "nova_canvas"
+    width: int = 512
+    height: int = 512
+
+
+# Model permissiveness order (most permissive first for fallback testing)
+_ALTERNATIVE_MODELS = [
+    ImageModel.SD35_LARGE,
+    ImageModel.STABLE_IMAGE_ULTRA,
+    ImageModel.TITAN_IMAGE,
+    ImageModel.NOVA_CANVAS,
+]
 
 
 @router.post("/analyze-moderation")
 async def analyze_moderation(body: ModerationRequest):
-    """Analyze why a prompt was flagged by content moderation and suggest a safe rewrite.
+    """Smart moderation handling for game artists.
 
-    Returns the analysis, the rewritten prompt, and a list of flagged issues.
+    Strategy (in order):
+    1. Try the SAME prompt on alternative, more permissive models
+       (game art with weapons/combat often passes on Stable Diffusion 3.5 but not Nova Canvas)
+    2. Only if ALL models reject → rewrite the prompt (last resort)
+    3. Returns: which model works, or a verified rewrite
+
+    Preserves the artist's creative intent as much as possible.
     """
     from backend.services.bedrock_client import invoke_claude
+    import re as _re
 
-    analysis_prompt = f"""A user's image generation prompt was blocked by AWS Bedrock's content moderation system for the model "{body.image_model}".
+    original_model = body.image_model
+    original_model_enum = ImageModel(original_model) if original_model in [m.value for m in ImageModel] else ImageModel.NOVA_CANVAS
+    attempts: list[dict] = []
+    test_seed = random.randint(0, _SEED_MAX)
 
-The error was: "{body.error_message}"
+    # ── Phase 1: Try alternative models with the SAME prompt ──────────
+    # Game art legitimately needs weapons, combat poses, action scenes.
+    # Don't rewrite — find a model that accepts it.
 
-The original prompt was:
-"{body.prompt}"
+    working_model = None
+    models_to_try = [m for m in _ALTERNATIVE_MODELS if m != original_model_enum]
 
-Please analyze this and respond with ONLY a JSON object (no markdown fences):
+    for alt_model in models_to_try:
+        logger.info("Moderation fallback: testing '%s' on %s...", body.prompt[:50], alt_model.value)
+        try:
+            generate_image(
+                refined_prompt=body.prompt,
+                model=alt_model,
+                width=body.width,
+                height=body.height,
+                seed=test_seed,
+            )
+            working_model = alt_model
+            logger.info("Moderation fallback: %s ACCEPTED the prompt.", alt_model.value)
+            attempts.append({
+                "phase": "model_test",
+                "model": alt_model.value,
+                "prompt": body.prompt,
+                "status": "passed",
+            })
+            break
+        except Exception as exc:
+            logger.info("Moderation fallback: %s also rejected: %s", alt_model.value, str(exc)[:100])
+            attempts.append({
+                "phase": "model_test",
+                "model": alt_model.value,
+                "prompt": body.prompt,
+                "status": "failed",
+                "error": str(exc)[:200],
+            })
+
+    if working_model:
+        # Found a model that accepts the prompt as-is!
+        model_labels = {
+            "nova_canvas": "Nova Canvas",
+            "titan_image": "Titan Image v2",
+            "sd35_large": "Stable Diffusion 3.5 Large",
+            "stable_image_ultra": "Stable Image Ultra",
+        }
+        return {
+            "action": "switch_model",
+            "working_model": working_model.value,
+            "working_model_label": model_labels.get(working_model.value, working_model.value),
+            "original_model": original_model,
+            "original_model_label": model_labels.get(original_model, original_model),
+            "issues": [f"{model_labels.get(original_model, original_model)} has strict content moderation that blocks game art with combat/weapon content"],
+            "explanation": (
+                f"Your prompt works with {model_labels.get(working_model.value, working_model.value)} "
+                f"but was blocked by {model_labels.get(original_model, original_model)}. "
+                f"This is common for game art — Stable Diffusion 3.5 Large and Stable Image Ultra are more "
+                f"permissive with action/combat content while still producing high-quality results."
+            ),
+            "rewritten_prompt": body.prompt,  # Same prompt, no rewrite needed
+            "verified": True,
+            "attempts": attempts,
+        }
+
+    # ── Phase 2: ALL models rejected → rewrite as last resort ─────────
+    logger.warning("All models rejected the prompt. Proceeding to rewrite.")
+
+    current_prompt = body.prompt
+    all_issues: list[str] = [f"Blocked by all available models ({', '.join(m.value for m in _ALTERNATIVE_MODELS)})"]
+    explanation = ""
+    max_rewrites = 3
+
+    for attempt_num in range(max_rewrites):
+        rewrite_instruction = f"""A game artist's prompt was blocked by ALL available image generation models
+(Nova Canvas, Stable Diffusion 3.5, Stable Image Ultra, Titan Image). This means the content
+is genuinely problematic, not just a strict filter issue.
+
+{"Original" if attempt_num == 0 else "Previous rewrite that FAILED"} prompt:
+"{current_prompt}"
+
+{f'Previous issues: {json.dumps(all_issues)}' if attempt_num > 0 else f'Error: "{body.error_message}"'}
+
+This is for a GAME ART project. The artist needs action/combat content.
+Rewrite to preserve the game art intent while removing genuinely
+problematic content:
+1. Remove copyrighted IP names (One Piece, Naruto, etc.) — use original descriptions
+2. Avoid explicit violence ("blood", "gore", "killing") — action poses are OK
+3. Remove "toward the camera" aggression
+4. Keep weapons if they're stylized/fantasy (swords, staffs are usually fine on most models)
+5. Keep the full visual style description
+
+Respond with ONLY a JSON object (no markdown):
 {{
-  "issues": [
-    "Brief description of each issue that likely triggered moderation (e.g. 'Reference to copyrighted IP: One Piece', 'Violence: fighting with swords toward camera')"
-  ],
-  "explanation": "A friendly 1-2 sentence explanation for the user about why their prompt was flagged",
-  "rewritten_prompt": "A rewritten version of the prompt that preserves the creative intent but avoids all moderation triggers. Keep it under 900 characters. Remove copyrighted IP names, soften violence/weapon language, and rephrase any potentially sensitive content."
+  "issues": ["specific triggers"],
+  "explanation": "Friendly explanation",
+  "rewritten_prompt": "Game-art-friendly rewrite under 900 chars"
 }}"""
 
-    try:
-        raw = invoke_claude(analysis_prompt, complexity="fast", max_tokens=2048, temperature=0.3)
-        # Parse JSON
-        import re as _re
-        cleaned = raw.strip()
-        cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", cleaned)
-        cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
-        result = json.loads(cleaned.strip())
-        return result
-    except Exception as exc:
-        logger.exception("Moderation analysis failed")
-        return {
-            "issues": ["Unable to analyze — the AI service returned an error"],
-            "explanation": "The prompt was blocked by content moderation. Try removing references to violence, copyrighted characters, or sensitive content.",
-            "rewritten_prompt": "",
-        }
+        try:
+            raw = invoke_claude(rewrite_instruction, complexity="fast", max_tokens=2048, temperature=0.3)
+            cleaned = raw.strip()
+            cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", cleaned)
+            cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
+            parsed = json.loads(cleaned.strip())
+
+            rewritten = parsed.get("rewritten_prompt", "")
+            issues = parsed.get("issues", [])
+            explanation = parsed.get("explanation", explanation)
+            all_issues.extend(issues)
+
+            if not rewritten:
+                attempts.append({"phase": "rewrite", "attempt": attempt_num + 1, "prompt": current_prompt, "status": "rewrite_empty"})
+                continue
+
+            # Test rewrite on the most permissive model first
+            for test_model in _ALTERNATIVE_MODELS:
+                try:
+                    generate_image(
+                        refined_prompt=rewritten,
+                        model=test_model,
+                        width=body.width,
+                        height=body.height,
+                        seed=random.randint(0, _SEED_MAX),
+                    )
+                    logger.info("Rewrite attempt %d passed on %s.", attempt_num + 1, test_model.value)
+                    attempts.append({
+                        "phase": "rewrite",
+                        "attempt": attempt_num + 1,
+                        "prompt": rewritten,
+                        "model_tested": test_model.value,
+                        "status": "passed",
+                    })
+                    return {
+                        "action": "rewrite",
+                        "working_model": test_model.value,
+                        "original_model": original_model,
+                        "issues": list(set(all_issues)),
+                        "explanation": explanation,
+                        "rewritten_prompt": rewritten,
+                        "verified": True,
+                        "attempts": attempts,
+                    }
+                except Exception:
+                    continue
+
+            # Rewrite failed on all models too
+            attempts.append({"phase": "rewrite", "attempt": attempt_num + 1, "prompt": rewritten, "status": "failed_all_models"})
+            current_prompt = rewritten
+
+        except Exception as exc:
+            logger.warning("Rewrite analysis attempt %d failed: %s", attempt_num + 1, exc)
+            attempts.append({"phase": "rewrite", "attempt": attempt_num + 1, "status": "analysis_error", "error": str(exc)})
+
+    # Nothing worked
+    return {
+        "action": "failed",
+        "issues": list(set(all_issues)),
+        "explanation": "This prompt was rejected by all models even after multiple rewrites. The content may need significant changes. Please try a substantially different description.",
+        "rewritten_prompt": current_prompt,
+        "verified": False,
+        "attempts": attempts,
+    }
 
 
 # ── Post-processing on existing assets ────────────────────────────────────

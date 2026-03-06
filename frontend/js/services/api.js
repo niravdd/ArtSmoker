@@ -146,7 +146,15 @@
             });
         },
 
-        /** Analyze a moderation-blocked prompt and get a safe rewrite */
+        /** Pre-screen a prompt for moderation issues (fast, cheap via Sonnet) */
+        preScreen(data) {
+            return request('/api/generate/pre-screen', {
+                method: 'POST',
+                body: data,
+            });
+        },
+
+        /** Analyze a moderation-blocked prompt — tries alternative models first */
         analyzeModeration(data) {
             return request('/api/generate/analyze-moderation', {
                 method: 'POST',

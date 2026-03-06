@@ -4,11 +4,25 @@ image-generation prompts using Claude Sonnet (fast) and Claude Opus (complex).""
 import json
 import logging
 
-from backend.models.generation_request import AssetType
+from backend.models.generation_request import AssetType, ImageModel
 from backend.models.style_profile import StyleProfile
 from backend.services.bedrock_client import invoke_claude
 
 logger = logging.getLogger(__name__)
+
+# Prompt character limits per image model
+_MODEL_PROMPT_LIMITS: dict[str, int] = {
+    ImageModel.NOVA_CANVAS.value: 900,
+    ImageModel.TITAN_IMAGE.value: 480,
+    ImageModel.SD35_LARGE.value: 2000,
+    ImageModel.STABLE_IMAGE_ULTRA.value: 2000,
+}
+_DEFAULT_PROMPT_LIMIT = 900
+
+
+def get_prompt_limit(image_model: str | None = None) -> int:
+    """Get the prompt character limit for a given image model."""
+    return _MODEL_PROMPT_LIMITS.get(image_model, _DEFAULT_PROMPT_LIMIT)
 
 # ── Asset-type context snippets ───────────────────────────────────────────
 
@@ -85,28 +99,42 @@ _ASSET_TYPE_CONTEXT: dict[AssetType, str] = {
 # ── Prompt templates ──────────────────────────────────────────────────────
 
 _REFINE_PROMPT_TEMPLATE = """\
-You are an expert image-generation prompt engineer. Your job is to take the
-user's brief description and expand it into a detailed prompt optimised for
-an AI image generator (Amazon Nova Canvas / Titan Image).
+You are an expert image-generation prompt engineer for game art. Your job is
+to expand the user's description into a detailed prompt for an AI image model.
 
-=== ASSET TYPE REQUIREMENTS (follow these strictly) ===
+=== ASSET TYPE GUIDELINES (adapt, don't force) ===
 {asset_context}
 
-=== STYLE REQUIREMENTS ===
+=== STYLE GUIDELINES ===
 {style_section}
 
 === USER REQUEST ===
 "{user_prompt}"
 
-INSTRUCTIONS:
-1. The ASSET TYPE REQUIREMENTS above define the composition, framing, and
-   technical approach. Follow them precisely — a Character must look completely
-   different from a Marketing Banner even with the same subject.
-2. Incorporate style hints (if provided) for visual consistency.
-3. Add specific details about lighting, color palette, and quality.
-4. Maintain the core intent of the user's request.
+INSTRUCTIONS — follow in PRIORITY ORDER:
 
-CRITICAL: The output MUST be under 900 characters. Be concise but descriptive.
+1. **USER INTENT IS KING.** The user's explicit words override everything else.
+   If the user says "real-world like" but the style says "toylike", follow the user.
+   If the user describes a scene but the asset type says "single object", describe
+   the scene. Never contradict what the user explicitly asked for.
+
+2. **Intelligently interpret the asset type.** The asset type is a GUIDE, not a
+   rigid template. A "game asset" could be an isolated object (barrel, sword),
+   a tileable panel (ceiling, floor), a UI element, or a complex prop. Read what
+   the user is describing and apply the appropriate composition:
+   - Isolated objects → center on transparent background
+   - Tileable panels/textures → edge-to-edge, seamless feel
+   - Complex props with detail → fill the frame, show the detail
+   - Scenes/vistas → depth, atmosphere, layered composition
+
+3. **Style guidelines enhance, not override.** Use the style's palette, rendering
+   technique, and proportions to INFORM the output — but if the user's description
+   calls for something different, follow the user.
+
+4. Add specific details about lighting, materials, color, and quality that serve
+   the user's vision.
+
+CRITICAL: Output MUST be under {max_chars} characters. Be concise but descriptive.
 
 Respond with ONLY the refined prompt — no preamble, no quotation marks.
 """
@@ -134,7 +162,7 @@ Requirements:
 - Specify professional quality markers: "high resolution", "polished", "publication ready".
 - Mention specific lighting direction, color grading, and atmosphere.
 
-CRITICAL: The prompt MUST be under 900 characters. NO TEXT IN THE IMAGE.
+CRITICAL: The prompt MUST be under {max_chars} characters. NO TEXT IN THE IMAGE.
 
 Respond with ONLY the refined prompt — no preamble, no quotation marks.
 """
@@ -152,25 +180,57 @@ def _build_style_section(style_profile: StyleProfile | None) -> str:
     )
 
 
+# ── Refusal detection ─────────────────────────────────────────────────────
+
+_REFUSAL_INDICATORS = [
+    "i'm sorry", "i cannot", "i can't", "i am unable", "i'm unable",
+    "i apologize", "not able to generate", "can't generate",
+    "cannot generate", "not appropriate", "against my guidelines",
+    "raises concerns", "misinformation risk", "what i can offer instead",
+    "here's an alternative", "instead, i can",
+]
+
+
+def _check_for_refusal(refined: str) -> bool:
+    """Check if Claude's response is a refusal rather than a valid prompt."""
+    lower = refined.lower()
+    return any(indicator in lower for indicator in _REFUSAL_INDICATORS)
+
+
+class PromptRefusalError(Exception):
+    """Raised when Claude refuses to refine a prompt due to content concerns."""
+    def __init__(self, reason: str, original_response: str):
+        self.reason = reason
+        self.original_response = original_response
+        super().__init__(reason)
+
+
+def _validate_refined_prompt(refined: str, user_prompt: str) -> str:
+    """Validate the refined prompt is usable. Raises PromptRefusalError if not."""
+    if _check_for_refusal(refined):
+        # Extract Claude's reasoning (first 200 chars of the refusal)
+        reason = refined[:300].strip()
+        raise PromptRefusalError(
+            reason=f"The AI declined to refine this prompt: {reason}",
+            original_response=refined,
+        )
+    return refined
+
+
 # ── Public API ────────────────────────────────────────────────────────────
 
 def refine_prompt(
     user_prompt: str,
     style_profile: StyleProfile | None,
     asset_type: AssetType,
+    image_model: str | None = None,
 ) -> str:
     """Refine a user prompt into a detailed image-generation prompt.
 
     Uses Claude Sonnet (complexity="fast") for quick turnaround.
-
-    Args:
-        user_prompt: The user's brief description of what they want.
-        style_profile: Optional style profile with generation_hints.
-        asset_type: The type of asset being generated.
-
-    Returns:
-        A detailed, optimised prompt string ready for the image model.
+    Prompt length adapts to the target image model's limit.
     """
+    max_chars = get_prompt_limit(image_model)
     asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
     style_section = _build_style_section(style_profile)
 
@@ -178,64 +238,59 @@ def refine_prompt(
         asset_context=asset_context,
         style_section=style_section,
         user_prompt=user_prompt,
+        max_chars=max_chars,
     )
 
     logger.info(
-        "Refining prompt for asset_type=%s, has_style=%s",
-        asset_type.value,
-        style_profile is not None,
+        "Refining prompt for asset_type=%s, has_style=%s, model=%s, max_chars=%d",
+        asset_type.value, style_profile is not None, image_model, max_chars,
     )
 
     refined = invoke_claude(
         prompt,
         complexity="fast",
-        max_tokens=1024,
+        max_tokens=2048 if max_chars > 1000 else 1024,
         temperature=0.7,
     )
 
     refined = refined.strip()
-    if len(refined) > 1024:
-        refined = refined[:1020].rsplit(" ", 1)[0]
-    logger.info("Refined prompt (%d chars): %s", len(refined), refined[:150])
+    refined = _validate_refined_prompt(refined, user_prompt)
+    if len(refined) > max_chars:
+        refined = refined[:max_chars - 4].rsplit(" ", 1)[0]
+    logger.info("Refined prompt (%d/%d chars): %s", len(refined), max_chars, refined[:150])
     return refined
 
 
 def refine_marketing_prompt(
     user_prompt: str,
     style_profile: StyleProfile | None,
+    image_model: str | None = None,
 ) -> str:
-    """Refine a user prompt into a marketing-banner-specific generation prompt.
-
-    Uses Claude Opus (complexity="complex") for higher-quality creative output
-    suited to marketing materials.
-
-    Args:
-        user_prompt: The user's brief description of the desired banner.
-        style_profile: Optional style profile with generation_hints.
-
-    Returns:
-        A detailed marketing-banner prompt string.
-    """
+    """Refine a user prompt into a marketing-banner-specific generation prompt."""
+    max_chars = get_prompt_limit(image_model)
     style_section = _build_style_section(style_profile)
 
     prompt = _MARKETING_PROMPT_TEMPLATE.format(
         style_section=style_section,
         user_prompt=user_prompt,
+        max_chars=max_chars,
     )
 
-    logger.info("Refining marketing prompt, has_style=%s", style_profile is not None)
+    logger.info("Refining marketing prompt, has_style=%s, model=%s, max_chars=%d",
+                style_profile is not None, image_model, max_chars)
 
     refined = invoke_claude(
         prompt,
         complexity="complex",
-        max_tokens=1536,
+        max_tokens=2048 if max_chars > 1000 else 1536,
         temperature=0.7,
     )
 
     refined = refined.strip()
-    if len(refined) > 1024:
-        refined = refined[:1020].rsplit(" ", 1)[0]
-    logger.info("Refined marketing prompt (%d chars): %s", len(refined), refined[:150])
+    refined = _validate_refined_prompt(refined, user_prompt)
+    if len(refined) > max_chars:
+        refined = refined[:max_chars - 4].rsplit(" ", 1)[0]
+    logger.info("Refined marketing prompt (%d/%d chars): %s", len(refined), max_chars, refined[:150])
     return refined
 
 
@@ -267,9 +322,11 @@ For example, if the user asks for "a warrior":
 - Concept 5: Ancient Greek hoplite, bronze helm, round shield, red cloak, spear
 
 Each concept must:
-1. Follow the ASSET TYPE requirements precisely
-2. Follow the STYLE requirements if provided
-3. Be a self-contained image-generation prompt under 900 characters
+1. **RESPECT THE USER'S INTENT FIRST** — their explicit words override asset type
+   and style defaults. If they describe a tileable panel, don't force it into an
+   isolated object. If they say "real-world like", don't make it toylike.
+2. Use the asset type and style as GUIDELINES that inform, not override
+3. Be a self-contained image-generation prompt under {max_chars} characters
 4. Be visually distinct enough that an artist would see them as different options
 
 Return a JSON array of strings — each string is a complete image-generation prompt.
@@ -284,15 +341,10 @@ def generate_concept_prompts(
     style_profile: StyleProfile | None,
     asset_type: AssetType,
     num_options: int = 5,
+    image_model: str | None = None,
 ) -> list[str]:
-    """Generate multiple distinctly different concept prompts from a single user request.
-
-    Uses Claude Opus for creative diversity — each concept is a fundamentally
-    different design interpretation, not just a variation.
-
-    Returns:
-        A list of refined prompt strings, one per concept.
-    """
+    """Generate multiple distinctly different concept prompts from a single user request."""
+    max_chars = get_prompt_limit(image_model)
     asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
     style_section = _build_style_section(style_profile)
 
@@ -301,17 +353,18 @@ def generate_concept_prompts(
         style_section=style_section,
         user_prompt=user_prompt,
         num_options=num_options,
+        max_chars=max_chars,
     )
 
     logger.info(
-        "Generating %d concept prompts for asset_type=%s, has_style=%s",
-        num_options, asset_type.value, style_profile is not None,
+        "Generating %d concept prompts for asset_type=%s, has_style=%s, model=%s, max_chars=%d",
+        num_options, asset_type.value, style_profile is not None, image_model, max_chars,
     )
 
     raw = invoke_claude(
         prompt,
         complexity="complex",
-        max_tokens=4096,
+        max_tokens=8192 if max_chars > 1000 else 4096,
         temperature=0.9,
     )
 
@@ -328,20 +381,20 @@ def generate_concept_prompts(
         concepts = json.loads(cleaned)
     except json.JSONDecodeError:
         logger.warning("Failed to parse concepts JSON, falling back to single refined prompt")
-        single = refine_prompt(user_prompt, style_profile, asset_type)
+        single = refine_prompt(user_prompt, style_profile, asset_type, image_model)
         return [single] * num_options
 
     if not isinstance(concepts, list):
         logger.warning("Concepts response is not a list, falling back")
-        single = refine_prompt(user_prompt, style_profile, asset_type)
+        single = refine_prompt(user_prompt, style_profile, asset_type, image_model)
         return [single] * num_options
 
-    # Truncate each prompt to 1024 chars
+    # Truncate each prompt to model-specific limit
     result = []
     for c in concepts[:num_options]:
         p = str(c).strip()
-        if len(p) > 1024:
-            p = p[:1020].rsplit(" ", 1)[0]
+        if len(p) > max_chars:
+            p = p[:max_chars - 4].rsplit(" ", 1)[0]
         result.append(p)
 
     # Pad if Claude returned fewer than requested

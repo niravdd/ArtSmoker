@@ -19,7 +19,7 @@
     const MODELS = [
         { value: 'nova_canvas', label: 'Nova Canvas' },
         { value: 'titan_image', label: 'Titan Image v2' },
-        { value: 'sd35_large', label: 'SD 3.5 Large' },
+        { value: 'sd35_large', label: 'Stable Diffusion 3.5 Large' },
         { value: 'stable_image_ultra', label: 'Stable Image Ultra' },
     ];
 
@@ -105,6 +105,20 @@
 
                             </div>
 
+                            <!-- Prompt Pre-Check -->
+                            <div class="card-static p-4">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-4 h-4 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                        </svg>
+                                        <label class="text-sm font-medium">Prompt Pre-Check</label>
+                                    </div>
+                                    <label class="toggle"><input type="checkbox" id="gen-precheck"><span class="toggle-slider"></span></label>
+                                </div>
+                                <p class="text-[10px] text-brand-text-muted mt-1.5">Checks your prompt for moderation issues before generating. Suggests a better model if needed. Saves time and API costs on blocked prompts.</p>
+                            </div>
+
                             <!-- Processing Options -->
                             <div class="card-static p-5 space-y-4">
                                 <h2 class="text-sm font-semibold flex items-center gap-2 text-brand-text-muted uppercase tracking-wide">
@@ -167,17 +181,6 @@
                                 </button>
                             </div>
 
-                            <!-- OPTIONS ROW (different concepts) -->
-                            <div id="gen-options-section" class="hidden">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
-                                        Options — different designs
-                                    </h3>
-                                    <span id="gen-options-count" class="text-xs text-brand-text-muted"></span>
-                                </div>
-                                <div id="gen-options-grid" class="grid grid-cols-5 gap-3"></div>
-                            </div>
-
                             <!-- Prompt info (original + AI-improved) -->
                             <div id="gen-prompt-info" class="hidden card-static p-4 space-y-3">
                                 <div id="gen-original-prompt-section">
@@ -194,6 +197,17 @@
                             <div id="gen-concept-prompt" class="hidden card-static p-3">
                                 <p class="text-xs text-brand-text-muted mb-1 font-medium">Concept prompt:</p>
                                 <p id="gen-concept-prompt-text" class="text-xs text-brand-text/70 leading-relaxed"></p>
+                            </div>
+
+                            <!-- OPTIONS ROW (different concepts) -->
+                            <div id="gen-options-section" class="hidden">
+                                <div class="flex items-center justify-between mb-2">
+                                    <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
+                                        Options — different designs
+                                    </h3>
+                                    <span id="gen-options-count" class="text-xs text-brand-text-muted"></span>
+                                </div>
+                                <div id="gen-options-grid" class="grid grid-cols-5 gap-3"></div>
                             </div>
 
                             <!-- VARIATIONS ROW (seed variants of selected option) -->
@@ -260,18 +274,28 @@
         /** Called when navigating back to Generator (view already cached) */
         onShow() {
             this._loadStyles();
+            this._ensurePromptEditor();
+        },
+
+        _ensurePromptEditor() {
+            if (this._promptEditor && this._promptEditor._textareaEl) return;
+            const container = document.getElementById('prompt-editor-container');
+            if (container) {
+                try {
+                    this._promptEditor = new PromptEditor(container, {
+                        styleId: this._getStyleId(),
+                        assetType: this._getAssetType(),
+                    });
+                } catch (err) {
+                    console.error('Failed to create PromptEditor:', err);
+                    if (typeof API !== 'undefined') API.log('error', 'PromptEditor init failed: ' + err.message);
+                }
+            }
         },
 
         async init() {
             await this._loadStyles();
-
-            const container = document.getElementById('prompt-editor-container');
-            if (container) {
-                this._promptEditor = new PromptEditor(container, {
-                    styleId: this._getStyleId(),
-                    assetType: this._getAssetType(),
-                });
-            }
+            this._ensurePromptEditor();
 
             document.getElementById('gen-style')?.addEventListener('change', () => {
                 if (this._promptEditor) this._promptEditor.setContext({ styleId: this._getStyleId() });
@@ -313,11 +337,20 @@
 
         async _handleGenerate() {
             if (this._generating) return;
-            const prompt = this._promptEditor ? this._promptEditor.getText().trim() : '';
-            if (!prompt) {
+
+            // Get the user's raw prompt (always required)
+            const userPrompt = this._promptEditor ? this._promptEditor.getUserText().trim() : '';
+            if (!userPrompt) {
                 window.showToast?.('Enter a prompt before generating', 'warning');
                 return;
             }
+
+            // If a composed prompt exists, use it directly (skip re-refinement in backend)
+            // If not, send the raw user prompt (backend will refine it)
+            const hasComposed = this._promptEditor?.hasComposedPrompt();
+            const prompt = hasComposed
+                ? this._promptEditor.getComposedText().trim()
+                : userPrompt;
 
             const sizeIdx = parseInt(document.getElementById('gen-size').value, 10);
             const size = SIZE_PRESETS[sizeIdx] || SIZE_PRESETS[2];
@@ -325,12 +358,12 @@
             const numVariations = parseInt(document.getElementById('gen-num-variations').value, 10) || 5;
             const total = numOptions * numVariations;
 
-            const originalPrompt = this._promptEditor ? this._promptEditor.getOriginalText().trim() : prompt;
             const moderationOriginal = this._promptEditor?._moderationOriginal || null;
 
             const payload = {
-                prompt,
-                original_prompt: originalPrompt !== prompt ? originalPrompt : null,
+                prompt: hasComposed ? prompt : userPrompt,
+                original_prompt: userPrompt,
+                pre_composed: hasComposed || false,
                 moderation_original: moderationOriginal || null,
                 style_id: this._getStyleId() || null,
                 asset_type: this._getAssetType(),
@@ -344,13 +377,55 @@
                 upscale: document.getElementById('gen-upscale').checked,
             };
 
+            // ── Prompt Pre-Check (if enabled) ──────────────────────
+            const preCheckOn = document.getElementById('gen-precheck')?.checked;
+            if (preCheckOn) {
+                try {
+                    window.showLoading?.('Pre-checking prompt...');
+                    const screen = await API.preScreen({
+                        prompt: prompt,
+                        image_model: payload.image_model,
+                    });
+                    window.hideLoading?.();
+
+                    if (!screen.likely_safe) {
+                        this._showPreCheckDialog(prompt, screen, payload);
+                        return;
+                    }
+                } catch (preErr) {
+                    window.hideLoading?.();
+                    // Pre-check failed — proceed anyway
+                }
+            }
+
             this._setGenerating(true, total, payload);
             this._moderationErrors = [];
+
+            let moderationBlocked = false;
+            let promptRefused = false;
+            let refusalReason = '';
 
             try {
                 const result = await API.generateStream(payload, (evt) => {
                     this._handleProgressEvent(evt, total);
-                    // Track moderation-related errors
+                    // Show the composed/refined prompts in the editor
+                    if (evt.type === 'prompts_ready' && this._promptEditor) {
+                        const prompts = evt.prompts || [];
+                        if (prompts.length > 0 && !evt.pre_composed) {
+                            // Backend refined the prompt — show it in the composed area
+                            this._promptEditor.setComposedText(prompts[0]);
+                        }
+                    }
+                    // Track moderation blocks
+                    if (evt.type === 'moderation_blocked') {
+                        moderationBlocked = true;
+                        this._moderationErrors.push(evt.error || 'Content moderation blocked');
+                    }
+                    // Track prompt refusals (Claude declined to refine)
+                    if (evt.type === 'prompt_refused') {
+                        promptRefused = true;
+                        refusalReason = evt.reason || evt.message || 'The AI declined to process this prompt.';
+                    }
                     if (evt.type === 'image_error' && evt.error) {
                         const errLower = (evt.error || '').toLowerCase();
                         if (errLower.includes('generation failed') || errLower.includes('moderation') || errLower.includes('blocked')) {
@@ -358,27 +433,35 @@
                         }
                     }
                 });
-                this._result = result;
-                this._selectedOption = 0;
-                this._selectedVariant = 0;
-                this._renderResults(result);
+
                 const totalGenerated = (result.options || []).reduce((n, o) => n + (o.variants || []).length, 0);
 
-                // Check if most variants failed due to moderation
-                const totalExpected = total;
-                if (totalGenerated === 0 || (this._moderationErrors.length > totalExpected / 2)) {
+                // Prompt refusal — Claude declined to process this prompt
+                if (promptRefused) {
+                    this._result = null;
+                    this._showPromptRefusalDialog(prompt, refusalReason);
+                }
+                // Moderation block — image model rejected the prompt
+                else if (moderationBlocked || (totalGenerated === 0 && this._moderationErrors.length > 0)) {
+                    this._result = null;
                     this._showModerationDialog(prompt, this._moderationErrors[0] || 'Content moderation blocked this prompt', payload);
-                } else if (totalGenerated > 0) {
+                } else if (totalGenerated === 0) {
+                    window.showToast?.('All images failed to generate. Try a different prompt or model.', 'error');
+                } else {
+                    // Clean success — render results
+                    this._result = result;
+                    this._selectedOption = 0;
+                    this._selectedVariant = 0;
+                    this._renderResults(result);
                     window.showToast?.(`${totalGenerated} images generated across ${(result.options || []).length} options!`, 'success');
-                    if (this._moderationErrors.length > 0) {
-                        window.showToast?.(`${this._moderationErrors.length} variant(s) were blocked by content moderation`, 'warning');
-                    }
                 }
             } catch (err) {
                 console.error('Generation error:', err);
-                const errMsg = err.message || String(err);
-                if (errMsg.toLowerCase().includes('generation failed') || errMsg.toLowerCase().includes('all') ) {
-                    this._showModerationDialog(prompt, this._moderationErrors[0] || errMsg, payload);
+                // If we had any moderation errors during the stream, show the dialog
+                if (this._moderationErrors.length > 0 || moderationBlocked) {
+                    this._showModerationDialog(prompt, this._moderationErrors[0] || 'Generation failed', payload);
+                } else {
+                    window.showToast?.(err.message || 'Generation failed', 'error');
                 }
             } finally {
                 this._setGenerating(false);
@@ -466,9 +549,10 @@
                         </button>
                     </div>
                     <div class="flex-1 overflow-auto p-6" id="mod-content">
-                        <div class="flex items-center justify-center py-8 gap-3 text-brand-text-muted">
+                        <div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
                             <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                            Analyzing your prompt for moderation issues...
+                            <p>Testing your prompt on alternative models...</p>
+                            <p class="text-[10px] text-brand-text-muted/50">Game art with weapons/combat often works on Stable Diffusion 3.5 even when Nova Canvas blocks it</p>
                         </div>
                     </div>
                 </div>
@@ -477,21 +561,130 @@
             dialog.querySelector('.mod-close').addEventListener('click', () => dialog.remove());
             dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.remove(); });
 
-            // Call AI to analyze
+            // Call smart moderation — tries alternative models first, rewrites only as last resort
             try {
                 const analysis = await API.analyzeModeration({
                     prompt: originalPrompt,
                     error_message: errorMessage,
                     image_model: payload?.image_model || 'nova_canvas',
+                    width: 512,
+                    height: 512,
                 });
 
                 const content = document.getElementById('mod-content');
                 if (!content) return;
 
-                content.innerHTML = `
-                    <div class="space-y-5">
-                        <div>
-                            <p class="text-sm text-brand-text/90 leading-relaxed">${this._escapeHtml(analysis.explanation || 'Your prompt was blocked by the image model\'s content moderation filters.')}</p>
+                const action = analysis.action || 'rewrite';
+                const verified = analysis.verified;
+                const workingModel = analysis.working_model;
+                const workingModelLabel = analysis.working_model_label || workingModel;
+                const originalModelLabel = analysis.original_model_label || analysis.original_model;
+
+                // Store attempt history for metadata
+                this._moderationAttempts = analysis.attempts || [];
+
+                if (action === 'switch_model') {
+                    // ── Model switch dialog — prompt is fine, just needs a different model ──
+                    content.innerHTML = `
+                        <div class="space-y-5">
+                            <div class="p-4 rounded-lg bg-emerald-950/30 border border-emerald-500/20">
+                                <div class="flex items-center gap-2 mb-2">
+                                    <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    <span class="text-sm font-semibold text-emerald-300">Your prompt works with ${this._escapeHtml(workingModelLabel)}</span>
+                                </div>
+                                <p class="text-sm text-brand-text/90 leading-relaxed">${this._escapeHtml(analysis.explanation)}</p>
+                            </div>
+
+                            <p class="text-xs text-brand-text-muted">Your prompt is preserved exactly as-is — no changes needed. This is common for game art with weapons, combat poses, and action scenes.</p>
+
+                            <div class="flex gap-3 pt-2">
+                                <button id="mod-switch-model" class="btn bg-emerald-600 hover:bg-emerald-500 text-white flex-1">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                    </svg>
+                                    Generate with ${this._escapeHtml(workingModelLabel)}
+                                </button>
+                                <button id="mod-rewrite-instead" class="btn btn-secondary btn-sm">
+                                    Rewrite for ${this._escapeHtml(originalModelLabel)}
+                                </button>
+                            </div>
+
+                            <details class="text-xs">
+                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">View ${(analysis.attempts || []).length} model tests</summary>
+                                <div class="mt-2 space-y-1">
+                                    ${(analysis.attempts || []).map(a => `
+                                        <div class="p-1.5 rounded bg-brand-bg/40 text-[10px] flex items-center gap-2">
+                                            <span class="font-mono">${a.model || '?'}</span>
+                                            <span class="${a.status === 'passed' ? 'text-emerald-400' : 'text-red-400'}">${a.status}</span>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </details>
+                        </div>
+                    `;
+
+                    document.getElementById('mod-switch-model')?.addEventListener('click', () => {
+                        // Switch model in the dropdown and generate
+                        const modelSel = document.getElementById('gen-model');
+                        if (modelSel) modelSel.value = workingModel;
+                        if (this._promptEditor) this._promptEditor.setText(originalPrompt);
+                        this._promptEditor._moderationOriginal = null; // No rewrite — original prompt preserved
+                        dialog.remove();
+                        setTimeout(() => this._handleGenerate(), 100);
+                    });
+
+                    document.getElementById('mod-rewrite-instead')?.addEventListener('click', async () => {
+                        // User insists on original model — need a rewrite that passes it
+                        const content = document.getElementById('mod-content');
+                        if (content) {
+                            content.innerHTML = `<div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
+                                <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
+                                <p>Rewriting prompt for ${this._escapeHtml(originalModelLabel)}...</p>
+                                <p class="text-[10px] text-brand-text-muted/50">Testing rewrites with canary images</p>
+                            </div>`;
+                        }
+                        try {
+                            // Force rewrite by pretending all models failed
+                            const rewriteResult = await API.analyzeModeration({
+                                prompt: originalPrompt,
+                                error_message: 'User requested rewrite for ' + analysis.original_model,
+                                image_model: analysis.original_model,
+                                width: 512,
+                                height: 512,
+                            });
+                            if (rewriteResult.rewritten_prompt && rewriteResult.verified) {
+                                if (this._promptEditor) {
+                                    this._promptEditor._moderationOriginal = originalPrompt;
+                                    this._promptEditor.setText(rewriteResult.rewritten_prompt);
+                                }
+                                // Switch back to original model
+                                const modelSel = document.getElementById('gen-model');
+                                if (modelSel) modelSel.value = analysis.original_model;
+                                dialog.remove();
+                                setTimeout(() => this._handleGenerate(), 100);
+                            } else {
+                                dialog.remove();
+                                window.showToast?.('Could not create a verified rewrite for ' + originalModelLabel + '. Try Stable Diffusion 3.5 Large instead.', 'warning');
+                            }
+                        } catch (err) {
+                            dialog.remove();
+                            window.showToast?.('Rewrite failed: ' + (err.message || ''), 'error');
+                        }
+                    });
+
+                } else {
+                    // ── Rewrite dialog — all models rejected, need to modify the prompt ──
+                    const verifiedBadge = verified
+                        ? '<span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">Verified — passed moderation</span>'
+                        : '<span class="inline-flex items-center gap-1 text-xs font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">Not verified — may still be rejected</span>';
+
+                    content.innerHTML = `
+                        <div class="space-y-5">
+                            <div>
+                                <p class="text-sm text-brand-text/90 leading-relaxed">${this._escapeHtml(analysis.explanation || 'Your prompt was blocked by all available image models.')}</p>
+                                <p class="text-xs text-brand-text-muted mt-1">${(analysis.attempts || []).length} attempt(s) tested internally</p>
                         </div>
 
                         ${(analysis.issues || []).length > 0 ? `
@@ -510,9 +703,11 @@
                         </div>` : ''}
 
                         <div>
-                            <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2">Recommended Rewrite</h3>
+                            <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                Recommended Rewrite ${verifiedBadge}
+                            </h3>
                             <textarea id="mod-rewritten-prompt" class="input w-full min-h-[120px] text-sm">${this._escapeHtml(analysis.rewritten_prompt || '')}</textarea>
-                            <p class="text-[10px] text-brand-text-muted mt-1">You can edit this before using it. The original prompt is preserved in your history.</p>
+                            <p class="text-[10px] text-brand-text-muted mt-1">${verified ? 'This rewrite has been tested and passes moderation. You can still edit it.' : 'This rewrite has NOT been verified. You may need to edit further.'}</p>
                         </div>
 
                         <div>
@@ -522,33 +717,62 @@
                             </details>
                         </div>
 
+                        ${(analysis.attempts || []).length > 1 ? `
+                        <div>
+                            <details class="text-xs">
+                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">View ${analysis.attempts.length} rewrite attempts</summary>
+                                <div class="mt-2 space-y-2">
+                                    ${(analysis.attempts || []).map((a, i) => `
+                                        <div class="p-2 rounded-lg bg-brand-bg/40 border border-brand-border">
+                                            <div class="flex items-center gap-2 mb-1">
+                                                <span class="text-[10px] font-bold">Attempt ${a.attempt}</span>
+                                                <span class="text-[10px] ${a.status === 'passed' ? 'text-emerald-400' : 'text-red-400'}">${a.status}</span>
+                                            </div>
+                                            <p class="text-[10px] text-brand-text-muted whitespace-pre-wrap">${this._escapeHtml(a.prompt || '').substring(0, 200)}${(a.prompt || '').length > 200 ? '...' : ''}</p>
+                                        </div>
+                                    `).join('')}
+                                </div>
+                            </details>
+                        </div>` : ''}
+
                         <div class="flex gap-3 pt-2">
                             <button id="mod-use-rewrite" class="btn btn-primary flex-1">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
-                                Use This Prompt
+                                ${verified ? 'Use This Prompt & Generate' : 'Use This Prompt & Try Generating'}
                             </button>
                             <button id="mod-dismiss" class="btn btn-secondary">
-                                Dismiss
+                                Edit Manually
                             </button>
                         </div>
                     </div>
                 `;
 
-                // Wire up buttons
+                    // Wire up rewrite buttons (inside the else block)
                 document.getElementById('mod-use-rewrite')?.addEventListener('click', () => {
                     const rewritten = document.getElementById('mod-rewritten-prompt')?.value?.trim();
                     if (rewritten && this._promptEditor) {
-                        // Store the moderation-refined prompt lineage
                         this._promptEditor._moderationOriginal = originalPrompt;
                         this._promptEditor.setText(rewritten);
                     }
                     dialog.remove();
-                    window.showToast?.('Prompt updated — click Generate to try again', 'success');
+                    // Auto-trigger generation with the rewritten prompt
+                    setTimeout(() => this._handleGenerate(), 100);
                 });
 
-                document.getElementById('mod-dismiss')?.addEventListener('click', () => dialog.remove());
+                document.getElementById('mod-dismiss')?.addEventListener('click', () => {
+                    // Just set the prompt in the editor, let user edit manually
+                    const rewritten = document.getElementById('mod-rewritten-prompt')?.value?.trim();
+                    if (rewritten && this._promptEditor) {
+                        this._promptEditor._moderationOriginal = originalPrompt;
+                        this._promptEditor.setText(rewritten);
+                    }
+                    dialog.remove();
+                    window.showToast?.('Prompt updated — edit and click Generate when ready', 'info');
+                });
+
+                } // end else (rewrite dialog)
 
             } catch (err) {
                 const content = document.getElementById('mod-content');
@@ -563,6 +787,139 @@
                     content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
                 }
             }
+        },
+
+        _showPromptRefusalDialog(originalPrompt, reason) {
+            document.getElementById('moderation-dialog')?.remove();
+
+            const dialog = document.createElement('div');
+            dialog.id = 'moderation-dialog';
+            dialog.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
+            dialog.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+                    <div class="flex items-center gap-3 px-6 py-4 border-b border-brand-border bg-red-950/30">
+                        <svg class="w-6 h-6 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                        </svg>
+                        <h2 class="text-lg font-semibold text-red-300">Prompt Cannot Be Processed</h2>
+                        <button class="mod-close ml-auto p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="flex-1 overflow-auto p-6 space-y-4">
+                        <p class="text-sm text-brand-text/90 leading-relaxed">The AI prompt engine declined to process your request. This typically happens with prompts that ask for:</p>
+                        <ul class="space-y-1 text-sm text-brand-text-muted">
+                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> Recognizable likenesses of real, living people</li>
+                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> Content that could be used for misinformation</li>
+                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> Explicitly harmful or unsafe content</li>
+                        </ul>
+                        <div class="p-3 rounded-lg bg-brand-bg/60 text-xs text-brand-text-muted">
+                            <p class="font-medium mb-1">AI response:</p>
+                            <p class="whitespace-pre-wrap">${this._escapeHtml(reason).substring(0, 500)}</p>
+                        </div>
+                        <p class="text-xs text-brand-text-muted">Note: AI image models cannot generate recognizable likenesses of specific real people. For game art, use original character descriptions instead of real-person names.</p>
+                        <div class="flex gap-3 pt-2">
+                            <button class="mod-close-btn btn btn-secondary flex-1">Edit Prompt</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(dialog);
+            dialog.querySelector('.mod-close')?.addEventListener('click', () => dialog.remove());
+            dialog.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
+            dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.remove(); });
+        },
+
+        _showPreCheckDialog(originalPrompt, screen, payload) {
+            document.getElementById('moderation-dialog')?.remove();
+
+            const issues = screen.issues || [];
+            const suggested = screen.suggested_model;
+            const suggestedLabel = screen.suggested_model_label || suggested;
+            const currentModel = payload.image_model;
+            const modelLabels = { nova_canvas: 'Nova Canvas', titan_image: 'Titan Image v2', sd35_large: 'Stable Diffusion 3.5 Large', stable_image_ultra: 'Stable Image Ultra' };
+            const currentLabel = modelLabels[currentModel] || currentModel;
+
+            const dialog = document.createElement('div');
+            dialog.id = 'moderation-dialog';
+            dialog.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
+            dialog.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+                    <div class="flex items-center gap-3 px-6 py-4 border-b border-brand-border bg-brand-accent/10">
+                        <svg class="w-6 h-6 text-brand-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                        </svg>
+                        <h2 class="text-lg font-semibold">Prompt Pre-Check</h2>
+                        <button class="mod-close ml-auto p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="flex-1 overflow-auto p-6 space-y-5">
+                        <p class="text-sm text-brand-text/90">${this._escapeHtml(screen.explanation || 'This prompt may be blocked by the selected model.')}</p>
+
+                        ${issues.length > 0 ? `
+                        <div>
+                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">Potential Issues</h3>
+                            <ul class="space-y-1">
+                                ${issues.map(i => `<li class="flex items-start gap-2 text-sm text-brand-text-muted">
+                                    <span class="text-amber-400 mt-0.5">•</span> ${this._escapeHtml(i)}
+                                </li>`).join('')}
+                            </ul>
+                        </div>` : ''}
+
+                        ${suggested ? `
+                        <div class="p-4 rounded-lg bg-emerald-950/30 border border-emerald-500/20">
+                            <p class="text-sm text-emerald-300 font-medium mb-1">Recommended: Switch to ${this._escapeHtml(suggestedLabel)}</p>
+                            <p class="text-xs text-brand-text-muted">Your prompt will work as-is on this model. No changes needed.</p>
+                        </div>` : ''}
+
+                        <div class="flex flex-wrap gap-3 pt-2">
+                            ${suggested ? `
+                            <button id="precheck-switch" class="btn bg-emerald-600 hover:bg-emerald-500 text-white flex-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                                </svg>
+                                Generate with ${this._escapeHtml(suggestedLabel)}
+                            </button>` : ''}
+                            <button id="precheck-proceed" class="btn btn-secondary ${suggested ? '' : 'flex-1'}">
+                                Try ${this._escapeHtml(currentLabel)} Anyway
+                            </button>
+                            <button id="precheck-cancel" class="btn btn-secondary btn-sm">
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(dialog);
+            dialog.querySelector('.mod-close')?.addEventListener('click', () => dialog.remove());
+            dialog.addEventListener('click', (e) => { if (e.target === dialog) dialog.remove(); });
+            document.getElementById('precheck-cancel')?.addEventListener('click', () => dialog.remove());
+
+            // Switch model and generate
+            document.getElementById('precheck-switch')?.addEventListener('click', () => {
+                const modelSel = document.getElementById('gen-model');
+                if (modelSel && suggested) modelSel.value = suggested;
+                dialog.remove();
+                this._handleGenerate();
+            });
+
+            // Proceed with original model anyway (skip pre-check this time)
+            document.getElementById('precheck-proceed')?.addEventListener('click', () => {
+                dialog.remove();
+                // Temporarily disable pre-check for this generation
+                const cb = document.getElementById('gen-precheck');
+                const wasChecked = cb?.checked;
+                if (cb) cb.checked = false;
+                this._handleGenerate();
+                // Restore after a tick
+                setTimeout(() => { if (cb && wasChecked) cb.checked = true; }, 500);
+            });
         },
 
         _progressTimer: null,
@@ -702,6 +1059,12 @@
                     this._moderationErrors.push(evt.error || 'Content moderation blocked');
                     break;
 
+                case 'prompt_refused':
+                    if (text) text.textContent = 'Prompt cannot be processed';
+                    if (sub) sub.textContent = evt.message || 'The AI declined to process this prompt';
+                    if (bar) bar.style.width = '100%';
+                    break;
+
                 case 'complete':
                     if (bar) bar.style.width = '100%';
                     if (text) text.textContent = 'Done!';
@@ -833,6 +1196,9 @@
             // Render variations for this option
             this._renderVariationsRow(option.variants || []);
             this._selectVariant(0);
+
+            // Scroll down to the preview area
+            document.getElementById('gen-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         },
 
         _renderVariationsRow(variants) {
@@ -954,7 +1320,8 @@
                 this._selectedOption = 0;
                 this._selectedVariant = 0;
 
-                // Populate the prompt editor with the original or current prompt
+                // Ensure prompt editor exists, then populate
+                this._ensurePromptEditor();
                 if (this._promptEditor) {
                     const displayPrompt = result.prompt || '';
                     this._promptEditor.setText(displayPrompt);
