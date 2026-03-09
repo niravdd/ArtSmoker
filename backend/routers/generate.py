@@ -148,6 +148,8 @@ def _build_variant(
         "remove_background": body.remove_background,
         "generate_svg": body.generate_svg,
         "upscale": body.upscale,
+        "ip_owned": body.ip_owned,
+        "ip_licensed": body.ip_licensed,
         "png_path": f"/api/gallery/{asset_id}/png",
         "svg_path": svg_url,
         "png_filename": png_filename,

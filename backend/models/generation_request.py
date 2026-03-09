@@ -34,6 +34,8 @@ class GenerationRequest(BaseModel):
     remove_background: bool = True
     generate_svg: bool = True
     upscale: bool = False
+    ip_owned: bool = False
+    ip_licensed: bool = False
 
 
 class PromptRefineRequest(BaseModel):

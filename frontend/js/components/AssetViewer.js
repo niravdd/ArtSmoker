@@ -206,6 +206,11 @@
                         <p class="font-medium">${createdAt}</p>
                     </div>
                 </div>
+                ${(meta.ip_owned || meta.ip_licensed) ? `
+                <div class="p-2 rounded-lg bg-brand-accent/10 border border-brand-accent/20 text-xs">
+                    <span class="font-medium">IP Declaration:</span>
+                    ${meta.ip_owned ? ' Owner' : ''}${meta.ip_licensed ? ' Licensed' : ''}
+                </div>` : ''}
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Batch ID</label>

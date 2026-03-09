@@ -119,6 +119,28 @@
                                 <p class="text-[10px] text-brand-text-muted mt-1.5">Checks your prompt for moderation issues before generating. Suggests a better model if needed. Saves time and API costs on blocked prompts.</p>
                             </div>
 
+                            <!-- IP Declaration -->
+                            <div class="card-static p-4 space-y-2">
+                                <h2 class="text-sm font-semibold flex items-center gap-2 text-brand-text-muted uppercase tracking-wide">
+                                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                    </svg>
+                                    IP Declaration
+                                </h2>
+                                <div class="space-y-2">
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="gen-ip-own" class="mt-0.5 rounded border-brand-border bg-brand-bg text-brand-accent focus:ring-brand-accent">
+                                        <span class="text-xs text-brand-text/80">I/We own this intellectual property</span>
+                                    </label>
+                                    <label class="flex items-start gap-2 cursor-pointer">
+                                        <input type="checkbox" id="gen-ip-license" class="mt-0.5 rounded border-brand-border bg-brand-bg text-brand-accent focus:ring-brand-accent">
+                                        <span class="text-xs text-brand-text/80">I/We have a license for this IP</span>
+                                    </label>
+                                </div>
+                                <div id="gen-ip-model-note" class="hidden p-2 rounded-lg bg-amber-950/20 border border-amber-500/20 text-[10px] text-amber-300/80"></div>
+                                <p class="text-[10px] text-brand-text-muted/50">Declaring IP ownership helps when strict models (like Nova Canvas) block content that references known franchises or characters. Some models are more permissive with licensed content.</p>
+                            </div>
+
                             <!-- Model Settings -->
                             <button id="btn-model-settings" class="w-full text-left p-3 rounded-lg bg-brand-bg/30 border border-brand-border/50 hover:border-brand-accent/30 hover:bg-brand-bg/50 transition-colors flex items-center gap-2 text-xs text-brand-text-muted">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -287,7 +309,10 @@
         },
 
         _ensurePromptEditor() {
-            if (this._promptEditor && this._promptEditor._textareaEl) return;
+            // Check if the editor exists AND its textarea is still in the live DOM
+            // (after resetView, the old editor's DOM is destroyed but the object remains)
+            if (this._promptEditor && this._promptEditor._textareaEl && document.contains(this._promptEditor._textareaEl)) return;
+            this._promptEditor = null; // Clear stale reference
             const container = document.getElementById('prompt-editor-container');
             if (container) {
                 try {
@@ -314,6 +339,12 @@
             });
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open());
+
+            // IP declaration — show model recommendation when checked + strict model
+            const updateIpNote = () => this._updateIpModelNote();
+            document.getElementById('gen-ip-own')?.addEventListener('change', updateIpNote);
+            document.getElementById('gen-ip-license')?.addEventListener('change', updateIpNote);
+            document.getElementById('gen-model')?.addEventListener('change', updateIpNote);
             document.getElementById('btn-apply-postprocess')?.addEventListener('click', () => this._handlePostProcess());
             document.getElementById('btn-reset')?.addEventListener('click', () => {
                 if (this._result && !confirm('Reset the generator? Current results will be cleared.')) return;
@@ -385,6 +416,7 @@
                 remove_background: document.getElementById('gen-remove-bg').checked,
                 generate_svg: document.getElementById('gen-svg').checked,
                 upscale: document.getElementById('gen-upscale').checked,
+                ...this._getIpDeclaration(),
             };
 
             // ── Prompt Pre-Check (if enabled) ──────────────────────
@@ -593,6 +625,10 @@
                 // Store attempt history for metadata
                 this._moderationAttempts = analysis.attempts || [];
 
+                const ipOwned = payload?.ip_owned;
+                const ipLicensed = payload?.ip_licensed;
+                const hasIpClaim = ipOwned || ipLicensed;
+
                 if (action === 'switch_model') {
                     // ── Model switch dialog — prompt is fine, just needs a different model ──
                     content.innerHTML = `
@@ -607,7 +643,27 @@
                                 <p class="text-sm text-brand-text/90 leading-relaxed">${this._escapeHtml(analysis.explanation)}</p>
                             </div>
 
-                            <p class="text-xs text-brand-text-muted">Your prompt is preserved exactly as-is — no changes needed. This is common for game art with weapons, combat poses, and action scenes.</p>
+                            ${hasIpClaim ? `
+                            <div class="p-3 rounded-lg bg-brand-accent/10 border border-brand-accent/20 text-xs text-brand-text/80">
+                                <strong>IP Declaration noted:</strong>
+                                ${ipOwned ? ' You own this IP.' : ''}${ipLicensed ? ' You have a license for this IP.' : ''}
+                                <br>Note: ${this._escapeHtml(originalModelLabel)}'s content moderation is platform-enforced and cannot be bypassed regardless of IP ownership. The recommended model accepts your content as-is.
+                            </div>` : ''}
+
+                            <p class="text-xs text-brand-text-muted">Your prompt is preserved exactly as-is — no changes needed.${!hasIpClaim ? ' This is common for game art with weapons, combat poses, and action scenes.' : ''}</p>
+
+                            ${!hasIpClaim ? `
+                            <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border space-y-2">
+                                <p class="text-[10px] text-brand-text-muted font-medium">If this content references IP you own or are licensed to use:</p>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="mod-ip-own" class="rounded border-brand-border bg-brand-bg text-brand-accent">
+                                    <span class="text-xs text-brand-text/80">I/We own this intellectual property</span>
+                                </label>
+                                <label class="flex items-center gap-2 cursor-pointer">
+                                    <input type="checkbox" id="mod-ip-license" class="rounded border-brand-border bg-brand-bg text-brand-accent">
+                                    <span class="text-xs text-brand-text/80">I/We have a license for this IP</span>
+                                </label>
+                            </div>` : ''}
 
                             <div class="flex gap-3 pt-2">
                                 <button id="mod-switch-model" class="btn bg-emerald-600 hover:bg-emerald-500 text-white flex-1">
@@ -636,11 +692,17 @@
                     `;
 
                     document.getElementById('mod-switch-model')?.addEventListener('click', () => {
+                        // Sync IP checkboxes from dialog to sidebar (if declared here)
+                        const modIpOwn = document.getElementById('mod-ip-own')?.checked;
+                        const modIpLic = document.getElementById('mod-ip-license')?.checked;
+                        if (modIpOwn) { const cb = document.getElementById('gen-ip-own'); if (cb) cb.checked = true; }
+                        if (modIpLic) { const cb = document.getElementById('gen-ip-license'); if (cb) cb.checked = true; }
+
                         // Switch model in the dropdown and generate
                         const modelSel = document.getElementById('gen-model');
                         if (modelSel) modelSel.value = workingModel;
                         if (this._promptEditor) this._promptEditor.setText(originalPrompt);
-                        this._promptEditor._moderationOriginal = null; // No rewrite — original prompt preserved
+                        this._promptEditor._moderationOriginal = null;
                         dialog.remove();
                         setTimeout(() => this._handleGenerate(), 100);
                     });
@@ -1399,6 +1461,44 @@
         _getAssetType() {
             return document.getElementById('gen-asset-type')?.value || 'game_asset';
         },
+
+        _getIpDeclaration() {
+            return {
+                ip_owned: document.getElementById('gen-ip-own')?.checked || false,
+                ip_licensed: document.getElementById('gen-ip-license')?.checked || false,
+            };
+        },
+
+        _updateIpModelNote() {
+            const note = document.getElementById('gen-ip-model-note');
+            if (!note) return;
+            const ip = this._getIpDeclaration();
+            const model = document.getElementById('gen-model')?.value || '';
+            const strictModels = ['nova_canvas', 'titan_image'];
+
+            if ((ip.ip_owned || ip.ip_licensed) && strictModels.includes(model)) {
+                const modelLabel = document.getElementById('gen-model')?.selectedOptions?.[0]?.text || model;
+                note.innerHTML = `
+                    <strong>${modelLabel}</strong> has strict content moderation that may block IP-related content regardless of ownership.
+                    We recommend <strong>Stable Diffusion 3.5 Large</strong> or <strong>Stable Image Ultra</strong> which are more permissive.
+                    <button id="gen-ip-switch-model" class="underline text-amber-200 hover:text-amber-100 ml-1">Switch now</button>
+                `;
+                note.classList.remove('hidden');
+
+                // Wire up the quick-switch button
+                setTimeout(() => {
+                    document.getElementById('gen-ip-switch-model')?.addEventListener('click', () => {
+                        const sel = document.getElementById('gen-model');
+                        if (sel) sel.value = 'sd35_large';
+                        this._updateIpModelNote();
+                        window.showToast?.('Switched to Stable Diffusion 3.5 Large', 'success');
+                    });
+                }, 0);
+            } else {
+                note.classList.add('hidden');
+            }
+        },
+
         _escapeHtml(str) {
             const d = document.createElement('div');
             d.textContent = str;
