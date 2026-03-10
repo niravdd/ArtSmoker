@@ -105,32 +105,18 @@
 
                             </div>
 
-                            <!-- Prompt Pre-Check -->
-                            <div class="card-static p-4">
-                                <div class="flex items-center justify-between">
-                                    <div class="flex items-center gap-2">
-                                        <svg class="w-4 h-4 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
-                                        </svg>
-                                        <label class="text-sm font-medium">Prompt Pre-Check</label>
-                                    </div>
-                                    <label class="toggle"><input type="checkbox" id="gen-precheck"><span class="toggle-slider"></span></label>
-                                </div>
-                                <p class="text-[10px] text-brand-text-muted mt-1.5">Checks your prompt for moderation issues before generating. Suggests a better model if needed. Saves time and API costs on blocked prompts.</p>
-                            </div>
-
-                            <!-- IP Declaration -->
-                            <div class="card-static p-4 space-y-2">
+                            <!-- Intellectual Property & Content Check -->
+                            <div class="card-static p-4 space-y-3">
                                 <h2 class="text-sm font-semibold flex items-center gap-2 text-brand-text-muted uppercase tracking-wide">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                     </svg>
-                                    IP Declaration
+                                    Intellectual Property (IP) Declaration
                                 </h2>
                                 <div class="space-y-2">
                                     <label class="flex items-start gap-2 cursor-pointer">
                                         <input type="checkbox" id="gen-ip-own" class="mt-0.5 rounded border-brand-border bg-brand-bg text-brand-accent focus:ring-brand-accent">
-                                        <span class="text-xs text-brand-text/80">I/We own this intellectual property</span>
+                                        <span class="text-xs text-brand-text/80">I/We own this IP</span>
                                     </label>
                                     <label class="flex items-start gap-2 cursor-pointer">
                                         <input type="checkbox" id="gen-ip-license" class="mt-0.5 rounded border-brand-border bg-brand-bg text-brand-accent focus:ring-brand-accent">
@@ -139,6 +125,18 @@
                                 </div>
                                 <div id="gen-ip-model-note" class="hidden p-2 rounded-lg bg-amber-950/20 border border-amber-500/20 text-[10px] text-amber-300/80"></div>
                                 <p class="text-[10px] text-brand-text-muted/50">Declaring IP ownership helps when strict models (like Nova Canvas) block content that references known franchises or characters. Some models are more permissive with licensed content.</p>
+
+                                <!-- Prompt Pre-Check (within IP section) -->
+                                <div class="flex items-center justify-between pt-2 border-t border-brand-border/30">
+                                    <div class="flex items-center gap-2">
+                                        <svg class="w-3.5 h-3.5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                        </svg>
+                                        <label class="text-xs font-medium">Prompt Pre-Check</label>
+                                    </div>
+                                    <label class="toggle"><input type="checkbox" id="gen-precheck"><span class="toggle-slider"></span></label>
+                                </div>
+                                <p class="text-[10px] text-brand-text-muted/50 -mt-1">Pre-screens your prompt for moderation issues before generating. Suggests a better-suited model if needed.</p>
                             </div>
 
                             <!-- Model Settings -->
@@ -340,8 +338,22 @@
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open());
 
-            // IP declaration — show model recommendation when checked + strict model
-            const updateIpNote = () => this._updateIpModelNote();
+            // IP declaration — show model recommendation + disable pre-check when claimed
+            const updateIpNote = () => {
+                this._updateIpModelNote();
+                const ip = this._getIpDeclaration();
+                const precheck = document.getElementById('gen-precheck');
+                if (precheck) {
+                    if (ip.ip_owned || ip.ip_licensed) {
+                        precheck.checked = false;
+                        precheck.disabled = true;
+                        precheck.closest('.flex')?.classList.add('opacity-40');
+                    } else {
+                        precheck.disabled = false;
+                        precheck.closest('.flex')?.classList.remove('opacity-40');
+                    }
+                }
+            };
             document.getElementById('gen-ip-own')?.addEventListener('change', updateIpNote);
             document.getElementById('gen-ip-license')?.addEventListener('change', updateIpNote);
             document.getElementById('gen-model')?.addEventListener('change', updateIpNote);
@@ -657,7 +669,7 @@
                                 <p class="text-[10px] text-brand-text-muted font-medium">If this content references IP you own or are licensed to use:</p>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" id="mod-ip-own" class="rounded border-brand-border bg-brand-bg text-brand-accent">
-                                    <span class="text-xs text-brand-text/80">I/We own this intellectual property</span>
+                                    <span class="text-xs text-brand-text/80">I/We own this IP</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" id="mod-ip-license" class="rounded border-brand-border bg-brand-bg text-brand-accent">
