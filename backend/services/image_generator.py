@@ -26,12 +26,15 @@ def generate_image(
     width: int = 1024,
     height: int = 1024,
     seed: int | None = None,
+    negative_prompt: str = "",
     status_callback=None,
 ) -> bytes:
     """Generate an image from a refined prompt using the specified model.
 
     Retries up to 3 times with exponential backoff on throttling/transient errors.
     Calls status_callback(dict) with progress updates if provided.
+    negative_prompt is passed to models that support it (Nova Canvas negativeText,
+    SD negative_prompt). See model-specific docs for supported exclusion terms.
     Returns PNG image bytes.
     """
     if seed is None:
@@ -62,7 +65,7 @@ def generate_image(
             if attempt > 0:
                 emit({"type": "retry", "attempt": attempt + 1, "max_retries": _MAX_RETRIES,
                       "message": f"Retrying image generation (attempt {attempt + 1}/{_MAX_RETRIES})..."})
-            image_bytes = invoke_fn(refined_prompt, width=width, height=height, seed=seed)
+            image_bytes = invoke_fn(refined_prompt, width=width, height=height, seed=seed, negative_prompt=negative_prompt)
             logger.info("Image generated: model=%s, %d bytes", model.value, len(image_bytes))
             return image_bytes
         except Exception as exc:

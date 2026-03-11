@@ -317,6 +317,7 @@
                     this._promptEditor = new PromptEditor(container, {
                         styleId: this._getStyleId(),
                         assetType: this._getAssetType(),
+                        imageModel: document.getElementById('gen-model')?.value,
                     });
                 } catch (err) {
                     console.error('Failed to create PromptEditor:', err);
@@ -334,6 +335,9 @@
             });
             document.getElementById('gen-asset-type')?.addEventListener('change', () => {
                 if (this._promptEditor) this._promptEditor.setContext({ assetType: this._getAssetType() });
+            });
+            document.getElementById('gen-model')?.addEventListener('change', () => {
+                if (this._promptEditor) this._promptEditor.setContext({ imageModel: document.getElementById('gen-model')?.value });
             });
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open());

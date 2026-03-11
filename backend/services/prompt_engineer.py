@@ -97,10 +97,26 @@ _ASSET_TYPE_CONTEXT: dict[AssetType, str] = {
 }
 
 # ── Prompt templates ──────────────────────────────────────────────────────
+#
+# Prompt engineering follows official model guidelines:
+# - Nova Canvas: https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html
+# - General Nova: https://docs.aws.amazon.com/nova/latest/userguide/prompting-general-tips.html
+# - Stable Diffusion: quality tokens, weighted descriptors, structured ordering
+#
+# Key rules applied:
+# 1. Write as descriptive CAPTIONS, not commands (Nova Canvas requirement)
+# 2. Follow structure: Subject → Environment → Pose → Lighting → Camera → Style
+# 3. No negation words in the main prompt (use negativeText parameter instead)
+# 4. Most important details first, quality markers last (truncation safety)
+# 5. For SD models: use quality boosters, style tokens, and detailed descriptors
 
 _REFINE_PROMPT_TEMPLATE = """\
 You are an expert image-generation prompt engineer for game art. Your job is
-to expand the user's description into a detailed prompt for an AI image model.
+to rewrite the user's description as a DESCRIPTIVE IMAGE CAPTION optimized
+for the target model: {model_name}.
+
+=== TARGET MODEL: {model_name} ===
+{model_specific_instructions}
 
 === ASSET TYPE GUIDELINES (adapt, don't force) ===
 {asset_context}
@@ -120,24 +136,79 @@ INSTRUCTIONS — follow in PRIORITY ORDER:
 
 2. **Intelligently interpret the asset type.** The asset type is a GUIDE, not a
    rigid template. A "game asset" could be an isolated object (barrel, sword),
-   a tileable panel (ceiling, floor), a UI element, or a complex prop. Read what
-   the user is describing and apply the appropriate composition:
-   - Isolated objects → center on transparent background
-   - Tileable panels/textures → edge-to-edge, seamless feel
-   - Complex props with detail → fill the frame, show the detail
-   - Scenes/vistas → depth, atmosphere, layered composition
+   a tileable panel (ceiling, floor), a UI element, or a complex prop. Adapt
+   the composition to what the user is actually describing.
 
-3. **Style guidelines enhance, not override.** Use the style's palette, rendering
+3. **Write as a DESCRIPTIVE CAPTION, not a command.** Image models understand
+   descriptions, not instructions. Write what the image SHOWS, not what to do.
+   - BAD: "Create an isometric dragon. Ensure clean edges. Do not add shadows."
+   - GOOD: "An isometric low-poly dragon, cel-shaded flat colors, clean sharp
+     edges, centered on transparent background, soft ambient lighting from top-left"
+
+4. **Follow this structure order** (most important first for truncation safety):
+   Subject → Environment/Context → Pose/Position → Lighting → Camera/Framing → Visual Style/Medium → Quality Markers
+
+5. **NEVER use negation words** in the prompt: no "no", "not", "without", "don't",
+   "never", "avoid", "DO NOT", "must not". These confuse image models.
+   Instead, describe what you WANT, not what you don't want.
+   - BAD: "no shadows, no text, without background"
+   - GOOD: "shadowless, clean, transparent background"
+   If exclusions are truly needed, output them on a SEPARATE line starting with
+   "NEGATIVE:" — they will be sent via the model's negative prompt parameter.
+
+6. **Style guidelines enhance, not override.** Use the style's palette, rendering
    technique, and proportions to INFORM the output — but if the user's description
    calls for something different, follow the user.
 
-4. Add specific details about lighting, materials, color, and quality that serve
-   the user's vision.
+OUTPUT FORMAT:
+Line 1: The image description prompt (under {max_chars} characters)
+Line 2 (optional): NEGATIVE: comma-separated terms to exclude
 
-CRITICAL: Output MUST be under {max_chars} characters. Be concise but descriptive.
-
-Respond with ONLY the refined prompt — no preamble, no quotation marks.
+Respond with ONLY the prompt lines — no preamble, no quotation marks, no explanation.
 """
+
+# Model-specific instructions inserted into the template
+# See: https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html
+_MODEL_INSTRUCTIONS = {
+    "nova_canvas": (
+        "Nova Canvas works best with descriptive captions, NOT commands.\n"
+        "Structure: Subject → Environment → Pose → Lighting → Camera → Style.\n"
+        "Place most important details first (prompt may be truncated at 1024 chars).\n"
+        "NEVER use 'no', 'not', 'without' — use the NEGATIVE line instead.\n"
+        "Quality markers: 'high detail', 'professional quality', 'sharp edges'."
+    ),
+    "titan_image": (
+        "Titan Image works best with clear, concise descriptive captions.\n"
+        "Keep prompts short (480 char limit). Focus on subject and style.\n"
+        "NEVER use negation words — use the NEGATIVE line instead."
+    ),
+    # Stable Diffusion 3.5 Large prompt best practices:
+    # - Supports much longer prompts (2000 chars) — use the space for rich detail
+    # - Quality boosters improve output: 'masterpiece', 'best quality', 'highly detailed'
+    # - Style tokens are effective: 'digital painting', 'concept art', 'artstation'
+    # - Supports weighted emphasis via natural language (not CLIP weighting syntax)
+    # - Negative prompts are very effective for cleanup
+    "sd35_large": (
+        "Stable Diffusion 3.5 Large supports rich, detailed prompts up to 2000 chars.\n"
+        "USE quality boosters: 'masterpiece, best quality, highly detailed, sharp focus'.\n"
+        "USE style tokens: 'digital painting', 'concept art', 'trending on artstation',\n"
+        "'illustration', '8k resolution', 'unreal engine render', etc.\n"
+        "Detailed descriptors work well: describe materials, textures, lighting precisely.\n"
+        "Negative prompts are very effective — use the NEGATIVE line for quality cleanup.\n"
+        "Common useful negatives: 'blurry, low quality, deformed, ugly, bad anatomy'."
+    ),
+    "stable_image_ultra": (
+        "Stable Image Ultra supports rich, detailed prompts up to 2000 chars.\n"
+        "USE quality boosters: 'masterpiece, best quality, highly detailed, sharp focus,\n"
+        "professional photography, 8k uhd'.\n"
+        "Photorealistic prompts excel: describe lighting, materials, atmosphere in detail.\n"
+        "Negative prompts are effective — use the NEGATIVE line for quality cleanup."
+    ),
+}
+_DEFAULT_MODEL_INSTRUCTIONS = (
+    "Write a descriptive caption. Place subject first, style last.\n"
+    "NEVER use negation words — use the NEGATIVE line instead."
+)
 
 _MARKETING_PROMPT_TEMPLATE = """\
 You are a senior creative director specialising in game marketing materials.
@@ -219,6 +290,38 @@ def _validate_refined_prompt(refined: str, user_prompt: str) -> str:
 
 # ── Public API ────────────────────────────────────────────────────────────
 
+def _get_model_label(image_model: str | None) -> str:
+    """Get a human-readable model name for prompt instructions."""
+    labels = {
+        "nova_canvas": "Amazon Nova Canvas",
+        "titan_image": "Amazon Titan Image v2",
+        "sd35_large": "Stable Diffusion 3.5 Large",
+        "stable_image_ultra": "Stable Image Ultra",
+    }
+    return labels.get(image_model, "AI image model")
+
+
+def _parse_negative_prompt(raw: str) -> tuple[str, str]:
+    """Split a refined prompt into (main_prompt, negative_prompt).
+
+    If Claude included a "NEGATIVE:" line, extract it separately.
+    The negative prompt is sent via the model's negativeText parameter
+    (Nova Canvas) or negative_prompt parameter (SD models).
+
+    See: https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html
+    """
+    lines = raw.strip().split('\n')
+    main_lines = []
+    negative = ""
+    for line in lines:
+        stripped = line.strip()
+        if stripped.upper().startswith("NEGATIVE:"):
+            negative = stripped[9:].strip()
+        elif stripped:
+            main_lines.append(stripped)
+    return ' '.join(main_lines), negative
+
+
 def refine_prompt(
     user_prompt: str,
     style_profile: StyleProfile | None,
@@ -227,18 +330,28 @@ def refine_prompt(
 ) -> str:
     """Refine a user prompt into a detailed image-generation prompt.
 
-    Uses Claude Sonnet (complexity="fast") for quick turnaround.
-    Prompt length adapts to the target image model's limit.
+    Uses Claude Sonnet for quick turnaround. Prompt structure follows
+    official model guidelines:
+    - Nova Canvas: descriptive captions, Subject→Environment→Pose→Lighting→Camera→Style
+    - SD 3.5: quality boosters, style tokens, rich detail
+    - All models: no negation words in main prompt (extracted to negative_prompt)
+
+    Returns the main prompt text. Negative prompt is stored separately
+    via _parse_negative_prompt when the generation pipeline calls this.
     """
     max_chars = get_prompt_limit(image_model)
     asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
     style_section = _build_style_section(style_profile)
+    model_name = _get_model_label(image_model)
+    model_instructions = _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
 
     prompt = _REFINE_PROMPT_TEMPLATE.format(
         asset_context=asset_context,
         style_section=style_section,
         user_prompt=user_prompt,
         max_chars=max_chars,
+        model_name=model_name,
+        model_specific_instructions=model_instructions,
     )
 
     logger.info(
@@ -255,10 +368,27 @@ def refine_prompt(
 
     refined = refined.strip()
     refined = _validate_refined_prompt(refined, user_prompt)
-    if len(refined) > max_chars:
-        refined = refined[:max_chars - 4].rsplit(" ", 1)[0]
-    logger.info("Refined prompt (%d/%d chars): %s", len(refined), max_chars, refined[:150])
-    return refined
+
+    # Parse out any NEGATIVE: line
+    main_prompt, negative = _parse_negative_prompt(refined)
+    if negative:
+        logger.info("Extracted negative prompt: %s", negative[:100])
+
+    # Store negative prompt for retrieval by the generation pipeline
+    refine_prompt._last_negative = negative
+
+    if len(main_prompt) > max_chars:
+        main_prompt = main_prompt[:max_chars - 4].rsplit(" ", 1)[0]
+    logger.info("Refined prompt (%d/%d chars): %s", len(main_prompt), max_chars, main_prompt[:150])
+    return main_prompt
+
+# Class-level storage for the last negative prompt extracted
+refine_prompt._last_negative = ""
+
+
+def get_last_negative_prompt() -> str:
+    """Retrieve the negative prompt from the most recent refine_prompt call."""
+    return getattr(refine_prompt, '_last_negative', '')
 
 
 def refine_marketing_prompt(

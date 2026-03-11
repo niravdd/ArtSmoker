@@ -42,3 +42,4 @@ class PromptRefineRequest(BaseModel):
     prompt: str
     style_id: str | None = None
     asset_type: AssetType = AssetType.GAME_ASSET
+    image_model: str | None = None

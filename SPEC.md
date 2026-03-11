@@ -248,13 +248,23 @@ User prompt: "hospital building"
     If num_options == 1: refine_prompt() (Claude Sonnet, fast) produces
     a single refined prompt. Marketing banners use refine_marketing_prompt()
     (Claude Opus, complex).
+    Claude extracts exclusions to a separate "NEGATIVE:" line during refinement.
+         |
+         v
+    [Model-Optimized Prompt Engineering]
+    Prompt is restructured as a descriptive CAPTION (not a command) per target model:
+    - Nova Canvas: caption style, Subject→Environment→Pose→Lighting→Camera→Style, 900 chars
+    - Titan Image v2: concise captions, 480 chars
+    - SD 3.5 Large: quality boosters (masterpiece, best quality), style tokens, 2000 chars
+    - Stable Image Ultra: photorealistic quality boosters, 2000 chars
+    Negative prompt parsed by _parse_negative_prompt() and passed through pipeline.
          |
          v
     For each concept prompt, generate num_variations images in parallel:
          |
          v
     [Image Generation — Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, or Stable Image Ultra]
-    Input: refined prompt + random seed per variation
+    Input: refined prompt + negative prompt + random seed per variation
     Output: PNG image (default 1024x1024)
          |
          v
@@ -285,6 +295,26 @@ User prompt: "hospital building"
 | Stable Image Ultra | 2000 |
 
 The active limit is passed to all prompt refinement functions (`refine_prompt()`, `refine_marketing_prompt()`, `generate_concept_prompts()`) and adjusts automatically when the user switches models. Stable Diffusion 3.5 Large and Stable Image Ultra get 2x richer prompts with more room for detail, composition, and quality directives. A hard truncation fallback (breaking on word boundaries) still applies per model.
+
+**Model-optimized prompt engineering**: Prompts are written as descriptive **captions**, not imperative commands, following the structure recommended by [AWS Nova Canvas documentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html): Subject, Environment, Pose/Action, Lighting, Camera angle, Style. Negation words ("no", "not", "without", "DO NOT") are removed from the main prompt — exclusions are separated into a dedicated negative prompt instead. Model-specific instructions are injected per target model:
+
+| Model | Prompt Style | Key Optimizations |
+|-------|-------------|-------------------|
+| Nova Canvas | Structured caption | Subject→Environment→Pose→Lighting→Camera→Style order, quality markers, 900 char limit |
+| Titan Image v2 | Concise caption | Shorter descriptive phrases, 480 char limit |
+| Stable Diffusion 3.5 Large | Rich caption with boosters | Quality boosters (masterpiece, best quality), style tokens (concept art, artstation), 2000 char limit |
+| Stable Image Ultra | Photorealistic caption | Photorealistic quality boosters, cinematic lighting descriptors, 2000 char limit |
+
+**Negative prompt support**: All four image models receive a negative prompt parameter alongside the main prompt. Claude extracts exclusions to a separate "NEGATIVE:" line during prompt refinement, which is parsed by `_parse_negative_prompt()` and passed through the pipeline. Per AWS documentation, negation words should not appear in negative prompts either — only the terms to exclude (e.g. "blurry, text, watermark" not "no blurry, no text").
+
+| Model | Negative Prompt Parameter |
+|-------|--------------------------|
+| Nova Canvas | `negativeText` in `textToImageParams` |
+| Titan Image v2 | `negativeText` in `textToImageParams` |
+| Stable Diffusion 3.5 Large | `negative_prompt` field |
+| Stable Image Ultra | `negative_prompt` field |
+
+Negative prompts are stored in per-variant `metadata.json` as `negative_prompt`.
 
 **Content moderation handling — smart model switching**: When an image generation call fails due to the model's built-in content moderation filters, the system uses a tiered recovery strategy:
 
@@ -345,7 +375,7 @@ GenerationResult
 └── created_at: datetime
 ```
 
-Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant also stores `original_prompt` alongside the other generation fields. A `moderation_original` field stores the pre-moderation-rewrite prompt when applicable. Full prompt lineage is: `original_prompt` (user's raw input) -> AI-improved prompt -> `moderation_original` (if the prompt was rewritten to pass moderation) -> `prompt` (final prompt sent to the image model).
+Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant also stores `original_prompt` alongside the other generation fields. A `moderation_original` field stores the pre-moderation-rewrite prompt when applicable. A `negative_prompt` field stores the extracted negative prompt (exclusion terms) when present. IP declaration fields (`ip_owned`, `ip_licensed`) are stored when the user asserts IP rights. Full prompt lineage is: `original_prompt` (user's raw input) -> AI-improved prompt -> `moderation_original` (if the prompt was rewritten to pass moderation) -> `prompt` (final prompt sent to the image model) + `negative_prompt` (exclusion terms sent separately).
 
 **Style snapshot in metadata**: Each generated asset (from both 2D Image Studio and Type Studio) stores a `style_snapshot` object capturing the style's state at generation time:
 ```json
@@ -395,10 +425,11 @@ Clean, modern single-page application served as static files mounted at `/` by F
 - **Processing options**: Toggle switches for Remove Background, SVG Conversion (on by default), Upscale, and **Prompt Pre-Check** (pre-screens prompts via Claude Sonnet before image generation). Options row is placed **below** the prompt areas (images grouped together). Before generation these are labeled **"Pre-Processing"** (applied during generation). After generation completes, the label switches to **"Post-Processing"** and an **"Apply to Current Results"** button appears, allowing users to re-apply processing to the existing generated images without re-generating (calls `POST /api/generate/post-process`).
 - **Two-area prompt editor** (center panel): The prompt editor uses a two-textarea design:
   - **Top textarea** (user input): Where the user writes their prompt. This area is **never overwritten** by the system — it always contains the user's original words.
-  - **"Compose Generation Prompt" button**: Creates an AI-enhanced version in a second area below. The composed prompt combines: user prompt + style guidelines + asset type directives + AI-enhanced details.
+  - **"Compose Generation Prompt" button**: Creates an AI-enhanced version in a second area below. The composed prompt combines: user prompt + style guidelines + asset type directives + AI-enhanced details. **Model-aware**: the PromptEditor passes the currently selected image model to `/api/refine-prompt`, so composition is optimized for the target model (e.g. SD 3.5 Large gets richer 2000-char prompts with quality boosters, Nova Canvas gets structured 900-char captions). Changing the model in the dropdown **clears** the composed prompt (requires recomposition for the new model).
   - **Composed prompt area** (green-tinted, below): Displays the AI-composed generation prompt. This is what gets sent to the image model.
   - **Dynamic note under button**: Reflects current style selection — "Your prompt will be composed with the selected style guidelines..." when a style is active, vs "No style selected — AI will enhance with composition, lighting, and quality details" when no style is selected.
   - **Flow**: If a composed prompt exists, it is sent directly to the image model (no double-refinement). If the user skips Compose and clicks Generate, the backend auto-refines and shows the result in the composed area via SSE (`prompts_ready` event). Editing the original prompt **clears** the composed prompt (forces re-composition).
+  - **Prompt Editor DOM fix**: `document.contains()` check ensures the textarea is in the live DOM after view reset, preventing stale references.
   - **Prompt info section**: After generation, shows original prompt, composed prompt, and concept prompts for full lineage visibility.
   - Voice input and `loadBatch(batchId)` restore a previous batch from the Gallery into the 2D Image Studio view. `ensurePromptEditor()` is called on show/loadBatch for robust initialization.
 - **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge, and a truncated concept prompt. Click to select an option — clicking an option or variation thumbnail also **scrolls to the full preview**.
@@ -415,6 +446,15 @@ If there is only one option, the options row is hidden. If there is only one var
   - **Pre-check dialog** (indigo): Proactive warning before generating, shown when the "Prompt Pre-Check" toggle is enabled and Claude Sonnet detects likely moderation issues.
   - **Prompt refusal dialog** (red): Appears when Claude declines to refine a prompt (e.g. requests involving real people). Shows a clear explanation instead of sending unusable text to the image model.
   All dialogs are non-destructive — they recommend actions and the user decides whether to accept, edit, or dismiss.
+
+- **IP Declaration** — "Intellectual Property (IP) Declaration" section in the Image Studio sidebar:
+  - Two checkboxes: "I/We own this IP" and "I/We have a license for this IP".
+  - When checked with a strict model selected (Nova Canvas or Titan Image): shows a recommendation to switch to SD 3.5 Large with a "Switch now" quick-action link.
+  - **Pre-Check toggle disabled** when IP is declared — the user asserts they have rights, so pre-screening is unnecessary.
+  - IP declaration stored in per-variant `metadata.json` (`ip_owned`, `ip_licensed`) for audit trail.
+  - Shown in AssetViewer metadata display.
+  - In moderation dialog: acknowledges the IP claim and explains platform limitation.
+  - Note: Nova Canvas moderation is platform-enforced by AWS and cannot be bypassed regardless of IP ownership.
 
 **Type Studio** (`#type-studio`) — Full text overlay system for creating titled/branded versions of gallery images or standalone text compositions.
 
@@ -445,7 +485,7 @@ If there is only one option, the options row is hidden. If there is only one var
 - **Multi-select**: Checkboxes on each asset card for bulk selection. A **"Delete Selected"** button triggers `DELETE /api/gallery/` with `{ids: [...]}` for bulk deletion.
 - Click any asset to open the AssetViewer.
 
-**AssetViewer** — Full-size preview + download. Fetches full metadata from `GET /api/gallery/{id}` on open. Displays all available fields: original prompt, AI-improved prompt, generation prompt, style (from `style_snapshot` as fallback if the original style was deleted), asset type, image model (with friendly labels), dimensions, seed, batch ID, option/variation index, filename, and creation date. The **SVG tab/button is hidden** when no SVG file exists for the asset. Metadata display adapts for Type Studio assets (shows text content, font choices, layout parameters instead of generation prompts).
+**AssetViewer** — Full-size preview + download. Fetches full metadata from `GET /api/gallery/{id}` on open. Displays all available fields: original prompt, AI-improved prompt, generation prompt, negative prompt (when present), style (from `style_snapshot` as fallback if the original style was deleted), asset type, image model (with friendly labels), dimensions, seed, batch ID, option/variation index, IP declaration status (when declared), filename, and creation date. The **SVG tab/button is hidden** when no SVG file exists for the asset. Metadata display adapts for Type Studio assets (shows text content, font choices, layout parameters instead of generation prompts).
 - **Contextual action buttons**:
   - **"2D Studio"** (indigo) — visible for image-type assets only. Sends the batch back to the 2D Image Studio view.
   - **"Add Text"** (emerald) — visible for image-type assets only. Opens Type Studio in "On Image" mode with this asset as the base image.
@@ -659,9 +699,12 @@ Fields:
 {
   "prompt": "hospital building",
   "style_id": "city-builder-kenney",
-  "asset_type": "game_asset"
+  "asset_type": "game_asset",
+  "image_model": "nova_canvas"
 }
 ```
+
+- `image_model` (optional): Target image model for model-optimized prompt engineering. When provided, the refinement produces prompts structured for the specific model (e.g. caption-style for Nova Canvas, quality-boosted for SD 3.5 Large). The PromptEditor passes the currently selected model automatically.
 
 **Response**:
 ```json

@@ -162,14 +162,15 @@ All generated assets (images, text overlays, standalone text) land in the Galler
 1. Go to the **2D Image Studio** tab.
 2. Type a prompt (e.g. "cute cartoon cat") in the **top textarea** — this area is never overwritten by the system.
 3. **Select an asset type** — this shapes everything the AI produces (see table above). A "warrior" as a Game Asset looks completely different from a "warrior" as a Marketing Banner.
-4. Optionally click **"Compose Generation Prompt"** — the AI creates an enhanced version in a second green-tinted area below, combining your prompt with style guidelines, asset type directives, and AI-enhanced details. The note under the button dynamically reflects your style selection. You can review and edit the composed prompt before generating.
+4. Optionally click **"Compose Generation Prompt"** — the AI creates a **model-optimized** enhanced version in a second green-tinted area below, combining your prompt with style guidelines, asset type directives, and AI-enhanced details. The composition is **model-aware**: it structures prompts as descriptive captions following the [AWS recommended order](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html) (Subject, Environment, Pose, Lighting, Camera, Style) and applies model-specific optimizations — Nova Canvas gets structured 900-char captions, SD 3.5 Large gets richer 2000-char prompts with quality boosters. Changing the image model clears the composed prompt (needs recomposition). Exclusion terms are automatically extracted into a **negative prompt** sent separately to the image model. The note under the button dynamically reflects your style selection. You can review and edit the composed prompt before generating.
 5. Set dimensions and how many options/variations you want.
 6. Configure **Pre-Processing** (applied during generation) and **Post-Processing** (applied after generation, with an "Apply" button). SVG conversion is on by default. Enable **Prompt Pre-Check** to pre-screen prompts before image generation.
-7. Click **Generate**. If you skip the Compose step, the backend auto-refines and shows the result in the composed area via SSE.
-8. Browse the **options row** (different concepts) and **variations row** (seed variants of the selected concept). Clicking a thumbnail scrolls to the full preview.
-9. Click any image to preview full-size, then download PNG or SVG.
-10. Use the **reset button** (amber circular arrow) to clear generated results and start fresh.
-11. Use **"Model Settings"** in the sidebar to view/edit model configuration and discover available Bedrock models.
+7. Optionally use the **IP Declaration** section in the sidebar to assert intellectual property ownership or licensing. When declared with a strict model (Nova Canvas/Titan), the system recommends switching to SD 3.5 Large. IP declarations are stored in metadata for audit trail.
+8. Click **Generate**. If you skip the Compose step, the backend auto-refines and shows the result in the composed area via SSE.
+9. Browse the **options row** (different concepts) and **variations row** (seed variants of the selected concept). Clicking a thumbnail scrolls to the full preview.
+10. Click any image to preview full-size, then download PNG or SVG.
+11. Use the **reset button** (amber circular arrow) to clear generated results and start fresh.
+12. Use **"Model Settings"** in the sidebar to view/edit model configuration and discover available Bedrock models.
 
 Generation progress is streamed in real time via SSE — the UI shows which image is being generated (e.g. "Generating images... 12/25"), elapsed time, and current pipeline stage. If the API is throttled, you'll see "API throttled — waiting to retry..." with the delay, then "Retrying... (attempt 2/3)" — each image retries up to 3 times with exponential backoff so large batches don't lose variants to transient throttling.
 
@@ -209,7 +210,7 @@ Add text to images or generate standalone text assets with AI-designed typograph
 - Pagination support (limit/offset) for large collections.
 - Gallery auto-refreshes when you navigate back to it.
 - **Contextual action buttons** per asset based on type: **"2D Studio"** (indigo) to reload in the image studio, **"Add Text"** (emerald) to open in Type Studio, **"Edit in Type Studio"** (purple) for text assets.
-- Click any image to open the **AssetViewer** modal with full metadata: original prompt, AI-improved prompt, generation prompt, style, asset type, image model (friendly names), dimensions, seed, batch ID, option/variation index, filename, and creation date.
+- Click any image to open the **AssetViewer** modal with full metadata: original prompt, AI-improved prompt, generation prompt, negative prompt, style, asset type, image model (friendly names), dimensions, seed, batch ID, option/variation index, IP declaration status, filename, and creation date.
 - **Style snapshot**: Each asset stores a snapshot of the style used at generation time (name, description, hints, analysis). If the original style is later deleted, the asset retains the full context. Backward compatible — older assets without snapshots display normally.
 
 ### Voice input
@@ -242,6 +243,12 @@ Four image models are available, each with different strengths. Prompt limits ar
 | **Stable Image Ultra** | Stability AI | Highest (premium model) | 2000 chars | Aspect ratios (auto-mapped from dimensions) |
 
 The Stability AI models (Stable Diffusion 3.5 Large, Stable Image Ultra) accept aspect ratios (1:1, 16:9, 3:2, etc.) instead of exact pixel dimensions. When you select a width and height in the UI, the backend automatically maps to the closest supported aspect ratio.
+
+**Model-optimized prompt engineering**: Prompts are automatically structured as descriptive captions (not commands) following [AWS documentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html). Negation words are removed from the main prompt and exclusion terms are sent as a separate **negative prompt**. Each model receives optimized prompts:
+- **Nova Canvas**: Structured captions (Subject, Environment, Pose, Lighting, Camera, Style), quality markers, `negativeText` parameter
+- **Titan Image v2**: Concise captions, `negativeText` parameter
+- **SD 3.5 Large**: Quality boosters (masterpiece, best quality), style tokens (concept art, artstation), `negative_prompt` field
+- **Stable Image Ultra**: Photorealistic quality boosters, `negative_prompt` field
 
 > [!NOTE]
 > **Moderation sensitivity varies by model**: Nova Canvas is the strictest — it rejects prompts with copyrighted names, weapons, and combat language more aggressively. Stable Diffusion 3.5 Large is more relaxed for action/combat themes. ArtSmoker handles this automatically — when a prompt is blocked, the system tries alternative models with lower moderation strictness before suggesting a rewrite.

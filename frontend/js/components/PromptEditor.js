@@ -219,6 +219,7 @@
                     prompt: text,
                     style_id: this.opts.styleId || undefined,
                     asset_type: this.opts.assetType || undefined,
+                    image_model: this.opts.imageModel || undefined,
                 };
 
                 const result = await API.refinePrompt(payload);

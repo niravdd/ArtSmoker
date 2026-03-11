@@ -196,15 +196,28 @@ def invoke_claude(
 def invoke_nova_canvas(
     prompt: str,
     *,
+    negative_prompt: str = "",
     width: int = 1024,
     height: int = 1024,
     seed: int | None = None,
 ) -> bytes:
-    """Generate an image with Amazon Nova Canvas. Returns PNG bytes."""
+    """Generate an image with Amazon Nova Canvas. Returns PNG bytes.
+
+    Follows Nova Canvas prompting best practices:
+    https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html
+
+    - prompt: Descriptive caption (not commands). Subject first, style last.
+    - negative_prompt: Terms to exclude (no negation words needed).
+      Sent via the negativeText parameter.
+    """
     client = get_images_client()
+    text_params = {"text": prompt}
+    if negative_prompt:
+        text_params["negativeText"] = negative_prompt
+
     body = {
         "taskType": "TEXT_IMAGE",
-        "textToImageParams": {"text": prompt},
+        "textToImageParams": text_params,
         "imageGenerationConfig": {
             "numberOfImages": 1,
             "width": width,
@@ -232,17 +245,19 @@ def invoke_nova_canvas(
 def invoke_titan_image(
     prompt: str,
     *,
+    negative_prompt: str = "",
     width: int = 1024,
     height: int = 1024,
     seed: int | None = None,
 ) -> bytes:
     """Generate an image with Amazon Titan Image Generator v2. Returns PNG bytes."""
     client = get_images_client()
+    text_params = {"text": prompt}
+    if negative_prompt:
+        text_params["negativeText"] = negative_prompt
     body = {
         "taskType": "TEXT_IMAGE",
-        "textToImageParams": {
-            "text": prompt,
-        },
+        "textToImageParams": text_params,
         "imageGenerationConfig": {
             "numberOfImages": 1,
             "width": width,
@@ -282,17 +297,24 @@ def _dimensions_to_aspect_ratio(width: int, height: int) -> str:
 def invoke_sd35_large(
     prompt: str,
     *,
+    negative_prompt: str = "",
     width: int = 1024,
     height: int = 1024,
     seed: int | None = None,
 ) -> bytes:
-    """Generate an image with Stable Diffusion 3.5 Large. Returns PNG bytes."""
+    """Generate an image with Stable Diffusion 3.5 Large. Returns PNG bytes.
+
+    SD 3.5 supports rich prompts (2000 chars), quality boosters
+    ('masterpiece, best quality'), and negative prompts for cleanup.
+    """
     client = get_models_client()
     body = {
         "prompt": prompt,
         "output_format": "png",
         "aspect_ratio": _dimensions_to_aspect_ratio(width, height),
     }
+    if negative_prompt:
+        body["negative_prompt"] = negative_prompt
     if seed is not None:
         body["seed"] = seed
 
@@ -313,17 +335,24 @@ def invoke_sd35_large(
 def invoke_stable_image_ultra(
     prompt: str,
     *,
+    negative_prompt: str = "",
     width: int = 1024,
     height: int = 1024,
     seed: int | None = None,
 ) -> bytes:
-    """Generate an image with Stable Image Ultra. Returns PNG bytes."""
+    """Generate an image with Stable Image Ultra. Returns PNG bytes.
+
+    Ultra supports rich prompts, photorealistic quality boosters,
+    and negative prompts for quality cleanup.
+    """
     client = get_models_client()
     body = {
         "prompt": prompt,
         "output_format": "png",
         "aspect_ratio": _dimensions_to_aspect_ratio(width, height),
     }
+    if negative_prompt:
+        body["negative_prompt"] = negative_prompt
     if seed is not None:
         body["seed"] = seed
 

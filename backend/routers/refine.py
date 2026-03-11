@@ -36,7 +36,7 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
         logger.info("Loaded style profile '%s' for prompt refinement.", body.style_id)
 
     try:
-        refined = refine_prompt(body.prompt, style_profile, body.asset_type)
+        refined = refine_prompt(body.prompt, style_profile, body.asset_type, image_model=body.image_model)
     except Exception as exc:
         logger.exception("Prompt refinement failed.")
         raise HTTPException(

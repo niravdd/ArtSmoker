@@ -29,6 +29,7 @@ from backend.services.post_processor import process_asset
 from backend.services.prompt_engineer import (
     PromptRefusalError,
     generate_concept_prompts,
+    get_last_negative_prompt,
     refine_marketing_prompt,
     refine_prompt,
 )
@@ -57,6 +58,7 @@ def _generate_single_image(
     refined_prompt: str,
     body: GenerationRequest,
     seed: int,
+    negative_prompt: str = "",
     status_callback=None,
 ) -> tuple[bytes, str | None]:
     image_bytes = generate_image(
@@ -65,6 +67,7 @@ def _generate_single_image(
         width=body.width,
         height=body.height,
         seed=seed,
+        negative_prompt=negative_prompt,
         status_callback=status_callback,
     )
     svg_output_path = (
@@ -90,6 +93,7 @@ def _build_variant(
     option_index: int,
     variant_index: int,
     refined_prompt: str,
+    negative_prompt: str = "",
     body: GenerationRequest,
     seed: int,
     prompt_slug: str,
@@ -119,6 +123,7 @@ def _build_variant(
         refined_prompt=refined_prompt,
         body=body,
         seed=seed,
+        negative_prompt=negative_prompt,
         status_callback=_status_cb,
     )
 
@@ -138,6 +143,7 @@ def _build_variant(
         "moderation_original": body.moderation_original,
         "prompt": body.prompt,
         "refined_prompt": refined_prompt,
+        "negative_prompt": negative_prompt,
         "style_id": body.style_id,
         "style_snapshot": style_snapshot,
         "asset_type": body.asset_type.value,
@@ -263,6 +269,12 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
           "prompts": concept_prompts,
           "pre_composed": body.pre_composed})
 
+    # Capture the negative prompt extracted during refinement
+    # (only relevant for single-option refinement; concept prompts handle their own)
+    negative_prompt = get_last_negative_prompt()
+    if negative_prompt:
+        logger.info("Using negative prompt: %s", negative_prompt[:100])
+
     emit({"type": "stage", "stage": "generating",
           "message": f"Generating {total} images...", "prompts_done": len(concept_prompts)})
 
@@ -283,6 +295,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             option_index=0,
             variant_index=0,
             refined_prompt=concept_prompts[0],
+            negative_prompt=negative_prompt,
             body=body,
             seed=canary_seed,
             prompt_slug=prompt_slug,
@@ -349,6 +362,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                     option_index=oi,
                     variant_index=vi,
                     refined_prompt=prompt,
+                    negative_prompt=negative_prompt,
                     body=body,
                     seed=seed,
                     prompt_slug=prompt_slug,
