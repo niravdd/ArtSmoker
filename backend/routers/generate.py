@@ -577,7 +577,7 @@ Respond with ONLY a JSON object (no markdown):
   "likely_safe": true/false,
   "issues": ["specific concern 1", "specific concern 2"],
   "explanation": "Brief explanation for the user",
-  "suggested_model": "model_id that would likely accept this prompt, or null if all would accept"
+  "suggested_model": "one of: sd35_large, stable_image_ultra, titan_image, nova_canvas — whichever would likely accept this prompt, or null if none would"
 }}"""
 
     try:
@@ -587,10 +587,24 @@ Respond with ONLY a JSON object (no markdown):
         cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
         result = json.loads(cleaned.strip())
 
-        # Add model label for suggested_model
+        # Normalize suggested_model to our internal key
         suggested = result.get("suggested_model")
-        if suggested and suggested in model_labels:
-            result["suggested_model_label"] = model_labels[suggested]
+        if suggested:
+            # Map labels or Bedrock IDs back to our internal keys
+            reverse_map = {v: k for k, v in model_labels.items()}
+            reverse_map.update({
+                "stability.sd3-5-large-v1:0": "sd35_large",
+                "stability.stable-image-ultra-v1:1": "stable_image_ultra",
+                "amazon.nova-canvas-v1:0": "nova_canvas",
+                "amazon.titan-image-generator-v2:0": "titan_image",
+                "sd35_large": "sd35_large",
+                "stable_image_ultra": "stable_image_ultra",
+                "nova_canvas": "nova_canvas",
+                "titan_image": "titan_image",
+            })
+            normalized = reverse_map.get(suggested, suggested)
+            result["suggested_model"] = normalized
+            result["suggested_model_label"] = model_labels.get(normalized, suggested)
 
         return result
     except Exception as exc:

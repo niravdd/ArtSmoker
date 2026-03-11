@@ -34,9 +34,13 @@
                 let detail = `HTTP ${res.status}`;
                 try {
                     const errJson = await res.json();
-                    detail = errJson.detail || errJson.message || detail;
+                    let d = errJson.detail || errJson.message || detail;
+                    // Pydantic validation errors return detail as an array of objects
+                    if (Array.isArray(d)) {
+                        d = d.map(e => `${(e.loc || []).join('.')}: ${e.msg || e}`).join('; ');
+                    }
+                    detail = typeof d === 'string' ? d : JSON.stringify(d);
                 } catch (_) {
-                    // response wasn't JSON — keep the status text
                     detail = res.statusText || detail;
                 }
                 throw new Error(detail);

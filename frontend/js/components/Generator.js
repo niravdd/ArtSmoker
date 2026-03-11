@@ -37,6 +37,7 @@
     window.Generator = {
         _styles: [],
         _promptEditor: null,
+        _skipPreCheck: false,
         _generating: false,
         _result: null,
         _selectedOption: 0,
@@ -134,7 +135,7 @@
                                         </svg>
                                         <label class="text-xs font-medium">Prompt Pre-Check</label>
                                     </div>
-                                    <label class="toggle"><input type="checkbox" id="gen-precheck"><span class="toggle-slider"></span></label>
+                                    <label class="toggle"><input type="checkbox" id="gen-precheck" checked><span class="toggle-slider"></span></label>
                                 </div>
                                 <p class="text-[10px] text-brand-text-muted/50 -mt-1">Pre-screens your prompt for moderation issues before generating. Suggests a better-suited model if needed.</p>
                             </div>
@@ -435,8 +436,9 @@
                 ...this._getIpDeclaration(),
             };
 
-            // ── Prompt Pre-Check (if enabled) ──────────────────────
-            const preCheckOn = document.getElementById('gen-precheck')?.checked;
+            // ── Prompt Pre-Check (if enabled and not skipped) ─────
+            const preCheckOn = document.getElementById('gen-precheck')?.checked && !this._skipPreCheck;
+            this._skipPreCheck = false; // Reset flag after reading
             if (preCheckOn) {
                 try {
                     window.showLoading?.('Pre-checking prompt...');
@@ -720,6 +722,8 @@
                         if (this._promptEditor) this._promptEditor.setText(originalPrompt);
                         this._promptEditor._moderationOriginal = null;
                         dialog.remove();
+                        // Skip pre-check — user already went through moderation dialog and chose this model
+                        this._skipPreCheck = true;
                         setTimeout(() => this._handleGenerate(), 100);
                     });
 
@@ -751,6 +755,7 @@
                                 const modelSel = document.getElementById('gen-model');
                                 if (modelSel) modelSel.value = analysis.original_model;
                                 dialog.remove();
+                                this._skipPreCheck = true;
                                 setTimeout(() => this._handleGenerate(), 100);
                             } else {
                                 dialog.remove();
@@ -845,7 +850,8 @@
                         this._promptEditor.setText(rewritten);
                     }
                     dialog.remove();
-                    // Auto-trigger generation with the rewritten prompt
+                    // Skip pre-check — the rewrite was already verified
+                    this._skipPreCheck = true;
                     setTimeout(() => this._handleGenerate(), 100);
                 });
 
@@ -994,16 +1000,16 @@
                 const modelSel = document.getElementById('gen-model');
                 if (modelSel && suggested) modelSel.value = suggested;
                 dialog.remove();
+                // Skip pre-check for this generation — user already reviewed and chose the model
+                this._skipPreCheck = true;
                 this._handleGenerate();
             });
 
             // Proceed with original model anyway (skip pre-check this time)
             document.getElementById('precheck-proceed')?.addEventListener('click', () => {
                 dialog.remove();
-                // Temporarily disable pre-check for this generation
-                const cb = document.getElementById('gen-precheck');
-                const wasChecked = cb?.checked;
-                if (cb) cb.checked = false;
+                // Skip pre-check for this generation — user chose to proceed
+                this._skipPreCheck = true;
                 this._handleGenerate();
                 // Restore after a tick
                 setTimeout(() => { if (cb && wasChecked) cb.checked = true; }, 500);
