@@ -131,10 +131,27 @@ async def get_batch(batch_id: str):
 
     # Use first item for shared metadata
     first = batch_items[0]
+    surviving_total = sum(len(o["variants"]) for o in options)
+    # original_num_options/variations are set by delete handler; fall back to
+    # num_options/variations (generation-time values stored per variant)
+    original_options = (
+        first.get("original_num_options")
+        or first.get("num_options")
+        or len(options)
+    )
+    original_variations = (
+        first.get("original_num_variations")
+        or first.get("num_variations")
+        or max((len(o["variants"]) for o in options), default=1)
+    )
+    original_total = original_options * original_variations
+    deleted_count = first.get("batch_deleted_count", 0)
+
     return {
         "id": batch_id,
         "prompt": first.get("prompt", ""),
         "original_prompt": first.get("original_prompt"),
+        "negative_prompt": first.get("negative_prompt"),
         "style_id": first.get("style_id"),
         "style_snapshot": first.get("style_snapshot"),
         "asset_type": first.get("asset_type", ""),
@@ -146,6 +163,11 @@ async def get_batch(batch_id: str):
         "upscale": first.get("upscale", False),
         "num_options": len(options),
         "num_variations": max((len(o["variants"]) for o in options), default=1),
+        "original_num_options": original_options,
+        "original_num_variations": original_variations,
+        "batch_deleted_count": deleted_count,
+        "batch_surviving_count": surviving_total,
+        "batch_original_total": original_total,
         "options": options,
         "created_at": first.get("created_at"),
     }
@@ -157,17 +179,53 @@ class DeleteRequest(BaseModel):
 
 @router.delete("/")
 async def delete_assets(body: DeleteRequest):
-    """Delete one or more gallery assets permanently."""
+    """Delete one or more gallery assets permanently.
+
+    For batch-generated assets, updates the remaining siblings' metadata
+    to record the deletion context (original batch size and deleted count),
+    so the UI can inform the user when reloading a partial batch.
+    """
     deleted = []
     not_found = []
+
+    # Group deletions by batch_id so we can update siblings efficiently
+    batch_deletions: dict[str, list[str]] = {}
+
     for asset_id in body.ids:
+        meta = _get_meta(asset_id)
+        if meta and meta.get("batch_id"):
+            bid = meta["batch_id"]
+            batch_deletions.setdefault(bid, []).append(asset_id)
+
         if store.delete_generated_asset(asset_id):
-            # Clear from metadata cache
             _meta_cache.pop(asset_id, None)
             deleted.append(asset_id)
             logger.info("Deleted gallery asset: %s", asset_id)
         else:
             not_found.append(asset_id)
+
+    # Update surviving siblings with deletion context
+    if batch_deletions:
+        all_ids = store.list_generated_ids()
+        for bid, del_ids in batch_deletions.items():
+            for aid in all_ids:
+                if not aid.startswith(bid + "_") or aid in deleted:
+                    continue
+                sibling_meta = store.load_generation_metadata(aid)
+                if not sibling_meta or sibling_meta.get("batch_id") != bid:
+                    continue
+                # Record how many were deleted from this batch.
+                # original_num_options/variations preserve the generation-time values;
+                # num_options/variations in metadata are the generation-time counts.
+                prev_deleted = sibling_meta.get("batch_deleted_count", 0)
+                orig_options = sibling_meta.get("original_num_options") or sibling_meta.get("num_options") or 1
+                orig_variations = sibling_meta.get("original_num_variations") or sibling_meta.get("num_variations") or 1
+                sibling_meta["batch_deleted_count"] = prev_deleted + len(del_ids)
+                sibling_meta["original_num_options"] = orig_options
+                sibling_meta["original_num_variations"] = orig_variations
+                store.save_generation_metadata(aid, sibling_meta)
+                _meta_cache.pop(aid, None)  # Invalidate cache
+
     return {"deleted": deleted, "not_found": not_found}
 
 
