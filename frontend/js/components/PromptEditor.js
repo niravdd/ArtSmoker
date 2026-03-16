@@ -54,6 +54,11 @@
             return !!this._composedText && this._userComposed;
         }
 
+        /** Get the negative prompt extracted during composition. */
+        getNegativePrompt() {
+            return this._negativePrompt || '';
+        }
+
         setText(text) {
             this._textareaEl.value = text;
             this._updateCharCount();
@@ -227,6 +232,7 @@
 
                 this._originalText = text;
                 this._composedText = composed;
+                this._negativePrompt = result.negative_prompt || '';
                 this._userComposed = true;  // User explicitly clicked Compose
                 this._showComposed(composed);
             } catch (err) {
@@ -246,6 +252,7 @@
 
         _clearComposed() {
             this._composedText = null;
+            this._negativePrompt = '';
             this._userComposed = false;
             this._composedPanel.classList.add('hidden');
             this._composedTextarea.value = '';

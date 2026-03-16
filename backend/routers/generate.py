@@ -139,6 +139,8 @@ def _build_variant(
         "batch_id": batch_id,
         "option_index": option_index,
         "variant_index": variant_index,
+        "num_options": body.num_options,
+        "num_variations": body.num_variations,
         "original_prompt": body.original_prompt,
         "moderation_original": body.moderation_original,
         "prompt": body.prompt,
@@ -264,16 +266,20 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         except Exception as exc:
             raise HTTPException(502, detail=f"Prompt generation failed: {exc}") from exc
 
+    # Capture the negative prompt: either from refinement (set by refine_prompt /
+    # generate_concept_prompts) or carried from the Compose step via the request body
+    negative_prompt = get_last_negative_prompt()
+    if not negative_prompt and body.negative_prompt:
+        negative_prompt = body.negative_prompt
+        logger.info("Using negative prompt from pre-composed request: %s", negative_prompt[:100])
+    elif negative_prompt:
+        logger.info("Using negative prompt from refinement: %s", negative_prompt[:100])
+
     # Emit the composed/refined prompts so the frontend can display them
     emit({"type": "prompts_ready",
           "prompts": concept_prompts,
+          "negative_prompt": negative_prompt or "",
           "pre_composed": body.pre_composed})
-
-    # Capture the negative prompt extracted during refinement
-    # (only relevant for single-option refinement; concept prompts handle their own)
-    negative_prompt = get_last_negative_prompt()
-    if negative_prompt:
-        logger.info("Using negative prompt: %s", negative_prompt[:100])
 
     emit({"type": "stage", "stage": "generating",
           "message": f"Generating {total} images...", "prompts_done": len(concept_prompts)})
@@ -456,6 +462,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         id=batch_id,
         prompt=body.prompt,
         original_prompt=body.original_prompt,
+        negative_prompt=negative_prompt or None,
         style_id=body.style_id,
         asset_type=body.asset_type.value,
         image_model=body.image_model.value,

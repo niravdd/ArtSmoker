@@ -180,6 +180,11 @@
                     <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Generation Prompt (sent to image model)</label>
                     <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._esc(meta.refined_prompt)}</p>
                 </div>` : ''}
+                ${meta.negative_prompt ? `
+                <div>
+                    <label class="block text-xs text-red-400/80 uppercase tracking-wider mb-1">Negative Prompt (exclusions sent to model)</label>
+                    <p class="p-3 rounded-lg bg-red-950/20 border border-red-900/20 whitespace-pre-wrap text-red-300/70 italic text-sm">${this._esc(meta.negative_prompt)}</p>
+                </div>` : ''}
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <div>
                         <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Style</label>
@@ -314,11 +319,12 @@
                 if (!item) return;
                 this.close();
                 window.location.hash = '#type-studio';
-                // Wait for Type Studio DOM to be ready
+                await new Promise(r => setTimeout(r, 0)); // yield for hashchange
                 const start = Date.now();
-                while (!document.getElementById('ts-style') && (Date.now() - start) < 5000) {
+                while (!document.getElementById('ts-style') && (Date.now() - start) < 10000) {
                     await new Promise(r => setTimeout(r, 100));
                 }
+                await new Promise(r => setTimeout(r, 200)); // let init/onShow finish
                 if (window.TypeStudio?.loadSourceImage) {
                     window.TypeStudio.loadSourceImage(item.id, item.style_id);
                 }
@@ -333,10 +339,12 @@
                 }
                 this.close();
                 window.location.hash = '#type-studio';
+                await new Promise(r => setTimeout(r, 0)); // yield for hashchange
                 const start = Date.now();
-                while (!document.getElementById('ts-style') && (Date.now() - start) < 5000) {
+                while (!document.getElementById('ts-style') && (Date.now() - start) < 10000) {
                     await new Promise(r => setTimeout(r, 100));
                 }
+                await new Promise(r => setTimeout(r, 200)); // let init/onShow finish
                 if (window.TypeStudio?.loadFromMeta) {
                     window.TypeStudio.loadFromMeta(meta);
                 }

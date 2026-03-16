@@ -328,6 +328,65 @@ def _parse_negative_prompt(raw: str) -> tuple[str, str]:
     return ' '.join(main_lines), negative
 
 
+import re as _re
+
+# Pattern: "No X", "no X, no Y", "without X", "DO NOT include X" etc.
+# Captures the negation phrase and the term(s) that follow.
+_NEGATION_PATTERN = _re.compile(
+    r'\b(?:no|not|without|don\'t|do\s+not|never)\s+'
+    r'([^,.;]+(?:,\s*(?:no\s+)?[^,.;]+)*)',
+    _re.IGNORECASE,
+)
+
+
+def _strip_negation_phrases(prompt: str) -> tuple[str, str]:
+    """Remove negation phrases from a prompt and return (cleaned_prompt, extracted_negatives).
+
+    E.g. "A warrior on a field. No text, no UI, no dice, no scene background."
+    → ("A warrior on a field.", "text, UI, dice, scene background")
+    """
+    negatives = []
+    # Words to strip from the start of extracted negative terms
+    _STRIP_LEADING = _re.compile(
+        r'^(?:include\s+|add\s+|have\s+|render\s+|show\s+|use\s+|put\s+|place\s+|'
+        r'any\s+|the\s+|a\s+|an\s+|without\s+|in\s+)',
+        _re.IGNORECASE,
+    )
+    def _collect(match):
+        raw = match.group(1).strip().rstrip('.,;')
+        # Split "no X, no Y, no Z" into individual terms
+        terms = _re.split(r',\s*(?:no\s+|without\s+)?', raw, flags=_re.IGNORECASE)
+        for t in terms:
+            t = t.strip().rstrip('.,;')
+            # Strip leading verbs/articles for cleaner negative terms
+            t = _STRIP_LEADING.sub('', t).strip()
+            if t and len(t) > 1:
+                negatives.append(t)
+        return ''  # Remove the whole negation phrase
+
+    cleaned = _NEGATION_PATTERN.sub(_collect, prompt)
+    # Clean up: remove double spaces, trailing punctuation artifacts
+    cleaned = _re.sub(r'\s{2,}', ' ', cleaned).strip()
+    cleaned = _re.sub(r'[,;]\s*[,;]', ',', cleaned)  # collapse double commas
+    cleaned = _re.sub(r'\.\s*\.', '.', cleaned)  # collapse double periods
+    cleaned = cleaned.strip(' ,;')
+
+    return cleaned, ', '.join(negatives)
+
+
+def _deduplicate_negative(parts: list[str]) -> str:
+    """Combine and deduplicate negative prompt fragments from multiple sources."""
+    all_terms = []
+    seen = set()
+    for part in parts:
+        for term in part.split(','):
+            term = term.strip().lower()
+            if term and term not in seen:
+                seen.add(term)
+                all_terms.append(term)
+    return ', '.join(all_terms)
+
+
 def refine_prompt(
     user_prompt: str,
     style_profile: StyleProfile | None,
@@ -461,8 +520,15 @@ Each concept must:
 3. Be a self-contained image-generation prompt under {max_chars} characters
 4. Be visually distinct enough that an artist would see them as different options
 
+IMPORTANT: Do NOT use negation words ("no", "not", "without", "DO NOT") in the prompts
+themselves. Instead, describe what you WANT positively. If exclusions are needed for
+ALL concepts (e.g. "blurry, text, watermark"), include a final entry in the array
+prefixed with "NEGATIVE:" — this will be sent separately via the model's negative
+prompt parameter.
+
 Return a JSON array of strings — each string is a complete image-generation prompt.
-Example: ["prompt 1...", "prompt 2...", ...]
+The last entry MAY optionally be a "NEGATIVE: ..." entry for shared exclusions.
+Example: ["prompt 1...", "prompt 2...", "NEGATIVE: blurry, text, watermark"]
 
 Return ONLY the JSON array. No markdown fences, no explanation.
 """
@@ -521,10 +587,35 @@ def generate_concept_prompts(
         single = refine_prompt(user_prompt, style_profile, asset_type, image_model)
         return [single] * num_options
 
+    # Check if the last entry is a NEGATIVE: line (shared exclusions)
+    negative_parts = []
+    actual_prompts = []
+    for c in concepts:
+        p = str(c).strip()
+        if p.upper().startswith("NEGATIVE:"):
+            negative_parts.append(p[9:].strip())
+        else:
+            actual_prompts.append(p)
+
+    # Post-process each concept prompt: strip negation phrases and collect
+    # them into the shared negative prompt. The AI often embeds "No X, no Y"
+    # directly in concept prompts despite being told not to.
+    cleaned_prompts = []
+    for p in actual_prompts[:num_options]:
+        cleaned, per_prompt_neg = _strip_negation_phrases(p)
+        if per_prompt_neg:
+            negative_parts.append(per_prompt_neg)
+        cleaned_prompts.append(cleaned)
+
+    # Deduplicate and store the combined negative prompt
+    negative = _deduplicate_negative(negative_parts)
+    if negative:
+        _last_negative_var.set(negative)
+        logger.info("Concept generation negative prompt: %s", negative[:100])
+
     # Truncate each prompt to model-specific limit
     result = []
-    for c in concepts[:num_options]:
-        p = str(c).strip()
+    for p in cleaned_prompts:
         if len(p) > max_chars:
             p = p[:max_chars - 4].rsplit(" ", 1)[0]
         result.append(p)

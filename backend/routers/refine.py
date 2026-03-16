@@ -7,7 +7,7 @@ from fastapi import APIRouter, HTTPException
 
 from backend.models.generation_request import PromptRefineRequest
 from backend.models.style_profile import StyleProfile
-from backend.services.prompt_engineer import refine_prompt
+from backend.services.prompt_engineer import get_last_negative_prompt, refine_prompt
 from backend.storage.local_store import store
 
 logger = logging.getLogger(__name__)
@@ -44,5 +44,6 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
             detail=f"Prompt refinement failed: {exc}",
         ) from exc
 
-    logger.info("Prompt refined: %d chars -> %d chars", len(body.prompt), len(refined))
-    return {"original": body.prompt, "refined": refined}
+    negative = get_last_negative_prompt()
+    logger.info("Prompt refined: %d chars -> %d chars (negative: %s)", len(body.prompt), len(refined), negative[:80] if negative else "none")
+    return {"original": body.prompt, "refined": refined, "negative_prompt": negative or ""}

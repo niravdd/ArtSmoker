@@ -23,6 +23,7 @@ class GenerationResult(BaseModel):
     id: str
     prompt: str
     original_prompt: str | None = None
+    negative_prompt: str | None = None
     style_id: str | None = None
     asset_type: str
     image_model: str

@@ -42,6 +42,7 @@
         _result: null,
         _selectedOption: 0,
         _selectedVariant: 0,
+        _lastNegativePrompt: '',
 
         render() {
             return `
@@ -211,7 +212,7 @@
                                 </button>
                             </div>
 
-                            <!-- Prompt info (original + AI-improved) -->
+                            <!-- Prompt info (original + AI-improved + negative) -->
                             <div id="gen-prompt-info" class="hidden card-static p-4 space-y-3">
                                 <div id="gen-original-prompt-section">
                                     <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">Original prompt</p>
@@ -220,6 +221,10 @@
                                 <div id="gen-used-prompt-section">
                                     <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">AI-improved prompt (sent to generator)</p>
                                     <p id="gen-used-prompt-text" class="text-sm text-brand-text/60 leading-relaxed"></p>
+                                </div>
+                                <div id="gen-negative-prompt-section" class="hidden">
+                                    <p class="text-[10px] text-red-400/80 uppercase tracking-wider font-semibold mb-1">Negative prompt (exclusions sent to model)</p>
+                                    <p id="gen-negative-prompt-text" class="text-sm text-red-300/60 leading-relaxed italic"></p>
                                 </div>
                             </div>
 
@@ -418,11 +423,15 @@
 
             const moderationOriginal = this._promptEditor?._moderationOriginal || null;
 
+            // Carry the negative prompt from the Compose step (if user pre-composed)
+            const composedNegative = this._promptEditor?.getNegativePrompt?.() || '';
+
             const payload = {
                 prompt: hasComposed ? prompt : userPrompt,
                 original_prompt: userPrompt,
                 pre_composed: hasComposed || false,
                 moderation_original: moderationOriginal || null,
+                negative_prompt: composedNegative,
                 style_id: this._getStyleId() || null,
                 asset_type: this._getAssetType(),
                 image_model: document.getElementById('gen-model').value,
@@ -469,11 +478,17 @@
                 const result = await API.generateStream(payload, (evt) => {
                     this._handleProgressEvent(evt, total);
                     // Show the composed/refined prompts in the editor
-                    if (evt.type === 'prompts_ready' && this._promptEditor) {
-                        const prompts = evt.prompts || [];
-                        if (prompts.length > 0 && !evt.pre_composed) {
-                            // Backend refined the prompt — show it in the composed area
-                            this._promptEditor.setComposedText(prompts[0]);
+                    if (evt.type === 'prompts_ready') {
+                        if (this._promptEditor) {
+                            const prompts = evt.prompts || [];
+                            if (prompts.length > 0 && !evt.pre_composed) {
+                                // Backend refined the prompt — show it in the composed area
+                                this._promptEditor.setComposedText(prompts[0]);
+                            }
+                        }
+                        // Capture negative prompt for display after generation
+                        if (evt.negative_prompt) {
+                            this._lastNegativePrompt = evt.negative_prompt;
                         }
                     }
                     // Track moderation blocks
@@ -1197,6 +1212,19 @@
                 }
             }
 
+            // Show negative prompt if present (check all sources)
+            const negSection = document.getElementById('gen-negative-prompt-section');
+            const negText = document.getElementById('gen-negative-prompt-text');
+            const negPrompt = result.negative_prompt
+                || this._lastNegativePrompt
+                || (this._promptEditor?.getNegativePrompt?.() || '');
+            if (negSection && negText && negPrompt) {
+                negSection.classList.remove('hidden');
+                negText.textContent = negPrompt;
+            } else if (negSection) {
+                negSection.classList.add('hidden');
+            }
+
             // Show options row
             this._renderOptionsRow(options);
 
@@ -1396,18 +1424,28 @@
         // ── Load batch from Gallery ──────────────────────────────────
 
         async loadBatch(batchId) {
-            // Navigate to generator view first
+            window.showLoading?.('Loading batch...');
+
+            // Navigate to image-studio and wait for the view to be fully ready.
+            // Setting the hash triggers navigate() via hashchange, but navigate()
+            // is async (may need to render + init the view). We need to ensure
+            // the DOM is fully built before we write batch data into it.
             window.location.hash = '#image-studio';
 
-            // Wait until the view's DOM is actually ready
-            // (navigate() is async — init() loads styles from API which takes time)
-            const maxWait = 5000;
+            // Yield to let the hashchange event fire and navigate() start
+            await new Promise(r => setTimeout(r, 0));
+
+            // Wait until the view's DOM is actually ready — poll for a known
+            // element that only exists after render() + init() complete.
+            const maxWait = 10000;
             const start = Date.now();
             while (!document.getElementById('gen-preview') && (Date.now() - start) < maxWait) {
                 await new Promise(r => setTimeout(r, 100));
             }
 
-            window.showLoading?.('Loading batch...');
+            // Extra yield to let any pending init() / onShow() finish
+            await new Promise(r => setTimeout(r, 200));
+
             try {
                 const result = await API.gallery.getBatch(batchId);
                 this._result = result;
@@ -1468,7 +1506,22 @@
                 this._renderResults(result);
 
                 window.hideLoading?.();
-                window.showToast?.(`Batch loaded: ${result.num_options} options x ${result.num_variations} variations`, 'success');
+
+                // Inform user about batch state — full or partial
+                const surviving = result.batch_surviving_count || 0;
+                const originalTotal = result.batch_original_total || 0;
+                const deletedCount = result.batch_deleted_count || 0;
+                if (deletedCount > 0 && originalTotal > 0) {
+                    window.showToast?.(
+                        `Batch loaded: ${surviving} of ${originalTotal} images remaining (${deletedCount} deleted from gallery)`,
+                        'info', 6000
+                    );
+                } else {
+                    window.showToast?.(
+                        `Batch loaded: ${result.num_options} options \u00d7 ${result.num_variations} variations`,
+                        'success'
+                    );
+                }
             } catch (err) {
                 window.hideLoading?.();
                 console.error('Failed to load batch:', err);

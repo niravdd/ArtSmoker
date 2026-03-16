@@ -34,6 +34,7 @@ class GenerationRequest(BaseModel):
     remove_background: bool = True
     generate_svg: bool = True
     upscale: bool = False
+    negative_prompt: str = ""  # Carried from Compose step when pre_composed=True
     ip_owned: bool = False
     ip_licensed: bool = False
 
