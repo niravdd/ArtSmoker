@@ -430,4 +430,3 @@ def invoke_upscale(image_bytes: bytes, prompt: str = "") -> bytes:
     png_buf = io.BytesIO()
     img.save(png_buf, format="PNG")
     return png_buf.getvalue()
-    return base64.b64decode(result["image"])

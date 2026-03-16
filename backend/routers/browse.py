@@ -20,6 +20,11 @@ async def browse_local(path: str = Query(default="~")):
     """List contents of a local directory.
 
     Returns directories and image files, sorted with directories first.
+
+    SECURITY NOTE: This endpoint is designed for local/trusted use only.
+    It allows browsing any directory the server process can access.
+    Do not expose this endpoint to untrusted networks without adding
+    authentication and path restrictions.
     """
     target = Path(path.strip().strip('"').strip("'")).expanduser().resolve()
 

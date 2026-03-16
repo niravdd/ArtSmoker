@@ -138,15 +138,16 @@ def _attempt_streaming_transcription(
         logger.warning("Nova Sonic returned no transcript fragments.")
         return None
 
-    except client.exceptions.AccessDeniedException:
-        logger.warning(
-            "Access denied for Nova Sonic model '%s'. "
-            "Ensure the model is enabled in the %s region.",
-            settings.nova_sonic_model_id,
-            settings.aws_region_images,
-        )
-        return None
-    except Exception:
+    except Exception as exc:
+        exc_name = type(exc).__name__
+        if "AccessDenied" in exc_name or "AccessDenied" in str(exc):
+            logger.warning(
+                "Access denied for Nova Sonic model '%s'. "
+                "Ensure the model is enabled in the %s region.",
+                settings.nova_sonic_model_id,
+                settings.aws_region_images,
+            )
+            return None
         logger.exception(
             "Nova Sonic streaming transcription failed; "
             "will fall back to placeholder."

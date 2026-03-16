@@ -634,10 +634,25 @@ async def serve_font_file(source: str, filename: str):
     """
     from fastapi.responses import FileResponse
 
+    # Validate source and filename to prevent path traversal
+    if "/" in source or "\\" in source or ".." in source:
+        raise HTTPException(400, detail="Invalid source parameter")
+    if "/" in filename or "\\" in filename or ".." in filename:
+        raise HTTPException(400, detail="Invalid filename parameter")
+
     if source == "global":
         path = GLOBAL_FONTS_DIR / filename
     else:
         path = settings.styles_dir / source / "fonts" / filename
+
+    # Ensure resolved path stays within expected directories
+    resolved = path.resolve()
+    if source == "global":
+        if not str(resolved).startswith(str(GLOBAL_FONTS_DIR.resolve())):
+            raise HTTPException(400, detail="Invalid font path")
+    else:
+        if not str(resolved).startswith(str(settings.styles_dir.resolve())):
+            raise HTTPException(400, detail="Invalid font path")
 
     if not path.is_file():
         raise HTTPException(404, detail=f"Font file not found: {filename}")

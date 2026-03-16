@@ -1,6 +1,7 @@
 """Prompt engineering service — refines user prompts into detailed, optimised
 image-generation prompts using Claude Sonnet (fast) and Claude Opus (complex)."""
 
+import contextvars
 import json
 import logging
 
@@ -18,6 +19,11 @@ _MODEL_PROMPT_LIMITS: dict[str, int] = {
     ImageModel.STABLE_IMAGE_ULTRA.value: 2000,
 }
 _DEFAULT_PROMPT_LIMIT = 900
+
+# Request-scoped storage for the last negative prompt (thread/async safe)
+_last_negative_var: contextvars.ContextVar[str] = contextvars.ContextVar(
+    "_last_negative_var", default=""
+)
 
 
 def get_prompt_limit(image_model: str | None = None) -> int:
@@ -375,20 +381,16 @@ def refine_prompt(
         logger.info("Extracted negative prompt: %s", negative[:100])
 
     # Store negative prompt for retrieval by the generation pipeline
-    refine_prompt._last_negative = negative
+    _last_negative_var.set(negative)
 
     if len(main_prompt) > max_chars:
         main_prompt = main_prompt[:max_chars - 4].rsplit(" ", 1)[0]
     logger.info("Refined prompt (%d/%d chars): %s", len(main_prompt), max_chars, main_prompt[:150])
     return main_prompt
 
-# Class-level storage for the last negative prompt extracted
-refine_prompt._last_negative = ""
-
-
 def get_last_negative_prompt() -> str:
     """Retrieve the negative prompt from the most recent refine_prompt call."""
-    return getattr(refine_prompt, '_last_negative', '')
+    return _last_negative_var.get()
 
 
 def refine_marketing_prompt(
