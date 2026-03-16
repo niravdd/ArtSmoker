@@ -1,0 +1,4 @@
+# Treat generated SVGs as binary — they contain base64-encoded PNGs
+# whose hashes can trigger false-positive secret detection
+data/generated/**/*.svg binary
+*.svg linguist-vendored
