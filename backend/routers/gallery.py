@@ -89,7 +89,7 @@ async def get_batch(batch_id: str):
     """Reconstruct a full batch result (options × variations) from a batch_id.
 
     Returns a structure matching GenerationResult so the frontend can
-    reload a previous generation into the Generator view.
+    reload a previous generation into the ImageStudio view.
     """
     asset_ids = store.list_generated_ids()
     # Collect all variants belonging to this batch

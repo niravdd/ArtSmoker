@@ -2,7 +2,7 @@
  * ArtSmoker — AssetViewer Component
  *
  * Modal overlay showing full-size image, complete metadata,
- * and a "Reload in Generator" button.
+ * and a "Reload in 2D Image Studio" button.
  *
  * Usage:
  *   AssetViewer.open(galleryItem)   // opens modal, fetches full metadata
@@ -305,7 +305,7 @@
                 }
                 const batchId = meta.batch_id || meta.id;
                 this.close();
-                await Generator.loadBatch(batchId);
+                await ImageStudio.loadBatch(batchId);
             });
 
             // Add Text in Type Studio

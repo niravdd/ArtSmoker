@@ -1,5 +1,5 @@
 /**
- * ArtSmoker — Generator Component
+ * ArtSmoker — ImageStudio Component
  *
  * Two-level generation:
  *   Options    — distinctly different creative concepts
@@ -34,7 +34,7 @@
 
     const COUNT_OPTIONS = [1, 2, 3, 4, 5];
 
-    window.Generator = {
+    window.ImageStudio = {
         _styles: [],
         _promptEditor: null,
         _skipPreCheck: false,
@@ -301,7 +301,7 @@
             `;
         },
 
-        /** Called when navigating back to Generator (view already cached) */
+        /** Called when navigating back to ImageStudio (view already cached) */
         onShow() {
             this._loadStyles();
             this._ensurePromptEditor();

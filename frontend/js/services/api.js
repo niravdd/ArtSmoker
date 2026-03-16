@@ -276,7 +276,7 @@
                 });
             },
 
-            /** Get full batch (options × variations) for reloading into Generator */
+            /** Get full batch (options × variations) for reloading into ImageStudio */
             getBatch(batchId) {
                 return request(`/api/gallery/batch/${encodeURIComponent(batchId)}`);
             },

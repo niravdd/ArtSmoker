@@ -12,12 +12,12 @@
     // ============================================================
 
     const ROUTES = {
-        'image-studio': { component: window.Generator, label: '2D Image Studio' },
+        'image-studio': { component: window.ImageStudio, label: '2D Image Studio' },
         'type-studio':  { component: window.TypeStudio, label: 'Type Studio' },
         styles:         { component: window.StyleLibrary, label: 'Style Library' },
         gallery:        { component: window.Gallery, label: 'Gallery' },
         // Legacy alias so old #generator links still work
-        generator:      { component: window.Generator, label: '2D Image Studio', alias: true },
+        generator:      { component: window.ImageStudio, label: '2D Image Studio', alias: true },
     };
 
     const DEFAULT_ROUTE = 'image-studio';
