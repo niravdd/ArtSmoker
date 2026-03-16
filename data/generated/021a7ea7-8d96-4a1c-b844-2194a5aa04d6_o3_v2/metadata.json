@@ -1,0 +1,52 @@
+{
+  "id": "021a7ea7-8d96-4a1c-b844-2194a5aa04d6_o3_v2",
+  "batch_id": "021a7ea7-8d96-4a1c-b844-2194a5aa04d6",
+  "option_index": 3,
+  "variant_index": 2,
+  "original_prompt": "navigator",
+  "moderation_original": null,
+  "prompt": "navigator",
+  "refined_prompt": "A collectible dice asset in 3/4 front-facing dimetric perspective at 30-35 degrees above horizontal, slight rightward rotation, three visible faces. Pre-rendered 3D-to-2D sprite with rich painterly style. The front-right face depicts a Polynesian wayfinder navigator: a powerful tattooed voyager with traditional tapa cloth garments and a feathered headdress, standing on the prow of a carved outrigger canoe, one hand raised reading the stars reflected in calm Pacific waters, tropical night sky filled with bright southern constellations, background gradient from warm sunset orange at horizon to deep polynesian blue above, floating plumeria petals. The top face shows a painted traditional Polynesian star compass \u2014 a circular arrangement of shell markers and wave patterns indicating cardinal ocean swells on a turquoise lagoon gradient. The left face features a carved wooden tiki navigation totem with mother-of-pearl inlay eyes against warm mahogany brown gradient. Gold borders (#D4A017 to #E8C84A) with specular highlights, embossed baroque scrollwork incorporating Polynesian tribal wave and hook motifs, beveled edges, metallic sheen. Pillowed cube, generous radii, toylike, recessed shadow-box faces. Number '2' white fill magenta stroke extruded 3D raised. Transparent background, no shadow, sharp edges, top-left lighting, rim lights.",
+  "negative_prompt": "",
+  "style_id": "prop-ludo-club",
+  "style_snapshot": {
+    "name": "[Prop] Ludo Club",
+    "description": "",
+    "generation_hints": "Render the dice asset from a 3/4 front-facing dimetric perspective at approximately 30\u201335 degrees above horizontal with a slight rightward rotation, simultaneously showing three faces \u2014 the front-right face most prominent, the top face receding upper-left, and the left face partially visible. Use high-fidelity pre-rendered 3D-to-2D sprite technique with rich painterly digital illustration on each face: smooth gradient shading blended with hand-painted character artwork featuring soft ambient lighting and subtle rim lights. Gold borders use warm yellow-gold (#D4A017 to #E8C84A) with bright specular highlights, embossed baroque scrollwork relief, visible edge beveling, and metallic sheen transitioning from bright highlight to deep amber shadow. Face interiors feature saturated digital paintings densely packed with thematic characters, decorative particles, and background gradients. The cube body is slightly pillowed with generous corner radii and a soft toylike quality; faces appear subtly recessed within the gold frame creating a shadow-box effect. No hard outlines on the cube form \u2014 edges defined entirely by gold border framing, specular highlights, and material contrast; character illustrations use soft painted edges. Numbers are bold 3D extruded typography with white fill, magenta/pink stroke outline, and subtle drop shadow, appearing slightly raised. Render on a fully transparent background with no baked-in drop shadow.",
+    "analyzed_style": {
+      "perspective": "3/4 front-facing perspective at approximately 30-35 degrees above and slightly rotated, showing three visible faces of a cube simultaneously. Consistent isometric-like dimetric view with the front-right face most prominent, top face receding upward-left, and left face partially visible. Occasional straight-on front views for flat UI card/tile presentations.",
+      "palette": [
+        "#D4A017",
+        "#E8C84A",
+        "#1A1A5E",
+        "#E91E8C",
+        "#4A2D8C",
+        "#2ECC71",
+        "#F5F5F5",
+        "#FF4444"
+      ],
+      "rendering": "High-fidelity pre-rendered 3D-to-2D sprites with rich painterly digital illustration on each face. Surfaces combine smooth gradient shading with detailed hand-painted character illustrations. Gold metallic borders feature specular highlights, embossed relief scrollwork, and warm reflective sheen simulating polished gilded metal. Face artwork uses saturated digital painting with soft ambient lighting, subtle rim lights on characters, and layered depth through overlapping elements. Textures are dense and ornate \u2014 every surface is filled with decorative detail. Numbers rendered as bold 3D extruded typography with white fill, pink/magenta stroke, and subtle drop shadow.",
+      "line_weight": "No traditional outlines on the cube form itself \u2014 edges defined by gold border framing and material contrast. Character illustrations within faces use soft painted edges rather than hard line art. Gold ornamental borders act as visual separators with embossed sculptural definition. Numbers have crisp hard edges with colored stroke outlines (typically 2-3px magenta or dark outline). Overall form reads through material shading, specular highlights on gold edges, and color contrast rather than drawn lines.",
+      "mood": "Exuberant, celebratory, and premium-collectible. High-energy party/festival atmosphere with a sense of luxury and reward. Each dice skin feels like a special unlockable treasure \u2014 flashy, maximalist, and designed to feel exciting and valuable. Themes range from rock-concert energy to carnival festivity to holiday warmth, but all share an over-the-top joyful extravagance.",
+      "scale": "Dice rendered at approximately 400-512px for hero/showcase presentations, ~128-160px for in-game board usage, and ~64px for thumbnail/icon size. Proportions are slightly rounded/pillowed cubes with generous corner radii giving a soft toylike quality rather than sharp geometric edges. Characters on faces are rendered at roughly 60-70% of face area with numbers occupying 30-40% of lower portion.",
+      "background": "Transparent background for all standalone dice assets with no drop shadow baked in. Showcase/promotional contexts place dice on themed pedestals (ornate star-shaped platform, tree stump, round table, concert stage) with dramatic spotlighting, particle effects (confetti, sparkles, golden flakes), and radial glow behind the dice. UI contexts use dark gradient backgrounds (deep navy to purple) to make the gold borders and saturated face art pop.",
+      "materials": "Gold/gilded metal: Warm yellow-gold (#D4A017 to #E8C84A) with bright specular highlights, embossed baroque scrollwork relief, visible beveling on edges, and subtle warm ambient reflection. Rendered with metallic sheen showing light falloff from bright highlight to deep amber shadow. Face illustrations: Dense saturated digital paintings with smooth blended skin tones, fabric folds with soft shading, instrument details (guitar strings, fretboard grain), and scattered decorative elements (music notes, confetti, treble clefs). Typography: Glossy extruded 3D numbers with white core, pink/magenta outline stroke, and soft shadow \u2014 appears slightly raised from the face surface. Cube body: Slightly rounded corners with subtle edge beveling, faces appear slightly recessed within the gold frame creating a shadow-box effect.",
+      "detail_level": "Very high \u2014 maximalist surface detail throughout. Gold borders feature intricate baroque/rococo scrollwork with individual curls and flourishes visible even at medium scale. Character illustrations include fine details like individual guitar strings, sunglasses reflections, fabric wrinkles, hair strand groups, and scattered small decorative elements (musical notes, confetti pieces, stars). Every face is densely packed with visual information. Numbers have visible gradient shading and stroke detail. No empty space \u2014 backgrounds behind characters filled with thematic elements, color gradients, and floating decorative particles."
+    }
+  },
+  "asset_type": "game_asset",
+  "image_model": "sd35_large",
+  "width": 1024,
+  "height": 1024,
+  "seed": 256185319,
+  "remove_background": false,
+  "generate_svg": true,
+  "upscale": false,
+  "ip_owned": false,
+  "ip_licensed": false,
+  "png_path": "/api/gallery/021a7ea7-8d96-4a1c-b844-2194a5aa04d6_o3_v2/png",
+  "svg_path": "/api/gallery/021a7ea7-8d96-4a1c-b844-2194a5aa04d6_o3_v2/svg",
+  "png_filename": "navigator_opt4_var3.png",
+  "svg_filename": "navigator_opt4_var3.svg",
+  "created_at": "2026-03-16T06:17:39.388122"
+}
