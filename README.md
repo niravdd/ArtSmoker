@@ -390,7 +390,7 @@ Add text to images or generate standalone text assets with AI-designed typograph
 ### Gallery
 
 - **Search bar** for instant filtering across all assets.
-- **Multi-select** with checkboxes for bulk delete.
+- **Multi-select** with checkboxes for bulk delete. Deletions are **batch-aware** — surviving siblings track how many variants were removed, so reloading a partial batch in the Image Studio shows "X of Y images remaining (Z deleted)".
 - Images load immediately with an in-memory metadata cache. Sorted newest-first.
 - Pagination support (limit/offset) for large collections.
 - Gallery auto-refreshes when you navigate back to it.

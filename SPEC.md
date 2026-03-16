@@ -178,6 +178,9 @@ ArtSmoker/
 ├── data/
 │   ├── styles/                    # User-uploaded style profiles + reference images
 │   └── generated/                 # Output assets (PNG + SVG + metadata)
+├── .gitattributes                 # Marks generated SVGs as binary (secret scanner false-positive prevention)
+├── .github/
+│   └── secret_scanning.yml        # Excludes data/ and *.svg from GitHub secret scanning
 ├── SPEC.md                        # This file — full project specification
 └── README.md                      # Quick-start guide
 ```
@@ -346,7 +349,15 @@ The active limit is passed to all prompt refinement functions (`refine_prompt()`
 | Stable Diffusion 3.5 Large | Rich caption with boosters | Quality boosters (masterpiece, best quality), style tokens (concept art, artstation), 2000 char limit |
 | Stable Image Ultra | Photorealistic caption | Photorealistic quality boosters, cinematic lighting descriptors, 2000 char limit |
 
-**Negative prompt support**: All four image models receive a negative prompt parameter alongside the main prompt. Claude extracts exclusions to a separate "NEGATIVE:" line during prompt refinement, which is parsed by `_parse_negative_prompt()` and passed through the pipeline. Per AWS documentation, negation words should not appear in negative prompts either — only the terms to exclude (e.g. "blurry, text, watermark" not "no blurry, no text").
+**Negative prompt support**: All four image models receive a negative prompt parameter alongside the main prompt. Negative prompts are extracted through multiple mechanisms:
+
+1. **Single-option refinement**: `refine_prompt()` instructs Claude to output a `NEGATIVE:` line, parsed by `_parse_negative_prompt()`.
+2. **Multi-option concept generation**: `generate_concept_prompts()` applies two extraction layers:
+   - Checks if the AI returned a `NEGATIVE:` entry as the last item in the JSON array.
+   - Post-processes each concept prompt with `_strip_negation_phrases()` — a regex-based extractor that finds embedded negation patterns ("No X", "not Y", "without Z", "DO NOT include W") and strips them from the main prompt, collecting the negated terms into a shared negative prompt. Terms are deduplicated via `_deduplicate_negative()`.
+3. **Pre-composed prompts**: When the user clicks "Compose Generation Prompt" first, the `/api/refine-prompt` endpoint returns `negative_prompt` in its response. The frontend sends this back in the `GenerationRequest.negative_prompt` field so it survives the pre-composed path (which skips backend refinement).
+
+The negative prompt is stored in per-variant `metadata.json`, included in SSE events (`prompts_ready` and `complete`), and displayed in the ImageStudio (red-labeled "Negative prompt — exclusions sent to model" section) and AssetViewer (metadata tab). Per AWS documentation, negation words should not appear in negative prompts either — only the terms to exclude (e.g. "blurry, text, watermark" not "no blurry, no text").
 
 | Model | Negative Prompt Parameter |
 |-------|--------------------------|
@@ -418,7 +429,7 @@ GenerationResult
 └── created_at: datetime
 ```
 
-Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant also stores `original_prompt` alongside the other generation fields. A `moderation_original` field stores the pre-moderation-rewrite prompt when applicable. A `negative_prompt` field stores the extracted negative prompt (exclusion terms) when present. IP declaration fields (`ip_owned`, `ip_licensed`) are stored when the user asserts IP rights. Full prompt lineage is: `original_prompt` (user's raw input) -> AI-improved prompt -> `moderation_original` (if the prompt was rewritten to pass moderation) -> `prompt` (final prompt sent to the image model) + `negative_prompt` (exclusion terms sent separately).
+Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant stores: `original_prompt`, `moderation_original` (pre-rewrite prompt when applicable), `negative_prompt` (extracted exclusion terms), `num_options` and `num_variations` (generation-time batch dimensions — used for partial batch tracking after deletions), IP declaration fields (`ip_owned`, `ip_licensed`), and all other generation parameters. Full prompt lineage is: `original_prompt` (user's raw input) → AI-improved prompt → `moderation_original` (if rewritten to pass moderation) → `prompt` (final prompt sent to the image model) + `negative_prompt` (exclusion terms sent separately).
 
 **Style snapshot in metadata**: Each generated asset (from both 2D Image Studio and Type Studio) stores a `style_snapshot` object capturing the style's state at generation time:
 ```json
@@ -473,8 +484,8 @@ Clean, modern single-page application served as static files mounted at `/` by F
   - **Dynamic note under button**: Reflects current style selection — "Your prompt will be composed with the selected style guidelines..." when a style is active, vs "No style selected — AI will enhance with composition, lighting, and quality details" when no style is selected.
   - **Flow**: If a composed prompt exists, it is sent directly to the image model (no double-refinement). If the user skips Compose and clicks Generate, the backend auto-refines and shows the result in the composed area via SSE (`prompts_ready` event). Editing the original prompt **clears** the composed prompt (forces re-composition).
   - **Prompt Editor DOM fix**: `document.contains()` check ensures the textarea is in the live DOM after view reset, preventing stale references.
-  - **Prompt info section**: After generation, shows original prompt, composed prompt, and concept prompts for full lineage visibility.
-  - Voice input and `loadBatch(batchId)` restore a previous batch from the Gallery into the 2D Image Studio view. `ensurePromptEditor()` is called on show/loadBatch for robust initialization.
+  - **Prompt info section**: After generation, shows: original prompt, AI-improved prompt, **negative prompt** (red-labeled "exclusions sent to model", hidden when empty), and concept prompts for full lineage visibility.
+  - Voice input and `loadBatch(batchId)` restore a previous batch from the Gallery into the 2D Image Studio view. `ensurePromptEditor()` is called on show/loadBatch for robust initialization. The loadBatch navigation uses a yield-then-poll pattern: sets the hash, yields to let the `hashchange` event fire, polls for a DOM element (up to 10s), then adds a 200ms settling delay to let `init()`/`onShow()` finish before writing batch data into the DOM. For partial batches (where some variants were deleted from Gallery), the toast shows "X of Y images remaining (Z deleted)" instead of the normal batch summary.
 - **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge, and a truncated concept prompt. Click to select an option — clicking an option or variation thumbnail also **scrolls to the full preview**.
 - **Concept prompt display**: Shows the full refined prompt for the selected option.
 - **Variations row** (emerald borders): Shows seed variants of the selected option. Click to select a variation.
@@ -537,7 +548,7 @@ If there is only one option, the options row is hidden. If there is only one var
 - **Multi-select**: Checkboxes on each asset card for bulk selection. A **"Delete Selected"** button triggers `DELETE /api/gallery/` with `{ids: [...]}` for bulk deletion.
 - Click any asset to open the AssetViewer.
 
-**AssetViewer** — Full-size preview + download. Fetches full metadata from `GET /api/gallery/{id}` on open. Displays all available fields: original prompt, AI-improved prompt, generation prompt, negative prompt (when present), style (from `style_snapshot` as fallback if the original style was deleted), asset type, image model (with friendly labels), dimensions, seed, batch ID, option/variation index, IP declaration status (when declared), filename, and creation date. The **SVG tab/button is hidden** when no SVG file exists for the asset. Metadata display adapts for Type Studio assets (shows text content, font choices, layout parameters instead of generation prompts).
+**AssetViewer** — Full-size preview + download. Fetches full metadata from `GET /api/gallery/{id}` on open. Displays all available fields: original prompt, AI-improved prompt, generation prompt, negative prompt (when present — displayed with red-tinted styling to visually distinguish exclusions from positive prompts), style (from `style_snapshot` as fallback if the original style was deleted), asset type, image model (with friendly labels), dimensions, seed, batch ID, option/variation index, IP declaration status (when declared), filename, and creation date. The **SVG tab/button is hidden** when no SVG file exists for the asset. Metadata display adapts for Type Studio assets (shows text content, font choices, layout parameters instead of generation prompts).
 - **Contextual action buttons**:
   - **"2D Studio"** (indigo) — visible for image-type assets only. Sends the batch back to the 2D Image Studio view.
   - **"Add Text"** (emerald) — visible for image-type assets only. Opens Type Studio in "On Image" mode with this asset as the base image.
@@ -793,6 +804,7 @@ Fields:
 - `remove_background` (default true): Run Stability AI background removal.
 - `generate_svg` (default true): Convert to SVG.
 - `upscale` (default false): Run Stability AI upscaling.
+- `negative_prompt` (default ""): Negative prompt carried from the Compose step. When `pre_composed` is true and refinement is skipped, the backend uses this value instead of extracting from refinement.
 - `ip_owned` (default false): User asserts IP ownership over the content.
 - `ip_licensed` (default false): User asserts licensing rights. Both IP fields are stored in per-variant metadata for audit trail.
 
@@ -818,7 +830,8 @@ Fields:
 ```json
 {
   "original": "hospital building",
-  "refined": "Isometric low-poly hospital building, flat shading, white and red..."
+  "refined": "Isometric low-poly hospital building, flat shading, white and red...",
+  "negative_prompt": "text, watermark, blurry"
 }
 ```
 
@@ -843,8 +856,8 @@ Fields:
 | GET | `/api/gallery/{id}` | Get the full metadata dictionary for a generated asset (includes `style_snapshot`). |
 | GET | `/api/gallery/{id}/png` | Download the PNG file. `Content-Disposition` header uses the smart filename (e.g. `prompt-slug_opt1_var2.png`). |
 | GET | `/api/gallery/{id}/svg` | Download the SVG file. `Content-Disposition` header uses the smart filename. |
-| DELETE | `/api/gallery/` | Bulk delete assets. Request body: `{ "ids": ["asset_id_1", "asset_id_2", ...] }`. Deletes the asset directories and their contents from disk. Returns count of deleted assets. |
-| GET | `/api/gallery/batch/{batch_id}` | Reconstruct the full options x variations structure for a batch (includes `style_snapshot` per variant). Used to reload a previous batch into the 2D Image Studio view. |
+| DELETE | `/api/gallery/` | Bulk delete assets. Request body: `{ "ids": ["asset_id_1", "asset_id_2", ...] }`. Deletes the asset directories and their contents from disk. Returns `{deleted, not_found}`. **Batch-aware**: when deleting batch assets, updates surviving siblings' metadata with `batch_deleted_count`, `original_num_options`, and `original_num_variations` so the system can report partial batch context on reload. |
+| GET | `/api/gallery/batch/{batch_id}` | Reconstruct the full options × variations structure for a batch (includes `style_snapshot` and `negative_prompt` per variant). Returns enriched batch context: `batch_surviving_count`, `batch_original_total`, `batch_deleted_count`, `original_num_options`, `original_num_variations` — so the frontend can display "4 of 25 images remaining (21 deleted)" when loading a partial batch. |
 
 ### Type Studio
 
