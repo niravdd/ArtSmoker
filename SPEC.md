@@ -113,6 +113,8 @@ ArtSmoker/
 │   │   ├── transcribe.py          # Voice transcription endpoint
 │   │   ├── refine.py              # Prompt refinement preview endpoint
 │   │   ├── gallery.py             # Generated asset browsing + file serving
+│   │   ├── browse.py              # Server-side file/S3 browser for reference import
+│   │   ├── typestudio.py          # Type Studio: text overlay, font serving, AI layout
 │   │   └── admin.py               # Model registry admin API + Bedrock model discovery
 │   ├── services/
 │   │   ├── model_registry.py      # Model registry manager: loads/saves model_registry.json, provides config to system
@@ -148,7 +150,7 @@ ArtSmoker/
 │   │   │   └── ModelSettings.js   # Model registry admin UI (modal)
 │   │   └── services/
 │   │       └── api.js             # Backend API client
-│   └── assets/                    # Static assets (icons, etc.)
+│   └── (no build step — served as static files by FastAPI)
 ├── data/
 │   ├── styles/                    # User-uploaded style profiles + reference images
 │   └── generated/                 # Output assets (PNG + SVG + metadata)
@@ -398,7 +400,7 @@ This ensures that if the original style profile is later deleted or modified, th
 - Browser captures audio via `MediaRecorder` API (WebM/Opus format).
 - Audio file sent to backend `POST /api/transcribe/` as a multipart upload.
 - Backend attempts Nova Sonic bidirectional streaming transcription (`invoke_model_with_bidirectional_stream`).
-- If streaming API is unavailable or access is denied, returns a placeholder message indicating the audio was received but full transcription requires streaming setup.
+- **Current limitation**: Nova Sonic requires the bidirectional streaming API, which depends on a compatible boto3 version. If the streaming API is unavailable, access is denied, or the API call fails, the service returns a placeholder message indicating audio was received but transcription requires streaming setup. Full transcription works when Nova Sonic streaming is properly configured in the us-east-1 region.
 - Transcribed text displayed in prompt editor for user review/editing.
 
 ### 6. Frontend Design
@@ -820,6 +822,19 @@ On launch, ArtSmoker automatically validates:
 3. Bedrock Nova Canvas access works in us-east-1
 
 Results are logged to the console and available at `GET /api/health`. If credentials are missing, a clear error message shows what to configure.
+
+## Security Model
+
+ArtSmoker is designed as a **local/trusted-network development tool** — it runs on the developer's own machine or a private EC2 instance. The security model reflects this:
+
+- **No authentication**: There is no login system. All API endpoints are open. This is appropriate for Phase 1 (local development) and Phase 2 (private team deployment). Phase 4 adds Cognito authentication.
+- **Filesystem browser**: The `GET /api/browse/local` endpoint allows browsing any directory the server process can access. This is intentional — the user is browsing their own machine to select reference art. **Do not expose this endpoint to untrusted networks** without adding authentication and path restrictions.
+- **Font file serving**: The `GET /api/type-studio/font-file/{source}/{filename}` endpoint validates that path components do not contain traversal characters (`..`, `/`, `\`), and verifies the resolved path stays within expected directories.
+- **S3 access**: S3 browsing and imports use the server's AWS credentials. The user can access any S3 bucket their IAM role permits.
+- **Client-side logging**: The `POST /api/log` endpoint accepts arbitrary log messages. In a multi-user deployment, this should be rate-limited.
+
+> [!IMPORTANT]
+> For production deployments beyond a trusted team, add authentication (see Phase 4 roadmap), restrict the browse endpoint to allowed directories, and place the service behind a reverse proxy with TLS.
 
 ## Configuration
 

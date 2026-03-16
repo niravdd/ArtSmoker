@@ -100,6 +100,47 @@ Attach an IAM role with `bedrock:InvokeModel` and `bedrock:Converse` permissions
 
 On startup, the app validates your AWS credentials and Bedrock access. Check the console output or hit `/api/health` to see the status.
 
+## Architecture
+
+```
+┌─────────────────────────────────────────────┐
+│  Browser (SPA)                              │
+│  Vanilla JS + Tailwind CSS                  │
+└──────────────────────┬──────────────────────┘
+                       │ HTTP / SSE
+                       ▼
+┌─────────────────────────────────────────────┐
+│  FastAPI Backend (Python)                   │
+│                                             │
+│  /api/styles      Style CRUD + import       │
+│  /api/generate    Two-level generation      │
+│  /api/type-studio Text overlay + fonts      │
+│  /api/gallery     Asset browsing + export   │
+│  /api/browse      File/S3 browser           │
+│  /api/admin       Model registry mgmt       │
+│  /api/transcribe  Voice-to-text             │
+│  /api/refine-prompt  Prompt preview         │
+└────────────┬────────────────────┬───────────┘
+             │                    │
+             ▼                    ▼
+┌──────────────────────┐  ┌──────────────────────────┐
+│  us-west-2           │  │  us-east-1               │
+│                      │  │                          │
+│  Claude Sonnet 4.6   │  │  Nova Canvas             │
+│  Claude Opus 4.6     │  │  Titan Image v2          │
+│  SD 3.5 Large        │  │  Nova Sonic              │
+│  Stable Image Ultra  │  │                          │
+│  Stability AI (post) │  │                          │
+└──────────────────────┘  └──────────────────────────┘
+             │
+             ▼
+┌──────────────────────┐
+│  Local Storage       │
+│  data/styles/        │
+│  data/generated/     │
+└──────────────────────┘
+```
+
 ## Usage
 
 ### Workflow overview
@@ -157,6 +198,106 @@ On startup, the app validates your AWS credentials and Bedrock access. Check the
 
 All generated assets (images, text overlays, standalone text) land in the Gallery. Nothing is overwritten — each generation creates new assets.
 
+### Generation pipeline
+
+```
+User prompt: "hospital building"
+         │
+         ▼
+┌────────────────────────────────────────────────────────┐
+│ 1. Prompt Composition            Claude Sonnet (1 opt) │
+│    (optional "Compose" button)   or Opus (2-5 options) │
+│    + style + asset type                                │
+└────────────────────────┬───────────────────────────────┘
+                         │
+                         ▼
+┌────────────────────────────────────────────────────────┐
+│ 2. Canary Test                                         │
+│    Single image tests moderation                       │
+│    Pass? ──► Full batch    Fail? ──► Model switch      │
+│                                  or rewrite suggestion │
+└────────────────────────┬───────────────────────────────┘
+                         │
+                         ▼
+┌────────────────────────────────────────────────────────┐
+│ 3. Parallel Image Generation                           │
+│    Up to 5 options × 5 variations = 25 images          │
+│    ThreadPool (3-5 workers)                            │
+│    Retry with exponential backoff (3 attempts)         │
+│    SSE progress streaming to browser                   │
+│    Cooperative cancellation on moderation block        │
+└────────────────────────┬───────────────────────────────┘
+                         │
+                         ▼
+┌────────────────────────────────────────────────────────┐
+│ 4. Post-Processing (per image, optional)               │
+│    Remove Background ──► Stability AI ($0.07/img)      │
+│    Upscale ──► Stability AI Creative Upscale ($0.60)   │
+│    SVG ──► vtracer / potrace / Pillow (free, local)    │
+└────────────────────────┬───────────────────────────────┘
+                         │
+                         ▼
+┌────────────────────────────────────────────────────────┐
+│ 5. Storage                                             │
+│    data/generated/{asset_id}/                          │
+│    ├── asset.png (transparent background)              │
+│    ├── asset.svg (optional)                            │
+│    └── metadata.json (full prompt lineage)             │
+│    Smart filenames: prompt-slug_opt1_var2.png          │
+└────────────────────────────────────────────────────────┘
+```
+
+### Content moderation flow
+
+```
+User clicks Generate
+         │
+         ▼
+┌──────────────────────┐
+│ Pre-Check enabled?   │
+│ (Prompt Pre-Check    │
+│  toggle, on by       │
+│  default)            │
+└───┬──────────┬───────┘
+  Yes          No
+    │            │
+    ▼            │
+┌──────────┐     │
+│ Claude   │     │
+│ Sonnet   │     │
+│ screens  │     │
+│ prompt   │     │
+└──┬───┬───┘     │
+ Issues? No      │
+    │    └───────►│
+    ▼             │
+┌──────────┐     │
+│ Indigo   │     │
+│ dialog   │     │
+│ (user    │     │
+│ decides) │     │
+└──┬───────┘     │
+   │◄────────────┘
+   ▼
+┌──────────────────────┐
+│ Canary test          │
+│ (1 image to model)   │
+└───┬──────────┬───────┘
+ Blocked      Pass
+    │            │
+    ▼            ▼
+┌──────────┐  ┌──────────┐
+│ Try alt  │  │ Full     │
+│ models   │  │ batch    │
+└──┬───┬───┘  │ runs     │
+ Works? No    └──────────┘
+    │    │
+    ▼    ▼
+Emerald  Amber
+dialog   dialog
+(switch) (rewrite)
+```
+
 ### 2D Image Studio (generate assets)
 
 1. Go to the **2D Image Studio** tab.
@@ -191,6 +332,50 @@ Generated results survive navigation — switching tabs and back preserves the 2
 7. **Generation hints** are part of the analysis context — the AI receives both reference images and your hints as "Artist's Guidance" when analyzing, so the style profile understands intent, not just visual appearance. Editing generation hints also triggers **automatic re-analysis**.
 8. Back in the **2D Image Studio**, select your style from the dropdown — all generated assets will match its visual identity (palette, perspective, rendering style, mood).
 
+### Style analysis flow
+
+```
+┌──────────────────────────────────────────┐
+│ Create / Import style                    │
+│ (reference images uploaded or imported)  │
+└────────────────────┬─────────────────────┘
+                     │
+                     ▼
+┌──────────────────────────────────────────┐
+│ Phase 1: Cohesion Check                  │
+│ Claude Sonnet — 8 images — ~$0.01       │
+│ Determines: high / medium / low          │
+│   high   = unified style                 │
+│   medium = shared structure, diff themes │
+│   low    = diverse collection            │
+└────────────────────┬─────────────────────┘
+                     │
+                     ▼
+┌──────────────────────────────────────────┐
+│ Phase 2: Full Analysis                   │
+│ Claude Opus — up to 20 images            │
+│ Guided by cohesion level                 │
+│ + Artist's Guidance (user hints)         │
+│ Extracts 9 style attributes             │
+└────────────────────┬─────────────────────┘
+                     │
+                     ▼
+┌──────────────────────────────────────────┐
+│ Phase 3: Hint Generation                 │
+│ Claude Sonnet — 200-word hints           │
+│ 8 dimensions: perspective, rendering,    │
+│ materials, palette, proportions, edges,  │
+│ shadow/lighting, detail level            │
+└────────────────────┬─────────────────────┘
+                     │
+                     ▼
+┌──────────────────────────────────────────┐
+│ Stored in profile.json                   │
+│ ~$0.14 total per style analysis          │
+│ Used in all future generation            │
+└──────────────────────────────────────────┘
+```
+
 ### Type Studio
 
 Add text to images or generate standalone text assets with AI-designed typography.
@@ -217,6 +402,9 @@ Add text to images or generate standalone text assets with AI-designed typograph
 
 Click the microphone button next to the prompt editor to dictate your prompt. The audio is sent to Nova Sonic for transcription.
 
+> [!NOTE]
+> Voice transcription requires Nova Sonic's bidirectional streaming API, which depends on a compatible boto3 version and model access enabled in us-east-1. If the streaming API is not available, the service returns a placeholder acknowledgment. Full real-time transcription works when Nova Sonic streaming is properly configured.
+
 ### View state preservation
 
 Navigation order: **Style Library → 2D Image Studio → Type Studio → Gallery**. Switching between views preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in 2D Image Studio is the only way to clear its state.
@@ -237,8 +425,8 @@ Four image models are available, each with different strengths. Prompt limits ar
 
 | Model | Provider | Quality | Prompt Limit | Dimension handling |
 |-------|----------|---------|-------------|-------------------|
-| **Nova Canvas** | Amazon | Good, fast | 900 chars | Exact pixel dimensions (width x height) |
-| **Titan Image v2** | Amazon | Good, fast | 480 chars | Exact pixel dimensions (width x height) |
+| **Nova Canvas** | Amazon | Good, fast | 900 chars | Exact pixel dimensions (width × height) |
+| **Titan Image v2** | Amazon | Good, fast | 480 chars | Exact pixel dimensions (width × height) |
 | **Stable Diffusion 3.5 Large** | Stability AI | Excellent (best open model) | 2000 chars | Aspect ratios (auto-mapped from dimensions) |
 | **Stable Image Ultra** | Stability AI | Highest (premium model) | 2000 chars | Aspect ratios (auto-mapped from dimensions) |
 
@@ -257,13 +445,30 @@ The Stability AI models (Stable Diffusion 3.5 Large, Stable Image Ultra) accept 
 
 | Layer | Technology |
 |-------|-----------|
-| Backend | FastAPI (Python), boto3 |
+| Backend | FastAPI (Python 3.11+), boto3, Pydantic |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
-| AI | Claude Sonnet/Opus 4.6, Nova Canvas, Titan Image v2, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI, Nova Sonic |
+| AI (LLM) | Claude Sonnet 4.6 (fast tasks), Claude Opus 4.6 (complex tasks) |
+| AI (Image) | Nova Canvas, Titan Image v2, Stable Diffusion 3.5 Large, Stable Image Ultra |
+| AI (Post-processing) | Stability AI (Remove Background, Creative Upscale) |
+| AI (Voice) | Nova Sonic (speech-to-text via bidirectional streaming) |
+| SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) |
+| Text Rendering | Pillow (shadow, outline, glow effects) |
 | Storage | Local filesystem (S3-ready interface) |
-| Dev | No-cache middleware for static files during development; client-side error logging via `POST /api/log` |
+| Dev | No-cache middleware for static files; client-side error logging via `POST /api/log` |
 
 No build step required for the frontend.
+
+## Security model
+
+ArtSmoker is designed as a **local/trusted-network development tool** — it runs on the developer's own machine or a private EC2 instance. The security model reflects this:
+
+- **No authentication** — all API endpoints are open. Appropriate for local development and private team deployments.
+- **Filesystem browser** — the `GET /api/browse/local` endpoint allows browsing any directory the server process can access. This is intentional for importing reference art from your machine.
+- **Font serving** — path traversal protection validates that font file requests stay within expected directories.
+- **S3 access** — S3 browsing and imports use the server's AWS credentials. The user can access any S3 bucket their IAM role permits.
+
+> [!WARNING]
+> Do not expose ArtSmoker to untrusted networks without adding authentication and path restrictions. See the [Deployment Roadmap in SPEC.md](SPEC.md#deployment--scaling-roadmap) for production hardening guidance (Phase 4 adds Cognito authentication).
 
 ## API
 
@@ -273,70 +478,106 @@ Key endpoints:
 
 | Endpoint | Purpose |
 |----------|---------|
-| `POST /api/generate/` | Generate assets (options x variations) |
+| **Generation** | |
+| `POST /api/generate/` | Generate assets (options × variations) with SSE streaming |
 | `POST /api/generate/post-process` | Apply processing to existing assets |
 | `POST /api/generate/analyze-moderation` | Analyze a moderation-blocked prompt and suggest a safe rewrite |
+| **Styles** | |
 | `POST /api/styles/` | Create a style profile |
 | `POST /api/styles/{id}/import` | Bulk-import references from a local folder or S3 URI |
 | `POST /api/styles/{id}/analyze` | Trigger AI style analysis |
+| **Prompt** | |
 | `POST /api/refine-prompt/` | Preview a refined prompt |
-| `POST /api/transcribe/` | Voice-to-text |
+| `POST /api/transcribe/` | Voice-to-text (Nova Sonic) |
+| **Gallery** | |
 | `GET /api/gallery/` | Browse generated assets (supports limit/offset pagination) |
+| `GET /api/gallery/batch/{batch_id}` | Reconstruct full options × variations structure for a batch |
 | `DELETE /api/gallery/` | Bulk delete assets |
+| **Type Studio** | |
 | `POST /api/type-studio/preview` | Render text overlay preview |
 | `POST /api/type-studio/suggest` | AI layout suggestion for text |
 | `GET /api/type-studio/fonts` | List available fonts |
+| **Browse** | |
 | `GET /api/browse/local?path=~` | Browse local directory contents |
 | `GET /api/browse/s3/buckets` | List available S3 buckets |
 | `GET /api/browse/s3?bucket=name&prefix=path` | Browse S3 bucket contents |
+| **Admin** | |
 | `GET /api/admin/models` | Get full model registry (LLMs, image models, post-processing) |
 | `PATCH /api/admin/models/category/{name}` | Update an LLM category config |
 | `PATCH /api/admin/models/image/{key}` | Update an image model config |
 | `POST /api/admin/models/image` | Add a new image model |
 | `GET /api/admin/discover/{region}` | Discover available Bedrock models in a region |
+| **System** | |
 | `POST /api/log` | Client-side error/warning logging (recorded as `[CLIENT]` in server console) |
-| `GET /api/health` | Health check + AWS status |
+| `GET /api/health` | Health check + AWS credential/Bedrock validation |
 
 ## Project structure
 
 ```
 ArtSmoker/
 ├── backend/
-│   ├── main.py              # FastAPI app + startup validation
-│   ├── config.py            # Settings (AWS, paths, limits)
+│   ├── main.py              # FastAPI app, startup validation, static mount
+│   ├── config.py            # Settings (AWS regions, model IDs, paths, limits)
 │   ├── model_registry.json  # Persisted model configuration (LLMs, image models, post-processing)
-│   ├── routers/             # API endpoints (including admin.py for model management)
-│   ├── services/            # AI pipeline, model_registry.py, texture extraction
-│   ├── models/              # Pydantic request/response models
-│   └── storage/             # Local filesystem (S3-compatible interface)
+│   ├── requirements.txt
+│   ├── routers/
+│   │   ├── generate.py      # Two-level asset generation + SSE streaming
+│   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis
+│   │   ├── gallery.py       # Asset browsing + file serving + bulk delete
+│   │   ├── typestudio.py    # Type Studio: text overlay, font serving, AI layout
+│   │   ├── browse.py        # Server-side file/S3 browser for reference import
+│   │   ├── refine.py        # Prompt refinement preview
+│   │   ├── transcribe.py    # Voice transcription
+│   │   └── admin.py         # Model registry management + Bedrock discovery
+│   ├── services/
+│   │   ├── bedrock_client.py     # Shared Bedrock client with connection pooling
+│   │   ├── model_registry.py     # Model registry: loads/saves model_registry.json
+│   │   ├── prompt_engineer.py    # Claude: prompt refinement + concept generation
+│   │   ├── image_generator.py    # Nova Canvas / Titan / SD 3.5 / Ultra: image gen
+│   │   ├── style_analyzer.py     # Two-phase style analysis (cohesion + full)
+│   │   ├── post_processor.py     # Stability AI: bg removal, upscale; vtracer: SVG
+│   │   ├── transcriber.py        # Nova Sonic: streaming speech-to-text
+│   │   ├── import_dedup.py       # Smart deduplication (rotations, animations, folders)
+│   │   └── texture_extractor.py  # glTF/GLB texture extraction
+│   ├── models/
+│   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update
+│   │   ├── generation_request.py  # GenerationRequest, AssetType, ImageModel enums
+│   │   └── generation_result.py   # GenerationResult, OptionResult, VariantResult
+│   └── storage/
+│       └── local_store.py         # Local filesystem (S3-compatible interface)
 ├── frontend/
 │   ├── index.html           # SPA entry point
 │   ├── css/styles.css       # Dark theme + animations
 │   └── js/
-│       ├── components/
-│       │   ├── Generator.js     # 2D Image Studio
-│       │   ├── TypeStudio.js    # Type Studio
-│       │   ├── Gallery.js       # Gallery + asset viewer
-│       │   ├── StyleLibrary.js  # Style management
-│       │   ├── ModelSettings.js # Model registry admin UI (modal)
-│       │   └── ...              # PromptEditor, VoiceInput, etc.
-│       ├── services/            # API client
-│       └── app.js               # SPA router + navigation
+│       ├── app.js               # SPA router + DOM caching + navigation
+│       ├── services/api.js      # Backend API client
+│       └── components/
+│           ├── ImageStudio.js   # 2D Image Studio (options × variations)
+│           ├── TypeStudio.js    # Type Studio (text overlay)
+│           ├── Gallery.js       # Gallery grid + search + bulk ops
+│           ├── StyleLibrary.js  # Style management + file browser
+│           ├── AssetViewer.js   # Full-size preview + metadata + download
+│           ├── ModelSettings.js # Model registry admin UI (modal)
+│           ├── PromptEditor.js  # Two-area prompt editor + compose
+│           └── VoiceInput.js    # MediaRecorder + transcription
 ├── data/
-│   ├── styles/              # Style profiles + reference images
-│   └── generated/           # Output assets + metadata
+│   ├── styles/              # Style profiles + reference images (symlinked)
+│   └── generated/           # Output assets (PNG + SVG + metadata.json)
 ├── SPEC.md                  # Full technical specification (rebuild blueprint)
 └── README.md                # This file
 ```
 
 ## Configurable limits
 
-Two settings in `backend/config.py` control reference image handling and can be overridden via environment variables:
+Settings in `backend/config.py` can be overridden via environment variables (prefix `ARTSMOKER_`):
 
 | Setting | Env Variable | Default | Purpose |
 |---------|-------------|---------|---------|
 | `max_reference_images` | `ARTSMOKER_MAX_REFERENCE_IMAGES` | 100 | Max images imported per style |
 | `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 20 | Max images sent to AI per analysis call |
+| `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Region for Claude + Stability AI models |
+| `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Region for Nova Canvas + Titan + Nova Sonic |
+| `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWS profile name (uses default chain if unset) |
 
 Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
 
@@ -350,8 +591,8 @@ All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/
 |---------|-------|------|------|
 | **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00 input / $15.00 output | per 1M tokens |
 | **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00 input / $25.00 output | per 1M tokens |
-| **Claude Opus (vision)** | same | ~$0.008 | per 1024x1024 image input |
-| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | per image (1024x1024 premium) |
+| **Claude Opus (vision)** | same | ~$0.008 | per 1024×1024 image input |
+| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | per image (1024×1024 premium) |
 | **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | per image |
 | **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | per image |
@@ -398,4 +639,4 @@ Includes prompt refinement/concept generation + image generation:
 
 ## Full specification
 
-See **[SPEC.md](SPEC.md)** for the complete technical specification — architecture, component design, model configuration, API reference, pricing, deployment roadmap, and enough detail to rebuild the project from scratch.
+See **[SPEC.md](SPEC.md)** for the complete technical specification — architecture, component design, model configuration, API reference, security model, pricing, deployment roadmap, and enough detail to rebuild the project from scratch.
