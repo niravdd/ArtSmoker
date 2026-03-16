@@ -1,5 +1,26 @@
 # ArtSmoker — AI-Powered Game Asset Generation Platform
 
+## How to Use This Specification
+
+> **This document is a complete rebuild blueprint.** An LLM or developer reading this spec should be able to reconstruct the entire project — backend, frontend, and infrastructure — without access to the original codebase.
+
+**Reading order for a rebuild:**
+
+1. **Context + Architecture** — understand what this project does and how it's structured.
+2. **Project Structure** — create the file/directory skeleton first.
+3. **Application Bootstrap** — set up `main.py`, config, dependencies before writing features.
+4. **Detailed Component Design** — implement each subsystem. Start with storage, then models, then services, then routers, then frontend.
+5. **API Reference** — use as the contract between backend and frontend. Every endpoint, request body, and response shape is documented here.
+6. **Frontend Design System** — CSS theme, component patterns, and conventions.
+7. **Verification** — test checklist to validate the build.
+
+**Coding conventions:**
+- **Backend**: Python 3.11+, FastAPI with Pydantic v2 models, type hints everywhere, `async def` for route handlers. Services are plain synchronous functions (Bedrock calls are blocking). Use `logging.getLogger(__name__)` in every module.
+- **Frontend**: Vanilla JS (no framework, no build step), Tailwind CSS via CDN, IIFE pattern for components (`(function() { 'use strict'; window.ComponentName = { render(), init(), onShow(), destroy() }; })();`). Components expose themselves on `window` and are wired up by `app.js`.
+- **Naming**: Backend uses `snake_case` for everything. Frontend uses `camelCase` for JS, `kebab-case` for CSS classes and HTML IDs. API field names are `snake_case` (matching Python models).
+- **Error handling**: Backend returns `HTTPException` with status codes (400, 404, 409, 502). Frontend shows errors via `window.showToast(message, 'error')`. All client-side errors are also sent to `POST /api/log` for server-side recording.
+- **No Claude branding in frontend**: All user-facing UI references use "AI" generically — never "Claude" or any specific model name in labels/buttons. Image model names use full display names ("Stable Diffusion 3.5 Large", not "SD 3.5").
+
 ## Table of Contents
 
 - [Context](#context)
@@ -32,6 +53,9 @@
   - [Required IAM Permissions](#required-iam-permissions)
   - [Bedrock Model Access](#bedrock-model-access)
   - [Startup Validation](#startup-validation)
+- [Application Bootstrap (main.py)](#application-bootstrap-mainpy)
+- [Dependencies (requirements.txt)](#dependencies-requirementstxt)
+- [Frontend Design System](#frontend-design-system)
 - [Configuration](#configuration)
 - [Verification](#verification)
 - [AWS Bedrock Pricing & Cost Breakdown](#aws-bedrock-pricing--cost-breakdown)
@@ -283,7 +307,22 @@ User prompt: "hospital building"
 
 **Image generation retry**: Each image generation call retries up to 3 times with exponential backoff (2s, 5s, 9s + jitter) on throttling, rate-limit, service-unavailable, and connection errors. This ensures that large batches (e.g. 5×5 = 25 images) don't lose variants to transient API throttling. Retry status is streamed to the frontend in real-time.
 
-**Real-time progress via SSE**: The `/stream` endpoint uses Server-Sent Events (SSE) for real-time progress updates during generation. Event types: `started` (generation kicked off), `stage` (pipeline phase — `prompts`/`generating`/`finalizing`), `canary` (testing prompt against moderation with a single image before dispatching the full batch), `image_done` (per-image with `completed`/`total` count), `image_error` (per-image failure), `throttled` (API rate-limited, waiting to retry with delay shown), `retry` (retrying after throttle, shows attempt count), `moderation_blocked` (canary or batch stopped due to content moderation), and `complete` (final result).
+**Real-time progress via SSE**: The `POST /api/generate/stream` endpoint uses Server-Sent Events (SSE) for real-time progress updates during generation. The response is `text/event-stream` with JSON payloads on `data:` lines. A `": keepalive"` comment is sent periodically to prevent connection timeout. Complete event types:
+
+| Event type | Payload | When emitted |
+|------------|---------|--------------|
+| `started` | `{batch_id}` | Generation begins |
+| `stage` | `{stage: "prompts"\|"canary"\|"generating"\|"finalizing", message}` | Pipeline phase transitions |
+| `prompts_ready` | `{prompts: [...], pre_composed: bool}` | Concept prompts generated — frontend displays in composed area |
+| `canary` | `{message}` | Canary test starting |
+| `image_done` | `{completed, total, option_index, variant_index}` | One image finished |
+| `image_error` | `{option_index, variant_index, error}` | One image failed |
+| `throttled` | `{delay, message}` | API throttled — waiting before retry |
+| `retry` | `{attempt, max_attempts, message}` | Retrying after throttle |
+| `moderation_blocked` | `{error, option_index, variant_index}` | Moderation rejected an image |
+| `prompt_refused` | `{reason, original_response, message}` | Claude declined to refine prompt |
+| `complete` | `{result: GenerationResult, prompt_refused?: bool}` | Pipeline finished |
+| `error` | `{detail}` | Unrecoverable error |
 
 **Smart filenames**: Each generated image gets a human-readable filename derived from the user's prompt slug plus the option/variation indices: `a-fierce-dragon_opt1_var2.png`. These filenames are stored in per-asset `metadata.json` and served via `Content-Disposition` headers on the gallery file endpoints.
 
@@ -327,7 +366,9 @@ Negative prompts are stored in per-variant `metadata.json` as `negative_prompt`.
 
 The `POST /api/generate/analyze-moderation` endpoint sends the flagged prompt to Claude Sonnet, which returns: a list of specific issues that likely triggered moderation (e.g. copyrighted IP references, violence/weapon language, adult content), a friendly user-facing explanation, and a rewritten prompt that preserves the original creative intent while avoiding moderation triggers. Non-retriable errors (content moderation, policy blocks) are detected and skip the retry loop entirely — no wasted attempts on prompts that will always be rejected. All image model functions (`invoke_nova_canvas`, `invoke_titan_image`, `invoke_sd35_large`, `invoke_stable_image_ultra`) now return the actual error message from the model instead of crashing with a `KeyError` on missing image data.
 
-**Canary request and batch cancellation**: Before dispatching the full parallel batch, the system generates a single "canary" image first using the first option's prompt. If the canary is blocked by content moderation, the entire batch stops immediately — costing only 1 wasted API call instead of N×M×3 (options × variations × retry attempts). If the canary passes, the remaining tasks dispatch in parallel with a shared `threading.Event` cancel flag. If any task in the parallel batch encounters a non-retriable moderation error, it sets the cancel flag and all remaining tasks skip their API calls. This two-phase approach (canary + cooperative cancellation) minimizes wasted API spend on prompts that will be rejected across the board. Two additional SSE events support this flow: `canary` (emitted when the canary image is being tested against the prompt) and `moderation_blocked` (emitted when the canary or batch is stopped due to moderation).
+**Canary request and batch cancellation**: Before dispatching the full parallel batch, the system generates a single "canary" image first using the first option's prompt. The canary counts as option 0, variation 0 (`o0_v0`) — if it passes, it becomes the first variant in the results (not wasted). If the canary is blocked by content moderation, the entire batch stops immediately — costing only 1 wasted API call instead of N×M×3 (options × variations × retry attempts). If the canary passes, the remaining tasks dispatch in parallel with a shared `threading.Event` cancel flag. If any task in the parallel batch encounters a non-retriable moderation error, it sets the cancel flag and all remaining tasks skip their API calls. When a batch is partially completed then blocked, **already-generated variants are cleaned up** (deleted from disk) so the user doesn't see orphaned partial results. This two-phase approach (canary + cooperative cancellation) minimizes wasted API spend on prompts that will be rejected across the board.
+
+**Error classification**: The system classifies image generation errors by string-matching the error message to determine if an error is a non-retriable moderation block (contains terms like "moderation", "blocked", "content policy", "not allowed") vs. a transient error (throttling, timeout, connection) that should be retried. Non-retriable errors skip the retry loop entirely and trigger the moderation recovery flow.
 
 ### 3. Strong Asset-Type Differentiation
 
@@ -474,9 +515,18 @@ If there is only one option, the options row is hidden. If there is only one var
 
 - **Font picker**: Shows fonts in priority order:
   1. **Style-specific fonts** — fonts associated with the selected style profile (shown first).
-  2. **Global fonts** — project-wide custom fonts.
-  3. **System fonts** — detected from the host OS.
-  All fonts show a **live preview** of the selected text in the picker dropdown. Fonts are served via `GET /api/type-studio/font-file/{source}/{filename}`.
+  2. **Global fonts** — project-wide custom fonts (from a `fonts/` directory at project root, if it exists).
+  3. **System fonts** — detected from the host OS at these paths: `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` (macOS), `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.fonts`, `~/.local/share/fonts` (Linux). Windows paths are not currently supported.
+  All fonts show a **live preview** of the selected text in the picker dropdown. Fonts are served via `GET /api/type-studio/font-file/{source}/{filename}`. The frontend injects `@font-face` rules into `document.head` for custom fonts (tracking loaded fonts in a Set to avoid duplicates).
+
+**Type Studio Pydantic models** (defined inline in `backend/routers/typestudio.py`):
+- `TextLine` — `text: str`, `font: str | None`, `position: str | None` (e.g. "top-center", "bottom-left")
+- `TypeStudioRequest` — `source_image_id: str | None`, `style_id: str | None`, `lines: list[TextLine]`, `style_note: str | None`, `num_options: int = 1`, `remove_background: bool`, `generate_svg: bool`, `upscale: bool`
+- `LayoutEffect` — `shadow: dict | None`, `outline: dict | None`, `glow: dict | None`
+- `LayoutLine` — `text: str`, `x: int`, `y: int`, `font_size: int`, `color: str`, `font: str | None`, `anchor: str` (Pillow text anchor), `effects: LayoutEffect`
+- `LayoutSpec` — `lines: list[LayoutLine]`, `canvas_width: int`, `canvas_height: int`
+- `FontInfo` — `name: str`, `display_name: str`, `filename: str`, `source: str`, `path: str`, `preview_url: str`
+- `FontListResponse` — `fonts: list[FontInfo]`
 
 - **Processing options**: Same toggle switches as 2D Image Studio (Remove BG, SVG Conversion on by default, Upscale) with the same Pre-Processing → Post-Processing label behavior and "Apply to Current Results" button.
 
@@ -555,7 +605,7 @@ The post-processing pipeline (`backend/services/post_processor.py`) applies thre
    - **potrace** (fallback): Monochrome bitmap tracing. Converts PNG to BMP via Pillow first.
    - **Pillow embedded raster** (last resort): Wraps the PNG as a base64 data URI inside an SVG element. Not a true vector but ensures SVG output is always available.
 
-**Creative Upscale details**: Uses JPEG output format to avoid Stability AI's 16MB response payload limit, then converts back to PNG. Includes retry with exponential backoff (up to 5 attempts) for API throttling. Thread pool concurrency is reduced to 3 workers when upscale is enabled to avoid rate limits.
+**Creative Upscale details**: Uses JPEG output format to avoid Stability AI's 16MB response payload limit, then converts back to PNG via Pillow. Includes retry with exponential backoff (up to **5 attempts** — more than image generation's 3 attempts, because upscale is more throttle-prone) for API throttling. Thread pool concurrency is reduced to 3 workers when upscale is enabled to avoid rate limits.
 
 Each step is independently fault-tolerant — failures are logged but do not abort the pipeline.
 
@@ -584,21 +634,31 @@ The model registry (`backend/model_registry.json` + `backend/services/model_regi
 **Registry structure** — three configurable categories:
 
 1. **LLM categories** (`categories`): Named model slots for different purposes:
-   - `fast_llm` — Claude Sonnet 4.6 (prompt refinement, hints, pre-check)
-   - `complex_llm` — Claude Opus 4.6 (style analysis, concept generation)
-   - `fallback_llm` — Fallback model on access denied
+   - `fast_llm` — Claude Sonnet 4.6 (prompt refinement, hints, pre-check, cohesion check)
+   - `complex_llm` — Claude Opus 4.6 (style analysis, concept generation, marketing copy, Type Studio layout)
+   - `fallback_llm` — Fallback model on AccessDeniedException
    - `voice` — Nova Sonic (speech-to-text)
-   Each category stores: `model_id`, `region`, `enabled`.
+
+   Each category stores: `current` (the model ID — note: field is named `current`, not `model_id`), `region`, `provider`, `api_type` ("converse" or "streaming"), `label`, `description`.
 
 2. **Image models** (`image_models`): Keyed by internal name (e.g. `nova_canvas`, `sd35_large`). Each entry stores:
+   - `label` — human-readable display name
    - `model_id` — Bedrock model identifier
    - `region` — AWS region
-   - `prompt_limit` — maximum prompt characters (drives dynamic prompt sizing)
-   - `moderation_strictness` — relative strictness level (used by smart model switching)
-   - `request_format` — model-specific API format details
+   - `provider` — e.g. "Amazon", "Stability AI"
    - `enabled` — whether the model is available for selection
+   - `prompt_limit` — maximum prompt characters (drives dynamic prompt sizing)
+   - `supports_dimensions` — boolean, true for models that accept width/height in pixels
+   - `supports_aspect_ratio` — boolean, true for models that accept aspect ratios instead
+   - `moderation_strictness` — one of `very_strict`, `strict`, `moderate` (used by smart model switching to try less strict models first)
+   - `request_format` — model-specific API request template:
+     - `type` — dispatch key (e.g. "nova_canvas", "titan_image", "stability")
+     - `body_template` — JSON template with `{prompt}`, `{width}`, `{height}`, `{aspect_ratio}` placeholders
+     - `seed_path` — dot-path to where the seed goes in the request body (e.g. "imageGenerationConfig.seed")
+     - `response_image_path` — path to the base64 image in the response (e.g. "images[0]")
+     - `response_format` — "base64"
 
-3. **Post-processing** (`post_processing`): Configuration for `remove_background` and `upscale` services with model IDs and regions.
+3. **Post-processing** (`post_processing`): Keyed by operation name (`remove_background`, `upscale`). Each stores: `label`, `model_id`, `region`, `provider`, `enabled`.
 
 **Backward compatibility**: Generated assets reference model keys (e.g. `nova_canvas`, `sd35_large`), not raw Bedrock model IDs. This means changing a model ID in the registry does not break old asset metadata.
 
@@ -637,25 +697,67 @@ The model registry (`backend/model_registry.json` + `backend/services/model_regi
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/generate/` | Generate assets (full two-level pipeline). Returns `GenerationResult` with options and variants. |
+| POST | `/api/generate/` | Generate assets (full two-level pipeline). Returns `GenerationResult` with options and variants. Also available as `/api/generate/stream` for SSE streaming. |
+| POST | `/api/generate/stream` | SSE streaming variant of generate — same pipeline, but streams real-time progress events. This is the primary endpoint used by the frontend. |
 | POST | `/api/generate/post-process` | Apply post-processing to existing generated assets. Accepts asset IDs and processing flags (remove_background, generate_svg, upscale). Updates the assets in-place and refreshes their metadata on disk. Used by the "Apply to Current Results" button in both studios. |
-| POST | `/api/generate/analyze-moderation` | Analyze a prompt that was rejected by content moderation. Sends the flagged prompt to Claude Sonnet for analysis. Returns a list of specific issues, a friendly explanation, and a rewritten prompt that preserves creative intent while avoiding moderation triggers. |
+| POST | `/api/generate/pre-screen` | Pre-screen a prompt for likely moderation issues before generation. Uses Claude Sonnet (fast, cheap). Returns whether the prompt is likely safe, specific issues, and a suggested alternative model if the prompt would work with a less strict model. |
+| POST | `/api/generate/analyze-moderation` | Analyze a prompt that was rejected by content moderation. Multi-phase: first tries alternative models with the same prompt (model switch), then rewrites as last resort. Returns the action taken, working model (if switched), issues, explanation, and rewritten prompt (if needed). |
 
-**Moderation analysis request body**:
+**Pre-screen request body** (`PreScreenRequest`):
 ```json
 {
-  "prompt": "the flagged prompt text",
-  "error_message": "the error message returned by the image model",
+  "prompt": "a warrior with a sword",
   "image_model": "nova_canvas"
 }
 ```
 
-**Moderation analysis response**:
+**Pre-screen response**:
 ```json
 {
-  "issues": ["copyrighted character name", "explicit violence reference"],
-  "explanation": "The prompt was flagged because it references a copyrighted character...",
-  "rewritten_prompt": "A armored fantasy warrior with a glowing sword..."
+  "likely_safe": false,
+  "issues": ["weapon/combat language may trigger Nova Canvas moderation"],
+  "explanation": "Nova Canvas is very strict about weapons and combat...",
+  "suggested_model": "sd35_large",
+  "suggested_model_label": "Stable Diffusion 3.5 Large"
+}
+```
+
+On failure, pre-screen returns `{likely_safe: true}` as a safe default (don't block generation if pre-screening itself fails).
+
+**Moderation analysis request body** (`ModerationRequest`):
+```json
+{
+  "prompt": "the flagged prompt text",
+  "error_message": "the error message returned by the image model",
+  "image_model": "nova_canvas",
+  "width": 512,
+  "height": 512
+}
+```
+
+**Moderation analysis response** — multi-phase, returns different actions:
+```json
+{
+  "action": "switch_model",
+  "working_model": "sd35_large",
+  "original_model": "nova_canvas",
+  "issues": ["weapon reference"],
+  "explanation": "Your prompt works with a different model...",
+  "rewritten_prompt": null,
+  "verified": true,
+  "attempts": [{"model": "sd35_large", "result": "success"}, {"model": "stable_image_ultra", "result": "skipped"}]
+}
+```
+Or when all models reject (rewrite fallback):
+```json
+{
+  "action": "rewrite",
+  "working_model": null,
+  "issues": ["copyrighted character name", "explicit violence"],
+  "explanation": "The prompt was flagged because...",
+  "rewritten_prompt": "An armored fantasy warrior with a glowing sword...",
+  "verified": true,
+  "attempts": [{"model": "sd35_large", "result": "blocked"}, {"model": "nova_canvas", "result": "blocked"}]
 }
 ```
 
@@ -680,8 +782,10 @@ The model registry (`backend/model_registry.json` + `backend/services/model_regi
 Fields:
 - `prompt` (required): User's description of the desired asset.
 - `original_prompt` (optional, `str | None`): The user's pre-AI-improvement prompt, tracked for provenance.
+- `pre_composed` (default false): If true, the prompt was already AI-composed via the "Compose Generation Prompt" button — the backend skips refinement and uses the prompt as-is.
+- `moderation_original` (optional, `str | None`): Stores the pre-moderation-rewrite prompt when the user accepted a moderation rewrite. Preserved in metadata for audit trail.
 - `style_id` (optional): Style profile to apply.
-- `asset_type` (default `game_asset`): One of `game_asset`, `marketing_banner`, `icon`, `character`, `environment`.
+- `asset_type` (default `game_asset`): One of `game_asset`, `marketing_banner`, `icon`, `character`, `environment`. Defined by the `AssetType` enum.
 - `image_model` (default `nova_canvas`): One of `nova_canvas`, `titan_image`, `sd35_large`, `stable_image_ultra`. Defined by the `ImageModel` enum: `NOVA_CANVAS = "nova_canvas"`, `TITAN_IMAGE = "titan_image"`, `SD35_LARGE = "sd35_large"`, `STABLE_IMAGE_ULTRA = "stable_image_ultra"`.
 - `width` / `height` (default 1024): Output dimensions in pixels.
 - `num_options` (default 5, range 1-5): Number of distinct concept designs.
@@ -689,6 +793,8 @@ Fields:
 - `remove_background` (default true): Run Stability AI background removal.
 - `generate_svg` (default true): Convert to SVG.
 - `upscale` (default false): Run Stability AI upscaling.
+- `ip_owned` (default false): User asserts IP ownership over the content.
+- `ip_licensed` (default false): User asserts licensing rights. Both IP fields are stored in per-variant metadata for audit trail.
 
 ### Prompt Refinement
 
@@ -835,6 +941,107 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 
 > [!IMPORTANT]
 > For production deployments beyond a trusted team, add authentication (see Phase 4 roadmap), restrict the browse endpoint to allowed directories, and place the service behind a reverse proxy with TLS.
+
+## Application Bootstrap (main.py)
+
+`backend/main.py` assembles the FastAPI application. Build it in this exact order:
+
+1. **FastAPI app** with `title="ArtSmoker"`, `description="AI-Powered Game Asset Generation"`, and a `lifespan` handler.
+2. **Lifespan handler** (async context manager):
+   - On startup: create data directories (`data/`, `data/styles/`, `data/generated/`) via `mkdir(parents=True, exist_ok=True)`.
+   - On startup: call `validate_aws_credentials()` from `bedrock_client.py` — stores result in a module-level `_aws_status` dict.
+   - Log a prominent error box if credentials are missing, a warning if some Bedrock checks fail, or an info message if all checks pass.
+3. **NoCacheStaticMiddleware** — custom `BaseHTTPMiddleware` that adds `Cache-Control: no-cache, no-store, must-revalidate` and `Pragma: no-cache` headers to all responses where the request path does NOT start with `/api/`. This ensures frontend static files are never cached during development.
+4. **CORS middleware** — `CORSMiddleware` with `allow_origins=["*"]`, `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`. Development-mode open CORS.
+5. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, admin — in that order.
+6. **Health check endpoint** (`GET /api/health`) — defined inline on `app`, returns `{status: "ok"|"degraded", aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`.
+7. **Client log endpoint** (`POST /api/log`) — defined inline on `app`, receives `{level, message, context}`, logs as `[CLIENT] {message} | {context}` at the appropriate Python log level.
+8. **Static files mount** — `app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True))` mounted LAST so `/api/*` routes take priority. `FRONTEND_DIR` is `Path(__file__).resolve().parent.parent / "frontend"`. The `html=True` flag enables serving `index.html` for directory requests.
+
+## Dependencies (requirements.txt)
+
+```
+fastapi>=0.115
+uvicorn[standard]>=0.34
+boto3>=1.36
+python-multipart>=0.0.20
+pydantic>=2.10
+pydantic-settings>=2.7
+Pillow>=11.1
+aiofiles>=24.1
+```
+
+External CLI tools (not Python packages — must be installed on the host):
+- **vtracer** — primary SVG conversion tool (Rust binary, install via `cargo install vtracer` or download binary)
+- **potrace** — fallback SVG conversion (install via `brew install potrace` or `apt install potrace`)
+
+If neither is installed, SVG conversion falls back to Pillow's embedded-raster approach (base64 PNG inside an SVG wrapper).
+
+## Frontend Design System
+
+The frontend uses a dark theme with CSS custom properties. These values define the entire visual identity and must be replicated exactly for visual consistency.
+
+**CSS Custom Properties** (`:root` in `styles.css`):
+```css
+--bg: #0f172a;              /* Page background (slate-900) */
+--surface: #1e293b;         /* Card/panel background (slate-800) */
+--surface-hover: #253347;   /* Hovered surface */
+--accent: #6366f1;          /* Primary accent — indigo-500 */
+--accent-hover: #818cf8;    /* Hovered accent — indigo-400 */
+--accent-muted: #4f46e5;    /* Muted accent — indigo-600 */
+--text: #e2e8f0;            /* Primary text — slate-200 */
+--text-muted: #94a3b8;      /* Secondary text — slate-400 */
+--text-dim: #64748b;        /* Tertiary text — slate-500 */
+--border: #334155;          /* Border color — slate-700 */
+--danger: #ef4444;          /* Error/delete — red-500 */
+--success: #22c55e;         /* Success — green-500 */
+--warning: #f59e0b;         /* Warning — amber-500 */
+--radius: 0.75rem;          /* Default border radius */
+--shadow: 0 4px 6px -1px rgba(0,0,0,0.3), 0 2px 4px -2px rgba(0,0,0,0.2);
+--shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.4), 0 4px 6px -4px rgba(0,0,0,0.3);
+```
+
+**Tailwind CSS** is loaded via CDN (`<script src="https://cdn.tailwindcss.com"></script>`) with an inline config that extends the default theme with `brand-*` color aliases mapping to the same hex values above (e.g. `brand-bg: '#0f172a'`). This allows using both `bg-brand-bg` (Tailwind) and `var(--bg)` (CSS) interchangeably.
+
+**Key CSS component classes** (defined in `styles.css`):
+- `.card` / `.card-static` — surface-colored panels with border and radius
+- `.btn-primary` / `.btn-secondary` / `.btn-danger` / `.btn-sm` / `.btn-lg` — button variants
+- `.modal-overlay` / `.modal-content` — modal system with backdrop blur and slide-in animation
+- `.toast` / `.toast-exit` — notification toasts with slide-in/out animations
+- `.toggle` / `.toggle-slider` — custom toggle switch (checkbox replacement)
+- `.loading-spinner` / `.spinner-sm` — CSS-only spinning indicators
+- `.recording-pulse` / `.recording-dot` — voice recording animations
+- `.upload-zone` / `.drag-over` — drag-and-drop upload area
+- `.preview-checkerboard` — transparency checkerboard pattern for image previews
+- `.gallery-grid` — responsive auto-fill grid (`repeat(auto-fill, minmax(280px, 1fr))`, 200px on mobile)
+- `.skeleton` — shimmer loading placeholders
+- `.badge` / `.badge-indigo` / `.badge-green` — tag badges
+- `.tab-bar` / `.tab` / `.active` — tab navigation
+- `.prompt-compare` — two-column grid for prompt editor
+- `.ts-mode-btn` / `.ts-mode-active` — Type Studio mode toggle buttons
+- `.img-hover-zoom` — scale-up on hover
+- `.view-enter` / `.view-exit` — route transition animations
+- `.fade-in` — utility fade animation
+- Custom scrollbar styling (thin, accent-colored)
+
+**Global JavaScript utilities** (exposed by `app.js` on `window`):
+- `showToast(message, type, duration)` — types: `success`, `error`, `warning`, `info`. Auto-dismisses. Pauses on hover. Error/warning toasts are also sent to `POST /api/log`.
+- `showLoading(text)` / `hideLoading()` — fullscreen loading overlay with spinner.
+- `resetView(route)` — destroys the DOM cache for a specific view, forcing fresh render on next visit.
+
+**Frontend component pattern** — every component is an IIFE that attaches to `window`:
+```javascript
+(function () {
+    'use strict';
+    window.ComponentName = {
+        render() { return '<div>...</div>'; },  // Returns HTML string
+        init() { /* Called once on first visit — bind events */ },
+        onShow() { /* Called on every visit (including cached) — refresh data */ },
+        destroy() { /* Cleanup — called by resetView() */ },
+    };
+})();
+```
+`app.js` manages a DOM-caching router: each view is rendered once, then hidden/shown on route changes (not destroyed/recreated). The `_viewCache` object stores the live DOM element for each route.
 
 ## Configuration
 
