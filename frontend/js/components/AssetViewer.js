@@ -380,9 +380,31 @@
             let dragStartX = 0, dragStartY = 0;
             let panStartX = 0, panStartY = 0;
 
+            const btnFit = this._overlay.querySelector('#av-zoom-fit');
+            const btnActual = this._overlay.querySelector('#av-zoom-actual');
+            const btnIn = this._overlay.querySelector('#av-zoom-in');
+            const btnOut = this._overlay.querySelector('#av-zoom-out');
+            let _fitScale = 1; // Track what "fit" scale is
+
+            const _activeClass = 'bg-brand-accent text-white';
+            const _clearActive = () => {
+                [btnFit, btnActual, btnIn, btnOut].forEach(b => {
+                    if (b) b.className = b.className.replace(/bg-brand-accent text-white/g, '').trim();
+                });
+            };
+
             const updateTransform = () => {
                 img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
                 if (levelEl) levelEl.textContent = `${Math.round(scale * 100)}%`;
+
+                // Highlight the active mode button
+                _clearActive();
+                const pct = Math.round(scale * 100);
+                if (Math.abs(scale - _fitScale) < 0.01 && btnFit) {
+                    btnFit.classList.add(..._activeClass.split(' '));
+                } else if (pct === 100 && btnActual) {
+                    btnActual.classList.add(..._activeClass.split(' '));
+                }
             };
 
             const fitToView = () => {
@@ -391,6 +413,7 @@
                 const iW = img.naturalWidth || img.width || cW;
                 const iH = img.naturalHeight || img.height || cH;
                 scale = Math.min(cW / iW, cH / iH, 1);
+                _fitScale = scale; // Remember what "fit" means for this image
                 panX = (cW - iW * scale) / 2;
                 panY = (cH - iH * scale) / 2;
                 updateTransform();
