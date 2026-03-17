@@ -53,15 +53,21 @@ This matters at every stage:
 
 ## Prerequisites
 
-**Python 3.11+** and **AWS credentials** with Bedrock access.
+- **Python 3.11+** (3.12, 3.13, 3.14 all work)
+- **AWS CLI** configured with working credentials
+- **AWS Bedrock model access** enabled in two regions (see below)
 
-Your machine needs working AWS credentials — whatever you use for other AWS work will work here. Verify with:
+### 1. Verify AWS credentials
 
 ```bash
 aws sts get-caller-identity
 ```
 
-In the AWS Console, enable these models under **Amazon Bedrock > Model access**:
+If this returns your account/user info, you're good. ArtSmoker uses the standard AWS credential chain — whatever works for your other AWS tools works here.
+
+### 2. Enable Bedrock models
+
+In the **AWS Console → Amazon Bedrock → Model access**, enable these models:
 
 | Region | Models to enable |
 |--------|-----------------|
@@ -71,34 +77,123 @@ In the AWS Console, enable these models under **Amazon Bedrock > Model access**:
 > [!IMPORTANT]
 > Required IAM permissions: `bedrock:InvokeModel`, `bedrock:Converse`, and `bedrock:ListFoundationModels` (for model discovery). Or use the managed policy `AmazonBedrockFullAccess`.
 
-## Quick start
+### 3. Optional: SVG conversion tools
+
+SVG conversion uses external CLI tools (not Python packages). Without them, SVG output falls back to a Pillow-based raster-in-SVG wrapper — functional but not true vector output.
+
+| Tool | Purpose | macOS | Linux (Debian/Ubuntu) | Windows |
+|------|---------|-------|-----------------------|---------|
+| **vtracer** | Primary SVG (color vector tracing) | `brew install vtracer` or `cargo install vtracer` | `cargo install vtracer` | Download from [GitHub releases](https://github.com/niccoloraspa/vtracer) or `cargo install vtracer` |
+| **potrace** | Fallback SVG (monochrome tracing) | `brew install potrace` | `sudo apt install potrace` | Download from [potrace.sourceforge.net](http://potrace.sourceforge.net/#downloading) |
+
+## Installation
+
+### macOS
 
 ```bash
 git clone <repo-url> && cd ArtSmoker
 
-# Set up Python environment
+# Option A: With virtual environment (recommended)
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 
-# Run
+# Option B: Without virtual environment (system-wide install)
+pip3 install -r backend/requirements.txt
+```
+
+> [!NOTE]
+> On macOS, `python3` and `pip3` are available via Homebrew (`brew install python`) or the Xcode command-line tools. If you see "command not found", install Python from [python.org](https://www.python.org/downloads/) or via `brew install python@3.12`.
+
+### Linux (Debian/Ubuntu)
+
+```bash
+# Install Python if needed
+sudo apt update && sudo apt install python3 python3-pip python3-venv
+
+git clone <repo-url> && cd ArtSmoker
+
+# Option A: With virtual environment (recommended)
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+
+# Option B: Without virtual environment
+pip3 install --user -r backend/requirements.txt
+```
+
+> [!NOTE]
+> On some Linux distros, `pip install` outside a venv requires the `--user` flag or `--break-system-packages` (PEP 668). Using a venv avoids this entirely.
+
+### Windows
+
+```powershell
+git clone <repo-url>
+cd ArtSmoker
+
+# Option A: With virtual environment (recommended)
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r backend\requirements.txt
+
+# Option B: Without virtual environment
+pip install -r backend\requirements.txt
+```
+
+> [!NOTE]
+> On Windows, use `python` (not `python3`). Install Python from [python.org](https://www.python.org/downloads/) — check "Add to PATH" during installation. The Type Studio font picker detects fonts from `C:\Windows\Fonts` (system font detection is currently macOS/Linux only — Windows users can use global or style-specific custom fonts).
+
+## Running
+
+### Development (all platforms)
+
+```bash
+# With venv (activate first)
+source .venv/bin/activate          # macOS / Linux
+.venv\Scripts\activate             # Windows
+
 uvicorn backend.main:app --reload
 ```
 
-Open **http://localhost:8000**
-
-### Production deployment (EC2)
-
-Recommended: t3.small (~$15/month) for 1-2 concurrent users.
-
 ```bash
-gunicorn backend.main:app -w 2 -k uvicorn.workers.UvicornWorker \
-  --bind 0.0.0.0:8000 --timeout 300
+# Without venv (if installed system-wide)
+uvicorn backend.main:app --reload
+
+# Or if uvicorn isn't on PATH
+python3 -m uvicorn backend.main:app --reload     # macOS / Linux
+python -m uvicorn backend.main:app --reload       # Windows
 ```
 
-Attach an IAM role with `bedrock:InvokeModel` and `bedrock:Converse` permissions.
+Open **http://localhost:8000** — the frontend is served by FastAPI, no separate web server needed.
 
-On startup, the app validates your AWS credentials and Bedrock access. Check the console output or hit `/api/health` to see the status.
+On startup, the console shows AWS credential validation results. If something's wrong, you'll see a clear error box. You can also check `http://localhost:8000/api/health` for the status.
+
+### Production deployment (EC2 / Linux server)
+
+Recommended: **t3.small** (~$15/month) for 1-2 concurrent users.
+
+```bash
+# Install (one-time)
+git clone <repo-url> && cd ArtSmoker
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r backend/requirements.txt
+pip install gunicorn                       # Production WSGI server
+
+# Run with gunicorn (multi-worker, production-grade)
+gunicorn backend.main:app \
+  -w 2 \
+  -k uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --timeout 300
+```
+
+- Attach an **IAM role** to the EC2 instance with `bedrock:InvokeModel`, `bedrock:Converse`, and `bedrock:ListFoundationModels` — no access keys needed on the instance.
+- The `--timeout 300` (5 minutes) accommodates large batch generations with retries.
+- For persistent operation, use `systemd`, `supervisord`, or `screen`/`tmux`.
+
+> [!TIP]
+> **gunicorn** is Linux/macOS only. On Windows, use `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2` for multi-worker production serving.
 
 ## Architecture
 

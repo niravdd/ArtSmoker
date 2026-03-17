@@ -973,6 +973,8 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 
 ## Dependencies (requirements.txt)
 
+**Python packages** (installed via pip):
+
 ```
 fastapi>=0.115
 uvicorn[standard]>=0.34
@@ -984,11 +986,42 @@ Pillow>=11.1
 aiofiles>=24.1
 ```
 
-External CLI tools (not Python packages — must be installed on the host):
-- **vtracer** — primary SVG conversion tool (Rust binary, install via `cargo install vtracer` or download binary)
-- **potrace** — fallback SVG conversion (install via `brew install potrace` or `apt install potrace`)
+For production deployments, also install `gunicorn` (Linux/macOS only):
+```
+pip install gunicorn
+```
 
-If neither is installed, SVG conversion falls back to Pillow's embedded-raster approach (base64 PNG inside an SVG wrapper).
+**External CLI tools** (optional, not Python packages — improve SVG quality):
+
+| Tool | Purpose | macOS | Linux (Debian/Ubuntu) | Windows |
+|------|---------|-------|-----------------------|---------|
+| vtracer | Primary SVG conversion (color vector tracing) | `brew install vtracer` or `cargo install vtracer` | `cargo install vtracer` (requires Rust toolchain) | `cargo install vtracer` or download binary from GitHub |
+| potrace | Fallback SVG conversion (monochrome tracing) | `brew install potrace` | `sudo apt install potrace` | Download from [potrace.sourceforge.net](http://potrace.sourceforge.net/#downloading) |
+
+If neither is installed, SVG conversion falls back to Pillow's embedded-raster approach (base64 PNG wrapped inside an SVG element). This is functional but not true vector output — the file size is roughly the same as the PNG.
+
+**System requirements by platform**:
+
+| Requirement | macOS | Linux (Debian/Ubuntu) | Windows |
+|-------------|-------|-----------------------|---------|
+| Python 3.11+ | `brew install python@3.12` or [python.org](https://www.python.org/downloads/) | `sudo apt install python3 python3-pip python3-venv` | [python.org](https://www.python.org/downloads/) (check "Add to PATH") |
+| AWS CLI | `brew install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | `sudo apt install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | [AWS MSI installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
+| Python command | `python3` / `pip3` | `python3` / `pip3` | `python` / `pip` |
+| Venv activation | `source .venv/bin/activate` | `source .venv/bin/activate` | `.venv\Scripts\activate` |
+| Production server | gunicorn (pip install) | gunicorn (pip install) | uvicorn with `--workers` flag (gunicorn not supported on Windows) |
+| System fonts (Type Studio) | Detected from `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | Detected from `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.fonts`, `~/.local/share/fonts` | Not auto-detected — use global or style-specific custom fonts |
+
+**Installation without venv** (all platforms):
+
+```bash
+# macOS / Linux
+pip3 install --user -r backend/requirements.txt
+
+# Windows
+pip install -r backend\requirements.txt
+```
+
+> Note: On modern Linux distros (PEP 668), `pip install` outside a venv may require `--user` or `--break-system-packages`. Using a venv is recommended to avoid system conflicts.
 
 ## Frontend Design System
 
@@ -1075,9 +1108,20 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 
 1. **Start backend**:
    ```bash
+   # macOS / Linux (with venv)
    cd ArtSmoker && source .venv/bin/activate && uvicorn backend.main:app --reload
+
+   # macOS / Linux (without venv)
+   cd ArtSmoker && python3 -m uvicorn backend.main:app --reload
+
+   # Windows (with venv)
+   cd ArtSmoker && .venv\Scripts\activate && uvicorn backend.main:app --reload
+
+   # Windows (without venv)
+   cd ArtSmoker && python -m uvicorn backend.main:app --reload
    ```
-2. **Open frontend**: Navigate to `http://localhost:8000` — the frontend is served as static files by FastAPI.
+2. **Check startup output**: The console should show "All AWS checks passed" or a warning about specific Bedrock regions. If credentials are missing, a prominent error box explains what to configure.
+3. **Open frontend**: Navigate to `http://localhost:8000` — the frontend is served as static files by FastAPI. No separate web server needed.
 3. **Create a style profile**: Use the Style Library view to create a profile and upload reference images (or use directory import).
 4. **Trigger style analysis**: Click analyze — verify Claude extracts structured style attributes and generation hints.
 5. **Generate assets in 2D Image Studio**:
@@ -1242,12 +1286,48 @@ Developer machine
 
 For a lightweight production deployment (1-2 concurrent users), an EC2 instance is the simplest path:
 
-- **Recommended instance**: t3.small (2 vCPU, 2 GB RAM, ~$15/month).
+- **Recommended instance**: t3.small (2 vCPU, 2 GB RAM, ~$15/month), Amazon Linux 2023 or Ubuntu 22.04+.
+- **Setup**:
+  ```bash
+  # Amazon Linux 2023
+  sudo dnf install python3.11 python3.11-pip git
+  # Ubuntu 22.04+
+  sudo apt update && sudo apt install python3 python3-pip python3-venv git
+
+  # Optional: SVG tools
+  sudo apt install potrace                     # Ubuntu
+  # vtracer: install Rust toolchain, then cargo install vtracer
+
+  git clone <repo-url> && cd ArtSmoker
+  python3 -m venv .venv
+  source .venv/bin/activate
+  pip install -r backend/requirements.txt
+  pip install gunicorn
+  ```
 - **Run with gunicorn** for production:
   ```bash
-  gunicorn backend.main:app -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+  gunicorn backend.main:app -w 2 -k uvicorn.workers.UvicornWorker \
+    --bind 0.0.0.0:8000 --timeout 300
   ```
-- **IAM role**: Attach an IAM role with `bedrock:InvokeModel` + `bedrock:Converse` permissions — no access keys needed on the instance.
+  The `--timeout 300` (5 minutes) accommodates large batch generations with retries.
+- **IAM role**: Attach an IAM role with `bedrock:InvokeModel`, `bedrock:Converse`, and `bedrock:ListFoundationModels` permissions — no access keys needed on the instance.
+- **Persistent operation**: Use `systemd` or `supervisord` to keep the process running:
+  ```ini
+  # /etc/systemd/system/artsmoker.service
+  [Unit]
+  Description=ArtSmoker
+  After=network.target
+
+  [Service]
+  WorkingDirectory=/home/ec2-user/ArtSmoker
+  ExecStart=/home/ec2-user/ArtSmoker/.venv/bin/gunicorn backend.main:app \
+    -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+  Restart=always
+
+  [Install]
+  WantedBy=multi-user.target
+  ```
+  Then: `sudo systemctl enable artsmoker && sudo systemctl start artsmoker`
 - **No race conditions for concurrent users** — each generation uses unique UUIDs, file writes don't overlap.
 - **Migrating style data**: Style references use relative symlinks, so they work across machines as long as the source art directories maintain the same relative position to the ArtSmoker project.
 
