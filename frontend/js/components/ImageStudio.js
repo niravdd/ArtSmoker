@@ -17,7 +17,6 @@
     ];
 
     const MODELS = [
-        { value: 'all_models', label: 'All Available Models' },
         { value: 'nova_canvas', label: 'Nova Canvas' },
         { value: 'titan_image', label: 'Titan Image v2' },
         { value: 'sd35_large', label: 'Stable Diffusion 3.5 Large' },
