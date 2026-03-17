@@ -16,6 +16,11 @@ class VariantResult(BaseModel):
 class OptionResult(BaseModel):
     option_index: int
     refined_prompt: str
+    negative_prompt: str = ""
+    image_model: str | None = None  # Actual model used (set in "All Models" mode)
+    model_label: str | None = None  # Human-readable model name
+    status: str = "success"  # "success", "moderation_blocked", "error"
+    status_detail: str | None = None  # Error message or moderation reason
     variants: list[VariantResult] = Field(default_factory=list)
 
 
@@ -26,11 +31,13 @@ class GenerationResult(BaseModel):
     negative_prompt: str | None = None
     style_id: str | None = None
     asset_type: str
-    image_model: str
+    image_model: str  # Selected model (or "all_models" when all_models=True)
     width: int
     height: int
     num_options: int = 1
     num_variations: int = 1
+    all_models: bool = False  # True when generated across all enabled models
+    model_map: dict[int, str] | None = None  # option_index → model_key (All Models mode only)
     options: list[OptionResult] = Field(default_factory=list)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

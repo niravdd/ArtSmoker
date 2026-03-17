@@ -17,6 +17,7 @@
     ];
 
     const MODELS = [
+        { value: 'all_models', label: 'All Available Models' },
         { value: 'nova_canvas', label: 'Nova Canvas' },
         { value: 'titan_image', label: 'Titan Image v2' },
         { value: 'sd35_large', label: 'Stable Diffusion 3.5 Large' },
@@ -78,6 +79,14 @@
                                     <select id="gen-model" class="input">
                                         ${MODELS.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
                                     </select>
+                                    <div id="gen-all-models-opts" class="hidden mt-2 p-2 rounded-lg bg-brand-bg/50 space-y-1.5">
+                                        <label class="flex items-center gap-2 text-xs text-brand-text-muted cursor-pointer">
+                                            <input type="checkbox" id="gen-model-optimized" class="rounded" />
+                                            Model-optimized prompts
+                                        </label>
+                                        <p class="text-[10px] text-brand-text-dim">When on, each model gets a prompt tailored to its strengths. When off, all models receive the same prompt for direct comparison.</p>
+                                        <p id="gen-all-models-info" class="text-[10px] text-emerald-400/70"></p>
+                                    </div>
                                 </div>
 
                                 <div>
@@ -229,15 +238,19 @@
                             </div>
 
                             <!-- Concept prompt display -->
-                            <div id="gen-concept-prompt" class="hidden card-static p-3">
-                                <p class="text-xs text-brand-text-muted mb-1 font-medium">Concept prompt:</p>
+                            <div id="gen-concept-prompt" class="hidden card-static p-3 space-y-2">
+                                <p id="gen-concept-prompt-label" class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold">Generated prompt</p>
                                 <p id="gen-concept-prompt-text" class="text-xs text-brand-text/70 leading-relaxed"></p>
+                                <div id="gen-concept-negative" class="hidden">
+                                    <p class="text-[10px] text-red-400/80 uppercase tracking-wider font-semibold mb-0.5">Negative prompt</p>
+                                    <p id="gen-concept-negative-text" class="text-xs text-red-300/60 italic leading-relaxed"></p>
+                                </div>
                             </div>
 
                             <!-- OPTIONS ROW (different concepts) -->
                             <div id="gen-options-section" class="hidden">
                                 <div class="flex items-center justify-between mb-2">
-                                    <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
+                                    <h3 id="gen-options-header" class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
                                         Options — different designs
                                     </h3>
                                     <span id="gen-options-count" class="text-xs text-brand-text-muted"></span>
@@ -343,7 +356,9 @@
                 if (this._promptEditor) this._promptEditor.setContext({ assetType: this._getAssetType() });
             });
             document.getElementById('gen-model')?.addEventListener('change', () => {
-                if (this._promptEditor) this._promptEditor.setContext({ imageModel: document.getElementById('gen-model')?.value });
+                const modelVal = document.getElementById('gen-model')?.value;
+                if (this._promptEditor) this._promptEditor.setContext({ imageModel: modelVal });
+                this._updateAllModelsUI(modelVal === 'all_models');
             });
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open());
@@ -426,19 +441,23 @@
             // Carry the negative prompt from the Compose step (if user pre-composed)
             const composedNegative = this._promptEditor?.getNegativePrompt?.() || '';
 
+            const isAllModels = this._isAllModels();
+
             const payload = {
                 prompt: hasComposed ? prompt : userPrompt,
                 original_prompt: userPrompt,
                 pre_composed: hasComposed || false,
                 moderation_original: moderationOriginal || null,
                 negative_prompt: composedNegative,
+                all_models: isAllModels,
+                model_optimized_prompts: isAllModels && (document.getElementById('gen-model-optimized')?.checked || false),
                 style_id: this._getStyleId() || null,
                 asset_type: this._getAssetType(),
-                image_model: document.getElementById('gen-model').value,
+                image_model: isAllModels ? 'nova_canvas' : document.getElementById('gen-model').value,
                 width: size.w,
                 height: size.h,
-                num_options: numOptions,
-                num_variations: numVariations,
+                num_options: isAllModels ? 1 : numOptions,
+                num_variations: isAllModels ? 1 : numVariations,
                 remove_background: document.getElementById('gen-remove-bg').checked,
                 generate_svg: document.getElementById('gen-svg').checked,
                 upscale: document.getElementById('gen-upscale').checked,
@@ -516,7 +535,32 @@
                     this._result = null;
                     this._showPromptRefusalDialog(prompt, refusalReason);
                 }
-                // Moderation block — image model rejected the prompt
+                // All Models mode — partial results are valid
+                else if (result.all_models) {
+                    this._result = result;
+                    this._selectedOption = 0;
+                    this._selectedVariant = 0;
+                    this._renderResults(result);
+
+                    // Build summary toast
+                    const succeeded = (result.options || []).filter(o => o.status === 'success').length;
+                    const blocked = (result.options || []).filter(o => o.status === 'moderation_blocked');
+                    const failed = (result.options || []).filter(o => o.status === 'error');
+                    const totalModels = (result.options || []).length;
+
+                    if (blocked.length > 0 || failed.length > 0) {
+                        const parts = [`${succeeded} of ${totalModels} models generated`];
+                        if (blocked.length > 0) {
+                            const names = blocked.map(o => o.model_label || 'Unknown').join(', ');
+                            parts.push(`${blocked.length} blocked (${names})`);
+                        }
+                        if (failed.length > 0) parts.push(`${failed.length} failed`);
+                        window.showToast?.(parts.join('. ') + '.', succeeded > 0 ? 'warning' : 'error', 8000);
+                    } else {
+                        window.showToast?.(`All ${totalModels} models generated successfully!`, 'success');
+                    }
+                }
+                // Single-model moderation block
                 else if (moderationBlocked || (totalGenerated === 0 && this._moderationErrors.length > 0)) {
                     this._result = null;
                     this._showModerationDialog(prompt, this._moderationErrors[0] || 'Content moderation blocked this prompt', payload);
@@ -1238,14 +1282,28 @@
             const countEl = document.getElementById('gen-options-count');
             if (!section || !grid) return;
 
-            if (options.length <= 1) {
+            const isAllModels = this._result?.all_models;
+
+            if (options.length <= 1 && !isAllModels) {
                 // Single option — skip the options row, go straight to variations
                 section.classList.add('hidden');
                 return;
             }
 
             section.classList.remove('hidden');
-            if (countEl) countEl.textContent = `${options.length} options`;
+
+            // Update header for All Models vs normal mode
+            const header = document.getElementById('gen-options-header');
+            if (header) {
+                header.textContent = isAllModels
+                    ? 'Models — comparison across image models'
+                    : 'Options — different designs';
+            }
+            if (countEl) {
+                countEl.textContent = isAllModels
+                    ? `${options.length} models`
+                    : `${options.length} options`;
+            }
 
             // Adjust grid columns to match option count
             grid.className = `grid gap-3 grid-cols-${Math.min(options.length, 5)}`;
@@ -1267,8 +1325,14 @@
                         </div>
                         <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
                         <div class="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                            Option ${i + 1}
+                            ${opt.model_label || `Option ${i + 1}`}
                         </div>
+                        ${opt.status && opt.status !== 'success' ? `
+                        <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <span class="px-2 py-1 rounded text-xs font-semibold ${opt.status === 'moderation_blocked' ? 'bg-amber-500/80 text-amber-950' : 'bg-red-500/80 text-white'}">
+                                ${opt.status === 'moderation_blocked' ? 'Blocked — moderation' : 'Failed'}
+                            </span>
+                        </div>` : ''}
                         <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
                             <p class="text-white text-[10px] leading-tight line-clamp-2">${this._escapeHtml(opt.refined_prompt || '').substring(0, 80)}...</p>
                         </div>
@@ -1307,12 +1371,37 @@
                 });
             }
 
-            // Show concept prompt
+            // Show per-option prompt with label
             const conceptSection = document.getElementById('gen-concept-prompt');
+            const conceptLabel = document.getElementById('gen-concept-prompt-label');
             const conceptText = document.getElementById('gen-concept-prompt-text');
+            const conceptNeg = document.getElementById('gen-concept-negative');
+            const conceptNegText = document.getElementById('gen-concept-negative-text');
+
             if (conceptSection && conceptText && option.refined_prompt) {
                 conceptSection.classList.remove('hidden');
+                // Label: "Generated prompt — Option N" or "Generated prompt — Nova Canvas"
+                const label = option.model_label
+                    ? `Generated prompt \u2014 ${option.model_label}`
+                    : `Generated prompt \u2014 Option ${index + 1}`;
+                if (conceptLabel) conceptLabel.textContent = label;
                 conceptText.textContent = option.refined_prompt;
+
+                // Per-option negative prompt
+                const optNeg = option.negative_prompt || '';
+                if (conceptNeg && conceptNegText) {
+                    if (optNeg) {
+                        conceptNeg.classList.remove('hidden');
+                        conceptNegText.textContent = optNeg;
+                    } else {
+                        conceptNeg.classList.add('hidden');
+                    }
+                }
+
+                // Show status detail for blocked/failed options
+                if (option.status && option.status !== 'success') {
+                    conceptText.textContent = `[${option.status === 'moderation_blocked' ? 'Blocked by moderation' : 'Generation failed'}] ${option.status_detail || ''}`;
+                }
             }
 
             // Render variations for this option
@@ -1535,6 +1624,30 @@
         },
         _getAssetType() {
             return document.getElementById('gen-asset-type')?.value || 'game_asset';
+        },
+        _isAllModels() {
+            return document.getElementById('gen-model')?.value === 'all_models';
+        },
+
+        _updateAllModelsUI(isAllModels) {
+            const allModelsOpts = document.getElementById('gen-all-models-opts');
+            const optsSelect = document.getElementById('gen-num-options');
+            const varsSelect = document.getElementById('gen-num-variations');
+            const infoEl = document.getElementById('gen-all-models-info');
+
+            if (isAllModels) {
+                allModelsOpts?.classList.remove('hidden');
+                // Disable options/variations (fixed: 1 option per model, 1 variation)
+                if (optsSelect) { optsSelect.value = '1'; optsSelect.disabled = true; }
+                if (varsSelect) { varsSelect.value = '1'; varsSelect.disabled = true; }
+                // Show model count (we know MODELS has 4 real models + "All")
+                const modelCount = MODELS.length - 1; // Exclude "All Available Models" entry
+                if (infoEl) infoEl.textContent = `Will generate 1 image per model (${modelCount} models) = ${modelCount} images total`;
+            } else {
+                allModelsOpts?.classList.add('hidden');
+                if (optsSelect) optsSelect.disabled = false;
+                if (varsSelect) varsSelect.disabled = false;
+            }
         },
 
         _getIpDeclaration() {

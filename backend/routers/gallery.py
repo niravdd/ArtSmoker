@@ -147,6 +147,23 @@ async def get_batch(batch_id: str):
     original_total = original_options * original_variations
     deleted_count = first.get("batch_deleted_count", 0)
 
+    # Detect "All Models" batch and reconstruct model_map
+    is_all_models = first.get("all_models", False)
+    model_map = None
+    if is_all_models:
+        model_map = {}
+        for opt in options:
+            oi = opt["option_index"]
+            # Get model from first variant in this option
+            if opt["variants"]:
+                v_meta = _get_meta(opt["variants"][0]["id"])
+                if v_meta:
+                    model_map[oi] = v_meta.get("image_model", "")
+                    opt["image_model"] = v_meta.get("image_model", "")
+                    opt["model_label"] = v_meta.get("model_label", "")
+                    opt["refined_prompt"] = v_meta.get("refined_prompt", opt.get("refined_prompt", ""))
+                    opt["negative_prompt"] = v_meta.get("negative_prompt", "")
+
     return {
         "id": batch_id,
         "prompt": first.get("prompt", ""),
@@ -156,6 +173,8 @@ async def get_batch(batch_id: str):
         "style_snapshot": first.get("style_snapshot"),
         "asset_type": first.get("asset_type", ""),
         "image_model": first.get("image_model", ""),
+        "all_models": is_all_models,
+        "model_map": model_map,
         "width": first.get("width", 1024),
         "height": first.get("height", 1024),
         "remove_background": first.get("remove_background", False),

@@ -83,6 +83,22 @@ def get_enabled_image_models() -> dict:
     return {k: v for k, v in _registry.get("image_models", {}).items() if v.get("enabled")}
 
 
+_STRICTNESS_ORDER = {"moderate": 0, "strict": 1, "very_strict": 2}
+
+
+def get_enabled_image_model_keys_sorted() -> list[str]:
+    """Return enabled image model keys sorted by moderation strictness (least strict first).
+
+    This ordering is used by 'All Models' generation so less strict models
+    run first (more likely to succeed), giving faster feedback.
+    """
+    enabled = get_enabled_image_models()
+    return sorted(
+        enabled.keys(),
+        key=lambda k: _STRICTNESS_ORDER.get(enabled[k].get("moderation_strictness", "moderate"), 0),
+    )
+
+
 def get_image_model_id(key: str) -> str:
     """Get the Bedrock model ID for an image model key."""
     return get_image_model(key).get("model_id", "")
