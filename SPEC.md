@@ -196,8 +196,8 @@ A style profile captures the visual DNA of a game's art:
 
 ```json
 {
-  "id": "city-builder-kenney",
-  "name": "Kenney City Builder",
+  "id": "city-builder-iso",
+  "name": "Isometric City Builder",
   "description": "Low-poly isometric city buildings",
   "created_at": "2026-02-24T...",
   "reference_images": ["ref1.png", "ref2.png", "..."],
@@ -212,7 +212,7 @@ A style profile captures the visual DNA of a game's art:
     "materials": "stone rendered as uniform flat gray planes, wood as warm brown blocks, metal as light blue-gray surfaces — no textures or gradients",
     "detail_level": "minimal surface detail, no visible grain or weathering, forms defined entirely by color planes and sharp edges"
   },
-  "generation_hints": "Isometric low-poly game asset, flat shading, cheerful colors, transparent background, single object centered, no shadows, Kenney style"
+  "generation_hints": "Isometric low-poly game asset, flat shading, cheerful colors, transparent background, single object centered, no shadows"
 }
 ```
 
@@ -252,7 +252,7 @@ A style profile captures the visual DNA of a game's art:
 - **Animation frames**: Files like `Male_0_Idle0.png` through `Male_0_Idle8.png` are recognized as frames of the same animation — only the base frame (`Idle`) is kept.
 - **Folder prioritization**: When the same object appears in multiple subdirectories (e.g. rendered at different angles), folders are scored by priority: `Samples`/`Screenshots` (highest) > `Isometric`/`rendered` > `Characters` > `Angle` (lowest, skipped entirely if an `Isometric` variant exists).
 - **Implementation**: `deduplicate_imports()` calls `_get_canonical_key()` per file to compute a normalized key, then selects the best representative per key using folder priority scoring.
-- **Impact**: A 747-file Kenney isometric dungeon pack deduplicates to 99 unique objects — a 7x reduction that keeps the full object vocabulary within the reference image budget.
+- **Impact**: For example, a 747-file isometric asset pack deduplicates to ~99 unique objects — a 7× reduction that keeps the full object vocabulary within the reference image budget.
 
 **Supported import formats** (centralized in `config.py`):
 - **Image formats** (`IMAGE_EXTENSIONS`): .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga (Targa), .ico, .svg
@@ -438,7 +438,7 @@ Each variant is stored in its own directory under `data/generated/{asset_id}/` w
 ```json
 {
   "style_snapshot": {
-    "name": "Kenney City Builder",
+    "name": "Isometric City Builder",
     "description": "Low-poly isometric city buildings",
     "generation_hints": "Isometric low-poly game asset, flat shading...",
     "analyzed_style": { "perspective": "...", "palette": [...], ... }
@@ -780,7 +780,7 @@ Or when all models reject (rewrite fallback):
 {
   "prompt": "hospital building",
   "original_prompt": "hospital",
-  "style_id": "city-builder-kenney",
+  "style_id": "city-builder-iso",
   "asset_type": "game_asset",
   "image_model": "nova_canvas",
   "width": 1024,
@@ -821,7 +821,7 @@ Fields:
 ```json
 {
   "prompt": "hospital building",
-  "style_id": "city-builder-kenney",
+  "style_id": "city-builder-iso",
   "asset_type": "game_asset",
   "image_model": "nova_canvas"
 }

@@ -1,5 +1,5 @@
 # ArtSmoker
-*Smoke-testing your artwork!*
+> *Smoke-testing your artwork!*
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
@@ -12,7 +12,7 @@ Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, Stable Diffusion 3.5 Lar
 
 ## 1. What It Does
 
-1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally). **Smart deduplication** always runs on every import regardless of file count — even small sets can have cross-folder duplicates. Removes rotation variants (barrel_N/E/S/W.png keeps only barrel_S.png) and animation frames (Idle0-Idle8 keeps only Idle), with folder prioritization (Samples > Isometric > Characters > Angle). A 747-file Kenney pack deduplicates to 99 unique objects. Supports a wide range of formats: .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus automatic texture extraction from 3D models (.glb, .gltf).
+1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally). **Smart deduplication** always runs on every import regardless of file count — even small sets can have cross-folder duplicates. Removes rotation variants (barrel_N/E/S/W.png keeps only barrel_S.png) and animation frames (Idle0-Idle8 keeps only Idle), with folder prioritization (Samples > Isometric > Characters > Angle). For example, a 747-file isometric asset pack deduplicates to ~99 unique objects — a 7× reduction. Supports a wide range of formats: .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus automatic texture extraction from 3D models (.glb, .gltf).
 2. **AI learns your style** — Two-phase cohesion-aware analysis: first, a cheap Sonnet check (8 images) determines whether your collection is unified, structurally consistent, or diverse. Then Opus analyzes the full reference set guided by that cohesion assessment — so diverse collections get useful hints about production patterns, not a diluted generic description. Analysis is context-aware: if you provide generation hints, the AI receives them as "Artist's Guidance" alongside the reference images, so the analysis understands your intent, not just what's visible.
 3. **Describe what you need** — type or speak a prompt like "hospital building" or "fire mage character".
 4. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
