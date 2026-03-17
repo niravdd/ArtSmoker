@@ -986,10 +986,11 @@ Pillow>=11.1
 aiofiles>=24.1
 ```
 
-For production deployments, also install `gunicorn` (Linux/macOS only):
+For multi-user, shared test, or production deployments, also install `gunicorn` (Linux/macOS only):
 ```
 pip install gunicorn
 ```
+Use `gunicorn` whenever more than one person will access the app concurrently — not just in production. Solo development with `uvicorn --reload` is fine for a single developer.
 
 **External CLI tools** (optional, not Python packages — improve SVG quality):
 
@@ -1008,7 +1009,7 @@ If neither is installed, SVG conversion falls back to Pillow's embedded-raster a
 | AWS CLI | `brew install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | `sudo apt install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | [AWS MSI installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
 | Python command | `python3` / `pip3` | `python3` / `pip3` | `python` / `pip` |
 | Venv activation | `source .venv/bin/activate` | `source .venv/bin/activate` | `.venv\Scripts\activate` |
-| Production server | gunicorn (pip install) | gunicorn (pip install) | uvicorn with `--workers` flag (gunicorn not supported on Windows) |
+| Multi-user server | gunicorn (pip install) | gunicorn (pip install) | uvicorn with `--workers` flag (gunicorn not supported on Windows) |
 | System fonts (Type Studio) | Detected from `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | Detected from `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.fonts`, `~/.local/share/fonts` | Not auto-detected — use global or style-specific custom fonts |
 
 **Installation without venv** (all platforms):

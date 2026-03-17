@@ -145,7 +145,9 @@ pip install -r backend\requirements.txt
 
 ## Running
 
-### Development (all platforms)
+### Solo development (all platforms)
+
+Single-process with auto-reload on file changes — ideal for one developer working locally:
 
 ```bash
 # With venv (activate first)
@@ -168,7 +170,33 @@ Open **http://localhost:8000** — the frontend is served by FastAPI, no separat
 
 On startup, the console shows AWS credential validation results. If something's wrong, you'll see a clear error box. You can also check `http://localhost:8000/api/health` for the status.
 
-### Production deployment (EC2 / Linux server)
+### Multi-user / shared test box / production (macOS / Linux)
+
+For any environment with more than one concurrent user — whether a shared dev/test box, staging, or production — use **gunicorn** with multiple workers:
+
+```bash
+# Install gunicorn (one-time, in addition to requirements.txt)
+pip install gunicorn
+
+# Run with gunicorn (multi-worker, handles concurrent users)
+gunicorn backend.main:app \
+  -w 2 \
+  -k uvicorn.workers.UvicornWorker \
+  --bind 0.0.0.0:8000 \
+  --timeout 300
+```
+
+| Flag | Purpose |
+|------|---------|
+| `-w 2` | 2 worker processes (increase for heavier load) |
+| `-k uvicorn.workers.UvicornWorker` | Use uvicorn's async worker class |
+| `--bind 0.0.0.0:8000` | Listen on all interfaces (not just localhost) |
+| `--timeout 300` | 5-minute timeout for large batch generations with retries |
+
+> [!TIP]
+> **gunicorn** is Linux/macOS only. On Windows, use `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2` for multi-worker serving.
+
+### EC2 / cloud deployment
 
 Recommended: **t3.small** (~$15/month) for 1-2 concurrent users.
 
@@ -178,22 +206,12 @@ git clone <repo-url> && cd ArtSmoker
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
-pip install gunicorn                       # Production WSGI server
-
-# Run with gunicorn (multi-worker, production-grade)
-gunicorn backend.main:app \
-  -w 2 \
-  -k uvicorn.workers.UvicornWorker \
-  --bind 0.0.0.0:8000 \
-  --timeout 300
+pip install gunicorn
 ```
 
 - Attach an **IAM role** to the EC2 instance with `bedrock:InvokeModel`, `bedrock:Converse`, and `bedrock:ListFoundationModels` — no access keys needed on the instance.
-- The `--timeout 300` (5 minutes) accommodates large batch generations with retries.
+- Run with the same gunicorn command above.
 - For persistent operation, use `systemd`, `supervisord`, or `screen`/`tmux`.
-
-> [!TIP]
-> **gunicorn** is Linux/macOS only. On Windows, use `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2` for multi-worker production serving.
 
 ## Architecture
 
