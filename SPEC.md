@@ -23,64 +23,66 @@
 
 ## Table of Contents
 
-- [Context](#context)
-- [Architecture Overview](#architecture-overview)
-- [Project Structure](#project-structure)
-- [Detailed Component Design](#detailed-component-design)
-  - [1. Style Profile System](#1-style-profile-system)
-  - [2. Two-Level Asset Generation Pipeline](#2-two-level-asset-generation-pipeline)
-  - [3. Strong Asset-Type Differentiation](#3-strong-asset-type-differentiation)
-  - [4. Result Model Structure](#4-result-model-structure)
-  - [5. Voice Input (Nova Sonic)](#5-voice-input-nova-sonic)
-  - [6. Frontend Design](#6-frontend-design)
-  - [7. Technology Choices](#7-technology-choices)
-  - [8. AWS Configuration](#8-aws-configuration)
-  - [9. Post-Processing Pipeline](#9-post-processing-pipeline)
-  - [10. Storage Layer](#10-storage-layer)
-  - [11. Model Registry](#11-model-registry)
-- [API Reference](#api-reference)
-  - [Styles](#styles)
-  - [Generation](#generation)
-  - [Prompt Refinement](#prompt-refinement)
-  - [Voice Transcription](#voice-transcription)
-  - [Gallery](#gallery)
-  - [Type Studio](#type-studio)
-  - [Browse](#browse)
-  - [Admin (Model Management)](#admin-model-management)
-  - [System](#system)
-- [Prerequisites: AWS Setup](#prerequisites-aws-setup)
-  - [AWS Credentials](#aws-credentials)
-  - [Required IAM Permissions](#required-iam-permissions)
-  - [Bedrock Model Access](#bedrock-model-access)
-  - [Startup Validation](#startup-validation)
-- [Application Bootstrap (main.py)](#application-bootstrap-mainpy)
-- [Dependencies (requirements.txt)](#dependencies-requirementstxt)
-- [Frontend Design System](#frontend-design-system)
-- [Configuration](#configuration)
-- [Verification](#verification)
-- [AWS Bedrock Pricing & Cost Breakdown](#aws-bedrock-pricing--cost-breakdown)
-  - [Per-Unit Pricing](#per-unit-pricing)
-  - [Style Analysis Cost](#style-analysis-cost-one-time-per-style)
-  - [Generation Cost Scenarios](#generation-cost-scenarios)
-  - [Full Cost Examples](#full-cost-examples)
-- [Deployment & Scaling Roadmap](#deployment--scaling-roadmap)
-  - [Why not Lambda](#why-not-lambda)
-  - [Phase 1: Local Development](#phase-1-current--local-development-done)
-  - [Phase 2: App Runner + S3](#phase-2-containerized-deployment--app-runner--s3)
-  - [Phase 3: CloudFront + Async](#phase-3-optimized-delivery--cloudfront--async-generation)
-  - [Phase 4: Multi-Tenant](#phase-4-multi-tenant-platform)
-  - [Infrastructure Summary](#infrastructure-summary)
-  - [Cost Estimates (Phase 2)](#cost-estimates-phase-2)
+- [1. Context](#1-context)
+- [2. Architecture Overview](#2-architecture-overview)
+- [3. Project Structure](#3-project-structure)
+- [4. Detailed Component Design](#4-detailed-component-design)
+  - [4.1 Style Profile System](#41-style-profile-system)
+  - [4.2 Two-Level Asset Generation Pipeline](#42-two-level-asset-generation-pipeline)
+  - [4.3 Strong Asset-Type Differentiation](#43-strong-asset-type-differentiation)
+  - [4.4 Result Model Structure](#44-result-model-structure)
+  - [4.5 Voice Input (Nova Sonic)](#45-voice-input-nova-sonic)
+  - [4.6 Frontend Design](#46-frontend-design)
+  - [4.7 Technology Choices](#47-technology-choices)
+  - [4.8 AWS Configuration](#48-aws-configuration)
+  - [4.9 Post-Processing Pipeline](#49-post-processing-pipeline)
+  - [4.10 Storage Layer](#410-storage-layer)
+  - [4.11 Model Registry](#411-model-registry)
+- [5. API Reference](#5-api-reference)
+  - [5.1 Styles](#51-styles)
+  - [5.2 Generation](#52-generation)
+  - [5.3 Prompt Refinement](#53-prompt-refinement)
+  - [5.4 Voice Transcription](#54-voice-transcription)
+  - [5.5 Gallery](#55-gallery)
+  - [5.6 Type Studio](#56-type-studio)
+  - [5.7 Browse](#57-browse)
+  - [5.8 Admin (Model Management)](#58-admin-model-management)
+  - [5.9 System](#59-system)
+- [6. Prerequisites: AWS Setup](#6-prerequisites-aws-setup)
+  - [6.1 AWS Credentials](#61-aws-credentials)
+  - [6.2 Required IAM Permissions](#62-required-iam-permissions)
+  - [6.3 Bedrock Model Availability](#63-bedrock-model-availability)
+  - [6.4 Verifying Access](#64-verifying-access)
+  - [6.5 Startup Validation](#65-startup-validation)
+- [7. Security Model](#7-security-model)
+- [8. Application Bootstrap (main.py)](#8-application-bootstrap-mainpy)
+- [9. Dependencies (requirements.txt)](#9-dependencies-requirementstxt)
+- [10. Frontend Design System](#10-frontend-design-system)
+- [11. Configuration](#11-configuration)
+- [12. Verification](#12-verification)
+- [13. AWS Bedrock Pricing & Cost Breakdown](#13-aws-bedrock-pricing--cost-breakdown)
+  - [13.1 Per-Unit Pricing](#131-per-unit-pricing)
+  - [13.2 Style Analysis Cost](#132-style-analysis-cost-one-time-per-style)
+  - [13.3 Generation Cost Scenarios](#133-generation-cost-scenarios)
+  - [13.4 Full Cost Examples](#134-full-cost-examples)
+- [14. Deployment & Scaling Roadmap](#14-deployment--scaling-roadmap)
+  - [14.1 Why Not Lambda](#141-why-not-lambda)
+  - [14.2 Phase 1: Local Development](#142-phase-1-current--local-development-done)
+  - [14.3 Phase 2: App Runner + S3](#143-phase-2-containerized-deployment--app-runner--s3)
+  - [14.4 Phase 3: CloudFront + Async](#144-phase-3-optimized-delivery--cloudfront--async-generation)
+  - [14.5 Phase 4: Multi-Tenant](#145-phase-4-multi-tenant-platform)
+  - [14.6 Infrastructure Summary](#146-infrastructure-summary)
+  - [14.7 Cost Estimates (Phase 2)](#147-cost-estimates-phase-2)
 
 ---
 
-## Context
+## 1. Context
 
 A web-based platform that generates 2D game assets and marketing materials using AWS Bedrock AI models. The platform accepts text or voice prompts, learns visual styles from user-uploaded reference art, and produces game-ready assets (PNG + SVG). It is designed to be generic and scalable — any game studio can upload their art theme and generate consistent new assets.
 
 The system uses a **two-level generation model**: for each user prompt, Claude Opus generates multiple distinctly different creative *options* (concept designs), and for each option the image generator produces multiple seed *variations*. This gives the user a broad creative palette to choose from.
 
-## Architecture Overview
+## 2. Architecture Overview
 
 ```
 Browser (Vanilla JS + Tailwind CSS)
@@ -123,7 +125,7 @@ Storage (Local filesystem, S3-ready interface)
     +-- /data/generated/    — Output assets (PNG + SVG) + metadata
 ```
 
-## Project Structure
+## 3. Project Structure
 
 ```
 ArtSmoker/
@@ -185,9 +187,9 @@ ArtSmoker/
 └── README.md                      # Quick-start guide
 ```
 
-## Detailed Component Design
+## 4. Detailed Component Design
 
-### 1. Style Profile System
+### 4.1 Style Profile System
 
 A style profile captures the visual DNA of a game's art:
 
@@ -259,7 +261,7 @@ A style profile captures the visual DNA of a game's art:
 
 **Local imports use symlinks** (not copies) to avoid disk duplication for standard image files. S3 imports download files to the references folder; the S3 client paginates through all objects (handles >1000 keys). Browser uploads copy files normally. Filenames from different subdirectories are **deduplicated** by prefixing with the parent directory name when collisions are detected. The total reference image count is capped at `max_reference_images` (default 100, env: `ARTSMOKER_MAX_REFERENCE_IMAGES`). Optionally auto-triggers Claude Opus style analysis after import.
 
-### 2. Two-Level Asset Generation Pipeline
+### 4.2 Two-Level Asset Generation Pipeline
 
 The generation system produces images across two dimensions:
 
@@ -381,7 +383,7 @@ The `POST /api/generate/analyze-moderation` endpoint sends the flagged prompt to
 
 **Error classification**: The system classifies image generation errors by string-matching the error message to determine if an error is a non-retriable moderation block (contains terms like "moderation", "blocked", "content policy", "not allowed") vs. a transient error (throttling, timeout, connection) that should be retried. Non-retriable errors skip the retry loop entirely and trigger the moderation recovery flow.
 
-### 3. Strong Asset-Type Differentiation
+### 4.3 Strong Asset-Type Differentiation
 
 Each `AssetType` has detailed structural directives in `prompt_engineer.py` covering five dimensions. These are injected into the prompt template with instructions to follow them as **guides**, not rigid templates. The same user prompt produces fundamentally different images depending on the asset type.
 
@@ -400,7 +402,7 @@ Each `AssetType` has detailed structural directives in `prompt_engineer.py` cove
 | `character` | **OUTPUT**: Character design/portrait. **COMPOSITION**: Full/3/4-body, slightly off-center, facing viewer or 3/4 view. Isolated on clean background. **FRAMING**: Fill 60-75% vertical, head-to-toe or head-to-knee. **TECHNICAL**: Strong readable silhouette, expressive pose, consistent lighting. **DO NOT**: Crop limbs awkwardly, add backgrounds, include multiple characters. |
 | `environment` | **OUTPUT**: Environment/background/landscape. **COMPOSITION**: Full scenic illustration with foreground/midground/background depth layers, leading lines. **FRAMING**: Wide establishing shot, horizon at upper/lower third. **TECHNICAL**: Atmospheric perspective, environmental storytelling, mood-setting lighting. **DO NOT**: Make it flat or icon-like. |
 
-### 4. Result Model Structure
+### 4.4 Result Model Structure
 
 **Pydantic models** (`backend/models/generation_result.py`):
 
@@ -447,7 +449,7 @@ This ensures that if the original style profile is later deleted or modified, th
 **GalleryItem** — a flat summary model for the gallery listing endpoint:
 - id, prompt, style_id, asset_type, png_url, svg_url, created_at.
 
-### 5. Voice Input (Nova Sonic)
+### 4.5 Voice Input (Nova Sonic)
 
 - Browser captures audio via `MediaRecorder` API (WebM/Opus format).
 - Audio file sent to backend `POST /api/transcribe/` as a multipart upload.
@@ -455,7 +457,7 @@ This ensures that if the original style profile is later deleted or modified, th
 - **Current limitation**: Nova Sonic requires the bidirectional streaming API, which depends on a compatible boto3 version. If the streaming API is unavailable, access is denied, or the API call fails, the service returns a placeholder message indicating audio was received but transcription requires streaming setup. Full transcription works when Nova Sonic streaming is properly configured in the us-east-1 region.
 - Transcribed text displayed in prompt editor for user review/editing.
 
-### 6. Frontend Design
+### 4.6 Frontend Design
 
 Clean, modern single-page application served as static files mounted at `/` by FastAPI.
 
@@ -475,7 +477,7 @@ Clean, modern single-page application served as static files mounted at `/` by F
 - **Server-side file browser modal**: Used for both local and S3 browsing. Single-click selects a file/folder, double-click navigates into a directory. Back button and ".." entry navigate to the parent directory.
 
 **2D Image Studio** (`#image-studio`) — The main image generation workspace with a two-tier result display:
-- **Left sidebar**: Art style selector, asset type, image model, dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), processing toggle switches (see below). Includes a **"Model Settings"** button that opens the Model Registry admin UI (see [Model Registry](#11-model-registry)).
+- **Left sidebar**: Art style selector, asset type, image model, dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), processing toggle switches (see below). Includes a **"Model Settings"** button that opens the Model Registry admin UI (see [4.11 Model Registry](#411-model-registry)).
 - **Processing options**: Toggle switches for Remove Background, SVG Conversion (on by default), Upscale, and **Prompt Pre-Check** (pre-screens prompts via Claude Sonnet before image generation). Options row is placed **below** the prompt areas (images grouped together). Before generation these are labeled **"Pre-Processing"** (applied during generation). After generation completes, the label switches to **"Post-Processing"** and an **"Apply to Current Results"** button appears, allowing users to re-apply processing to the existing generated images without re-generating (calls `POST /api/generate/post-process`).
 - **Two-area prompt editor** (center panel): The prompt editor uses a two-textarea design:
   - **Top textarea** (user input): Where the user writes their prompt. This area is **never overwritten** by the system — it always contains the user's original words.
@@ -554,7 +556,7 @@ If there is only one option, the options row is hidden. If there is only one var
   - **"Add Text"** (emerald) — visible for image-type assets only. Opens Type Studio in "On Image" mode with this asset as the base image.
   - **"Edit in Type Studio"** (purple) — visible for type-studio assets only. Loads the asset back into Type Studio for re-editing.
 
-### 7. Technology Choices
+### 4.7 Technology Choices
 
 | Component | Technology | Reason |
 |-----------|-----------|--------|
@@ -565,7 +567,7 @@ If there is only one option, the options row is hidden. If there is only one var
 | Text Rendering | Pillow (Python Imaging Library) | Text overlay composition with shadow, outline, glow effects |
 | Storage | Local filesystem | Simple start, S3-compatible interface for later migration |
 
-### 8. AWS Configuration
+### 4.8 AWS Configuration
 
 **Default AWS Profile**: None — uses the standard AWS credential chain (configurable via `ARTSMOKER_AWS_PROFILE`).
 
@@ -605,7 +607,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 > Note: Stability AI generation models (Stable Diffusion 3.5 Large, Stable Image Ultra) use **aspect ratios** instead of exact pixel dimensions. The backend provides a `_dimensions_to_aspect_ratio()` helper that maps width×height to the closest supported ratio: 1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21.
 
-### 9. Post-Processing Pipeline
+### 4.9 Post-Processing Pipeline
 
 The post-processing pipeline (`backend/services/post_processor.py`) applies three optional steps in sequence:
 
@@ -620,7 +622,7 @@ The post-processing pipeline (`backend/services/post_processor.py`) applies thre
 
 Each step is independently fault-tolerant — failures are logged but do not abort the pipeline.
 
-### 10. Storage Layer
+### 4.10 Storage Layer
 
 `LocalStore` (`backend/storage/local_store.py`) provides an S3-compatible interface over the local filesystem:
 
@@ -638,7 +640,7 @@ Each step is independently fault-tolerant — failures are logged but do not abo
 
 Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 
-### 11. Model Registry
+### 4.11 Model Registry
 
 The model registry (`backend/model_registry.json` + `backend/services/model_registry.py`) provides centralized, persisted configuration for all AI models used by the system. The registry file lives alongside the backend code (not in `data/`) and is managed through an admin API and frontend UI.
 
@@ -680,7 +682,7 @@ The model registry (`backend/model_registry.json` + `backend/services/model_regi
 - `update_image_model(key, updates)` / `update_category(name, updates)` — persists changes.
 - `add_image_model(key, config)` — adds a new image model entry.
 
-**Admin API** (`backend/routers/admin.py`): See [Admin (Model Management)](#admin-model-management) in the API Reference.
+**Admin API** (`backend/routers/admin.py`): See [5.8 Admin (Model Management)](#58-admin-model-management) in the API Reference.
 
 **Frontend UI** (`frontend/js/components/ModelSettings.js`):
 - Modal accessible via the **"Model Settings"** button in the 2D Image Studio sidebar.
@@ -688,9 +690,9 @@ The model registry (`backend/model_registry.json` + `backend/services/model_regi
 - Model IDs are editable inline; changes are saved via PATCH to the admin API.
 - **Discover section**: Pick an AWS region and see available Bedrock models. The discovery endpoint calls `ListFoundationModels`, deduplicates model versions (e.g. 128 raw results to ~96 unique models), and groups by capability (image generators, text/LLM, vision).
 
-## API Reference
+## 5. API Reference
 
-### Styles
+### 5.1 Styles
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -704,7 +706,7 @@ The model registry (`backend/model_registry.json` + `backend/services/model_regi
 | POST | `/api/styles/{id}/import` | Import asset files from a local directory path or S3 prefix. Body: `{ "path": "/path/to/images", "auto_analyze": true }`. Scans recursively for image files (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) and 3D models (.glb, .gltf) with automatic texture extraction. Local image imports use symlinks (not copies); extracted textures are saved as copies. S3 imports download files (paginates through >1000 keys). Filenames are deduplicated by prefixing with parent/model name. Optionally triggers style analysis after import. |
 | POST | `/api/styles/{id}/analyze` | Trigger AI style analysis on reference images. If the style has more than `max_analysis_images` (default 20) references, smart sampling selects a diverse subset. Two-phase analysis: Claude Sonnet cohesion check (8 images), then Claude Opus full analysis guided by cohesion level. Claude Sonnet generates hints. All persisted to the profile. |
 
-### Generation
+### 5.2 Generation
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -808,7 +810,7 @@ Fields:
 - `ip_owned` (default false): User asserts IP ownership over the content.
 - `ip_licensed` (default false): User asserts licensing rights. Both IP fields are stored in per-variant metadata for audit trail.
 
-### Prompt Refinement
+### 5.3 Prompt Refinement
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -835,7 +837,7 @@ Fields:
 }
 ```
 
-### Voice Transcription
+### 5.4 Voice Transcription
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -848,7 +850,7 @@ Fields:
 }
 ```
 
-### Gallery
+### 5.5 Gallery
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -859,7 +861,7 @@ Fields:
 | DELETE | `/api/gallery/` | Bulk delete assets. Request body: `{ "ids": ["asset_id_1", "asset_id_2", ...] }`. Deletes the asset directories and their contents from disk. Returns `{deleted, not_found}`. **Batch-aware**: when deleting batch assets, updates surviving siblings' metadata with `batch_deleted_count`, `original_num_options`, and `original_num_variations` so the system can report partial batch context on reload. |
 | GET | `/api/gallery/batch/{batch_id}` | Reconstruct the full options × variations structure for a batch (includes `style_snapshot` and `negative_prompt` per variant). Returns enriched batch context: `batch_surviving_count`, `batch_original_total`, `batch_deleted_count`, `original_num_options`, `original_num_variations` — so the frontend can display "4 of 25 images remaining (21 deleted)" when loading a partial batch. |
 
-### Type Studio
+### 5.6 Type Studio
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -868,7 +870,7 @@ Fields:
 | POST | `/api/type-studio/suggest` | AI layout suggestion. Accepts text lines, font choices, position hints, mode ("on_image" or "standalone"), optional base image ID, and style_id. Returns 1-5 layout options, each with per-line position (x, y), font size, color, and effects (shadow, outline, glow) representing different creative directions. |
 | POST | `/api/type-studio/preview` | Render and save the text overlay. Accepts text lines, selected layout option, font choices, mode, optional base image ID, style_id, and processing flags. Pillow renders the composition with the specified effects. Saves the result as a new gallery asset with full metadata (including `style_snapshot`) and returns the new asset ID and URLs. |
 
-### Browse
+### 5.7 Browse
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -876,7 +878,7 @@ Fields:
 | GET | `/api/browse/s3/buckets` | List available S3 buckets. |
 | GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. Returns list of objects and common prefixes. Recognizes the same asset formats as the local browser. |
 
-### Admin (Model Management)
+### 5.8 Admin (Model Management)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -886,7 +888,7 @@ Fields:
 | POST | `/api/admin/models/image` | Add a new image model to the registry. Body: `{ "key": "...", "model_id": "...", "region": "...", ... }`. |
 | GET | `/api/admin/discover/{region}` | Discover available Bedrock models in a region. Calls `ListFoundationModels`, deduplicates model versions (~128 raw to ~96 unique), groups by capability (image generators, text/LLM, vision). |
 
-### System
+### 5.9 System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -894,11 +896,11 @@ Fields:
 | POST | `/api/log` | Receive client-side log entries. Body: `{ "level": "error", "message": "...", "context": {} }`. Logged server-side with `[CLIENT]` prefix. |
 | GET | `/docs` | Swagger UI (auto-generated by FastAPI). |
 
-## Prerequisites: AWS Setup
+## 6. Prerequisites: AWS Setup
 
 ArtSmoker uses AWS Bedrock and requires working AWS credentials on the host machine **before launching**. No AWS configuration is needed inside the app itself — it uses the standard AWS credential chain.
 
-### AWS Credentials
+### 6.1 AWS Credentials
 
 The app uses boto3's standard credential resolution order:
 1. **Environment variables**: `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` (+ optional `AWS_SESSION_TOKEN`)
@@ -908,7 +910,7 @@ The app uses boto3's standard credential resolution order:
 
 Whatever method you use for other AWS work on your machine will work here.
 
-### Required IAM Permissions
+### 6.2 Required IAM Permissions
 
 The IAM principal (user, role, or SSO session) needs the following permissions:
 
@@ -957,7 +959,7 @@ For a scoped IAM policy:
 }
 ```
 
-### Bedrock Model Availability
+### 6.3 Bedrock Model Availability
 
 Bedrock models are **available by default** in all commercial AWS regions — no manual enablement step is needed. On first invocation of a third-party model (Anthropic, Stability AI), AWS automatically initiates a marketplace subscription in the background (requires the `aws-marketplace` permissions above).
 
@@ -971,7 +973,7 @@ ArtSmoker uses models in **two regions**:
 | us-west-2 | Claude Sonnet 4.6, Claude Opus 4.6, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (Remove BG, Upscale) |
 | us-east-1 | Nova Canvas, Titan Image v2, Nova Sonic |
 
-### Verifying Access
+### 6.4 Verifying Access
 
 ```bash
 # 1. Confirm credentials
@@ -988,7 +990,7 @@ aws bedrock list-foundation-models --region us-east-1 \
 
 If steps 2-3 return model IDs, your IAM permissions are correct. If you get "AccessDeniedException", the role/user lacks the required permissions — attach `AmazonBedrockFullAccess` or the scoped policy above.
 
-### Startup Validation
+### 6.5 Startup Validation
 
 On launch, ArtSmoker automatically validates:
 1. AWS credentials resolve (`sts:GetCallerIdentity`)
@@ -997,7 +999,7 @@ On launch, ArtSmoker automatically validates:
 
 Results are logged to the console and available at `GET /api/health`. If credentials are missing, a prominent error box explains what to configure. If some checks fail but credentials exist, a warning is shown — the app still starts (some features may be degraded).
 
-## Security Model
+## 7. Security Model
 
 ArtSmoker is designed as a **local/trusted-network development tool** — it runs on the developer's own machine or a private EC2 instance. The security model reflects this:
 
@@ -1010,7 +1012,7 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 > [!IMPORTANT]
 > For production deployments beyond a trusted team, add authentication (see Phase 4 roadmap), restrict the browse endpoint to allowed directories, and place the service behind a reverse proxy with TLS.
 
-## Application Bootstrap (main.py)
+## 8. Application Bootstrap (main.py)
 
 `backend/main.py` assembles the FastAPI application. Build it in this exact order:
 
@@ -1026,7 +1028,7 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 7. **Client log endpoint** (`POST /api/log`) — defined inline on `app`, receives `{level, message, context}`, logs as `[CLIENT] {message} | {context}` at the appropriate Python log level.
 8. **Static files mount** — `app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True))` mounted LAST so `/api/*` routes take priority. `FRONTEND_DIR` is `Path(__file__).resolve().parent.parent / "frontend"`. The `html=True` flag enables serving `index.html` for directory requests.
 
-## Dependencies (requirements.txt)
+## 9. Dependencies (requirements.txt)
 
 **Python packages** (installed via pip):
 
@@ -1079,7 +1081,7 @@ pip install -r backend\requirements.txt
 
 > Note: On modern Linux distros (PEP 668), `pip install` outside a venv may require `--user` or `--break-system-packages`. Using a venv is recommended to avoid system conflicts.
 
-## Frontend Design System
+## 10. Frontend Design System
 
 The frontend uses a dark theme with CSS custom properties. These values define the entire visual identity and must be replicated exactly for visual consistency.
 
@@ -1145,14 +1147,14 @@ The frontend uses a dark theme with CSS custom properties. These values define t
 ```
 `app.js` manages a DOM-caching router: each view is rendered once, then hidden/shown on route changes (not destroyed/recreated). The `_viewCache` object stores the live DOM element for each route.
 
-## Configuration
+## 11. Configuration
 
 All per-generation settings (style, asset type, image model, dimensions, options/variations counts, post-processing toggles) are controlled through the **frontend UI**.
 
 Infrastructure settings live in `backend/config.py` with sensible defaults that work out of the box. Static paths and environment overrides are in config.py; model IDs, regions, prompt limits, and moderation strictness are in the **model registry** (`backend/model_registry.json`), editable via the Admin API or the frontend Model Settings UI. If needed, any config.py setting can be overridden via an environment variable prefixed with `ARTSMOKER_` — see `backend/config.py` for the full list.
 
 **Model registry** (`backend/model_registry.json`):
-- All model IDs, regions, prompt limits, and capabilities are centralized here. See [Model Registry](#11-model-registry) for the full structure.
+- All model IDs, regions, prompt limits, and capabilities are centralized here. See [4.11 Model Registry](#411-model-registry) for the full structure.
 - Editable at runtime via the Admin API (`/api/admin/models`) or the frontend Model Settings modal.
 - Lives alongside backend code (not in `data/`) — it is system configuration, not user data.
 
@@ -1160,7 +1162,7 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 - `max_reference_images: int = 100` (env: `ARTSMOKER_MAX_REFERENCE_IMAGES`) — max images imported per style. Limits storage.
 - `max_analysis_images: int = 20` (env: `ARTSMOKER_MAX_ANALYSIS_IMAGES`) — max images sent to Claude Opus per analysis call. When a style exceeds this count, `_smart_sample()` selects a diverse subset. Reducing this value reduces Claude Opus vision costs per analysis.
 
-## Verification
+## 12. Verification
 
 1. **Start backend**:
    ```bash
@@ -1200,11 +1202,11 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 17. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears.
 18. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`).
 
-## AWS Bedrock Pricing & Cost Breakdown
+## 13. AWS Bedrock Pricing & Cost Breakdown
 
 All prices below are from the official [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions (us-west-2, us-east-1). Prices are on-demand, per-request.
 
-### Per-Unit Pricing
+### 13.1 Per-Unit Pricing
 
 | Service | Model | Per-Unit Cost | Unit |
 |---------|-------|--------------|------|
@@ -1222,7 +1224,7 @@ All prices below are from the official [AWS Bedrock Pricing page](https://aws.am
 > [!NOTE]
 > **Vision token formula**: Claude charges image inputs as tokens: `tokens = (width × height) / 750`. A 1024×1024 image ≈ 1,398 tokens. At Opus $5.00/MTok input = ~$0.007 per image.
 
-### Style Analysis Cost (one-time per style)
+### 13.2 Style Analysis Cost (One-Time per Style)
 
 For a style with **100 reference images** (20 sent to Claude Opus after smart sampling, 8 sent to Claude Sonnet for cohesion check):
 
@@ -1233,7 +1235,7 @@ For a style with **100 reference images** (20 sent to Claude Opus after smart sa
 | Generate hints | Claude Sonnet 4.6 | ~800 input + ~200 output tokens | ~$0.005 |
 | **Total per style analysis** | | | **~$0.14** |
 
-### Generation Cost Scenarios
+### 13.3 Generation Cost Scenarios
 
 The generation cost depends on the image model chosen and the options×variations count. Prompt refinement cost is constant per batch.
 
@@ -1261,7 +1263,7 @@ The generation cost depends on the image model chosen and the options×variation
 | Creative Upscale | $0.60 | $0.60 | $3.00 | $15.00 |
 | Convert to SVG | $0.00 | $0.00 | $0.00 | $0.00 |
 
-### Full Cost Examples
+### 13.4 Full Cost Examples
 
 **Example 1: Quick single asset (cheapest)**
 1 option × 1 variation, Titan Image v2, no post-processing:
@@ -1308,11 +1310,11 @@ The generation cost depends on the image model chosen and the options×variation
 > [!TIP]
 > **Key takeaway**: Image generation is cheap ($0.01–$0.14/image). **Creative Upscale is the big cost driver at $0.60/image** — use it selectively on your final chosen assets, not on the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free.
 
-## Deployment & Scaling Roadmap
+## 14. Deployment & Scaling Roadmap
 
 The current architecture runs as a single local process (uvicorn + local filesystem). This section documents the phased plan for production deployment and scaling.
 
-### Why not Lambda
+### 14.1 Why Not Lambda
 
 AWS Lambda is not suitable as the primary compute for this application:
 
@@ -1324,7 +1326,7 @@ AWS Lambda is not suitable as the primary compute for this application:
 
 Lambda _could_ work for lightweight endpoints (styles CRUD, gallery listing, health check), but mixing Lambda and non-Lambda compute for the same API adds routing complexity without meaningful benefit at this stage.
 
-### Phase 1: Current — Local Development (Done)
+### 14.2 Phase 1: Current — Local Development (Done)
 
 ```
 Developer machine
@@ -1338,7 +1340,7 @@ Developer machine
 - Storage: local filesystem under `data/`.
 - No authentication, single user.
 
-#### EC2 Quick Start
+#### 14.2.1 EC2 Quick Start
 
 For a lightweight production deployment (1-2 concurrent users), an EC2 instance is the simplest path:
 
@@ -1387,7 +1389,7 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
 - **No race conditions for concurrent users** — each generation uses unique UUIDs, file writes don't overlap.
 - **Migrating style data**: Style references use relative symlinks, so they work across machines as long as the source art directories maintain the same relative position to the ArtSmoker project.
 
-### Phase 2: Containerized Deployment — App Runner + S3
+### 14.3 Phase 2: Containerized Deployment — App Runner + S3
 
 **Goal**: Production URL accessible by the whole team, persistent storage, no server management.
 
@@ -1424,7 +1426,7 @@ AWS App Runner
 
 **Estimated effort**: 1-2 days. The S3 storage swap is the main work; Dockerfile and App Runner setup are straightforward.
 
-### Phase 3: Optimized Delivery — CloudFront + Async Generation
+### 14.4 Phase 3: Optimized Delivery — CloudFront + Async Generation
 
 **Goal**: Fast global frontend delivery, resilient generation pipeline that handles heavy usage without timeouts.
 
@@ -1468,7 +1470,7 @@ Step Functions (generation pipeline)
 
 **Estimated effort**: 3-5 days. Step Functions state machine + Lambda decomposition is the main work. CloudFront setup is well-documented.
 
-### Phase 4: Multi-Tenant Platform
+### 14.5 Phase 4: Multi-Tenant Platform
 
 **Goal**: Multiple studios/users, each with their own styles and generated assets, with authentication and access control.
 
@@ -1502,7 +1504,7 @@ DynamoDB
 
 **Estimated effort**: 1-2 weeks depending on auth requirements and billing complexity.
 
-### Infrastructure Summary
+### 14.6 Infrastructure Summary
 
 | Phase | Compute | Storage | Frontend | Auth | Scale |
 |-------|---------|---------|----------|------|-------|
@@ -1511,7 +1513,7 @@ DynamoDB
 | 3 (Optimize) | App Runner + Step Functions + Lambda | S3 + DynamoDB | S3 + CloudFront | Optional | Heavy usage |
 | 4 (Multi-tenant) | Same as Phase 3 | S3 (tenant-prefixed) + DynamoDB | S3 + CloudFront | Cognito | Multiple teams |
 
-### Cost Estimates (Phase 2)
+### 14.7 Cost Estimates (Phase 2)
 
 Rough monthly costs for a small team (10 users, ~500 generation batches/month). See the **AWS Bedrock Pricing & Cost Breakdown** section above for detailed per-operation costs.
 
