@@ -32,7 +32,13 @@ Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, Stable Diffusion 3.5 Lar
 
 For each prompt, the AI creates **Options** — fundamentally different design interpretations (e.g. for "a warrior": Viking berserker, Japanese samurai, tribal fighter, cyber-soldier, Greek hoplite). For each option, the image model produces **Variations** — different random seeds giving subtle visual differences. This gives artists a broad creative palette to choose from.
 
-### 1.3 Asset Type Awareness
+### 1.3 All Available Models
+
+Select **"All Available Models"** from the model dropdown to generate your prompt across every enabled image model simultaneously — one image per model. This gives a direct side-by-side comparison of how Nova Canvas, Titan Image, SD 3.5 Large, and Stable Image Ultra each interpret the same prompt. Each model runs independently: if stricter models block the prompt, you still get results from models that accepted it, with clear status labels (success, blocked by moderation, or failed) on each option card.
+
+An optional **"Model-optimized prompts"** toggle tailors the prompt to each model's strengths instead of sending the same prompt to all — useful when you want the best output from each model rather than a direct comparison.
+
+### 1.4 Asset Type Awareness
 
 The selected **Asset Type** fundamentally changes how the AI interprets your prompt — not just the image model, but every stage of the pipeline. When you type "hospital" and select different asset types, you get completely different outputs:
 
@@ -435,7 +441,7 @@ dialog   dialog
 6. Configure **Pre-Processing** (applied during generation) and **Post-Processing** (applied after generation, with an "Apply" button). SVG conversion is on by default. **Prompt Pre-Check** is on by default — pre-screens prompts before generation to save time and API costs on blocked prompts.
 7. Optionally use the **IP Declaration** section in the sidebar to assert intellectual property ownership or licensing. When declared with a strict model (Nova Canvas/Titan), the system recommends switching to SD 3.5 Large. IP declarations are stored in metadata for audit trail.
 8. Click **Generate**. If you skip the Compose step, the backend auto-refines and shows the result in the composed area via SSE.
-9. Browse the **options row** (different concepts) and **variations row** (seed variants of the selected concept). Clicking a thumbnail scrolls to the full preview.
+9. Browse the **options row** (different concepts, or different models in "All Models" mode) and **variations row** (seed variants of the selected concept). Clicking an option shows its specific **"Generated prompt — Option N"** with the exact prompt and negative prompt used. In "All Models" mode, option cards show the model name and blocked/failed status if applicable.
 10. Click any image to preview full-size, then download PNG or SVG.
 11. Use the **reset button** (amber circular arrow) to clear generated results and start fresh.
 12. Use **"Model Settings"** in the sidebar to view/edit model configuration and discover available Bedrock models.

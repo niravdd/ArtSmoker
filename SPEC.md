@@ -270,6 +270,15 @@ The generation system produces images across two dimensions:
 - **Variations** (1-5, default 5): Seed variations of each option. Same prompt, different random seeds passed to the image generator.
 - **Total images** = `num_options` x `num_variations` (up to 25 images per batch).
 
+**"All Available Models" mode** (`all_models: true`): Generates with every enabled image model instead of a single model. Each model becomes an "option" with 1 variation. Models run independently — no shared canary, no cooperative cancellation. Moderation blocks on one model don't affect others. The pipeline is handled by `_run_all_models_generation()` in `generate.py`.
+
+- Models are ordered by moderation strictness (least strict first: SD 3.5 Large → Stable Image Ultra → Titan Image → Nova Canvas) for optimal throughput.
+- **Same prompt mode** (default): One prompt refined once, sent to all models for direct comparison.
+- **Model-optimized mode** (`model_optimized_prompts: true`): Prompt is refined separately per model (e.g., SD 3.5 Large gets quality boosters, Nova Canvas gets structured captions).
+- Per-model results include `status` ("success", "moderation_blocked", "error"), `status_detail` (error message), and the specific `image_model`/`model_label` used.
+- SSE events include `model_status` (per-model as each completes) and `all_models_summary` (in the `complete` event).
+- Per-variant `metadata.json` stores the actual model used (`image_model`, `model_label`, `all_models: true`).
+
 ```
 User prompt: "hospital building"
          |
@@ -328,6 +337,7 @@ User prompt: "hospital building"
 | `moderation_blocked` | `{error, option_index, variant_index}` | Moderation rejected an image |
 | `prompt_refused` | `{reason, original_response, message}` | Claude declined to refine prompt |
 | `complete` | `{result: GenerationResult, prompt_refused?: bool}` | Pipeline finished |
+| `model_status` | `{model, model_label, option_index, status, status_detail, completed, total}` | Per-model result in "All Models" mode |
 | `error` | `{detail}` | Unrecoverable error |
 
 **Smart filenames**: Each generated image gets a human-readable filename derived from the user's prompt slug plus the option/variation indices: `a-fierce-dragon_opt1_var2.png`. These filenames are stored in per-asset `metadata.json` and served via `Content-Disposition` headers on the gallery file endpoints.
@@ -478,7 +488,7 @@ Clean, modern single-page application served as static files mounted at `/` by F
 - **Server-side file browser modal**: Used for both local and S3 browsing. Single-click selects a file/folder, double-click navigates into a directory. Back button and ".." entry navigate to the parent directory.
 
 **2D Image Studio** (`#image-studio`) — The main image generation workspace with a two-tier result display:
-- **Left sidebar**: Art style selector, asset type, image model, dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), processing toggle switches (see below). Includes a **"Model Settings"** button that opens the Model Registry admin UI (see [4.11 Model Registry](#411-model-registry)).
+- **Left sidebar**: Art style selector, asset type, image model (includes "All Available Models" as first entry), dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), processing toggle switches (see below). Includes a **"Model Settings"** button that opens the Model Registry admin UI (see [4.11 Model Registry](#411-model-registry)). When "All Available Models" is selected: options/variations dropdowns are disabled (fixed at 1 per model), a "Model-optimized prompts" toggle appears, and info text shows "Will generate 1 image per model (N models) = N images total".
 - **Processing options**: Toggle switches for Remove Background, SVG Conversion (on by default), Upscale, and **Prompt Pre-Check** (pre-screens prompts via Claude Sonnet before image generation). Options row is placed **below** the prompt areas (images grouped together). Before generation these are labeled **"Pre-Processing"** (applied during generation). After generation completes, the label switches to **"Post-Processing"** and an **"Apply to Current Results"** button appears, allowing users to re-apply processing to the existing generated images without re-generating (calls `POST /api/generate/post-process`).
 - **Two-area prompt editor** (center panel): The prompt editor uses a two-textarea design:
   - **Top textarea** (user input): Where the user writes their prompt. This area is **never overwritten** by the system — it always contains the user's original words.
@@ -489,7 +499,7 @@ Clean, modern single-page application served as static files mounted at `/` by F
   - **Prompt Editor DOM fix**: `document.contains()` check ensures the textarea is in the live DOM after view reset, preventing stale references.
   - **Prompt info section**: After generation, shows: original prompt, AI-improved prompt, **negative prompt** (red-labeled "exclusions sent to model", hidden when empty), and concept prompts for full lineage visibility.
   - Voice input and `loadBatch(batchId)` restore a previous batch from the Gallery into the 2D Image Studio view. `ensurePromptEditor()` is called on show/loadBatch for robust initialization. The loadBatch navigation uses a yield-then-poll pattern: sets the hash, yields to let the `hashchange` event fire, polls for a DOM element (up to 10s), then adds a 200ms settling delay to let `init()`/`onShow()` finish before writing batch data into the DOM. For partial batches (where some variants were deleted from Gallery), the toast shows "X of Y images remaining (Z deleted)" instead of the normal batch summary.
-- **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge, and a truncated concept prompt. Click to select an option — clicking an option or variation thumbnail also **scrolls to the full preview**.
+- **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge (or model name in "All Models" mode), and a truncated concept prompt. In "All Models" mode, the header changes to "Models — comparison across image models", and blocked/failed models show a semi-transparent overlay badge ("Blocked — moderation" or "Failed"). Click to select an option — the **"Generated prompt — Option N"** (or **"Generated prompt — Nova Canvas"**) section updates with the exact prompt and negative prompt used for that option.
 - **Concept prompt display**: Shows the full refined prompt for the selected option.
 - **Variations row** (emerald borders): Shows seed variants of the selected option. Click to select a variation.
 - **Main preview**: Large preview of the selected variant with checkerboard transparency background.
@@ -807,7 +817,9 @@ Fields:
 - `remove_background` (default true): Run Stability AI background removal.
 - `generate_svg` (default true): Convert to SVG.
 - `upscale` (default false): Run Stability AI upscaling.
-- `negative_prompt` (default ""): Negative prompt carried from the Compose step. When `pre_composed` is true and refinement is skipped, the backend uses this value instead of extracting from refinement.
+- `negative_prompt` (default ""): Negative prompt carried from the Compose step.
+- `all_models` (default false): When true, generates with every enabled image model (one option per model, 1 variation each). Overrides `num_options` and `num_variations`. Dispatches to `_run_all_models_generation()`.
+- `model_optimized_prompts` (default false): Only used when `all_models` is true. When true, refines the prompt separately per model for tailored output. When false, all models receive the same prompt for direct comparison. When `pre_composed` is true and refinement is skipped, the backend uses this value instead of extracting from refinement.
 - `ip_owned` (default false): User asserts IP ownership over the content.
 - `ip_licensed` (default false): User asserts licensing rights. Both IP fields are stored in per-variant metadata for audit trail.
 
