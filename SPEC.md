@@ -906,41 +906,96 @@ The app uses boto3's standard credential resolution order:
 3. **AWS SSO**: If configured via `aws configure sso`
 4. **Instance role**: Automatic on EC2, Lambda, ECS, etc.
 
-Whatever method you use for other AWS work on your machine will work here. If `aws sts get-caller-identity` succeeds in your terminal, ArtSmoker will pick up the same credentials.
+Whatever method you use for other AWS work on your machine will work here.
 
 ### Required IAM Permissions
 
-The IAM principal (user, role, or SSO session) needs the following:
+The IAM principal (user, role, or SSO session) needs the following permissions:
 
+| Permission | Used by | Purpose |
+|------------|---------|---------|
+| `bedrock:InvokeModel` | All image models, Stability AI post-processing | Image generation, background removal, upscaling |
+| `bedrock:Converse` | Claude Sonnet, Claude Opus | Prompt refinement, style analysis, concept generation |
+| `bedrock:InvokeModelWithBidirectionalStream` | Nova Sonic | Voice transcription (optional — app works without it) |
+| `bedrock:ListFoundationModels` | Admin UI model discovery | Listing available models in a region |
+| `aws-marketplace:Subscribe` | Third-party models (first use) | Auto-subscription to Anthropic, Stability AI on first invocation |
+| `aws-marketplace:ViewSubscriptions` | Third-party models | Check existing subscriptions |
+| `sts:GetCallerIdentity` | Startup validation | Credential check on app launch |
+
+**Quickest setup**: Attach the AWS managed policy **`AmazonBedrockFullAccess`**. This covers all `bedrock:*` actions. You may additionally need `aws-marketplace:Subscribe` and `aws-marketplace:ViewSubscriptions` for first-time third-party model access.
+
+For a scoped IAM policy:
+```json
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:Converse",
+        "bedrock:InvokeModelWithBidirectionalStream",
+        "bedrock:ListFoundationModels"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": [
+        "aws-marketplace:Subscribe",
+        "aws-marketplace:Unsubscribe",
+        "aws-marketplace:ViewSubscriptions"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": "sts:GetCallerIdentity",
+      "Resource": "*"
+    }
+  ]
+}
 ```
-bedrock:InvokeModel          — for all image models (Nova Canvas, Titan Image, Stability AI)
-bedrock:Converse             — for Claude models (Sonnet, Opus)
-bedrock:ListFoundationModels — for model discovery in the admin UI
+
+### Bedrock Model Availability
+
+Bedrock models are **available by default** in all commercial AWS regions — no manual enablement step is needed. On first invocation of a third-party model (Anthropic, Stability AI), AWS automatically initiates a marketplace subscription in the background (requires the `aws-marketplace` permissions above).
+
+> [!NOTE]
+> **Anthropic models**: Require a one-time [First Time Use form](https://console.aws.amazon.com/bedrock/home#/modelaccess) completion before first invocation.
+
+ArtSmoker uses models in **two regions**:
+
+| Region | Models |
+|--------|--------|
+| us-west-2 | Claude Sonnet 4.6, Claude Opus 4.6, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (Remove BG, Upscale) |
+| us-east-1 | Nova Canvas, Titan Image v2, Nova Sonic |
+
+### Verifying Access
+
+```bash
+# 1. Confirm credentials
+aws sts get-caller-identity
+
+# 2. Verify Bedrock access — list Claude models in us-west-2
+aws bedrock list-foundation-models --region us-west-2 \
+  --query "modelSummaries[?contains(modelId,'claude')].[modelId]" --output text
+
+# 3. Verify Bedrock access — list Nova models in us-east-1
+aws bedrock list-foundation-models --region us-east-1 \
+  --query "modelSummaries[?contains(modelId,'nova')].[modelId]" --output text
 ```
 
-These translate to the AWS managed policy `AmazonBedrockFullAccess`, or a scoped policy on the above actions for the specific model ARNs.
-
-### Bedrock Model Access
-
-In the AWS Console, go to **Amazon Bedrock → Model access** and ensure the following models are **enabled** in their respective regions:
-
-| Model | Region | Model Access Page |
-|-------|--------|-------------------|
-| Claude Sonnet 4.6, Claude Opus 4.6 | us-west-2 | Anthropic models |
-| Nova Canvas, Titan Image v2, Nova Sonic | us-east-1 | Amazon models |
-| Stability AI (Remove BG, Upscale, Stable Diffusion 3.5 Large, Stable Image Ultra) | us-west-2 | Stability AI models |
-
-> [!IMPORTANT]
-> Model access is regional. You need to enable models in **both** us-west-2 and us-east-1.
+If steps 2-3 return model IDs, your IAM permissions are correct. If you get "AccessDeniedException", the role/user lacks the required permissions — attach `AmazonBedrockFullAccess` or the scoped policy above.
 
 ### Startup Validation
 
 On launch, ArtSmoker automatically validates:
-1. AWS credentials resolve (STS GetCallerIdentity)
-2. Bedrock Claude access works in us-west-2
-3. Bedrock Nova Canvas access works in us-east-1
+1. AWS credentials resolve (`sts:GetCallerIdentity`)
+2. Bedrock Claude access works in us-west-2 (attempts a lightweight `Converse` call)
+3. Bedrock Nova Canvas access works in us-east-1 (attempts a lightweight `InvokeModel` call)
 
-Results are logged to the console and available at `GET /api/health`. If credentials are missing, a clear error message shows what to configure.
+Results are logged to the console and available at `GET /api/health`. If credentials are missing, a prominent error box explains what to configure. If some checks fail but credentials exist, a warning is shown — the app still starts (some features may be degraded).
 
 ## Security Model
 

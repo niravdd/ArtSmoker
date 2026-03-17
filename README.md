@@ -55,27 +55,42 @@ This matters at every stage:
 
 - **Python 3.11+** (3.12, 3.13, 3.14 all work)
 - **AWS CLI** configured with working credentials
-- **AWS Bedrock model access** enabled in two regions (see below)
+- **IAM permissions** for Bedrock access (see below)
 
-### 1. Verify AWS credentials
+### 1. Verify AWS credentials and Bedrock access
 
 ```bash
+# Step 1: Confirm your identity
 aws sts get-caller-identity
 ```
 
-If this returns your account/user info, you're good. ArtSmoker uses the standard AWS credential chain — whatever works for your other AWS tools works here.
+If this returns your account/user info, credentials are working.
 
-### 2. Enable Bedrock models
+```bash
+# Step 2: Verify Bedrock access (quick test — invoke a model listing)
+aws bedrock list-foundation-models --region us-west-2 --query "modelSummaries[?contains(modelId,'claude')].[modelId]" --output text
+```
 
-In the **AWS Console → Amazon Bedrock → Model access**, enable these models:
+If this returns model IDs (e.g. `anthropic.claude-...`), your IAM role has Bedrock access. If you get an access denied error, add the required permissions below.
 
-| Region | Models to enable |
-|--------|-----------------|
-| us-west-2 | Claude Sonnet 4.6, Claude Opus 4.6, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (Remove BG, Upscale) |
-| us-east-1 | Nova Canvas, Titan Image v2, Nova Sonic |
+### 2. IAM permissions
 
-> [!IMPORTANT]
-> Required IAM permissions: `bedrock:InvokeModel`, `bedrock:Converse`, and `bedrock:ListFoundationModels` (for model discovery). Or use the managed policy `AmazonBedrockFullAccess`.
+Your IAM user or role needs these permissions:
+
+| Permission | Used for |
+|------------|----------|
+| `bedrock:InvokeModel` | All image models (Nova Canvas, Titan Image, Stability AI) |
+| `bedrock:Converse` | Claude models (Sonnet, Opus) via the Converse API |
+| `bedrock:InvokeModelWithBidirectionalStream` | Nova Sonic voice transcription |
+| `bedrock:ListFoundationModels` | Model discovery in the admin UI |
+| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models (Anthropic, Stability AI) |
+| `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
+| `sts:GetCallerIdentity` | Startup credential validation |
+
+**Quickest setup**: Attach the AWS managed policy **`AmazonBedrockFullAccess`** — this covers all Bedrock actions. For tighter scoping, use the specific permissions above.
+
+> [!NOTE]
+> Bedrock models are available by default in all commercial AWS regions — no manual enablement step is needed. On first invocation of a third-party model (Anthropic, Stability AI), AWS automatically initiates a marketplace subscription in the background (requires the `aws-marketplace` permissions above). Anthropic models require a one-time [First Time Use form](https://console.aws.amazon.com/bedrock/home#/modelaccess) completion.
 
 ### 3. Optional: SVG conversion tools
 
