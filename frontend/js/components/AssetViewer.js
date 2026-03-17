@@ -108,10 +108,24 @@
 
                     <!-- Tab Content -->
                     <div class="flex-1 overflow-auto p-6">
-                        <!-- PNG tab -->
+                        <!-- PNG tab with zoom/pan -->
                         <div class="tab-panel" data-panel="png">
-                            <div class="preview-checkerboard rounded-lg flex items-center justify-center p-4 min-h-[300px]">
-                                <img src="${pngUrl}" alt="Generated PNG" class="max-w-full max-h-[60vh] rounded shadow-lg" loading="lazy" />
+                            <div class="relative">
+                                <div id="av-zoom-container" class="preview-checkerboard rounded-lg overflow-hidden min-h-[300px] max-h-[70vh] cursor-grab active:cursor-grabbing" style="position:relative;">
+                                    <img id="av-zoom-img" src="${pngUrl}" alt="Generated PNG" class="rounded shadow-lg" loading="lazy"
+                                         style="transform-origin: 0 0; transition: transform 0.1s ease-out; max-width: none;" />
+                                </div>
+                                <div class="flex items-center gap-2 mt-2 justify-center">
+                                    <button id="av-zoom-out" class="btn btn-sm btn-secondary px-2 py-1" title="Zoom out">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"/></svg>
+                                    </button>
+                                    <span id="av-zoom-level" class="text-xs text-brand-text-muted font-mono w-12 text-center">100%</span>
+                                    <button id="av-zoom-in" class="btn btn-sm btn-secondary px-2 py-1" title="Zoom in">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"/></svg>
+                                    </button>
+                                    <button id="av-zoom-fit" class="btn btn-sm btn-secondary px-2 py-1 text-xs" title="Fit to view">Fit</button>
+                                    <button id="av-zoom-actual" class="btn btn-sm btn-secondary px-2 py-1 text-xs" title="Actual size (100%)">1:1</button>
+                                </div>
                             </div>
                         </div>
 
@@ -182,8 +196,8 @@
                 </div>` : ''}
                 ${meta.negative_prompt ? `
                 <div>
-                    <label class="block text-xs text-red-400/80 uppercase tracking-wider mb-1">Negative Prompt (exclusions sent to model)</label>
-                    <p class="p-3 rounded-lg bg-red-950/20 border border-red-900/20 whitespace-pre-wrap text-red-300/70 italic text-sm">${this._esc(meta.negative_prompt)}</p>
+                    <label class="block text-xs text-amber-400/80 uppercase tracking-wider mb-1">Negative Prompt (exclusions sent to model)</label>
+                    <p class="p-3 rounded-lg bg-amber-950/20 border border-amber-900/20 whitespace-pre-wrap text-amber-300/70 italic text-sm">${this._esc(meta.negative_prompt)}</p>
                 </div>` : ''}
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <div>
@@ -301,6 +315,9 @@
                 });
             });
 
+            // ── Zoom/Pan for PNG viewer ─────────────────────────────────
+            this._initZoomPan();
+
             // Reload in 2D Image Studio
             this._overlay.querySelector('.btn-reload')?.addEventListener('click', async () => {
                 const meta = this._meta;
@@ -348,6 +365,95 @@
                 if (window.TypeStudio?.loadFromMeta) {
                     window.TypeStudio.loadFromMeta(meta);
                 }
+            });
+        },
+
+        _initZoomPan() {
+            const container = this._overlay?.querySelector('#av-zoom-container');
+            const img = this._overlay?.querySelector('#av-zoom-img');
+            const levelEl = this._overlay?.querySelector('#av-zoom-level');
+            if (!container || !img) return;
+
+            let scale = 1;
+            let panX = 0, panY = 0;
+            let isDragging = false;
+            let dragStartX = 0, dragStartY = 0;
+            let panStartX = 0, panStartY = 0;
+
+            const updateTransform = () => {
+                img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+                if (levelEl) levelEl.textContent = `${Math.round(scale * 100)}%`;
+            };
+
+            const fitToView = () => {
+                const cW = container.clientWidth;
+                const cH = container.clientHeight || 500;
+                const iW = img.naturalWidth || img.width || cW;
+                const iH = img.naturalHeight || img.height || cH;
+                scale = Math.min(cW / iW, cH / iH, 1);
+                panX = (cW - iW * scale) / 2;
+                panY = (cH - iH * scale) / 2;
+                updateTransform();
+            };
+
+            // Fit on load
+            if (img.complete) fitToView();
+            else img.addEventListener('load', fitToView, { once: true });
+
+            // Mouse wheel zoom (centered on cursor)
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const rect = container.getBoundingClientRect();
+                const mx = e.clientX - rect.left;
+                const my = e.clientY - rect.top;
+
+                const oldScale = scale;
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                scale = Math.min(Math.max(scale * delta, 0.1), 10);
+
+                // Adjust pan to zoom toward cursor
+                panX = mx - (mx - panX) * (scale / oldScale);
+                panY = my - (my - panY) * (scale / oldScale);
+                updateTransform();
+            }, { passive: false });
+
+            // Pan via drag
+            container.addEventListener('mousedown', (e) => {
+                if (e.button !== 0) return;
+                isDragging = true;
+                dragStartX = e.clientX;
+                dragStartY = e.clientY;
+                panStartX = panX;
+                panStartY = panY;
+                e.preventDefault();
+            });
+            window.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                panX = panStartX + (e.clientX - dragStartX);
+                panY = panStartY + (e.clientY - dragStartY);
+                updateTransform();
+            });
+            window.addEventListener('mouseup', () => { isDragging = false; });
+
+            // Zoom buttons
+            this._overlay.querySelector('#av-zoom-in')?.addEventListener('click', () => {
+                scale = Math.min(scale * 1.25, 10);
+                updateTransform();
+            });
+            this._overlay.querySelector('#av-zoom-out')?.addEventListener('click', () => {
+                scale = Math.max(scale * 0.8, 0.1);
+                updateTransform();
+            });
+            this._overlay.querySelector('#av-zoom-fit')?.addEventListener('click', fitToView);
+            this._overlay.querySelector('#av-zoom-actual')?.addEventListener('click', () => {
+                const cW = container.clientWidth;
+                const cH = container.clientHeight || 500;
+                const iW = img.naturalWidth || img.width || cW;
+                const iH = img.naturalHeight || img.height || cH;
+                scale = 1;
+                panX = (cW - iW) / 2;
+                panY = Math.max((cH - iH) / 2, 0);
+                updateTransform();
             });
         },
 

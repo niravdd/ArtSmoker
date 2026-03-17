@@ -17,11 +17,11 @@
     ];
 
     const MODELS = [
-        { value: 'all_models', label: 'All Available Models' },
         { value: 'nova_canvas', label: 'Nova Canvas' },
         { value: 'titan_image', label: 'Titan Image v2' },
         { value: 'sd35_large', label: 'Stable Diffusion 3.5 Large' },
         { value: 'stable_image_ultra', label: 'Stable Image Ultra' },
+        { value: 'all_models', label: '\u2500\u2500 All Available Models' },
     ];
 
     const SIZE_PRESETS = [
@@ -232,8 +232,8 @@
                                     <p id="gen-used-prompt-text" class="text-sm text-brand-text/60 leading-relaxed"></p>
                                 </div>
                                 <div id="gen-negative-prompt-section" class="hidden">
-                                    <p class="text-[10px] text-red-400/80 uppercase tracking-wider font-semibold mb-1">Negative prompt (exclusions sent to model)</p>
-                                    <p id="gen-negative-prompt-text" class="text-sm text-red-300/60 leading-relaxed italic"></p>
+                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1">Negative prompt (exclusions sent to model)</p>
+                                    <p id="gen-negative-prompt-text" class="text-sm text-amber-300/60 leading-relaxed italic"></p>
                                 </div>
                             </div>
 
@@ -242,8 +242,8 @@
                                 <p id="gen-concept-prompt-label" class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold">Generated prompt</p>
                                 <p id="gen-concept-prompt-text" class="text-xs text-brand-text/70 leading-relaxed"></p>
                                 <div id="gen-concept-negative" class="hidden">
-                                    <p class="text-[10px] text-red-400/80 uppercase tracking-wider font-semibold mb-0.5">Negative prompt</p>
-                                    <p id="gen-concept-negative-text" class="text-xs text-red-300/60 italic leading-relaxed"></p>
+                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-0.5">Negative prompt</p>
+                                    <p id="gen-concept-negative-text" class="text-xs text-amber-300/60 italic leading-relaxed"></p>
                                 </div>
                             </div>
 
@@ -383,6 +383,31 @@
             document.getElementById('gen-ip-license')?.addEventListener('change', updateIpNote);
             document.getElementById('gen-model')?.addEventListener('change', updateIpNote);
             document.getElementById('btn-apply-postprocess')?.addEventListener('click', () => this._handlePostProcess());
+
+            // Click on preview image → open AssetViewer with zoom/pan and full metadata
+            document.getElementById('gen-result-img')?.addEventListener('click', () => {
+                const result = this._result;
+                if (!result) return;
+                const option = (result.options || [])[this._selectedOption];
+                if (!option) return;
+                const variant = (option.variants || [])[this._selectedVariant];
+                if (!variant) return;
+                // Build a gallery-compatible item for AssetViewer
+                const item = {
+                    id: variant.id,
+                    prompt: result.prompt,
+                    style_id: result.style_id,
+                    asset_type: result.asset_type,
+                    png_url: variant.png_path,
+                    svg_url: variant.svg_path,
+                    png_filename: variant.png_filename,
+                    svg_filename: variant.svg_filename,
+                };
+                if (typeof AssetViewer !== 'undefined') AssetViewer.open(item);
+            });
+            // Show pointer cursor on the preview image
+            const previewImg = document.getElementById('gen-result-img');
+            if (previewImg) previewImg.style.cursor = 'pointer';
             document.getElementById('btn-reset')?.addEventListener('click', () => {
                 if (this._result && !confirm('Reset the generator? Current results will be cleared.')) return;
                 window.resetView('image-studio');
@@ -1640,8 +1665,8 @@
                 // Disable options/variations (fixed: 1 option per model, 1 variation)
                 if (optsSelect) { optsSelect.value = '1'; optsSelect.disabled = true; }
                 if (varsSelect) { varsSelect.value = '1'; varsSelect.disabled = true; }
-                // Show model count (we know MODELS has 4 real models + "All")
-                const modelCount = MODELS.length - 1; // Exclude "All Available Models" entry
+                // Count real models (exclude the "All Available Models" entry)
+                const modelCount = MODELS.filter(m => m.value !== 'all_models').length;
                 if (infoEl) infoEl.textContent = `Will generate 1 image per model (${modelCount} models) = ${modelCount} images total`;
             } else {
                 allModelsOpts?.classList.add('hidden');
