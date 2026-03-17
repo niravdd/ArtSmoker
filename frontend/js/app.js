@@ -16,8 +16,6 @@
         'type-studio':  { component: window.TypeStudio, label: 'Type Studio' },
         styles:         { component: window.StyleLibrary, label: 'Style Library' },
         gallery:        { component: window.Gallery, label: 'Gallery' },
-        // Legacy alias so old #generator links still work
-        generator:      { component: window.ImageStudio, label: '2D Image Studio', alias: true },
     };
 
     const DEFAULT_ROUTE = 'image-studio';
@@ -33,7 +31,12 @@
 
     function getRoute() {
         const hash = window.location.hash.replace(/^#\/?/, '').split('?')[0];
-        return hash && ROUTES[hash] ? hash : DEFAULT_ROUTE;
+        if (hash && ROUTES[hash]) return hash;
+        // Unknown or empty hash — redirect to default and update URL bar
+        if (hash && hash !== DEFAULT_ROUTE) {
+            window.location.hash = '#' + DEFAULT_ROUTE;
+        }
+        return DEFAULT_ROUTE;
     }
 
     async function navigate() {
