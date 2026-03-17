@@ -48,5 +48,8 @@
   "svg_path": "/api/gallery/021a7ea7-8d96-4a1c-b844-2194a5aa04d6_o4_v1/svg",
   "png_filename": "navigator_opt5_var2.png",
   "svg_filename": "navigator_opt5_var2.svg",
-  "created_at": "2026-03-16T06:17:45.483109"
+  "created_at": "2026-03-16T06:17:45.483109",
+  "batch_deleted_count": 9,
+  "original_num_options": 1,
+  "original_num_variations": 1
 }
