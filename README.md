@@ -98,7 +98,7 @@ SVG conversion uses external CLI tools (not Python packages). Without them, SVG 
 
 | Tool | Purpose | macOS | Linux (Debian/Ubuntu) | Windows |
 |------|---------|-------|-----------------------|---------|
-| **vtracer** | Primary SVG (color vector tracing) | `brew install vtracer` or `cargo install vtracer` | `cargo install vtracer` | Download from [GitHub releases](https://github.com/niccoloraspa/vtracer) or `cargo install vtracer` |
+| **vtracer** | Primary SVG (color vector tracing) | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` or [pre-built binaries](https://github.com/visioncortex/vtracer/releases) |
 | **potrace** | Fallback SVG (monochrome tracing) | `brew install potrace` | `sudo apt install potrace` | Download from [potrace.sourceforge.net](http://potrace.sourceforge.net/#downloading) |
 
 ## Installation

@@ -1051,7 +1051,7 @@ Use `gunicorn` whenever more than one person will access the app concurrently â€
 
 | Tool | Purpose | macOS | Linux (Debian/Ubuntu) | Windows |
 |------|---------|-------|-----------------------|---------|
-| vtracer | Primary SVG conversion (color vector tracing) | `brew install vtracer` or `cargo install vtracer` | `cargo install vtracer` (requires Rust toolchain) | `cargo install vtracer` or download binary from GitHub |
+| vtracer | Primary SVG conversion (color vector tracing) | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` or [pre-built binaries](https://github.com/visioncortex/vtracer/releases) |
 | potrace | Fallback SVG conversion (monochrome tracing) | `brew install potrace` | `sudo apt install potrace` | Download from [potrace.sourceforge.net](http://potrace.sourceforge.net/#downloading) |
 
 If neither is installed, SVG conversion falls back to Pillow's embedded-raster approach (base64 PNG wrapped inside an SVG element). This is functional but not true vector output â€” the file size is roughly the same as the PNG.
@@ -1352,7 +1352,7 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
 
   # Optional: SVG tools
   sudo apt install potrace                     # Ubuntu
-  # vtracer: install Rust toolchain, then cargo install vtracer
+  pip install vtracer                       # or: cargo install vtracer (needs Rust)
 
   git clone <repo-url> && cd ArtSmoker
   python3 -m venv .venv
