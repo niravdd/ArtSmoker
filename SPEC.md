@@ -62,9 +62,10 @@
 - [12. Verification](#12-verification)
 - [13. AWS Bedrock Pricing & Cost Breakdown](#13-aws-bedrock-pricing--cost-breakdown)
   - [13.1 Per-Unit Pricing](#131-per-unit-pricing)
-  - [13.2 Style Analysis Cost](#132-style-analysis-cost-one-time-per-style)
-  - [13.3 Generation Cost Scenarios](#133-generation-cost-scenarios)
-  - [13.4 Full Cost Examples](#134-full-cost-examples)
+  - [13.2 Additional LLM Costs](#132-additional-llm-costs-per-use)
+  - [13.3 Style Analysis Cost](#133-style-analysis-cost-one-time-per-style)
+  - [13.4 Generation Cost Scenarios](#134-generation-cost-scenarios)
+  - [13.5 Full Cost Examples](#135-full-cost-examples)
 - [14. Deployment & Scaling Roadmap](#14-deployment--scaling-roadmap)
   - [14.1 Why Not Lambda](#141-why-not-lambda)
   - [14.2 Phase 1: Local Development](#142-phase-1-current--local-development-done)
@@ -1222,9 +1223,24 @@ All prices below are from the official [AWS Bedrock Pricing page](https://aws.am
 | **SVG Conversion** | vtracer / potrace / Pillow (local) | $0.00 | free — runs locally |
 
 > [!NOTE]
+> Prices verified against [Anthropic model docs](https://docs.anthropic.com/en/docs/about-claude/models) and [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official sources.
+
+> [!NOTE]
 > **Vision token formula**: Claude charges image inputs as tokens: `tokens = (width × height) / 750`. A 1024×1024 image ≈ 1,398 tokens. At Opus $5.00/MTok input = ~$0.007 per image.
 
-### 13.2 Style Analysis Cost (One-Time per Style)
+### 13.2 Additional LLM Costs (Per Use)
+
+These Claude calls are part of the system's workflow but not included in the per-batch cost tables below:
+
+| Call | Model | When triggered | Approx. Cost |
+|------|-------|----------------|-------------|
+| Prompt Pre-Check | Claude Sonnet 4.6 | Before each generation (if toggle enabled) | ~$0.005 |
+| Moderation Analysis + Rewrite | Claude Sonnet 4.6 | Only when all image models reject a prompt | ~$0.005 |
+| Type Studio Layout Suggestion | Claude Opus 4.6 | Each AI layout request in Type Studio | ~$0.02–$0.05 |
+
+Pre-check and moderation rewrite are a fraction of a cent each. Type Studio layout costs vary with the number of text lines and whether a base image is analyzed (vision input adds ~$0.007 per image).
+
+### 13.3 Style Analysis Cost (One-Time per Style)
 
 For a style with **100 reference images** (20 sent to Claude Opus after smart sampling, 8 sent to Claude Sonnet for cohesion check):
 
@@ -1235,7 +1251,7 @@ For a style with **100 reference images** (20 sent to Claude Opus after smart sa
 | Generate hints | Claude Sonnet 4.6 | ~800 input + ~200 output tokens | ~$0.005 |
 | **Total per style analysis** | | | **~$0.14** |
 
-### 13.3 Generation Cost Scenarios
+### 13.4 Generation Cost Scenarios
 
 The generation cost depends on the image model chosen and the options×variations count. Prompt refinement cost is constant per batch.
 
@@ -1263,7 +1279,7 @@ The generation cost depends on the image model chosen and the options×variation
 | Creative Upscale | $0.60 | $0.60 | $3.00 | $15.00 |
 | Convert to SVG | $0.00 | $0.00 | $0.00 | $0.00 |
 
-### 13.4 Full Cost Examples
+### 13.5 Full Cost Examples
 
 **Example 1: Quick single asset (cheapest)**
 1 option × 1 variation, Titan Image v2, no post-processing:

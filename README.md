@@ -1,11 +1,10 @@
 # ArtSmoker
+*Smoke-testing your artwork!*
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![AWS Bedrock](https://img.shields.io/badge/AWS-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
-
-*Smoke-testing your artwork!*
 
 AI-powered 2D game asset generation platform. Generate game-ready sprites, characters, icons, environments, and marketing banners from text or voice prompts — styled to match your game's visual identity. Add text overlays and generate standalone text assets with AI-designed typography.
 
@@ -728,11 +727,26 @@ All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/
 | **Creative Upscale** | Stability AI | $0.60 | per image |
 | **SVG Conversion** | Local (vtracer/potrace) | $0.00 | free |
 
-### 12.2 Style Analysis Cost (One-Time per Style)
+> [!NOTE]
+> Prices verified against [Anthropic model docs](https://docs.anthropic.com/en/docs/about-claude/models) and [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official sources before budgeting.
+
+### 12.2 Additional LLM Costs (Per Use)
+
+These LLM calls are included in the generation workflow but not separately itemized in the batch cost tables below:
+
+| Call | Model | When | Approx. Cost |
+|------|-------|------|-------------|
+| **Prompt Pre-Check** | Claude Sonnet 4.6 | Before generation (if toggle enabled) | ~$0.005 |
+| **Moderation Rewrite** | Claude Sonnet 4.6 | Only when all models reject a prompt | ~$0.005 |
+| **Type Studio Layout** | Claude Opus 4.6 | Each AI layout suggestion request | ~$0.02–$0.05 |
+
+These are small — pre-check and moderation rewrite are a fraction of a cent each. Type Studio layout is comparable to a single-option prompt refinement.
+
+### 12.3 Style Analysis Cost (One-Time per Style)
 
 ~**$0.14** per style (20 images sent to Claude Opus + 8 images cohesion check at Claude Sonnet). The cohesion check adds ~$0.01 (Sonnet with 8 images is very cheap).
 
-### 12.3 Generation Cost by Batch Size
+### 12.4 Generation Cost by Batch Size
 
 Includes prompt refinement/concept generation + image generation:
 
@@ -742,7 +756,7 @@ Includes prompt refinement/concept generation + image generation:
 | 1 option × 5 variations | ~$0.31 | ~$0.06 | ~$0.41 | ~$0.71 |
 | 5 options × 5 variations | ~$1.55 | ~$0.30 | ~$2.05 | ~$3.55 |
 
-### 12.4 Post-Processing Add-Ons (Per Image)
+### 12.5 Post-Processing Add-Ons (Per Image)
 
 | Add-on | Per image | 1 image | 5 images | 25 images |
 |--------|-----------|---------|----------|-----------|
@@ -753,7 +767,7 @@ Includes prompt refinement/concept generation + image generation:
 > [!TIP]
 > **Creative Upscale note**: Handles Stability AI's 16MB response payload limit automatically by using JPEG output format internally, then converting back to PNG. Includes retry with exponential backoff for API throttling.
 
-### 12.5 Worked Examples
+### 12.6 Worked Examples
 
 | Example | Configuration | Total Cost |
 |---------|-------------|-----------|
