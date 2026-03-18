@@ -22,6 +22,7 @@ def generate_image(
     height: int = 1024,
     seed: int | None = None,
     negative_prompt: str = "",
+    region_override: str | None = None,
     status_callback=None,
 ) -> bytes:
     """Generate an image from a refined prompt using the specified model.
@@ -61,6 +62,7 @@ def generate_image(
                 height=height,
                 seed=seed,
                 negative_prompt=negative_prompt,
+                region_override=region_override,
             )
             logger.info("Image generated: model=%s, %d bytes", model_key, len(image_bytes))
             return image_bytes

@@ -336,9 +336,19 @@
             reload() {
                 return request('/api/admin/models/reload', { method: 'POST' });
             },
-            /** Get enabled text-to-image models for the generation dropdown */
-            getImageOptions() {
-                return request('/api/admin/models/image-options');
+            /** Get enabled text-to-image models for the generation dropdown.
+             *  Pass region to filter by availability in that region. */
+            getImageOptions(region) {
+                const params = region ? `?region=${encodeURIComponent(region)}` : '';
+                return request(`/api/admin/models/image-options${params}`);
+            },
+            /** Get all Bedrock-supported AWS regions (dynamically discovered). */
+            getRegions() {
+                return request('/api/admin/regions');
+            },
+            /** Refresh model registry across all Bedrock regions. */
+            refreshAll() {
+                return request('/api/admin/discover/refresh-all', { method: 'POST' });
             },
         },
 

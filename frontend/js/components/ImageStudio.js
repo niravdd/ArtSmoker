@@ -81,6 +81,15 @@
                                     <select id="gen-model" class="input">
                                         ${MODELS.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
                                     </select>
+                                    <div class="flex items-center gap-2 mt-1.5">
+                                        <label class="text-[10px] text-brand-text-dim flex-shrink-0">Region:</label>
+                                        <select id="gen-region" class="input text-xs py-0.5 flex-1">
+                                            <option value="">Auto</option>
+                                        </select>
+                                        <button id="gen-region-filter-btn" class="text-[10px] text-brand-accent hover:text-brand-accent-hover transition-colors flex-shrink-0" title="Filter models by this region">
+                                            filter by region
+                                        </button>
+                                    </div>
                                     <div id="gen-all-models-opts" class="hidden mt-2 p-2 rounded-lg bg-brand-bg/50 space-y-1.5">
                                         <label class="flex items-center gap-2 text-xs text-brand-text-muted cursor-pointer">
                                             <input type="checkbox" id="gen-model-optimized" class="rounded" />
@@ -358,10 +367,25 @@
             document.getElementById('gen-asset-type')?.addEventListener('change', () => {
                 if (this._promptEditor) this._promptEditor.setContext({ assetType: this._getAssetType() });
             });
+            // Model-first flow: when model changes, update region dropdown to show
+            // that model's available regions, auto-select default
             document.getElementById('gen-model')?.addEventListener('change', () => {
                 const modelVal = document.getElementById('gen-model')?.value;
                 if (this._promptEditor) this._promptEditor.setContext({ imageModel: modelVal });
                 this._updateAllModelsUI(modelVal === 'all_models');
+                this._updateRegionForModel(modelVal);
+            });
+
+            // Region change: if user explicitly picks a region, the model stays
+            // (the region dropdown only shows regions available for the current model).
+            // "filter by region" button: filters the model list by the selected region.
+            document.getElementById('gen-region-filter-btn')?.addEventListener('click', () => {
+                const region = document.getElementById('gen-region')?.value;
+                if (region) {
+                    this._loadModels(region);
+                } else {
+                    this._loadModels(); // Reset to all
+                }
             });
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open());
@@ -417,27 +441,35 @@
             });
         },
 
-        async _loadModels() {
+        async _loadModels(regionFilter) {
             try {
-                const data = await API.admin.getImageOptions();
+                const data = await API.admin.getImageOptions(regionFilter || undefined);
                 if (data?.models?.length) {
                     MODELS = data.models.map(m => ({
                         value: m.key,
                         label: m.label,
                         provider: m.provider,
                         region: m.region,
+                        available_regions: m.available_regions || [m.region],
+                        region_pricing: m.region_pricing || [],
                         prompt_limit: m.prompt_limit,
                         moderation_strictness: m.moderation_strictness,
                     }));
                     // Append the virtual "All Available Models" entry
                     MODELS.push({ value: 'all_models', label: '\u2500\u2500 All Available Models' });
-                    console.log(`Loaded ${data.models.length} image models from registry`);
+                    console.log(`Loaded ${data.models.length} image models from registry` +
+                        (regionFilter ? ` (filtered: ${regionFilter})` : ''));
+                }
+
+                // Populate region dropdown from model availability (shows only regions with enabled models)
+                if (data?.available_regions && !regionFilter) {
+                    this._populateRegions(data.available_regions);
                 }
             } catch (err) {
                 console.warn('Failed to load image models from registry, using fallback:', err);
             }
 
-            // Repopulate the dropdown
+            // Repopulate the model dropdown
             const sel = document.getElementById('gen-model');
             if (!sel) return;
             const currentValue = sel.value;
@@ -448,7 +480,68 @@
                 opt.textContent = m.label;
                 sel.appendChild(opt);
             });
-            if (currentValue) sel.value = currentValue;
+            // Restore selection if it still exists, otherwise use first
+            if (currentValue && [...sel.options].some(o => o.value === currentValue)) {
+                sel.value = currentValue;
+            }
+            // Update region dropdown for the selected model
+            this._updateRegionForModel(sel.value);
+        },
+
+        _updateRegionForModel(modelKey) {
+            const regionSel = document.getElementById('gen-region');
+            if (!regionSel || modelKey === 'all_models') return;
+
+            // Find the selected model's region/pricing data from MODELS array
+            const modelData = MODELS.find(m => m.value === modelKey);
+            const regionPricing = modelData?.region_pricing || [];
+            const regions = regionPricing.length > 0
+                ? regionPricing.map(rp => rp)
+                : (modelData?.available_regions || [modelData?.region]).filter(Boolean).map(r => ({ region: r, price_usd: null }));
+
+            regionSel.innerHTML = '';
+            if (regions.length <= 1) {
+                // Single region — show it, no "Auto" needed
+                const rp = regions[0] || { region: '', price_usd: null };
+                const opt = document.createElement('option');
+                opt.value = rp.region;
+                opt.textContent = rp.price_usd != null
+                    ? `${rp.region} ($${rp.price_usd.toFixed(2)}/img)`
+                    : rp.region;
+                regionSel.appendChild(opt);
+            } else {
+                // Multiple regions — "Auto (cheapest)" + each region with price
+                // Regions are already sorted by price (cheapest first) from backend
+                const cheapest = regions[0];
+                const auto = document.createElement('option');
+                auto.value = '';
+                auto.textContent = cheapest.price_usd != null
+                    ? `Auto \u2014 ${cheapest.region} ($${cheapest.price_usd.toFixed(2)}/img, cheapest)`
+                    : `Auto \u2014 ${cheapest.region}`;
+                regionSel.appendChild(auto);
+                regions.forEach(rp => {
+                    const opt = document.createElement('option');
+                    opt.value = rp.region;
+                    opt.textContent = rp.price_usd != null
+                        ? `${rp.region} ($${rp.price_usd.toFixed(2)}/img)`
+                        : rp.region;
+                    regionSel.appendChild(opt);
+                });
+            }
+        },
+
+        _populateRegions(regions) {
+            const regionSel = document.getElementById('gen-region');
+            if (!regionSel) return;
+            const current = regionSel.value;
+            regionSel.innerHTML = '<option value="">All Regions</option>';
+            (regions || []).forEach(r => {
+                const opt = document.createElement('option');
+                opt.value = r;
+                opt.textContent = r;
+                regionSel.appendChild(opt);
+            });
+            if (current) regionSel.value = current;
         },
 
         async _loadStyles() {
@@ -516,6 +609,7 @@
                 style_id: this._getStyleId() || null,
                 asset_type: this._getAssetType(),
                 image_model: isAllModels ? 'nova_canvas' : document.getElementById('gen-model').value,
+                region: document.getElementById('gen-region')?.value || null,
                 width: size.w,
                 height: size.h,
                 num_options: isAllModels ? 1 : numOptions,

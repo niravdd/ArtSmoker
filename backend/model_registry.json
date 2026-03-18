@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-18",
+  "last_updated": "2026-03-18T05:11:01.896319",
   "format_families": {
     "amazon_text_to_image": {
       "description": "Amazon text-to-image models (Nova Canvas, Titan Image). Uses taskType/textToImageParams structure with pixel dimensions.",
@@ -8,12 +8,17 @@
       "negative_prompt_path": "textToImageParams.negativeText",
       "seed_path": "imageGenerationConfig.seed",
       "dimensions_mode": "pixels",
-      "dimensions_paths": {"width": "imageGenerationConfig.width", "height": "imageGenerationConfig.height"},
+      "dimensions_paths": {
+        "width": "imageGenerationConfig.width",
+        "height": "imageGenerationConfig.height"
+      },
       "response_image_path": "images[0]",
       "body_template": {
         "taskType": "TEXT_IMAGE",
         "textToImageParams": {},
-        "imageGenerationConfig": {"numberOfImages": 1}
+        "imageGenerationConfig": {
+          "numberOfImages": 1
+        }
       }
     },
     "stability_text_to_image": {
@@ -67,18 +72,31 @@
       "label": "Amazon Nova Canvas",
       "model_id": "amazon.nova-canvas-v1:0",
       "region": "us-east-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "eu-west-1",
+        "us-east-1"
+      ],
       "provider": "Amazon",
       "enabled": true,
       "model_purpose": "text_to_image",
       "format_family": "amazon_text_to_image",
       "prompt_limit": 900,
       "moderation_strictness": "very_strict",
-      "extra_body": {"imageGenerationConfig": {"quality": "premium"}}
+      "extra_body": {
+        "imageGenerationConfig": {
+          "quality": "premium"
+        }
+      }
     },
     "titan_image": {
       "label": "Amazon Titan Image v2",
       "model_id": "amazon.titan-image-generator-v2:0",
       "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Amazon",
       "enabled": true,
       "model_purpose": "text_to_image",
@@ -91,6 +109,9 @@
       "label": "Stable Diffusion 3.5 Large",
       "model_id": "stability.sd3-5-large-v1:0",
       "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "text_to_image",
@@ -103,8 +124,26 @@
       "label": "Stable Image Ultra",
       "model_id": "stability.stable-image-ultra-v1:1",
       "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
       "provider": "Stability AI",
       "enabled": true,
+      "model_purpose": "text_to_image",
+      "format_family": "stability_text_to_image",
+      "prompt_limit": 2000,
+      "moderation_strictness": "moderate",
+      "extra_body": {}
+    },
+    "stable_image_core_v1": {
+      "label": "Stable Image Core 1.0",
+      "model_id": "stability.stable-image-core-v1:1",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
       "model_purpose": "text_to_image",
       "format_family": "stability_text_to_image",
       "prompt_limit": 2000,
@@ -126,6 +165,61 @@
       "region": "us-west-2",
       "provider": "Stability AI",
       "enabled": true
+    }
+  },
+  "bedrock_regions": [
+    "af-south-1",
+    "ap-east-2",
+    "ap-northeast-1",
+    "ap-northeast-2",
+    "ap-northeast-3",
+    "ap-south-1",
+    "ap-south-2",
+    "ap-southeast-1",
+    "ap-southeast-2",
+    "ap-southeast-3",
+    "ap-southeast-4",
+    "ap-southeast-5",
+    "ap-southeast-6",
+    "ap-southeast-7",
+    "ca-central-1",
+    "ca-west-1",
+    "eu-central-1",
+    "eu-central-2",
+    "eu-north-1",
+    "eu-south-1",
+    "eu-south-2",
+    "eu-west-1",
+    "eu-west-2",
+    "eu-west-3",
+    "il-central-1",
+    "me-central-1",
+    "me-south-1",
+    "mx-central-1",
+    "sa-east-1",
+    "us-east-1",
+    "us-east-2",
+    "us-west-1",
+    "us-west-2"
+  ],
+  "image_pricing": {
+    "Nova Canvas|eu-west-1": {
+      "model_name": "Nova Canvas",
+      "region": "eu-west-1",
+      "price_usd": 0.08,
+      "usage_type": "EU-NovaCanvas-I2I-2048-Premium"
+    },
+    "Nova Canvas|ap-northeast-1": {
+      "model_name": "Nova Canvas",
+      "region": "ap-northeast-1",
+      "price_usd": 0.08,
+      "usage_type": "APN1-NovaCanvas-I2I-2048-Premium"
+    },
+    "Nova Canvas|us-east-1": {
+      "model_name": "Nova Canvas",
+      "region": "us-east-1",
+      "price_usd": 0.08,
+      "usage_type": "USE1-NovaCanvas-T2I-2048-Premium"
     }
   }
 }

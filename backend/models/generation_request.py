@@ -49,6 +49,7 @@ class GenerationRequest(BaseModel):
     style_id: str | None = None
     asset_type: AssetType = AssetType.GAME_ASSET
     image_model: str = "nova_canvas"  # Any valid registry key (not limited to ImageModel enum)
+    region: str | None = None  # Override region for the model (None = use model's default)
     width: int = 1024
     height: int = 1024
     num_options: int = Field(default=5, ge=1, le=5)

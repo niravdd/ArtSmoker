@@ -221,6 +221,7 @@ def invoke_image_model(
     width: int = 1024,
     height: int = 1024,
     seed: int | None = None,
+    region_override: str | None = None,
 ) -> bytes:
     """Generic image generation using any model defined in the registry.
 
@@ -236,7 +237,7 @@ def invoke_image_model(
         raise ValueError(f"Unknown image model: {model_key}")
 
     model_id = model_config["model_id"]
-    region = model_config["region"]
+    region = region_override or model_config["region"]
     family_name = model_config.get("format_family", "")
 
     registry = get_registry()

@@ -3,7 +3,7 @@
 import logging
 
 import boto3
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
 from backend.services.model_registry import (
@@ -115,29 +115,74 @@ async def reload_registry():
 
 
 @router.get("/models/image-options")
-async def get_image_model_options():
+async def get_image_model_options(region: str | None = Query(default=None)):
     """Return enabled image models for the frontend dropdown.
 
     This is the source of truth for model selection — the frontend
     should NOT hardcode model lists. Returns models sorted by provider
-    then label, with 'All Available Models' as a virtual entry.
+    then label.
+
+    Optional `region` filter: if provided, only returns models available
+    in that region. If omitted, returns all enabled models.
     """
-    from backend.services.model_registry import get_enabled_image_models
+    from backend.services.model_registry import get_enabled_image_models, get_registry
     enabled = get_enabled_image_models()
+    registry = get_registry()
+    pricing = registry.get("image_pricing", {})
+
     models = []
     for key, cfg in sorted(enabled.items(), key=lambda x: (x[1].get("provider", ""), x[1].get("label", x[0]))):
         if cfg.get("model_purpose") != "text_to_image":
             continue  # Only text-to-image models for the generation dropdown
+
+        available_regions = cfg.get("available_regions", [cfg.get("region", "")])
+
+        # Region filter: check if model is available in the requested region
+        if region:
+            if region not in available_regions:
+                continue
+
+        # Build per-region pricing and sort by price (cheapest first)
+        # Try matching pricing data by multiple name variants since
+        # the AWS Pricing API may use shorter names than our registry labels
+        model_label = cfg.get("label", key)
+        region_pricing = []
+        for r in available_regions:
+            price_usd = None
+            # Try exact label match, then progressively shorter variants
+            for name_variant in [model_label, model_label.replace("Amazon ", ""), model_label.replace("Stable ", ""), key]:
+                price_info = pricing.get(f"{name_variant}|{r}", {})
+                if price_info.get("price_usd"):
+                    price_usd = price_info["price_usd"]
+                    break
+            region_pricing.append({
+                "region": r,
+                "price_usd": price_usd,  # None if unknown
+            })
+        # Sort: known prices ascending, then unknown at the end
+        region_pricing.sort(key=lambda x: (x["price_usd"] is None, x["price_usd"] or 0))
+
+        # Default region = cheapest known, or first available
+        default_region = region_pricing[0]["region"] if region_pricing else cfg.get("region", "")
+
         models.append({
             "key": key,
-            "label": cfg.get("label", key),
+            "label": model_label,
             "provider": cfg.get("provider", ""),
-            "region": cfg.get("region", ""),
+            "region": default_region,
+            "available_regions": [rp["region"] for rp in region_pricing],
+            "region_pricing": region_pricing,
             "prompt_limit": cfg.get("prompt_limit", 900),
             "moderation_strictness": cfg.get("moderation_strictness", "moderate"),
             "format_family": cfg.get("format_family", ""),
         })
-    return {"models": models}
+
+    # Collect all regions that have at least one model
+    all_regions = sorted(set(
+        r for m in models for r in m.get("available_regions", [])
+    ))
+
+    return {"models": models, "available_regions": all_regions}
 
 
 # ── Bedrock Model Discovery ──────────────────────────────────────────────
@@ -188,15 +233,16 @@ def _deduplicate_models(models: list[dict]) -> list[dict]:
 
 @router.post("/discover/{region}/auto-register")
 async def auto_register_image_models(region: str):
-    """Discover image generation models in a region and auto-register new ones.
+    """Discover image generation models in a region and register/update them.
 
-    Only registers text-to-image models (TEXT input → IMAGE output).
+    Only processes text-to-image models (TEXT input → IMAGE output).
     Maps providers to format families automatically:
     - Amazon → amazon_text_to_image
     - Stability AI → stability_text_to_image
 
-    Already-registered models (by model_id) are skipped.
-    Returns the list of newly registered models.
+    For new models: registers with enabled=False (admin must enable).
+    For existing models: adds the region to available_regions if not already present.
+    Returns summary of new registrations and region updates.
     """
     try:
         session = boto3.Session()
@@ -205,74 +251,83 @@ async def auto_register_image_models(region: str):
     except Exception as exc:
         raise HTTPException(502, detail=f"Failed to list models in {region}: {exc}")
 
-    from backend.services.model_registry import get_registry, add_image_model, get_image_model
+    from backend.services.model_registry import (
+        get_registry, add_image_model, get_image_model, update_image_model,
+    )
 
     registry = get_registry()
-    existing_model_ids = {
-        cfg.get("model_id") for cfg in registry.get("image_models", {}).values()
-    }
+    # Build model_id → registry_key lookup for existing models
+    existing_by_model_id: dict[str, str] = {}
+    for key, cfg in registry.get("image_models", {}).items():
+        existing_by_model_id[cfg.get("model_id", "")] = key
 
     # Provider → format family mapping
     _PROVIDER_FAMILY = {
         "Amazon": "amazon_text_to_image",
         "Stability AI": "stability_text_to_image",
     }
-    # Default prompt limits by provider
     _PROVIDER_PROMPT_LIMITS = {
         "Amazon": 900,
         "Stability AI": 2000,
     }
 
     registered = []
+    updated = []
+
     for m in response.get("modelSummaries", []):
         model_id = m.get("modelId", "")
         output = m.get("outputModalities", [])
         inp = m.get("inputModalities", [])
         provider = m.get("providerName", "")
 
-        # Only text-to-image generators
-        if "IMAGE" not in output:
+        # Only text-to-image generators (IMAGE output, TEXT input)
+        if "IMAGE" not in output or "TEXT" not in inp:
             continue
-        # Must accept TEXT input (not just IMAGE manipulation)
-        if "TEXT" not in inp:
-            continue
-        # Skip image-manipulation models (require IMAGE input)
-        # Pure text-to-image: input is TEXT only, or TEXT+IMAGE but model name suggests generation
-        # Heuristic: skip if model name contains editing keywords
-        model_name = m.get("modelName", "").lower()
+
+        # Skip image-manipulation models (heuristic by model ID keywords)
         is_manipulation = any(kw in model_id.lower() for kw in [
             "upscale", "remove-background", "erase", "inpaint",
             "outpaint", "recolor", "replace", "control", "style-transfer",
+            "style-guide",
         ])
         if is_manipulation:
             continue
 
-        # Skip already registered
-        if model_id in existing_model_ids:
+        # Already registered? → update available_regions
+        if model_id in existing_by_model_id:
+            existing_key = existing_by_model_id[model_id]
+            existing_cfg = get_image_model(existing_key)
+            if existing_cfg:
+                regions = existing_cfg.get("available_regions", [existing_cfg.get("region", "")])
+                if region not in regions:
+                    regions.append(region)
+                    regions.sort()
+                    update_image_model(existing_key, {"available_regions": regions})
+                    updated.append({"key": existing_key, "model_id": model_id, "added_region": region})
+                    logger.info("Updated %s: added region %s (now %s)", existing_key, region, regions)
             continue
 
-        # Determine format family
+        # New model — determine format family
         family = _PROVIDER_FAMILY.get(provider)
         if not family:
-            logger.warning("Unknown provider '%s' for model %s — skipping auto-register", provider, model_id)
+            logger.warning("Unknown provider '%s' for model %s — skipping", provider, model_id)
             continue
 
-        # Generate a key from model_id: e.g. "stability.sd3-5-large-v1:0" → "sd3_5_large"
+        # Generate a registry key from model_id
         key = model_id.split(".")[-1].split(":")[0].replace("-", "_")
-        # Ensure unique key
         if get_image_model(key):
             key = f"{key}_{region.replace('-', '_')}"
 
-        prompt_limit = _PROVIDER_PROMPT_LIMITS.get(provider, 900)
         config = {
             "label": m.get("modelName", model_id),
             "model_id": model_id,
             "region": region,
+            "available_regions": [region],
             "provider": provider,
-            "enabled": False,  # Discovered but not enabled by default
+            "enabled": False,  # Discovered but not enabled — admin must enable
             "model_purpose": "text_to_image",
             "format_family": family,
-            "prompt_limit": prompt_limit,
+            "prompt_limit": _PROVIDER_PROMPT_LIMITS.get(provider, 900),
             "moderation_strictness": "moderate",
             "extra_body": {},
         }
@@ -284,8 +339,162 @@ async def auto_register_image_models(region: str):
     return {
         "region": region,
         "registered": registered,
-        "count": len(registered),
-        "message": f"Registered {len(registered)} new model(s)" if registered else "No new models to register",
+        "updated": updated,
+        "new_count": len(registered),
+        "updated_count": len(updated),
+        "message": (
+            f"Registered {len(registered)} new, updated {len(updated)} existing"
+            if registered or updated else "No changes — all models already registered"
+        ),
+    }
+
+
+def _fetch_image_pricing() -> dict:
+    """Fetch per-image pricing from the AWS Pricing API.
+
+    Returns a dict keyed by 'model_name|region' with price_usd values.
+    Only called during refresh-all — results are stored in the registry.
+    The Pricing API is only available in us-east-1.
+    """
+    try:
+        import json as _json
+        client = boto3.Session().client("pricing", region_name="us-east-1")
+        prices = {}
+        next_token = None
+
+        while True:
+            kwargs = {"ServiceCode": "AmazonBedrock", "MaxResults": 100}
+            if next_token:
+                kwargs["NextToken"] = next_token
+            resp = client.get_products(**kwargs)
+
+            for p in resp.get("PriceList", []):
+                pd = _json.loads(p)
+                attrs = pd.get("product", {}).get("attributes", {})
+                usage = attrs.get("usagetype", "")
+
+                for terms in pd.get("terms", {}).values():
+                    for term in terms.values():
+                        for dim in term.get("priceDimensions", {}).values():
+                            unit = dim.get("unit", "")
+                            if unit == "image":
+                                model_name = attrs.get("model", "")
+                                region = attrs.get("regionCode", "")
+                                price = float(dim.get("pricePerUnit", {}).get("USD", "0"))
+                                if model_name and region and price > 0:
+                                    key = f"{model_name}|{region}"
+                                    is_standard_1024 = "1024" in usage and ("Standard" in usage or "standard" in usage.lower())
+                                    is_t2i = "T2I" in usage  # text-to-image (not I2I image-to-image)
+                                    # Prefer standard 1024 text-to-image pricing; fallback to any entry
+                                    existing = prices.get(key)
+                                    if not existing or is_standard_1024 or (is_t2i and not existing.get("is_preferred")):
+                                        prices[key] = {
+                                            "model_name": model_name,
+                                            "region": region,
+                                            "price_usd": price,
+                                            "usage_type": usage[:80],
+                                            "is_preferred": is_standard_1024,
+                                        }
+
+            next_token = resp.get("NextToken")
+            if not next_token:
+                break
+
+        logger.info("Fetched %d image pricing entries from AWS Pricing API", len(prices))
+        return prices
+    except Exception as exc:
+        logger.warning("Failed to fetch pricing data: %s", exc)
+        return {}
+
+
+def _get_bedrock_regions() -> list[str]:
+    """Dynamically discover all AWS regions that support Bedrock.
+
+    Uses boto3's service region metadata — no hardcoded list.
+    This automatically includes new regions as AWS adds Bedrock support.
+    """
+    try:
+        session = boto3.Session()
+        regions = session.get_available_regions("bedrock")
+        if regions:
+            return sorted(regions)
+    except Exception as exc:
+        logger.warning("Failed to discover Bedrock regions: %s", exc)
+
+    # Fallback: minimum known regions if dynamic discovery fails
+    return ["us-east-1", "us-west-2"]
+
+
+@router.get("/regions")
+async def list_bedrock_regions():
+    """Return Bedrock-supported AWS regions from the registry.
+
+    Reads from the cached list in model_registry.json — does NOT call AWS.
+    The list is refreshed only when refresh-all is called.
+    """
+    from backend.services.model_registry import get_registry
+    registry = get_registry()
+    regions = registry.get("bedrock_regions", [])
+    if not regions:
+        # First time — no regions cached yet. Return a minimal fallback.
+        regions = ["us-east-1", "us-west-2"]
+    return {"regions": regions, "count": len(regions)}
+
+
+@router.post("/discover/refresh-all")
+async def refresh_all_regions():
+    """Scan ALL Bedrock-supported AWS regions for image models and update the registry.
+
+    Step 1: Discovers Bedrock regions from AWS (the ONLY time we poll for regions).
+    Step 2: Stores the region list in the registry for future reads.
+    Step 3: Scans each region for image models and registers/updates them.
+
+    This is the proper way to populate the registry — do NOT manually
+    edit model_registry.json.
+    """
+    from backend.services.model_registry import get_registry, _save
+
+    # Step 1: Discover regions from AWS
+    all_regions = _get_bedrock_regions()
+
+    # Step 2: Persist regions + fetch pricing data
+    registry = get_registry()
+    registry["bedrock_regions"] = all_regions
+    _save()
+    logger.info("Stored %d Bedrock regions in registry", len(all_regions))
+
+    # Step 2b: Fetch per-image pricing from AWS Pricing API
+    pricing_data = _fetch_image_pricing()
+    if pricing_data:
+        registry["image_pricing"] = pricing_data
+        _save()
+        logger.info("Stored pricing for %d model-region combos", len(pricing_data))
+
+    # Step 3: Scan each region for models
+    results = {}
+    total_new = 0
+    total_updated = 0
+    errors = 0
+
+    for region in all_regions:
+        try:
+            result = await auto_register_image_models(region)
+            results[region] = {
+                "new": result["new_count"],
+                "updated": result["updated_count"],
+            }
+            total_new += result["new_count"]
+            total_updated += result["updated_count"]
+        except Exception as exc:
+            results[region] = {"error": str(exc)[:100]}
+            errors += 1
+
+    return {
+        "regions_scanned": len(all_regions),
+        "total_new": total_new,
+        "total_updated": total_updated,
+        "errors": errors,
+        "per_region": results,
     }
 
 

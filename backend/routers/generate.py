@@ -42,6 +42,17 @@ router = APIRouter(prefix="/api/generate", tags=["generate"])
 _SEED_MAX = 2**31 - 1
 
 
+def _get_model_region(model_key) -> str:
+    """Get the region for a model from the registry."""
+    key = model_key.value if hasattr(model_key, 'value') else str(model_key)
+    try:
+        from backend.services.model_registry import get_image_model
+        cfg = get_image_model(key)
+        return cfg.get("region", "") if cfg else ""
+    except Exception:
+        return ""
+
+
 def _slugify_prompt(prompt: str, max_len: int = 40) -> str:
     slug = prompt.lower().strip()
     slug = re.sub(r"[^\w\s-]", "", slug)
@@ -70,6 +81,7 @@ def _generate_single_image(
         height=body.height,
         seed=seed,
         negative_prompt=negative_prompt,
+        region_override=body.region,
         status_callback=status_callback,
     )
     svg_output_path = (
@@ -158,6 +170,7 @@ def _build_variant(
         "asset_type": body.asset_type.value,
         "image_model": effective_model.value if hasattr(effective_model, 'value') else str(effective_model),
         "model_label": model_label or "",
+        "region": _get_model_region(effective_model),
         "width": body.width,
         "height": body.height,
         "seed": seed,
