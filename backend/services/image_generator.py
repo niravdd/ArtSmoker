@@ -1,17 +1,12 @@
 """Image generation service — routes generation requests to the appropriate
-Bedrock image model with retry logic for API throttling."""
+Bedrock image model via the generic registry-driven invoker, with retry
+logic for API throttling."""
 
 import logging
 import random
 import time
 
-from backend.models.generation_request import ImageModel
-from backend.services.bedrock_client import (
-    invoke_nova_canvas,
-    invoke_sd35_large,
-    invoke_stable_image_ultra,
-    invoke_titan_image,
-)
+from backend.services.bedrock_client import invoke_image_model
 
 logger = logging.getLogger(__name__)
 
@@ -22,7 +17,7 @@ _RETRY_BASE_DELAY = 2  # seconds
 
 def generate_image(
     refined_prompt: str,
-    model: ImageModel,
+    model,  # str or ImageModel enum — any valid registry key
     width: int = 1024,
     height: int = 1024,
     seed: int | None = None,
@@ -31,14 +26,18 @@ def generate_image(
 ) -> bytes:
     """Generate an image from a refined prompt using the specified model.
 
+    Uses the generic registry-driven invoker — any model registered in
+    model_registry.json with a valid format_family can be used.
+
     Retries up to 3 times with exponential backoff on throttling/transient errors.
     Calls status_callback(dict) with progress updates if provided.
-    negative_prompt is passed to models that support it (Nova Canvas negativeText,
-    SD negative_prompt). See model-specific docs for supported exclusion terms.
     Returns PNG image bytes.
     """
     if seed is None:
         seed = random.randint(0, _SEED_MAX)
+
+    # Normalize model to string key
+    model_key = model.value if hasattr(model, 'value') else str(model)
 
     def emit(event):
         if status_callback:
@@ -46,18 +45,8 @@ def generate_image(
 
     logger.info(
         "Generating image: model=%s, size=%dx%d, seed=%d, prompt_len=%d",
-        model.value, width, height, seed, len(refined_prompt),
+        model_key, width, height, seed, len(refined_prompt),
     )
-
-    invoke_fn = {
-        ImageModel.NOVA_CANVAS: invoke_nova_canvas,
-        ImageModel.TITAN_IMAGE: invoke_titan_image,
-        ImageModel.SD35_LARGE: invoke_sd35_large,
-        ImageModel.STABLE_IMAGE_ULTRA: invoke_stable_image_ultra,
-    }.get(model)
-
-    if invoke_fn is None:
-        raise ValueError(f"Unsupported image model: {model}")
 
     last_exc = None
     for attempt in range(_MAX_RETRIES):
@@ -65,8 +54,15 @@ def generate_image(
             if attempt > 0:
                 emit({"type": "retry", "attempt": attempt + 1, "max_retries": _MAX_RETRIES,
                       "message": f"Retrying image generation (attempt {attempt + 1}/{_MAX_RETRIES})..."})
-            image_bytes = invoke_fn(refined_prompt, width=width, height=height, seed=seed, negative_prompt=negative_prompt)
-            logger.info("Image generated: model=%s, %d bytes", model.value, len(image_bytes))
+            image_bytes = invoke_image_model(
+                model_key,
+                refined_prompt,
+                width=width,
+                height=height,
+                seed=seed,
+                negative_prompt=negative_prompt,
+            )
+            logger.info("Image generated: model=%s, %d bytes", model_key, len(image_bytes))
             return image_bytes
         except Exception as exc:
             last_exc = exc

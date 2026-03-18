@@ -191,7 +191,121 @@ def invoke_claude(
         return response["output"]["message"]["content"][0]["text"]
 
 
-# ── Image generation helpers ─────────────────────────────────────────────
+# ── Generic image generation (registry-driven) ──────────────────────────
+
+def _set_nested(obj: dict, path: str, value):
+    """Set a value at a dot-path in a nested dict. E.g. 'a.b.c' sets obj['a']['b']['c']."""
+    keys = path.split(".")
+    for k in keys[:-1]:
+        obj = obj.setdefault(k, {})
+    obj[keys[-1]] = value
+
+
+def _get_nested(obj: dict, path: str):
+    """Get a value from a dot-path, supporting array indexing like 'images[0]'."""
+    import re as _re
+    for part in path.split("."):
+        m = _re.match(r"(\w+)\[(\d+)\]", part)
+        if m:
+            obj = obj[m.group(1)][int(m.group(2))]
+        else:
+            obj = obj[part]
+    return obj
+
+
+def invoke_image_model(
+    model_key: str,
+    prompt: str,
+    *,
+    negative_prompt: str = "",
+    width: int = 1024,
+    height: int = 1024,
+    seed: int | None = None,
+) -> bytes:
+    """Generic image generation using any model defined in the registry.
+
+    Reads the model config and format family from model_registry.json to
+    construct the request body dynamically. No per-model code needed.
+    Returns PNG image bytes.
+    """
+    from backend.services.model_registry import get_image_model, get_registry
+    import copy
+
+    model_config = get_image_model(model_key)
+    if not model_config:
+        raise ValueError(f"Unknown image model: {model_key}")
+
+    model_id = model_config["model_id"]
+    region = model_config["region"]
+    family_name = model_config.get("format_family", "")
+
+    registry = get_registry()
+    family = registry.get("format_families", {}).get(family_name)
+    if not family:
+        raise ValueError(f"Unknown format family '{family_name}' for model '{model_key}'")
+
+    # Start with the family body template and merge model-specific overrides
+    body = copy.deepcopy(family["body_template"])
+    extra = model_config.get("extra_body", {})
+    _deep_merge(body, extra)
+
+    # Set prompt
+    _set_nested(body, family["prompt_path"], prompt)
+
+    # Set negative prompt
+    if negative_prompt and family.get("negative_prompt_path"):
+        _set_nested(body, family["negative_prompt_path"], negative_prompt)
+
+    # Set dimensions or aspect ratio
+    dims_mode = family.get("dimensions_mode", "pixels")
+    if dims_mode == "aspect_ratio":
+        body["aspect_ratio"] = _dimensions_to_aspect_ratio(width, height)
+    elif dims_mode == "pixels":
+        dim_paths = family.get("dimensions_paths", {})
+        if dim_paths.get("width"):
+            _set_nested(body, dim_paths["width"], width)
+        if dim_paths.get("height"):
+            _set_nested(body, dim_paths["height"], height)
+
+    # Set seed
+    if seed is not None and family.get("seed_path"):
+        _set_nested(body, family["seed_path"], seed)
+
+    # Invoke
+    client = _get_client(region)
+    label = model_config.get("label", model_key)
+    logger.info("Invoking %s (%s) in %s: prompt=%d chars, seed=%s",
+                label, model_id, region, len(prompt), seed)
+
+    response = client.invoke_model(
+        modelId=model_id,
+        contentType="application/json",
+        accept="application/json",
+        body=json.dumps(body),
+    )
+    result = json.loads(response["body"].read())
+
+    # Extract image from response
+    try:
+        image_data = _get_nested(result, family["response_image_path"])
+    except (KeyError, IndexError, TypeError):
+        error_msg = result.get("error", result.get("message", str(result)))
+        logger.error("%s returned no image: %s", label, error_msg)
+        raise RuntimeError(f"{label} generation failed: {error_msg}")
+
+    return base64.b64decode(image_data)
+
+
+def _deep_merge(base: dict, override: dict):
+    """Recursively merge override into base (mutates base)."""
+    for key, value in override.items():
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge(base[key], value)
+        else:
+            base[key] = value
+
+
+# ── Legacy image generation helpers (kept for backward compatibility) ────
 
 def invoke_nova_canvas(
     prompt: str,

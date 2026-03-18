@@ -11,6 +11,8 @@
 (function () {
     'use strict';
 
+    // Fallback labels for older assets without model_label in metadata.
+    // New assets store model_label directly — this map is only for backward compatibility.
     const MODEL_LABELS = {
         nova_canvas: 'Amazon Nova Canvas',
         titan_image: 'Amazon Titan Image v2',
@@ -176,7 +178,7 @@
 
             const createdAt = meta.created_at ? new Date(meta.created_at).toLocaleString() : 'N/A';
             const isTypeStudio = meta.type === 'type-studio';
-            const modelLabel = MODEL_LABELS[meta.image_model] || meta.image_model || '';
+            const modelLabel = meta.model_label || MODEL_LABELS[meta.image_model] || meta.image_model || '';
             const typeLabel = TYPE_LABELS[meta.asset_type] || meta.asset_type || 'N/A';
 
             container.innerHTML = `

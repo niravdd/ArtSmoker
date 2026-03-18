@@ -16,7 +16,9 @@
         { value: 'environment', label: 'Environment' },
     ];
 
-    const MODELS = [
+    // Fallback models — used only if API fetch fails on first render.
+    // The real model list is loaded dynamically from the registry via _loadModels().
+    let MODELS = [
         { value: 'nova_canvas', label: 'Nova Canvas' },
         { value: 'titan_image', label: 'Titan Image v2' },
         { value: 'sd35_large', label: 'Stable Diffusion 3.5 Large' },
@@ -346,6 +348,7 @@
         },
 
         async init() {
+            await this._loadModels();
             await this._loadStyles();
             this._ensurePromptEditor();
 
@@ -412,6 +415,40 @@
                 if (this._result && !confirm('Reset the generator? Current results will be cleared.')) return;
                 window.resetView('image-studio');
             });
+        },
+
+        async _loadModels() {
+            try {
+                const data = await API.admin.getImageOptions();
+                if (data?.models?.length) {
+                    MODELS = data.models.map(m => ({
+                        value: m.key,
+                        label: m.label,
+                        provider: m.provider,
+                        region: m.region,
+                        prompt_limit: m.prompt_limit,
+                        moderation_strictness: m.moderation_strictness,
+                    }));
+                    // Append the virtual "All Available Models" entry
+                    MODELS.push({ value: 'all_models', label: '\u2500\u2500 All Available Models' });
+                    console.log(`Loaded ${data.models.length} image models from registry`);
+                }
+            } catch (err) {
+                console.warn('Failed to load image models from registry, using fallback:', err);
+            }
+
+            // Repopulate the dropdown
+            const sel = document.getElementById('gen-model');
+            if (!sel) return;
+            const currentValue = sel.value;
+            sel.innerHTML = '';
+            MODELS.forEach(m => {
+                const opt = document.createElement('option');
+                opt.value = m.value;
+                opt.textContent = m.label;
+                sel.appendChild(opt);
+            });
+            if (currentValue) sel.value = currentValue;
         },
 
         async _loadStyles() {
@@ -1017,7 +1054,9 @@
             const suggested = screen.suggested_model;
             const suggestedLabel = screen.suggested_model_label || suggested;
             const currentModel = payload.image_model;
-            const modelLabels = { nova_canvas: 'Nova Canvas', titan_image: 'Titan Image v2', sd35_large: 'Stable Diffusion 3.5 Large', stable_image_ultra: 'Stable Image Ultra' };
+            // Build model labels from the dynamic MODELS array (loaded from registry)
+            const modelLabels = {};
+            MODELS.forEach(m => { if (m.value !== 'all_models') modelLabels[m.value] = m.label; });
             const currentLabel = modelLabels[currentModel] || currentModel;
 
             const dialog = document.createElement('div');

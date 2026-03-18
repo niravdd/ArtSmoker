@@ -244,7 +244,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
               "message": f"Creating {n_opts} concept prompt{'s' if n_opts > 1 else ''}..."})
 
     if not body.pre_composed or n_opts > 1:
-        model_id = body.image_model.value
+        model_id = body.image_model
         try:
             if body.pre_composed and n_opts > 1:
                 concept_prompts = generate_concept_prompts(
@@ -269,7 +269,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             result = GenerationResult(
                 id=batch_id, prompt=body.prompt, original_prompt=body.original_prompt,
                 moderation_original=body.moderation_original, style_id=body.style_id,
-                asset_type=body.asset_type.value, image_model=body.image_model.value,
+                asset_type=body.asset_type.value, image_model=body.image_model,
                 width=body.width, height=body.height,
                 num_options=n_opts, num_variations=n_vars, options=[],
             )
@@ -443,7 +443,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             moderation_original=body.moderation_original,
             style_id=body.style_id,
             asset_type=body.asset_type.value,
-            image_model=body.image_model.value,
+            image_model=body.image_model,
             width=body.width,
             height=body.height,
             num_options=n_opts,
@@ -462,7 +462,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                 option_index=oi,
                 refined_prompt=concept_prompts[oi],
                 negative_prompt=negative_prompt,
-                image_model=body.image_model.value,
+                image_model=body.image_model,
                 variants=variants,
             ))
 
@@ -479,7 +479,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         negative_prompt=negative_prompt or None,
         style_id=body.style_id,
         asset_type=body.asset_type.value,
-        image_model=body.image_model.value,
+        image_model=body.image_model,
         width=body.width,
         height=body.height,
         num_options=n_opts,
@@ -620,7 +620,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
 
     def _generate_for_model(option_index: int, model_key: str) -> OptionResult:
         """Generate one variant with a specific model. Returns OptionResult with status."""
-        model_enum = ImageModel(model_key)
+        model_enum = model_key  # Now a plain string, not an enum
         label = model_labels[model_key]
         prompt = concept_prompts[model_key]
         negative = negative_prompts.get(model_key, "")
@@ -828,12 +828,8 @@ async def pre_screen_prompt(body: PreScreenRequest):
     from backend.services.bedrock_client import invoke_claude
     import re as _re
 
-    model_labels = {
-        "nova_canvas": "Nova Canvas",
-        "titan_image": "Titan Image v2",
-        "sd35_large": "Stable Diffusion 3.5 Large",
-        "stable_image_ultra": "Stable Image Ultra",
-    }
+    from backend.services.model_registry import get_enabled_model_labels
+    model_labels = get_enabled_model_labels()
     model_label = model_labels.get(body.image_model, body.image_model)
 
     screen_prompt = f"""You are a content moderation analyst for AI image generation models.
@@ -966,21 +962,17 @@ async def analyze_moderation(body: ModerationRequest):
 
     if working_model:
         # Found a model that accepts the prompt as-is!
-        model_labels = {
-            "nova_canvas": "Nova Canvas",
-            "titan_image": "Titan Image v2",
-            "sd35_large": "Stable Diffusion 3.5 Large",
-            "stable_image_ultra": "Stable Image Ultra",
-        }
+        from backend.services.model_registry import get_enabled_model_labels as _get_labels
+        model_labels = _get_labels()
         return {
             "action": "switch_model",
-            "working_model": working_model.value,
-            "working_model_label": model_labels.get(working_model.value, working_model.value),
+            "working_model": str(working_model),
+            "working_model_label": model_labels.get(str(working_model), str(working_model)),
             "original_model": original_model,
             "original_model_label": model_labels.get(original_model, original_model),
             "issues": [f"{model_labels.get(original_model, original_model)} has strict content moderation that blocks game art with combat/weapon content"],
             "explanation": (
-                f"Your prompt works with {model_labels.get(working_model.value, working_model.value)} "
+                f"Your prompt works with {model_labels.get(str(working_model), str(working_model))} "
                 f"but was blocked by {model_labels.get(original_model, original_model)}. "
                 f"This is common for game art — Stable Diffusion 3.5 Large and Stable Image Ultra are more "
                 f"permissive with action/combat content while still producing high-quality results."

@@ -330,8 +330,15 @@
             discover(region) {
                 return request(`/api/admin/discover/${encodeURIComponent(region)}`);
             },
+            autoRegister(region) {
+                return request(`/api/admin/discover/${encodeURIComponent(region)}/auto-register`, { method: 'POST' });
+            },
             reload() {
                 return request('/api/admin/models/reload', { method: 'POST' });
+            },
+            /** Get enabled text-to-image models for the generation dropdown */
+            getImageOptions() {
+                return request('/api/admin/models/image-options');
             },
         },
 

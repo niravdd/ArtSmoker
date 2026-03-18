@@ -1,6 +1,33 @@
 {
-  "version": 1,
-  "last_updated": "2026-03-06",
+  "version": 2,
+  "last_updated": "2026-03-18",
+  "format_families": {
+    "amazon_text_to_image": {
+      "description": "Amazon text-to-image models (Nova Canvas, Titan Image). Uses taskType/textToImageParams structure with pixel dimensions.",
+      "prompt_path": "textToImageParams.text",
+      "negative_prompt_path": "textToImageParams.negativeText",
+      "seed_path": "imageGenerationConfig.seed",
+      "dimensions_mode": "pixels",
+      "dimensions_paths": {"width": "imageGenerationConfig.width", "height": "imageGenerationConfig.height"},
+      "response_image_path": "images[0]",
+      "body_template": {
+        "taskType": "TEXT_IMAGE",
+        "textToImageParams": {},
+        "imageGenerationConfig": {"numberOfImages": 1}
+      }
+    },
+    "stability_text_to_image": {
+      "description": "Stability AI text-to-image models (SD 3.5, Ultra, Core). Uses flat prompt field with aspect ratios.",
+      "prompt_path": "prompt",
+      "negative_prompt_path": "negative_prompt",
+      "seed_path": "seed",
+      "dimensions_mode": "aspect_ratio",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "output_format": "png"
+      }
+    }
+  },
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -42,26 +69,11 @@
       "region": "us-east-1",
       "provider": "Amazon",
       "enabled": true,
+      "model_purpose": "text_to_image",
+      "format_family": "amazon_text_to_image",
       "prompt_limit": 900,
-      "supports_dimensions": true,
-      "supports_aspect_ratio": false,
       "moderation_strictness": "very_strict",
-      "request_format": {
-        "type": "nova_canvas",
-        "body_template": {
-          "taskType": "TEXT_IMAGE",
-          "textToImageParams": {"text": "{prompt}"},
-          "imageGenerationConfig": {
-            "numberOfImages": 1,
-            "width": "{width}",
-            "height": "{height}",
-            "quality": "premium"
-          }
-        },
-        "seed_path": "imageGenerationConfig.seed",
-        "response_image_path": "images[0]",
-        "response_format": "base64"
-      }
+      "extra_body": {"imageGenerationConfig": {"quality": "premium"}}
     },
     "titan_image": {
       "label": "Amazon Titan Image v2",
@@ -69,25 +81,11 @@
       "region": "us-east-1",
       "provider": "Amazon",
       "enabled": true,
+      "model_purpose": "text_to_image",
+      "format_family": "amazon_text_to_image",
       "prompt_limit": 480,
-      "supports_dimensions": true,
-      "supports_aspect_ratio": false,
       "moderation_strictness": "strict",
-      "request_format": {
-        "type": "titan_image",
-        "body_template": {
-          "taskType": "TEXT_IMAGE",
-          "textToImageParams": {"text": "{prompt}"},
-          "imageGenerationConfig": {
-            "numberOfImages": 1,
-            "width": "{width}",
-            "height": "{height}"
-          }
-        },
-        "seed_path": "imageGenerationConfig.seed",
-        "response_image_path": "images[0]",
-        "response_format": "base64"
-      }
+      "extra_body": {}
     },
     "sd35_large": {
       "label": "Stable Diffusion 3.5 Large",
@@ -95,21 +93,11 @@
       "region": "us-west-2",
       "provider": "Stability AI",
       "enabled": true,
+      "model_purpose": "text_to_image",
+      "format_family": "stability_text_to_image",
       "prompt_limit": 2000,
-      "supports_dimensions": false,
-      "supports_aspect_ratio": true,
       "moderation_strictness": "moderate",
-      "request_format": {
-        "type": "stability",
-        "body_template": {
-          "prompt": "{prompt}",
-          "output_format": "png",
-          "aspect_ratio": "{aspect_ratio}"
-        },
-        "seed_path": "seed",
-        "response_image_path": "images[0]",
-        "response_format": "base64"
-      }
+      "extra_body": {}
     },
     "stable_image_ultra": {
       "label": "Stable Image Ultra",
@@ -117,21 +105,11 @@
       "region": "us-west-2",
       "provider": "Stability AI",
       "enabled": true,
+      "model_purpose": "text_to_image",
+      "format_family": "stability_text_to_image",
       "prompt_limit": 2000,
-      "supports_dimensions": false,
-      "supports_aspect_ratio": true,
       "moderation_strictness": "moderate",
-      "request_format": {
-        "type": "stability",
-        "body_template": {
-          "prompt": "{prompt}",
-          "output_format": "png",
-          "aspect_ratio": "{aspect_ratio}"
-        },
-        "seed_path": "seed",
-        "response_image_path": "images[0]",
-        "response_format": "base64"
-      }
+      "extra_body": {}
     }
   },
   "post_processing": {
