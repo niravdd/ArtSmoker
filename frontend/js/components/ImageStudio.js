@@ -81,15 +81,9 @@
                                     <select id="gen-model" class="input">
                                         ${MODELS.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
                                     </select>
-                                    <div class="flex items-center gap-2 mt-1.5">
-                                        <label class="text-[10px] text-brand-text-dim flex-shrink-0">Region:</label>
-                                        <select id="gen-region" class="input text-xs py-0.5 flex-1">
-                                            <option value="">Auto</option>
-                                        </select>
-                                        <button id="gen-region-filter-btn" class="text-[10px] text-brand-accent hover:text-brand-accent-hover transition-colors flex-shrink-0" title="Filter models by this region">
-                                            filter by region
-                                        </button>
-                                    </div>
+                                    <!-- Smart summary line -->
+                                    <p id="gen-model-summary" class="text-[10px] text-brand-text-dim mt-1"></p>
+                                    <!-- All Models mode options -->
                                     <div id="gen-all-models-opts" class="hidden mt-2 p-2 rounded-lg bg-brand-bg/50 space-y-1.5">
                                         <label class="flex items-center gap-2 text-xs text-brand-text-muted cursor-pointer">
                                             <input type="checkbox" id="gen-model-optimized" class="rounded" />
@@ -106,6 +100,31 @@
                                         ${SIZE_PRESETS.map((s, i) => `<option value="${i}" ${i === 2 ? 'selected' : ''}>${s.label}</option>`).join('')}
                                     </select>
                                 </div>
+
+                                <!-- Advanced: Quality + Region (collapsible) -->
+                                <details id="gen-advanced-section" class="group">
+                                    <summary class="text-xs font-medium text-brand-text-muted cursor-pointer hover:text-brand-text transition-colors select-none">
+                                        <span class="group-open:hidden">\u25B8 Advanced (quality, region)</span>
+                                        <span class="hidden group-open:inline">\u25BE Advanced</span>
+                                    </summary>
+                                    <div class="mt-2 space-y-3 p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border/50">
+                                        <div>
+                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">Quality</label>
+                                            <select id="gen-quality" class="input text-xs">
+                                                <option value="">Default</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">Region</label>
+                                            <select id="gen-region" class="input text-xs">
+                                                <option value="">Auto</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                </details>
+
+                                <!-- Cost estimate -->
+                                <div id="gen-cost-estimate" class="text-[10px] text-emerald-400/70 font-mono"></div>
 
                                 <!-- Two-level counts -->
                                 <div class="grid grid-cols-2 gap-3">
@@ -367,26 +386,25 @@
             document.getElementById('gen-asset-type')?.addEventListener('change', () => {
                 if (this._promptEditor) this._promptEditor.setContext({ assetType: this._getAssetType() });
             });
-            // Model-first flow: when model changes, update region dropdown to show
-            // that model's available regions, auto-select default
+            // Model change: update quality options, region, and summary
             document.getElementById('gen-model')?.addEventListener('change', () => {
                 const modelVal = document.getElementById('gen-model')?.value;
                 if (this._promptEditor) this._promptEditor.setContext({ imageModel: modelVal });
                 this._updateAllModelsUI(modelVal === 'all_models');
+                this._updateQualityForModel(modelVal);
                 this._updateRegionForModel(modelVal);
+                this._updateModelSummary();
             });
 
-            // Region change: if user explicitly picks a region, the model stays
-            // (the region dropdown only shows regions available for the current model).
-            // "filter by region" button: filters the model list by the selected region.
-            document.getElementById('gen-region-filter-btn')?.addEventListener('click', () => {
-                const region = document.getElementById('gen-region')?.value;
-                if (region) {
-                    this._loadModels(region);
-                } else {
-                    this._loadModels(); // Reset to all
-                }
+            // Quality change: update region prices + summary
+            document.getElementById('gen-quality')?.addEventListener('change', () => {
+                this._updateRegionForModel(document.getElementById('gen-model')?.value);
+                this._updateModelSummary();
             });
+            document.getElementById('gen-region')?.addEventListener('change', () => this._updateModelSummary());
+            document.getElementById('gen-size')?.addEventListener('change', () => this._updateModelSummary());
+            document.getElementById('gen-num-options')?.addEventListener('change', () => this._updateModelSummary());
+            document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateModelSummary());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open());
 
@@ -454,6 +472,9 @@
                         region_pricing: m.region_pricing || [],
                         prompt_limit: m.prompt_limit,
                         moderation_strictness: m.moderation_strictness,
+                        quality_options: m.quality_options || [],
+                        default_quality: m.default_quality || '',
+                        base_price_usd: m.base_price_usd || null,
                     }));
                     // Append the virtual "All Available Models" entry
                     MODELS.push({ value: 'all_models', label: '\u2500\u2500 All Available Models' });
@@ -484,24 +505,124 @@
             if (currentValue && [...sel.options].some(o => o.value === currentValue)) {
                 sel.value = currentValue;
             }
-            // Update region dropdown for the selected model
+            // Update quality, region, and summary for the selected model
+            this._updateQualityForModel(sel.value);
             this._updateRegionForModel(sel.value);
+            this._updateModelSummary();
+        },
+
+        _updateQualityForModel(modelKey) {
+            const qualSel = document.getElementById('gen-quality');
+            if (!qualSel || modelKey === 'all_models') {
+                if (qualSel) { qualSel.innerHTML = '<option value="">Default</option>'; }
+                return;
+            }
+            const modelData = MODELS.find(m => m.value === modelKey);
+            const options = modelData?.quality_options || [];
+            const defaultQ = modelData?.default_quality || '';
+
+            qualSel.innerHTML = '';
+            if (options.length === 0) {
+                const opt = document.createElement('option');
+                opt.value = '';
+                opt.textContent = 'Default (no tiers)';
+                qualSel.appendChild(opt);
+            } else {
+                options.forEach(q => {
+                    const opt = document.createElement('option');
+                    opt.value = q.value;
+                    opt.textContent = q.value === defaultQ ? `${q.label} (default)` : q.label;
+                    if (q.value === defaultQ) opt.selected = true;
+                    qualSel.appendChild(opt);
+                });
+            }
+        },
+
+        _updateModelSummary() {
+            const summaryEl = document.getElementById('gen-model-summary');
+            const costEl = document.getElementById('gen-cost-estimate');
+            if (!summaryEl) return;
+
+            const modelKey = document.getElementById('gen-model')?.value;
+            if (modelKey === 'all_models') {
+                summaryEl.textContent = '';
+                if (costEl) costEl.textContent = '';
+                return;
+            }
+
+            const modelData = MODELS.find(m => m.value === modelKey);
+            if (!modelData) { summaryEl.textContent = ''; return; }
+
+            const quality = document.getElementById('gen-quality')?.value || modelData.default_quality || '';
+            const region = document.getElementById('gen-region')?.value || modelData.region || '';
+            const regionPricing = modelData.region_pricing || [];
+            const rp = regionPricing.find(r => r.region === region) || regionPricing[0] || {};
+
+            // Look up quality-specific price, fall back to region default, then base price
+            let price = null;
+            if (rp.quality_prices && quality && rp.quality_prices[quality] != null) {
+                price = rp.quality_prices[quality];
+            } else if (rp.price_usd != null) {
+                price = rp.price_usd;
+            } else if (modelData.base_price_usd != null) {
+                price = modelData.base_price_usd;
+            }
+            const priceStr = price != null ? `$${price.toFixed(2)}/img` : '';
+            const qualityLabel = quality ? quality.charAt(0).toUpperCase() + quality.slice(1) : '';
+
+            // Summary line: "us-east-1 · Premium · $0.06/img"
+            const parts = [region, qualityLabel, priceStr].filter(Boolean);
+            summaryEl.textContent = parts.join(' \u00b7 ');
+
+            // Cost estimate
+            if (costEl && price != null) {
+                const numOpts = parseInt(document.getElementById('gen-num-options')?.value || '5', 10);
+                const numVars = parseInt(document.getElementById('gen-num-variations')?.value || '5', 10);
+                const total = numOpts * numVars;
+                const est = (price * total).toFixed(2);
+                costEl.textContent = `Est. cost: ~$${est} (${total} images \u00d7 $${price.toFixed(2)})`;
+            } else if (costEl) {
+                costEl.textContent = '';
+            }
         },
 
         _updateRegionForModel(modelKey) {
             const regionSel = document.getElementById('gen-region');
             if (!regionSel || modelKey === 'all_models') return;
 
-            // Find the selected model's region/pricing data from MODELS array
             const modelData = MODELS.find(m => m.value === modelKey);
             const regionPricing = modelData?.region_pricing || [];
+            const selectedQuality = document.getElementById('gen-quality')?.value || modelData?.default_quality || '';
+
+            const basePrice = modelData?.base_price_usd || null;
+
+            // Resolve price per region for the currently selected quality
             const regions = regionPricing.length > 0
-                ? regionPricing.map(rp => rp)
+                ? regionPricing.map(rp => {
+                    let price = null;
+                    if (rp.quality_prices && selectedQuality && rp.quality_prices[selectedQuality] != null) {
+                        price = rp.quality_prices[selectedQuality];
+                    } else if (rp.price_usd != null) {
+                        price = rp.price_usd;
+                    } else if (basePrice != null) {
+                        price = basePrice;
+                    }
+                    return { region: rp.region, price_usd: price };
+                })
                 : (modelData?.available_regions || [modelData?.region]).filter(Boolean).map(r => ({ region: r, price_usd: null }));
 
+            // Sort by price (cheapest first)
+            regions.sort((a, b) => {
+                if (a.price_usd == null && b.price_usd == null) return 0;
+                if (a.price_usd == null) return 1;
+                if (b.price_usd == null) return -1;
+                return a.price_usd - b.price_usd;
+            });
+
+            const currentValue = regionSel.value;
             regionSel.innerHTML = '';
+
             if (regions.length <= 1) {
-                // Single region — show it, no "Auto" needed
                 const rp = regions[0] || { region: '', price_usd: null };
                 const opt = document.createElement('option');
                 opt.value = rp.region;
@@ -510,8 +631,6 @@
                     : rp.region;
                 regionSel.appendChild(opt);
             } else {
-                // Multiple regions — "Auto (cheapest)" + each region with price
-                // Regions are already sorted by price (cheapest first) from backend
                 const cheapest = regions[0];
                 const auto = document.createElement('option');
                 auto.value = '';
@@ -527,6 +646,10 @@
                         : rp.region;
                     regionSel.appendChild(opt);
                 });
+            }
+            // Restore previous selection if still valid
+            if (currentValue && [...regionSel.options].some(o => o.value === currentValue)) {
+                regionSel.value = currentValue;
             }
         },
 
@@ -609,6 +732,7 @@
                 style_id: this._getStyleId() || null,
                 asset_type: this._getAssetType(),
                 image_model: isAllModels ? 'nova_canvas' : document.getElementById('gen-model').value,
+                quality: document.getElementById('gen-quality')?.value || null,
                 region: document.getElementById('gen-region')?.value || null,
                 width: size.w,
                 height: size.h,

@@ -544,35 +544,36 @@ Navigation order: **Style Library → 2D Image Studio → Type Studio → Galler
 
 ### 6.11 Model Management
 
-All AI model configuration (LLM categories, image models, post-processing) is centralized in `backend/model_registry.json` and manageable through the UI:
+All AI model configuration is centralized in `backend/model_registry.json` — the single source of truth. Models, regions, pricing, quality tiers, and format templates are all stored here and managed through the UI or API:
 
 - Click **"Model Settings"** in the 2D Image Studio sidebar to open the admin modal.
 - View and edit all model IDs, regions, prompt limits, and enabled/disabled status.
-- **Discover models**: Select an AWS region to see available Bedrock models, grouped by capability (image generators, text/LLM, vision). Discovery deduplicates model versions (~128 raw to ~96 unique).
-- Changes are persisted immediately via the Admin API (`/api/admin/models`).
+- **Refresh All**: Scans all Bedrock-supported AWS regions (discovered dynamically — currently 33 regions), auto-registers new text-to-image models, updates regional availability, fetches per-model pricing from the AWS Pricing API, and disables models no longer available. This is the **only** action that calls AWS discovery APIs — all other operations read from the cached registry.
+- **Auto-discovery**: New models are registered with `enabled=false` — the admin must enable them. Existing models get their `available_regions` updated automatically.
+- Changes are persisted immediately to `model_registry.json` via the Admin API.
 - The registry is backward compatible — existing assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs.
 
 ### 6.12 Image Generation Models
 
-Four image models are available, each with different strengths. Prompt limits are configurable per model via the Model Registry:
+Image models are **discovered dynamically** from the registry — not hardcoded. The dropdown is populated from `GET /api/admin/models/image-options` on page load. Any model registered and enabled in the registry appears automatically.
 
-| Model | Provider | Quality | Prompt Limit | Dimension handling |
-|-------|----------|---------|-------------|-------------------|
-| **Nova Canvas** | Amazon | Good, fast | 900 chars | Exact pixel dimensions (width × height) |
-| **Titan Image v2** | Amazon | Good, fast | 480 chars | Exact pixel dimensions (width × height) |
-| **Stable Diffusion 3.5 Large** | Stability AI | Excellent (best open model) | 2000 chars | Aspect ratios (auto-mapped from dimensions) |
-| **Stable Image Ultra** | Stability AI | Highest (premium model) | 2000 chars | Aspect ratios (auto-mapped from dimensions) |
+The **Image Model** dropdown is the primary selection. Below it, a smart summary line shows the active region, quality tier, and per-image cost. An expandable **Advanced** section lets you override:
 
-The Stability AI models (Stable Diffusion 3.5 Large, Stable Image Ultra) accept aspect ratios (1:1, 16:9, 3:2, etc.) instead of exact pixel dimensions. When you select a width and height in the UI, the backend automatically maps to the closest supported aspect ratio.
+- **Quality** — models that support quality tiers (e.g. Nova Canvas: Standard $0.04/img vs Premium $0.06/img) show a dropdown. Models without tiers show "Default".
+- **Region** — shows regions where the selected model is available, sorted cheapest-first with pricing. "Auto" selects the cheapest region.
 
-**Model-optimized prompt engineering**: Prompts are automatically structured as descriptive captions (not commands) following [AWS documentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html). Negation words are removed from the main prompt and exclusion terms are sent as a separate **negative prompt**. Each model receives optimized prompts:
-- **Nova Canvas**: Structured captions (Subject, Environment, Pose, Lighting, Camera, Style), quality markers, `negativeText` parameter
-- **Titan Image v2**: Concise captions, `negativeText` parameter
-- **SD 3.5 Large**: Quality boosters (masterpiece, best quality), style tokens (concept art, artstation), `negative_prompt` field
-- **Stable Image Ultra**: Photorealistic quality boosters, `negative_prompt` field
+A **cost estimate** updates dynamically based on all selections (model × quality × region × options × variations).
+
+**Format families**: Models are invoked through a generic invoker that reads request templates from the registry (`format_families`). Currently two families:
+- **amazon_text_to_image** — taskType/textToImageParams structure with pixel dimensions (Nova Canvas, Titan Image)
+- **stability_text_to_image** — flat prompt field with aspect ratios (SD 3.5 Large, Stable Image Ultra, Stable Image Core)
+
+Adding a new Bedrock image model requires zero code changes — just register it via the admin API or auto-discovery with the correct format family.
+
+**Model-optimized prompt engineering**: Prompts are automatically structured as descriptive captions (not commands) following [AWS documentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html). Negation words are removed from the main prompt and exclusion terms are sent as a separate **negative prompt**. The prompt is truncated to each model's specific `prompt_limit` from the registry.
 
 > [!NOTE]
-> **Moderation sensitivity varies by model**: Nova Canvas is the strictest — it rejects prompts with copyrighted names, weapons, and combat language more aggressively. Stable Diffusion 3.5 Large is more relaxed for action/combat themes. ArtSmoker handles this automatically — when a prompt is blocked, the system tries alternative models with lower moderation strictness before suggesting a rewrite.
+> **Moderation sensitivity varies by model** and is tracked in the registry (`moderation_strictness`). Nova Canvas is the strictest — it rejects prompts with copyrighted names, weapons, and combat language more aggressively. Stable Diffusion 3.5 Large is more relaxed for action/combat themes. ArtSmoker handles this automatically — when a prompt is blocked, the system tries alternative models ordered by strictness before suggesting a rewrite.
 
 ## 7. Tech Stack
 
@@ -636,10 +637,14 @@ Key endpoints:
 | `GET /api/browse/s3?bucket=name&prefix=path` | Browse S3 bucket contents |
 | **Admin** | |
 | `GET /api/admin/models` | Get full model registry (LLMs, image models, post-processing) |
+| `GET /api/admin/models/image-options` | Enabled text-to-image models for the dropdown (with pricing, quality tiers, regions). Accepts `?region=` filter. |
+| `GET /api/admin/regions` | Cached list of Bedrock-supported AWS regions (no AWS calls) |
 | `PATCH /api/admin/models/category/{name}` | Update an LLM category config |
 | `PATCH /api/admin/models/image/{key}` | Update an image model config |
 | `POST /api/admin/models/image` | Add a new image model |
-| `GET /api/admin/discover/{region}` | Discover available Bedrock models in a region |
+| `POST /api/admin/discover/refresh-all` | Full refresh: discover regions + scan models + fetch pricing + prune stale data. The ONLY endpoint that calls AWS discovery APIs. |
+| `POST /api/admin/discover/{region}/auto-register` | Scan a single region for models, register new ones, update regions for existing |
+| `GET /api/admin/discover/{region}` | Discover available Bedrock models in a region (raw listing) |
 | **System** | |
 | `POST /api/log` | Client-side error/warning logging (recorded as `[CLIENT]` in server console) |
 | `GET /api/health` | Health check + AWS credential/Bedrock validation |
@@ -651,7 +656,7 @@ ArtSmoker/
 ├── backend/
 │   ├── main.py              # FastAPI app, startup validation, static mount
 │   ├── config.py            # Settings (AWS regions, model IDs, paths, limits)
-│   ├── model_registry.json  # Persisted model configuration (LLMs, image models, post-processing)
+│   ├── model_registry.json  # Single source of truth: models, regions, pricing, format families, quality tiers
 │   ├── requirements.txt
 │   ├── routers/
 │   │   ├── generate.py      # Two-level asset generation + SSE streaming

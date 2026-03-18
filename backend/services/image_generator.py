@@ -22,6 +22,7 @@ def generate_image(
     height: int = 1024,
     seed: int | None = None,
     negative_prompt: str = "",
+    quality: str | None = None,
     region_override: str | None = None,
     status_callback=None,
 ) -> bytes:
@@ -62,6 +63,7 @@ def generate_image(
                 height=height,
                 seed=seed,
                 negative_prompt=negative_prompt,
+                quality=quality,
                 region_override=region_override,
             )
             logger.info("Image generated: model=%s, %d bytes", model_key, len(image_bytes))

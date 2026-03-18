@@ -221,6 +221,7 @@ def invoke_image_model(
     width: int = 1024,
     height: int = 1024,
     seed: int | None = None,
+    quality: str | None = None,
     region_override: str | None = None,
 ) -> bytes:
     """Generic image generation using any model defined in the registry.
@@ -249,6 +250,14 @@ def invoke_image_model(
     body = copy.deepcopy(family["body_template"])
     extra = model_config.get("extra_body", {})
     _deep_merge(body, extra)
+
+    # Apply quality tier override if specified
+    if quality:
+        quality_options = model_config.get("quality_options", [])
+        for qopt in quality_options:
+            if qopt.get("value") == quality and qopt.get("body_override"):
+                _deep_merge(body, qopt["body_override"])
+                break
 
     # Set prompt
     _set_nested(body, family["prompt_path"], prompt)

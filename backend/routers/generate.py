@@ -81,6 +81,7 @@ def _generate_single_image(
         height=body.height,
         seed=seed,
         negative_prompt=negative_prompt,
+        quality=body.quality,
         region_override=body.region,
         status_callback=status_callback,
     )
@@ -170,6 +171,7 @@ def _build_variant(
         "asset_type": body.asset_type.value,
         "image_model": effective_model.value if hasattr(effective_model, 'value') else str(effective_model),
         "model_label": model_label or "",
+        "quality": body.quality or "",
         "region": _get_model_region(effective_model),
         "width": body.width,
         "height": body.height,

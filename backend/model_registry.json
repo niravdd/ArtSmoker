@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-18T05:11:01.896319",
+  "last_updated": "2026-03-18T06:14:32.491670",
   "format_families": {
     "amazon_text_to_image": {
       "description": "Amazon text-to-image models (Nova Canvas, Titan Image). Uses taskType/textToImageParams structure with pixel dimensions.",
@@ -83,6 +83,28 @@
       "format_family": "amazon_text_to_image",
       "prompt_limit": 900,
       "moderation_strictness": "very_strict",
+      "base_price_usd": 0.06,
+      "quality_options": [
+        {
+          "value": "standard",
+          "label": "Standard",
+          "body_override": {
+            "imageGenerationConfig": {
+              "quality": "standard"
+            }
+          }
+        },
+        {
+          "value": "premium",
+          "label": "Premium",
+          "body_override": {
+            "imageGenerationConfig": {
+              "quality": "premium"
+            }
+          }
+        }
+      ],
+      "default_quality": "premium",
       "extra_body": {
         "imageGenerationConfig": {
           "quality": "premium"
@@ -103,6 +125,28 @@
       "format_family": "amazon_text_to_image",
       "prompt_limit": 480,
       "moderation_strictness": "strict",
+      "base_price_usd": 0.01,
+      "quality_options": [
+        {
+          "value": "standard",
+          "label": "Standard",
+          "body_override": {
+            "imageGenerationConfig": {
+              "quality": "standard"
+            }
+          }
+        },
+        {
+          "value": "premium",
+          "label": "Premium",
+          "body_override": {
+            "imageGenerationConfig": {
+              "quality": "premium"
+            }
+          }
+        }
+      ],
+      "default_quality": "standard",
       "extra_body": {}
     },
     "sd35_large": {
@@ -118,6 +162,7 @@
       "format_family": "stability_text_to_image",
       "prompt_limit": 2000,
       "moderation_strictness": "moderate",
+      "base_price_usd": 0.08,
       "extra_body": {}
     },
     "stable_image_ultra": {
@@ -133,6 +178,7 @@
       "format_family": "stability_text_to_image",
       "prompt_limit": 2000,
       "moderation_strictness": "moderate",
+      "base_price_usd": 0.14,
       "extra_body": {}
     },
     "stable_image_core_v1": {
@@ -143,11 +189,12 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "text_to_image",
       "format_family": "stability_text_to_image",
       "prompt_limit": 2000,
       "moderation_strictness": "moderate",
+      "base_price_usd": 0.04,
       "extra_body": {}
     }
   },
@@ -203,23 +250,131 @@
     "us-west-2"
   ],
   "image_pricing": {
-    "Nova Canvas|eu-west-1": {
+    "Nova Canvas|eu-west-1|premium|1024": {
       "model_name": "Nova Canvas",
       "region": "eu-west-1",
+      "quality": "premium",
+      "size": "1024",
+      "price_usd": 0.06,
+      "usage_type": "EU-NovaCanvas-T2I-1024-Premium",
+      "is_t2i": true
+    },
+    "Nova Canvas|ap-northeast-1|premium|2048": {
+      "model_name": "Nova Canvas",
+      "region": "ap-northeast-1",
+      "quality": "premium",
+      "size": "2048",
       "price_usd": 0.08,
-      "usage_type": "EU-NovaCanvas-I2I-2048-Premium"
+      "usage_type": "APN1-NovaCanvas-T2I-2048-Premium",
+      "is_t2i": true
+    },
+    "Nova Canvas|us-east-1|standard|2048": {
+      "model_name": "Nova Canvas",
+      "region": "us-east-1",
+      "quality": "standard",
+      "size": "2048",
+      "price_usd": 0.06,
+      "usage_type": "USE1-NovaCanvas-T2I-2048-Standard",
+      "is_t2i": true
+    },
+    "Nova Canvas|eu-west-1|standard|1024": {
+      "model_name": "Nova Canvas",
+      "region": "eu-west-1",
+      "quality": "standard",
+      "size": "1024",
+      "price_usd": 0.04,
+      "usage_type": "EU-NovaCanvas-T2I-1024-Standard",
+      "is_t2i": true
+    },
+    "Nova Canvas|eu-west-1|premium|2048": {
+      "model_name": "Nova Canvas",
+      "region": "eu-west-1",
+      "quality": "premium",
+      "size": "2048",
+      "price_usd": 0.08,
+      "usage_type": "EU-NovaCanvas-T2I-2048-Premium",
+      "is_t2i": true
+    },
+    "Nova Canvas|us-east-1|premium|1024": {
+      "model_name": "Nova Canvas",
+      "region": "us-east-1",
+      "quality": "premium",
+      "size": "1024",
+      "price_usd": 0.06,
+      "usage_type": "USE1-NovaCanvas-T2I-1024-Premium",
+      "is_t2i": true
+    },
+    "Nova Canvas|us-east-1|standard|1024": {
+      "model_name": "Nova Canvas",
+      "region": "us-east-1",
+      "quality": "standard",
+      "size": "1024",
+      "price_usd": 0.04,
+      "usage_type": "USE1-NovaCanvas-T2I-1024-Standard",
+      "is_t2i": true
+    },
+    "Nova Canvas|us-east-1|premium|2048": {
+      "model_name": "Nova Canvas",
+      "region": "us-east-1",
+      "quality": "premium",
+      "size": "2048",
+      "price_usd": 0.08,
+      "usage_type": "USE1-NovaCanvas-T2I-2048-Premium",
+      "is_t2i": true
+    },
+    "Nova Canvas|ap-northeast-1|premium|1024": {
+      "model_name": "Nova Canvas",
+      "region": "ap-northeast-1",
+      "quality": "premium",
+      "size": "1024",
+      "price_usd": 0.06,
+      "usage_type": "APN1-NovaCanvas-T2I-1024-Premium",
+      "is_t2i": true
+    },
+    "Nova Canvas|ap-northeast-1|standard|1024": {
+      "model_name": "Nova Canvas",
+      "region": "ap-northeast-1",
+      "quality": "standard",
+      "size": "1024",
+      "price_usd": 0.04,
+      "usage_type": "APN1-NovaCanvas-T2I-1024-Standard",
+      "is_t2i": true
+    },
+    "Nova Canvas|ap-northeast-1|standard|2048": {
+      "model_name": "Nova Canvas",
+      "region": "ap-northeast-1",
+      "quality": "standard",
+      "size": "2048",
+      "price_usd": 0.06,
+      "usage_type": "APN1-NovaCanvas-T2I-2048-Standard",
+      "is_t2i": true
     },
     "Nova Canvas|ap-northeast-1": {
       "model_name": "Nova Canvas",
       "region": "ap-northeast-1",
-      "price_usd": 0.08,
-      "usage_type": "APN1-NovaCanvas-I2I-2048-Premium"
+      "price_usd": 0.04,
+      "usage_type": "APN1-NovaCanvas-T2I-1024-Standard"
+    },
+    "Nova Canvas|eu-west-1|standard|2048": {
+      "model_name": "Nova Canvas",
+      "region": "eu-west-1",
+      "quality": "standard",
+      "size": "2048",
+      "price_usd": 0.06,
+      "usage_type": "EU-NovaCanvas-T2I-2048-Standard",
+      "is_t2i": true
+    },
+    "Nova Canvas|eu-west-1": {
+      "model_name": "Nova Canvas",
+      "region": "eu-west-1",
+      "price_usd": 0.04,
+      "usage_type": "EU-NovaCanvas-T2I-1024-Standard"
     },
     "Nova Canvas|us-east-1": {
       "model_name": "Nova Canvas",
       "region": "us-east-1",
-      "price_usd": 0.08,
-      "usage_type": "USE1-NovaCanvas-T2I-2048-Premium"
+      "price_usd": 0.04,
+      "usage_type": "USE1-NovaCanvas-T2I-1024-Standard"
     }
   }
 }

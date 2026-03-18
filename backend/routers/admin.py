@@ -142,22 +142,46 @@ async def get_image_model_options(region: str | None = Query(default=None)):
             if region not in available_regions:
                 continue
 
-        # Build per-region pricing and sort by price (cheapest first)
-        # Try matching pricing data by multiple name variants since
-        # the AWS Pricing API may use shorter names than our registry labels
+        # Build per-region pricing with quality breakdown
+        # Try matching pricing data by multiple name variants
         model_label = cfg.get("label", key)
+        name_variants = [model_label, model_label.replace("Amazon ", ""), model_label.replace("Stable ", ""), key]
+        quality_opts = cfg.get("quality_options", [])
+        default_q = cfg.get("default_quality", "")
+
         region_pricing = []
         for r in available_regions:
-            price_usd = None
-            # Try exact label match, then progressively shorter variants
-            for name_variant in [model_label, model_label.replace("Amazon ", ""), model_label.replace("Stable ", ""), key]:
-                price_info = pricing.get(f"{name_variant}|{r}", {})
-                if price_info.get("price_usd"):
-                    price_usd = price_info["price_usd"]
-                    break
+            # Build quality-specific prices for this region
+            quality_prices = {}
+            for name_variant in name_variants:
+                for q in (quality_opts or [{"value": ""}]):
+                    qv = q.get("value", "")
+                    # Try full key first: model|region|quality|1024
+                    for size in ["1024", "512", ""]:
+                        price_info = pricing.get(f"{name_variant}|{r}|{qv}|{size}", {})
+                        if price_info.get("price_usd") and price_info.get("is_t2i", True):
+                            if qv not in quality_prices:
+                                quality_prices[qv] = price_info["price_usd"]
+                            break
+                if quality_prices:
+                    break  # Found prices with this name variant
+
+            # Fallback: simple key
+            if not quality_prices:
+                for name_variant in name_variants:
+                    price_info = pricing.get(f"{name_variant}|{r}", {})
+                    if price_info.get("price_usd"):
+                        quality_prices[""] = price_info["price_usd"]
+                        break
+
+            # Default price = default quality tier, or first available, or base_price from registry
+            base_price = cfg.get("base_price_usd")
+            default_price = quality_prices.get(default_q) or quality_prices.get("") or next(iter(quality_prices.values()), None) or base_price
+
             region_pricing.append({
                 "region": r,
-                "price_usd": price_usd,  # None if unknown
+                "price_usd": default_price,
+                "quality_prices": quality_prices if quality_prices else None,
             })
         # Sort: known prices ascending, then unknown at the end
         region_pricing.sort(key=lambda x: (x["price_usd"] is None, x["price_usd"] or 0))
@@ -175,6 +199,9 @@ async def get_image_model_options(region: str | None = Query(default=None)):
             "prompt_limit": cfg.get("prompt_limit", 900),
             "moderation_strictness": cfg.get("moderation_strictness", "moderate"),
             "format_family": cfg.get("format_family", ""),
+            "quality_options": cfg.get("quality_options", []),
+            "default_quality": cfg.get("default_quality"),
+            "base_price_usd": cfg.get("base_price_usd"),
         })
 
     # Collect all regions that have at least one model
@@ -382,18 +409,49 @@ def _fetch_image_pricing() -> dict:
                                 region = attrs.get("regionCode", "")
                                 price = float(dim.get("pricePerUnit", {}).get("USD", "0"))
                                 if model_name and region and price > 0:
-                                    key = f"{model_name}|{region}"
-                                    is_standard_1024 = "1024" in usage and ("Standard" in usage or "standard" in usage.lower())
-                                    is_t2i = "T2I" in usage  # text-to-image (not I2I image-to-image)
-                                    # Prefer standard 1024 text-to-image pricing; fallback to any entry
-                                    existing = prices.get(key)
-                                    if not existing or is_standard_1024 or (is_t2i and not existing.get("is_preferred")):
-                                        prices[key] = {
+                                    # Parse quality and size from usage type
+                                    # e.g. "USE1-NovaCanvas-T2I-1024-Premium"
+                                    u = usage.upper()
+                                    is_t2i = "T2I" in u
+
+                                    # Extract quality tier dynamically from the usage string
+                                    # by splitting on delimiters and finding non-numeric,
+                                    # non-structural tokens (not region prefix, model name, T2I/I2I)
+                                    parts = _re.split(r"[-_]", usage)
+                                    _STRUCTURAL = {"T2I", "I2I", "Custom"}
+                                    quality_tier = ""
+                                    size_tier = ""
+                                    for part in parts:
+                                        if _re.match(r"^\d+$", part):
+                                            size_tier = part  # e.g. "1024", "2048", "512"
+                                        elif part not in _STRUCTURAL and not _re.match(r"^[A-Z]{2,4}\d", part) and len(part) > 3:
+                                            # Not a region prefix, not a structural keyword,
+                                            # not a short code — likely a quality tier
+                                            if part.lower() not in model_name.lower():
+                                                quality_tier = part.lower()  # e.g. "premium", "standard"
+
+                                    # Store with full key: model|region|quality|size
+                                    full_key = f"{model_name}|{region}|{quality_tier}|{size_tier}"
+                                    # Also store a simpler key for backward compat
+                                    simple_key = f"{model_name}|{region}"
+
+                                    if is_t2i or full_key not in prices:
+                                        prices[full_key] = {
+                                            "model_name": model_name,
+                                            "region": region,
+                                            "quality": quality_tier,
+                                            "size": size_tier,
+                                            "price_usd": price,
+                                            "usage_type": usage[:80],
+                                            "is_t2i": is_t2i,
+                                        }
+                                    # Keep simple key as fallback (T2I 1024 standard)
+                                    if is_t2i and size_tier == "1024" and quality_tier == "standard":
+                                        prices[simple_key] = {
                                             "model_name": model_name,
                                             "region": region,
                                             "price_usd": price,
                                             "usage_type": usage[:80],
-                                            "is_preferred": is_standard_1024,
                                         }
 
             next_token = resp.get("NextToken")
@@ -470,7 +528,14 @@ async def refresh_all_regions():
         _save()
         logger.info("Stored pricing for %d model-region combos", len(pricing_data))
 
-    # Step 3: Scan each region for models
+    # Step 2c: Reset all available_regions before scanning — so stale regions
+    # are pruned automatically. Each region scan in Step 3 re-adds itself.
+    from backend.services.model_registry import update_image_model
+    for key in list(registry.get("image_models", {}).keys()):
+        update_image_model(key, {"available_regions": []})
+
+    # Step 3: Scan each region for models — each scan adds its region back
+
     results = {}
     total_new = 0
     total_updated = 0
@@ -489,10 +554,23 @@ async def refresh_all_regions():
             results[region] = {"error": str(exc)[:100]}
             errors += 1
 
+    # Step 4: Prune — check which models in the registry are still available.
+    # After Step 3, each model's available_regions reflects what was discovered.
+    # Models with empty available_regions (not found in any region) get disabled.
+    registry = get_registry()
+    disabled = []
+    for key, cfg in list(registry.get("image_models", {}).items()):
+        regions = cfg.get("available_regions", [])
+        if not regions and cfg.get("enabled"):
+            update_image_model(key, {"enabled": False})
+            disabled.append(key)
+            logger.info("Disabled model %s — no longer found in any region", key)
+
     return {
         "regions_scanned": len(all_regions),
         "total_new": total_new,
         "total_updated": total_updated,
+        "disabled": disabled,
         "errors": errors,
         "per_region": results,
     }

@@ -488,7 +488,15 @@ Clean, modern single-page application served as static files mounted at `/` by F
 - **Server-side file browser modal**: Used for both local and S3 browsing. Single-click selects a file/folder, double-click navigates into a directory. Back button and ".." entry navigate to the parent directory.
 
 **2D Image Studio** (`#image-studio`) — The main image generation workspace with a two-tier result display:
-- **Left sidebar**: Art style selector, asset type, image model (includes "All Available Models" as first entry), dimensions (size presets: 512x512, 768x768, 1024x1024, 1024x576, 576x1024, 1280x720), options count (1-5, default 5), variations count (1-5, default 5), processing toggle switches (see below). Includes a **"Model Settings"** button that opens the Model Registry admin UI (see [4.11 Model Registry](#411-model-registry)). When "All Available Models" is selected: options/variations dropdowns are disabled (fixed at 1 per model), a "Model-optimized prompts" toggle appears, and info text shows "Will generate 1 image per model (N models) = N images total".
+- **Left sidebar** (progressive disclosure layout):
+  - **Art Style** selector, **Asset Type** selector.
+  - **Image Model** dropdown — populated dynamically from the registry (`GET /api/admin/models/image-options`), not hardcoded. Includes "All Available Models" at the bottom. Below the dropdown, a smart **summary line** shows the active configuration: `us-east-1 · Premium · $0.06/img` — updates on any change.
+  - **Dimensions** (size presets: 512×512, 768×768, 1024×1024, 1024×576, 576×1024, 1280×720).
+  - **Advanced** (collapsible `<details>` section): **Quality** dropdown — shows quality tiers when the model supports them (e.g. Standard/Premium for Nova Canvas, "Default" for models without tiers). **Region** dropdown — shows the model's available regions sorted cheapest-first, with per-image pricing. "Auto" selects the cheapest. Quality and region changes update the summary line and pricing.
+  - **Cost estimate**: `Est. cost: ~$1.50 (25 images × $0.06)` — updates dynamically based on model, quality, region, options, and variations.
+  - **Options** count (1-5), **Variations** count (1-5).
+  - When **"All Available Models"** is selected: options/variations are disabled (fixed at 1 per model), a "Model-optimized prompts" toggle appears, and info text shows the model count.
+  - **"Model Settings"** button opens the Model Registry admin UI (see [4.11 Model Registry](#411-model-registry)).
 - **Processing options**: Toggle switches for Remove Background, SVG Conversion (on by default), Upscale, and **Prompt Pre-Check** (pre-screens prompts via Claude Sonnet before image generation). Options row is placed **below** the prompt areas (images grouped together). Before generation these are labeled **"Pre-Processing"** (applied during generation). After generation completes, the label switches to **"Post-Processing"** and an **"Apply to Current Results"** button appears, allowing users to re-apply processing to the existing generated images without re-generating (calls `POST /api/generate/post-process`).
 - **Two-area prompt editor** (center panel): The prompt editor uses a two-textarea design:
   - **Top textarea** (user input): Where the user writes their prompt. This area is **never overwritten** by the system — it always contains the user's original words.
@@ -653,53 +661,58 @@ Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 
 ### 4.11 Model Registry
 
-The model registry (`backend/model_registry.json` + `backend/services/model_registry.py`) provides centralized, persisted configuration for all AI models used by the system. The registry file lives alongside the backend code (not in `data/`) and is managed through an admin API and frontend UI.
+The model registry (`backend/model_registry.json` v2) is the **single source of truth** for all AI model configuration. No model data is hardcoded in application code — everything is read from this file at runtime. The registry is managed through the admin API and auto-discovery; it should never be edited manually.
 
-**Registry structure** — three configurable categories:
+**Registry structure** (v2):
 
-1. **LLM categories** (`categories`): Named model slots for different purposes:
+1. **Format families** (`format_families`): Define request/response templates by provider. Each family specifies: `prompt_path`, `negative_prompt_path`, `seed_path`, `dimensions_mode` ("pixels" or "aspect_ratio"), `dimensions_paths`, `response_image_path`, and `body_template`. Currently two families: `amazon_text_to_image` and `stability_text_to_image`. Adding a new provider means adding a format family — no code changes needed.
+
+2. **Bedrock regions** (`bedrock_regions`): Cached list of all AWS regions supporting Bedrock (currently 33). Discovered dynamically during refresh-all via `boto3.Session().get_available_regions("bedrock")`. Read from cache for all other operations — zero AWS calls.
+
+3. **Image pricing** (`image_pricing`): Per-model, per-region, per-quality pricing data from the AWS Pricing API. Fetched during refresh-all only. Keyed by `model_name|region|quality|size`. Used to display cost estimates in the UI and sort regions by cheapest-first.
+
+4. **LLM categories** (`categories`): Named model slots for different purposes:
    - `fast_llm` — Claude Sonnet 4.6 (prompt refinement, hints, pre-check, cohesion check)
    - `complex_llm` — Claude Opus 4.6 (style analysis, concept generation, marketing copy, Type Studio layout)
    - `fallback_llm` — Fallback model on AccessDeniedException
    - `voice` — Nova Sonic (speech-to-text)
 
-   Each category stores: `current` (the model ID — note: field is named `current`, not `model_id`), `region`, `provider`, `api_type` ("converse" or "streaming"), `label`, `description`.
+   Each category stores: `current` (the model ID), `region`, `provider`, `api_type`, `label`, `description`.
 
-2. **Image models** (`image_models`): Keyed by internal name (e.g. `nova_canvas`, `sd35_large`). Each entry stores:
+5. **Image models** (`image_models`): Keyed by internal name (e.g. `nova_canvas`, `sd35_large`). Each entry stores:
    - `label` — human-readable display name
    - `model_id` — Bedrock model identifier
-   - `region` — AWS region
+   - `region` — default AWS region for invocation
+   - `available_regions` — all regions where this model is available (populated by auto-discovery)
    - `provider` — e.g. "Amazon", "Stability AI"
-   - `enabled` — whether the model is available for selection
-   - `prompt_limit` — maximum prompt characters (drives dynamic prompt sizing)
-   - `supports_dimensions` — boolean, true for models that accept width/height in pixels
-   - `supports_aspect_ratio` — boolean, true for models that accept aspect ratios instead
-   - `moderation_strictness` — one of `very_strict`, `strict`, `moderate` (used by smart model switching to try less strict models first)
-   - `request_format` — model-specific API request template:
-     - `type` — dispatch key (e.g. "nova_canvas", "titan_image", "stability")
-     - `body_template` — JSON template with `{prompt}`, `{width}`, `{height}`, `{aspect_ratio}` placeholders
-     - `seed_path` — dot-path to where the seed goes in the request body (e.g. "imageGenerationConfig.seed")
-     - `response_image_path` — path to the base64 image in the response (e.g. "images[0]")
-     - `response_format` — "base64"
+   - `enabled` — whether the model is available for selection in the UI
+   - `model_purpose` — `"text_to_image"` for generation models (filters out manipulation models like upscale, inpaint)
+   - `format_family` — reference to a format family (e.g. `"amazon_text_to_image"`)
+   - `prompt_limit` — maximum prompt characters (drives dynamic prompt sizing and truncation)
+   - `moderation_strictness` — one of `very_strict`, `strict`, `moderate` (drives model ordering in All Models mode and smart model switching)
+   - `quality_options` — array of `{value, label, body_override}` for models with quality tiers (e.g. Standard/Premium). Empty for models without tiers.
+   - `default_quality` — the default quality tier value
+   - `base_price_usd` — fallback per-image price when the Pricing API has no data
+   - `extra_body` — model-specific body overrides deep-merged into the format family template (e.g. Nova Canvas `{"imageGenerationConfig": {"quality": "premium"}}`)
 
-3. **Post-processing** (`post_processing`): Keyed by operation name (`remove_background`, `upscale`). Each stores: `label`, `model_id`, `region`, `provider`, `enabled`.
+6. **Post-processing** (`post_processing`): Keyed by operation name (`remove_background`, `upscale`). Each stores: `label`, `model_id`, `region`, `provider`, `enabled`.
 
-**Backward compatibility**: Generated assets reference model keys (e.g. `nova_canvas`, `sd35_large`), not raw Bedrock model IDs. This means changing a model ID in the registry does not break old asset metadata.
+**Generic invoker** (`backend/services/bedrock_client.py: invoke_image_model()`): Reads the model's format family from the registry, constructs the request body dynamically using dot-path helpers (`_set_nested`, `_get_nested`, `_deep_merge`), applies quality overrides, gets the Bedrock client for the model's region (with `region_override` support), invokes, and parses the response. No per-model invoke functions needed — any model with a registered format family works.
 
-**Model registry service** (`backend/services/model_registry.py`):
-- Loads `model_registry.json` on startup, provides model configs to the rest of the system.
-- `get_image_model_config(key)` — returns the full config for an image model.
-- `get_category_config(name)` — returns the config for an LLM category.
-- `update_image_model(key, updates)` / `update_category(name, updates)` — persists changes.
-- `add_image_model(key, config)` — adds a new image model entry.
+**Auto-discovery** (`POST /api/admin/discover/refresh-all`):
+1. Discovers all Bedrock-supported regions from AWS
+2. Fetches per-image pricing from the AWS Pricing API
+3. Resets all `available_regions` to empty (prunes stale data)
+4. Scans each region — registers new text-to-image models (enabled=false), updates `available_regions` for existing models
+5. Disables models no longer found in any region
 
-**Admin API** (`backend/routers/admin.py`): See [5.8 Admin (Model Management)](#58-admin-model-management) in the API Reference.
+This is the **only** operation that calls AWS discovery/pricing APIs. All other operations read from the cached registry file.
 
-**Frontend UI** (`frontend/js/components/ModelSettings.js`):
-- Modal accessible via the **"Model Settings"** button in the 2D Image Studio sidebar.
-- Shows all current models (LLM categories and image models) with their regions, model IDs, and enabled/disabled status.
-- Model IDs are editable inline; changes are saved via PATCH to the admin API.
-- **Discover section**: Pick an AWS region and see available Bedrock models. The discovery endpoint calls `ListFoundationModels`, deduplicates model versions (e.g. 128 raw results to ~96 unique models), and groups by capability (image generators, text/LLM, vision).
+**Model validation**: The `GenerationRequest.image_model` field is a plain string validated against registry keys at runtime — not limited to a fixed enum. Dynamically added models are accepted without code changes.
+
+**Frontend**: The model dropdown in Image Studio is populated from `GET /api/admin/models/image-options` on page load. No hardcoded model list in JavaScript.
+
+**Backward compatibility**: Generated assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs. Changing a model ID in the registry does not break old asset metadata.
 
 ## 5. API Reference
 
@@ -810,7 +823,9 @@ Fields:
 - `moderation_original` (optional, `str | None`): Stores the pre-moderation-rewrite prompt when the user accepted a moderation rewrite. Preserved in metadata for audit trail.
 - `style_id` (optional): Style profile to apply.
 - `asset_type` (default `game_asset`): One of `game_asset`, `marketing_banner`, `icon`, `character`, `environment`. Defined by the `AssetType` enum.
-- `image_model` (default `nova_canvas`): One of `nova_canvas`, `titan_image`, `sd35_large`, `stable_image_ultra`. Defined by the `ImageModel` enum: `NOVA_CANVAS = "nova_canvas"`, `TITAN_IMAGE = "titan_image"`, `SD35_LARGE = "sd35_large"`, `STABLE_IMAGE_ULTRA = "stable_image_ultra"`.
+- `image_model` (default `nova_canvas`): Any valid key from the model registry (e.g. `nova_canvas`, `titan_image`, `sd35_large`, `stable_image_ultra`, `stable_image_core_v1`). Validated against the registry at runtime — not limited to a fixed enum. New models added via auto-discovery are accepted without code changes.
+- `quality` (optional, `str | None`): Quality tier override (e.g. `"standard"`, `"premium"`). If null, uses the model's `default_quality` from the registry. Only relevant for models with `quality_options`.
+- `region` (optional, `str | None`): Region override for the model. If null, uses the model's default `region` from the registry. Must be one of the model's `available_regions`.
 - `width` / `height` (default 1024): Output dimensions in pixels.
 - `num_options` (default 5, range 1-5): Number of distinct concept designs.
 - `num_variations` (default 5, range 1-5): Number of seed variants per option.
@@ -896,10 +911,14 @@ Fields:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/admin/models` | Get the full model registry (all categories, image models, post-processing config). |
-| PATCH | `/api/admin/models/category/{name}` | Update an LLM category (e.g. `fast_llm`, `complex_llm`). Accepts partial updates: `model_id`, `region`, `enabled`. |
-| PATCH | `/api/admin/models/image/{key}` | Update an image model (e.g. `nova_canvas`, `sd35_large`). Accepts partial updates: `model_id`, `region`, `prompt_limit`, `moderation_strictness`, `enabled`. |
-| POST | `/api/admin/models/image` | Add a new image model to the registry. Body: `{ "key": "...", "model_id": "...", "region": "...", ... }`. |
-| GET | `/api/admin/discover/{region}` | Discover available Bedrock models in a region. Calls `ListFoundationModels`, deduplicates model versions (~128 raw to ~96 unique), groups by capability (image generators, text/LLM, vision). |
+| GET | `/api/admin/models/image-options` | Enabled text-to-image models for the frontend dropdown. Returns: key, label, provider, region, available_regions, region_pricing (per-quality breakdown), quality_options, default_quality, base_price_usd, prompt_limit, moderation_strictness, format_family. Accepts optional `?region=` filter. |
+| GET | `/api/admin/regions` | Cached list of Bedrock-supported AWS regions from the registry. Does NOT call AWS — reads from `bedrock_regions` in `model_registry.json`. |
+| PATCH | `/api/admin/models/category/{name}` | Update an LLM category (e.g. `fast_llm`, `complex_llm`). Accepts partial updates. |
+| PATCH | `/api/admin/models/image/{key}` | Update an image model. Accepts partial updates to any field. |
+| POST | `/api/admin/models/image` | Add a new image model to the registry. |
+| POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions dynamically, fetches pricing from AWS Pricing API, scans all regions for models (add/update), prunes stale regions and disables removed models. The **only** endpoint that calls AWS discovery APIs. |
+| POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for text-to-image models. New models registered (enabled=false), existing models get the region added to `available_regions`. |
+| GET | `/api/admin/discover/{region}` | Raw model listing for a region. Calls `ListFoundationModels`, deduplicates, groups by capability (image generators, text/LLM, vision). |
 
 ### 5.9 System
 
