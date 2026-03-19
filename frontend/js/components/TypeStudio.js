@@ -240,7 +240,7 @@
                                 <p id="ts-pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">Toggle settings above, then click Apply to re-process without regenerating.</p>
                             </div>
 
-                            <p class="text-[9px] text-brand-text-dim/30 text-center mt-4">ArtSmoker v1.1-20260319_01</p>
+                            <p class="text-[9px] text-brand-text-dim/30 text-center mt-4">ArtSmoker v1.1-20260319_03</p>
                         </aside>
 
                         <!-- Center: Editor + Results -->
