@@ -39,6 +39,7 @@ class TypeStudioRequest(BaseModel):
     lines: list[TextLine] = Field(..., min_length=1)
     style_note: str | None = None
     num_options: int = Field(default=1, ge=1, le=5)
+    llm_complexity: str = "complex"  # "fast" or "complex" — which LLM category to use for layout
     remove_background: bool = False
     generate_svg: bool = True
     upscale: bool = False
@@ -445,15 +446,20 @@ def _get_layouts_from_llm(
     style_guide: str | None,
     image_bytes: bytes | None,
 ) -> list[LayoutSpec]:
-    """Call Claude to design text layout(s) and return parsed LayoutSpec list."""
+    """Call the configured LLM to design text layout(s) and return parsed LayoutSpec list.
+
+    The LLM used is determined by request.llm_complexity — reads from the
+    registry categories (fast_llm or complex_llm). User chooses in the UI.
+    """
     prompt = _build_layout_prompt(request, canvas_width, canvas_height, style_guide)
 
     images = [image_bytes] if image_bytes else None
     # Higher temperature for multiple options to get creative diversity
     temp = 0.9 if request.num_options > 1 else 0.7
+    complexity = request.llm_complexity if request.llm_complexity in ("fast", "complex") else "complex"
     response_text = invoke_llm(
         prompt,
-        complexity="complex",
+        complexity=complexity,
         images=images,
         max_tokens=8192 if request.num_options > 1 else 4096,
         temperature=temp,

@@ -514,10 +514,11 @@ Generated results survive navigation — switching tabs and back preserves the 2
 Add text to images or generate standalone text assets with AI-designed typography.
 
 - **Two modes**: "On Image" composites text onto a gallery image; "Standalone" renders text on a transparent background.
-- **Multi-line text editor** with per-line font selection and positioning controls.
-- **AI-designed layouts** — the AI suggests colors, sizes, positions, and effects (shadow, outline, glow). Request 1–5 layout options for different creative directions.
-- **Font picker with live preview** — style fonts listed first, then global fonts, then system fonts.
+- **Multi-line text editor** with per-line font selection, positioning controls, and **voice input** (mic button per line — dictate text via Nova Sonic transcription).
+- **AI-designed layouts** — the AI suggests colors, sizes, positions, and effects (shadow, outline, glow). Request 1–5 layout options for different creative directions. The **LLM model** used for layout is configurable (Complex LLM for best quality, Fast LLM for cheaper) — reads from the registry categories.
+- **Font picker with live preview** — style fonts, 8 bundled fonts (Roboto, Open Sans, Lato, Montserrat, Playfair Display, Oswald, Raleway, Source Code Pro), system fonts, and **client-side detected fonts** (via Local Font Access API or canvas probing).
 - **Pre-Processing / Post-Processing** — same workflow as 2D Image Studio, with an "Apply" button for post-processing. SVG conversion is on by default.
+- **Click to zoom** — clicking the result preview opens the AssetViewer with full zoom/pan, metadata, download, and image editing tools.
 - Results are saved as new gallery assets (originals are never overwritten).
 
 ### 6.8 Gallery
@@ -528,7 +529,10 @@ Add text to images or generate standalone text assets with AI-designed typograph
 - Pagination support (limit/offset) for large collections.
 - Gallery auto-refreshes when you navigate back to it.
 - **Contextual action buttons** per asset based on type: **"2D Studio"** (indigo) to reload in the image studio, **"Add Text"** (emerald) to open in Type Studio, **"Edit in Type Studio"** (purple) for text assets.
-- Click any image to open the **AssetViewer** modal with full metadata: original prompt, AI-improved prompt, generation prompt, negative prompt, style, asset type, image model (friendly names), dimensions, seed, batch ID, option/variation index, IP declaration status, filename, and creation date.
+- Click any image to open the **AssetViewer** modal with:
+  - **Zoom/pan** — mouse wheel to zoom, drag to pan, Fit/1:1 buttons with active mode highlighting.
+  - **Edit tab** — inpaint, erase, or outpaint the image directly. Paint a mask with the brush tool, enter a prompt, choose an editing model, and apply. Results saved as new assets.
+  - **Full metadata**: original prompt, AI-improved prompt, generation prompt, negative prompt, style, asset type, image model (friendly names), dimensions, seed, batch ID, option/variation index, IP declaration status, filename, and creation date.
 - **Style snapshot**: Each asset stores a snapshot of the style used at generation time (name, description, hints, analysis). If the original style is later deleted, the asset retains the full context. Backward compatible — older assets without snapshots display normally.
 
 ### 6.9 Voice Input
@@ -615,6 +619,7 @@ Key endpoints:
 | **Generation** | |
 | `POST /api/generate/` | Generate assets (options × variations) with SSE streaming |
 | `POST /api/generate/post-process` | Apply processing to existing assets |
+| `POST /api/generate/edit` | Image editing: inpaint, outpaint, erase, search-replace, etc. Accepts source image, mask, prompt, model. |
 | `POST /api/generate/analyze-moderation` | Analyze a moderation-blocked prompt and suggest a safe rewrite |
 | **Styles** | |
 | `POST /api/styles/` | Create a style profile |
@@ -720,6 +725,9 @@ Settings in `backend/config.py` can be overridden via environment variables (pre
 Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
 
 ## 12. AWS Bedrock Pricing & Cost Breakdown
+
+> [!NOTE]
+> The tables below are **reference pricing for planning purposes**. The app itself shows **live per-model pricing** in the Image Studio sidebar — fetched from the AWS Pricing API during registry refresh and stored in `model_registry.json`. The in-app cost estimate updates dynamically based on selected model, quality tier, region, and batch size.
 
 All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions. See also [SPEC.md](SPEC.md#13-aws-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
 

@@ -540,20 +540,24 @@ If there is only one option, the options row is hidden. If there is only one var
 - **Multi-line text editor**: Users enter one or more lines of text. Each line supports:
   - Individual **font selection** from the font picker.
   - **Position hints** (e.g. top-center, bottom-left) to guide AI layout placement.
+  - **Voice input** — mic button per line. Click to record, click again to stop. Audio transcribed via the voice model configured in the registry (`categories.voice`). Transcribed text appended to the line.
 
-- **AI layout suggestion**: The backend (`POST /api/type-studio/suggest`) uses AI to suggest text layout parameters including position, size, color, and effects for each line. Returns **1-5 layout options** representing different creative directions (e.g. bold centered vs. subtle corner placement). The user selects their preferred layout option before rendering.
+- **AI layout suggestion**: The backend (`POST /api/type-studio/suggest`) uses the configured LLM to suggest text layout parameters including position, size, color, and effects for each line. Returns **1-5 layout options** representing different creative directions. The **LLM model** used is configurable via a collapsible "AI Model for layout" dropdown — "Complex LLM" (default, highest quality) or "Fast LLM" (cheaper). Both read from the registry (`categories.complex_llm` and `categories.fast_llm`). The `llm_complexity` field in the request controls which is used.
 
 - **Pillow rendering**: The backend (`POST /api/type-studio/preview`) renders the final composition using Pillow with support for **shadow**, **outline**, and **glow** text effects. The rendered result is saved as a new gallery asset.
 
+- **Click to zoom**: Clicking the result preview opens the AssetViewer with full zoom/pan, metadata, download buttons, and the Edit tab (inpaint/outpaint/erase).
+
 - **Font picker**: Shows fonts in priority order:
-  1. **Style-specific fonts** — fonts associated with the selected style profile (shown first).
-  2. **Global fonts** — project-wide custom fonts (from a `fonts/` directory at project root, if it exists).
-  3. **System fonts** — detected from the host OS at these paths: `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` (macOS), `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.fonts`, `~/.local/share/fonts` (Linux). Windows paths are not currently supported.
-  All fonts show a **live preview** of the selected text in the picker dropdown. Fonts are served via `GET /api/type-studio/font-file/{source}/{filename}`. The frontend injects `@font-face` rules into `document.head` for custom fonts (tracking loaded fonts in a Set to avoid duplicates).
+  1. **Style-specific fonts** — fonts associated with the selected style profile.
+  2. **Bundled fonts** — 8 OFL-licensed Google Fonts shipped in `data/fonts/`: Roboto, Open Sans, Lato, Montserrat, Playfair Display, Oswald, Raleway, Source Code Pro.
+  3. **System fonts** — detected from the host OS (macOS: `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts`; Linux: `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.fonts`).
+  4. **Client-side fonts** — detected from the user's browser via the Local Font Access API (`queryLocalFonts()`, Chrome/Edge) with a canvas-probing fallback for 30+ common font families. Client fonts are merged with server fonts, deduplicated by display name. This ensures artists see their local machine's fonts even when the server runs on a minimal EC2 instance.
+  All fonts show a **live preview** in the picker dropdown. Served via `GET /api/type-studio/font-file/{source}/{filename}`.
 
 **Type Studio Pydantic models** (defined inline in `backend/routers/typestudio.py`):
 - `TextLine` — `text: str`, `font: str | None`, `position: str | None` (e.g. "top-center", "bottom-left")
-- `TypeStudioRequest` — `source_image_id: str | None`, `style_id: str | None`, `lines: list[TextLine]`, `style_note: str | None`, `num_options: int = 1`, `remove_background: bool`, `generate_svg: bool`, `upscale: bool`
+- `TypeStudioRequest` — `source_image_id: str | None`, `style_id: str | None`, `lines: list[TextLine]`, `style_note: str | None`, `num_options: int = 1`, `llm_complexity: str = "complex"`, `remove_background: bool`, `generate_svg: bool`, `upscale: bool`
 - `LayoutEffect` — `shadow: dict | None`, `outline: dict | None`, `glow: dict | None`
 - `LayoutLine` — `text: str`, `x: int`, `y: int`, `font_size: int`, `color: str`, `font: str | None`, `anchor: str` (Pillow text anchor), `effects: LayoutEffect`
 - `LayoutSpec` — `lines: list[LayoutLine]`, `canvas_width: int`, `canvas_height: int`
@@ -569,7 +573,16 @@ If there is only one option, the options row is hidden. If there is only one var
 - **Multi-select**: Checkboxes on each asset card for bulk selection. A **"Delete Selected"** button triggers `DELETE /api/gallery/` with `{ids: [...]}` for bulk deletion.
 - Click any asset to open the AssetViewer.
 
-**AssetViewer** — Full-size preview + download. Fetches full metadata from `GET /api/gallery/{id}` on open. Displays all available fields: original prompt, AI-improved prompt, generation prompt, negative prompt (when present — displayed with red-tinted styling to visually distinguish exclusions from positive prompts), style (from `style_snapshot` as fallback if the original style was deleted), asset type, image model (with friendly labels), dimensions, seed, batch ID, option/variation index, IP declaration status (when declared), filename, and creation date. The **SVG tab/button is hidden** when no SVG file exists for the asset. Metadata display adapts for Type Studio assets (shows text content, font choices, layout parameters instead of generation prompts).
+**AssetViewer** — Full-size preview with zoom/pan and image editing. Fetches full metadata from `GET /api/gallery/{id}` on open. Four tabs:
+
+- **PNG tab** — zoom/pan viewer: mouse wheel to zoom (centered on cursor), click-drag to pan, Fit/1:1/+/- buttons. Active mode (Fit or 1:1) highlighted. Image starts at fit-to-view.
+- **Edit tab** — three editing modes:
+  - **Inpaint**: Canvas brush mask painter (adjustable brush size). Paint the area to edit → enter a prompt → select an inpainting model from the registry → Apply. Mask extracted as black/white image (white = edit area).
+  - **Erase**: Same mask UI, no prompt needed — removes objects and fills background.
+  - **Outpaint**: Directional pixel controls (left/right/up/down) + optional prompt. Extends the image.
+  - Models populated dynamically from registry filtered by `model_purpose` (inpainting, erase, or outpainting). Shows price per model. Results saved as new gallery assets with metadata linking back to the source.
+- **SVG tab** — SVG preview (hidden when no SVG exists).
+- **Metadata tab** — all fields: original prompt, AI-improved prompt, generation prompt, negative prompt (amber-styled), style (from `style_snapshot` fallback), asset type, image model (reads `model_label` from metadata, falls back to registry labels), dimensions, seed, batch ID, option/variation, IP status, filename, created date. Adapts for Type Studio assets.
 - **Contextual action buttons**:
   - **"2D Studio"** (indigo) — visible for image-type assets only. Sends the batch back to the 2D Image Studio view.
   - **"Add Text"** (emerald) — visible for image-type assets only. Opens Type Studio in "On Image" mode with this asset as the base image.
@@ -712,6 +725,13 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 
 **Frontend**: The model dropdown in Image Studio is populated from `GET /api/admin/models/image-options` on page load. No hardcoded model list in JavaScript.
 
+**Registry as single source of truth**: The application code contains **zero hardcoded model IDs, API parameters, or invocation templates**. Everything the system needs to invoke any Bedrock service — model IDs, regions, request body structures, prompt paths, negative prompt paths, mask paths, seed ranges, quality tiers, dimension modes, response parsing, pricing, and parameter constraints — is stored in `model_registry.json` and read at runtime. The format families define the complete API contract for each provider/service type, including a `parameters` spec with types, ranges, defaults, and descriptions for every configurable field. This means:
+
+- Adding a new image model requires zero code changes — just register it via auto-discovery or the admin API
+- Adding a new image service (e.g., a new Stability AI feature) requires adding a format family definition in `_DEFAULT_FORMAT_FAMILIES` in `model_registry.py` — the invoker and UI adapt automatically
+- The LLM models used for prompt refinement, style analysis, and Type Studio layout are all configurable via `categories.fast_llm` and `categories.complex_llm` — the user can switch to any Converse-compatible model
+- All pricing, regions, quality tiers, and model availability come from the registry — populated by auto-discovery and the AWS Pricing API during refresh-all
+
 **Backward compatibility**: Generated assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs. Changing a model ID in the registry does not break old asset metadata.
 
 ## 5. API Reference
@@ -738,6 +758,7 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 | POST | `/api/generate/stream` | SSE streaming variant of generate — same pipeline, but streams real-time progress events. This is the primary endpoint used by the frontend. |
 | POST | `/api/generate/post-process` | Apply post-processing to existing generated assets. Accepts asset IDs and processing flags (remove_background, generate_svg, upscale). Updates the assets in-place and refreshes their metadata on disk. Used by the "Apply to Current Results" button in both studios. |
 | POST | `/api/generate/pre-screen` | Pre-screen a prompt for likely moderation issues before generation. Uses Claude Sonnet (fast, cheap). Returns whether the prompt is likely safe, specific issues, and a suggested alternative model if the prompt would work with a less strict model. |
+| POST | `/api/generate/edit` | Image editing services: inpaint, outpaint, erase, search-replace, etc. Accepts `source_image_id`, `model` (registry key), `prompt`, `mask` (base64), `mask_prompt` (natural language, Nova Canvas), outpaint directions. Uses the generic invoker with the model's format family. Result saved as a new gallery asset with metadata linking to the source. |
 | POST | `/api/generate/analyze-moderation` | Analyze a prompt that was rejected by content moderation. Multi-phase: first tries alternative models with the same prompt (model switch), then rewrites as last resort. Returns the action taken, working model (if switched), issues, explanation, and rewritten prompt (if needed). |
 
 **Pre-screen request body** (`PreScreenRequest`):
@@ -1235,6 +1256,9 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 18. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`).
 
 ## 13. AWS Bedrock Pricing & Cost Breakdown
+
+> [!NOTE]
+> The tables below are **reference pricing for deployment planning**. The application shows **live pricing** in the UI — fetched from the AWS Pricing API during registry refresh-all and stored in `model_registry.json`. Each model's `base_price_usd` and per-region `quality_prices` are displayed in the Image Studio's model/region selectors and cost estimate. The pricing data is cached in the registry and only updated when an admin explicitly runs refresh-all.
 
 All prices below are from the official [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions (us-west-2, us-east-1). Prices are on-demand, per-request.
 

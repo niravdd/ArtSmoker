@@ -268,17 +268,32 @@
                                     placeholder="Optional style note: festive, dramatic, minimalist..."></textarea>
                             </div>
 
-                            <!-- Layout Options -->
-                            <div class="card-static p-5">
-                                <label class="block text-sm font-medium mb-1.5">Layout Options</label>
-                                <select id="ts-num-options" class="input">
-                                    <option value="1">1 layout</option>
-                                    <option value="2">2 layouts</option>
-                                    <option value="3" selected>3 layouts</option>
-                                    <option value="4">4 layouts</option>
-                                    <option value="5">5 layouts</option>
-                                </select>
-                                <p class="text-[10px] text-brand-text-muted mt-1">AI generates multiple different text styling approaches to choose from</p>
+                            <!-- Layout Options + AI Model -->
+                            <div class="card-static p-5 space-y-3">
+                                <div>
+                                    <label class="block text-sm font-medium mb-1.5">Layout Options</label>
+                                    <select id="ts-num-options" class="input">
+                                        <option value="1">1 layout</option>
+                                        <option value="2">2 layouts</option>
+                                        <option value="3" selected>3 layouts</option>
+                                        <option value="4">4 layouts</option>
+                                        <option value="5">5 layouts</option>
+                                    </select>
+                                    <p class="text-[10px] text-brand-text-muted mt-1">AI generates multiple different text styling approaches to choose from</p>
+                                </div>
+                                <details class="group">
+                                    <summary class="text-xs font-medium text-brand-text-muted cursor-pointer hover:text-brand-text">
+                                        <span class="group-open:hidden">\u25B8 AI Model for layout</span>
+                                        <span class="hidden group-open:inline">\u25BE AI Model</span>
+                                    </summary>
+                                    <div class="mt-1.5">
+                                        <select id="ts-llm-complexity" class="input text-xs">
+                                            <option value="complex">Complex LLM (best quality)</option>
+                                            <option value="fast">Fast LLM (cheaper)</option>
+                                        </select>
+                                        <p id="ts-llm-info" class="text-[10px] text-brand-text-dim mt-1"></p>
+                                    </div>
+                                </details>
                             </div>
 
                             <!-- Action Buttons -->
@@ -363,6 +378,7 @@
             this._renderLines();
             this._loadRecentImages();
             this._loadFonts();
+            this._loadLlmInfo();
 
             // Event listeners
             document.getElementById('ts-mode-on-image')?.addEventListener('click', () => this._setMode('on-image'));
@@ -397,6 +413,23 @@
             document.getElementById('ts-btn-suggest')?.addEventListener('click', () => this._handleSuggest());
             document.getElementById('ts-btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('ts-btn-apply-pp')?.addEventListener('click', () => this._handlePostProcess());
+
+            // Click result image → open in AssetViewer with zoom/pan + metadata
+            const resultImg = document.getElementById('ts-result-img');
+            if (resultImg) {
+                resultImg.style.cursor = 'pointer';
+                resultImg.addEventListener('click', () => {
+                    if (!this._lastResultAssetIds?.length) return;
+                    const assetId = this._lastResultAssetIds[this._selectedOptionIndex || 0];
+                    if (!assetId) return;
+                    const item = {
+                        id: assetId,
+                        prompt: '',
+                        png_url: `/api/gallery/${assetId}/png`,
+                    };
+                    if (typeof AssetViewer !== 'undefined') AssetViewer.open(item);
+                });
+            }
         },
 
         // ── Mode Toggle ─────────────────────────────────────────────
@@ -419,6 +452,26 @@
         },
 
         // ── Load Styles ─────────────────────────────────────────────
+
+        async _loadLlmInfo() {
+            // Show the currently configured LLM models from registry
+            try {
+                const reg = await API.admin.getModels();
+                const infoEl = document.getElementById('ts-llm-info');
+                if (infoEl && reg.categories) {
+                    const complex = reg.categories.complex_llm;
+                    const fast = reg.categories.fast_llm;
+                    infoEl.textContent = `Complex: ${complex?.label || complex?.current || '?'} | Fast: ${fast?.label || fast?.current || '?'}`;
+                }
+            } catch { /* ignore */ }
+
+            // Update info when selection changes
+            document.getElementById('ts-llm-complexity')?.addEventListener('change', () => {
+                const infoEl = document.getElementById('ts-llm-info');
+                const val = document.getElementById('ts-llm-complexity')?.value;
+                if (infoEl) infoEl.textContent = val === 'complex' ? 'Higher quality, higher cost' : 'Faster and cheaper';
+            });
+        },
 
         async _loadStyles() {
             try {
@@ -582,6 +635,12 @@
                         <span class="text-[10px] font-bold text-brand-text-muted/50 w-5 text-center">${i + 1}</span>
                         <input type="text" class="ts-line-text input flex-1" placeholder="Enter text..."
                             value="${this._escapeAttr(line.text)}" />
+                        <button class="ts-voice-btn p-1.5 rounded-lg text-brand-text-muted hover:text-brand-accent hover:bg-brand-accent/10 transition-colors"
+                            data-line-index="${i}" title="Voice input">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
+                            </svg>
+                        </button>
                         <button class="ts-remove-line p-1.5 rounded-lg text-brand-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
                             data-line-index="${i}" title="Remove line">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -702,6 +761,58 @@
                     this._removeLine(parseInt(btn.dataset.lineIndex, 10));
                 });
             });
+
+            // Attach voice input listeners
+            container.querySelectorAll('.ts-voice-btn').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const lineIdx = parseInt(btn.dataset.lineIndex, 10);
+                    const textInput = container.querySelector(`.ts-line-row[data-line-index="${lineIdx}"] .ts-line-text`);
+                    if (!textInput) return;
+
+                    // Toggle recording
+                    if (btn._recording) {
+                        btn._recorder?.stop();
+                        return;
+                    }
+
+                    try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus') ? 'audio/webm;codecs=opus' : 'audio/webm';
+                        const recorder = new MediaRecorder(stream, { mimeType });
+                        const chunks = [];
+
+                        recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+                        recorder.onstop = async () => {
+                            stream.getTracks().forEach(t => t.stop());
+                            btn._recording = false;
+                            btn.classList.remove('!text-red-400', 'recording-pulse');
+
+                            const blob = new Blob(chunks, { type: mimeType });
+                            if (blob.size < 100) return;
+
+                            btn.innerHTML = '<span class="spinner-sm"></span>';
+                            try {
+                                const result = await API.transcribe(blob);
+                                const text = typeof result === 'string' ? result : (result.text || result.transcript || '');
+                                if (text && !text.startsWith('[Audio received')) {
+                                    const sep = textInput.value && !textInput.value.endsWith(' ') ? ' ' : '';
+                                    textInput.value += sep + text;
+                                }
+                            } catch (err) {
+                                console.error('Voice transcription failed:', err);
+                            }
+                            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/></svg>';
+                        };
+
+                        recorder.start();
+                        btn._recording = true;
+                        btn._recorder = recorder;
+                        btn.classList.add('!text-red-400', 'recording-pulse');
+                    } catch (err) {
+                        window.showToast?.('Microphone access denied', 'warning');
+                    }
+                });
+            });
         },
 
         // ── Build Payload ───────────────────────────────────────────
@@ -724,12 +835,15 @@
 
             const numOptions = parseInt(document.getElementById('ts-num-options')?.value, 10) || 3;
 
+            const llmComplexity = document.getElementById('ts-llm-complexity')?.value || 'complex';
+
             const payload = {
                 source_image_id: null,
                 style_id: document.getElementById('ts-style')?.value || null,
                 lines: lines,
                 style_note: document.getElementById('ts-style-note')?.value?.trim() || null,
                 num_options: numOptions,
+                llm_complexity: llmComplexity,
                 remove_background: document.getElementById('ts-remove-bg')?.checked || false,
                 generate_svg: document.getElementById('ts-svg')?.checked || false,
                 upscale: document.getElementById('ts-upscale')?.checked || false,
@@ -919,6 +1033,7 @@
                                 b.classList.add('border-brand-border');
                             }
                         });
+                        this._selectedOptionIndex = idx;
                         this._selectOption(options[idx]);
                     });
                 });
