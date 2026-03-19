@@ -80,8 +80,10 @@
         _renderModal(item) {
             if (this._overlay) this._overlay.remove();
 
-            const pngUrl = item.png_url || API.gallery.pngUrl(item.id);
-            const svgUrl = item.svg_url || API.gallery.svgUrl(item.id);
+            // Always cache-bust image URLs to show the latest version
+            const cacheBust = `${(item.png_url || '').includes('?') ? '&' : '?'}t=${Date.now()}`;
+            const pngUrl = (item.png_url || API.gallery.pngUrl(item.id)) + cacheBust;
+            const svgUrl = (item.svg_url || API.gallery.svgUrl(item.id)) + cacheBust;
 
             const overlay = document.createElement('div');
             overlay.className = 'modal-overlay fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
@@ -802,6 +804,8 @@
                         png_url: `${result.png_url}${cacheBust}`,
                         png_filename: result.png_filename,
                     };
+                    // Refresh Gallery thumbnails so they show the latest version
+                    if (window.Gallery?.refresh) window.Gallery.refresh();
                     this.close();
                     setTimeout(() => this.open(newItem), 300);
                 } catch (err) {

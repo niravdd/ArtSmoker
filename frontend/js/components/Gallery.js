@@ -17,6 +17,7 @@
         _offset: 0,
         _hasMore: false,
         _selected: new Set(),
+        _cacheKey: '0',
 
         render() {
             return `
@@ -183,6 +184,12 @@
             });
         },
 
+        /** Public: force a full gallery refresh (e.g. after an edit). */
+        refresh() {
+            this._cacheKey = String(Date.now());
+            return this._loadItems(true);
+        },
+
         async _loadItems(reset = true) {
             if (this._loading) return;
             this._loading = true;
@@ -192,6 +199,7 @@
             if (reset) {
                 this._items = [];
                 this._offset = 0;
+                this._cacheKey = String(Date.now());
                 if (grid) grid.innerHTML = this._skeletons(8);
             }
 
@@ -369,7 +377,7 @@
         },
 
         _cardHTML(item) {
-            const pngUrl = API.gallery.pngUrl(item.id);
+            const pngUrl = API.gallery.pngUrl(item.id) + `?t=${this._cacheKey || '0'}`;
             const createdAt = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
             const styleName = item.style_name || this._findStyleName(item.style_id) || '';
             const prompt = item.prompt || '';
