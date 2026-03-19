@@ -60,6 +60,74 @@
         });
     }
 
+    // ── Client-side font detection ─────────────────────────────────
+    async function _detectClientFonts() {
+        const detected = [];
+
+        // Method 1: Local Font Access API (Chrome/Edge 103+)
+        if ('queryLocalFonts' in window) {
+            try {
+                const fonts = await window.queryLocalFonts();
+                const seen = new Set();
+                for (const f of fonts) {
+                    const family = f.family;
+                    if (!seen.has(family)) {
+                        seen.add(family);
+                        detected.push({
+                            name: family + '.local',
+                            display_name: family,
+                            filename: '',
+                            source: 'client',
+                            path: '',  // Client fonts render directly via CSS font-family
+                        });
+                    }
+                }
+                console.log(`Detected ${detected.length} client fonts via Local Font Access API`);
+                return detected;
+            } catch (err) {
+                // Permission denied or not supported — fall through to probing
+                console.log('Local Font Access API unavailable:', err.message);
+            }
+        }
+
+        // Method 2: Font probing via canvas rendering (works everywhere)
+        const testFonts = [
+            'Arial', 'Arial Black', 'Verdana', 'Tahoma', 'Trebuchet MS',
+            'Georgia', 'Times New Roman', 'Courier New', 'Lucida Console',
+            'Comic Sans MS', 'Impact', 'Palatino Linotype', 'Book Antiqua',
+            'Garamond', 'Century Gothic', 'Futura', 'Helvetica', 'Helvetica Neue',
+            'Gill Sans', 'Optima', 'Didot', 'American Typewriter', 'Baskerville',
+            'Copperplate', 'Papyrus', 'Brush Script MT', 'Rockwell',
+            'Segoe UI', 'Calibri', 'Cambria', 'Candara', 'Consolas',
+        ];
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = 400;
+        canvas.height = 50;
+        const testStr = 'mmmmmmmmmmlli';
+        const baseFont = 'monospace';
+
+        ctx.font = `20px ${baseFont}`;
+        ctx.fillText(testStr, 0, 30);
+        const baseWidth = ctx.measureText(testStr).width;
+
+        for (const family of testFonts) {
+            ctx.font = `20px '${family}', ${baseFont}`;
+            const w = ctx.measureText(testStr).width;
+            if (Math.abs(w - baseWidth) > 0.5) {
+                detected.push({
+                    name: family + '.local',
+                    display_name: family,
+                    filename: '',
+                    source: 'client',
+                    path: '',
+                });
+            }
+        }
+        console.log(`Detected ${detected.length} client fonts via canvas probing`);
+        return detected;
+    }
+
     // Track loaded @font-face to avoid duplicates
     const _loadedFontFaces = new Set();
 
@@ -384,6 +452,19 @@
                 this._fonts = (data && data.fonts) ? data.fonts : [];
             } catch {
                 this._fonts = [];
+            }
+
+            // Detect and merge client-side fonts (browser's local fonts)
+            try {
+                const clientFonts = await _detectClientFonts();
+                if (clientFonts.length > 0) {
+                    // Add client fonts after server fonts, avoiding duplicates
+                    const existing = new Set(this._fonts.map(f => f.display_name.toLowerCase()));
+                    const newClientFonts = clientFonts.filter(f => !existing.has(f.display_name.toLowerCase()));
+                    this._fonts = [...this._fonts, ...newClientFonts];
+                }
+            } catch (err) {
+                console.warn('Client font detection failed:', err);
             }
 
             // Load @font-face for custom (non-system) fonts

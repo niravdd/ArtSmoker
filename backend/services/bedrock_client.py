@@ -81,40 +81,48 @@ def validate_aws_credentials() -> dict:
         logger.error(msg)
         return result
 
-    # 2. Check Bedrock access in models region (us-west-2)
+    # 2. Check Bedrock access using LLM from registry (fast_llm category)
     try:
-        client = get_models_client()
+        llm_id, llm_region = _pick_llm_model("fast")
+        client = _get_client(llm_region)
         client.converse(
-            modelId=settings.claude_sonnet_model_id,
+            modelId=llm_id,
             messages=[{"role": "user", "content": [{"text": "hi"}]}],
             inferenceConfig={"maxTokens": 1, "temperature": 0},
         )
         result["models_region"] = True
-        logger.info("Bedrock models region (%s) OK — Claude accessible.", settings.aws_region_models)
+        logger.info("Bedrock LLM (%s in %s) OK.", llm_id, llm_region)
     except Exception as exc:
-        msg = f"Bedrock models region ({settings.aws_region_models}): {exc}"
+        msg = f"Bedrock LLM check failed: {exc}"
         result["errors"].append(msg)
         logger.warning(msg)
 
-    # 3. Check Bedrock access in images region (us-east-1)
+    # 3. Check Bedrock access for first enabled image model from registry
     try:
-        client = get_images_client()
-        # Light check: invoke Nova Canvas with an intentionally tiny/fast request
-        # We just need to confirm access, not generate a real image
-        client.invoke_model(
-            modelId=settings.nova_canvas_model_id,
-            contentType="application/json",
-            accept="application/json",
-            body='{"taskType":"TEXT_IMAGE","textToImageParams":{"text":"test"},"imageGenerationConfig":{"numberOfImages":1,"width":512,"height":512}}',
-        )
-        result["images_region"] = True
-        logger.info("Bedrock images region (%s) OK — Nova Canvas accessible.", settings.aws_region_images)
+        from backend.services.model_registry import get_enabled_image_model_keys_sorted, get_image_model
+        img_keys = get_enabled_image_model_keys_sorted()
+        if img_keys:
+            img_cfg = get_image_model(img_keys[0])
+            img_region = img_cfg.get("region", "us-east-1")
+            img_model_id = img_cfg.get("model_id", "")
+            client = _get_client(img_region)
+            # Light check — just confirm we can reach the model endpoint
+            client.invoke_model(
+                modelId=img_model_id,
+                contentType="application/json",
+                accept="application/json",
+                body='{"prompt":"test","output_format":"png","aspect_ratio":"1:1"}',
+            )
+            result["images_region"] = True
+            logger.info("Bedrock image model (%s in %s) OK.", img_model_id, img_region)
+        else:
+            result["images_region"] = False
+            result["errors"].append("No enabled image models in registry.")
     except client.exceptions.ValidationException:
         # ValidationException means we reached the model — access works
         result["images_region"] = True
-        logger.info("Bedrock images region (%s) OK — Nova Canvas accessible.", settings.aws_region_images)
     except Exception as exc:
-        msg = f"Bedrock images region ({settings.aws_region_images}): {exc}"
+        msg = f"Bedrock image model check: {exc}"
         result["errors"].append(msg)
         logger.warning(msg)
 
@@ -123,13 +131,40 @@ def validate_aws_credentials() -> dict:
 
 # ── Claude helpers ────────────────────────────────────────────────────────
 
-def _pick_claude_model(complexity: str) -> str:
+def _pick_llm_model(complexity: str) -> tuple[str, str]:
+    """Pick the LLM model ID and region for the given complexity level.
+
+    Reads from the model registry (categories.fast_llm / complex_llm).
+    The actual model can be Claude, Llama, Mistral, or any Bedrock-compatible
+    LLM — configured by the user via the registry.
+    Returns (model_id, region).
+    """
+    from backend.services.model_registry import get_category
     if complexity == "complex":
-        return settings.claude_opus_model_id
-    return settings.claude_sonnet_model_id
+        cat = get_category("complex_llm")
+    else:
+        cat = get_category("fast_llm")
+    model_id = cat.get("current", "")
+    region = cat.get("region", settings.aws_region_models)
+    if not model_id:
+        logger.warning("No %s model configured in registry, using config.py fallback",
+                        "complex_llm" if complexity == "complex" else "fast_llm")
+        model_id = settings.claude_opus_model_id if complexity == "complex" else settings.claude_sonnet_model_id
+    return (model_id, region)
 
 
-def invoke_claude(
+def _get_fallback_llm() -> tuple[str, str]:
+    """Get the fallback LLM model ID and region from the registry."""
+    from backend.services.model_registry import get_category
+    cat = get_category("fallback_llm")
+    model_id = cat.get("current", "")
+    region = cat.get("region", settings.aws_region_models)
+    if not model_id:
+        model_id = settings.claude_fallback_model_id
+    return (model_id, region)
+
+
+def invoke_llm(
     prompt: str,
     *,
     complexity: str = "fast",
@@ -137,20 +172,24 @@ def invoke_claude(
     max_tokens: int = 4096,
     temperature: float = 0.7,
 ) -> str:
-    """Invoke a Claude model via Bedrock Converse API.
+    """Invoke an LLM via Bedrock Converse API.
+
+    The model used is determined by the registry (categories.fast_llm or
+    complex_llm). Can be Claude, Llama, Mistral, or any Converse-compatible
+    model — the user configures this via Model Settings.
 
     Args:
         prompt: The text prompt.
-        complexity: "fast" → Sonnet, "complex" → Opus.
+        complexity: "fast" → fast_llm category, "complex" → complex_llm category.
         images: Optional list of PNG image bytes to include as vision input.
         max_tokens: Max response tokens.
         temperature: Sampling temperature.
 
     Returns:
-        The text response from Claude.
+        The text response from the LLM.
     """
-    model_id = _pick_claude_model(complexity)
-    client = get_models_client()
+    model_id, region = _pick_llm_model(complexity)
+    client = _get_client(region)
 
     content_blocks: list[dict] = []
     if images:
@@ -176,12 +215,14 @@ def invoke_claude(
         )
         return response["output"]["message"]["content"][0]["text"]
     except client.exceptions.AccessDeniedException:
+        fallback_id, fallback_region = _get_fallback_llm()
         logger.warning(
-            "Access denied for %s, falling back to %s",
-            model_id, settings.claude_fallback_model_id,
+            "Access denied for %s, falling back to %s in %s",
+            model_id, fallback_id, fallback_region,
         )
-        response = client.converse(
-            modelId=settings.claude_fallback_model_id,
+        fallback_client = _get_client(fallback_region)
+        response = fallback_client.converse(
+            modelId=fallback_id,
             messages=messages,
             inferenceConfig={
                 "maxTokens": max_tokens,
@@ -215,7 +256,7 @@ def _get_nested(obj: dict, path: str):
 
 def invoke_image_model(
     model_key: str,
-    prompt: str,
+    prompt: str = "",
     *,
     negative_prompt: str = "",
     width: int = 1024,
@@ -223,11 +264,30 @@ def invoke_image_model(
     seed: int | None = None,
     quality: str | None = None,
     region_override: str | None = None,
+    source_image: bytes | None = None,
+    mask_image: bytes | None = None,
+    mask_prompt: str | None = None,
+    extra_params: dict | None = None,
 ) -> bytes:
-    """Generic image generation using any model defined in the registry.
+    """Generic image model invoker — handles all Bedrock image services.
 
-    Reads the model config and format family from model_registry.json to
-    construct the request body dynamically. No per-model code needed.
+    Works for text-to-image, inpainting, outpainting, erase, style transfer,
+    and all other image services defined in the registry. The format family
+    determines which fields are used.
+
+    Args:
+        model_key: Registry key (e.g. 'nova_canvas', 'stability_inpaint')
+        prompt: Text prompt (optional for erase/remove-bg services)
+        negative_prompt: Exclusion terms
+        width/height: Output dimensions (for text-to-image models)
+        seed: Random seed
+        quality: Quality tier override
+        region_override: AWS region override
+        source_image: Input image as PNG bytes (for inpaint/outpaint/edit services)
+        mask_image: Mask image as PNG bytes (white = area to edit)
+        mask_prompt: Natural language mask description (Nova Canvas alternative to mask_image)
+        extra_params: Additional parameters (e.g. outpaint directions, control_strength)
+
     Returns PNG image bytes.
     """
     from backend.services.model_registry import get_image_model, get_registry
@@ -259,15 +319,30 @@ def invoke_image_model(
                 _deep_merge(body, qopt["body_override"])
                 break
 
-    # Set prompt
-    _set_nested(body, family["prompt_path"], prompt)
+    # Set prompt (if the family has a prompt path and we have a prompt)
+    if prompt and family.get("prompt_path"):
+        _set_nested(body, family["prompt_path"], prompt)
 
     # Set negative prompt
     if negative_prompt and family.get("negative_prompt_path"):
         _set_nested(body, family["negative_prompt_path"], negative_prompt)
 
-    # Set dimensions or aspect ratio
-    dims_mode = family.get("dimensions_mode", "pixels")
+    # Set source image (for inpaint, outpaint, erase, style services)
+    if source_image and family.get("image_path"):
+        _set_nested(body, family["image_path"], base64.b64encode(source_image).decode("ascii"))
+
+    # Set mask image (for inpaint, erase services)
+    if mask_image and family.get("mask_path"):
+        _set_nested(body, family["mask_path"], base64.b64encode(mask_image).decode("ascii"))
+    elif mask_image and family.get("mask_image_path"):
+        _set_nested(body, family["mask_image_path"], base64.b64encode(mask_image).decode("ascii"))
+
+    # Set mask prompt (Nova Canvas alternative to mask image)
+    if mask_prompt and family.get("mask_prompt_path"):
+        _set_nested(body, family["mask_prompt_path"], mask_prompt)
+
+    # Set dimensions or aspect ratio (only for text-to-image families)
+    dims_mode = family.get("dimensions_mode")
     if dims_mode == "aspect_ratio":
         body["aspect_ratio"] = _dimensions_to_aspect_ratio(width, height)
     elif dims_mode == "pixels":
@@ -280,6 +355,11 @@ def invoke_image_model(
     # Set seed
     if seed is not None and family.get("seed_path"):
         _set_nested(body, family["seed_path"], seed)
+
+    # Set extra parameters (outpaint directions, control_strength, etc.)
+    if extra_params:
+        for k, v in extra_params.items():
+            body[k] = v
 
     # Invoke
     client = _get_client(region)
@@ -313,6 +393,10 @@ def _deep_merge(base: dict, override: dict):
             _deep_merge(base[key], value)
         else:
             base[key] = value
+
+
+# Backward-compatible alias — existing imports of invoke_claude still work
+invoke_claude = invoke_llm
 
 
 # ── Legacy image generation helpers (kept for backward compatibility) ────

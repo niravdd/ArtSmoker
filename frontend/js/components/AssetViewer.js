@@ -104,6 +104,7 @@
                     <!-- Tabs -->
                     <div class="tab-bar px-6 pt-3">
                         <button class="tab active" data-tab="png">PNG</button>
+                        <button class="tab" data-tab="edit">Edit</button>
                         <button class="tab" data-tab="svg">SVG</button>
                         <button class="tab" data-tab="meta">Metadata</button>
                     </div>
@@ -128,6 +129,60 @@
                                     <button id="av-zoom-fit" class="btn btn-sm btn-secondary px-2 py-1 text-xs" title="Fit to view">Fit</button>
                                     <button id="av-zoom-actual" class="btn btn-sm btn-secondary px-2 py-1 text-xs" title="Actual size (100%)">1:1</button>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Edit tab (Inpaint / Outpaint / Erase) -->
+                        <div class="tab-panel hidden" data-panel="edit">
+                            <div class="space-y-3">
+                                <!-- Edit mode selector -->
+                                <div class="flex gap-2">
+                                    <button class="av-edit-mode btn btn-sm btn-secondary active" data-mode="inpaint">Inpaint</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="erase">Erase</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="outpaint">Outpaint</button>
+                                </div>
+
+                                <!-- Inpaint/Erase: Canvas + Mask -->
+                                <div id="av-mask-section">
+                                    <div class="flex items-center gap-3 mb-2">
+                                        <label class="text-xs text-brand-text-muted">Brush:</label>
+                                        <input id="av-brush-size" type="range" min="5" max="80" value="20" class="w-24" />
+                                        <span id="av-brush-size-label" class="text-xs text-brand-text-muted font-mono w-8">20px</span>
+                                        <button id="av-mask-clear" class="btn btn-sm btn-secondary text-xs">Clear mask</button>
+                                    </div>
+                                    <p class="text-[10px] text-brand-text-dim mb-1">Paint white over the area you want to edit. The rest of the image will be preserved.</p>
+                                    <div class="relative rounded-lg overflow-hidden border border-brand-border" style="display: inline-block;">
+                                        <canvas id="av-mask-canvas" class="cursor-crosshair" style="max-width: 100%; max-height: 50vh;"></canvas>
+                                    </div>
+                                </div>
+
+                                <!-- Outpaint: Direction controls -->
+                                <div id="av-outpaint-section" class="hidden">
+                                    <p class="text-[10px] text-brand-text-dim mb-2">Extend the image in any direction (pixels to add):</p>
+                                    <div class="grid grid-cols-4 gap-2 max-w-xs">
+                                        <div><label class="text-[10px] text-brand-text-muted">Left</label><input id="av-out-left" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">Right</label><input id="av-out-right" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">Up</label><input id="av-out-up" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">Down</label><input id="av-out-down" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                    </div>
+                                </div>
+
+                                <!-- Prompt + Model + Generate -->
+                                <div>
+                                    <label class="text-xs text-brand-text-muted mb-1 block">Prompt (describe what to generate in the edited area)</label>
+                                    <textarea id="av-edit-prompt" class="input text-sm w-full h-16" placeholder="e.g. a treasure chest, a wooden door, blue sky..."></textarea>
+                                </div>
+                                <div class="flex items-end gap-2">
+                                    <div class="flex-1">
+                                        <label class="text-[10px] text-brand-text-muted mb-0.5 block">Model</label>
+                                        <select id="av-edit-model" class="input text-xs"></select>
+                                    </div>
+                                    <button id="av-edit-generate" class="btn btn-primary btn-sm">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                                        Apply Edit
+                                    </button>
+                                </div>
+                                <div id="av-edit-status" class="text-xs text-brand-text-muted hidden"></div>
                             </div>
                         </div>
 
@@ -320,6 +375,9 @@
             // ── Zoom/Pan for PNG viewer ─────────────────────────────────
             this._initZoomPan();
 
+            // ── Edit tab (Inpaint/Outpaint/Erase) ──────────────────────
+            this._initEditTab();
+
             // Reload in 2D Image Studio
             this._overlay.querySelector('.btn-reload')?.addEventListener('click', async () => {
                 const meta = this._meta;
@@ -368,6 +426,233 @@
                     window.TypeStudio.loadFromMeta(meta);
                 }
             });
+        },
+
+        _initEditTab() {
+            if (!this._overlay) return;
+            const canvas = this._overlay.querySelector('#av-mask-canvas');
+            const brushSlider = this._overlay.querySelector('#av-brush-size');
+            const brushLabel = this._overlay.querySelector('#av-brush-size-label');
+            if (!canvas) return;
+
+            const ctx = canvas.getContext('2d');
+            let painting = false;
+            let brushSize = 20;
+            let editMode = 'inpaint';
+
+            // Load source image onto canvas
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                // Scale canvas to fit while maintaining aspect ratio
+                const maxW = 600, maxH = 400;
+                const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                canvas._imgScale = scale;
+                canvas._imgW = img.width;
+                canvas._imgH = img.height;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                canvas._baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            };
+            img.src = this._item?.png_url || '';
+
+            // Brush size
+            brushSlider?.addEventListener('input', () => {
+                brushSize = parseInt(brushSlider.value, 10);
+                if (brushLabel) brushLabel.textContent = `${brushSize}px`;
+            });
+
+            // Paint mask (white semi-transparent overlay)
+            const paintAt = (x, y) => {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
+                ctx.beginPath();
+                ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2);
+                ctx.fill();
+            };
+
+            canvas.addEventListener('mousedown', (e) => {
+                painting = true;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                paintAt((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+            });
+            canvas.addEventListener('mousemove', (e) => {
+                if (!painting) return;
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                paintAt((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+            });
+            window.addEventListener('mouseup', () => { painting = false; });
+
+            // Clear mask
+            this._overlay.querySelector('#av-mask-clear')?.addEventListener('click', () => {
+                if (canvas._baseImageData) {
+                    ctx.putImageData(canvas._baseImageData, 0, 0);
+                }
+            });
+
+            // Edit mode switching
+            this._overlay.querySelectorAll('.av-edit-mode').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    editMode = btn.dataset.mode;
+                    this._overlay.querySelectorAll('.av-edit-mode').forEach(b => b.classList.remove('active', 'bg-brand-accent', 'text-white'));
+                    btn.classList.add('active', 'bg-brand-accent', 'text-white');
+                    // Show/hide sections
+                    const maskSection = this._overlay.querySelector('#av-mask-section');
+                    const outSection = this._overlay.querySelector('#av-outpaint-section');
+                    if (maskSection) maskSection.classList.toggle('hidden', editMode === 'outpaint');
+                    if (outSection) outSection.classList.toggle('hidden', editMode !== 'outpaint');
+                });
+            });
+
+            // Populate edit model dropdown from registry
+            this._loadEditModels(editMode);
+            this._overlay.querySelectorAll('.av-edit-mode').forEach(btn => {
+                btn.addEventListener('click', () => this._loadEditModels(btn.dataset.mode));
+            });
+
+            // Generate / Apply Edit
+            this._overlay.querySelector('#av-edit-generate')?.addEventListener('click', async () => {
+                const statusEl = this._overlay.querySelector('#av-edit-status');
+                const btn = this._overlay.querySelector('#av-edit-generate');
+                const model = this._overlay.querySelector('#av-edit-model')?.value;
+                const prompt = this._overlay.querySelector('#av-edit-prompt')?.value || '';
+
+                if (!model) {
+                    window.showToast?.('Select an editing model', 'warning');
+                    return;
+                }
+
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner-sm"></span> Applying...';
+                if (statusEl) { statusEl.textContent = 'Processing...'; statusEl.classList.remove('hidden'); }
+
+                try {
+                    // Extract mask from canvas (convert painted areas to white mask)
+                    let maskB64 = null;
+                    if (editMode !== 'outpaint') {
+                        maskB64 = this._extractMask(canvas);
+                    }
+
+                    const payload = {
+                        source_image_id: this._item?.id,
+                        model: model,
+                        prompt: prompt,
+                        mask: maskB64,
+                        outpaint_left: parseInt(this._overlay.querySelector('#av-out-left')?.value || '0', 10),
+                        outpaint_right: parseInt(this._overlay.querySelector('#av-out-right')?.value || '0', 10),
+                        outpaint_up: parseInt(this._overlay.querySelector('#av-out-up')?.value || '0', 10),
+                        outpaint_down: parseInt(this._overlay.querySelector('#av-out-down')?.value || '0', 10),
+                    };
+
+                    const result = await fetch('/api/generate/edit', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload),
+                    }).then(r => {
+                        if (!r.ok) throw new Error(`${r.status}: ${r.statusText}`);
+                        return r.json();
+                    });
+
+                    if (statusEl) { statusEl.textContent = `Done! Saved as ${result.id}`; }
+                    window.showToast?.(`Image edited with ${result.model_label}. Saved to Gallery.`, 'success');
+
+                    // Reload the viewer with the new asset
+                    const newItem = {
+                        id: result.id,
+                        prompt: prompt,
+                        png_url: result.png_url,
+                        png_filename: result.png_filename,
+                    };
+                    this.close();
+                    setTimeout(() => this.open(newItem), 300);
+                } catch (err) {
+                    if (statusEl) { statusEl.textContent = `Error: ${err.message}`; }
+                    window.showToast?.('Edit failed: ' + err.message, 'error');
+                } finally {
+                    btn.disabled = false;
+                    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Apply Edit';
+                }
+            });
+        },
+
+        _loadEditModels(mode) {
+            const sel = this._overlay?.querySelector('#av-edit-model');
+            if (!sel) return;
+
+            // Map edit mode to model_purpose
+            const purposeMap = {
+                'inpaint': 'inpainting',
+                'erase': 'erase',
+                'outpaint': 'outpainting',
+            };
+            const purpose = purposeMap[mode] || 'inpainting';
+
+            // Fetch models from API filtered by purpose
+            fetch(`/api/admin/models`).then(r => r.json()).then(data => {
+                sel.innerHTML = '';
+                const models = data.image_models || {};
+                for (const [key, cfg] of Object.entries(models)) {
+                    if (cfg.model_purpose === purpose && cfg.enabled) {
+                        const opt = document.createElement('option');
+                        opt.value = key;
+                        opt.textContent = `${cfg.label} ($${(cfg.base_price_usd || 0).toFixed(2)}/img)`;
+                        sel.appendChild(opt);
+                    }
+                }
+                if (sel.options.length === 0) {
+                    const opt = document.createElement('option');
+                    opt.value = '';
+                    opt.textContent = 'No models enabled — use Model Settings to enable';
+                    sel.appendChild(opt);
+                }
+            }).catch(() => {});
+        },
+
+        _extractMask(canvas) {
+            // Create a mask image: white where user painted (red overlay), black elsewhere
+            const w = canvas._imgW || canvas.width;
+            const h = canvas._imgH || canvas.height;
+            const maskCanvas = document.createElement('canvas');
+            maskCanvas.width = w;
+            maskCanvas.height = h;
+            const mctx = maskCanvas.getContext('2d');
+
+            // Scale from display canvas to original image size
+            const scale = canvas._imgScale || 1;
+
+            // Get the painted canvas data
+            const srcCtx = canvas.getContext('2d');
+            const srcData = srcCtx.getImageData(0, 0, canvas.width, canvas.height);
+            const baseData = canvas._baseImageData;
+
+            // Compare: where pixels differ from base = painted (mask = white)
+            mctx.fillStyle = 'black';
+            mctx.fillRect(0, 0, w, h);
+            mctx.fillStyle = 'white';
+
+            for (let y = 0; y < canvas.height; y++) {
+                for (let x = 0; x < canvas.width; x++) {
+                    const i = (y * canvas.width + x) * 4;
+                    // Check if pixel was painted (differs from base)
+                    if (baseData && (
+                        Math.abs(srcData.data[i] - baseData.data[i]) > 20 ||
+                        Math.abs(srcData.data[i + 1] - baseData.data[i + 1]) > 20 ||
+                        Math.abs(srcData.data[i + 2] - baseData.data[i + 2]) > 20
+                    )) {
+                        const ox = Math.round(x / scale);
+                        const oy = Math.round(y / scale);
+                        mctx.fillRect(ox - 2, oy - 2, 4, 4);
+                    }
+                }
+            }
+
+            // Convert to base64 PNG
+            return maskCanvas.toDataURL('image/png').split(',')[1];
         },
 
         _initZoomPan() {

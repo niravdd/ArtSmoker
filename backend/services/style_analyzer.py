@@ -9,7 +9,7 @@ from pathlib import Path
 
 from backend.config import settings
 from backend.models.style_profile import AnalyzedStyle
-from backend.services.bedrock_client import invoke_claude
+from backend.services.bedrock_client import invoke_llm
 from backend.storage.local_store import store
 
 logger = logging.getLogger(__name__)
@@ -241,7 +241,7 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
     cohesion_info = ""
     try:
         logger.info("Phase 1: Checking cohesion for style '%s' with %d images (Sonnet).", style_id, len(cohesion_sample))
-        cohesion_raw = invoke_claude(
+        cohesion_raw = invoke_llm(
             _COHESION_CHECK_PROMPT,
             complexity="fast",
             images=cohesion_sample,
@@ -308,7 +308,7 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
         sample_count, total_count, style_id, bool(user_hints),
     )
 
-    raw_response = invoke_claude(
+    raw_response = invoke_llm(
         prompt,
         complexity="complex",
         images=image_bytes_list,
@@ -373,7 +373,7 @@ def generate_hints(style_id: str, analyzed_style: AnalyzedStyle, user_hints: str
 
     logger.info("Generating hints for style '%s' (user hints: %s) using Claude Sonnet.", style_id, bool(user_hints))
 
-    hints = invoke_claude(
+    hints = invoke_llm(
         prompt,
         complexity="fast",
         max_tokens=512,

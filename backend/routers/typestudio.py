@@ -18,7 +18,7 @@ from pydantic import BaseModel, Field
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
 from backend.config import settings
-from backend.services.bedrock_client import invoke_claude
+from backend.services.bedrock_client import invoke_llm
 from backend.storage.local_store import store
 
 logger = logging.getLogger(__name__)
@@ -438,7 +438,7 @@ def _load_style_guide(style_id: str) -> str | None:
     return "\n".join(parts) if parts else None
 
 
-def _get_layouts_from_claude(
+def _get_layouts_from_llm(
     request: TypeStudioRequest,
     canvas_width: int,
     canvas_height: int,
@@ -451,7 +451,7 @@ def _get_layouts_from_claude(
     images = [image_bytes] if image_bytes else None
     # Higher temperature for multiple options to get creative diversity
     temp = 0.9 if request.num_options > 1 else 0.7
-    response_text = invoke_claude(
+    response_text = invoke_llm(
         prompt,
         complexity="complex",
         images=images,
@@ -500,7 +500,7 @@ async def preview(request: TypeStudioRequest):
             }
 
     # 3. Get layouts from Claude (1 or more options)
-    layouts = _get_layouts_from_claude(
+    layouts = _get_layouts_from_llm(
         request, canvas_width, canvas_height, style_guide, image_bytes,
     )
 
@@ -683,7 +683,7 @@ async def suggest(request: TypeStudioRequest):
         style_guide = _load_style_guide(request.style_id)
 
     # 3. Get layouts from Claude (no rendering)
-    layouts = _get_layouts_from_claude(
+    layouts = _get_layouts_from_llm(
         request, canvas_width, canvas_height, style_guide, image_bytes,
     )
 

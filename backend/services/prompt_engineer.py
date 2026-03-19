@@ -7,7 +7,7 @@ import logging
 
 from backend.models.generation_request import AssetType, ImageModel
 from backend.models.style_profile import StyleProfile
-from backend.services.bedrock_client import invoke_claude
+from backend.services.bedrock_client import invoke_llm
 
 logger = logging.getLogger(__name__)
 
@@ -424,7 +424,7 @@ def refine_prompt(
         asset_type.value, style_profile is not None, image_model, max_chars,
     )
 
-    refined = invoke_claude(
+    refined = invoke_llm(
         prompt,
         complexity="fast",
         max_tokens=2048 if max_chars > 1000 else 1024,
@@ -470,7 +470,7 @@ def refine_marketing_prompt(
     logger.info("Refining marketing prompt, has_style=%s, model=%s, max_chars=%d",
                 style_profile is not None, image_model, max_chars)
 
-    refined = invoke_claude(
+    refined = invoke_llm(
         prompt,
         complexity="complex",
         max_tokens=2048 if max_chars > 1000 else 1536,
@@ -559,7 +559,7 @@ def generate_concept_prompts(
         num_options, asset_type.value, style_profile is not None, image_model, max_chars,
     )
 
-    raw = invoke_claude(
+    raw = invoke_llm(
         prompt,
         complexity="complex",
         max_tokens=8192 if max_chars > 1000 else 4096,

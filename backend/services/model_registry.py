@@ -38,8 +38,223 @@ def _save():
     logger.info("Model registry saved.")
 
 
+# ── Format family definitions (code as source of truth) ──────────────────
+
+_STYLE_PRESETS = ["3d-model", "analog-film", "anime", "cinematic", "comic-book",
+                  "digital-art", "enhance", "fantasy-art", "isometric", "line-art",
+                  "low-poly", "modeling-compound", "neon-punk", "origami",
+                  "photographic", "pixel-art", "tile-texture"]
+
+_DEFAULT_FORMAT_FAMILIES = {
+    "amazon_text_to_image": {
+        "description": "Amazon text-to-image models (Nova Canvas, Titan Image). taskType/textToImageParams with pixel dimensions.",
+        "prompt_path": "textToImageParams.text",
+        "negative_prompt_path": "textToImageParams.negativeText",
+        "seed_path": "imageGenerationConfig.seed",
+        "dimensions_mode": "pixels",
+        "dimensions_paths": {"width": "imageGenerationConfig.width", "height": "imageGenerationConfig.height"},
+        "response_image_path": "images[0]",
+        "body_template": {"taskType": "TEXT_IMAGE", "textToImageParams": {}, "imageGenerationConfig": {"numberOfImages": 1}},
+        "parameters": {
+            "prompt": {"type": "string", "required": True, "max_length": 1024, "description": "Descriptive caption"},
+            "negative_prompt": {"type": "string", "required": False, "max_length": 1024},
+            "width": {"type": "integer", "required": False, "default": 1024, "min": 320, "max": 4096, "step": 64},
+            "height": {"type": "integer", "required": False, "default": 1024, "min": 320, "max": 4096, "step": 64},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 2147483647},
+            "quality": {"type": "enum", "required": False, "options": ["standard", "premium"], "default": "premium", "path": "imageGenerationConfig.quality"},
+        },
+    },
+    "stability_text_to_image": {
+        "description": "Stability AI text-to-image models. Flat prompt field with aspect ratios.",
+        "prompt_path": "prompt", "negative_prompt_path": "negative_prompt",
+        "seed_path": "seed", "dimensions_mode": "aspect_ratio",
+        "response_image_path": "images[0]",
+        "body_template": {"output_format": "png"},
+        "parameters": {
+            "prompt": {"type": "string", "required": True, "max_length": 10000},
+            "negative_prompt": {"type": "string", "required": False, "max_length": 10000},
+            "aspect_ratio": {"type": "enum", "required": False, "options": ["1:1","16:9","9:16","3:2","2:3","4:5","5:4","21:9","9:21"], "default": "1:1"},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 4294967294},
+            "output_format": {"type": "enum", "required": False, "options": ["png","jpeg","webp"], "default": "png"},
+            "style_preset": {"type": "enum", "required": False, "options": _STYLE_PRESETS},
+        },
+    },
+    "amazon_inpainting": {
+        "description": "Amazon Nova Canvas / Titan Image inpainting. taskType INPAINTING with mask.",
+        "prompt_path": "inPaintingParams.text", "negative_prompt_path": "inPaintingParams.negativeText",
+        "image_path": "inPaintingParams.image", "mask_prompt_path": "inPaintingParams.maskPrompt",
+        "mask_image_path": "inPaintingParams.maskImage", "seed_path": "imageGenerationConfig.seed",
+        "response_image_path": "images[0]",
+        "body_template": {"taskType": "INPAINTING", "inPaintingParams": {}, "imageGenerationConfig": {"numberOfImages": 1}},
+        "parameters": {
+            "prompt": {"type": "string", "required": False, "description": "What to generate. Omit to remove content."},
+            "negative_prompt": {"type": "string", "required": False},
+            "image": {"type": "image", "required": True},
+            "mask_image": {"type": "image", "required": False, "description": "Black/white mask (white = edit area)"},
+            "mask_prompt": {"type": "string", "required": False, "description": "Natural language mask (Nova Canvas only)"},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 2147483647},
+        },
+    },
+    "amazon_outpainting": {
+        "description": "Amazon Nova Canvas / Titan Image outpainting. taskType OUTPAINTING.",
+        "prompt_path": "outPaintingParams.text", "negative_prompt_path": "outPaintingParams.negativeText",
+        "image_path": "outPaintingParams.image", "seed_path": "imageGenerationConfig.seed",
+        "response_image_path": "images[0]",
+        "body_template": {"taskType": "OUTPAINTING", "outPaintingParams": {"outPaintingMode": "DEFAULT"}, "imageGenerationConfig": {"numberOfImages": 1}},
+        "parameters": {
+            "prompt": {"type": "string", "required": False},
+            "negative_prompt": {"type": "string", "required": False},
+            "image": {"type": "image", "required": True},
+            "outPaintingMode": {"type": "enum", "required": False, "options": ["DEFAULT","PRECISE"], "default": "DEFAULT"},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 2147483647},
+        },
+    },
+    "stability_inpaint": {
+        "description": "Stability AI Inpaint. Mask-based generative fill.",
+        "prompt_path": "prompt", "negative_prompt_path": "negative_prompt",
+        "image_path": "image", "mask_path": "mask", "seed_path": "seed",
+        "response_image_path": "images[0]",
+        "body_template": {"output_format": "png", "grow_mask": 5},
+        "parameters": {
+            "prompt": {"type": "string", "required": True, "max_length": 10000},
+            "negative_prompt": {"type": "string", "required": False, "max_length": 10000},
+            "image": {"type": "image", "required": True, "constraints": "64px min, max 9,437,184 pixels"},
+            "mask": {"type": "image", "required": False, "description": "Black/white mask (white = inpaint area)"},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 4294967294},
+            "grow_mask": {"type": "integer", "required": False, "min": 0, "max": 20, "default": 5},
+            "output_format": {"type": "enum", "required": False, "options": ["png","jpeg","webp"], "default": "png"},
+            "style_preset": {"type": "enum", "required": False, "options": _STYLE_PRESETS},
+        },
+    },
+    "stability_outpaint": {
+        "description": "Stability AI Outpaint. Extends image in any direction.",
+        "prompt_path": "prompt", "image_path": "image", "seed_path": "seed",
+        "response_image_path": "images[0]",
+        "body_template": {"output_format": "png", "creativity": 0.5},
+        "parameters": {
+            "prompt": {"type": "string", "required": False, "max_length": 10000},
+            "image": {"type": "image", "required": True},
+            "left": {"type": "integer", "required": False, "min": 0, "max": 2000, "default": 0},
+            "right": {"type": "integer", "required": False, "min": 0, "max": 2000, "default": 0},
+            "up": {"type": "integer", "required": False, "min": 0, "max": 2000, "default": 0},
+            "down": {"type": "integer", "required": False, "min": 0, "max": 2000, "default": 0},
+            "creativity": {"type": "float", "required": False, "min": 0.1, "max": 1.0, "default": 0.5},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 4294967294},
+            "output_format": {"type": "enum", "required": False, "options": ["png","jpeg","webp"], "default": "png"},
+            "style_preset": {"type": "enum", "required": False, "options": _STYLE_PRESETS},
+        },
+    },
+    "stability_erase": {
+        "description": "Stability AI Erase. Removes objects via mask.",
+        "image_path": "image", "mask_path": "mask", "seed_path": "seed",
+        "response_image_path": "images[0]",
+        "body_template": {"output_format": "png", "grow_mask": 5},
+        "parameters": {
+            "image": {"type": "image", "required": True},
+            "mask": {"type": "image", "required": False, "description": "Black/white mask (white = erase area)"},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 4294967294},
+            "grow_mask": {"type": "integer", "required": False, "min": 0, "max": 20, "default": 5},
+            "output_format": {"type": "enum", "required": False, "options": ["png","jpeg","webp"], "default": "png"},
+        },
+    },
+    "stability_search_replace": {
+        "description": "Stability AI Search & Replace. Finds and replaces objects by prompt.",
+        "prompt_path": "prompt", "image_path": "image", "seed_path": "seed",
+        "response_image_path": "images[0]",
+        "extra_fields": {"search_prompt": "search_prompt"},
+        "body_template": {"output_format": "png", "grow_mask": 5},
+        "parameters": {
+            "prompt": {"type": "string", "required": True, "max_length": 10000, "description": "Replacement object"},
+            "search_prompt": {"type": "string", "required": True, "max_length": 10000, "description": "Object to find"},
+            "image": {"type": "image", "required": True},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 4294967294},
+            "grow_mask": {"type": "integer", "required": False, "min": 0, "max": 20, "default": 5},
+            "output_format": {"type": "enum", "required": False, "options": ["png","jpeg","webp"], "default": "png"},
+            "style_preset": {"type": "enum", "required": False, "options": _STYLE_PRESETS},
+        },
+    },
+    "stability_search_recolor": {
+        "description": "Stability AI Search & Recolor. Changes color of objects by prompt.",
+        "prompt_path": "prompt", "image_path": "image", "seed_path": "seed",
+        "response_image_path": "images[0]",
+        "extra_fields": {"select_prompt": "select_prompt"},
+        "body_template": {"output_format": "png", "grow_mask": 5},
+        "parameters": {
+            "prompt": {"type": "string", "required": True, "max_length": 10000, "description": "Target color"},
+            "select_prompt": {"type": "string", "required": True, "max_length": 10000, "description": "Object to recolor"},
+            "image": {"type": "image", "required": True},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 4294967294},
+            "grow_mask": {"type": "integer", "required": False, "min": 0, "max": 20, "default": 5},
+            "output_format": {"type": "enum", "required": False, "options": ["png","jpeg","webp"], "default": "png"},
+            "style_preset": {"type": "enum", "required": False, "options": _STYLE_PRESETS},
+        },
+    },
+    "stability_control": {
+        "description": "Stability AI Control (Sketch/Structure). Image guided by sketch or structure.",
+        "prompt_path": "prompt", "negative_prompt_path": "negative_prompt",
+        "image_path": "image", "seed_path": "seed",
+        "response_image_path": "images[0]",
+        "body_template": {"output_format": "png", "control_strength": 0.7},
+        "parameters": {
+            "prompt": {"type": "string", "required": True, "max_length": 10000},
+            "negative_prompt": {"type": "string", "required": False, "max_length": 10000},
+            "image": {"type": "image", "required": True, "description": "Sketch or structural reference"},
+            "control_strength": {"type": "float", "required": False, "min": 0, "max": 1, "default": 0.7},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 4294967294},
+            "output_format": {"type": "enum", "required": False, "options": ["png","jpeg","webp"], "default": "png"},
+            "style_preset": {"type": "enum", "required": False, "options": _STYLE_PRESETS},
+        },
+    },
+    "stability_style_transfer": {
+        "description": "Stability AI Style Transfer. Applies style from reference to target.",
+        "prompt_path": "prompt", "negative_prompt_path": "negative_prompt",
+        "seed_path": "seed", "response_image_path": "images[0]",
+        "body_template": {"output_format": "png", "composition_fidelity": 0.9, "style_strength": 1.0, "change_strength": 0.9},
+        "parameters": {
+            "prompt": {"type": "string", "required": False, "max_length": 10000},
+            "negative_prompt": {"type": "string", "required": False, "max_length": 10000},
+            "init_image": {"type": "image", "required": True, "path": "init_image", "description": "Target image"},
+            "style_image": {"type": "image", "required": True, "path": "style_image", "description": "Style reference"},
+            "composition_fidelity": {"type": "float", "required": False, "min": 0, "max": 1, "default": 0.9},
+            "style_strength": {"type": "float", "required": False, "min": 0, "max": 1, "default": 1.0},
+            "change_strength": {"type": "float", "required": False, "min": 0.1, "max": 1.0, "default": 0.9},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 4294967294},
+            "output_format": {"type": "enum", "required": False, "options": ["png","jpeg","webp"], "default": "png"},
+            "style_preset": {"type": "enum", "required": False, "options": _STYLE_PRESETS},
+        },
+    },
+}
+
+
+def ensure_format_families():
+    """Ensure all known format families exist in the registry with complete parameter specs.
+
+    This is the code-as-source-of-truth for format families. The registry stores
+    the runtime copy. Admin can customize via the JSON editor — their changes
+    are preserved (we only add missing families, never overwrite existing ones).
+    """
+    global _registry
+    changed = False
+    families = _registry.setdefault("format_families", {})
+
+    for name, default in _DEFAULT_FORMAT_FAMILIES.items():
+        if name not in families:
+            families[name] = default
+            changed = True
+            logger.info("Added missing format family: %s", name)
+        elif "parameters" not in families[name]:
+            # Existing family missing parameter specs — add them
+            families[name]["parameters"] = default.get("parameters", {})
+            changed = True
+            logger.info("Added parameters to format family: %s", name)
+
+    if changed:
+        _save()
+
+
 # ── Load on import ────────────────────────────────────────────────────────
 _load()
+ensure_format_families()  # Populate any missing format families from code defaults
 
 
 # ── Public API ────────────────────────────────────────────────────────────

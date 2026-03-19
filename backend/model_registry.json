@@ -1,38 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-18T06:14:32.491670",
-  "format_families": {
-    "amazon_text_to_image": {
-      "description": "Amazon text-to-image models (Nova Canvas, Titan Image). Uses taskType/textToImageParams structure with pixel dimensions.",
-      "prompt_path": "textToImageParams.text",
-      "negative_prompt_path": "textToImageParams.negativeText",
-      "seed_path": "imageGenerationConfig.seed",
-      "dimensions_mode": "pixels",
-      "dimensions_paths": {
-        "width": "imageGenerationConfig.width",
-        "height": "imageGenerationConfig.height"
-      },
-      "response_image_path": "images[0]",
-      "body_template": {
-        "taskType": "TEXT_IMAGE",
-        "textToImageParams": {},
-        "imageGenerationConfig": {
-          "numberOfImages": 1
-        }
-      }
-    },
-    "stability_text_to_image": {
-      "description": "Stability AI text-to-image models (SD 3.5, Ultra, Core). Uses flat prompt field with aspect ratios.",
-      "prompt_path": "prompt",
-      "negative_prompt_path": "negative_prompt",
-      "seed_path": "seed",
-      "dimensions_mode": "aspect_ratio",
-      "response_image_path": "images[0]",
-      "body_template": {
-        "output_format": "png"
-      }
-    }
-  },
+  "last_updated": "2026-03-19T05:48:01.923258",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -196,6 +164,299 @@
       "moderation_strictness": "moderate",
       "base_price_usd": 0.04,
       "extra_body": {}
+    },
+    "stable_creative_upscale_v1": {
+      "label": "Stable Image Creative Upscale",
+      "model_id": "stability.stable-creative-upscale-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "upscale_creative",
+      "format_family": "stability_inpaint",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.6,
+      "extra_body": {}
+    },
+    "stable_image_remove_background_v1": {
+      "label": "Stable Image Remove Background",
+      "model_id": "stability.stable-image-remove-background-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "remove_background",
+      "format_family": "stability_erase",
+      "prompt_limit": 0,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "extra_body": {}
+    },
+    "stable_image_control_sketch_v1": {
+      "label": "Stable Image Control Sketch",
+      "model_id": "stability.stable-image-control-sketch-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "control_sketch",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "extra_body": {}
+    },
+    "stable_conservative_upscale_v1": {
+      "label": "Stable Image Conservative Upscale",
+      "model_id": "stability.stable-conservative-upscale-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "upscale_conservative",
+      "format_family": "stability_inpaint",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.4,
+      "extra_body": {}
+    },
+    "stable_image_search_recolor_v1": {
+      "label": "Stable Image Search and Recolor",
+      "model_id": "stability.stable-image-search-recolor-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "search_recolor",
+      "format_family": "stability_search_recolor",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "extra_body": {}
+    },
+    "stable_fast_upscale_v1": {
+      "label": "Stable Image Fast Upscale",
+      "model_id": "stability.stable-fast-upscale-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "upscale_fast",
+      "format_family": "stability_erase",
+      "prompt_limit": 0,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.03,
+      "extra_body": {}
+    },
+    "stable_image_erase_object_v1": {
+      "label": "Stable Image Erase Object",
+      "model_id": "stability.stable-image-erase-object-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "erase",
+      "format_family": "stability_erase",
+      "prompt_limit": 0,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "extra_body": {}
+    },
+    "stable_image_control_structure_v1": {
+      "label": "Stable Image Control Structure",
+      "model_id": "stability.stable-image-control-structure-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "control_structure",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "extra_body": {}
+    },
+    "stable_outpaint_v1": {
+      "label": "Stable Image Outpaint",
+      "model_id": "stability.stable-outpaint-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "outpainting",
+      "format_family": "stability_outpaint",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.06,
+      "extra_body": {}
+    },
+    "stable_image_inpaint_v1": {
+      "label": "Stable Image Inpaint",
+      "model_id": "stability.stable-image-inpaint-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "inpainting",
+      "format_family": "stability_inpaint",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "extra_body": {}
+    },
+    "stable_image_style_guide_v1": {
+      "label": "Stable Image Style Guide",
+      "model_id": "stability.stable-image-style-guide-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "style_guide",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "extra_body": {}
+    },
+    "stable_style_transfer_v1": {
+      "label": "Stable Image Style Transfer",
+      "model_id": "stability.stable-style-transfer-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "style_transfer",
+      "format_family": "stability_style_transfer",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.08,
+      "extra_body": {}
+    },
+    "stable_image_search_replace_v1": {
+      "label": "Stable Image Search and Replace",
+      "model_id": "stability.stable-image-search-replace-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": false,
+      "model_purpose": "search_replace",
+      "format_family": "stability_search_replace",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "extra_body": {}
+    },
+    "titan_image_inpaint": {
+      "label": "Titan Image Generator G1 v2 Inpainting",
+      "model_id": "amazon.titan-image-generator-v2:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Amazon",
+      "enabled": false,
+      "model_purpose": "inpainting",
+      "format_family": "amazon_inpainting",
+      "prompt_limit": 480,
+      "moderation_strictness": "strict",
+      "base_price_usd": 0.01,
+      "extra_body": {}
+    },
+    "titan_image_outpaint": {
+      "label": "Titan Image Generator G1 v2 Outpainting",
+      "model_id": "amazon.titan-image-generator-v2:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Amazon",
+      "enabled": false,
+      "model_purpose": "outpainting",
+      "format_family": "amazon_outpainting",
+      "prompt_limit": 480,
+      "moderation_strictness": "strict",
+      "base_price_usd": 0.01,
+      "extra_body": {}
+    },
+    "nova_canvas_inpaint": {
+      "label": "Nova Canvas Inpainting",
+      "model_id": "amazon.nova-canvas-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Amazon",
+      "enabled": false,
+      "model_purpose": "inpainting",
+      "format_family": "amazon_inpainting",
+      "prompt_limit": 900,
+      "moderation_strictness": "very_strict",
+      "base_price_usd": 0.06,
+      "extra_body": {
+        "imageGenerationConfig": {
+          "quality": "premium"
+        }
+      }
+    },
+    "nova_canvas_outpaint": {
+      "label": "Nova Canvas Outpainting",
+      "model_id": "amazon.nova-canvas-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Amazon",
+      "enabled": false,
+      "model_purpose": "outpainting",
+      "format_family": "amazon_outpainting",
+      "prompt_limit": 900,
+      "moderation_strictness": "very_strict",
+      "base_price_usd": 0.06,
+      "extra_body": {
+        "imageGenerationConfig": {
+          "quality": "premium"
+        }
+      }
     }
   },
   "post_processing": {
@@ -375,6 +636,794 @@
       "region": "us-east-1",
       "price_usd": 0.04,
       "usage_type": "USE1-NovaCanvas-T2I-1024-Standard"
+    }
+  },
+  "format_families": {
+    "amazon_text_to_image": {
+      "description": "Amazon text-to-image models (Nova Canvas, Titan Image). taskType/textToImageParams with pixel dimensions.",
+      "prompt_path": "textToImageParams.text",
+      "negative_prompt_path": "textToImageParams.negativeText",
+      "seed_path": "imageGenerationConfig.seed",
+      "dimensions_mode": "pixels",
+      "dimensions_paths": {
+        "width": "imageGenerationConfig.width",
+        "height": "imageGenerationConfig.height"
+      },
+      "response_image_path": "images[0]",
+      "body_template": {
+        "taskType": "TEXT_IMAGE",
+        "textToImageParams": {},
+        "imageGenerationConfig": {
+          "numberOfImages": 1
+        }
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 1024,
+          "description": "Descriptive caption"
+        },
+        "negative_prompt": {
+          "type": "string",
+          "required": false,
+          "max_length": 1024
+        },
+        "width": {
+          "type": "integer",
+          "required": false,
+          "default": 1024,
+          "min": 320,
+          "max": 4096,
+          "step": 64
+        },
+        "height": {
+          "type": "integer",
+          "required": false,
+          "default": 1024,
+          "min": 320,
+          "max": 4096,
+          "step": 64
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 2147483647
+        },
+        "quality": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "standard",
+            "premium"
+          ],
+          "default": "premium",
+          "path": "imageGenerationConfig.quality"
+        }
+      }
+    },
+    "stability_text_to_image": {
+      "description": "Stability AI text-to-image models. Flat prompt field with aspect ratios.",
+      "prompt_path": "prompt",
+      "negative_prompt_path": "negative_prompt",
+      "seed_path": "seed",
+      "dimensions_mode": "aspect_ratio",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "output_format": "png"
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 10000
+        },
+        "negative_prompt": {
+          "type": "string",
+          "required": false,
+          "max_length": 10000
+        },
+        "aspect_ratio": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "3:2",
+            "2:3",
+            "4:5",
+            "5:4",
+            "21:9",
+            "9:21"
+          ],
+          "default": "1:1"
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 4294967294
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "default": "png"
+        },
+        "style_preset": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "3d-model",
+            "analog-film",
+            "anime",
+            "cinematic",
+            "comic-book",
+            "digital-art",
+            "enhance",
+            "fantasy-art",
+            "isometric",
+            "line-art",
+            "low-poly",
+            "modeling-compound",
+            "neon-punk",
+            "origami",
+            "photographic",
+            "pixel-art",
+            "tile-texture"
+          ]
+        }
+      }
+    },
+    "amazon_inpainting": {
+      "description": "Amazon Nova Canvas / Titan Image inpainting. taskType INPAINTING with mask.",
+      "prompt_path": "inPaintingParams.text",
+      "negative_prompt_path": "inPaintingParams.negativeText",
+      "image_path": "inPaintingParams.image",
+      "mask_prompt_path": "inPaintingParams.maskPrompt",
+      "mask_image_path": "inPaintingParams.maskImage",
+      "seed_path": "imageGenerationConfig.seed",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "taskType": "INPAINTING",
+        "inPaintingParams": {},
+        "imageGenerationConfig": {
+          "numberOfImages": 1
+        }
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": false,
+          "description": "What to generate. Omit to remove content."
+        },
+        "negative_prompt": {
+          "type": "string",
+          "required": false
+        },
+        "image": {
+          "type": "image",
+          "required": true
+        },
+        "mask_image": {
+          "type": "image",
+          "required": false,
+          "description": "Black/white mask (white = edit area)"
+        },
+        "mask_prompt": {
+          "type": "string",
+          "required": false,
+          "description": "Natural language mask (Nova Canvas only)"
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 2147483647
+        }
+      }
+    },
+    "amazon_outpainting": {
+      "description": "Amazon Nova Canvas / Titan Image outpainting. taskType OUTPAINTING.",
+      "prompt_path": "outPaintingParams.text",
+      "negative_prompt_path": "outPaintingParams.negativeText",
+      "image_path": "outPaintingParams.image",
+      "seed_path": "imageGenerationConfig.seed",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "taskType": "OUTPAINTING",
+        "outPaintingParams": {
+          "outPaintingMode": "DEFAULT"
+        },
+        "imageGenerationConfig": {
+          "numberOfImages": 1
+        }
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": false
+        },
+        "negative_prompt": {
+          "type": "string",
+          "required": false
+        },
+        "image": {
+          "type": "image",
+          "required": true
+        },
+        "outPaintingMode": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "DEFAULT",
+            "PRECISE"
+          ],
+          "default": "DEFAULT"
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 2147483647
+        }
+      }
+    },
+    "stability_inpaint": {
+      "description": "Stability AI Inpaint. Mask-based generative fill.",
+      "prompt_path": "prompt",
+      "negative_prompt_path": "negative_prompt",
+      "image_path": "image",
+      "mask_path": "mask",
+      "seed_path": "seed",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "output_format": "png",
+        "grow_mask": 5
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 10000
+        },
+        "negative_prompt": {
+          "type": "string",
+          "required": false,
+          "max_length": 10000
+        },
+        "image": {
+          "type": "image",
+          "required": true,
+          "constraints": "64px min, max 9,437,184 pixels"
+        },
+        "mask": {
+          "type": "image",
+          "required": false,
+          "description": "Black/white mask (white = inpaint area)"
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 4294967294
+        },
+        "grow_mask": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 20,
+          "default": 5
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "default": "png"
+        },
+        "style_preset": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "3d-model",
+            "analog-film",
+            "anime",
+            "cinematic",
+            "comic-book",
+            "digital-art",
+            "enhance",
+            "fantasy-art",
+            "isometric",
+            "line-art",
+            "low-poly",
+            "modeling-compound",
+            "neon-punk",
+            "origami",
+            "photographic",
+            "pixel-art",
+            "tile-texture"
+          ]
+        }
+      }
+    },
+    "stability_outpaint": {
+      "description": "Stability AI Outpaint. Extends image in any direction.",
+      "prompt_path": "prompt",
+      "image_path": "image",
+      "seed_path": "seed",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "output_format": "png",
+        "creativity": 0.5
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": false,
+          "max_length": 10000
+        },
+        "image": {
+          "type": "image",
+          "required": true
+        },
+        "left": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 2000,
+          "default": 0
+        },
+        "right": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 2000,
+          "default": 0
+        },
+        "up": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 2000,
+          "default": 0
+        },
+        "down": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 2000,
+          "default": 0
+        },
+        "creativity": {
+          "type": "float",
+          "required": false,
+          "min": 0.1,
+          "max": 1.0,
+          "default": 0.5
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 4294967294
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "default": "png"
+        },
+        "style_preset": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "3d-model",
+            "analog-film",
+            "anime",
+            "cinematic",
+            "comic-book",
+            "digital-art",
+            "enhance",
+            "fantasy-art",
+            "isometric",
+            "line-art",
+            "low-poly",
+            "modeling-compound",
+            "neon-punk",
+            "origami",
+            "photographic",
+            "pixel-art",
+            "tile-texture"
+          ]
+        }
+      }
+    },
+    "stability_erase": {
+      "description": "Stability AI Erase. Removes objects via mask.",
+      "image_path": "image",
+      "mask_path": "mask",
+      "seed_path": "seed",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "output_format": "png",
+        "grow_mask": 5
+      },
+      "parameters": {
+        "image": {
+          "type": "image",
+          "required": true
+        },
+        "mask": {
+          "type": "image",
+          "required": false,
+          "description": "Black/white mask (white = erase area)"
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 4294967294
+        },
+        "grow_mask": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 20,
+          "default": 5
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "default": "png"
+        }
+      }
+    },
+    "stability_search_replace": {
+      "description": "Stability AI Search & Replace. Finds and replaces objects by prompt.",
+      "prompt_path": "prompt",
+      "image_path": "image",
+      "seed_path": "seed",
+      "response_image_path": "images[0]",
+      "extra_fields": {
+        "search_prompt": "search_prompt"
+      },
+      "body_template": {
+        "output_format": "png",
+        "grow_mask": 5
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 10000,
+          "description": "Replacement object"
+        },
+        "search_prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 10000,
+          "description": "Object to find"
+        },
+        "image": {
+          "type": "image",
+          "required": true
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 4294967294
+        },
+        "grow_mask": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 20,
+          "default": 5
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "default": "png"
+        },
+        "style_preset": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "3d-model",
+            "analog-film",
+            "anime",
+            "cinematic",
+            "comic-book",
+            "digital-art",
+            "enhance",
+            "fantasy-art",
+            "isometric",
+            "line-art",
+            "low-poly",
+            "modeling-compound",
+            "neon-punk",
+            "origami",
+            "photographic",
+            "pixel-art",
+            "tile-texture"
+          ]
+        }
+      }
+    },
+    "stability_search_recolor": {
+      "description": "Stability AI Search & Recolor. Changes color of objects by prompt.",
+      "prompt_path": "prompt",
+      "image_path": "image",
+      "seed_path": "seed",
+      "response_image_path": "images[0]",
+      "extra_fields": {
+        "select_prompt": "select_prompt"
+      },
+      "body_template": {
+        "output_format": "png",
+        "grow_mask": 5
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 10000,
+          "description": "Target color"
+        },
+        "select_prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 10000,
+          "description": "Object to recolor"
+        },
+        "image": {
+          "type": "image",
+          "required": true
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 4294967294
+        },
+        "grow_mask": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 20,
+          "default": 5
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "default": "png"
+        },
+        "style_preset": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "3d-model",
+            "analog-film",
+            "anime",
+            "cinematic",
+            "comic-book",
+            "digital-art",
+            "enhance",
+            "fantasy-art",
+            "isometric",
+            "line-art",
+            "low-poly",
+            "modeling-compound",
+            "neon-punk",
+            "origami",
+            "photographic",
+            "pixel-art",
+            "tile-texture"
+          ]
+        }
+      }
+    },
+    "stability_control": {
+      "description": "Stability AI Control (Sketch/Structure). Image guided by sketch or structure.",
+      "prompt_path": "prompt",
+      "negative_prompt_path": "negative_prompt",
+      "image_path": "image",
+      "seed_path": "seed",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "output_format": "png",
+        "control_strength": 0.7
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 10000
+        },
+        "negative_prompt": {
+          "type": "string",
+          "required": false,
+          "max_length": 10000
+        },
+        "image": {
+          "type": "image",
+          "required": true,
+          "description": "Sketch or structural reference"
+        },
+        "control_strength": {
+          "type": "float",
+          "required": false,
+          "min": 0,
+          "max": 1,
+          "default": 0.7
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 4294967294
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "default": "png"
+        },
+        "style_preset": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "3d-model",
+            "analog-film",
+            "anime",
+            "cinematic",
+            "comic-book",
+            "digital-art",
+            "enhance",
+            "fantasy-art",
+            "isometric",
+            "line-art",
+            "low-poly",
+            "modeling-compound",
+            "neon-punk",
+            "origami",
+            "photographic",
+            "pixel-art",
+            "tile-texture"
+          ]
+        }
+      }
+    },
+    "stability_style_transfer": {
+      "description": "Stability AI Style Transfer. Applies style from reference to target.",
+      "prompt_path": "prompt",
+      "negative_prompt_path": "negative_prompt",
+      "seed_path": "seed",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "output_format": "png",
+        "composition_fidelity": 0.9,
+        "style_strength": 1.0,
+        "change_strength": 0.9
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": false,
+          "max_length": 10000
+        },
+        "negative_prompt": {
+          "type": "string",
+          "required": false,
+          "max_length": 10000
+        },
+        "init_image": {
+          "type": "image",
+          "required": true,
+          "path": "init_image",
+          "description": "Target image"
+        },
+        "style_image": {
+          "type": "image",
+          "required": true,
+          "path": "style_image",
+          "description": "Style reference"
+        },
+        "composition_fidelity": {
+          "type": "float",
+          "required": false,
+          "min": 0,
+          "max": 1,
+          "default": 0.9
+        },
+        "style_strength": {
+          "type": "float",
+          "required": false,
+          "min": 0,
+          "max": 1,
+          "default": 1.0
+        },
+        "change_strength": {
+          "type": "float",
+          "required": false,
+          "min": 0.1,
+          "max": 1.0,
+          "default": 0.9
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 4294967294
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "default": "png"
+        },
+        "style_preset": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "3d-model",
+            "analog-film",
+            "anime",
+            "cinematic",
+            "comic-book",
+            "digital-art",
+            "enhance",
+            "fantasy-art",
+            "isometric",
+            "line-art",
+            "low-poly",
+            "modeling-compound",
+            "neon-punk",
+            "origami",
+            "photographic",
+            "pixel-art",
+            "tile-texture"
+          ]
+        }
+      }
     }
   }
 }

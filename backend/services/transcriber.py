@@ -7,7 +7,7 @@ import logging
 import uuid
 
 from backend.config import settings
-from backend.services.bedrock_client import get_images_client
+from backend.services.bedrock_client import _get_client
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +70,11 @@ def _attempt_streaming_transcription(
     or encounters an error.
     """
     try:
-        client = get_images_client()
-        model_id = settings.nova_sonic_model_id
+        from backend.services.model_registry import get_category
+        voice_cat = get_category("voice")
+        model_id = voice_cat.get("current") or settings.nova_sonic_model_id
+        region = voice_cat.get("region") or settings.aws_region_images
+        client = _get_client(region)
         session_id = str(uuid.uuid4())
 
         # Check if the bidirectional streaming API is available

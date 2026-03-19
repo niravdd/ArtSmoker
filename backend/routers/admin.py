@@ -3,7 +3,7 @@
 import logging
 
 import boto3
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
 
 from backend.services.model_registry import (
@@ -26,6 +26,36 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 async def get_models():
     """Return the full model registry."""
     return get_registry()
+
+
+@router.put("/models")
+async def replace_registry(request: Request):
+    """Replace the entire model registry with the provided JSON.
+
+    Used by the raw JSON editor in Model Settings. Validates the JSON
+    has required top-level keys before saving.
+    """
+    from backend.services.model_registry import get_registry, _save, _load
+    import json as _json
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(400, detail="Invalid JSON")
+
+    required = ["categories", "image_models"]
+    missing = [k for k in required if k not in body]
+    if missing:
+        raise HTTPException(400, detail=f"Missing required keys: {', '.join(missing)}")
+
+    # Replace the in-memory registry and save to disk
+    registry = get_registry()
+    registry.clear()
+    registry.update(body)
+    _save()
+    logger.info("Full registry replaced via PUT /api/admin/models")
+
+    return {"status": "saved", "keys": list(body.keys())}
 
 
 class CategoryUpdate(BaseModel):
@@ -288,15 +318,53 @@ async def auto_register_image_models(region: str):
     for key, cfg in registry.get("image_models", {}).items():
         existing_by_model_id[cfg.get("model_id", "")] = key
 
-    # Provider → format family mapping
-    _PROVIDER_FAMILY = {
-        "Amazon": "amazon_text_to_image",
-        "Stability AI": "stability_text_to_image",
-    }
-    _PROVIDER_PROMPT_LIMITS = {
-        "Amazon": 900,
-        "Stability AI": 2000,
-    }
+    # Classify models by purpose and format family based on model_id keywords.
+    # This replaces the old "skip manipulation models" approach — now we register
+    # everything and classify it so users can use any service.
+    def _classify_model(model_id: str, provider: str, input_modalities: list[str]):
+        """Determine model_purpose and format_family from model_id and provider."""
+        mid = model_id.lower()
+        has_image_input = "IMAGE" in input_modalities
+
+        # Stability AI services — classify by model ID keywords
+        if provider == "Stability AI":
+            if "inpaint" in mid:
+                return "inpainting", "stability_inpaint", 10000, 0.07
+            if "outpaint" in mid:
+                return "outpainting", "stability_outpaint", 10000, 0.06
+            if "erase" in mid:
+                return "erase", "stability_erase", 0, 0.07
+            if "search-replace" in mid or "search_replace" in mid:
+                return "search_replace", "stability_search_replace", 10000, 0.07
+            if "search-recolor" in mid or "recolor" in mid:
+                return "search_recolor", "stability_search_recolor", 10000, 0.07
+            if "control-sketch" in mid:
+                return "control_sketch", "stability_control", 10000, 0.07
+            if "control-structure" in mid:
+                return "control_structure", "stability_control", 10000, 0.07
+            if "style-guide" in mid:
+                return "style_guide", "stability_control", 10000, 0.07
+            if "style-transfer" in mid:
+                return "style_transfer", "stability_style_transfer", 10000, 0.08
+            if "remove-background" in mid:
+                return "remove_background", "stability_erase", 0, 0.07
+            if "creative-upscale" in mid:
+                return "upscale_creative", "stability_inpaint", 10000, 0.60
+            if "conservative-upscale" in mid:
+                return "upscale_conservative", "stability_inpaint", 10000, 0.40
+            if "fast-upscale" in mid:
+                return "upscale_fast", "stability_erase", 0, 0.03
+            # Default: text-to-image
+            return "text_to_image", "stability_text_to_image", 2000, 0.08
+
+        # Amazon models
+        if provider == "Amazon":
+            # Nova Canvas and Titan support multiple task types via the same model.
+            # We register the base text-to-image variant here; inpainting/outpainting
+            # variants are registered as separate entries sharing the same model_id.
+            return "text_to_image", "amazon_text_to_image", 900, 0.06
+
+        return "text_to_image", None, 900, None
 
     registered = []
     updated = []
@@ -307,20 +375,17 @@ async def auto_register_image_models(region: str):
         inp = m.get("inputModalities", [])
         provider = m.get("providerName", "")
 
-        # Only text-to-image generators (IMAGE output, TEXT input)
-        if "IMAGE" not in output or "TEXT" not in inp:
+        # Must produce images
+        if "IMAGE" not in output:
             continue
 
-        # Skip image-manipulation models (heuristic by model ID keywords)
-        is_manipulation = any(kw in model_id.lower() for kw in [
-            "upscale", "remove-background", "erase", "inpaint",
-            "outpaint", "recolor", "replace", "control", "style-transfer",
-            "style-guide",
-        ])
-        if is_manipulation:
+        # Classify the model
+        purpose, family, prompt_limit, base_price = _classify_model(model_id, provider, inp)
+        if not family:
+            logger.warning("Unknown provider '%s' for model %s — skipping", provider, model_id)
             continue
 
-        # Already registered? → update available_regions
+        # Already registered? → update available_regions, then check for variants
         if model_id in existing_by_model_id:
             existing_key = existing_by_model_id[model_id]
             existing_cfg = get_image_model(existing_key)
@@ -332,12 +397,41 @@ async def auto_register_image_models(region: str):
                     update_image_model(existing_key, {"available_regions": regions})
                     updated.append({"key": existing_key, "model_id": model_id, "added_region": region})
                     logger.info("Updated %s: added region %s (now %s)", existing_key, region, regions)
-            continue
-
-        # New model — determine format family
-        family = _PROVIDER_FAMILY.get(provider)
-        if not family:
-            logger.warning("Unknown provider '%s' for model %s — skipping", provider, model_id)
+            # Create Amazon inpaint/outpaint variants if they don't exist
+            if provider == "Amazon" and existing_cfg.get("model_purpose") == "text_to_image":
+                model_name = m.get("modelName", "")
+                for variant_purpose, variant_family, variant_suffix in [
+                    ("inpainting", "amazon_inpainting", "_inpaint"),
+                    ("outpainting", "amazon_outpainting", "_outpaint"),
+                ]:
+                    variant_key = existing_key + variant_suffix
+                    if not get_image_model(variant_key):
+                        variant_config = {
+                            "label": f"{model_name or existing_cfg.get('label', '')} {variant_purpose.title()}",
+                            "model_id": model_id,
+                            "region": region,
+                            "available_regions": [region],
+                            "provider": provider,
+                            "enabled": False,
+                            "model_purpose": variant_purpose,
+                            "format_family": variant_family,
+                            "prompt_limit": existing_cfg.get("prompt_limit", 900),
+                            "moderation_strictness": existing_cfg.get("moderation_strictness", "moderate"),
+                            "base_price_usd": existing_cfg.get("base_price_usd"),
+                            "extra_body": existing_cfg.get("extra_body", {}),
+                        }
+                        add_image_model(variant_key, variant_config)
+                        registered.append({"key": variant_key, "model_id": model_id,
+                                          "label": variant_config["label"], "region": region,
+                                          "purpose": variant_purpose})
+                    else:
+                        ex = get_image_model(variant_key)
+                        if ex:
+                            vr = ex.get("available_regions", [])
+                            if region not in vr:
+                                vr.append(region)
+                                vr.sort()
+                                update_image_model(variant_key, {"available_regions": vr})
             continue
 
         # Generate a registry key from model_id
@@ -352,16 +446,46 @@ async def auto_register_image_models(region: str):
             "available_regions": [region],
             "provider": provider,
             "enabled": False,  # Discovered but not enabled — admin must enable
-            "model_purpose": "text_to_image",
+            "model_purpose": purpose,
             "format_family": family,
-            "prompt_limit": _PROVIDER_PROMPT_LIMITS.get(provider, 900),
+            "prompt_limit": prompt_limit,
             "moderation_strictness": "moderate",
+            "base_price_usd": base_price,
             "extra_body": {},
         }
 
         add_image_model(key, config)
-        registered.append({"key": key, "model_id": model_id, "label": config["label"], "region": region})
-        logger.info("Auto-registered image model: %s (%s) in %s", key, model_id, region)
+        registered.append({"key": key, "model_id": model_id, "label": config["label"],
+                          "region": region, "purpose": purpose})
+        logger.info("Auto-registered: %s (%s) purpose=%s in %s", key, model_id, purpose, region)
+
+        # Amazon multi-purpose models: also create inpainting/outpainting variants
+        if provider == "Amazon" and purpose == "text_to_image":
+            model_name = m.get("modelName", "")
+            for variant_purpose, variant_family, variant_suffix in [
+                ("inpainting", "amazon_inpainting", "_inpaint"),
+                ("outpainting", "amazon_outpainting", "_outpaint"),
+            ]:
+                variant_key = key + variant_suffix
+                if not get_image_model(variant_key):
+                    variant_config = {
+                        "label": f"{model_name} {variant_purpose.title()}",
+                        "model_id": model_id,
+                        "region": region,
+                        "available_regions": [region],
+                        "provider": provider,
+                        "enabled": False,
+                        "model_purpose": variant_purpose,
+                        "format_family": variant_family,
+                        "prompt_limit": prompt_limit,
+                        "moderation_strictness": "moderate",
+                        "base_price_usd": base_price,
+                        "extra_body": config.get("extra_body", {}),
+                    }
+                    add_image_model(variant_key, variant_config)
+                    registered.append({"key": variant_key, "model_id": model_id,
+                                      "label": variant_config["label"], "region": region,
+                                      "purpose": variant_purpose})
 
     return {
         "region": region,

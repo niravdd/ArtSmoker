@@ -1,0 +1,17 @@
+Bundled Fonts — License Information
+
+All fonts in this directory are from Google Fonts and are distributed
+under the SIL Open Font License (OFL) 1.1 or Apache License 2.0.
+
+Fonts included:
+- Roboto (Google, Apache 2.0)
+- Open Sans (Steve Matteson, OFL 1.1)
+- Lato (Lukasz Dziedzic, OFL 1.1)
+- Montserrat (Julieta Ulanovsky, OFL 1.1)
+- Playfair Display (Claus Eggers Sorensen, OFL 1.1)
+- Oswald (Vernon Adams, OFL 1.1)
+- Raleway (Matt McInerney, Pablo Impallari, Rodrigo Fuenzalida, OFL 1.1)
+- Source Code Pro (Paul D. Hunt, OFL 1.1)
+
+These fonts are free to use in any project, including commercial.
+For full license text, see: https://scripts.sil.org/OFL

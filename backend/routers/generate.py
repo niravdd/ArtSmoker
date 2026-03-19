@@ -825,6 +825,138 @@ async def generate_asset_stream(body: GenerationRequest):
     )
 
 
+# ── Image Editing Services (Inpaint, Outpaint, Erase) ─────────────────────
+
+class ImageEditRequest(BaseModel):
+    """Request for image editing services (inpaint, outpaint, erase, etc.)."""
+    source_image_id: str  # Gallery asset ID to edit
+    model: str  # Registry key of the editing model (e.g. 'stability_inpaint')
+    prompt: str = ""  # What to generate (required for inpaint, optional for erase)
+    negative_prompt: str = ""
+    mask: str | None = None  # Base64-encoded mask image (white = edit area)
+    mask_prompt: str | None = None  # Natural language mask (Nova Canvas only)
+    region: str | None = None
+    seed: int | None = None
+    # Outpaint-specific
+    outpaint_left: int = 0
+    outpaint_right: int = 0
+    outpaint_up: int = 0
+    outpaint_down: int = 0
+    # Extra params (control_strength, grow_mask, creativity, etc.)
+    extra_params: dict | None = None
+
+
+@router.post("/edit")
+async def edit_image(body: ImageEditRequest):
+    """Apply an image editing service (inpaint, outpaint, erase, search-replace, etc.).
+
+    Uses the generic invoker with the model's format family. The source image
+    is loaded from the gallery. Result is saved as a new gallery asset with
+    full metadata linking back to the source.
+    """
+    from backend.services.bedrock_client import invoke_image_model
+    from backend.services.model_registry import get_image_model, get_image_model_label
+    from backend.services.post_processor import process_asset
+
+    # Validate model exists and has an editing purpose
+    model_config = get_image_model(body.model)
+    if not model_config:
+        raise HTTPException(404, detail=f"Unknown model: {body.model}")
+    purpose = model_config.get("model_purpose", "")
+    label = model_config.get("label", body.model)
+
+    # Load source image from gallery
+    source_path = store.get_generated_file_path(body.source_image_id, "asset.png")
+    if source_path is None:
+        raise HTTPException(404, detail=f"Source image not found: {body.source_image_id}")
+    source_bytes = source_path.read_bytes()
+
+    # Decode mask if provided
+    mask_bytes = None
+    if body.mask:
+        import base64 as _b64
+        try:
+            mask_bytes = _b64.b64decode(body.mask)
+        except Exception:
+            raise HTTPException(400, detail="Invalid base64 mask data")
+
+    # Build extra params for outpainting
+    extra = body.extra_params or {}
+    if purpose == "outpainting":
+        if body.outpaint_left > 0:
+            extra["left"] = body.outpaint_left
+        if body.outpaint_right > 0:
+            extra["right"] = body.outpaint_right
+        if body.outpaint_up > 0:
+            extra["up"] = body.outpaint_up
+        if body.outpaint_down > 0:
+            extra["down"] = body.outpaint_down
+
+    logger.info("Image edit: model=%s purpose=%s source=%s prompt=%s",
+                body.model, purpose, body.source_image_id, body.prompt[:50] if body.prompt else "(none)")
+
+    try:
+        result_bytes = invoke_image_model(
+            body.model,
+            body.prompt,
+            negative_prompt=body.negative_prompt,
+            seed=body.seed,
+            region_override=body.region,
+            source_image=source_bytes,
+            mask_image=mask_bytes,
+            mask_prompt=body.mask_prompt,
+            extra_params=extra if extra else None,
+        )
+    except Exception as exc:
+        logger.error("Image edit failed: %s", exc)
+        raise HTTPException(502, detail=f"Image editing failed: {exc}")
+
+    # Save as new gallery asset
+    asset_id = f"edit_{str(uuid4())[:8]}"
+    store.save_generated_image(asset_id, "asset.png", result_bytes)
+
+    # Generate SVG if desired (optional for edits)
+    svg_url = None
+
+    # Build smart filename
+    prompt_slug = _slugify_prompt(body.prompt) if body.prompt else purpose
+    png_filename = f"{prompt_slug}_{purpose}.png"
+
+    # Save metadata
+    source_meta = store.load_generation_metadata(body.source_image_id) or {}
+    store.save_generation_metadata(asset_id, {
+        "id": asset_id,
+        "source_image_id": body.source_image_id,
+        "edit_type": purpose,
+        "edit_model": body.model,
+        "model_label": label,
+        "region": body.region or model_config.get("region", ""),
+        "prompt": body.prompt,
+        "negative_prompt": body.negative_prompt,
+        "mask_prompt": body.mask_prompt,
+        "seed": body.seed,
+        "style_id": source_meta.get("style_id"),
+        "style_snapshot": source_meta.get("style_snapshot"),
+        "asset_type": source_meta.get("asset_type", ""),
+        "image_model": body.model,
+        "width": source_meta.get("width", 1024),
+        "height": source_meta.get("height", 1024),
+        "png_path": f"/api/gallery/{asset_id}/png",
+        "svg_path": svg_url,
+        "png_filename": png_filename,
+        "created_at": datetime.utcnow().isoformat(),
+    })
+
+    return {
+        "id": asset_id,
+        "png_url": f"/api/gallery/{asset_id}/png",
+        "png_filename": png_filename,
+        "edit_type": purpose,
+        "model": body.model,
+        "model_label": label,
+    }
+
+
 # ── Pre-screen (Safe Mode) ─────────────────────────────────────────────────
 
 class PreScreenRequest(BaseModel):
@@ -840,7 +972,7 @@ async def pre_screen_prompt(body: PreScreenRequest):
     Returns: likely_safe, issues, suggested_model (if the prompt is better
     suited for a more permissive model).
     """
-    from backend.services.bedrock_client import invoke_claude
+    from backend.services.bedrock_client import invoke_llm
     import re as _re
 
     from backend.services.model_registry import get_enabled_model_labels
@@ -869,7 +1001,7 @@ Respond with ONLY a JSON object (no markdown):
 }}"""
 
     try:
-        raw = invoke_claude(screen_prompt, complexity="fast", max_tokens=512, temperature=0.2)
+        raw = invoke_llm(screen_prompt, complexity="fast", max_tokens=512, temperature=0.2)
         cleaned = raw.strip()
         cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", cleaned)
         cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
@@ -878,18 +1010,14 @@ Respond with ONLY a JSON object (no markdown):
         # Normalize suggested_model to our internal key
         suggested = result.get("suggested_model")
         if suggested:
-            # Map labels or Bedrock IDs back to our internal keys
-            reverse_map = {v: k for k, v in model_labels.items()}
-            reverse_map.update({
-                "stability.sd3-5-large-v1:0": "sd35_large",
-                "stability.stable-image-ultra-v1:1": "stable_image_ultra",
-                "amazon.nova-canvas-v1:0": "nova_canvas",
-                "amazon.titan-image-generator-v2:0": "titan_image",
-                "sd35_large": "sd35_large",
-                "stable_image_ultra": "stable_image_ultra",
-                "nova_canvas": "nova_canvas",
-                "titan_image": "titan_image",
-            })
+            # Build reverse map dynamically from registry (model_id → key, label → key)
+            from backend.services.model_registry import get_enabled_image_models
+            reverse_map = {}
+            for k, cfg in get_enabled_image_models().items():
+                reverse_map[cfg.get("model_id", "")] = k
+                reverse_map[cfg.get("label", "")] = k
+                reverse_map[k] = k  # key → key identity
+            reverse_map.update({v: k for k, v in model_labels.items()})
             normalized = reverse_map.get(suggested, suggested)
             result["suggested_model"] = normalized
             result["suggested_model_label"] = model_labels.get(normalized, suggested)
@@ -931,7 +1059,7 @@ async def analyze_moderation(body: ModerationRequest):
 
     Preserves the artist's creative intent as much as possible.
     """
-    from backend.services.bedrock_client import invoke_claude
+    from backend.services.bedrock_client import invoke_llm
     import re as _re
 
     original_model = body.image_model
@@ -1032,7 +1160,7 @@ Respond with ONLY a JSON object (no markdown):
 }}"""
 
         try:
-            raw = invoke_claude(rewrite_instruction, complexity="fast", max_tokens=2048, temperature=0.3)
+            raw = invoke_llm(rewrite_instruction, complexity="fast", max_tokens=2048, temperature=0.3)
             cleaned = raw.strip()
             cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", cleaned)
             cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
