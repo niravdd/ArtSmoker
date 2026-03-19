@@ -219,6 +219,8 @@
                                 </button>
                                 <p id="pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">Toggle settings above, then click Apply to re-process existing images without regenerating.</p>
                             </div>
+
+                            <p class="text-[9px] text-brand-text-dim/30 text-center mt-4">ArtSmoker v1.1-20260319_01</p>
                         </aside>
 
                         <!-- Center: Prompt + Results -->
@@ -448,7 +450,23 @@
                     png_filename: variant.png_filename,
                     svg_filename: variant.svg_filename,
                 };
-                if (typeof AssetViewer !== 'undefined') AssetViewer.open(item);
+                if (typeof AssetViewer !== 'undefined') {
+                    // Build a list of all variants for prev/next navigation
+                    const allVariants = [];
+                    let currentIdx = 0;
+                    (result.options || []).forEach(opt => {
+                        (opt.variants || []).forEach(v => {
+                            if (v.id === variant.id) currentIdx = allVariants.length;
+                            allVariants.push({
+                                id: v.id, prompt: result.prompt,
+                                style_id: result.style_id, asset_type: result.asset_type,
+                                png_url: v.png_path, svg_url: v.svg_path,
+                                png_filename: v.png_filename, svg_filename: v.svg_filename,
+                            });
+                        });
+                    });
+                    AssetViewer.open(item, allVariants, currentIdx);
+                }
             });
             // Show pointer cursor on the preview image
             const previewImg = document.getElementById('gen-result-img');

@@ -342,8 +342,8 @@
             grid.querySelectorAll('.gallery-card').forEach((card) => {
                 card.addEventListener('click', () => {
                     const id = card.dataset.id;
-                    const item = displayItems.find((i) => String(i.id) === String(id));
-                    if (item) AssetViewer.open(item);
+                    const idx = displayItems.findIndex((i) => String(i.id) === String(id));
+                    if (idx >= 0) AssetViewer.open(displayItems[idx], displayItems, idx);
                 });
             });
 

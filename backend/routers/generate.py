@@ -844,6 +844,7 @@ class ImageEditRequest(BaseModel):
     outpaint_down: int = 0
     # Extra params (control_strength, grow_mask, creativity, etc.)
     extra_params: dict | None = None
+    replace_original: bool = True  # Default: replace the source image. False = save as new.
 
 
 @router.post("/edit")
@@ -911,9 +912,14 @@ async def edit_image(body: ImageEditRequest):
         logger.error("Image edit failed: %s", exc)
         raise HTTPException(502, detail=f"Image editing failed: {exc}")
 
-    # Save as new gallery asset
-    asset_id = f"edit_{str(uuid4())[:8]}"
-    store.save_generated_image(asset_id, "asset.png", result_bytes)
+    # Save — either replace the original or create a new asset
+    if body.replace_original:
+        asset_id = body.source_image_id
+        store.save_generated_image(asset_id, "asset.png", result_bytes)
+        logger.info("Replaced original image %s with edited version", asset_id)
+    else:
+        asset_id = f"edit_{str(uuid4())[:8]}"
+        store.save_generated_image(asset_id, "asset.png", result_bytes)
 
     # Generate SVG if desired (optional for edits)
     svg_url = None
@@ -922,11 +928,12 @@ async def edit_image(body: ImageEditRequest):
     prompt_slug = _slugify_prompt(body.prompt) if body.prompt else purpose
     png_filename = f"{prompt_slug}_{purpose}.png"
 
-    # Save metadata
+    # Save metadata — preserve edit history for chronological tracking
     source_meta = store.load_generation_metadata(body.source_image_id) or {}
-    store.save_generation_metadata(asset_id, {
-        "id": asset_id,
-        "source_image_id": body.source_image_id,
+
+    # Build the edit event record
+    edit_event = {
+        "timestamp": datetime.utcnow().isoformat(),
         "edit_type": purpose,
         "edit_model": body.model,
         "model_label": label,
@@ -935,6 +942,34 @@ async def edit_image(body: ImageEditRequest):
         "negative_prompt": body.negative_prompt,
         "mask_prompt": body.mask_prompt,
         "seed": body.seed,
+        "extra_params": body.extra_params,
+        "replaced_original": body.replace_original,
+    }
+
+    # Preserve the edit history chain
+    edit_history = source_meta.get("edit_history", [])
+    edit_history.append(edit_event)
+
+    # Build new metadata — keep original generation info, add edit info
+    new_meta = {
+        "id": asset_id,
+        # Original generation provenance (preserved from source)
+        "original_prompt": source_meta.get("original_prompt") or source_meta.get("prompt", ""),
+        "original_image_model": source_meta.get("original_image_model") or source_meta.get("image_model", ""),
+        "batch_id": source_meta.get("batch_id"),
+        "option_index": source_meta.get("option_index"),
+        "variant_index": source_meta.get("variant_index"),
+        # Current state
+        "source_image_id": body.source_image_id if not body.replace_original else source_meta.get("source_image_id"),
+        "prompt": body.prompt,
+        "negative_prompt": body.negative_prompt,
+        "mask_prompt": body.mask_prompt,
+        "edit_type": purpose,
+        "edit_model": body.model,
+        "model_label": label,
+        "region": body.region or model_config.get("region", ""),
+        "seed": body.seed,
+        "extra_params": body.extra_params,
         "style_id": source_meta.get("style_id"),
         "style_snapshot": source_meta.get("style_snapshot"),
         "asset_type": source_meta.get("asset_type", ""),
@@ -944,8 +979,13 @@ async def edit_image(body: ImageEditRequest):
         "png_path": f"/api/gallery/{asset_id}/png",
         "svg_path": svg_url,
         "png_filename": png_filename,
-        "created_at": datetime.utcnow().isoformat(),
-    })
+        # Edit history — full chronology of all edits
+        "edit_history": edit_history,
+        "edit_count": len(edit_history),
+        "created_at": source_meta.get("created_at", datetime.utcnow().isoformat()),
+        "last_edited_at": datetime.utcnow().isoformat(),
+    }
+    store.save_generation_metadata(asset_id, new_meta)
 
     return {
         "id": asset_id,

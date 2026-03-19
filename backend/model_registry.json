@@ -174,7 +174,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "upscale_creative",
       "format_family": "stability_inpaint",
       "prompt_limit": 10000,
@@ -191,7 +191,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "remove_background",
       "format_family": "stability_erase",
       "prompt_limit": 0,
@@ -208,7 +208,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "control_sketch",
       "format_family": "stability_control",
       "prompt_limit": 10000,
@@ -225,7 +225,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "upscale_conservative",
       "format_family": "stability_inpaint",
       "prompt_limit": 10000,
@@ -242,7 +242,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "search_recolor",
       "format_family": "stability_search_recolor",
       "prompt_limit": 10000,
@@ -259,7 +259,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "upscale_fast",
       "format_family": "stability_erase",
       "prompt_limit": 0,
@@ -276,7 +276,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "erase",
       "format_family": "stability_erase",
       "prompt_limit": 0,
@@ -293,7 +293,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "control_structure",
       "format_family": "stability_control",
       "prompt_limit": 10000,
@@ -310,7 +310,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "outpainting",
       "format_family": "stability_outpaint",
       "prompt_limit": 10000,
@@ -327,7 +327,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "inpainting",
       "format_family": "stability_inpaint",
       "prompt_limit": 10000,
@@ -344,7 +344,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "style_guide",
       "format_family": "stability_control",
       "prompt_limit": 10000,
@@ -361,7 +361,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "style_transfer",
       "format_family": "stability_style_transfer",
       "prompt_limit": 10000,
@@ -378,7 +378,7 @@
         "us-west-2"
       ],
       "provider": "Stability AI",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "search_replace",
       "format_family": "stability_search_replace",
       "prompt_limit": 10000,
@@ -394,7 +394,7 @@
         "us-east-1"
       ],
       "provider": "Amazon",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "inpainting",
       "format_family": "amazon_inpainting",
       "prompt_limit": 480,
@@ -410,7 +410,7 @@
         "us-east-1"
       ],
       "provider": "Amazon",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "outpainting",
       "format_family": "amazon_outpainting",
       "prompt_limit": 480,
@@ -426,7 +426,7 @@
         "us-east-1"
       ],
       "provider": "Amazon",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "inpainting",
       "format_family": "amazon_inpainting",
       "prompt_limit": 900,
@@ -446,7 +446,7 @@
         "us-east-1"
       ],
       "provider": "Amazon",
-      "enabled": false,
+      "enabled": true,
       "model_purpose": "outpainting",
       "format_family": "amazon_outpainting",
       "prompt_limit": 900,

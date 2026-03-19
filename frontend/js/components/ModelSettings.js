@@ -49,11 +49,11 @@
                             <h2 class="text-lg font-semibold">Model Settings</h2>
                         </div>
                         <div class="flex items-center gap-3">
-                            <button id="ms-refresh-all" class="btn btn-primary btn-sm text-xs">
+                            <button id="ms-refresh-all" class="btn btn-sm text-xs bg-amber-600 hover:bg-amber-500 text-white" title="Scans all AWS regions for models, fetches pricing. Makes multiple API calls — run only when needed.">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                Refresh All
+                                Sync from AWS
                             </button>
-                            <span class="text-[10px] text-brand-text-muted">Updated: ${lastUpdated}</span>
+                            <span class="text-[10px] text-brand-text-muted" title="Run only when AWS adds new models or you need updated pricing">Updated: ${lastUpdated}</span>
                             <button class="ms-close p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -118,9 +118,62 @@
         _renderImageModels(reg) {
             const models = reg.image_models || {};
             if (Object.keys(models).length === 0) {
-                return '<p class="text-sm text-brand-text-muted py-4 text-center">No image models in registry. Click "Refresh All" to discover available models.</p>';
+                return '<p class="text-sm text-brand-text-muted py-4 text-center">No image models in registry. Click "Sync from AWS" to discover available models.</p>';
             }
-            return Object.entries(models).map(([key, m]) => {
+
+            // Group models by purpose
+            const groups = {};
+            const PURPOSE_LABELS = {
+                'text_to_image': 'Image Generation',
+                'inpainting': 'Image Editing — Inpainting',
+                'outpainting': 'Image Editing — Outpainting',
+                'erase': 'Image Editing — Erase',
+                'search_replace': 'Image Editing — Search & Replace',
+                'search_recolor': 'Image Editing — Search & Recolor',
+                'control_sketch': 'Image Control — Sketch',
+                'control_structure': 'Image Control — Structure',
+                'style_guide': 'Style — Guide',
+                'style_transfer': 'Style — Transfer',
+                'remove_background': 'Post-Processing — Remove Background',
+                'upscale_creative': 'Post-Processing — Creative Upscale',
+                'upscale_conservative': 'Post-Processing — Conservative Upscale',
+                'upscale_fast': 'Post-Processing — Fast Upscale',
+            };
+            const PURPOSE_ORDER = Object.keys(PURPOSE_LABELS);
+
+            for (const [key, m] of Object.entries(models)) {
+                const purpose = m.model_purpose || 'other';
+                if (!groups[purpose]) groups[purpose] = [];
+                groups[purpose].push([key, m]);
+            }
+
+            // Render grouped
+            const sortedPurposes = Object.keys(groups).sort((a, b) => {
+                const ai = PURPOSE_ORDER.indexOf(a);
+                const bi = PURPOSE_ORDER.indexOf(b);
+                return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+            });
+
+            return sortedPurposes.map(purpose => {
+                const label = PURPOSE_LABELS[purpose] || purpose;
+                const entries = groups[purpose];
+                const isEditing = purpose !== 'text_to_image' && !purpose.startsWith('upscale') && purpose !== 'remove_background';
+                return `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-semibold ${isEditing ? 'text-emerald-400' : 'text-brand-accent'} uppercase tracking-wider mb-2 flex items-center gap-2">
+                            ${label}
+                            <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
+                        </h4>
+                        <div class="space-y-2">
+                            ${entries.map(([key, m]) => this._renderSingleModel(key, m)).join('')}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        },
+
+        _renderSingleModel(key, m) {
+            return (() => {
                 const regions = (m.available_regions || [m.region]).join(', ');
                 const quality = (m.quality_options || []).map(q => q.label).join(' / ') || 'No tiers';
                 const price = m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : 'unknown';
@@ -246,10 +299,11 @@
             // Refresh All
             modal.querySelector('#ms-refresh-all')?.addEventListener('click', async () => {
                 if (this._refreshing) return;
+                if (!confirm('This will scan all AWS Bedrock regions for available models and fetch pricing data. This makes multiple AWS API calls and may take 30-60 seconds.\n\nRun this only when:\n• Setting up for the first time\n• AWS has released new models\n• You need updated pricing\n\nContinue?')) return;
                 this._refreshing = true;
                 const btn = modal.querySelector('#ms-refresh-all');
                 btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-sm"></span> Refreshing all regions...';
+                btn.innerHTML = '<span class="spinner-sm"></span> Syncing from AWS...';
 
                 try {
                     const result = await API.admin.refreshAll();

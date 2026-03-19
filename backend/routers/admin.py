@@ -412,7 +412,7 @@ async def auto_register_image_models(region: str):
                             "region": region,
                             "available_regions": [region],
                             "provider": provider,
-                            "enabled": False,
+                            "enabled": True,
                             "model_purpose": variant_purpose,
                             "format_family": variant_family,
                             "prompt_limit": existing_cfg.get("prompt_limit", 900),
@@ -445,7 +445,7 @@ async def auto_register_image_models(region: str):
             "region": region,
             "available_regions": [region],
             "provider": provider,
-            "enabled": False,  # Discovered but not enabled — admin must enable
+            "enabled": True,  # Discovered and enabled by default — admin can disable
             "model_purpose": purpose,
             "format_family": family,
             "prompt_limit": prompt_limit,
@@ -474,7 +474,7 @@ async def auto_register_image_models(region: str):
                         "region": region,
                         "available_regions": [region],
                         "provider": provider,
-                        "enabled": False,
+                        "enabled": True,
                         "model_purpose": variant_purpose,
                         "format_family": variant_family,
                         "prompt_limit": prompt_limit,

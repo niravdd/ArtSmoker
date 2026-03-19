@@ -34,10 +34,14 @@
         _overlay: null,
         _item: null,
         _meta: null,
+        _list: null,   // Array of items for prev/next navigation
+        _listIndex: -1, // Current index in _list
 
-        async open(item) {
+        async open(item, list, listIndex) {
             this._item = item;
             this._meta = null;
+            this._list = list || null;
+            this._listIndex = typeof listIndex === 'number' ? listIndex : -1;
             this._renderModal(item);
             this._attachEvents();
             document.body.style.overflow = 'hidden';
@@ -58,7 +62,19 @@
                 this._overlay = null;
             }
             this._meta = null;
+            if (this._navKeyHandler) {
+                document.removeEventListener('keydown', this._navKeyHandler);
+                this._navKeyHandler = null;
+            }
             document.body.style.overflow = '';
+        },
+
+        _navigateTo(item) {
+            // Navigate to a different item without closing/reopening the full modal
+            const list = this._list;
+            const idx = this._listIndex;
+            this.close();
+            this.open(item, list, idx);
         },
 
         _renderModal(item) {
@@ -93,6 +109,18 @@
                                 </svg>
                                 Edit in Type Studio
                             </button>
+                            <div class="flex items-center gap-1 ml-2">
+                                <button class="btn-prev p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="Previous">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                                    </svg>
+                                </button>
+                                <button class="btn-next p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="Next">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                    </svg>
+                                </button>
+                            </div>
                             <button class="btn-close p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors" title="Close">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -114,20 +142,21 @@
                         <!-- PNG tab with zoom/pan -->
                         <div class="tab-panel" data-panel="png">
                             <div class="relative">
-                                <div id="av-zoom-container" class="preview-checkerboard rounded-lg overflow-hidden min-h-[300px] max-h-[70vh] cursor-grab active:cursor-grabbing" style="position:relative;">
-                                    <img id="av-zoom-img" src="${pngUrl}" alt="Generated PNG" class="rounded shadow-lg" loading="lazy"
+                                <div id="av-zoom-container" class="preview-checkerboard rounded-lg overflow-hidden" style="position:relative; height: 65vh; min-height: 300px;">
+                                    <img id="av-zoom-img" src="${pngUrl}" alt="Generated PNG" loading="lazy"
                                          style="transform-origin: 0 0; transition: transform 0.1s ease-out; max-width: none;" />
                                 </div>
-                                <div class="flex items-center gap-2 mt-2 justify-center">
-                                    <button id="av-zoom-out" class="btn btn-sm btn-secondary px-2 py-1" title="Zoom out">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"/></svg>
+                                <!-- Zoom controls — floating overlay at top-right -->
+                                <div class="absolute top-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1">
+                                    <button id="av-zoom-out" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="Zoom out">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"/></svg>
                                     </button>
-                                    <span id="av-zoom-level" class="text-xs text-brand-text-muted font-mono w-12 text-center">100%</span>
-                                    <button id="av-zoom-in" class="btn btn-sm btn-secondary px-2 py-1" title="Zoom in">
-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"/></svg>
+                                    <span id="av-zoom-level" class="text-[10px] text-white/70 font-mono w-10 text-center">100%</span>
+                                    <button id="av-zoom-in" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="Zoom in">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"/></svg>
                                     </button>
-                                    <button id="av-zoom-fit" class="btn btn-sm btn-secondary px-2 py-1 text-xs" title="Fit to view">Fit</button>
-                                    <button id="av-zoom-actual" class="btn btn-sm btn-secondary px-2 py-1 text-xs" title="Actual size (100%)">1:1</button>
+                                    <button id="av-zoom-fit" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="Fit to view">Fit</button>
+                                    <button id="av-zoom-actual" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="Actual size">1:1</button>
                                 </div>
                             </div>
                         </div>
@@ -140,6 +169,8 @@
                                     <button class="av-edit-mode btn btn-sm btn-secondary active" data-mode="inpaint">Inpaint</button>
                                     <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="erase">Erase</button>
                                     <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="outpaint">Outpaint</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_replace">Replace</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_recolor">Recolor</button>
                                 </div>
 
                                 <!-- Inpaint/Erase: Canvas + Mask -->
@@ -167,9 +198,15 @@
                                     </div>
                                 </div>
 
+                                <!-- Search prompt (Replace/Recolor modes) -->
+                                <div id="av-search-section" class="hidden">
+                                    <label class="text-xs text-brand-text-muted mb-1 block" id="av-search-label">Find object</label>
+                                    <input id="av-search-prompt" type="text" class="input text-sm w-full" placeholder="e.g. the red car, the old barrel..." />
+                                </div>
+
                                 <!-- Prompt + Model + Generate -->
                                 <div>
-                                    <label class="text-xs text-brand-text-muted mb-1 block">Prompt (describe what to generate in the edited area)</label>
+                                    <label class="text-xs text-brand-text-muted mb-1 block" id="av-prompt-label">Prompt (describe what to generate in the edited area)</label>
                                     <textarea id="av-edit-prompt" class="input text-sm w-full h-16" placeholder="e.g. a treasure chest, a wooden door, blue sky..."></textarea>
                                 </div>
                                 <div class="flex items-end gap-2">
@@ -182,6 +219,11 @@
                                         Apply Edit
                                     </button>
                                 </div>
+                                <label class="flex items-center gap-2 text-xs text-brand-text-muted cursor-pointer mt-1">
+                                    <input type="checkbox" id="av-edit-replace" checked class="rounded" />
+                                    Replace original image
+                                    <span class="text-[10px] text-brand-text-dim">(uncheck to save as new)</span>
+                                </label>
                                 <div id="av-edit-status" class="text-xs text-brand-text-muted hidden"></div>
                             </div>
                         </div>
@@ -321,6 +363,40 @@
                         `).join('')}
                     </div>` : ''}
                 </div>` : ''}
+                ${meta.edit_history?.length ? `
+                <div class="border-t border-brand-border pt-4 mt-2">
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">
+                        Edit History (${meta.edit_count || meta.edit_history.length} edit${meta.edit_history.length > 1 ? 's' : ''})
+                    </label>
+                    ${meta.original_prompt ? `
+                    <p class="text-[10px] text-brand-text-dim mb-2">Original prompt: "${this._esc(meta.original_prompt)}"</p>` : ''}
+                    ${meta.original_image_model ? `
+                    <p class="text-[10px] text-brand-text-dim mb-2">Originally generated with: ${this._esc(meta.original_image_model)}</p>` : ''}
+                    <div class="space-y-2">
+                        ${meta.edit_history.map((edit, i) => `
+                        <div class="p-2 rounded bg-brand-bg/40 border-l-2 ${i === meta.edit_history.length - 1 ? 'border-emerald-400' : 'border-brand-border'}">
+                            <div class="flex items-center justify-between text-[10px] text-brand-text-muted mb-1">
+                                <span class="font-semibold">#${i + 1} ${this._esc(edit.edit_type || '?')}</span>
+                                <span>${edit.timestamp ? new Date(edit.timestamp).toLocaleString() : ''}</span>
+                            </div>
+                            <p class="text-xs">${this._esc(edit.model_label || edit.edit_model || '')}</p>
+                            ${edit.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5">"${this._esc(edit.prompt)}"</p>` : ''}
+                            ${edit.negative_prompt ? `<p class="text-[10px] text-amber-300/60 italic mt-0.5">Negative: ${this._esc(edit.negative_prompt)}</p>` : ''}
+                            ${edit.mask_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">Mask: "${this._esc(edit.mask_prompt)}"</p>` : ''}
+                            ${edit.extra_params?.search_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">Find: "${this._esc(edit.extra_params.search_prompt)}"</p>` : ''}
+                            ${edit.extra_params?.select_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">Select: "${this._esc(edit.extra_params.select_prompt)}"</p>` : ''}
+                            ${edit.replaced_original ? '<span class="text-[9px] text-amber-400/50">replaced original</span>' : '<span class="text-[9px] text-emerald-400/50">saved as new</span>'}
+                        </div>
+                        `).join('')}
+                    </div>
+                </div>` : ''}
+                ${meta.edit_type && !meta.edit_history?.length ? `
+                <div class="border-t border-brand-border pt-4 mt-2">
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Edit Info</label>
+                    <p class="text-sm"><span class="text-brand-text-muted">Type:</span> ${this._esc(meta.edit_type)}</p>
+                    <p class="text-sm"><span class="text-brand-text-muted">Model:</span> ${this._esc(meta.model_label || meta.edit_model || '')}</p>
+                    ${meta.source_image_id ? `<p class="text-sm"><span class="text-brand-text-muted">Source:</span> ${this._esc(meta.source_image_id)}</p>` : ''}
+                </div>` : ''}
             `;
 
             // Show/hide contextual buttons based on asset type
@@ -371,6 +447,41 @@
                     });
                 });
             });
+
+            // ── Previous / Next navigation ────────────────────────────
+            const prevBtn = this._overlay.querySelector('.btn-prev');
+            const nextBtn = this._overlay.querySelector('.btn-next');
+
+            const updateNavButtons = () => {
+                if (prevBtn) prevBtn.disabled = !this._list || this._listIndex <= 0;
+                if (nextBtn) nextBtn.disabled = !this._list || this._listIndex < 0 || this._listIndex >= this._list.length - 1;
+            };
+            updateNavButtons();
+
+            prevBtn?.addEventListener('click', () => {
+                if (this._list && this._listIndex > 0) {
+                    this._listIndex--;
+                    this._navigateTo(this._list[this._listIndex]);
+                }
+            });
+            nextBtn?.addEventListener('click', () => {
+                if (this._list && this._listIndex < this._list.length - 1) {
+                    this._listIndex++;
+                    this._navigateTo(this._list[this._listIndex]);
+                }
+            });
+
+            // Arrow keys for prev/next
+            this._navKeyHandler = (e) => {
+                if (e.key === 'ArrowLeft' && this._list && this._listIndex > 0) {
+                    this._listIndex--;
+                    this._navigateTo(this._list[this._listIndex]);
+                } else if (e.key === 'ArrowRight' && this._list && this._listIndex < this._list.length - 1) {
+                    this._listIndex++;
+                    this._navigateTo(this._list[this._listIndex]);
+                }
+            };
+            document.addEventListener('keydown', this._navKeyHandler);
 
             // ── Zoom/Pan for PNG viewer ─────────────────────────────────
             this._initZoomPan();
@@ -501,11 +612,38 @@
                     editMode = btn.dataset.mode;
                     this._overlay.querySelectorAll('.av-edit-mode').forEach(b => b.classList.remove('active', 'bg-brand-accent', 'text-white'));
                     btn.classList.add('active', 'bg-brand-accent', 'text-white');
-                    // Show/hide sections
+
+                    // Show/hide sections based on mode
+                    const needsMask = editMode === 'inpaint' || editMode === 'erase';
+                    const needsOutpaint = editMode === 'outpaint';
+                    const needsSearch = editMode === 'search_replace' || editMode === 'search_recolor';
+
                     const maskSection = this._overlay.querySelector('#av-mask-section');
                     const outSection = this._overlay.querySelector('#av-outpaint-section');
-                    if (maskSection) maskSection.classList.toggle('hidden', editMode === 'outpaint');
-                    if (outSection) outSection.classList.toggle('hidden', editMode !== 'outpaint');
+                    const searchSection = this._overlay.querySelector('#av-search-section');
+                    const searchLabel = this._overlay.querySelector('#av-search-label');
+                    const promptLabel = this._overlay.querySelector('#av-prompt-label');
+
+                    if (maskSection) maskSection.classList.toggle('hidden', !needsMask);
+                    if (outSection) outSection.classList.toggle('hidden', !needsOutpaint);
+                    if (searchSection) searchSection.classList.toggle('hidden', !needsSearch);
+
+                    // Update labels for context
+                    if (searchLabel) {
+                        searchLabel.textContent = editMode === 'search_recolor'
+                            ? 'Object to recolor (e.g. "the jacket")'
+                            : 'Object to find and replace';
+                    }
+                    if (promptLabel) {
+                        const labels = {
+                            'inpaint': 'Prompt (what to generate in the masked area)',
+                            'erase': 'Prompt (optional — leave empty to auto-fill background)',
+                            'outpaint': 'Prompt (describe what to generate in the extended area)',
+                            'search_replace': 'Replace with (e.g. "a leather jacket")',
+                            'search_recolor': 'New color/appearance (e.g. "bright red")',
+                        };
+                        promptLabel.textContent = labels[editMode] || 'Prompt';
+                    }
                 });
             });
 
@@ -532,22 +670,35 @@
                 if (statusEl) { statusEl.textContent = 'Processing...'; statusEl.classList.remove('hidden'); }
 
                 try {
-                    // Extract mask from canvas (convert painted areas to white mask)
+                    // Extract mask from canvas (only for mask-based modes)
                     let maskB64 = null;
-                    if (editMode !== 'outpaint') {
+                    const needsMask = editMode === 'inpaint' || editMode === 'erase';
+                    if (needsMask) {
                         maskB64 = this._extractMask(canvas);
                     }
+
+                    const replaceOriginal = this._overlay.querySelector('#av-edit-replace')?.checked ?? true;
+                    const searchPrompt = this._overlay.querySelector('#av-search-prompt')?.value || '';
 
                     const payload = {
                         source_image_id: this._item?.id,
                         model: model,
                         prompt: prompt,
                         mask: maskB64,
+                        replace_original: replaceOriginal,
                         outpaint_left: parseInt(this._overlay.querySelector('#av-out-left')?.value || '0', 10),
                         outpaint_right: parseInt(this._overlay.querySelector('#av-out-right')?.value || '0', 10),
                         outpaint_up: parseInt(this._overlay.querySelector('#av-out-up')?.value || '0', 10),
                         outpaint_down: parseInt(this._overlay.querySelector('#av-out-down')?.value || '0', 10),
+                        extra_params: {},
                     };
+
+                    // Add search/select prompts for search-based modes
+                    if (editMode === 'search_replace' && searchPrompt) {
+                        payload.extra_params.search_prompt = searchPrompt;
+                    } else if (editMode === 'search_recolor' && searchPrompt) {
+                        payload.extra_params.select_prompt = searchPrompt;
+                    }
 
                     const result = await fetch('/api/generate/edit', {
                         method: 'POST',
@@ -584,30 +735,44 @@
             const sel = this._overlay?.querySelector('#av-edit-model');
             if (!sel) return;
 
-            // Map edit mode to model_purpose
             const purposeMap = {
                 'inpaint': 'inpainting',
                 'erase': 'erase',
                 'outpaint': 'outpainting',
+                'search_replace': 'search_replace',
+                'search_recolor': 'search_recolor',
             };
             const purpose = purposeMap[mode] || 'inpainting';
 
-            // Fetch models from API filtered by purpose
+            // Try to determine the generating model for smart default selection
+            const generatingModel = this._meta?.image_model || '';
+
             fetch(`/api/admin/models`).then(r => r.json()).then(data => {
                 sel.innerHTML = '';
                 const models = data.image_models || {};
+                let defaultKey = '';
+
                 for (const [key, cfg] of Object.entries(models)) {
                     if (cfg.model_purpose === purpose && cfg.enabled) {
                         const opt = document.createElement('option');
                         opt.value = key;
                         opt.textContent = `${cfg.label} ($${(cfg.base_price_usd || 0).toFixed(2)}/img)`;
                         sel.appendChild(opt);
+
+                        // Smart default: prefer the inpaint variant of the generating model
+                        if (generatingModel && key.startsWith(generatingModel)) {
+                            defaultKey = key;
+                        }
                     }
                 }
+
+                // Select smart default or first available
+                if (defaultKey) sel.value = defaultKey;
+
                 if (sel.options.length === 0) {
                     const opt = document.createElement('option');
                     opt.value = '';
-                    opt.textContent = 'No models enabled — use Model Settings to enable';
+                    opt.textContent = 'No models available for this edit type';
                     sel.appendChild(opt);
                 }
             }).catch(() => {});
@@ -673,7 +838,7 @@
             const btnOut = this._overlay.querySelector('#av-zoom-out');
             let _fitScale = 1; // Track what "fit" scale is
 
-            const _activeClass = 'bg-brand-accent text-white';
+            const _activeClass = 'bg-white/30 text-white';
             const _clearActive = () => {
                 [btnFit, btnActual, btnIn, btnOut].forEach(b => {
                     if (b) b.className = b.className.replace(/bg-brand-accent text-white/g, '').trim();
@@ -706,9 +871,21 @@
                 updateTransform();
             };
 
-            // Fit on load
-            if (img.complete) fitToView();
-            else img.addEventListener('load', fitToView, { once: true });
+            // Fit on load — wait for BOTH the container to have dimensions
+            // AND the image to have naturalWidth (fully decoded)
+            const doFit = () => {
+                if (container.clientWidth > 0 && container.clientHeight > 0 && img.naturalWidth > 0) {
+                    fitToView();
+                } else {
+                    requestAnimationFrame(doFit);
+                }
+            };
+            // Always wait for load event to ensure naturalWidth is available
+            if (img.complete && img.naturalWidth > 0) {
+                requestAnimationFrame(doFit);
+            } else {
+                img.addEventListener('load', () => requestAnimationFrame(doFit), { once: true });
+            }
 
             // Mouse wheel zoom (centered on cursor)
             container.addEventListener('wheel', (e) => {

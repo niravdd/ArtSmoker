@@ -175,11 +175,13 @@
             try {
                 const result = await API.transcribe(blob);
                 const text = typeof result === 'string' ? result : (result.text || result.transcript || '');
-                if (this._transcriptCb && text) {
+                // Check if the response is a setup placeholder (Nova Sonic not configured)
+                if (text && text.startsWith('[Audio received')) {
+                    window.showToast?.('Voice transcription is not yet configured. Enable Nova Sonic streaming in your AWS region.', 'warning', 6000);
+                } else if (this._transcriptCb && text) {
                     this._transcriptCb(text);
-                }
-                if (!text) {
-                    window.showToast && window.showToast('No speech detected', 'warning');
+                } else if (!text) {
+                    window.showToast?.('No speech detected', 'warning');
                 }
             } catch (err) {
                 console.error('Transcription error:', err);
