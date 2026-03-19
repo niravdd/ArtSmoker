@@ -349,9 +349,9 @@ async def auto_register_image_models(region: str):
             if "remove-background" in mid:
                 return "remove_background", "stability_erase", 0, 0.07
             if "creative-upscale" in mid:
-                return "upscale_creative", "stability_inpaint", 10000, 0.60
+                return "upscale_creative", "stability_control", 10000, 0.60
             if "conservative-upscale" in mid:
-                return "upscale_conservative", "stability_inpaint", 10000, 0.40
+                return "upscale_conservative", "stability_control", 10000, 0.40
             if "fast-upscale" in mid:
                 return "upscale_fast", "stability_erase", 0, 0.03
             # Default: text-to-image
@@ -439,9 +439,16 @@ async def auto_register_image_models(region: str):
         if get_image_model(key):
             key = f"{key}_{region.replace('-', '_')}"
 
+        # Models that require INFERENCE_PROFILE need the US prefix (us.{model_id})
+        # This is determined by the inferenceTypesSupported field from Bedrock discovery
+        inference_types = m.get("inferenceTypesSupported", [])
+        effective_model_id = model_id
+        if "INFERENCE_PROFILE" in inference_types and not model_id.startswith("us."):
+            effective_model_id = f"us.{model_id}"
+
         config = {
             "label": m.get("modelName", model_id),
-            "model_id": model_id,
+            "model_id": effective_model_id,
             "region": region,
             "available_regions": [region],
             "provider": provider,
@@ -451,6 +458,7 @@ async def auto_register_image_models(region: str):
             "prompt_limit": prompt_limit,
             "moderation_strictness": "moderate",
             "base_price_usd": base_price,
+            "inference_types": inference_types,
             "extra_body": {},
         }
 

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-19T05:48:01.923258",
+  "last_updated": "2026-03-19T09:27:44.147256",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -167,28 +167,29 @@
     },
     "stable_creative_upscale_v1": {
       "label": "Stable Image Creative Upscale",
-      "model_id": "stability.stable-creative-upscale-v1:0",
+      "model_id": "us.stability.stable-creative-upscale-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_creative",
-      "format_family": "stability_inpaint",
+      "format_family": "stability_control",
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.6,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_image_remove_background_v1": {
       "label": "Stable Image Remove Background",
-      "model_id": "stability.stable-image-remove-background-v1:0",
+      "model_id": "us.stability.stable-image-remove-background-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -197,15 +198,17 @@
       "prompt_limit": 0,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_image_control_sketch_v1": {
       "label": "Stable Image Control Sketch",
-      "model_id": "stability.stable-image-control-sketch-v1:0",
+      "model_id": "us.stability.stable-image-control-sketch-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -214,32 +217,36 @@
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_conservative_upscale_v1": {
       "label": "Stable Image Conservative Upscale",
-      "model_id": "stability.stable-conservative-upscale-v1:0",
+      "model_id": "us.stability.stable-conservative-upscale-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_conservative",
-      "format_family": "stability_inpaint",
+      "format_family": "stability_control",
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.4,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_image_search_recolor_v1": {
       "label": "Stable Image Search and Recolor",
-      "model_id": "stability.stable-image-search-recolor-v1:0",
+      "model_id": "us.stability.stable-image-search-recolor-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -248,15 +255,17 @@
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_fast_upscale_v1": {
       "label": "Stable Image Fast Upscale",
-      "model_id": "stability.stable-fast-upscale-v1:0",
+      "model_id": "us.stability.stable-fast-upscale-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -265,15 +274,17 @@
       "prompt_limit": 0,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.03,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_image_erase_object_v1": {
       "label": "Stable Image Erase Object",
-      "model_id": "stability.stable-image-erase-object-v1:0",
+      "model_id": "us.stability.stable-image-erase-object-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -282,15 +293,17 @@
       "prompt_limit": 0,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_image_control_structure_v1": {
       "label": "Stable Image Control Structure",
-      "model_id": "stability.stable-image-control-structure-v1:0",
+      "model_id": "us.stability.stable-image-control-structure-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -299,15 +312,17 @@
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_outpaint_v1": {
       "label": "Stable Image Outpaint",
-      "model_id": "stability.stable-outpaint-v1:0",
+      "model_id": "us.stability.stable-outpaint-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -316,15 +331,17 @@
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.06,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_image_inpaint_v1": {
       "label": "Stable Image Inpaint",
-      "model_id": "stability.stable-image-inpaint-v1:0",
+      "model_id": "us.stability.stable-image-inpaint-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -333,15 +350,17 @@
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_image_style_guide_v1": {
       "label": "Stable Image Style Guide",
-      "model_id": "stability.stable-image-style-guide-v1:0",
+      "model_id": "us.stability.stable-image-style-guide-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -350,15 +369,17 @@
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_style_transfer_v1": {
       "label": "Stable Image Style Transfer",
-      "model_id": "stability.stable-style-transfer-v1:0",
+      "model_id": "us.stability.stable-style-transfer-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -367,15 +388,17 @@
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.08,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "stable_image_search_replace_v1": {
       "label": "Stable Image Search and Replace",
-      "model_id": "stability.stable-image-search-replace-v1:0",
+      "model_id": "us.stability.stable-image-search-replace-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1",
-        "us-west-2"
+        "us-east-1"
       ],
       "provider": "Stability AI",
       "enabled": true,
@@ -384,6 +407,9 @@
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "extra_body": {}
     },
     "titan_image_inpaint": {
