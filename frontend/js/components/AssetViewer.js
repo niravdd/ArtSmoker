@@ -137,6 +137,15 @@
                         <button class="tab" data-tab="meta">Metadata</button>
                     </div>
 
+                    <!-- Version bar (shared across all tabs, populated when metadata loads) -->
+                    <div id="av-version-bar" class="hidden px-6 py-2 bg-brand-bg/40 border-b border-brand-border">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">Version:</span>
+                            <div id="av-version-buttons" class="flex gap-1 flex-wrap"></div>
+                        </div>
+                        <div id="av-version-detail" class="text-[10px] text-brand-text-muted mt-1 hidden"></div>
+                    </div>
+
                     <!-- Tab Content -->
                     <div class="flex-1 overflow-auto p-6">
                         <!-- PNG tab with zoom/pan -->
@@ -359,30 +368,6 @@
                         `).join('')}
                     </div>` : ''}
                 </div>` : ''}
-                ${meta.versions?.length > 1 ? `
-                <div class="border-t border-brand-border pt-4 mt-2">
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">Versions (${meta.versions.length})</label>
-                    <div class="flex gap-1 flex-wrap mb-3">
-                        ${meta.versions.map(v => `
-                            <button class="av-version-btn px-2 py-1 rounded text-xs ${v.version === (meta.current_version || meta.versions.length) ? 'bg-brand-accent text-white' : 'bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent'}"
-                                data-version="${v.version}" data-asset="${meta.id}" title="${v.type} — ${v.timestamp ? new Date(v.timestamp).toLocaleString() : ''}">
-                                ${v.version === 1 ? 'Original' : `v${v.version}`}
-                                <span class="text-[9px] opacity-60">${v.type !== 'original' ? v.type : ''}</span>
-                            </button>
-                        `).join('')}
-                    </div>
-                    <div id="av-version-detail" class="text-xs text-brand-text-muted p-2 rounded bg-brand-bg/40">
-                        ${(() => {
-                            const cv = meta.versions.find(v => v.version === (meta.current_version || meta.versions.length));
-                            return cv ? `
-                                <p><strong>${cv.type === 'original' ? 'Original generation' : cv.type}</strong> ${cv.model_label || cv.image_model || ''}</p>
-                                ${cv.prompt ? `<p class="mt-1">"${this._esc(cv.prompt)}"</p>` : ''}
-                                ${cv.negative_prompt ? `<p class="text-amber-300/60 italic mt-0.5">Negative: ${this._esc(cv.negative_prompt)}</p>` : ''}
-                                ${cv.timestamp ? `<p class="text-brand-text-dim mt-1">${new Date(cv.timestamp).toLocaleString()}</p>` : ''}
-                            ` : '';
-                        })()}
-                    </div>
-                </div>` : ''}
                 ${meta.edit_history?.length ? `
                 <div class="border-t border-brand-border pt-4 mt-2">
                     <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">
@@ -438,6 +423,78 @@
             if (svgDlBtn) svgDlBtn.classList.toggle('hidden', !hasSvg);
             const svgTab = this._overlay?.querySelector('[data-tab="svg"]');
             if (svgTab) svgTab.classList.toggle('hidden', !hasSvg);
+
+            // Populate shared version bar if versions exist
+            this._updateVersionBar(meta);
+        },
+
+        _updateVersionBar(meta) {
+            const bar = this._overlay?.querySelector('#av-version-bar');
+            const btns = this._overlay?.querySelector('#av-version-buttons');
+            const detail = this._overlay?.querySelector('#av-version-detail');
+            if (!bar || !btns) return;
+
+            const versions = meta.versions || [];
+            if (versions.length < 2) {
+                bar.classList.add('hidden');
+                return;
+            }
+
+            bar.classList.remove('hidden');
+            const currentVersion = meta.current_version || versions.length;
+
+            btns.innerHTML = versions.map(v => `
+                <button class="av-version-btn px-2 py-1 rounded text-[10px] transition-all cursor-pointer
+                    ${v.version === currentVersion
+                        ? 'bg-brand-accent text-white'
+                        : 'bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent hover:text-brand-text'}"
+                    data-version="${v.version}" data-asset="${meta.id}"
+                    title="${v.type}${v.timestamp ? ' — ' + new Date(v.timestamp).toLocaleString() : ''}">
+                    ${v.version === 1 ? 'Original' : 'v' + v.version}
+                    ${v.type !== 'original' ? '<span class="opacity-50 ml-0.5">' + v.type + '</span>' : ''}
+                </button>
+            `).join('');
+
+            // Attach click handlers
+            btns.querySelectorAll('.av-version-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const version = parseInt(btn.dataset.version, 10);
+                    const assetId = btn.dataset.asset;
+
+                    // Update image in the PNG tab (with cache buster)
+                    const img = this._overlay?.querySelector('#av-zoom-img');
+                    if (img) {
+                        img.src = version === currentVersion
+                            ? `/api/gallery/${assetId}/png?t=${Date.now()}`
+                            : `/api/gallery/${assetId}/version/${version}?t=${Date.now()}`;
+                    }
+
+                    // Highlight active button
+                    btns.querySelectorAll('.av-version-btn').forEach(b => {
+                        b.className = b.className
+                            .replace(/bg-brand-accent text-white/g, '')
+                            .replace(/bg-brand-bg border border-brand-border text-brand-text-muted/g, '');
+                        if (parseInt(b.dataset.version, 10) === version) {
+                            b.classList.add('bg-brand-accent', 'text-white');
+                        } else {
+                            b.classList.add('bg-brand-bg', 'border', 'border-brand-border', 'text-brand-text-muted');
+                        }
+                    });
+
+                    // Show version detail
+                    const v = versions.find(vv => vv.version === version);
+                    if (detail && v) {
+                        detail.classList.remove('hidden');
+                        detail.innerHTML = `
+                            <strong>${v.type === 'original' ? 'Original' : v.type}</strong>
+                            ${v.model_label || v.image_model || ''}
+                            ${v.prompt ? ` — "${this._esc(v.prompt)}"` : ''}
+                            ${v.negative_prompt ? ` <span class="text-amber-300/60">[neg: ${this._esc(v.negative_prompt)}]</span>` : ''}
+                            ${v.timestamp ? ` <span class="text-brand-text-dim">${new Date(v.timestamp).toLocaleString()}</span>` : ''}
+                        `;
+                    }
+                });
+            });
         },
 
         _attachEvents() {
@@ -505,39 +562,6 @@
 
             // ── Zoom/Pan for PNG viewer ─────────────────────────────────
             this._initZoomPan();
-
-            // ── Version navigation ──────────────────────────────────
-            this._overlay.querySelectorAll('.av-version-btn').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const version = parseInt(btn.dataset.version, 10);
-                    const assetId = btn.dataset.asset;
-                    const img = this._overlay.querySelector('#av-zoom-img');
-                    if (img) {
-                        // Load the specific version's image
-                        img.src = `/api/gallery/${assetId}/version/${version}?t=${Date.now()}`;
-                    }
-                    // Highlight active button
-                    this._overlay.querySelectorAll('.av-version-btn').forEach(b => {
-                        b.classList.remove('bg-brand-accent', 'text-white');
-                        b.classList.add('bg-brand-bg', 'border', 'border-brand-border', 'text-brand-text-muted');
-                    });
-                    btn.classList.remove('bg-brand-bg', 'border', 'border-brand-border', 'text-brand-text-muted');
-                    btn.classList.add('bg-brand-accent', 'text-white');
-
-                    // Update version detail
-                    const versions = this._meta?.versions || [];
-                    const v = versions.find(vv => vv.version === version);
-                    const detailEl = this._overlay.querySelector('#av-version-detail');
-                    if (detailEl && v) {
-                        detailEl.innerHTML = `
-                            <p><strong>${v.type === 'original' ? 'Original generation' : v.type}</strong> ${this._esc(v.model_label || v.image_model || '')}</p>
-                            ${v.prompt ? `<p class="mt-1">"${this._esc(v.prompt)}"</p>` : ''}
-                            ${v.negative_prompt ? `<p class="text-amber-300/60 italic mt-0.5">Negative: ${this._esc(v.negative_prompt)}</p>` : ''}
-                            ${v.timestamp ? `<p class="text-brand-text-dim mt-1">${new Date(v.timestamp).toLocaleString()}</p>` : ''}
-                        `;
-                    }
-                });
-            });
 
             // ── Edit tab (Inpaint/Outpaint/Erase) ──────────────────────
             this._initEditTab();
@@ -770,11 +794,12 @@
                     if (statusEl) { statusEl.textContent = `Done! Saved as ${result.id}`; }
                     window.showToast?.(`Image edited with ${result.model_label}. Saved to Gallery.`, 'success');
 
-                    // Reload the viewer with the new asset
+                    // Reload the viewer with cache-busted URLs
+                    const cacheBust = `?t=${Date.now()}`;
                     const newItem = {
                         id: result.id,
                         prompt: prompt,
-                        png_url: result.png_url,
+                        png_url: `${result.png_url}${cacheBust}`,
                         png_filename: result.png_filename,
                     };
                     this.close();

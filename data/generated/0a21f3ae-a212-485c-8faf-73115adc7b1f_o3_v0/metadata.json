@@ -28,5 +28,36 @@
   "svg_path": "/api/gallery/0a21f3ae-a212-485c-8faf-73115adc7b1f_o3_v0/svg",
   "png_filename": "a-female-victorian-navigator-holding-a_opt4_var1.png",
   "svg_filename": "a-female-victorian-navigator-holding-a_opt4_var1.svg",
-  "created_at": "2026-03-17T06:57:58.053968"
+  "created_at": "2026-03-17T06:57:58.053968",
+  "original_image_model": "nova_canvas",
+  "versions": [
+    {
+      "version": 1,
+      "type": "original",
+      "prompt": "A female Victorian navigator holding a compass with a backdrop of her ship, its sail, cabin and other elements -- also with the ocean & other sailors performing various activities.",
+      "refined_prompt": "A confident female Victorian navigator stands at the helm of a tall sailing ship, holding a brass compass in her outstretched hand, dressed in a fitted Victorian coat, corset, and wide-brimmed hat. Behind her, the ship's grand white sails billow in the wind, the wooden cabin and rigging visible in rich detail. The surrounding ocean stretches outward with rolling waves, and scattered sailors across the deck perform tasks \u2014 climbing ropes, adjusting sails, hauling cargo. Warm golden-hour lighting from the top-left casts soft shadows across the scene. The composition is richly detailed, painterly, and cinematic, evoking classic adventure illustration. Deep navy blues, warm amber tones, and aged wood textures fill the palette. Rendered in a detailed digital painting style with fine linework, high contrast, and storybook-quality depth.",
+      "negative_prompt": "text, UI elements, watermark, logo, modern clothing, anachronistic elements, flat lighting, blurry details, low resolution, oversaturated colors",
+      "image_model": "nova_canvas",
+      "model_label": "Amazon Nova Canvas",
+      "timestamp": "2026-03-17T06:57:58.053968"
+    },
+    {
+      "version": 2,
+      "type": "inpainting",
+      "prompt": "Remove that wheel there, let her hands be relaxed in the air",
+      "negative_prompt": "",
+      "mask_prompt": null,
+      "image_model": "stable_image_inpaint_v1",
+      "model_label": "Stable Image Inpaint",
+      "region": "us-east-1",
+      "seed": null,
+      "extra_params": {},
+      "timestamp": "2026-03-19T10:22:09.429328"
+    }
+  ],
+  "current_version": 2,
+  "last_edited_at": "2026-03-19T10:22:09.429365",
+  "last_edit_type": "inpainting",
+  "last_edit_model": "stable_image_inpaint_v1",
+  "last_edit_prompt": "Remove that wheel there, let her hands be relaxed in the air"
 }
