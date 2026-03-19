@@ -844,7 +844,6 @@ class ImageEditRequest(BaseModel):
     outpaint_down: int = 0
     # Extra params (control_strength, grow_mask, creativity, etc.)
     extra_params: dict | None = None
-    replace_original: bool = True  # Default: replace the source image. False = save as new.
 
 
 @router.post("/edit")
@@ -912,80 +911,98 @@ async def edit_image(body: ImageEditRequest):
         logger.error("Image edit failed: %s", exc)
         raise HTTPException(502, detail=f"Image editing failed: {exc}")
 
-    # Save — either replace the original or create a new asset
-    if body.replace_original:
-        asset_id = body.source_image_id
-        store.save_generated_image(asset_id, "asset.png", result_bytes)
-        logger.info("Replaced original image %s with edited version", asset_id)
-    else:
-        asset_id = f"edit_{str(uuid4())[:8]}"
-        store.save_generated_image(asset_id, "asset.png", result_bytes)
+    # ── Versioned save: keep all previous versions, latest is always asset.png ──
+    asset_id = body.source_image_id
+    source_meta = store.load_generation_metadata(asset_id) or {}
 
-    # Generate SVG if desired (optional for edits)
-    svg_url = None
+    # Determine current version number
+    versions = source_meta.get("versions", [])
+    if not versions:
+        # First edit — record the current state as version 1 (the original).
+        # The actual file archiving (asset.png → asset_v1.png) happens below
+        # in the "archive current" block before the new image is saved.
+        versions.append({
+            "version": 1,
+            "type": "original",
+            "prompt": source_meta.get("prompt", ""),
+            "refined_prompt": source_meta.get("refined_prompt", ""),
+            "negative_prompt": source_meta.get("negative_prompt", ""),
+            "image_model": source_meta.get("image_model", ""),
+            "model_label": source_meta.get("model_label", ""),
+            "timestamp": source_meta.get("created_at", ""),
+        })
 
-    # Build smart filename
-    prompt_slug = _slugify_prompt(body.prompt) if body.prompt else purpose
-    png_filename = f"{prompt_slug}_{purpose}.png"
+    # New version number
+    next_version = len(versions) + 1
+    version_file = f"asset_v{next_version}.png"
 
-    # Save metadata — preserve edit history for chronological tracking
-    source_meta = store.load_generation_metadata(body.source_image_id) or {}
+    # Archive the current asset.png as the previous version before overwriting
+    asset_dir = store.generated_asset_dir(asset_id)
+    import shutil
+    current_png = asset_dir / "asset.png"
+    if current_png.exists():
+        prev_version = next_version - 1
+        prev_file = f"asset_v{prev_version}.png"
+        if not (asset_dir / prev_file).exists():
+            shutil.copy2(str(current_png), str(asset_dir / prev_file))
+            logger.info("Archived asset.png → %s", prev_file)
+        # Also archive current SVG if it exists
+        current_svg = asset_dir / "asset.svg"
+        prev_svg = f"asset_v{prev_version}.svg"
+        if current_svg.exists() and not (asset_dir / prev_svg).exists():
+            shutil.copy2(str(current_svg), str(asset_dir / prev_svg))
 
-    # Build the edit event record
-    edit_event = {
-        "timestamp": datetime.utcnow().isoformat(),
-        "edit_type": purpose,
-        "edit_model": body.model,
-        "model_label": label,
-        "region": body.region or model_config.get("region", ""),
+    # Save the new edited image as asset.png (becomes the latest)
+    store.save_generated_image(asset_id, "asset.png", result_bytes)
+
+    # Generate SVG for the new latest version
+    try:
+        from backend.services.post_processor import process_asset
+        svg_output_path = asset_dir / "asset.svg"
+        _, svg_path = process_asset(
+            image_bytes=result_bytes,
+            refined_prompt=body.prompt,
+            remove_bg=False,
+            do_upscale=False,
+            do_svg=True,
+            svg_output_path=svg_output_path,
+        )
+        if svg_path and svg_path.exists():
+            logger.info("Generated SVG for latest version")
+    except Exception as svg_err:
+        logger.warning("SVG generation failed: %s", svg_err)
+
+    # Add version record (this becomes the latest — archived by next edit)
+    versions.append({
+        "version": next_version,
+        "type": purpose,
         "prompt": body.prompt,
         "negative_prompt": body.negative_prompt,
         "mask_prompt": body.mask_prompt,
+        "image_model": body.model,
+        "model_label": label,
+        "region": body.region or model_config.get("region", ""),
         "seed": body.seed,
         "extra_params": body.extra_params,
-        "replaced_original": body.replace_original,
-    }
+        "timestamp": datetime.utcnow().isoformat(),
+    })
 
-    # Preserve the edit history chain
-    edit_history = source_meta.get("edit_history", [])
-    edit_history.append(edit_event)
-
-    # Build new metadata — keep original generation info, add edit info
-    new_meta = {
-        "id": asset_id,
-        # Original generation provenance (preserved from source)
+    # Update metadata — preserve ALL original fields, add version tracking
+    new_meta = dict(source_meta)
+    new_meta.update({
         "original_prompt": source_meta.get("original_prompt") or source_meta.get("prompt", ""),
         "original_image_model": source_meta.get("original_image_model") or source_meta.get("image_model", ""),
-        "batch_id": source_meta.get("batch_id"),
-        "option_index": source_meta.get("option_index"),
-        "variant_index": source_meta.get("variant_index"),
-        # Current state
-        "source_image_id": body.source_image_id if not body.replace_original else source_meta.get("source_image_id"),
-        "prompt": body.prompt,
-        "negative_prompt": body.negative_prompt,
-        "mask_prompt": body.mask_prompt,
-        "edit_type": purpose,
-        "edit_model": body.model,
-        "model_label": label,
-        "region": body.region or model_config.get("region", ""),
-        "seed": body.seed,
-        "extra_params": body.extra_params,
-        "style_id": source_meta.get("style_id"),
-        "style_snapshot": source_meta.get("style_snapshot"),
-        "asset_type": source_meta.get("asset_type", ""),
-        "image_model": body.model,
-        "width": source_meta.get("width", 1024),
-        "height": source_meta.get("height", 1024),
-        "png_path": f"/api/gallery/{asset_id}/png",
-        "svg_path": svg_url,
-        "png_filename": png_filename,
-        # Edit history — full chronology of all edits
-        "edit_history": edit_history,
-        "edit_count": len(edit_history),
-        "created_at": source_meta.get("created_at", datetime.utcnow().isoformat()),
+        "versions": versions,
+        "current_version": next_version,
         "last_edited_at": datetime.utcnow().isoformat(),
-    }
+        "last_edit_type": purpose,
+        "last_edit_model": body.model,
+        "last_edit_prompt": body.prompt,
+    })
     store.save_generation_metadata(asset_id, new_meta)
+
+    svg_url = new_meta.get("svg_path")
+    png_filename = new_meta.get("png_filename", f"{asset_id}.png")
 
     return {
         "id": asset_id,

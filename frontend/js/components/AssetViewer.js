@@ -219,11 +219,7 @@
                                         Apply Edit
                                     </button>
                                 </div>
-                                <label class="flex items-center gap-2 text-xs text-brand-text-muted cursor-pointer mt-1">
-                                    <input type="checkbox" id="av-edit-replace" checked class="rounded" />
-                                    Replace original image
-                                    <span class="text-[10px] text-brand-text-dim">(uncheck to save as new)</span>
-                                </label>
+                                <p class="text-[10px] text-brand-text-dim mt-1">Edit creates a new version. All previous versions are preserved and browsable.</p>
                                 <div id="av-edit-status" class="text-xs text-brand-text-muted hidden"></div>
                             </div>
                         </div>
@@ -363,6 +359,30 @@
                         `).join('')}
                     </div>` : ''}
                 </div>` : ''}
+                ${meta.versions?.length > 1 ? `
+                <div class="border-t border-brand-border pt-4 mt-2">
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">Versions (${meta.versions.length})</label>
+                    <div class="flex gap-1 flex-wrap mb-3">
+                        ${meta.versions.map(v => `
+                            <button class="av-version-btn px-2 py-1 rounded text-xs ${v.version === (meta.current_version || meta.versions.length) ? 'bg-brand-accent text-white' : 'bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent'}"
+                                data-version="${v.version}" data-asset="${meta.id}" title="${v.type} — ${v.timestamp ? new Date(v.timestamp).toLocaleString() : ''}">
+                                ${v.version === 1 ? 'Original' : `v${v.version}`}
+                                <span class="text-[9px] opacity-60">${v.type !== 'original' ? v.type : ''}</span>
+                            </button>
+                        `).join('')}
+                    </div>
+                    <div id="av-version-detail" class="text-xs text-brand-text-muted p-2 rounded bg-brand-bg/40">
+                        ${(() => {
+                            const cv = meta.versions.find(v => v.version === (meta.current_version || meta.versions.length));
+                            return cv ? `
+                                <p><strong>${cv.type === 'original' ? 'Original generation' : cv.type}</strong> ${cv.model_label || cv.image_model || ''}</p>
+                                ${cv.prompt ? `<p class="mt-1">"${this._esc(cv.prompt)}"</p>` : ''}
+                                ${cv.negative_prompt ? `<p class="text-amber-300/60 italic mt-0.5">Negative: ${this._esc(cv.negative_prompt)}</p>` : ''}
+                                ${cv.timestamp ? `<p class="text-brand-text-dim mt-1">${new Date(cv.timestamp).toLocaleString()}</p>` : ''}
+                            ` : '';
+                        })()}
+                    </div>
+                </div>` : ''}
                 ${meta.edit_history?.length ? `
                 <div class="border-t border-brand-border pt-4 mt-2">
                     <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">
@@ -485,6 +505,39 @@
 
             // ── Zoom/Pan for PNG viewer ─────────────────────────────────
             this._initZoomPan();
+
+            // ── Version navigation ──────────────────────────────────
+            this._overlay.querySelectorAll('.av-version-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const version = parseInt(btn.dataset.version, 10);
+                    const assetId = btn.dataset.asset;
+                    const img = this._overlay.querySelector('#av-zoom-img');
+                    if (img) {
+                        // Load the specific version's image
+                        img.src = `/api/gallery/${assetId}/version/${version}?t=${Date.now()}`;
+                    }
+                    // Highlight active button
+                    this._overlay.querySelectorAll('.av-version-btn').forEach(b => {
+                        b.classList.remove('bg-brand-accent', 'text-white');
+                        b.classList.add('bg-brand-bg', 'border', 'border-brand-border', 'text-brand-text-muted');
+                    });
+                    btn.classList.remove('bg-brand-bg', 'border', 'border-brand-border', 'text-brand-text-muted');
+                    btn.classList.add('bg-brand-accent', 'text-white');
+
+                    // Update version detail
+                    const versions = this._meta?.versions || [];
+                    const v = versions.find(vv => vv.version === version);
+                    const detailEl = this._overlay.querySelector('#av-version-detail');
+                    if (detailEl && v) {
+                        detailEl.innerHTML = `
+                            <p><strong>${v.type === 'original' ? 'Original generation' : v.type}</strong> ${this._esc(v.model_label || v.image_model || '')}</p>
+                            ${v.prompt ? `<p class="mt-1">"${this._esc(v.prompt)}"</p>` : ''}
+                            ${v.negative_prompt ? `<p class="text-amber-300/60 italic mt-0.5">Negative: ${this._esc(v.negative_prompt)}</p>` : ''}
+                            ${v.timestamp ? `<p class="text-brand-text-dim mt-1">${new Date(v.timestamp).toLocaleString()}</p>` : ''}
+                        `;
+                    }
+                });
+            });
 
             // ── Edit tab (Inpaint/Outpaint/Erase) ──────────────────────
             this._initEditTab();
@@ -674,10 +727,16 @@
                     let maskB64 = null;
                     const needsMask = editMode === 'inpaint' || editMode === 'erase';
                     if (needsMask) {
-                        maskB64 = this._extractMask(canvas);
+                        const maskResult = this._extractMask(canvas);
+                        if (maskResult.isEmpty) {
+                            window.showToast?.('Paint a mask on the image first — the white areas will be edited.', 'warning');
+                            btn.disabled = false;
+                            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Apply Edit';
+                            return;
+                        }
+                        maskB64 = maskResult.data;
                     }
 
-                    const replaceOriginal = this._overlay.querySelector('#av-edit-replace')?.checked ?? true;
                     const searchPrompt = this._overlay.querySelector('#av-search-prompt')?.value || '';
 
                     const payload = {
@@ -685,7 +744,6 @@
                         model: model,
                         prompt: prompt,
                         mask: maskB64,
-                        replace_original: replaceOriginal,
                         outpaint_left: parseInt(this._overlay.querySelector('#av-out-left')?.value || '0', 10),
                         outpaint_right: parseInt(this._overlay.querySelector('#av-out-right')?.value || '0', 10),
                         outpaint_up: parseInt(this._overlay.querySelector('#av-out-up')?.value || '0', 10),
@@ -787,23 +845,19 @@
             maskCanvas.height = h;
             const mctx = maskCanvas.getContext('2d');
 
-            // Scale from display canvas to original image size
             const scale = canvas._imgScale || 1;
-
-            // Get the painted canvas data
             const srcCtx = canvas.getContext('2d');
             const srcData = srcCtx.getImageData(0, 0, canvas.width, canvas.height);
             const baseData = canvas._baseImageData;
 
-            // Compare: where pixels differ from base = painted (mask = white)
             mctx.fillStyle = 'black';
             mctx.fillRect(0, 0, w, h);
             mctx.fillStyle = 'white';
 
+            let paintedPixels = 0;
             for (let y = 0; y < canvas.height; y++) {
                 for (let x = 0; x < canvas.width; x++) {
                     const i = (y * canvas.width + x) * 4;
-                    // Check if pixel was painted (differs from base)
                     if (baseData && (
                         Math.abs(srcData.data[i] - baseData.data[i]) > 20 ||
                         Math.abs(srcData.data[i + 1] - baseData.data[i + 1]) > 20 ||
@@ -812,12 +866,13 @@
                         const ox = Math.round(x / scale);
                         const oy = Math.round(y / scale);
                         mctx.fillRect(ox - 2, oy - 2, 4, 4);
+                        paintedPixels++;
                     }
                 }
             }
 
-            // Convert to base64 PNG
-            return maskCanvas.toDataURL('image/png').split(',')[1];
+            const data = maskCanvas.toDataURL('image/png').split(',')[1];
+            return { data, isEmpty: paintedPixels === 0 };
         },
 
         _initZoomPan() {

@@ -257,6 +257,26 @@ async def get_asset_metadata(asset_id: str):
     return meta
 
 
+@router.get("/{asset_id}/version/{version}")
+async def get_asset_version(asset_id: str, version: int):
+    """Serve a specific PNG version of an asset."""
+    filename = f"asset_v{version}.png"
+    path = store.get_generated_file_path(asset_id, filename)
+    if path is None:
+        raise HTTPException(404, detail=f"Version {version} not found for asset '{asset_id}'.")
+    return FileResponse(path, media_type="image/png", filename=f"{asset_id}_v{version}.png")
+
+
+@router.get("/{asset_id}/version-svg/{version}")
+async def get_asset_version_svg(asset_id: str, version: int):
+    """Serve a specific SVG version of an asset."""
+    filename = f"asset_v{version}.svg"
+    path = store.get_generated_file_path(asset_id, filename)
+    if path is None:
+        raise HTTPException(404, detail=f"SVG version {version} not found for asset '{asset_id}'.")
+    return FileResponse(path, media_type="image/svg+xml", filename=f"{asset_id}_v{version}.svg")
+
+
 @router.get("/{asset_id}/png")
 async def get_asset_png(asset_id: str):
     """Serve the PNG file for a generated asset."""
