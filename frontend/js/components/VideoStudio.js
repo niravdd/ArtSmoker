@@ -751,6 +751,9 @@
             // Hide prompt info
             document.getElementById('vs-prompt-info')?.classList.add('hidden');
 
+            // Re-render active jobs — they must persist across resets
+            this._renderJobsList(this._activeJobs.filter(j => j.status === 'InProgress'));
+
             // Focus prompt
             prompt?.focus();
         },
