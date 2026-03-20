@@ -157,6 +157,16 @@ _DEFAULT_FORMAT_FAMILIES = {
             "output_format": {"type": "enum", "required": False, "options": ["png","jpeg","webp"], "default": "png"},
         },
     },
+    "stability_remove_bg": {
+        "description": "Stability AI Remove Background. Only accepts image + output_format.",
+        "image_path": "image",
+        "response_image_path": "images[0]",
+        "body_template": {"output_format": "png"},
+        "parameters": {
+            "image": {"type": "image", "required": True},
+            "output_format": {"type": "enum", "required": False, "options": ["png", "webp"], "default": "png"},
+        },
+    },
     "stability_search_replace": {
         "description": "Stability AI Search & Replace. Finds and replaces objects by prompt.",
         "prompt_path": "prompt", "image_path": "image", "seed_path": "seed",

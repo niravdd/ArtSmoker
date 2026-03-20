@@ -455,7 +455,7 @@ async def auto_register_image_models(region: str):
             if "style-transfer" in mid:
                 return "style_transfer", "stability_style_transfer", 10000, 0.08
             if "remove-background" in mid:
-                return "remove_background", "stability_erase", 0, 0.07
+                return "remove_background", "stability_remove_bg", 0, 0.07
             if "creative-upscale" in mid:
                 return "upscale_creative", "stability_control", 10000, 0.60
             if "conservative-upscale" in mid:

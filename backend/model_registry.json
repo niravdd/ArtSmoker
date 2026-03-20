@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-20T06:42:51.865792",
+  "last_updated": "2026-03-20T07:01:11.584945",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -231,7 +231,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "remove_background",
-      "format_family": "stability_erase",
+      "format_family": "stability_remove_bg",
       "prompt_limit": 0,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
@@ -748,7 +748,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "remove_background",
-      "format_family": "stability_erase",
+      "format_family": "stability_remove_bg",
       "prompt_limit": 0,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
@@ -1140,7 +1140,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "remove_background",
-      "format_family": "stability_erase",
+      "format_family": "stability_remove_bg",
       "prompt_limit": 0,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.07,
@@ -2646,6 +2646,29 @@
           "type": "image",
           "required": false,
           "description": "End frame keyframe"
+        }
+      }
+    },
+    "stability_remove_bg": {
+      "description": "Stability AI Remove Background. Only accepts image + output_format.",
+      "image_path": "image",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "output_format": "png"
+      },
+      "parameters": {
+        "image": {
+          "type": "image",
+          "required": true
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "webp"
+          ],
+          "default": "png"
         }
       }
     }
