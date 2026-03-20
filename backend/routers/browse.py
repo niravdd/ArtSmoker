@@ -91,6 +91,35 @@ async def list_s3_buckets():
         raise HTTPException(502, detail=f"Failed to list S3 buckets: {exc}")
 
 
+@router.post("/s3/create-bucket")
+async def create_s3_bucket(body: dict):
+    """Create a new S3 bucket. Returns the bucket name and region."""
+    bucket_name = body.get("name", "").strip()
+    region = body.get("region", "").strip() or None
+
+    if not bucket_name:
+        raise HTTPException(400, detail="Bucket name is required")
+
+    # Basic S3 bucket name validation
+    import re
+    if not re.match(r'^[a-z0-9][a-z0-9.\-]{1,61}[a-z0-9]$', bucket_name):
+        raise HTTPException(400, detail="Invalid bucket name. Use lowercase letters, numbers, hyphens, and dots. 3-63 characters.")
+
+    try:
+        s3 = _get_s3_client()
+        create_kwargs = {"Bucket": bucket_name}
+        # us-east-1 doesn't accept LocationConstraint
+        if region and region != "us-east-1":
+            create_kwargs["CreateBucketConfiguration"] = {"LocationConstraint": region}
+        s3.create_bucket(**create_kwargs)
+        logger.info("Created S3 bucket: %s in %s", bucket_name, region or "us-east-1")
+        return {"name": bucket_name, "region": region or "us-east-1", "created": True}
+    except s3.exceptions.BucketAlreadyOwnedByYou:
+        return {"name": bucket_name, "region": region or "us-east-1", "created": False, "message": "Bucket already exists and is owned by you"}
+    except Exception as exc:
+        raise HTTPException(400, detail=f"Failed to create bucket: {exc}")
+
+
 @router.get("/s3")
 async def browse_s3(
     bucket: str = Query(...),

@@ -200,35 +200,76 @@
 
                 <!-- Video Settings Dialog -->
                 <div id="vs-settings-dialog" class="hidden fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-                    <div class="card-static p-6 w-full max-w-md space-y-4">
+                    <div class="card-static p-6 w-full max-w-lg space-y-4">
                         <div class="flex items-center justify-between">
                             <h3 class="text-lg font-semibold">Video Settings</h3>
-                            <button id="vs-settings-close" class="text-brand-text-muted hover:text-brand-text">&times;</button>
+                            <button id="vs-settings-close" class="text-brand-text-muted hover:text-brand-text text-xl">&times;</button>
                         </div>
-                        <div class="space-y-3">
+                        <div class="space-y-4">
+                            <!-- S3 Bucket Selection -->
                             <div>
-                                <label class="block text-sm font-medium mb-1">S3 Bucket Name</label>
-                                <input type="text" id="vs-s3-bucket" class="input w-full" placeholder="my-artsmoker-bucket">
-                                <p class="text-xs text-brand-text-muted mt-1">The S3 bucket where videos will be stored. Must have read/write access.</p>
+                                <label class="block text-sm font-medium mb-1.5">S3 Bucket</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="vs-s3-bucket" class="input flex-1" placeholder="Select or create a bucket" readonly>
+                                    <button id="vs-browse-s3" class="btn btn-secondary btn-sm whitespace-nowrap">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                                        </svg>
+                                        Browse
+                                    </button>
+                                </div>
+                                <p class="text-[10px] text-brand-text-muted mt-1">Choose an existing bucket or create a new one for video storage.</p>
                             </div>
+
+                            <!-- Bucket list (shown after Browse click) -->
+                            <div id="vs-bucket-list" class="hidden border border-brand-border rounded-lg overflow-hidden">
+                                <div class="px-3 py-2 bg-brand-bg/60 border-b border-brand-border flex items-center justify-between">
+                                    <span class="text-xs font-medium text-brand-text-muted">Your S3 Buckets</span>
+                                    <button id="vs-create-bucket-btn" class="text-[10px] text-brand-accent hover:text-brand-accent-hover font-medium">+ Create New</button>
+                                </div>
+                                <div id="vs-bucket-items" class="max-h-40 overflow-auto">
+                                    <div class="text-xs text-brand-text-muted p-3 text-center">Loading...</div>
+                                </div>
+                            </div>
+
+                            <!-- Create bucket form (hidden by default) -->
+                            <div id="vs-create-bucket-form" class="hidden p-3 border border-brand-accent/30 rounded-lg bg-brand-accent/5 space-y-2">
+                                <label class="block text-xs font-medium">New Bucket Name</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="vs-new-bucket-name" class="input flex-1 text-sm" placeholder="my-artsmoker-videos" pattern="[a-z0-9][a-z0-9.\\-]{1,61}[a-z0-9]">
+                                    <select id="vs-new-bucket-region" class="input text-xs w-32">
+                                        <option value="us-east-1">us-east-1</option>
+                                    </select>
+                                </div>
+                                <p class="text-[10px] text-brand-text-muted">Lowercase letters, numbers, hyphens, dots. 3-63 characters.</p>
+                                <div class="flex gap-2">
+                                    <button id="vs-create-bucket-go" class="btn btn-primary btn-sm text-xs">Create Bucket</button>
+                                    <button id="vs-create-bucket-cancel" class="btn btn-secondary btn-sm text-xs">Cancel</button>
+                                </div>
+                            </div>
+
+                            <!-- S3 Prefix -->
                             <div>
-                                <label class="block text-sm font-medium mb-1">S3 Prefix</label>
+                                <label class="block text-sm font-medium mb-1">S3 Prefix (folder path)</label>
                                 <input type="text" id="vs-s3-prefix" class="input w-full" placeholder="artsmoker/video/" value="artsmoker/video/">
                             </div>
+
+                            <!-- Storage mode -->
                             <div>
                                 <label class="block text-sm font-medium mb-1">Video Storage</label>
                                 <select id="vs-store-mode" class="input w-full">
                                     <option value="local">Download & store locally (recommended)</option>
                                     <option value="s3">Keep on S3 only (stream on demand)</option>
                                 </select>
-                                <p class="text-xs text-brand-text-muted mt-1">
-                                    <strong>Local:</strong> Videos are downloaded after generation for fast playback.<br>
-                                    <strong>S3 only:</strong> Videos stream from S3 each time. Saves disk space.
+                                <p class="text-[10px] text-brand-text-muted mt-1">
+                                    <strong>Local:</strong> Videos downloaded after generation for fast playback.<br>
+                                    <strong>S3 only:</strong> Videos stream from S3 each time — saves disk space.
                                 </p>
                             </div>
+
                             <div id="vs-s3-status" class="hidden text-xs p-2 rounded"></div>
                             <div class="flex gap-2 justify-end">
-                                <button id="vs-settings-test" class="btn btn-secondary btn-sm">Test & Save</button>
+                                <button id="vs-settings-test" class="btn btn-primary btn-sm">Test & Save</button>
                             </div>
                         </div>
                     </div>
@@ -273,6 +314,14 @@
             document.getElementById('vs-settings-btn')?.addEventListener('click', () => this._showSettings());
             document.getElementById('vs-settings-close')?.addEventListener('click', () => this._hideSettings());
             document.getElementById('vs-settings-test')?.addEventListener('click', () => this._testAndSaveSettings());
+
+            // S3 bucket browser
+            document.getElementById('vs-browse-s3')?.addEventListener('click', () => this._loadBucketList());
+            document.getElementById('vs-create-bucket-btn')?.addEventListener('click', () => this._showCreateBucket());
+            document.getElementById('vs-create-bucket-cancel')?.addEventListener('click', () => {
+                document.getElementById('vs-create-bucket-form')?.classList.add('hidden');
+            });
+            document.getElementById('vs-create-bucket-go')?.addEventListener('click', () => this._createBucket());
 
             // Source image upload
             const fileInput = document.getElementById('vs-source-image');
@@ -792,10 +841,17 @@
             if (!dialog) return;
 
             const vs = this._videoSettings || {};
-            document.getElementById('vs-s3-bucket').value = vs.s3_bucket || '';
+            const bucketInput = document.getElementById('vs-s3-bucket');
+            if (bucketInput) {
+                bucketInput.value = vs.s3_bucket || '';
+                bucketInput.readOnly = !!vs.s3_bucket;
+            }
             document.getElementById('vs-s3-prefix').value = vs.s3_prefix || 'artsmoker/video/';
             document.getElementById('vs-store-mode').value = vs.store_local === false ? 's3' : 'local';
 
+            // Reset sub-panels
+            document.getElementById('vs-bucket-list')?.classList.add('hidden');
+            document.getElementById('vs-create-bucket-form')?.classList.add('hidden');
             const statusEl = document.getElementById('vs-s3-status');
             if (statusEl) statusEl.classList.add('hidden');
 
@@ -849,6 +905,103 @@
                     statusEl.className = 'text-xs p-2 rounded bg-red-950/50 text-red-300';
                     statusEl.textContent = err.message || 'S3 validation failed';
                 }
+            }
+        },
+
+        // ── S3 Bucket Browser ───────────────────────────────────────
+
+        async _loadBucketList() {
+            const listEl = document.getElementById('vs-bucket-list');
+            const itemsEl = document.getElementById('vs-bucket-items');
+            if (!listEl || !itemsEl) return;
+
+            listEl.classList.remove('hidden');
+            document.getElementById('vs-create-bucket-form')?.classList.add('hidden');
+            itemsEl.innerHTML = '<div class="text-xs text-brand-text-muted p-3 text-center">Loading buckets...</div>';
+
+            try {
+                const data = await API.browse.s3Buckets();
+                const buckets = data.buckets || [];
+                if (buckets.length === 0) {
+                    itemsEl.innerHTML = '<div class="text-xs text-brand-text-muted p-3 text-center">No S3 buckets found. Create one below.</div>';
+                    return;
+                }
+                const currentBucket = document.getElementById('vs-s3-bucket')?.value || '';
+                itemsEl.innerHTML = buckets.map(b => `
+                    <button class="vs-bucket-item w-full text-left px-3 py-2 text-sm hover:bg-brand-accent/10 transition-colors flex items-center justify-between border-b border-brand-border/30 last:border-0 ${b.name === currentBucket ? 'bg-brand-accent/10 text-brand-accent' : ''}"
+                            data-bucket="${_esc(b.name)}">
+                        <span class="flex items-center gap-2">
+                            <svg class="w-4 h-4 text-brand-text-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+                            </svg>
+                            ${_esc(b.name)}
+                        </span>
+                        <span class="text-[10px] text-brand-text-muted">${b.created ? new Date(b.created).toLocaleDateString() : ''}</span>
+                    </button>
+                `).join('');
+
+                // Click to select bucket
+                itemsEl.querySelectorAll('.vs-bucket-item').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const input = document.getElementById('vs-s3-bucket');
+                        if (input) {
+                            input.value = btn.dataset.bucket;
+                            input.readOnly = true;
+                        }
+                        listEl.classList.add('hidden');
+                    });
+                });
+            } catch (err) {
+                itemsEl.innerHTML = `<div class="text-xs text-red-400 p-3 text-center">${err.message || 'Failed to load buckets'}</div>`;
+            }
+        },
+
+        _showCreateBucket() {
+            const form = document.getElementById('vs-create-bucket-form');
+            form?.classList.remove('hidden');
+
+            // Populate region dropdown from known Bedrock regions
+            const regionSel = document.getElementById('vs-new-bucket-region');
+            if (regionSel && regionSel.options.length <= 1) {
+                const regions = ['us-east-1', 'us-east-2', 'us-west-1', 'us-west-2',
+                    'eu-west-1', 'eu-west-2', 'eu-central-1', 'ap-northeast-1',
+                    'ap-southeast-1', 'ap-southeast-2', 'ap-south-1'];
+                regionSel.innerHTML = regions.map(r =>
+                    `<option value="${r}" ${r === 'us-east-1' ? 'selected' : ''}>${r}</option>`
+                ).join('');
+            }
+        },
+
+        async _createBucket() {
+            const nameInput = document.getElementById('vs-new-bucket-name');
+            const regionSel = document.getElementById('vs-new-bucket-region');
+            const name = nameInput?.value?.trim();
+            const region = regionSel?.value || 'us-east-1';
+
+            if (!name) {
+                window.showToast?.('Bucket name is required', 'warning');
+                return;
+            }
+
+            const goBtn = document.getElementById('vs-create-bucket-go');
+            if (goBtn) { goBtn.disabled = true; goBtn.textContent = 'Creating...'; }
+
+            try {
+                const result = await API.browse.createS3Bucket(name, region);
+                window.showToast?.(
+                    result.created ? `Bucket "${name}" created in ${region}` : `Bucket "${name}" already exists`,
+                    'success'
+                );
+                // Set the bucket in the input
+                const input = document.getElementById('vs-s3-bucket');
+                if (input) input.value = name;
+                // Hide create form, refresh bucket list
+                document.getElementById('vs-create-bucket-form')?.classList.add('hidden');
+                this._loadBucketList();
+            } catch (err) {
+                window.showToast?.('Create failed: ' + (err.message || ''), 'error');
+            } finally {
+                if (goBtn) { goBtn.disabled = false; goBtn.textContent = 'Create Bucket'; }
             }
         },
     };

@@ -437,6 +437,11 @@
             s3(bucket, prefix) {
                 return request(`/api/browse/s3?bucket=${encodeURIComponent(bucket)}&prefix=${encodeURIComponent(prefix || '')}`);
             },
+            createS3Bucket(name, region) {
+                return request('/api/browse/s3/create-bucket', {
+                    method: 'POST', body: { name, region },
+                });
+            },
         },
     };
 })();

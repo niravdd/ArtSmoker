@@ -325,7 +325,14 @@ async def update_video_settings_endpoint(body: VideoSettingsUpdate):
             updates["s3_validated"] = True
             updates["s3_bucket_arn"] = f"arn:aws:s3:::{bucket}"
             logger.info("S3 bucket '%s' validated: read/write OK", bucket)
+        except s3.exceptions.NoSuchBucket:
+            raise HTTPException(400, detail=f"Bucket '{bucket}' does not exist. Use Browse to select an existing bucket or create a new one.")
         except Exception as exc:
+            error_str = str(exc)
+            if "404" in error_str or "Not Found" in error_str:
+                raise HTTPException(400, detail=f"Bucket '{bucket}' not found. Use Browse to select an existing bucket or create a new one.")
+            if "403" in error_str or "Forbidden" in error_str or "AccessDenied" in error_str:
+                raise HTTPException(400, detail=f"Access denied to bucket '{bucket}'. Check your AWS permissions.")
             raise HTTPException(400, detail=f"S3 bucket validation failed: {exc}")
 
     result = update_video_settings(updates)
