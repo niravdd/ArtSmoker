@@ -210,7 +210,7 @@
                             <div>
                                 <label class="block text-sm font-medium mb-1.5">S3 Bucket</label>
                                 <div class="flex gap-2">
-                                    <input type="text" id="vs-s3-bucket" class="input flex-1" placeholder="Select or create a bucket" readonly>
+                                    <input type="text" id="vs-s3-bucket" class="input flex-1" placeholder="Enter bucket name or click Browse">
                                     <button id="vs-browse-s3" class="btn btn-secondary btn-sm whitespace-nowrap">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
@@ -844,7 +844,6 @@
             const bucketInput = document.getElementById('vs-s3-bucket');
             if (bucketInput) {
                 bucketInput.value = vs.s3_bucket || '';
-                bucketInput.readOnly = !!vs.s3_bucket;
             }
             document.getElementById('vs-s3-prefix').value = vs.s3_prefix || 'artsmoker/video/';
             document.getElementById('vs-store-mode').value = vs.store_local === false ? 's3' : 'local';
@@ -901,9 +900,46 @@
 
                 window.showToast?.('Video settings saved', 'success');
             } catch (err) {
+                const msg = err.message || 'S3 validation failed';
+                const isNotFound = msg.includes('not found') || msg.includes('does not exist');
+
+                if (isNotFound) {
+                    // Bucket doesn't exist — offer to create it
+                    if (statusEl) {
+                        statusEl.classList.remove('hidden');
+                        statusEl.className = 'text-xs p-2 rounded bg-amber-950/50 text-amber-300 space-y-2';
+                        statusEl.innerHTML = `
+                            <p>Bucket "${_esc(bucket)}" doesn't exist yet.</p>
+                            <div class="flex items-center gap-2">
+                                <button id="vs-create-inline-btn" class="btn btn-primary btn-sm text-xs">Create It Now</button>
+                                <select id="vs-create-inline-region" class="input text-xs py-1 px-2 w-28">
+                                    <option value="us-east-1">us-east-1</option>
+                                    <option value="us-west-2">us-west-2</option>
+                                    <option value="eu-west-1">eu-west-1</option>
+                                    <option value="ap-northeast-1">ap-northeast-1</option>
+                                </select>
+                            </div>
+                        `;
+                        document.getElementById('vs-create-inline-btn')?.addEventListener('click', async () => {
+                            const region = document.getElementById('vs-create-inline-region')?.value || 'us-east-1';
+                            statusEl.innerHTML = '<p>Creating bucket...</p>';
+                            try {
+                                await API.browse.createS3Bucket(bucket, region);
+                                window.showToast?.(`Bucket "${bucket}" created in ${region}`, 'success');
+                                // Retry the save now that the bucket exists
+                                await this._testAndSaveSettings();
+                            } catch (createErr) {
+                                statusEl.className = 'text-xs p-2 rounded bg-red-950/50 text-red-300';
+                                statusEl.textContent = 'Create failed: ' + (createErr.message || '');
+                            }
+                        });
+                    }
+                    return;
+                }
+
                 if (statusEl) {
                     statusEl.className = 'text-xs p-2 rounded bg-red-950/50 text-red-300';
-                    statusEl.textContent = err.message || 'S3 validation failed';
+                    statusEl.textContent = msg;
                 }
             }
         },
@@ -944,10 +980,7 @@
                 itemsEl.querySelectorAll('.vs-bucket-item').forEach(btn => {
                     btn.addEventListener('click', () => {
                         const input = document.getElementById('vs-s3-bucket');
-                        if (input) {
-                            input.value = btn.dataset.bucket;
-                            input.readOnly = true;
-                        }
+                        if (input) input.value = btn.dataset.bucket;
                         listEl.classList.add('hidden');
                     });
                 });
