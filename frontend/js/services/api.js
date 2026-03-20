@@ -350,6 +350,18 @@
             refreshAll() {
                 return request('/api/admin/discover/refresh-all', { method: 'POST' });
             },
+            /** Get enabled video models for the Video Studio dropdown. */
+            getVideoOptions() {
+                return request('/api/admin/models/video-options');
+            },
+            /** Get video storage settings. */
+            getVideoSettings() {
+                return request('/api/admin/video/settings');
+            },
+            /** Update video storage settings (validates S3 access). */
+            updateVideoSettings(data) {
+                return request('/api/admin/video/settings', { method: 'PUT', body: data });
+            },
         },
 
         /** Type Studio */
@@ -374,6 +386,43 @@
                     method: 'POST',
                     body: data,
                 });
+            },
+        },
+
+        /** Video Studio */
+        video: {
+            /** Start a video generation job */
+            generate(data) {
+                return request('/api/video/generate', { method: 'POST', body: data });
+            },
+            /** Poll job status */
+            status(jobId) {
+                return request(`/api/video/status/${encodeURIComponent(jobId)}`);
+            },
+            /** List video jobs */
+            jobs(params = {}) {
+                const qs = new URLSearchParams(params).toString();
+                return request(`/api/video/jobs${qs ? '?' + qs : ''}`);
+            },
+            /** Revise a video with modified prompt */
+            revise(data) {
+                return request('/api/video/revise', { method: 'POST', body: data });
+            },
+            /** Delete a video */
+            delete(videoId) {
+                return request(`/api/video/${encodeURIComponent(videoId)}`, { method: 'DELETE' });
+            },
+            /** Get full metadata */
+            metadata(videoId) {
+                return request(`/api/video/${encodeURIComponent(videoId)}/metadata`);
+            },
+            /** Thumbnail URL (no fetch, returns string) */
+            thumbnailUrl(videoId) {
+                return `/api/video/${encodeURIComponent(videoId)}/thumbnail`;
+            },
+            /** MP4 URL (no fetch, returns string) */
+            mp4Url(videoId) {
+                return `/api/video/${encodeURIComponent(videoId)}/mp4`;
             },
         },
 

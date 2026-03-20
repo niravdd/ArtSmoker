@@ -8,11 +8,15 @@ from pydantic import BaseModel
 
 from backend.services.model_registry import (
     add_image_model,
+    add_video_model,
     get_registry,
+    get_video_settings,
     reload,
     update_category,
     update_image_model,
     update_post_processing,
+    update_video_model,
+    update_video_settings,
 )
 
 logger = logging.getLogger(__name__)
@@ -94,6 +98,23 @@ async def update_image_model_config(key: str, body: ImageModelUpdate):
         raise HTTPException(400, detail="No updates provided")
     result = update_image_model(key, updates)
     logger.info("Updated image model '%s': %s", key, updates)
+    return result
+
+
+class VideoModelUpdate(BaseModel):
+    enabled: bool | None = None
+    region: str | None = None
+    prompt_limit: int | None = None
+
+
+@router.patch("/models/video/{key}")
+async def update_video_model_config(key: str, body: VideoModelUpdate):
+    """Update a video model configuration."""
+    updates = body.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(400, detail="No updates provided")
+    result = update_video_model(key, updates)
+    logger.info("Updated video model '%s': %s", key, updates)
     return result
 
 
@@ -242,6 +263,75 @@ async def get_image_model_options(region: str | None = Query(default=None)):
     return {"models": models, "available_regions": all_regions}
 
 
+@router.get("/models/video-options")
+async def get_video_model_options():
+    """Return enabled video models for the Video Studio dropdown."""
+    from backend.services.model_registry import get_enabled_video_models, get_registry
+    enabled = get_enabled_video_models()
+    registry = get_registry()
+
+    models = []
+    for key, cfg in sorted(enabled.items(), key=lambda x: (x[1].get("provider", ""), x[1].get("label", x[0]))):
+        family_name = cfg.get("format_family", "")
+        family = registry.get("format_families", {}).get(family_name, {})
+        models.append({
+            "key": key,
+            "label": cfg.get("label", key),
+            "model_id": cfg.get("model_id", ""),
+            "provider": cfg.get("provider", ""),
+            "region": cfg.get("region", ""),
+            "available_regions": cfg.get("available_regions", []),
+            "format_family": family_name,
+            "prompt_limit": cfg.get("prompt_limit", 512),
+            "supports_image_input": cfg.get("supports_image_input", False),
+            "base_price_per_second_usd": cfg.get("base_price_per_second_usd"),
+            "parameters": family.get("parameters", {}),
+            "task_types": family.get("task_types", {}),
+        })
+
+    return {"models": models}
+
+
+@router.get("/video/settings")
+async def get_video_settings_endpoint():
+    """Return current video storage settings."""
+    return get_video_settings()
+
+
+class VideoSettingsUpdate(BaseModel):
+    s3_bucket: str | None = None
+    s3_prefix: str | None = None
+    store_local: bool | None = None
+
+
+@router.put("/video/settings")
+async def update_video_settings_endpoint(body: VideoSettingsUpdate):
+    """Update video storage settings. Validates S3 bucket access before saving."""
+    updates = body.model_dump(exclude_unset=True)
+    if not updates:
+        raise HTTPException(400, detail="No updates provided")
+
+    # If changing bucket, validate access first
+    if "s3_bucket" in updates and updates["s3_bucket"]:
+        bucket = updates["s3_bucket"]
+        try:
+            s3 = boto3.Session().client("s3")
+            # Test: can we list objects (read) and put a test object (write)?
+            s3.head_bucket(Bucket=bucket)
+            prefix = updates.get("s3_prefix", get_video_settings().get("s3_prefix", "artsmoker/video/"))
+            test_key = f"{prefix}_access_test.txt"
+            s3.put_object(Bucket=bucket, Key=test_key, Body=b"ArtSmoker access test")
+            s3.delete_object(Bucket=bucket, Key=test_key)
+            updates["s3_validated"] = True
+            updates["s3_bucket_arn"] = f"arn:aws:s3:::{bucket}"
+            logger.info("S3 bucket '%s' validated: read/write OK", bucket)
+        except Exception as exc:
+            raise HTTPException(400, detail=f"S3 bucket validation failed: {exc}")
+
+    result = update_video_settings(updates)
+    return result
+
+
 # ── Bedrock Model Discovery ──────────────────────────────────────────────
 
 import re as _re
@@ -310,6 +400,7 @@ async def auto_register_image_models(region: str):
 
     from backend.services.model_registry import (
         get_registry, add_image_model, get_image_model, update_image_model,
+        add_video_model, get_video_model, update_video_model,
     )
 
     registry = get_registry()
@@ -317,11 +408,12 @@ async def auto_register_image_models(region: str):
     existing_by_model_id: dict[str, str] = {}
     for key, cfg in registry.get("image_models", {}).items():
         existing_by_model_id[cfg.get("model_id", "")] = key
+    existing_video_by_model_id: dict[str, str] = {}
+    for key, cfg in registry.get("video_models", {}).items():
+        existing_video_by_model_id[cfg.get("model_id", "")] = key
 
-    # Classify models by purpose and format family based on model_id keywords.
-    # This replaces the old "skip manipulation models" approach — now we register
-    # everything and classify it so users can use any service.
-    def _classify_model(model_id: str, provider: str, input_modalities: list[str]):
+    # Classify image models by purpose and format family based on model_id keywords.
+    def _classify_image_model(model_id: str, provider: str, input_modalities: list[str]):
         """Determine model_purpose and format_family from model_id and provider."""
         mid = model_id.lower()
         has_image_input = "IMAGE" in input_modalities
@@ -359,12 +451,19 @@ async def auto_register_image_models(region: str):
 
         # Amazon models
         if provider == "Amazon":
-            # Nova Canvas and Titan support multiple task types via the same model.
-            # We register the base text-to-image variant here; inpainting/outpainting
-            # variants are registered as separate entries sharing the same model_id.
             return "text_to_image", "amazon_text_to_image", 900, 0.06
 
         return "text_to_image", None, 900, None
+
+    def _classify_video_model(model_id: str, provider: str, input_modalities: list[str]):
+        """Determine format_family and pricing for video models."""
+        mid = model_id.lower()
+        has_image_input = "IMAGE" in input_modalities
+        if "nova-reel" in mid:
+            return "text_to_video", "nova_reel", 512, 0.08, has_image_input
+        if "ray" in mid or "luma" in mid:
+            return "text_to_video", "luma_ray", 5000, 1.50, has_image_input
+        return "text_to_video", None, 512, None, has_image_input
 
     registered = []
     updated = []
@@ -375,12 +474,74 @@ async def auto_register_image_models(region: str):
         inp = m.get("inputModalities", [])
         provider = m.get("providerName", "")
 
-        # Must produce images
-        if "IMAGE" not in output:
+        is_image = "IMAGE" in output
+        is_video = "VIDEO" in output
+
+        # Must produce images or video
+        if not is_image and not is_video:
             continue
 
+        # ── Video models ─────────────────────────────────────────────
+        if is_video:
+            purpose, family, prompt_limit, base_price, has_img_input = _classify_video_model(model_id, provider, inp)
+            if not family:
+                logger.warning("Unknown video provider '%s' for model %s — skipping", provider, model_id)
+                continue
+
+            if model_id in existing_video_by_model_id:
+                existing_key = existing_video_by_model_id[model_id]
+                existing_cfg = get_video_model(existing_key)
+                if existing_cfg:
+                    regions = existing_cfg.get("available_regions", [existing_cfg.get("region", "")])
+                    if region not in regions:
+                        regions.append(region)
+                        regions.sort()
+                        update_video_model(existing_key, {"available_regions": regions})
+                        updated.append({"key": existing_key, "model_id": model_id, "added_region": region, "media": "video"})
+                continue
+
+            # Include version in key: amazon.nova-reel-v1:1 → nova_reel_v1_1
+            raw_key = model_id.split(".")[-1].replace("-", "_").replace(":", "_")
+            key = raw_key
+            if get_video_model(key):
+                key = f"{key}_{region.replace('-', '_')}"
+
+            # Build user-friendly label from model_id version
+            # "amazon.nova-reel-v1:0" → "Nova Reel v1.0", "luma.ray-v2:0" → "Ray v2.0"
+            model_name = m.get("modelName", model_id)
+            tail = model_id.split(".")[-1]  # "nova-reel-v1:1" or "ray-v2:0"
+            version_str = tail.replace(":", ".").split("-")[-1]  # "v1.1" or "v2.0"
+            # Avoid duplication: if model name already contains the major version, replace it
+            major_v = version_str.split(".")[0]  # "v1" or "v2"
+            if model_name.lower().endswith(major_v):
+                label = f"{model_name[:-len(major_v)]}{version_str}"
+            else:
+                label = f"{model_name} {version_str}"
+
+            config = {
+                "label": label,
+                "model_id": model_id,
+                "region": region,
+                "available_regions": [region],
+                "provider": provider,
+                "enabled": True,
+                "model_purpose": purpose,
+                "format_family": family,
+                "prompt_limit": prompt_limit,
+                "supports_image_input": has_img_input,
+                "base_price_per_second_usd": base_price,
+                "inference_types": m.get("inferenceTypesSupported", []),
+            }
+            add_video_model(key, config)
+            existing_video_by_model_id[model_id] = key
+            registered.append({"key": key, "model_id": model_id, "label": config["label"],
+                              "region": region, "purpose": purpose, "media": "video"})
+            logger.info("Auto-registered video: %s (%s) in %s", key, model_id, region)
+            continue
+
+        # ── Image models ─────────────────────────────────────────────
         # Classify the model
-        purpose, family, prompt_limit, base_price = _classify_model(model_id, provider, inp)
+        purpose, family, prompt_limit, base_price = _classify_image_model(model_id, provider, inp)
         if not family:
             logger.warning("Unknown provider '%s' for model %s — skipping", provider, model_id)
             continue
@@ -735,6 +896,7 @@ async def discover_models(region: str):
             "input_modalities": input_modalities,
             "output_modalities": modalities,
             "is_image_generator": "IMAGE" in modalities and "TEXT" in input_modalities,
+            "is_video_generator": "VIDEO" in modalities and "TEXT" in input_modalities,
             "is_text_model": "TEXT" in modalities and "TEXT" in input_modalities,
             "is_image_input": "IMAGE" in input_modalities,
             "customizations": m.get("customizationsSupported", []),
@@ -743,7 +905,8 @@ async def discover_models(region: str):
 
     # Group by capability
     image_generators = _deduplicate_models([m for m in models if m["is_image_generator"]])
-    text_models = _deduplicate_models([m for m in models if m["is_text_model"] and not m["is_image_generator"]])
+    video_generators = _deduplicate_models([m for m in models if m["is_video_generator"]])
+    text_models = _deduplicate_models([m for m in models if m["is_text_model"] and not m["is_image_generator"] and not m["is_video_generator"]])
     vision_models = _deduplicate_models([m for m in models if m["is_image_input"] and m["is_text_model"]])
 
     # Deduplicate the full set for the count
@@ -754,6 +917,7 @@ async def discover_models(region: str):
         "total_raw": len(models),
         "total_deduplicated": len(all_deduped),
         "image_generators": image_generators,
+        "video_generators": video_generators,
         "text_models": text_models,
         "vision_models": vision_models,
     }

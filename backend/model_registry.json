@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-19T09:27:44.147256",
+  "last_updated": "2026-03-20T03:32:17.867675",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -433,7 +433,8 @@
       "model_id": "amazon.titan-image-generator-v2:0",
       "region": "us-east-1",
       "available_regions": [
-        "us-east-1"
+        "us-east-1",
+        "us-west-2"
       ],
       "provider": "Amazon",
       "enabled": true,
@@ -469,6 +470,8 @@
       "model_id": "amazon.nova-canvas-v1:0",
       "region": "us-east-1",
       "available_regions": [
+        "ap-northeast-1",
+        "eu-west-1",
         "us-east-1"
       ],
       "provider": "Amazon",
@@ -483,6 +486,500 @@
           "quality": "premium"
         }
       }
+    },
+    "stable_creative_upscale_v1_us_east_1": {
+      "label": "Stable Image Creative Upscale",
+      "model_id": "us.stability.stable-creative-upscale-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "upscale_creative",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.6,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_remove_background_v1_us_east_1": {
+      "label": "Stable Image Remove Background",
+      "model_id": "us.stability.stable-image-remove-background-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "remove_background",
+      "format_family": "stability_erase",
+      "prompt_limit": 0,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_control_sketch_v1_us_east_1": {
+      "label": "Stable Image Control Sketch",
+      "model_id": "us.stability.stable-image-control-sketch-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "control_sketch",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_conservative_upscale_v1_us_east_1": {
+      "label": "Stable Image Conservative Upscale",
+      "model_id": "us.stability.stable-conservative-upscale-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "upscale_conservative",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.4,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_search_recolor_v1_us_east_1": {
+      "label": "Stable Image Search and Recolor",
+      "model_id": "us.stability.stable-image-search-recolor-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "search_recolor",
+      "format_family": "stability_search_recolor",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_fast_upscale_v1_us_east_1": {
+      "label": "Stable Image Fast Upscale",
+      "model_id": "us.stability.stable-fast-upscale-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "upscale_fast",
+      "format_family": "stability_erase",
+      "prompt_limit": 0,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.03,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_erase_object_v1_us_east_1": {
+      "label": "Stable Image Erase Object",
+      "model_id": "us.stability.stable-image-erase-object-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "erase",
+      "format_family": "stability_erase",
+      "prompt_limit": 0,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_control_structure_v1_us_east_1": {
+      "label": "Stable Image Control Structure",
+      "model_id": "us.stability.stable-image-control-structure-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "control_structure",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_outpaint_v1_us_east_1": {
+      "label": "Stable Image Outpaint",
+      "model_id": "us.stability.stable-outpaint-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "outpainting",
+      "format_family": "stability_outpaint",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.06,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_inpaint_v1_us_east_1": {
+      "label": "Stable Image Inpaint",
+      "model_id": "us.stability.stable-image-inpaint-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "inpainting",
+      "format_family": "stability_inpaint",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_style_guide_v1_us_east_1": {
+      "label": "Stable Image Style Guide",
+      "model_id": "us.stability.stable-image-style-guide-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "style_guide",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_style_transfer_v1_us_east_1": {
+      "label": "Stable Image Style Transfer",
+      "model_id": "us.stability.stable-style-transfer-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "style_transfer",
+      "format_family": "stability_style_transfer",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.08,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_search_replace_v1_us_east_1": {
+      "label": "Stable Image Search and Replace",
+      "model_id": "us.stability.stable-image-search-replace-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "search_replace",
+      "format_family": "stability_search_replace",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_creative_upscale_v1_us_west_2": {
+      "label": "Stable Image Creative Upscale",
+      "model_id": "us.stability.stable-creative-upscale-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "upscale_creative",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.6,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_remove_background_v1_us_west_2": {
+      "label": "Stable Image Remove Background",
+      "model_id": "us.stability.stable-image-remove-background-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "remove_background",
+      "format_family": "stability_erase",
+      "prompt_limit": 0,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_control_sketch_v1_us_west_2": {
+      "label": "Stable Image Control Sketch",
+      "model_id": "us.stability.stable-image-control-sketch-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "control_sketch",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_conservative_upscale_v1_us_west_2": {
+      "label": "Stable Image Conservative Upscale",
+      "model_id": "us.stability.stable-conservative-upscale-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "upscale_conservative",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.4,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_search_recolor_v1_us_west_2": {
+      "label": "Stable Image Search and Recolor",
+      "model_id": "us.stability.stable-image-search-recolor-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "search_recolor",
+      "format_family": "stability_search_recolor",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_fast_upscale_v1_us_west_2": {
+      "label": "Stable Image Fast Upscale",
+      "model_id": "us.stability.stable-fast-upscale-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "upscale_fast",
+      "format_family": "stability_erase",
+      "prompt_limit": 0,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.03,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_erase_object_v1_us_west_2": {
+      "label": "Stable Image Erase Object",
+      "model_id": "us.stability.stable-image-erase-object-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "erase",
+      "format_family": "stability_erase",
+      "prompt_limit": 0,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_control_structure_v1_us_west_2": {
+      "label": "Stable Image Control Structure",
+      "model_id": "us.stability.stable-image-control-structure-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "control_structure",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_outpaint_v1_us_west_2": {
+      "label": "Stable Image Outpaint",
+      "model_id": "us.stability.stable-outpaint-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "outpainting",
+      "format_family": "stability_outpaint",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.06,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_inpaint_v1_us_west_2": {
+      "label": "Stable Image Inpaint",
+      "model_id": "us.stability.stable-image-inpaint-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "inpainting",
+      "format_family": "stability_inpaint",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_style_guide_v1_us_west_2": {
+      "label": "Stable Image Style Guide",
+      "model_id": "us.stability.stable-image-style-guide-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "style_guide",
+      "format_family": "stability_control",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_style_transfer_v1_us_west_2": {
+      "label": "Stable Image Style Transfer",
+      "model_id": "us.stability.stable-style-transfer-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "style_transfer",
+      "format_family": "stability_style_transfer",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.08,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
+    },
+    "stable_image_search_replace_v1_us_west_2": {
+      "label": "Stable Image Search and Replace",
+      "model_id": "us.stability.stable-image-search-replace-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Stability AI",
+      "enabled": true,
+      "model_purpose": "search_replace",
+      "format_family": "stability_search_replace",
+      "prompt_limit": 10000,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.07,
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "extra_body": {}
     }
   },
   "post_processing": {
@@ -1450,6 +1947,245 @@
           ]
         }
       }
+    },
+    "nova_reel": {
+      "description": "Amazon Nova Reel text-to-video. Async invocation, outputs MP4 to S3.",
+      "media_type": "video",
+      "invocation_mode": "async",
+      "prompt_path": "textToVideoParams.text",
+      "seed_path": "videoGenerationConfig.seed",
+      "body_template": {
+        "taskType": "TEXT_VIDEO",
+        "textToVideoParams": {},
+        "videoGenerationConfig": {
+          "durationSeconds": 6,
+          "fps": 24,
+          "dimension": "1280x720"
+        }
+      },
+      "task_types": {
+        "TEXT_VIDEO": {
+          "description": "Single 6-second shot from text (optional image input)",
+          "prompt_path": "textToVideoParams.text",
+          "image_path": "textToVideoParams.images[0]",
+          "body_template": {
+            "taskType": "TEXT_VIDEO",
+            "textToVideoParams": {},
+            "videoGenerationConfig": {
+              "durationSeconds": 6,
+              "fps": 24,
+              "dimension": "1280x720"
+            }
+          },
+          "max_duration": 6,
+          "prompt_limit": 512
+        },
+        "MULTI_SHOT_AUTOMATED": {
+          "description": "AI-segmented multi-shot up to 2 minutes (no image input)",
+          "prompt_path": "multiShotAutomatedParams.text",
+          "body_template": {
+            "taskType": "MULTI_SHOT_AUTOMATED",
+            "multiShotAutomatedParams": {},
+            "videoGenerationConfig": {
+              "fps": 24,
+              "dimension": "1280x720"
+            }
+          },
+          "min_duration": 12,
+          "max_duration": 120,
+          "duration_step": 6,
+          "prompt_limit": 4000
+        },
+        "MULTI_SHOT_MANUAL": {
+          "description": "Custom per-shot control with optional images per shot, up to 2 minutes",
+          "prompt_path": "multiShotManualParams.shots",
+          "body_template": {
+            "taskType": "MULTI_SHOT_MANUAL",
+            "multiShotManualParams": {
+              "shots": []
+            },
+            "videoGenerationConfig": {
+              "fps": 24,
+              "dimension": "1280x720"
+            }
+          },
+          "max_duration": 120,
+          "duration_step": 6,
+          "prompt_limit": 512
+        }
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 512,
+          "description": "Video scene description"
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 2147483646,
+          "default": 42
+        },
+        "duration": {
+          "type": "integer",
+          "required": false,
+          "min": 6,
+          "max": 120,
+          "step": 6,
+          "default": 6,
+          "unit": "seconds"
+        },
+        "dimension": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "1280x720"
+          ],
+          "default": "1280x720"
+        },
+        "fps": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            24
+          ],
+          "default": 24
+        },
+        "source_image": {
+          "type": "image",
+          "required": false,
+          "description": "Reference image (1280x720, 8-bit RGB, JPEG/PNG)"
+        }
+      }
+    },
+    "luma_ray": {
+      "description": "Luma AI Ray v2 text-to-video. Async invocation, outputs MP4 to S3.",
+      "media_type": "video",
+      "invocation_mode": "async",
+      "prompt_path": "prompt",
+      "body_template": {
+        "prompt": "",
+        "aspect_ratio": "16:9",
+        "loop": false,
+        "duration": "5s",
+        "resolution": "720p"
+      },
+      "parameters": {
+        "prompt": {
+          "type": "string",
+          "required": true,
+          "max_length": 5000,
+          "description": "Video scene description"
+        },
+        "aspect_ratio": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "1:1",
+            "16:9",
+            "9:16",
+            "4:3",
+            "3:4",
+            "21:9",
+            "9:21"
+          ],
+          "default": "16:9"
+        },
+        "duration": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "5s",
+            "9s"
+          ],
+          "default": "5s"
+        },
+        "resolution": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "720p",
+            "540p"
+          ],
+          "default": "720p"
+        },
+        "loop": {
+          "type": "boolean",
+          "required": false,
+          "default": false,
+          "description": "Generate a seamlessly looping video"
+        },
+        "source_image": {
+          "type": "image",
+          "required": false,
+          "description": "Start frame (min 512x512, max 4096x4096, JPEG/PNG)"
+        },
+        "end_image": {
+          "type": "image",
+          "required": false,
+          "description": "End frame keyframe"
+        }
+      }
+    }
+  },
+  "video_models": {
+    "nova_reel_v1_0": {
+      "label": "Nova Reel v1.0",
+      "model_id": "amazon.nova-reel-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "eu-west-1",
+        "us-east-1"
+      ],
+      "provider": "Amazon",
+      "enabled": true,
+      "model_purpose": "text_to_video",
+      "format_family": "nova_reel",
+      "prompt_limit": 512,
+      "supports_image_input": true,
+      "base_price_per_second_usd": 0.08,
+      "inference_types": [
+        "ON_DEMAND"
+      ]
+    },
+    "nova_reel_v1_1": {
+      "label": "Nova Reel v1.1",
+      "model_id": "amazon.nova-reel-v1:1",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Amazon",
+      "enabled": true,
+      "model_purpose": "text_to_video",
+      "format_family": "nova_reel",
+      "prompt_limit": 512,
+      "supports_image_input": true,
+      "base_price_per_second_usd": 0.08,
+      "inference_types": [
+        "ON_DEMAND"
+      ]
+    },
+    "ray_v2_0": {
+      "label": "Ray v2.0",
+      "model_id": "luma.ray-v2:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Luma AI",
+      "enabled": true,
+      "model_purpose": "text_to_video",
+      "format_family": "luma_ray",
+      "prompt_limit": 5000,
+      "supports_image_input": false,
+      "base_price_per_second_usd": 1.5,
+      "inference_types": [
+        "ON_DEMAND"
+      ]
     }
   }
 }

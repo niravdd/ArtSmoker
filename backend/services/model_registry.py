@@ -223,6 +223,80 @@ _DEFAULT_FORMAT_FAMILIES = {
             "style_preset": {"type": "enum", "required": False, "options": _STYLE_PRESETS},
         },
     },
+    # ── Video generation families ──────────────────────────────────────
+    "nova_reel": {
+        "description": "Amazon Nova Reel text-to-video. Async invocation, outputs MP4 to S3.",
+        "media_type": "video",
+        "invocation_mode": "async",
+        "prompt_path": "textToVideoParams.text",
+        "seed_path": "videoGenerationConfig.seed",
+        "body_template": {
+            "taskType": "TEXT_VIDEO",
+            "textToVideoParams": {},
+            "videoGenerationConfig": {
+                "durationSeconds": 6,
+                "fps": 24,
+                "dimension": "1280x720",
+            },
+        },
+        "task_types": {
+            "TEXT_VIDEO": {
+                "description": "Single 6-second shot from text (optional image input)",
+                "prompt_path": "textToVideoParams.text",
+                "image_path": "textToVideoParams.images[0]",
+                "body_template": {"taskType": "TEXT_VIDEO", "textToVideoParams": {}, "videoGenerationConfig": {"durationSeconds": 6, "fps": 24, "dimension": "1280x720"}},
+                "max_duration": 6,
+                "prompt_limit": 512,
+            },
+            "MULTI_SHOT_AUTOMATED": {
+                "description": "AI-segmented multi-shot up to 2 minutes (no image input)",
+                "prompt_path": "multiShotAutomatedParams.text",
+                "body_template": {"taskType": "MULTI_SHOT_AUTOMATED", "multiShotAutomatedParams": {}, "videoGenerationConfig": {"fps": 24, "dimension": "1280x720"}},
+                "min_duration": 12,
+                "max_duration": 120,
+                "duration_step": 6,
+                "prompt_limit": 4000,
+            },
+            "MULTI_SHOT_MANUAL": {
+                "description": "Custom per-shot control with optional images per shot, up to 2 minutes",
+                "prompt_path": "multiShotManualParams.shots",
+                "body_template": {"taskType": "MULTI_SHOT_MANUAL", "multiShotManualParams": {"shots": []}, "videoGenerationConfig": {"fps": 24, "dimension": "1280x720"}},
+                "max_duration": 120,
+                "duration_step": 6,
+                "prompt_limit": 512,
+            },
+        },
+        "parameters": {
+            "prompt": {"type": "string", "required": True, "max_length": 512, "description": "Video scene description"},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 2147483646, "default": 42},
+            "duration": {"type": "integer", "required": False, "min": 6, "max": 120, "step": 6, "default": 6, "unit": "seconds"},
+            "dimension": {"type": "enum", "required": False, "options": ["1280x720"], "default": "1280x720"},
+            "fps": {"type": "enum", "required": False, "options": [24], "default": 24},
+            "source_image": {"type": "image", "required": False, "description": "Reference image (1280x720, 8-bit RGB, JPEG/PNG)"},
+        },
+    },
+    "luma_ray": {
+        "description": "Luma AI Ray v2 text-to-video. Async invocation, outputs MP4 to S3.",
+        "media_type": "video",
+        "invocation_mode": "async",
+        "prompt_path": "prompt",
+        "body_template": {
+            "prompt": "",
+            "aspect_ratio": "16:9",
+            "loop": False,
+            "duration": "5s",
+            "resolution": "720p",
+        },
+        "parameters": {
+            "prompt": {"type": "string", "required": True, "max_length": 5000, "description": "Video scene description"},
+            "aspect_ratio": {"type": "enum", "required": False, "options": ["1:1", "16:9", "9:16", "4:3", "3:4", "21:9", "9:21"], "default": "16:9"},
+            "duration": {"type": "enum", "required": False, "options": ["5s", "9s"], "default": "5s"},
+            "resolution": {"type": "enum", "required": False, "options": ["720p", "540p"], "default": "720p"},
+            "loop": {"type": "boolean", "required": False, "default": False, "description": "Generate a seamlessly looping video"},
+            "source_image": {"type": "image", "required": False, "description": "Start frame (min 512x512, max 4096x4096, JPEG/PNG)"},
+            "end_image": {"type": "image", "required": False, "description": "End frame keyframe"},
+        },
+    },
 }
 
 
@@ -390,3 +464,63 @@ def update_post_processing(key: str, updates: dict) -> dict:
 def reload():
     """Reload registry from disk (e.g. after external edit)."""
     _load()
+
+
+# ── Video model functions ─────────────────────────────────────────────────
+
+def get_video_model(key: str) -> dict:
+    """Get video model config by key."""
+    return _registry.get("video_models", {}).get(key, {})
+
+
+def get_enabled_video_models() -> dict:
+    """Get all enabled video models."""
+    return {k: v for k, v in _registry.get("video_models", {}).items() if v.get("enabled")}
+
+
+def get_video_model_keys_sorted() -> list[str]:
+    """Return enabled video model keys sorted by label."""
+    enabled = get_enabled_video_models()
+    return sorted(enabled.keys(), key=lambda k: enabled[k].get("label", k))
+
+
+def add_video_model(key: str, config: dict) -> dict:
+    """Add a new video model to the registry."""
+    _registry.setdefault("video_models", {})[key] = config
+    _save()
+    return config
+
+
+def update_video_model(key: str, updates: dict) -> dict:
+    """Update a video model config."""
+    if key not in _registry.get("video_models", {}):
+        _registry.setdefault("video_models", {})[key] = {}
+    _registry["video_models"][key].update(updates)
+    _save()
+    return _registry["video_models"][key]
+
+
+# ── Video settings (S3 bucket, storage preference) ────────────────────────
+
+def get_video_settings() -> dict:
+    """Get video-related settings from the registry."""
+    return _registry.get("video_settings", {
+        "s3_bucket": "",
+        "s3_prefix": "artsmoker/video/",
+        "store_local": True,
+        "s3_validated": False,
+    })
+
+
+def update_video_settings(updates: dict) -> dict:
+    """Update video settings in the registry."""
+    current = _registry.get("video_settings", {
+        "s3_bucket": "",
+        "s3_prefix": "artsmoker/video/",
+        "store_local": True,
+        "s3_validated": False,
+    })
+    current.update(updates)
+    _registry["video_settings"] = current
+    _save()
+    return current

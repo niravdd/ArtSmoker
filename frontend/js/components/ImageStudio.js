@@ -50,6 +50,11 @@
         render() {
             return `
                 <div id="generator-view" class="view-enter">
+                    <div class="mb-6">
+                        <h1 class="text-2xl font-bold">2D Image Studio</h1>
+                        <p class="text-brand-text-muted text-sm mt-1">Generate AI-powered 2D art assets from text prompts</p>
+                    </div>
+
                     <div class="flex flex-col lg:flex-row gap-6">
 
                         <!-- Left Sidebar -->

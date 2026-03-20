@@ -28,10 +28,16 @@ class Settings(BaseSettings):
     # ── Voice ─────────────────────────────────────────────────────────────
     nova_sonic_model_id: str = "amazon.nova-2-sonic-v1:0"
 
+    # ── Video / S3 ────────────────────────────────────────────────────────
+    video_s3_bucket: str = ""
+    video_s3_prefix: str = "artsmoker/video/"
+    video_store_local: bool = True  # True = download & keep MP4 locally; False = stream from S3
+
     # ── Paths ─────────────────────────────────────────────────────────────
     data_dir: Path = Path(__file__).resolve().parent.parent / "data"
     styles_dir: Path = data_dir / "styles"
     generated_dir: Path = data_dir / "generated"
+    video_dir: Path = data_dir / "video"
 
     # ── Generation defaults ───────────────────────────────────────────────
     default_image_width: int = 1024

@@ -26,7 +26,7 @@
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
                             <h1 class="text-2xl font-bold">Gallery</h1>
-                            <p class="text-sm text-brand-text-muted mt-1">Browse your generated art assets</p>
+                            <p class="text-sm text-brand-text-muted mt-1">Browse your generated images, videos, and art assets</p>
                         </div>
                         <a href="#image-studio" class="btn btn-primary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -65,6 +65,14 @@
                         </div>
                         <!-- Filters -->
                         <div class="flex flex-wrap items-center gap-3">
+                            <div class="flex-1 min-w-[120px]">
+                                <label class="block text-xs text-brand-text-muted mb-1">Media</label>
+                                <select id="gal-filter-media" class="input">
+                                    <option value="">All Media</option>
+                                    <option value="image">2D Artwork</option>
+                                    <option value="video">Video</option>
+                                </select>
+                            </div>
                             <div class="flex-1 min-w-[160px]">
                                 <label class="block text-xs text-brand-text-muted mb-1">Style</label>
                                 <select id="gal-filter-style" class="input">
@@ -80,6 +88,7 @@
                                     <option value="icon">Icon</option>
                                     <option value="character">Character</option>
                                     <option value="environment">Environment</option>
+                                    <option value="video">Video</option>
                                 </select>
                             </div>
                             <div class="flex-1 min-w-[160px]">
@@ -124,7 +133,7 @@
             document.getElementById('gal-apply-filter')?.addEventListener('click', () => this._loadItems(true));
 
             // Also apply on dropdown change
-            ['gal-filter-style', 'gal-filter-type', 'gal-sort'].forEach((id) => {
+            ['gal-filter-media', 'gal-filter-style', 'gal-filter-type', 'gal-sort'].forEach((id) => {
                 document.getElementById(id)?.addEventListener('change', () => this._loadItems(true));
             });
 
@@ -195,6 +204,7 @@
             this._loading = true;
 
             const grid = document.getElementById('gallery-grid');
+            const mediaFilter = document.getElementById('gal-filter-media')?.value || '';
 
             if (reset) {
                 this._items = [];
@@ -211,11 +221,38 @@
             if (assetType) params.asset_type = assetType;
 
             try {
-                const data = await API.gallery.list(params);
-                const page = Array.isArray(data) ? data : (data.items || data.gallery || []);
-                this._items.push(...page);
-                this._offset += page.length;
-                this._hasMore = page.length === PAGE_SIZE;
+                // Load image assets (unless video-only filter)
+                if (mediaFilter !== 'video') {
+                    const data = await API.gallery.list(params);
+                    const page = Array.isArray(data) ? data : (data.items || data.gallery || []);
+                    page.forEach(item => { item._media = 'image'; });
+                    this._items.push(...page);
+                    this._offset += page.length;
+                    this._hasMore = page.length === PAGE_SIZE;
+                }
+
+                // Load video assets (unless image-only filter)
+                if (mediaFilter !== 'image') {
+                    try {
+                        const videoData = await API.video.jobs({ status: 'Completed', limit: PAGE_SIZE });
+                        const videoJobs = videoData.jobs || [];
+                        videoJobs.forEach(j => {
+                            j._media = 'video';
+                            j.id = j.job_id || j.video_id;
+                            j.created_at = j.completed_at || j.started_at;
+                        });
+                        this._items.push(...videoJobs);
+                    } catch (_) { /* video endpoint may not exist yet */ }
+                }
+
+                // Sort unified list
+                const sortBy = document.getElementById('gal-sort')?.value || 'newest';
+                this._items.sort((a, b) => {
+                    const da = new Date(a.created_at || 0).getTime();
+                    const db = new Date(b.created_at || 0).getTime();
+                    return sortBy === 'newest' ? db - da : da - db;
+                });
+
                 this._lastLoadTime = Date.now();
                 this._renderGrid();
                 this._updateLoadMore();
@@ -259,10 +296,32 @@
 
             window.showLoading?.(`Deleting ${ids.length} asset${ids.length !== 1 ? 's' : ''}...`);
             try {
-                const result = await API.gallery.delete(ids);
+                // Separate image and video IDs
+                const imageIds = [];
+                const videoIds = [];
+                ids.forEach(id => {
+                    const item = this._items.find(i => String(i.id) === String(id));
+                    if (item?._media === 'video') {
+                        videoIds.push(id);
+                    } else {
+                        imageIds.push(id);
+                    }
+                });
+
+                let deletedCount = 0;
+                if (imageIds.length > 0) {
+                    const result = await API.gallery.delete(imageIds);
+                    deletedCount += (result.deleted || []).length;
+                }
+                if (videoIds.length > 0) {
+                    for (const vid of videoIds) {
+                        try { await API.video.delete(vid); deletedCount++; } catch (_) {}
+                    }
+                }
+
                 window.hideLoading?.();
                 this._selected.clear();
-                window.showToast?.(`${(result.deleted || []).length} asset${(result.deleted || []).length !== 1 ? 's' : ''} deleted`, 'success');
+                window.showToast?.(`${deletedCount} asset${deletedCount !== 1 ? 's' : ''} deleted`, 'success');
                 await this._loadItems(true);
             } catch (err) {
                 window.hideLoading?.();
@@ -277,8 +336,10 @@
                 this._filteredItems = this._items.filter(item => {
                     const text = [
                         item.prompt || '',
+                        item.original_prompt || '',
                         item.style_id || '',
                         item.asset_type || '',
+                        item.model_label || '',
                         item.id || '',
                     ].join(' ').toLowerCase();
                     return text.includes(query);
@@ -346,12 +407,18 @@
 
             grid.innerHTML = displayItems.map((item) => this._cardHTML(item)).join('');
 
-            // Card click → open viewer
+            // Card click → open viewer (image) or video player (video)
             grid.querySelectorAll('.gallery-card').forEach((card) => {
                 card.addEventListener('click', () => {
                     const id = card.dataset.id;
+                    const media = card.dataset.media;
                     const idx = displayItems.findIndex((i) => String(i.id) === String(id));
-                    if (idx >= 0) AssetViewer.open(displayItems[idx], displayItems, idx);
+                    if (idx < 0) return;
+                    if (media === 'video' && window.VideoStudio?._openVideoPlayer) {
+                        window.VideoStudio._openVideoPlayer(id);
+                    } else {
+                        AssetViewer.open(displayItems[idx], displayItems, idx);
+                    }
                 });
             });
 
@@ -377,29 +444,43 @@
         },
 
         _cardHTML(item) {
-            const pngUrl = API.gallery.pngUrl(item.id) + `?t=${this._cacheKey || '0'}`;
+            const isVideo = item._media === 'video';
+            const thumbUrl = isVideo
+                ? API.video.thumbnailUrl(item.id) + `?t=${this._cacheKey || '0'}`
+                : API.gallery.pngUrl(item.id) + `?t=${this._cacheKey || '0'}`;
             const createdAt = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
             const styleName = item.style_name || this._findStyleName(item.style_id) || '';
-            const prompt = item.prompt || '';
+            const prompt = item.original_prompt || item.prompt || '';
             const truncPrompt = prompt.length > 80 ? prompt.substring(0, 80) + '...' : prompt;
             const isSelected = this._selected.has(item.id);
+            const duration = item.duration_seconds ? `${Math.round(item.duration_seconds)}s` : '';
 
             return `
-                <div class="gallery-card card cursor-pointer overflow-hidden group ${isSelected ? 'ring-2 ring-red-500/50' : ''}" data-id="${this._esc(item.id)}">
-                    <div class="img-hover-zoom aspect-[4/3] bg-brand-bg flex items-center justify-center overflow-hidden relative">
-                        <img src="${pngUrl}" alt="Generated asset"
+                <div class="gallery-card card cursor-pointer overflow-hidden group ${isSelected ? 'ring-2 ring-red-500/50' : ''}" data-id="${this._esc(item.id)}" data-media="${isVideo ? 'video' : 'image'}">
+                    <div class="img-hover-zoom ${isVideo ? 'aspect-video' : 'aspect-[4/3]'} bg-brand-bg flex items-center justify-center overflow-hidden relative">
+                        <img src="${thumbUrl}" alt="${isVideo ? 'Video thumbnail' : 'Generated asset'}"
                              class="w-full h-full object-cover"
                              loading="lazy" />
+                        ${isVideo ? `
+                            <div class="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
+                                <svg class="w-10 h-10 text-white/80 group-hover:text-white group-hover:scale-110 transition-all" fill="currentColor" viewBox="0 0 24 24">
+                                    <path d="M8 5v14l11-7z"/>
+                                </svg>
+                            </div>
+                            ${duration ? `<span class="absolute bottom-1 right-1 bg-black/70 text-white text-[10px] px-1.5 py-0.5 rounded">${duration}</span>` : ''}
+                        ` : ''}
                         <label class="gal-checkbox absolute top-2 left-2 z-10" onclick="event.stopPropagation()">
                             <input type="checkbox" class="gal-select-cb w-4 h-4 rounded border-brand-border bg-brand-bg/80 text-red-500 focus:ring-red-500 cursor-pointer"
                                 data-id="${this._esc(item.id)}" ${isSelected ? 'checked' : ''} />
                         </label>
+                        ${isVideo ? '<span class="absolute top-2 right-2 bg-brand-accent/80 text-white text-[9px] px-1.5 py-0.5 rounded font-medium">VIDEO</span>' : ''}
                     </div>
                     <div class="p-4 space-y-2">
                         <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${this._esc(truncPrompt) || '<em class="text-brand-text-muted">No prompt</em>'}</p>
                         <div class="flex items-center flex-wrap gap-2 text-xs text-brand-text-muted">
+                            ${isVideo ? `<span class="badge badge-indigo">${this._esc(item.model_label || 'Video')}</span>` : ''}
                             ${styleName ? `<span class="badge badge-indigo">${this._esc(styleName)}</span>` : ''}
-                            ${item.asset_type ? `<span class="badge badge-indigo">${this._esc(item.asset_type)}</span>` : ''}
+                            ${item.asset_type && item.asset_type !== 'video' ? `<span class="badge badge-indigo">${this._esc(item.asset_type)}</span>` : ''}
                             ${createdAt ? `<span>${createdAt}</span>` : ''}
                         </div>
                     </div>

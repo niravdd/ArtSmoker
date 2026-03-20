@@ -65,6 +65,7 @@
                     <!-- Tabs -->
                     <div class="tab-bar px-6 pt-3">
                         <button class="tab active" data-ms-tab="image-models">Image Models</button>
+                        <button class="tab" data-ms-tab="video-models">Video Models</button>
                         <button class="tab" data-ms-tab="llm-post">LLM & Post-Processing</button>
                         <button class="tab" data-ms-tab="registry-json">Registry JSON</button>
                     </div>
@@ -79,7 +80,14 @@
                             </div>
                         </div>
 
-                        <!-- Tab 2: LLM & Post-Processing -->
+                        <!-- Tab 2: Video Models -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="video-models">
+                            <div id="ms-video-models" class="space-y-3">
+                                ${this._renderVideoModels(reg)}
+                            </div>
+                        </div>
+
+                        <!-- Tab 3: LLM & Post-Processing -->
                         <div class="ms-tab-panel hidden" data-ms-panel="llm-post">
                             <div class="space-y-6">
                                 <div>
@@ -173,13 +181,12 @@
         },
 
         _renderSingleModel(key, m) {
-            return (() => {
-                const regions = (m.available_regions || [m.region]).join(', ');
-                const quality = (m.quality_options || []).map(q => q.label).join(' / ') || 'No tiers';
-                const price = m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : 'unknown';
-                const strictColor = m.moderation_strictness === 'very_strict' ? 'text-red-400' : m.moderation_strictness === 'strict' ? 'text-amber-400' : 'text-emerald-400';
+            const regions = (m.available_regions || [m.region]).join(', ');
+            const quality = (m.quality_options || []).map(q => q.label).join(' / ') || 'No tiers';
+            const price = m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : 'unknown';
+            const strictColor = m.moderation_strictness === 'very_strict' ? 'text-red-400' : m.moderation_strictness === 'strict' ? 'text-amber-400' : 'text-emerald-400';
 
-                return `
+            return `
                     <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-50'}" data-image-model="${key}">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-2">
@@ -237,6 +244,44 @@
                                 <button class="ms-edit-save btn btn-primary btn-sm text-xs" data-key="${key}">Save Changes</button>
                             </div>
                         </details>
+                    </div>
+                `;
+        },
+
+        _renderVideoModels(reg) {
+            const models = reg.video_models || {};
+            if (Object.keys(models).length === 0) {
+                return '<p class="text-sm text-brand-text-muted py-4 text-center">No video models in registry. Click "Sync from AWS" to discover available models.</p>';
+            }
+            return Object.entries(models).map(([key, m]) => {
+                const enabled = m.enabled !== false;
+                const regions = m.available_regions || [m.region].filter(Boolean);
+                const price = m.base_price_per_second_usd ? `$${m.base_price_per_second_usd}/sec` : '';
+                return `
+                    <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${!enabled ? 'opacity-50' : ''}" data-video-key="${key}">
+                        <div class="flex items-center justify-between mb-2">
+                            <div class="flex items-center gap-2">
+                                <label class="toggle toggle-sm">
+                                    <input type="checkbox" class="ms-video-toggle" data-key="${this._esc(key)}" ${enabled ? 'checked' : ''} />
+                                    <span class="toggle-slider"></span>
+                                </label>
+                                <span class="text-sm font-medium">${this._esc(m.label || key)}</span>
+                                <span class="text-[10px] text-brand-text-muted">${this._esc(m.provider || '')}</span>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                ${price ? `<span class="badge badge-indigo">${price}</span>` : ''}
+                                ${m.supports_image_input ? '<span class="badge badge-indigo">img\u2192vid</span>' : ''}
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted mb-2">
+                            <span>Model ID: <span class="font-mono text-brand-text/70">${this._esc(m.model_id || '')}</span></span>
+                            <span>Format: <span class="text-brand-text/70">${this._esc(m.format_family || '')}</span></span>
+                            <span>Prompt limit: <span class="text-brand-text/70">${m.prompt_limit || '?'} chars</span></span>
+                            <span>Default region: <span class="text-brand-text/70">${this._esc(m.region || '')}</span></span>
+                        </div>
+                        <div class="flex flex-wrap gap-1 mb-1">
+                            ${regions.map(r => `<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(r)}</span>`).join('')}
+                        </div>
                     </div>
                 `;
             }).join('');
@@ -336,6 +381,28 @@
                     } catch (err) {
                         window.showToast?.('Failed: ' + (err.message || ''), 'error');
                         cb.checked = !enabled; // Revert
+                        container?.classList.toggle('opacity-50', enabled);
+                    }
+                });
+            });
+
+            // Video model toggles (enable/disable)
+            modal.querySelectorAll('.ms-video-toggle').forEach(cb => {
+                cb.addEventListener('change', async () => {
+                    const key = cb.dataset.key;
+                    const enabled = cb.checked;
+                    const container = cb.closest('[data-video-key]');
+                    container?.classList.toggle('opacity-50', !enabled);
+                    try {
+                        const resp = await fetch(`/api/admin/models/video/${encodeURIComponent(key)}`, {
+                            method: 'PATCH', body: JSON.stringify({ enabled }),
+                            headers: { 'Content-Type': 'application/json' },
+                        });
+                        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                        window.showToast?.(`${key} ${enabled ? 'enabled' : 'disabled'}`, 'success');
+                    } catch (err) {
+                        window.showToast?.('Failed: ' + (err.message || ''), 'error');
+                        cb.checked = !enabled;
                         container?.classList.toggle('opacity-50', enabled);
                     }
                 });

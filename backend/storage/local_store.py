@@ -17,8 +17,10 @@ class LocalStore:
     def __init__(self) -> None:
         self.styles_dir = settings.styles_dir
         self.generated_dir = settings.generated_dir
+        self.video_dir = settings.video_dir
         self.styles_dir.mkdir(parents=True, exist_ok=True)
         self.generated_dir.mkdir(parents=True, exist_ok=True)
+        self.video_dir.mkdir(parents=True, exist_ok=True)
 
     # ── Style profiles ────────────────────────────────────────────────────
 

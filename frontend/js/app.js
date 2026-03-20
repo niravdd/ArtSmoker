@@ -12,10 +12,11 @@
     // ============================================================
 
     const ROUTES = {
-        'image-studio': { component: window.ImageStudio, label: '2D Image Studio' },
-        'type-studio':  { component: window.TypeStudio, label: 'Type Studio' },
-        styles:         { component: window.StyleLibrary, label: 'Style Library' },
-        gallery:        { component: window.Gallery, label: 'Gallery' },
+        'image-studio':  { component: window.ImageStudio, label: '2D Image Studio' },
+        'type-studio':   { component: window.TypeStudio, label: 'Type Studio' },
+        'video-studio':  { component: window.VideoStudio, label: 'Video Studio' },
+        styles:          { component: window.StyleLibrary, label: 'Style Library' },
+        gallery:         { component: window.Gallery, label: 'Gallery' },
     };
 
     const DEFAULT_ROUTE = 'image-studio';
