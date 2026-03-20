@@ -7,9 +7,18 @@ import subprocess
 import tempfile
 from pathlib import Path
 
-from backend.services.bedrock_client import invoke_remove_background, invoke_upscale
+from backend.services.bedrock_client import invoke_image_model
 
 logger = logging.getLogger(__name__)
+
+
+def _find_model_key_by_purpose(purpose: str) -> str | None:
+    """Find the first enabled model key matching the given purpose from the registry."""
+    from backend.services.model_registry import get_enabled_image_models
+    for key, cfg in get_enabled_image_models().items():
+        if cfg.get("model_purpose") == purpose:
+            return key
+    return None
 
 
 # ── Background removal ────────────────────────────────────────────────────
@@ -17,31 +26,28 @@ logger = logging.getLogger(__name__)
 def remove_background(image_bytes: bytes) -> bytes:
     """Remove the background from a PNG image.
 
-    Uses the Stability AI background-removal model via Bedrock.
+    Uses the registry to find the remove_background model and invokes it
+    via the generic image model invoker.
 
     Args:
         image_bytes: Input PNG image bytes.
 
     Returns:
         PNG image bytes with the background removed (transparent).
-
-    Raises:
-        Exception: Propagates errors from the Bedrock API.
     """
     logger.info("Removing background from image (%d bytes).", len(image_bytes))
-    result = invoke_remove_background(image_bytes)
-    logger.info(
-        "Background removed: input=%d bytes, output=%d bytes.",
-        len(image_bytes),
-        len(result),
-    )
+    model_key = _find_model_key_by_purpose("remove_background")
+    if not model_key:
+        raise RuntimeError("No enabled remove_background model found in registry.")
+    result = invoke_image_model(model_key, source_image=image_bytes)
+    logger.info("Background removed: input=%d bytes, output=%d bytes.", len(image_bytes), len(result))
     return result
 
 
-# ── Upscaling ─────────────────────────────────────────────────────────────
+# ── Upscaling ─────────────────────────────────────────────────────────
 
 def upscale_image(image_bytes: bytes, prompt: str = "") -> bytes:
-    """Upscale an image using Stability AI Creative Upscale.
+    """Upscale an image using the registry's upscale model.
 
     Args:
         image_bytes: Input PNG image bytes.
@@ -49,17 +55,17 @@ def upscale_image(image_bytes: bytes, prompt: str = "") -> bytes:
 
     Returns:
         Upscaled PNG image bytes.
-
-    Raises:
-        Exception: Propagates errors from the Bedrock API.
     """
-    logger.info("Upscaling image (%d bytes), prompt=%r.", len(image_bytes), prompt[:80])
-    result = invoke_upscale(image_bytes, prompt)
-    logger.info(
-        "Upscale complete: input=%d bytes, output=%d bytes.",
-        len(image_bytes),
-        len(result),
-    )
+    logger.info("Upscaling image (%d bytes), prompt=%r.", len(image_bytes), prompt[:80] if prompt else "")
+    model_key = _find_model_key_by_purpose("upscale_creative")
+    if not model_key:
+        model_key = _find_model_key_by_purpose("upscale_conservative")
+    if not model_key:
+        model_key = _find_model_key_by_purpose("upscale_fast")
+    if not model_key:
+        raise RuntimeError("No enabled upscale model found in registry.")
+    result = invoke_image_model(model_key, prompt=prompt or "high quality upscale", source_image=image_bytes)
+    logger.info("Upscale complete: input=%d bytes, output=%d bytes.", len(image_bytes), len(result))
     return result
 
 
