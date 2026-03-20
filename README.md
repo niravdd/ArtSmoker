@@ -6,9 +6,9 @@
 ![AWS Bedrock](https://img.shields.io/badge/AWS-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
-AI-powered 2D game asset generation platform. Generate game-ready sprites, characters, icons, environments, and marketing banners from text or voice prompts — styled to match your game's visual identity. Add text overlays and generate standalone text assets with AI-designed typography.
+AI-powered game asset generation platform. Generate game-ready 2D sprites, characters, icons, environments, marketing banners, and videos from text or voice prompts — styled to match your game's visual identity. Add text overlays, generate standalone text assets with AI-designed typography, and create video animations.
 
-Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI).
+Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI, Nova Reel, Luma AI Ray).
 
 ## 1. What It Does
 
@@ -22,11 +22,14 @@ Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, Stable Diffusion 3.5 Lar
 
 - 🎨 **Style Library** — Upload art, AI learns your visual identity
 - 🖼️ **2D Image Studio** — Generate images with options × variations, two-area prompt editor
+- 🎬 **Video Studio** — Text-to-video with Nova Reel & Luma Ray, multi-shot, image-to-video
 - ✍️ **Type Studio** — AI-designed text overlays with font picker
-- 📁 **Gallery** — Browse, search, download, reload, delete
+- 📁 **Unified Gallery** — Browse images + videos, media filter, search, download, delete
+- ✏️ **Image Editing** — Inpainting, outpainting, erase, search & replace, recolor (in AssetViewer)
 - 🔄 **Real-time progress** — SSE streaming with retry/throttle visibility
 - 🛡️ **Smart moderation** — Canary testing, auto model switching, AI-assisted rewriting
-- ⚙️ **Model Registry** — Admin UI for all AI models, Bedrock discovery, per-model prompt limits
+- ⚙️ **Model Registry** — Admin UI for all AI models (image + video + LLM), Bedrock discovery, per-model prompt limits
+- 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...) and version navigation
 
 ### 1.2 Two-Level Generation
 
@@ -38,7 +41,32 @@ Select **"All Available Models"** from the model dropdown to generate your promp
 
 An optional **"Model-optimized prompts"** toggle tailors the prompt to each model's strengths instead of sending the same prompt to all — useful when you want the best output from each model rather than a direct comparison.
 
-### 1.4 Asset Type Awareness
+### 1.4 Video Studio
+
+Generate AI-powered videos and animations from text prompts. Supports **Amazon Nova Reel** (v1.0, v1.1) and **Luma AI Ray** (v2.0).
+
+| Feature | Nova Reel | Luma Ray v2 |
+|---------|-----------|-------------|
+| **Max duration** | 120s (2 minutes) | 9 seconds |
+| **Resolution** | 1280x720 | 720p / 540p |
+| **Aspect ratios** | 16:9 only | 7 options (1:1, 16:9, 9:16, etc.) |
+| **Image-to-video** | Yes (start frame) | Yes (start + end frame) |
+| **Looping video** | No | Yes |
+| **Multi-shot control** | Yes (auto + manual) | No |
+| **Price** | ~$0.08/sec | ~$1.50/sec |
+
+**How it works:**
+1. Select a video model and configure duration, aspect ratio, region
+2. Enter a prompt — AI enhances it with cinematic vocabulary, camera movements, and temporal coherence cues
+3. Click Generate — the job runs asynchronously via `StartAsyncInvoke`, output goes to your configured S3 bucket
+4. Poll status every 5 seconds — on completion, thumbnail is extracted (via ffmpeg) and MP4 is downloaded locally (or streamed from S3)
+5. Videos appear in both the Video Studio's "Recent Videos" section and the unified Gallery
+
+**S3 bucket required**: Video generation outputs to S3. Configure via Video Settings (browse existing buckets or create new). Storage mode: download locally (default) or stream from S3 on demand.
+
+**Video prompt enhancement**: The LLM adds camera movements (pan, zoom, dolly, tracking), lighting details, and temporal cues. Since video models don't support negative prompts, avoidance concepts are woven into the positive prompt naturally.
+
+### 1.5 Asset Type Awareness
 
 The selected **Asset Type** fundamentally changes how the AI interprets your prompt — not just the image model, but every stage of the pipeline. When you type "hospital" and select different asset types, you get completely different outputs:
 
@@ -87,8 +115,13 @@ Your IAM user or role needs these permissions:
 | `bedrock:InvokeModel` | All image models (Nova Canvas, Titan Image, Stability AI) |
 | `bedrock:Converse` | Claude models (Sonnet, Opus) via the Converse API |
 | `bedrock:InvokeModelWithBidirectionalStream` | Nova Sonic voice transcription |
+| `bedrock:InvokeModel` (async) | Video generation (Nova Reel, Luma Ray) via StartAsyncInvoke |
+| `bedrock:GetAsyncInvoke` | Poll video generation job status |
+| `bedrock:ListAsyncInvokes` | List video generation jobs |
 | `bedrock:ListFoundationModels` | Model discovery in the admin UI |
-| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models (Anthropic, Stability AI) |
+| `s3:CreateBucket` | Create S3 bucket for video storage (optional, via UI) |
+| `s3:PutObject` / `s3:GetObject` / `s3:ListBucket` | Video output storage and retrieval |
+| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models (Anthropic, Stability AI, Luma AI) |
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
 | `sts:GetCallerIdentity` | Startup credential validation |
 

@@ -45,9 +45,10 @@
   - [5.4 Voice Transcription](#54-voice-transcription)
   - [5.5 Gallery](#55-gallery)
   - [5.6 Type Studio](#56-type-studio)
-  - [5.7 Browse](#57-browse)
-  - [5.8 Admin (Model Management)](#58-admin-model-management)
-  - [5.9 System](#59-system)
+  - [5.7 Video](#57-video)
+  - [5.8 Browse](#58-browse)
+  - [5.9 Admin (Model Management)](#59-admin-model-management)
+  - [5.10 System](#510-system)
 - [6. Prerequisites: AWS Setup](#6-prerequisites-aws-setup)
   - [6.1 AWS Credentials](#61-aws-credentials)
   - [6.2 Required IAM Permissions](#62-required-iam-permissions)
@@ -79,7 +80,7 @@
 
 ## 1. Context
 
-A web-based platform that generates 2D game assets and marketing materials using AWS Bedrock AI models. The platform accepts text or voice prompts, learns visual styles from user-uploaded reference art, and produces game-ready assets (PNG + SVG). It is designed to be generic and scalable — any game studio can upload their art theme and generate consistent new assets.
+A web-based platform that generates 2D game assets, videos, and marketing materials using AWS Bedrock AI models. The platform accepts text or voice prompts, learns visual styles from user-uploaded reference art, and produces game-ready assets (PNG + SVG + MP4). It is designed to be generic and scalable — any game studio can upload their art theme and generate consistent new assets and animations.
 
 The system uses a **two-level generation model**: for each user prompt, Claude Opus generates multiple distinctly different creative *options* (concept designs), and for each option the image generator produces multiple seed *variations*. This gives the user a broad creative palette to choose from.
 
@@ -104,8 +105,9 @@ FastAPI Backend (Python)
     +-- /api/transcribe     — Voice-to-text via Nova Sonic
     +-- /api/refine-prompt  — LLM prompt improvement (preview)
     +-- /api/gallery        — Generated asset browsing + file serving + bulk delete
-    +-- /api/browse         — Server-side file browser (local + S3)
-    +-- /api/admin          — Model registry management + Bedrock discovery
+    +-- /api/video          — Video generation (async), job polling, MP4/thumbnail serving
+    +-- /api/browse         — Server-side file browser (local + S3) + bucket creation
+    +-- /api/admin          — Model registry management + Bedrock discovery + video settings
     +-- /api/log            — Client-side error logging
     |
     v
@@ -117,13 +119,17 @@ AI Pipeline (AWS Bedrock)
     +-- Titan Image v2          — Alternative image generation
     +-- Stable Diffusion 3.5 Large            — Image generation (Stability AI)
     +-- Stable Image Ultra      — Image generation (Stability AI premium)
-    +-- Stability AI            — Background removal, upscaling
+    +-- Stability AI            — Background removal, upscaling, inpainting, style transfer
+    +-- Nova Reel v1.0/v1.1    — Video generation (text-to-video, image-to-video, multi-shot)
+    +-- Luma AI Ray v2.0       — Video generation (text-to-video, flexible aspect ratios)
     +-- Nova Sonic              — Speech-to-text transcription (bidirectional streaming)
     |
     v
-Storage (Local filesystem, S3-ready interface)
+Storage (Local filesystem + S3)
     +-- /data/styles/       — Style profiles + reference images
-    +-- /data/generated/    — Output assets (PNG + SVG) + metadata
+    +-- /data/generated/    — Output image assets (PNG + SVG) + metadata + versions
+    +-- /data/video/        — Video assets (MP4 + thumbnails + job metadata)
+    +-- S3 bucket           — Video generation output (required for async Bedrock invoke)
 ```
 
 ## 3. Project Structure
@@ -136,23 +142,25 @@ ArtSmoker/
 │   ├── model_registry.json        # Persisted model configuration (LLMs, image models, post-processing)
 │   ├── routers/
 │   │   ├── styles.py              # Style profile CRUD + directory import + analysis
-│   │   ├── generate.py            # Two-level asset generation (options × variations)
+│   │   ├── generate.py            # Two-level asset generation (options × variations) + image editing
+│   │   ├── video.py               # Video generation (async), job polling, MP4/thumbnail serving, revisions
 │   │   ├── transcribe.py          # Voice transcription endpoint
 │   │   ├── refine.py              # Prompt refinement preview endpoint
-│   │   ├── gallery.py             # Generated asset browsing + file serving
-│   │   ├── browse.py              # Server-side file/S3 browser for reference import
+│   │   ├── gallery.py             # Generated asset browsing + file serving + versioned assets
+│   │   ├── browse.py              # Server-side file/S3 browser + S3 bucket creation
 │   │   ├── typestudio.py          # Type Studio: text overlay, font serving, AI layout
-│   │   └── admin.py               # Model registry admin API + Bedrock model discovery
+│   │   └── admin.py               # Model registry admin API + Bedrock discovery (image + video) + video settings
 │   ├── services/
 │   │   ├── model_registry.py      # Model registry manager: loads/saves model_registry.json, provides config to system
+│   │   ├── video_generator.py     # Video generation: async Bedrock invoke, S3 download, ffmpeg thumbnails
 │   │   ├── style_analyzer.py      # Two-phase style analysis: Sonnet cohesion check → Opus full analysis (includes _smart_sample())
 │   │   ├── prompt_engineer.py     # Claude Sonnet/Opus: prompt refinement + concept generation
-│   │   ├── image_generator.py     # Nova Canvas / Titan Image / Stable Diffusion 3.5 Large / Stable Image Ultra: generate images
-│   │   ├── post_processor.py      # Stability AI: bg removal, upscale; vtracer/potrace: SVG
+│   │   ├── image_generator.py     # Generic image invoker via registry format families
+│   │   ├── post_processor.py      # Registry-driven: bg removal, upscale (by model purpose); vtracer/potrace: SVG
 │   │   ├── transcriber.py         # Nova Sonic: bidirectional streaming speech-to-text
 │   │   ├── texture_extractor.py   # glTF/GLB texture extraction (base64, binary chunks, external refs)
 │   │   ├── import_dedup.py        # Smart deduplication for directory imports (rotation variants, animation frames, folder priority)
-│   │   └── bedrock_client.py      # Shared Bedrock client with connection pooling
+│   │   └── bedrock_client.py      # Shared Bedrock client: invoke_llm (with system prompt), invoke_image_model (generic)
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update models
 │   │   ├── generation_request.py  # GenerationRequest, AssetType, ImageModel enums
@@ -169,18 +177,20 @@ ArtSmoker/
 │   │   ├── components/
 │   │   │   ├── StyleLibrary.js    # Style profile browser + uploader
 │   │   │   ├── ImageStudio.js     # 2D Image Studio: two-tier generation UI (options + variations)
+│   │   │   ├── VideoStudio.js     # Video Studio: text-to-video generation, job polling, video player
 │   │   │   ├── TypeStudio.js      # Type Studio: text overlay system (on-image + standalone)
 │   │   │   ├── VoiceInput.js      # Voice recording + transcription
 │   │   │   ├── PromptEditor.js    # Text input with inline LLM refinement
-│   │   │   ├── Gallery.js         # Generated assets grid
-│   │   │   ├── AssetViewer.js     # Full-size preview + download
-│   │   │   └── ModelSettings.js   # Model registry admin UI (modal)
+│   │   │   ├── Gallery.js         # Unified gallery: images + videos, media filter, type filter
+│   │   │   ├── AssetViewer.js     # Full-size image preview + zoom/pan + edit + versioning
+│   │   │   └── ModelSettings.js   # Model registry admin UI: image models, video models, LLM, JSON editor
 │   │   └── services/
 │   │       └── api.js             # Backend API client
 │   └── (no build step — served as static files by FastAPI)
 ├── data/
 │   ├── styles/                    # User-uploaded style profiles + reference images
-│   └── generated/                 # Output assets (PNG + SVG + metadata)
+│   ├── generated/                 # Output image assets (PNG + SVG + metadata + versions)
+│   └── video/                     # Video assets (MP4 + thumbnails + job metadata)
 ├── .gitattributes                 # Marks generated SVGs as binary (secret scanner false-positive prevention)
 ├── .github/
 │   └── secret_scanning.yml        # Excludes data/ and *.svg from GitHub secret scanning
@@ -921,29 +931,47 @@ Fields:
 | POST | `/api/type-studio/suggest` | AI layout suggestion. Accepts text lines, font choices, position hints, mode ("on_image" or "standalone"), optional base image ID, and style_id. Returns 1-5 layout options, each with per-line position (x, y), font size, color, and effects (shadow, outline, glow) representing different creative directions. |
 | POST | `/api/type-studio/preview` | Render and save the text overlay. Accepts text lines, selected layout option, font choices, mode, optional base image ID, style_id, and processing flags. Pillow renders the composition with the specified effects. Saves the result as a new gallery asset with full metadata (including `style_snapshot`) and returns the new asset ID and URLs. |
 
-### 5.7 Browse
+### 5.7 Video
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/video/generate` | Start a video generation job. Returns `job_id` and `invocation_arn`. Payload: `model_key`, `prompt`, `task_type`, `duration`, `aspect_ratio`, `resolution`, `loop`, `seed`, `source_image` (base64), `enhance_prompt`. Requires S3 bucket configured in video settings. |
+| GET | `/api/video/status/{job_id}` | Poll job status. Returns `InProgress`, `Completed`, or `Failed`. On completion, triggers thumbnail extraction (ffmpeg) and metadata save. |
+| GET | `/api/video/jobs?status=&limit=` | List video jobs (active + completed from disk). Sorted by start time, descending. |
+| GET | `/api/video/{video_id}/mp4` | Serve video MP4. If stored locally, serves file. If S3-only, redirects to presigned URL. |
+| GET | `/api/video/{video_id}/thumbnail` | Serve JPEG thumbnail (first frame, extracted via ffmpeg). |
+| GET | `/api/video/{video_id}/metadata` | Full job metadata including original_prompt, enhanced_prompt, negative_concepts, model info, video specs. |
+| POST | `/api/video/revise` | Re-generate with modified prompt, linked to original video in metadata. Inherits settings from the original job. |
+| DELETE | `/api/video/{video_id}` | Delete video (local files). |
+
+### 5.8 Browse
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/browse/local?path=~` | Browse local filesystem directories. Returns list of files and subdirectories at the given path. Recognizes all supported asset formats: images (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) and 3D models (.glb, .gltf). Used by the Style Library file browser modal. |
 | GET | `/api/browse/s3/buckets` | List available S3 buckets. |
-| GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. Returns list of objects and common prefixes. Recognizes the same asset formats as the local browser. |
+| GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. |
+| POST | `/api/browse/s3/create-bucket` | Create a new S3 bucket. Payload: `name`, `region`. Validates bucket name format. Returns created bucket info. |
 
-### 5.8 Admin (Model Management)
+### 5.9 Admin (Model Management)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/admin/models` | Get the full model registry (all categories, image models, post-processing config). |
-| GET | `/api/admin/models/image-options` | Enabled text-to-image models for the frontend dropdown. Returns: key, label, provider, region, available_regions, region_pricing (per-quality breakdown), quality_options, default_quality, base_price_usd, prompt_limit, moderation_strictness, format_family. Accepts optional `?region=` filter. |
-| GET | `/api/admin/regions` | Cached list of Bedrock-supported AWS regions from the registry. Does NOT call AWS — reads from `bedrock_regions` in `model_registry.json`. |
-| PATCH | `/api/admin/models/category/{name}` | Update an LLM category (e.g. `fast_llm`, `complex_llm`). Accepts partial updates. |
-| PATCH | `/api/admin/models/image/{key}` | Update an image model. Accepts partial updates to any field. |
+| GET | `/api/admin/models` | Get the full model registry (categories, image models, video models, post-processing, format families). |
+| GET | `/api/admin/models/image-options` | Enabled text-to-image models for the Image Studio dropdown. Returns per-model metadata including region_pricing and quality_options. |
+| GET | `/api/admin/models/video-options` | Enabled video models for the Video Studio dropdown. Returns per-model metadata including parameters, task_types, and pricing. |
+| GET | `/api/admin/regions` | Cached list of Bedrock-supported AWS regions from the registry. |
+| GET | `/api/admin/video/settings` | Current video storage settings (S3 bucket, prefix, storage mode). |
+| PUT | `/api/admin/video/settings` | Update video settings. Validates S3 bucket access (head_bucket + put/delete test) before saving. |
+| PATCH | `/api/admin/models/category/{name}` | Update an LLM category (e.g. `fast_llm`, `complex_llm`). |
+| PATCH | `/api/admin/models/image/{key}` | Update an image model. |
+| PATCH | `/api/admin/models/video/{key}` | Update a video model (enable/disable, region, prompt limit). |
 | POST | `/api/admin/models/image` | Add a new image model to the registry. |
-| POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions dynamically, fetches pricing from AWS Pricing API, scans all regions for models (add/update), prunes stale regions and disables removed models. The **only** endpoint that calls AWS discovery APIs. |
-| POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for text-to-image models. New models registered (enabled=false), existing models get the region added to `available_regions`. |
-| GET | `/api/admin/discover/{region}` | Raw model listing for a region. Calls `ListFoundationModels`, deduplicates, groups by capability (image generators, text/LLM, vision). |
+| POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions, fetches pricing, scans all regions for image + video models, backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming, customizations). |
+| POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for image + video models. Classifies by output modality (IMAGE → image registry, VIDEO → video registry). |
+| GET | `/api/admin/discover/{region}` | Raw model listing: image generators, video generators, text/LLM, vision models. |
 
-### 5.9 System
+### 5.10 System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
