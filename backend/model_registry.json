@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-20T03:32:17.867675",
+  "last_updated": "2026-03-20T04:18:37.158165",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -2187,5 +2187,12 @@
         "ON_DEMAND"
       ]
     }
+  },
+  "video_settings": {
+    "s3_bucket": "games-tfc-artsmoker-videos",
+    "s3_prefix": "artsmoker/video/",
+    "store_local": false,
+    "s3_validated": true,
+    "s3_bucket_arn": "arn:aws:s3:::games-tfc-artsmoker-videos"
   }
 }
