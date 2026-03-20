@@ -627,6 +627,13 @@
         // ── Generation ──────────────────────────────────────────────
 
         async _generate() {
+            // S3 bucket check — open settings if not configured
+            if (!this._videoSettings?.s3_bucket) {
+                window.showToast?.('S3 bucket not configured. Opening Video Settings...', 'warning');
+                this._showSettings();
+                return;
+            }
+
             const prompt = document.getElementById('vs-prompt')?.value?.trim();
             if (!prompt) {
                 window.showToast?.('Please enter a video prompt', 'warning');
@@ -689,11 +696,25 @@
                 this._renderJobsList(this._activeJobs.filter(j => j.status === 'InProgress'));
                 this._startPolling(job.job_id);
             } catch (err) {
-                window.showToast?.('Generation failed: ' + err.message, 'error');
+                const msg = err.message || '';
+                const isS3Issue = msg.includes('S3') || msg.includes('bucket') || msg.includes('s3');
+                if (isS3Issue) {
+                    window.showToast?.('S3 bucket issue. Opening Video Settings...', 'warning');
+                    this._showSettings();
+                    // Pre-fill the status with the error
+                    const statusEl = document.getElementById('vs-s3-status');
+                    if (statusEl) {
+                        statusEl.classList.remove('hidden');
+                        statusEl.className = 'text-xs p-2 rounded bg-red-950/50 text-red-300';
+                        statusEl.textContent = msg;
+                    }
+                } else {
+                    window.showToast?.('Generation failed: ' + msg, 'error');
+                }
             } finally {
                 if (btn) {
                     btn.disabled = false;
-                    btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Generate Video`;
+                    btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Generate`;
                 }
             }
         },
