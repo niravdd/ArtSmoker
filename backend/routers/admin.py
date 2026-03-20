@@ -411,13 +411,22 @@ async def auto_register_image_models(region: str):
     )
 
     registry = get_registry()
-    # Build model_id → registry_key lookup for existing models
-    existing_by_model_id: dict[str, str] = {}
+    # Build model_id → list of registry keys lookup for existing models
+    # Map both the stored model_id and the raw version (without us. prefix)
+    # so that Bedrock's raw IDs match our stored inference profile IDs.
+    # Multiple entries may share the same model_id (e.g. inpaint/outpaint variants).
+    existing_by_model_id: dict[str, list[str]] = {}
     for key, cfg in registry.get("image_models", {}).items():
-        existing_by_model_id[cfg.get("model_id", "")] = key
-    existing_video_by_model_id: dict[str, str] = {}
+        stored_id = cfg.get("model_id", "")
+        existing_by_model_id.setdefault(stored_id, []).append(key)
+        if stored_id.startswith("us."):
+            existing_by_model_id.setdefault(stored_id[3:], []).append(key)
+    existing_video_by_model_id: dict[str, list[str]] = {}
     for key, cfg in registry.get("video_models", {}).items():
-        existing_video_by_model_id[cfg.get("model_id", "")] = key
+        stored_id = cfg.get("model_id", "")
+        existing_video_by_model_id.setdefault(stored_id, []).append(key)
+        if stored_id.startswith("us."):
+            existing_video_by_model_id.setdefault(stored_id[3:], []).append(key)
 
     # Classify image models by purpose and format family based on model_id keywords.
     def _classify_image_model(model_id: str, provider: str, input_modalities: list[str]):
@@ -496,15 +505,33 @@ async def auto_register_image_models(region: str):
                 continue
 
             if model_id in existing_video_by_model_id:
-                existing_key = existing_video_by_model_id[model_id]
-                existing_cfg = get_video_model(existing_key)
-                if existing_cfg:
+                for existing_key in existing_video_by_model_id[model_id]:
+                    existing_cfg = get_video_model(existing_key)
+                    if not existing_cfg:
+                        continue
+                    backfill = {}
+                    if not existing_cfg.get("input_modalities"):
+                        backfill["input_modalities"] = inp
+                    if not existing_cfg.get("output_modalities"):
+                        backfill["output_modalities"] = output
+                    if not existing_cfg.get("model_arn"):
+                        backfill["model_arn"] = m.get("modelArn", "")
+                    if not existing_cfg.get("model_lifecycle"):
+                        backfill["model_lifecycle"] = m.get("modelLifecycle", {}).get("status", "")
+                    if "streaming_supported" not in existing_cfg:
+                        backfill["streaming_supported"] = m.get("responseStreamingSupported", False)
+                    if not existing_cfg.get("customizations_supported"):
+                        backfill["customizations_supported"] = m.get("customizationsSupported", [])
+
                     regions = existing_cfg.get("available_regions", [existing_cfg.get("region", "")])
                     if region not in regions:
                         regions.append(region)
                         regions.sort()
-                        update_video_model(existing_key, {"available_regions": regions})
+                        backfill["available_regions"] = regions
                         updated.append({"key": existing_key, "model_id": model_id, "added_region": region, "media": "video"})
+
+                    if backfill:
+                        update_video_model(existing_key, backfill)
                 continue
 
             # Include version in key: amazon.nova-reel-v1:1 → nova_reel_v1_1
@@ -538,6 +565,12 @@ async def auto_register_image_models(region: str):
                 "supports_image_input": has_img_input,
                 "base_price_per_second_usd": base_price,
                 "inference_types": m.get("inferenceTypesSupported", []),
+                "input_modalities": inp,
+                "output_modalities": output,
+                "model_arn": m.get("modelArn", ""),
+                "model_lifecycle": m.get("modelLifecycle", {}).get("status", ""),
+                "streaming_supported": m.get("responseStreamingSupported", False),
+                "customizations_supported": m.get("customizationsSupported", []),
             }
             add_video_model(key, config)
             existing_video_by_model_id[model_id] = key
@@ -553,29 +586,56 @@ async def auto_register_image_models(region: str):
             logger.warning("Unknown provider '%s' for model %s — skipping", provider, model_id)
             continue
 
-        # Already registered? → update available_regions, then check for variants
+        # Already registered? → update available_regions + backfill metadata for ALL matching entries
         if model_id in existing_by_model_id:
-            existing_key = existing_by_model_id[model_id]
-            existing_cfg = get_image_model(existing_key)
-            if existing_cfg:
+            for existing_key in existing_by_model_id[model_id]:
+                existing_cfg = get_image_model(existing_key)
+                if not existing_cfg:
+                    continue
+                # Backfill Bedrock metadata if missing
+                backfill = {}
+                if not existing_cfg.get("input_modalities"):
+                    backfill["input_modalities"] = inp
+                if not existing_cfg.get("output_modalities"):
+                    backfill["output_modalities"] = output
+                if not existing_cfg.get("model_arn"):
+                    backfill["model_arn"] = m.get("modelArn", "")
+                if not existing_cfg.get("model_lifecycle"):
+                    backfill["model_lifecycle"] = m.get("modelLifecycle", {}).get("status", "")
+                if "streaming_supported" not in existing_cfg:
+                    backfill["streaming_supported"] = m.get("responseStreamingSupported", False)
+                if not existing_cfg.get("customizations_supported"):
+                    backfill["customizations_supported"] = m.get("customizationsSupported", [])
+
                 regions = existing_cfg.get("available_regions", [existing_cfg.get("region", "")])
                 if region not in regions:
                     regions.append(region)
                     regions.sort()
-                    update_image_model(existing_key, {"available_regions": regions})
+                    backfill["available_regions"] = regions
                     updated.append({"key": existing_key, "model_id": model_id, "added_region": region})
                     logger.info("Updated %s: added region %s (now %s)", existing_key, region, regions)
+
+                if backfill:
+                    update_image_model(existing_key, backfill)
             # Create Amazon inpaint/outpaint variants if they don't exist
-            if provider == "Amazon" and existing_cfg.get("model_purpose") == "text_to_image":
+            # Find the base text_to_image entry for this model_id
+            base_key = None
+            base_cfg = None
+            for ek in existing_by_model_id[model_id]:
+                ec = get_image_model(ek)
+                if ec and ec.get("model_purpose") == "text_to_image":
+                    base_key, base_cfg = ek, ec
+                    break
+            if provider == "Amazon" and base_cfg:
                 model_name = m.get("modelName", "")
                 for variant_purpose, variant_family, variant_suffix in [
                     ("inpainting", "amazon_inpainting", "_inpaint"),
                     ("outpainting", "amazon_outpainting", "_outpaint"),
                 ]:
-                    variant_key = existing_key + variant_suffix
+                    variant_key = base_key + variant_suffix
                     if not get_image_model(variant_key):
                         variant_config = {
-                            "label": f"{model_name or existing_cfg.get('label', '')} {variant_purpose.title()}",
+                            "label": f"{model_name or base_cfg.get('label', '')} {variant_purpose.title()}",
                             "model_id": model_id,
                             "region": region,
                             "available_regions": [region],
@@ -583,10 +643,10 @@ async def auto_register_image_models(region: str):
                             "enabled": True,
                             "model_purpose": variant_purpose,
                             "format_family": variant_family,
-                            "prompt_limit": existing_cfg.get("prompt_limit", 900),
-                            "moderation_strictness": existing_cfg.get("moderation_strictness", "moderate"),
-                            "base_price_usd": existing_cfg.get("base_price_usd"),
-                            "extra_body": existing_cfg.get("extra_body", {}),
+                            "prompt_limit": base_cfg.get("prompt_limit", 900),
+                            "moderation_strictness": base_cfg.get("moderation_strictness", "moderate"),
+                            "base_price_usd": base_cfg.get("base_price_usd"),
+                            "extra_body": base_cfg.get("extra_body", {}),
                         }
                         add_image_model(variant_key, variant_config)
                         registered.append({"key": variant_key, "model_id": model_id,
@@ -627,6 +687,12 @@ async def auto_register_image_models(region: str):
             "moderation_strictness": "moderate",
             "base_price_usd": base_price,
             "inference_types": inference_types,
+            "input_modalities": inp,
+            "output_modalities": output,
+            "model_arn": m.get("modelArn", ""),
+            "model_lifecycle": m.get("modelLifecycle", {}).get("status", ""),
+            "streaming_supported": m.get("responseStreamingSupported", False),
+            "customizations_supported": m.get("customizationsSupported", []),
             "extra_body": {},
         }
 

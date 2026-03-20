@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-20T04:18:37.158165",
+  "last_updated": "2026-03-20T06:42:51.865792",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -77,7 +77,20 @@
         "imageGenerationConfig": {
           "quality": "premium"
         }
-      }
+      },
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-canvas-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [
+        "FINE_TUNING"
+      ]
     },
     "titan_image": {
       "label": "Amazon Titan Image v2",
@@ -115,7 +128,20 @@
         }
       ],
       "default_quality": "standard",
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v2:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [
+        "FINE_TUNING"
+      ]
     },
     "sd35_large": {
       "label": "Stable Diffusion 3.5 Large",
@@ -182,7 +208,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-creative-upscale-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_remove_background_v1": {
       "label": "Stable Image Remove Background",
@@ -201,7 +238,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-remove-background-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_control_sketch_v1": {
       "label": "Stable Image Control Sketch",
@@ -220,7 +268,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-sketch-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_conservative_upscale_v1": {
       "label": "Stable Image Conservative Upscale",
@@ -239,7 +298,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-conservative-upscale-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_search_recolor_v1": {
       "label": "Stable Image Search and Recolor",
@@ -258,7 +328,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-recolor-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_fast_upscale_v1": {
       "label": "Stable Image Fast Upscale",
@@ -277,7 +358,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-fast-upscale-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_erase_object_v1": {
       "label": "Stable Image Erase Object",
@@ -296,7 +388,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-erase-object-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_control_structure_v1": {
       "label": "Stable Image Control Structure",
@@ -315,7 +418,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-structure-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_outpaint_v1": {
       "label": "Stable Image Outpaint",
@@ -334,7 +448,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-outpaint-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_inpaint_v1": {
       "label": "Stable Image Inpaint",
@@ -353,7 +478,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-inpaint-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_style_guide_v1": {
       "label": "Stable Image Style Guide",
@@ -372,7 +508,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-style-guide-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_style_transfer_v1": {
       "label": "Stable Image Style Transfer",
@@ -391,7 +538,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-style-transfer-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_search_replace_v1": {
       "label": "Stable Image Search and Replace",
@@ -410,7 +568,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-replace-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "titan_image_inpaint": {
       "label": "Titan Image Generator G1 v2 Inpainting",
@@ -426,7 +595,20 @@
       "prompt_limit": 480,
       "moderation_strictness": "strict",
       "base_price_usd": 0.01,
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v2:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [
+        "FINE_TUNING"
+      ]
     },
     "titan_image_outpaint": {
       "label": "Titan Image Generator G1 v2 Outpainting",
@@ -443,7 +625,20 @@
       "prompt_limit": 480,
       "moderation_strictness": "strict",
       "base_price_usd": 0.01,
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v2:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [
+        "FINE_TUNING"
+      ]
     },
     "nova_canvas_inpaint": {
       "label": "Nova Canvas Inpainting",
@@ -463,7 +658,20 @@
         "imageGenerationConfig": {
           "quality": "premium"
         }
-      }
+      },
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-canvas-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [
+        "FINE_TUNING"
+      ]
     },
     "nova_canvas_outpaint": {
       "label": "Nova Canvas Outpainting",
@@ -485,7 +693,20 @@
         "imageGenerationConfig": {
           "quality": "premium"
         }
-      }
+      },
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-canvas-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [
+        "FINE_TUNING"
+      ]
     },
     "stable_creative_upscale_v1_us_east_1": {
       "label": "Stable Image Creative Upscale",
@@ -504,6 +725,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-creative-upscale-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_image_remove_background_v1_us_east_1": {
@@ -523,6 +755,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-remove-background-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_image_control_sketch_v1_us_east_1": {
@@ -542,6 +785,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-sketch-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_conservative_upscale_v1_us_east_1": {
@@ -561,6 +815,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-conservative-upscale-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_image_search_recolor_v1_us_east_1": {
@@ -580,6 +845,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-recolor-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_fast_upscale_v1_us_east_1": {
@@ -599,6 +875,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-fast-upscale-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_image_erase_object_v1_us_east_1": {
@@ -618,6 +905,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-erase-object-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_image_control_structure_v1_us_east_1": {
@@ -637,6 +935,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-structure-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_outpaint_v1_us_east_1": {
@@ -656,6 +965,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-outpaint-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_image_inpaint_v1_us_east_1": {
@@ -675,6 +995,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-inpaint-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_image_style_guide_v1_us_east_1": {
@@ -694,6 +1025,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-style-guide-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_style_transfer_v1_us_east_1": {
@@ -713,6 +1055,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-style-transfer-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_image_search_replace_v1_us_east_1": {
@@ -732,6 +1085,17 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-replace-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": [],
       "extra_body": {}
     },
     "stable_creative_upscale_v1_us_west_2": {
@@ -739,6 +1103,7 @@
       "model_id": "us.stability.stable-creative-upscale-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -751,13 +1116,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-creative-upscale-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_remove_background_v1_us_west_2": {
       "label": "Stable Image Remove Background",
       "model_id": "us.stability.stable-image-remove-background-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -770,13 +1147,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-remove-background-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_control_sketch_v1_us_west_2": {
       "label": "Stable Image Control Sketch",
       "model_id": "us.stability.stable-image-control-sketch-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -789,13 +1178,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-sketch-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_conservative_upscale_v1_us_west_2": {
       "label": "Stable Image Conservative Upscale",
       "model_id": "us.stability.stable-conservative-upscale-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -808,13 +1209,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-conservative-upscale-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_search_recolor_v1_us_west_2": {
       "label": "Stable Image Search and Recolor",
       "model_id": "us.stability.stable-image-search-recolor-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -827,13 +1240,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-recolor-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_fast_upscale_v1_us_west_2": {
       "label": "Stable Image Fast Upscale",
       "model_id": "us.stability.stable-fast-upscale-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -846,13 +1271,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-fast-upscale-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_erase_object_v1_us_west_2": {
       "label": "Stable Image Erase Object",
       "model_id": "us.stability.stable-image-erase-object-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -865,13 +1302,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-erase-object-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_control_structure_v1_us_west_2": {
       "label": "Stable Image Control Structure",
       "model_id": "us.stability.stable-image-control-structure-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -884,13 +1333,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-structure-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_outpaint_v1_us_west_2": {
       "label": "Stable Image Outpaint",
       "model_id": "us.stability.stable-outpaint-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -903,13 +1364,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-outpaint-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_inpaint_v1_us_west_2": {
       "label": "Stable Image Inpaint",
       "model_id": "us.stability.stable-image-inpaint-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -922,13 +1395,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-inpaint-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_style_guide_v1_us_west_2": {
       "label": "Stable Image Style Guide",
       "model_id": "us.stability.stable-image-style-guide-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -941,13 +1426,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-style-guide-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_style_transfer_v1_us_west_2": {
       "label": "Stable Image Style Transfer",
       "model_id": "us.stability.stable-style-transfer-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -960,13 +1457,25 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-style-transfer-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "stable_image_search_replace_v1_us_west_2": {
       "label": "Stable Image Search and Replace",
       "model_id": "us.stability.stable-image-search-replace-v1:0",
       "region": "us-west-2",
       "available_regions": [
+        "us-east-1",
         "us-west-2"
       ],
       "provider": "Stability AI",
@@ -979,7 +1488,18 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "extra_body": {}
+      "extra_body": {},
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-replace-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     }
   },
   "post_processing": {
@@ -2149,7 +2669,18 @@
       "base_price_per_second_usd": 0.08,
       "inference_types": [
         "ON_DEMAND"
-      ]
+      ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "VIDEO"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-reel-v1:0",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "nova_reel_v1_1": {
       "label": "Nova Reel v1.1",
@@ -2167,7 +2698,18 @@
       "base_price_per_second_usd": 0.08,
       "inference_types": [
         "ON_DEMAND"
-      ]
+      ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "VIDEO"
+      ],
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-reel-v1:1",
+      "model_lifecycle": "ACTIVE",
+      "streaming_supported": false,
+      "customizations_supported": []
     },
     "ray_v2_0": {
       "label": "Ray v2.0",
