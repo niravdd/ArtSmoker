@@ -172,6 +172,18 @@
                                 Generate Video
                             </button>
 
+                            <!-- Prompt Info (shown after generation starts) -->
+                            <div id="vs-prompt-info" class="hidden card-static p-4 space-y-3">
+                                <div>
+                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">Original prompt</p>
+                                    <p id="vs-original-prompt" class="text-sm text-brand-text/80 leading-relaxed"></p>
+                                </div>
+                                <div id="vs-enhanced-prompt-section" class="hidden">
+                                    <p class="text-[10px] text-brand-accent uppercase tracking-wider font-semibold mb-1">AI-enhanced prompt (sent to model)</p>
+                                    <p id="vs-enhanced-prompt" class="text-sm text-brand-text/60 leading-relaxed"></p>
+                                </div>
+                            </div>
+
                             <!-- Active Jobs -->
                             <div id="vs-jobs-section" class="card-static p-4 hidden">
                                 <h3 class="text-sm font-semibold mb-3 flex items-center gap-2">
@@ -655,6 +667,10 @@
             try {
                 const job = await API.video.generate(payload);
                 window.showToast?.(`Video generation started: ${job.model_label}`, 'success');
+
+                // Show prompt info
+                this._showPromptInfo(job);
+
                 this._activeJobs.push(job);
                 this._renderJobsList(this._activeJobs.filter(j => j.status === 'InProgress'));
                 this._startPolling(job.job_id);
@@ -665,6 +681,25 @@
                     btn.disabled = false;
                     btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg> Generate Video`;
                 }
+            }
+        },
+
+        _showPromptInfo(job) {
+            const section = document.getElementById('vs-prompt-info');
+            if (!section) return;
+
+            section.classList.remove('hidden');
+
+            const origEl = document.getElementById('vs-original-prompt');
+            if (origEl) origEl.textContent = job.original_prompt || job.prompt || '';
+
+            const enhSection = document.getElementById('vs-enhanced-prompt-section');
+            const enhEl = document.getElementById('vs-enhanced-prompt');
+            if (job.enhanced_prompt && job.enhanced_prompt !== job.original_prompt) {
+                enhSection?.classList.remove('hidden');
+                if (enhEl) enhEl.textContent = job.enhanced_prompt;
+            } else {
+                enhSection?.classList.add('hidden');
             }
         },
 
@@ -714,13 +749,16 @@
 
             container.innerHTML = jobs.map(j => {
                 const elapsed = j.started_at ? _timeSince(j.started_at) : '';
+                const hasEnhanced = j.enhanced_prompt && j.enhanced_prompt !== j.original_prompt;
                 return `
                     <div class="p-3 rounded-lg bg-brand-bg border border-brand-border space-y-1.5">
                         <div class="flex items-center gap-2">
                             <div class="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></div>
                             <span class="text-xs font-medium">${_esc(j.model_label || j.model_key)}</span>
+                            ${hasEnhanced ? '<span class="text-[9px] text-brand-accent">AI-enhanced</span>' : ''}
                         </div>
                         <p class="text-xs text-brand-text-muted line-clamp-2">${_esc(j.original_prompt || j.prompt || '')}</p>
+                        ${hasEnhanced ? `<details class="group"><summary class="text-[10px] text-brand-accent cursor-pointer">Show enhanced prompt</summary><p class="text-[10px] text-brand-text/50 mt-1 leading-relaxed">${_esc(j.enhanced_prompt)}</p></details>` : ''}
                         <div class="text-[10px] text-brand-text-muted/70">${j.job_id} · ${elapsed}</div>
                     </div>
                 `;
@@ -773,16 +811,31 @@
         },
 
         _openVideoPlayer(videoId) {
-            // Simple modal video player
             const mp4Url = API.video.mp4Url(videoId);
             const overlay = document.createElement('div');
-            overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm';
+            overlay.className = 'fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm overflow-auto py-8';
             overlay.innerHTML = `
                 <div class="relative max-w-4xl w-full mx-4">
-                    <button class="absolute -top-10 right-0 text-white text-2xl hover:text-brand-accent z-10">&times;</button>
+                    <button class="vs-player-close absolute -top-10 right-0 text-white text-2xl hover:text-brand-accent z-10">&times;</button>
                     <video controls autoplay class="w-full rounded-lg shadow-2xl" src="${mp4Url}">
                         Your browser does not support video playback.
                     </video>
+                    <!-- Prompt info (loaded from metadata) -->
+                    <div class="vs-player-meta mt-3 rounded-lg bg-brand-surface/90 p-4 space-y-2 hidden">
+                        <div class="vs-meta-original">
+                            <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-0.5">Original prompt</p>
+                            <p class="vs-meta-original-text text-sm text-brand-text/80 leading-relaxed"></p>
+                        </div>
+                        <div class="vs-meta-enhanced hidden">
+                            <p class="text-[10px] text-brand-accent uppercase tracking-wider font-semibold mb-0.5">AI-enhanced prompt (sent to model)</p>
+                            <p class="vs-meta-enhanced-text text-sm text-brand-text/60 leading-relaxed"></p>
+                        </div>
+                        <div class="flex flex-wrap gap-3 text-[10px] text-brand-text-muted pt-1">
+                            <span class="vs-meta-model"></span>
+                            <span class="vs-meta-duration"></span>
+                            <span class="vs-meta-region"></span>
+                        </div>
+                    </div>
                     <div class="flex gap-2 mt-3 justify-center">
                         <button class="btn btn-secondary btn-sm vs-revise-btn" data-video-id="${_esc(videoId)}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -801,8 +854,32 @@
             `;
             document.body.appendChild(overlay);
 
+            // Load metadata and populate prompt info
+            API.video.metadata(videoId).then(meta => {
+                const metaEl = overlay.querySelector('.vs-player-meta');
+                if (!metaEl || !meta) return;
+                metaEl.classList.remove('hidden');
+
+                const origText = metaEl.querySelector('.vs-meta-original-text');
+                if (origText) origText.textContent = meta.original_prompt || meta.prompt || '';
+
+                if (meta.enhanced_prompt && meta.enhanced_prompt !== meta.original_prompt) {
+                    const enhSection = metaEl.querySelector('.vs-meta-enhanced');
+                    const enhText = metaEl.querySelector('.vs-meta-enhanced-text');
+                    enhSection?.classList.remove('hidden');
+                    if (enhText) enhText.textContent = meta.enhanced_prompt;
+                }
+
+                const modelEl = metaEl.querySelector('.vs-meta-model');
+                if (modelEl) modelEl.textContent = `Model: ${meta.model_label || meta.model_key || ''}`;
+                const durEl = metaEl.querySelector('.vs-meta-duration');
+                if (durEl && meta.duration_seconds) durEl.textContent = `Duration: ${Math.round(meta.duration_seconds)}s`;
+                const regEl = metaEl.querySelector('.vs-meta-region');
+                if (regEl && meta.region) regEl.textContent = `Region: ${meta.region}`;
+            }).catch(() => {});
+
             // Close handlers
-            overlay.querySelector('button')?.addEventListener('click', () => overlay.remove());
+            overlay.querySelector('.vs-player-close')?.addEventListener('click', () => overlay.remove());
             overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 
             // Revise handler
