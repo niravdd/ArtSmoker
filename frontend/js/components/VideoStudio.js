@@ -182,6 +182,10 @@
                                     <p class="text-[10px] text-brand-accent uppercase tracking-wider font-semibold mb-1">AI-enhanced prompt (sent to model)</p>
                                     <p id="vs-enhanced-prompt" class="text-sm text-brand-text/60 leading-relaxed"></p>
                                 </div>
+                                <div id="vs-negative-section" class="hidden">
+                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1">Negative concepts (woven into prompt — no separate negative prompt in video models)</p>
+                                    <p id="vs-negative-concepts" class="text-sm text-amber-300/60 leading-relaxed italic"></p>
+                                </div>
                             </div>
 
                             <!-- Active Jobs -->
@@ -701,6 +705,15 @@
             } else {
                 enhSection?.classList.add('hidden');
             }
+
+            const negSection = document.getElementById('vs-negative-section');
+            const negEl = document.getElementById('vs-negative-concepts');
+            if (job.negative_concepts) {
+                negSection?.classList.remove('hidden');
+                if (negEl) negEl.textContent = job.negative_concepts;
+            } else {
+                negSection?.classList.add('hidden');
+            }
         },
 
         // ── Polling ─────────────────────────────────────────────────
@@ -830,6 +843,10 @@
                             <p class="text-[10px] text-brand-accent uppercase tracking-wider font-semibold mb-0.5">AI-enhanced prompt (sent to model)</p>
                             <p class="vs-meta-enhanced-text text-sm text-brand-text/60 leading-relaxed"></p>
                         </div>
+                        <div class="vs-meta-negative hidden">
+                            <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-0.5">Negative concepts</p>
+                            <p class="vs-meta-negative-text text-sm text-amber-300/60 leading-relaxed italic"></p>
+                        </div>
                         <div class="flex flex-wrap gap-3 text-[10px] text-brand-text-muted pt-1">
                             <span class="vs-meta-model"></span>
                             <span class="vs-meta-duration"></span>
@@ -868,6 +885,13 @@
                     const enhText = metaEl.querySelector('.vs-meta-enhanced-text');
                     enhSection?.classList.remove('hidden');
                     if (enhText) enhText.textContent = meta.enhanced_prompt;
+                }
+
+                if (meta.negative_concepts) {
+                    const negSection = metaEl.querySelector('.vs-meta-negative');
+                    const negText = metaEl.querySelector('.vs-meta-negative-text');
+                    negSection?.classList.remove('hidden');
+                    if (negText) negText.textContent = meta.negative_concepts;
                 }
 
                 const modelEl = metaEl.querySelector('.vs-meta-model');

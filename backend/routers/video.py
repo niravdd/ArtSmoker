@@ -68,9 +68,12 @@ async def generate_video(req: VideoGenerateRequest):
 
     # Enhance prompt via LLM for better video results
     enhanced_prompt = prompt
+    negative_concepts = ""
     if req.enhance_prompt:
         try:
-            enhanced_prompt = _enhance_video_prompt(prompt, req.model_key)
+            result = _enhance_video_prompt(prompt, req.model_key)
+            enhanced_prompt = result["enhanced_prompt"]
+            negative_concepts = result["negative_concepts"]
         except Exception as exc:
             logger.warning("Video prompt enhancement failed, using original: %s", exc)
 
@@ -112,6 +115,7 @@ async def generate_video(req: VideoGenerateRequest):
 
     job["original_prompt"] = prompt
     job["enhanced_prompt"] = enhanced_prompt
+    job["negative_concepts"] = negative_concepts
     _active_jobs[job["job_id"]] = job
 
     return job
@@ -378,11 +382,15 @@ def _load_job_from_disk(job_id: str) -> dict | None:
         return None
 
 
-def _enhance_video_prompt(prompt: str, model_key: str) -> str:
+def _enhance_video_prompt(prompt: str, model_key: str) -> dict:
     """Enhance a user prompt for video generation using LLM.
 
     Adds cinematic vocabulary, camera movement, temporal coherence cues.
+    Since video models don't support negative prompts, any "avoid" concepts
+    are woven into the positive prompt as avoidance language.
     Respects per-model prompt limits.
+
+    Returns: {"enhanced_prompt": str, "negative_concepts": str}
     """
     from backend.services.bedrock_client import invoke_llm
     from backend.services.model_registry import get_video_model
@@ -398,8 +406,8 @@ Guidelines:
 - Include lighting and atmosphere details (golden hour, dramatic shadows, ambient glow)
 - Add temporal cues for smooth motion (gradual, continuous, smooth transition)
 - Keep the core intent and subject of the original prompt
-- Output ONLY the enhanced prompt, no explanations
-- Maximum {prompt_limit} characters
+- If the user mentions things to avoid (e.g. "no text", "avoid blurry"), weave avoidance into the prompt naturally (e.g. "sharp, clean visuals without text overlays") since this model has no negative prompt support
+- Maximum {prompt_limit} characters for the enhanced prompt
 - For game assets: emphasize clean motion, consistent style, looping-friendly if short"""
 
     if "luma" in family:
@@ -407,17 +415,41 @@ Guidelines:
     else:
         system_prompt += "\n- Keep it concise. This model has a 512 character limit per shot."
 
+    system_prompt += """
+
+Output format (exactly two lines):
+ENHANCED: <the enhanced prompt>
+AVOID: <comma-separated list of things the user wants to avoid, or "none" if nothing to avoid>"""
+
     try:
-        enhanced = invoke_llm(
+        result = invoke_llm(
             prompt=f"Enhance this video prompt:\n\n{prompt}",
             system=system_prompt,
-            max_tokens=600,
+            max_tokens=700,
             complexity="fast",
         )
+
+        enhanced = prompt
+        negative = ""
+
+        for line in result.strip().splitlines():
+            line = line.strip()
+            if line.upper().startswith("ENHANCED:"):
+                enhanced = line[len("ENHANCED:"):].strip()
+            elif line.upper().startswith("AVOID:"):
+                neg = line[len("AVOID:"):].strip()
+                if neg.lower() != "none":
+                    negative = neg
+
+        # If parsing failed (no ENHANCED: line), use the whole response
+        if enhanced == prompt and "ENHANCED:" not in result.upper():
+            enhanced = result.strip()
+
         # Truncate to model limit
         if len(enhanced) > prompt_limit:
             enhanced = enhanced[:prompt_limit - 3].rsplit(" ", 1)[0] + "..."
-        return enhanced.strip()
+
+        return {"enhanced_prompt": enhanced, "negative_concepts": negative}
     except Exception as exc:
         logger.warning("Prompt enhancement failed: %s", exc)
-        return prompt
+        return {"enhanced_prompt": prompt, "negative_concepts": ""}

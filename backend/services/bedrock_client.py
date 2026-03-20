@@ -167,6 +167,7 @@ def _get_fallback_llm() -> tuple[str, str]:
 def invoke_llm(
     prompt: str,
     *,
+    system: str = "",
     complexity: str = "fast",
     images: list[bytes] | None = None,
     max_tokens: int = 4096,
@@ -180,6 +181,7 @@ def invoke_llm(
 
     Args:
         prompt: The text prompt.
+        system: Optional system prompt to guide behavior.
         complexity: "fast" → fast_llm category, "complex" → complex_llm category.
         images: Optional list of PNG image bytes to include as vision input.
         max_tokens: Max response tokens.
@@ -204,15 +206,19 @@ def invoke_llm(
 
     messages = [{"role": "user", "content": content_blocks}]
 
+    converse_kwargs = {
+        "modelId": model_id,
+        "messages": messages,
+        "inferenceConfig": {
+            "maxTokens": max_tokens,
+            "temperature": temperature,
+        },
+    }
+    if system:
+        converse_kwargs["system"] = [{"text": system}]
+
     try:
-        response = client.converse(
-            modelId=model_id,
-            messages=messages,
-            inferenceConfig={
-                "maxTokens": max_tokens,
-                "temperature": temperature,
-            },
-        )
+        response = client.converse(**converse_kwargs)
         return response["output"]["message"]["content"][0]["text"]
     except client.exceptions.AccessDeniedException:
         fallback_id, fallback_region = _get_fallback_llm()
@@ -221,14 +227,17 @@ def invoke_llm(
             model_id, fallback_id, fallback_region,
         )
         fallback_client = _get_client(fallback_region)
-        response = fallback_client.converse(
-            modelId=fallback_id,
-            messages=messages,
-            inferenceConfig={
+        fallback_kwargs = {
+            "modelId": fallback_id,
+            "messages": messages,
+            "inferenceConfig": {
                 "maxTokens": max_tokens,
                 "temperature": temperature,
             },
-        )
+        }
+        if system:
+            fallback_kwargs["system"] = [{"text": system}]
+        response = fallback_client.converse(**fallback_kwargs)
         return response["output"]["message"]["content"][0]["text"]
 
 
