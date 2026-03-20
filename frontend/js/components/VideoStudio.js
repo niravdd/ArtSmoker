@@ -164,13 +164,22 @@
                             </div>
 
                             <!-- Generate Button -->
-                            <button id="vs-generate-btn" class="btn btn-primary btn-lg text-base w-full" disabled>
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                </svg>
-                                Generate Video
-                            </button>
+                            <!-- Generate / Reset Buttons -->
+                            <div class="grid grid-cols-2 gap-3">
+                                <button id="vs-generate-btn" class="btn btn-primary btn-lg text-base" disabled>
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                    </svg>
+                                    Generate
+                                </button>
+                                <button id="vs-reset-btn" class="btn btn-lg text-base bg-amber-600 hover:bg-amber-500 text-white">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                    </svg>
+                                    Reset
+                                </button>
+                            </div>
 
                             <!-- Prompt Info (shown after generation starts) -->
                             <div id="vs-prompt-info" class="hidden card-static p-4 space-y-3">
@@ -316,8 +325,9 @@
                 this._updateCostEstimate();
             });
 
-            // Generate button
+            // Generate / Reset buttons
             document.getElementById('vs-generate-btn')?.addEventListener('click', () => this._generate());
+            document.getElementById('vs-reset-btn')?.addEventListener('click', () => this._reset());
 
             // Settings dialog
             document.getElementById('vs-settings-btn')?.addEventListener('click', () => this._showSettings());
@@ -714,6 +724,35 @@
             } else {
                 negSection?.classList.add('hidden');
             }
+        },
+
+        _reset() {
+            // Clear prompt
+            const prompt = document.getElementById('vs-prompt');
+            if (prompt) prompt.value = '';
+            this._updateCharCount();
+
+            // Reset model to first option
+            const modelSel = document.getElementById('vs-model');
+            if (modelSel && modelSel.options.length > 0) modelSel.selectedIndex = 0;
+            this._onModelChange();
+
+            // Clear seed
+            const seed = document.getElementById('vs-seed');
+            if (seed) seed.value = '';
+
+            // Clear source image
+            this._clearSourceImage();
+
+            // Reset enhance checkbox
+            const enhance = document.getElementById('vs-enhance');
+            if (enhance) enhance.checked = true;
+
+            // Hide prompt info
+            document.getElementById('vs-prompt-info')?.classList.add('hidden');
+
+            // Focus prompt
+            prompt?.focus();
         },
 
         // ── Polling ─────────────────────────────────────────────────
