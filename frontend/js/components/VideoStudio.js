@@ -139,17 +139,9 @@
                         <!-- Center: Prompt + Generate + Jobs + Results -->
                         <div class="flex-1 min-w-0 space-y-5">
 
-                            <!-- S3 Setup Banner (shown when bucket not configured) -->
-                            <div id="vs-s3-banner" class="hidden card-static p-4 bg-amber-950/30 border-amber-500/30">
-                                <div class="flex items-start gap-3">
-                                    <svg class="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-                                    </svg>
-                                    <div>
-                                        <p class="text-sm text-amber-200 font-medium">S3 Bucket Required</p>
-                                        <p class="text-xs text-amber-300/70 mt-1">Video generation outputs to Amazon S3. Configure your S3 bucket in Video Settings to get started.</p>
-                                    </div>
-                                </div>
+                            <!-- S3 Status Banner -->
+                            <div id="vs-s3-banner" class="hidden card-static p-4">
+                                <div class="flex items-start gap-3" id="vs-s3-banner-content"></div>
                             </div>
 
                             <!-- Prompt -->
@@ -269,6 +261,7 @@
 
                             <div id="vs-s3-status" class="hidden text-xs p-2 rounded"></div>
                             <div class="flex gap-2 justify-end">
+                                <button id="vs-settings-close-bottom" class="btn btn-secondary btn-sm hidden">Close</button>
                                 <button id="vs-settings-test" class="btn btn-primary btn-sm">Test & Save</button>
                             </div>
                         </div>
@@ -328,6 +321,15 @@
             fileInput?.addEventListener('change', (e) => this._onSourceImage(e));
             document.getElementById('vs-clear-source')?.addEventListener('click', () => this._clearSourceImage());
 
+            // Re-enable Test & Save when bucket input changes
+            document.getElementById('vs-s3-bucket')?.addEventListener('input', () => {
+                const testBtn = document.getElementById('vs-settings-test');
+                if (testBtn) { testBtn.disabled = false; testBtn.textContent = 'Test & Save'; }
+                document.getElementById('vs-settings-close-bottom')?.classList.add('hidden');
+                const statusEl = document.getElementById('vs-s3-status');
+                if (statusEl) statusEl.classList.add('hidden');
+            });
+
             // Close dialog on backdrop click
             document.getElementById('vs-settings-dialog')?.addEventListener('click', (e) => {
                 if (e.target.id === 'vs-settings-dialog') this._hideSettings();
@@ -342,14 +344,7 @@
             } catch (_) {
                 this._videoSettings = { s3_bucket: '', store_local: true };
             }
-            const banner = document.getElementById('vs-s3-banner');
-            const genBtn = document.getElementById('vs-generate-btn');
-            if (!this._videoSettings.s3_bucket) {
-                banner?.classList.remove('hidden');
-                if (genBtn) genBtn.disabled = true;
-            } else {
-                banner?.classList.add('hidden');
-            }
+            this._updateS3Banner();
         },
 
         async _loadModels() {
@@ -848,17 +843,58 @@
             document.getElementById('vs-s3-prefix').value = vs.s3_prefix || 'artsmoker/video/';
             document.getElementById('vs-store-mode').value = vs.store_local === false ? 's3' : 'local';
 
-            // Reset sub-panels
+            // Reset sub-panels and button states
             document.getElementById('vs-bucket-list')?.classList.add('hidden');
             document.getElementById('vs-create-bucket-form')?.classList.add('hidden');
             const statusEl = document.getElementById('vs-s3-status');
             if (statusEl) statusEl.classList.add('hidden');
+            const testBtn = document.getElementById('vs-settings-test');
+            if (testBtn) { testBtn.disabled = false; testBtn.textContent = 'Test & Save'; }
+            document.getElementById('vs-settings-close-bottom')?.classList.add('hidden');
 
             dialog.classList.remove('hidden');
         },
 
         _hideSettings() {
             document.getElementById('vs-settings-dialog')?.classList.add('hidden');
+        },
+
+        _updateS3Banner() {
+            const banner = document.getElementById('vs-s3-banner');
+            const content = document.getElementById('vs-s3-banner-content');
+            const genBtn = document.getElementById('vs-generate-btn');
+            if (!banner || !content) return;
+
+            const vs = this._videoSettings || {};
+            banner.classList.remove('hidden');
+
+            if (!vs.s3_bucket) {
+                banner.className = banner.className.replace(/bg-\S+/g, '').replace(/border-\S+/g, '') +
+                    ' bg-amber-950/30 border-amber-500/30';
+                content.innerHTML = `
+                    <svg class="w-5 h-5 text-amber-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
+                    </svg>
+                    <div>
+                        <p class="text-sm text-amber-200 font-medium">S3 Bucket Required</p>
+                        <p class="text-xs text-amber-300/70 mt-1">Video generation outputs to Amazon S3. Configure your S3 bucket in Video Settings to get started.</p>
+                    </div>
+                `;
+                if (genBtn) genBtn.disabled = true;
+            } else {
+                const storeMode = vs.store_local !== false ? 'Local + S3' : 'S3 only';
+                banner.className = banner.className.replace(/bg-\S+/g, '').replace(/border-\S+/g, '') +
+                    ' bg-emerald-950/20 border-emerald-500/20';
+                content.innerHTML = `
+                    <svg class="w-5 h-5 text-emerald-400 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    <div class="flex-1">
+                        <p class="text-sm text-emerald-200 font-medium">S3 Bucket: <span class="font-mono">${_esc(vs.s3_bucket)}</span></p>
+                        <p class="text-xs text-emerald-300/60 mt-0.5">Prefix: ${_esc(vs.s3_prefix || 'artsmoker/video/')} · Storage: ${storeMode}</p>
+                    </div>
+                `;
+            }
         },
 
         async _testAndSaveSettings() {
@@ -893,10 +929,17 @@
                     statusEl.className = 'text-xs p-2 rounded bg-green-950/50 text-green-300';
                     statusEl.textContent = `S3 bucket "${bucket}" validated. Read/write access confirmed.`;
                 }
-                // Hide the S3 banner and enable generation
-                document.getElementById('vs-s3-banner')?.classList.add('hidden');
+                // Update banner and enable generation
+                this._updateS3Banner();
                 const genBtn = document.getElementById('vs-generate-btn');
                 if (genBtn && document.getElementById('vs-model')?.value) genBtn.disabled = false;
+
+                // Swap Test & Save → disabled, show Close button
+                const testBtn = document.getElementById('vs-settings-test');
+                const closeBtn = document.getElementById('vs-settings-close-bottom');
+                if (testBtn) { testBtn.disabled = true; testBtn.textContent = 'Saved'; }
+                if (closeBtn) { closeBtn.classList.remove('hidden'); }
+                closeBtn?.addEventListener('click', () => this._hideSettings(), { once: true });
 
                 window.showToast?.('Video settings saved', 'success');
             } catch (err) {
