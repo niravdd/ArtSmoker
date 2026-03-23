@@ -10,12 +10,12 @@ and aggregate feature usage counters.
 import logging
 import time
 
-from backend.config import settings
+from backend.config import settings, APP_VERSION
 from backend.services.pulseboard import PulseBoard
 
 logger = logging.getLogger(__name__)
 
-VERSION = "1.2-20260323_02"
+VERSION = APP_VERSION
 
 _pb: PulseBoard | None = None
 

@@ -210,6 +210,15 @@
     }
     navigate();
 
+    // Fetch version from backend and populate all version labels
+    fetch('/api/health').then(r => r.json()).then(data => {
+        if (data.version) {
+            document.querySelectorAll('.artsmoker-version').forEach(el => {
+                el.textContent = `ArtSmoker v${data.version}`;
+            });
+        }
+    }).catch(() => {});
+
     // Telemetry: track frontend load with client info (fire-and-forget)
     fetch('/api/ping', {
         method: 'POST',

@@ -147,7 +147,9 @@ async def frontend_ping(request: Request):
 @app.get("/api/health", tags=["health"])
 async def health_check():
     """Health check endpoint — includes AWS credential and Bedrock status."""
+    from backend.config import APP_VERSION
     return {
+        "version": APP_VERSION,
         "status": "ok" if _aws_status.get("credentials") else "degraded",
         "aws": {
             "credentials": _aws_status.get("credentials", False),

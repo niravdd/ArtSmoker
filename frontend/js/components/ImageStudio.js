@@ -225,7 +225,7 @@
                                 <p id="pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">Toggle settings above, then click Apply to re-process existing images without regenerating.</p>
                             </div>
 
-                            <p class="text-[9px] text-brand-text-dim/30 text-center mt-4">ArtSmoker v1.2-20260323_02</p>
+                            <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-4">ArtSmoker</p>
                         </aside>
 
                         <!-- Center: Prompt + Results -->

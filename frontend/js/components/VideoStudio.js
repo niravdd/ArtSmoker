@@ -134,6 +134,8 @@
                                 </svg>
                                 Video Settings (S3 Storage)
                             </button>
+
+                            <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-4">ArtSmoker</p>
                         </aside>
 
                         <!-- Center: Prompt + Generate + Jobs + Results -->
