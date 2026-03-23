@@ -386,15 +386,17 @@ _STRICTNESS_ORDER = {"moderate": 0, "strict": 1, "very_strict": 2}
 
 
 def get_enabled_image_model_keys_sorted() -> list[str]:
-    """Return enabled image model keys sorted by moderation strictness (least strict first).
+    """Return enabled text-to-image model keys sorted by moderation strictness.
 
-    This ordering is used by 'All Models' generation so less strict models
-    run first (more likely to succeed), giving faster feedback.
+    Only includes models with purpose 'text_to_image' — excludes inpainting,
+    outpainting, erase, upscale, remove_background, and other editing models.
+    Sorted least strict first so 'All Models' generation gets faster feedback.
     """
     enabled = get_enabled_image_models()
+    t2i = {k: v for k, v in enabled.items() if v.get("model_purpose") == "text_to_image"}
     return sorted(
-        enabled.keys(),
-        key=lambda k: _STRICTNESS_ORDER.get(enabled[k].get("moderation_strictness", "moderate"), 0),
+        t2i.keys(),
+        key=lambda k: _STRICTNESS_ORDER.get(t2i[k].get("moderation_strictness", "moderate"), 0),
     )
 
 
