@@ -210,14 +210,24 @@
     }
     navigate();
 
-    // Fetch version from backend and populate all version labels
+    // Fetch version from backend — store globally, apply to all views
+    let _appVersion = '';
     fetch('/api/health').then(r => r.json()).then(data => {
         if (data.version) {
-            document.querySelectorAll('.artsmoker-version').forEach(el => {
-                el.textContent = `ArtSmoker v${data.version}`;
-            });
+            _appVersion = data.version;
+            _applyVersion();
         }
     }).catch(() => {});
+
+    function _applyVersion() {
+        if (!_appVersion) return;
+        document.querySelectorAll('.artsmoker-version').forEach(el => {
+            el.textContent = `ArtSmoker v${_appVersion}`;
+        });
+    }
+
+    // Re-apply version after any navigation (views render lazily)
+    window.addEventListener('hashchange', () => setTimeout(_applyVersion, 100));
 
     // Telemetry: track frontend load with client info (fire-and-forget)
     fetch('/api/ping', {
