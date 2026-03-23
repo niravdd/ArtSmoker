@@ -15,7 +15,7 @@ from backend.services.pulseboard import PulseBoard
 
 logger = logging.getLogger(__name__)
 
-VERSION = "1.2-20260323_01"
+VERSION = "1.2-20260323_02"
 
 _pb: PulseBoard | None = None
 
