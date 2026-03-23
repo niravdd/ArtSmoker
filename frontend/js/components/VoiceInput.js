@@ -177,7 +177,7 @@
                 const text = typeof result === 'string' ? result : (result.text || result.transcript || '');
                 // Check if the response is a setup placeholder (Nova Sonic not configured)
                 if (text && text.startsWith('[Audio received')) {
-                    window.showToast?.('Voice transcription is not yet configured. Enable Nova Sonic streaming in your AWS region.', 'warning', 6000);
+                    window.showToast?.('Voice-to-text is not available yet. The Nova Sonic bidirectional streaming API requires updated AWS SDK support. Type your prompt instead.', 'info', 8000);
                 } else if (this._transcriptCb && text) {
                     this._transcriptCb(text);
                 } else if (!text) {
