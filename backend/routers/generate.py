@@ -635,6 +635,8 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
 
     def _generate_for_model(option_index: int, model_key: str) -> OptionResult:
         """Generate one variant with a specific model. Returns OptionResult with status."""
+        from backend.services.telemetry import track_image_generation
+        from backend.services.model_registry import get_image_model as _get_model
         model_enum = model_key  # Now a plain string, not an enum
         label = model_labels[model_key]
         prompt = concept_prompts[model_key]
@@ -655,6 +657,14 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 model_label=label,
                 style_snapshot=style_snapshot,
                 progress_queue=progress_q,
+            )
+            # Track each model individually with its cost
+            mcfg = _get_model(model_key)
+            track_image_generation(
+                model=model_key,
+                cost_usd=mcfg.get("base_price_usd", 0) or 0,
+                num_options=1,
+                num_variations=1,
             )
             return OptionResult(
                 option_index=option_index,
@@ -782,19 +792,20 @@ async def generate_asset_stream(body: GenerationRequest):
       - complete:    {result: GenerationResult}
       - error:       {detail: string}
     """
-    from backend.services.telemetry import track_image_generation
-    from backend.services.model_registry import get_image_model
-    # Estimate cost: base_price × num_images
-    model_cfg = get_image_model(body.image_model or "") if body.image_model else {}
-    base_price = model_cfg.get("base_price_usd", 0) or 0
-    num_images = body.num_options * body.num_variations
-    estimated_cost = base_price * num_images
-    track_image_generation(
-        model=body.image_model or "",
-        cost_usd=estimated_cost,
-        num_options=body.num_options,
-        num_variations=body.num_variations,
-    )
+    # Track telemetry — for single model, track here; for "all models", track per-model inside the loop
+    if not body.all_models:
+        from backend.services.telemetry import track_image_generation
+        from backend.services.model_registry import get_image_model
+        model_cfg = get_image_model(body.image_model or "") if body.image_model else {}
+        base_price = model_cfg.get("base_price_usd", 0) or 0
+        num_images = body.num_options * body.num_variations
+        estimated_cost = base_price * num_images
+        track_image_generation(
+            model=body.image_model or "",
+            cost_usd=estimated_cost,
+            num_options=body.num_options,
+            num_variations=body.num_variations,
+        )
 
     event_queue = queue.Queue()
 
