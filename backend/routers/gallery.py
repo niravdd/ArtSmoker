@@ -34,6 +34,9 @@ async def list_gallery(
     offset: int = Query(default=0, ge=0),
 ):
     """List generated assets, newest first, with optional filtering and pagination."""
+    from backend.services.telemetry import track_gallery_load
+    if offset == 0:  # Only track the initial load, not pagination
+        track_gallery_load()
     asset_ids = store.list_generated_ids()
     items: list[GalleryItem] = []
 

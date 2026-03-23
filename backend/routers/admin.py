@@ -29,6 +29,8 @@ router = APIRouter(prefix="/api/admin", tags=["admin"])
 @router.get("/models")
 async def get_models():
     """Return the full model registry."""
+    from backend.services.telemetry import track_model_settings_load
+    track_model_settings_load()
     return get_registry()
 
 
@@ -867,15 +869,10 @@ async def list_bedrock_regions():
 
 @router.post("/discover/refresh-all")
 async def refresh_all_regions():
-    """Scan ALL Bedrock-supported AWS regions for image models and update the registry.
+    """Scan ALL Bedrock-supported AWS regions for image + video models and update the registry."""
+    from backend.services.telemetry import track_model_settings_refresh
+    track_model_settings_refresh()
 
-    Step 1: Discovers Bedrock regions from AWS (the ONLY time we poll for regions).
-    Step 2: Stores the region list in the registry for future reads.
-    Step 3: Scans each region for image models and registers/updates them.
-
-    This is the proper way to populate the registry — do NOT manually
-    edit model_registry.json.
-    """
     from backend.services.model_registry import get_registry, _save
 
     # Step 1: Discover regions from AWS

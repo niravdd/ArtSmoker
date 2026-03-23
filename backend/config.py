@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     generated_dir: Path = data_dir / "generated"
     video_dir: Path = data_dir / "video"
 
+    # ── Telemetry ──────────────────────────────────────────────────────────
+    telemetry_enabled: bool = True  # Set ARTSMOKER_TELEMETRY=false to disable
+
     # ── Generation defaults ───────────────────────────────────────────────
     default_image_width: int = 1024
     default_image_height: int = 1024

@@ -210,6 +210,9 @@
     }
     navigate();
 
+    // Telemetry: track frontend load (fire-and-forget)
+    fetch('/api/ping', { method: 'POST' }).catch(() => {});
+
     // ============================================================
     //  Global error logging to server
     // ============================================================

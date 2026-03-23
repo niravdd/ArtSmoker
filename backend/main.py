@@ -69,9 +69,15 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("All AWS checks passed. Identity: %s", _aws_status["identity"])
 
+    # Initialize telemetry
+    from backend.services.telemetry import init as telemetry_init, track_server_start, track_server_stop
+    telemetry_init()
+    track_server_start()
+
     logger.info("ArtSmoker backend started.")
     yield
     # Shutdown
+    track_server_stop()
     logger.info("ArtSmoker backend shutting down.")
 
 
@@ -115,6 +121,16 @@ app.include_router(browse.router)
 app.include_router(typestudio.router)
 app.include_router(video.router)
 app.include_router(admin.router)
+
+
+# ── Frontend load tracking ─────────────────────────────────────────────────
+
+@app.post("/api/ping", tags=["telemetry"])
+async def frontend_ping():
+    """Lightweight endpoint called once on frontend page load."""
+    from backend.services.telemetry import track_frontend_load
+    track_frontend_load()
+    return {"ok": True}
 
 
 # ── Health check ───────────────────────────────────────────────────────────

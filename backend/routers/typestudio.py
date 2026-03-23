@@ -473,15 +473,10 @@ def _get_layouts_from_llm(
 
 @router.post("/preview")
 async def preview(request: TypeStudioRequest):
-    """Generate a text-composited image and save it as a new gallery asset.
+    """Generate a text-composited image and save it as a new gallery asset."""
+    from backend.services.telemetry import track_type_generation
+    track_type_generation()
 
-    Pipeline:
-    1. Load source image (optional) and style profile (optional)
-    2. Ask Claude to design the text layout
-    3. Render with Pillow (shadow, outline, glow effects)
-    4. Save as a new asset in the gallery
-    5. Return the new asset ID and PNG URL
-    """
     # 1. Load source image if provided
     source_image: Image.Image | None = None
     image_bytes: bytes | None = None

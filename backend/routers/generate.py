@@ -782,6 +782,13 @@ async def generate_asset_stream(body: GenerationRequest):
       - complete:    {result: GenerationResult}
       - error:       {detail: string}
     """
+    from backend.services.telemetry import track_image_generation
+    track_image_generation(
+        model=body.image_model or "",
+        num_options=body.num_options,
+        num_variations=body.num_variations,
+    )
+
     event_queue = queue.Queue()
 
     def sse_format(data: dict) -> str:
@@ -848,15 +855,12 @@ class ImageEditRequest(BaseModel):
 
 @router.post("/edit")
 async def edit_image(body: ImageEditRequest):
-    """Apply an image editing service (inpaint, outpaint, erase, search-replace, etc.).
-
-    Uses the generic invoker with the model's format family. The source image
-    is loaded from the gallery. Result is saved as a new gallery asset with
-    full metadata linking back to the source.
-    """
+    """Apply an image editing service (inpaint, outpaint, erase, search-replace, etc.)."""
     from backend.services.bedrock_client import invoke_image_model
     from backend.services.model_registry import get_image_model, get_image_model_label
     from backend.services.post_processor import process_asset
+    from backend.services.telemetry import track_image_edit
+    track_image_edit(edit_type=body.model.split("_")[-1] if body.model else "", model=body.model or "")
 
     # Validate model exists and has an editing purpose
     model_config = get_image_model(body.model)

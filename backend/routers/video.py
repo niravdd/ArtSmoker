@@ -56,7 +56,10 @@ async def generate_video(req: VideoGenerateRequest):
     """
     from backend.services.video_generator import start_video_generation
     from backend.services.bedrock_client import invoke_llm
+    from backend.services.telemetry import track_video_generation
     import base64
+
+    track_video_generation(model=req.model_key, duration_seconds=int(req.duration or 6))
 
     vs = get_video_settings()
     if not vs.get("s3_bucket"):
