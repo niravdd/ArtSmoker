@@ -783,8 +783,15 @@ async def generate_asset_stream(body: GenerationRequest):
       - error:       {detail: string}
     """
     from backend.services.telemetry import track_image_generation
+    from backend.services.model_registry import get_image_model
+    # Estimate cost: base_price × num_images
+    model_cfg = get_image_model(body.image_model or "") if body.image_model else {}
+    base_price = model_cfg.get("base_price_usd", 0) or 0
+    num_images = body.num_options * body.num_variations
+    estimated_cost = base_price * num_images
     track_image_generation(
         model=body.image_model or "",
+        cost_usd=estimated_cost,
         num_options=body.num_options,
         num_variations=body.num_variations,
     )
@@ -860,7 +867,13 @@ async def edit_image(body: ImageEditRequest):
     from backend.services.model_registry import get_image_model, get_image_model_label
     from backend.services.post_processor import process_asset
     from backend.services.telemetry import track_image_edit
-    track_image_edit(edit_type=body.model.split("_")[-1] if body.model else "", model=body.model or "")
+    edit_cfg = get_image_model(body.model) if body.model else {}
+    edit_cost = edit_cfg.get("base_price_usd", 0) or 0
+    track_image_edit(
+        edit_type=edit_cfg.get("model_purpose", ""),
+        model=body.model or "",
+        cost_usd=edit_cost,
+    )
 
     # Validate model exists and has an editing purpose
     model_config = get_image_model(body.model)
