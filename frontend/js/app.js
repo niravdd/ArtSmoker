@@ -210,8 +210,16 @@
     }
     navigate();
 
-    // Telemetry: track frontend load (fire-and-forget)
-    fetch('/api/ping', { method: 'POST' }).catch(() => {});
+    // Telemetry: track frontend load with client info (fire-and-forget)
+    fetch('/api/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            os: navigator.platform || navigator.userAgentData?.platform || '',
+            browser: navigator.userAgent?.split(/[()]/)[1] || '',
+            screen: `${screen.width}x${screen.height}`,
+        }),
+    }).catch(() => {});
 
     // ============================================================
     //  Global error logging to server

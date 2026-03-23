@@ -126,10 +126,19 @@ app.include_router(admin.router)
 # ── Frontend load tracking ─────────────────────────────────────────────────
 
 @app.post("/api/ping", tags=["telemetry"])
-async def frontend_ping():
-    """Lightweight endpoint called once on frontend page load."""
+async def frontend_ping(request: Request):
+    """Lightweight endpoint called once on frontend page load.
+    Accepts optional client info from the browser."""
     from backend.services.telemetry import track_frontend_load
-    track_frontend_load()
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    track_frontend_load(
+        client_os=body.get("os", ""),
+        client_browser=body.get("browser", ""),
+        screen=body.get("screen", ""),
+    )
     return {"ok": True}
 
 

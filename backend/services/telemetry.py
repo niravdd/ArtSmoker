@@ -52,8 +52,8 @@ def track_server_stop():
 
 # ── Frontend Events ──────────────────────────────────────────────────
 
-def track_frontend_load():
-    _track("frontend_load")
+def track_frontend_load(client_os: str = "", client_browser: str = "", screen: str = ""):
+    _track("frontend_load", client_os=client_os, client_browser=client_browser, screen=screen)
 
 
 # ── Generation Events ────────────────────────────────────────────────
