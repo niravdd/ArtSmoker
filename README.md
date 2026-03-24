@@ -34,11 +34,11 @@ Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, T
 
 ## 📌 1. What It Does
 
-ArtSmoker works in two modes — **standalone** (no setup, just describe and generate) and **style-guided** (upload your existing art, and every generation matches your visual identity). Both modes use the same studios and generation pipeline.
+ArtSmoker works in two modes — **standalone** (no art style or theme setup needed, just describe and generate) and **style-guided** (upload your existing art, and every generation matches your visual identity). Both modes use the same studios and generation pipeline.
 
 ### 📝 Standalone Mode (Quick Start)
 
-No style setup needed — open the 2D Image Studio, Video Studio, or Type Studio and start creating immediately.
+No style or theme setup needed — open the 2D Image Studio, Video Studio, or Type Studio and start creating immediately.
 
 1. **Describe what you need** — type a prompt like "hospital building" or "fire mage character", or use voice input. The AI automatically enhances your prompt with proper composition directives, negative prompts, and model-specific formatting.
 2. **Choose your model and settings** — select from all available text-to-image models on Amazon Bedrock, pick dimensions, quality tier, and region. Or use "All Available Models" to generate across every enabled model simultaneously for a side-by-side comparison.
@@ -46,7 +46,7 @@ No style setup needed — open the 2D Image Studio, Video Studio, or Type Studio
 4. **Edit and refine** — use inpainting, outpainting, erase, search & replace, or recolor directly in the Asset Viewer. Each edit creates a new version — the original is always preserved.
 5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`). Videos export as MP4.
 
-### 📝 Style-Guided Mode (Match Your Game's Look)
+### 📝 Style-Guided Mode (Match Your Art Style & Theme)
 
 For teams that want every generated asset to match an existing art style — upload reference images and let the AI learn your visual identity first.
 

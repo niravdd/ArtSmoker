@@ -88,7 +88,11 @@ ArtSmoker is a self-hosted web application that gives creative teams and game st
 
 The platform supports all text-to-image models, video models, and image editing services available on Amazon Bedrock, across all regions. Fully configurable, dynamically discovered, self-deployed, and self-billed — no shared endpoints, no third-party data access.
 
-The system uses a **two-level generation model**: for each user prompt, the LLM generates multiple distinctly different creative *options* (concept designs), and for each option the image generator produces multiple seed *variations*. This gives the user a broad creative palette to choose from.
+**Two operating modes**:
+- **Standalone** — no art style or theme setup required. Open any studio, describe what you need, and generate. The AI handles prompt enhancement, negative prompt extraction, and model-specific formatting automatically.
+- **Style-guided** — upload your game's existing art. ArtSmoker's vision models analyze the visual identity (colour palettes, line weights, lighting, composition) and produce a style profile. Every subsequent generation is automatically enhanced with your style's directives, ensuring consistent visual identity across all assets.
+
+Both modes use the same **two-level generation model**: for each user prompt, the LLM generates multiple distinctly different creative *options* (concept designs), and for each option the image generator produces multiple seed *variations*. This gives the user a broad creative palette to choose from.
 
 ## 2. Architecture Overview
 
