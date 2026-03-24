@@ -443,23 +443,23 @@ pip install gunicorn
                             │   ArtSmoker     │
                             └────────┬────────┘
                                      │
-                      ┌──────────────┼──────────────┐
-                      │              │              │
-                      ▼              ▼              ▼
-              ┌──────────────┐ ┌──────────┐ ┌──────────────┐
-              │Style Library │ │2D Image  │ │ Type Studio  │
-              │              │ │  Studio  │ │              │
-              │ Upload art   │ │ Generate │ │ Add text to  │
-              │ Analyze style│ │ images   │ │ images or    │
-              │ Set fonts    │ │ from     │ │ standalone   │
-              │              │ │ prompts  │ │ text assets  │
-              └──────┬───────┘ └────┬─────┘ └──────┬───────┘
-                     │              │              │
-                     │    ┌─────────┴─────────┐    │
-                     │    │  Style selected?  │    │
-                     │    │  (optional)       │    │
-                     └───►│  Enhances output  │◄───┘
-                          └─────────┬─────────┘
+              ┌──────────────┼──────────────┼──────────────┐
+              │              │              │              │
+              ▼              ▼              ▼              ▼
+      ┌──────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐
+      │Style Library │ │2D Image  │ │  Video   │ │ Type Studio  │
+      │              │ │  Studio  │ │  Studio  │ │              │
+      │ Upload art   │ │ Generate │ │ Generate │ │ Add text to  │
+      │ Analyze style│ │ images   │ │ videos & │ │ images or    │
+      │ Set fonts    │ │ from     │ │ anims    │ │ standalone   │
+      │              │ │ prompts  │ │ from     │ │ text assets  │
+      │              │ │          │ │ prompts  │ │              │
+      └──────┬───────┘ └────┬─────┘ └────┬─────┘ └──────┬───────┘
+             │              │            │               │
+             │    ┌─────────┴────────────┴─────────┐     │
+             │    │  Style selected? (optional)    │     │
+             └───►│  Enhances output               │◄────┘
+                  └─────────┬──────────────────────┘
                                     │
                                     ▼
                           ┌─────────────────┐
@@ -483,13 +483,13 @@ pip install gunicorn
             └──────────────┘ └──────────┘ └──────────────┘
 ```
 
-**Three entry points, one gallery:**
+**Three entry points, one unified gallery:**
 
-- **Start with a style** — upload reference art in the Style Library, let AI analyze it, then generate in either studio. The style guides all output.
-- **Start without a style** — jump straight into 2D Image Studio or Type Studio. AI uses its best judgement.
-- **Start from the Gallery** — pick any previously generated asset and reload it in either studio for refinement, or add text to it, or download it as PNG/SVG.
+- **Start with a style** — upload reference art in the Style Library, let AI analyze it, then generate in any studio. The style guides all output.
+- **Start without a style** — jump straight into 2D Image Studio, Video Studio, or Type Studio. AI uses its best judgement.
+- **Start from the Gallery** — pick any previously generated asset and reload it in the appropriate studio for refinement, add text to it, play a video, or download as PNG/SVG/MP4.
 
-All generated assets (images, text overlays, standalone text) land in the Gallery. Nothing is overwritten — each generation creates new assets.
+All generated assets (images, videos, text overlays, standalone text) land in the unified Gallery. Nothing is overwritten — each generation creates new assets.
 
 ### 📝 6.2 Generation Pipeline
 
@@ -683,11 +683,13 @@ Add text to images or generate standalone text assets with AI-designed typograph
 
 ### 📝 6.8 Gallery
 
-- **Search bar** for instant filtering across all assets.
-- **Multi-select** with checkboxes for bulk delete. Deletions are **batch-aware** — surviving siblings track how many variants were removed, so reloading a partial batch in the Image Studio shows "X of Y images remaining (Z deleted)".
-- Images load immediately with an in-memory metadata cache. Sorted newest-first.
+- **Unified view** of all generated images and videos with a **Media filter** (All / 2D Artwork / Video).
+- **Search bar** for instant filtering across all assets (prompts, styles, models).
+- **Multi-select** with checkboxes for bulk delete (handles both image and video assets). Deletions are **batch-aware** — surviving siblings track how many variants were removed, so reloading a partial batch in the Image Studio shows "X of Y images remaining (Z deleted)".
+- Assets load immediately with an in-memory metadata cache. Sorted newest-first.
 - Pagination support (limit/offset) for large collections.
-- Gallery auto-refreshes when you navigate back to it.
+- Gallery auto-refreshes when you navigate back to it, and after any edit or video generation completes.
+- **Video cards** display a thumbnail with a play overlay, VIDEO badge, and duration indicator. Click to open the video player modal.
 - **Contextual action buttons** per asset based on type: **"2D Studio"** (indigo) to reload in the image studio, **"Add Text"** (emerald) to open in Type Studio, **"Edit in Type Studio"** (purple) for text assets.
 - Click any image to open the **AssetViewer** modal with:
   - **Zoom/pan** — mouse wheel to zoom, drag to pan, Fit/1:1 buttons with active mode highlighting.
@@ -705,22 +707,23 @@ Click the microphone button next to the prompt editor to dictate your prompt. Th
 
 ### 📝 6.10 View State Preservation
 
-Navigation order: **Style Library → 2D Image Studio → Type Studio → Gallery**. Switching between views preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in 2D Image Studio is the only way to clear its state.
+Navigation order: **Style Library → 2D Image Studio → Type Studio → Video Studio → Gallery**. Switching between views preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in 2D Image Studio and Video Studio is the only way to clear their state.
 
 ### 📝 6.11 Model Management
 
 All AI model configuration is centralized in `backend/model_registry.json` — the single source of truth. Models, regions, pricing, quality tiers, and format templates are all stored here and managed through the UI or API:
 
-- Click **"Model Settings"** in the 2D Image Studio sidebar to open the admin modal.
+- Click **"Model Settings"** in the sidebar of any studio to open the admin modal.
+- Tabs for **Image Models**, **Video Models**, **LLM & Post-Processing**, and **Registry JSON**.
 - View and edit all model IDs, regions, prompt limits, and enabled/disabled status.
-- **Refresh All**: Scans all Bedrock-supported AWS regions (discovered dynamically — currently 33 regions), auto-registers new text-to-image models, updates regional availability, fetches per-model pricing from the AWS Pricing API, and disables models no longer available. This is the **only** action that calls AWS discovery APIs — all other operations read from the cached registry.
-- **Auto-discovery**: New models are registered with `enabled=false` — the admin must enable them. Existing models get their `available_regions` updated automatically.
+- **Sync from AWS**: Scans all Bedrock-supported AWS regions (discovered dynamically), auto-registers new image and video models, updates regional availability, fetches per-model pricing from the AWS Pricing API, and disables models no longer available. This is the **only** action that calls AWS discovery APIs — all other operations read from the cached registry.
+- **Auto-discovery**: New models are registered with `enabled=true` — the admin can disable them. Existing models get their `available_regions` and Bedrock metadata (modalities, lifecycle, ARN) updated automatically.
 - Changes are persisted immediately to `model_registry.json` via the Admin API.
 - The registry is backward compatible — existing assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs.
 
-### 📝 6.12 Image Generation Models
+### 📝 6.12 Image & Video Generation Models
 
-Image models are **discovered dynamically** from the registry — not hardcoded. The dropdown is populated from `GET /api/admin/models/image-options` on page load. Any model registered and enabled in the registry appears automatically.
+All models are **discovered dynamically** from the registry — not hardcoded. The Image Studio dropdown is populated from `GET /api/admin/models/image-options` and the Video Studio dropdown from `GET /api/admin/models/video-options` on page load. Any model registered and enabled in the registry appears automatically.
 
 The **Image Model** dropdown is the primary selection. Below it, a smart summary line shows the active region, quality tier, and per-image cost. An expandable **Advanced** section lets you override:
 

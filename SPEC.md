@@ -103,8 +103,9 @@ Browser (Vanilla JS + Tailwind CSS)
     +-- Text input with inline LLM prompt refinement
     +-- Style library management (upload, browse, edit, directory import)
     +-- 2D Image Studio: two-tier generation UI (options × variations)
+    +-- Video Studio: text-to-video generation (async, S3-backed)
     +-- Type Studio: text overlay system (on-image + standalone)
-    +-- Generated asset gallery with export
+    +-- Unified gallery: images + videos with filtering and export
     |
     v
 FastAPI Backend (Python)
@@ -464,7 +465,7 @@ GenerationResult
 
 Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant stores: `original_prompt`, `moderation_original` (pre-rewrite prompt when applicable), `negative_prompt` (extracted exclusion terms), `num_options` and `num_variations` (generation-time batch dimensions — used for partial batch tracking after deletions), IP declaration fields (`ip_owned`, `ip_licensed`), and all other generation parameters. Full prompt lineage is: `original_prompt` (user's raw input) → AI-improved prompt → `moderation_original` (if rewritten to pass moderation) → `prompt` (final prompt sent to the image model) + `negative_prompt` (exclusion terms sent separately).
 
-**Style snapshot in metadata**: Each generated asset (from both 2D Image Studio and Type Studio) stores a `style_snapshot` object capturing the style's state at generation time:
+**Style snapshot in metadata**: Each generated asset (from 2D Image Studio, Video Studio, and Type Studio) stores a `style_snapshot` object capturing the style's state at generation time:
 ```json
 {
   "style_snapshot": {
@@ -492,7 +493,7 @@ This ensures that if the original style profile is later deleted or modified, th
 
 Clean, modern single-page application served as static files mounted at `/` by FastAPI.
 
-**Navigation**: The top nav shows the ArtSmoker logo with the tagline "Smoke-testing your artwork!" followed by four views in order: **Style Library** (`#styles`) → **2D Image Studio** (`#image-studio`) → **Type Studio** (`#type-studio`) → **Gallery** (`#gallery`).
+**Navigation**: The top nav shows the ArtSmoker logo with the tagline "Smoke-testing your artwork!" followed by five views in order: **Style Library** (`#styles`) → **2D Image Studio** (`#image-studio`) → **Type Studio** (`#type-studio`) → **Video Studio** (`#video-studio`) → **Gallery** (`#gallery`).
 
 **No Claude branding in frontend**: All user-facing UI references use "AI" generically — never "Claude". For example, buttons say "AI Improve" not "Claude Improve", and labels say "AI-improved prompt" not "Claude-improved prompt". Image model names use their full display names: "Stable Diffusion 3.5 Large" (not "SD 3.5 Large").
 
@@ -588,7 +589,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 - **Gallery integration**: Results are saved as new gallery assets with full metadata (including `source: "type-studio"`, base image reference if applicable, text content, font choices, layout parameters, and `style_snapshot`). Assets created in Type Studio can be loaded back from the Gallery via an **"Edit in Type Studio"** button in the AssetViewer.
 
-**Gallery** (`#gallery`) — Grid of all generated assets sorted newest-first. Images load immediately (no IntersectionObserver). Backend always reads metadata fresh from disk (no cache-first strategy — ensures consistency after post-processing updates). Supports pagination via `limit` and `offset` query parameters. Filter by style and asset type. Auto-refreshes via `onShow()` when navigating back to the Gallery view.
+**Gallery** (`#gallery`) — Unified grid of all generated images and videos sorted newest-first. Features a **Media filter** (All / 2D Artwork / Video), style filter, asset type filter, and search. Images load immediately; videos display thumbnails with play overlay, VIDEO badge, and duration indicator. Click a video to open the player modal. Backend always reads metadata fresh from disk. Supports pagination via `limit` and `offset` query parameters. Auto-refreshes via `onShow()` when navigating back, and after image edits or video generation completes.
 - **Search bar**: Instant filtering across prompts, style names, and asset types as the user types.
 - **Multi-select**: Checkboxes on each asset card for bulk selection. A **"Delete Selected"** button triggers `DELETE /api/gallery/` with `{ids: [...]}` for bulk deletion.
 - Click any asset to open the AssetViewer.
@@ -745,7 +746,7 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 
 **Model validation**: The `GenerationRequest.image_model` field is a plain string validated against registry keys at runtime — not limited to a fixed enum. Dynamically added models are accepted without code changes.
 
-**Frontend**: The model dropdown in Image Studio is populated from `GET /api/admin/models/image-options` on page load. No hardcoded model list in JavaScript.
+**Frontend**: The model dropdowns in Image Studio and Video Studio are populated from `GET /api/admin/models/image-options` and `GET /api/admin/models/video-options` respectively on page load. No hardcoded model lists in JavaScript.
 
 **Registry as single source of truth**: The application code contains **zero hardcoded model IDs, API parameters, or invocation templates**. Everything the system needs to invoke any Bedrock service — model IDs, regions, request body structures, prompt paths, negative prompt paths, mask paths, seed ranges, quality tiers, dimension modes, response parsing, pricing, and parameter constraints — is stored in `model_registry.json` and read at runtime. The format families define the complete API contract for each provider/service type, including a `parameters` spec with types, ranges, defaults, and descriptions for every configurable field. This means:
 
@@ -778,7 +779,7 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 |--------|----------|-------------|
 | POST | `/api/generate/` | Generate assets (full two-level pipeline). Returns `GenerationResult` with options and variants. Also available as `/api/generate/stream` for SSE streaming. |
 | POST | `/api/generate/stream` | SSE streaming variant of generate — same pipeline, but streams real-time progress events. This is the primary endpoint used by the frontend. |
-| POST | `/api/generate/post-process` | Apply post-processing to existing generated assets. Accepts asset IDs and processing flags (remove_background, generate_svg, upscale). Updates the assets in-place and refreshes their metadata on disk. Used by the "Apply to Current Results" button in both studios. |
+| POST | `/api/generate/post-process` | Apply post-processing to existing generated assets. Accepts asset IDs and processing flags (remove_background, generate_svg, upscale). Updates the assets in-place and refreshes their metadata on disk. Used by the "Apply to Current Results" button in the 2D Image Studio and Type Studio. |
 | POST | `/api/generate/pre-screen` | Pre-screen a prompt for likely moderation issues before generation. Uses Claude Sonnet (fast, cheap). Returns whether the prompt is likely safe, specific issues, and a suggested alternative model if the prompt would work with a less strict model. |
 | POST | `/api/generate/edit` | Image editing services: inpaint, outpaint, erase, search-replace, etc. Accepts `source_image_id`, `model` (registry key), `prompt`, `mask` (base64), `mask_prompt` (natural language, Nova Canvas), outpaint directions. Uses the generic invoker with the model's format family. Result saved as a new gallery asset with metadata linking to the source. |
 | POST | `/api/generate/analyze-moderation` | Analyze a prompt that was rejected by content moderation. Multi-phase: first tries alternative models with the same prompt (model switch), then rewrites as last resort. Returns the action taken, working model (if switched), issues, explanation, and rewritten prompt (if needed). |
@@ -1303,17 +1304,18 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 10. **Test prompt refinement**: Type a brief prompt, click "Preview Enhanced Prompt" — verify the refined prompt respects user intent over style defaults.
 11. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
 12. **Test Type Studio**: Navigate to Type Studio, enter text lines, select fonts, request AI layout suggestions. Verify 1-5 layout options are returned. Select a layout and render — verify the result is saved to the gallery.
-13. **Browse gallery**: Switch to Gallery view — verify generated assets appear with filtering by style and asset type. Test the search bar for instant filtering. Test multi-select and bulk delete.
-14. **Test AssetViewer buttons**: Open an image asset — verify "2D Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears.
-15. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
-16. **Test Model Settings**: Click "Model Settings" in the 2D Image Studio sidebar — verify the modal shows all LLM categories and image models. Try editing a model ID and saving. Use the Discover section to list models in a region.
+13. **Test Video Studio**: Navigate to Video Studio, configure S3 bucket in Video Settings, select a video model (Nova Reel or Luma Ray), enter a prompt, and generate. Verify the job appears in Active Jobs, polling updates the status, and on completion the video plays and thumbnail appears. Verify the video also appears in the Gallery with a VIDEO badge.
+14. **Browse gallery**: Switch to Gallery view — verify generated images and videos appear with the Media filter (All / 2D Artwork / Video), style filter, and search. Test multi-select and bulk delete (both image and video assets).
+15. **Test AssetViewer buttons**: Open an image asset — verify "2D Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears. Click a video card — verify the video player modal opens with metadata.
+16. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
+17. **Test Model Settings**: Click "Model Settings" in the sidebar — verify the modal shows Image Models, Video Models, LLM & Post-Processing tabs, and Registry JSON. Verify video models show regions and pricing. Try Sync from AWS — verify both image and video models are discovered.
 17. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears.
 18. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`).
 
 ## 13. Amazon Bedrock Pricing & Cost Breakdown
 
 > [!NOTE]
-> The tables below are **reference pricing for deployment planning**. The application shows **live pricing** in the UI — fetched from the AWS Pricing API during registry refresh-all and stored in `model_registry.json`. Each model's `base_price_usd` and per-region `quality_prices` are displayed in the Image Studio's model/region selectors and cost estimate. The pricing data is cached in the registry and only updated when an admin explicitly runs refresh-all.
+> The tables below are **reference pricing for deployment planning**. The application shows **live pricing** in the UI — fetched from the AWS Pricing API during registry refresh-all and stored in `model_registry.json`. Each model's `base_price_usd` and per-region `quality_prices` are displayed in the Image Studio and Video Studio model/region selectors and cost estimates. The pricing data is cached in the registry and only updated when an admin explicitly runs refresh-all.
 
 All prices below are from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions (us-west-2, us-east-1). Prices are on-demand, per-request.
 
