@@ -564,12 +564,14 @@ User clicks Generate
  Issues? No      │
     │    └──────►│
     ▼            │
-┌──────────┐     │
-│ Indigo   │     │
-│ dialog   │     │
-│ (user    │     │
-│ decides) │     │
-└──┬───────┘     │
+┌──────────────┐  │
+│ Indigo       │  │
+│ dialog:      │  │
+│ • Switch     │  │
+│ • Rewrite    │  │
+│ • Proceed    │  │
+│ • Cancel     │  │
+└──┬───────────┘  │
    │◄────────────┘
    ▼
 ┌──────────────────────┐
@@ -586,9 +588,11 @@ User clicks Generate
  Works?  No   └──────────┘
     │    │
     ▼    ▼
-Emerald  Amber
-dialog   dialog
-(switch) (rewrite)
+Emerald    Amber
+dialog     dialog
+(switch    (rewrite →
+ or         enhanced
+ rewrite)   prompt area)
 ```
 
 ### 📝 6.4 2D Image Studio (Generate Assets)
@@ -610,7 +614,15 @@ Generation progress is streamed in real time via SSE — the UI shows which imag
 
 Generated results survive navigation — switching tabs and back preserves the 2D Image Studio's DOM state. Only the reset button clears it.
 
-**Smart content moderation**: When your prompt is blocked by the image model's content moderation filters, ArtSmoker tries **alternative models first** (preserving your prompt) before suggesting a rewrite as a last resort. If a less strict model accepts your prompt, you'll see an emerald "model switch" dialog. Only when all models reject does an amber "rewrite" dialog appear with a safe rewrite suggestion. Enable the **"Prompt Pre-Check"** toggle to pre-screen prompts via AI before image generation (indigo dialog). Common triggers include copyrighted IP names (e.g. "Mario", "Master Chief"), violence/weapon language, and adult content references. Tip: the **"Preview Enhanced Prompt"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
+**Smart content moderation**: When your prompt is blocked by a model's content moderation filters, ArtSmoker handles it progressively through three colour-coded dialogs:
+
+- **Indigo (Pre-Check)** — before generation, an AI pre-screens your prompt against the selected model's known sensitivity. If issues are detected, you see the specific concerns and can: switch to a recommended model, **rewrite the prompt** for the current model, proceed anyway, or cancel.
+- **Emerald (Model Switch)** — after a generation block, if an alternative model accepts your prompt as-is, ArtSmoker shows which model works and why. One-click to switch. Full attempt log available ("View N model tests").
+- **Amber (Rewrite)** — when all models reject, an AI-generated rewrite is offered in an editable textarea with specific issues listed. A verified/unverified badge indicates whether the rewrite passed canary testing.
+
+**Prompt rewrite behaviour**: In all three dialogs, choosing "Rewrite" never overwrites your original prompt. The rewritten version appears in the **enhanced prompt area** below your original text, with a persistent amber disclaimer: *"This rewrite is an attempt to make the prompt compatible — it is still subject to the model's own moderation assessment and may be rejected."* You review and edit the enhanced prompt, then click Generate when satisfied. Your original prompt is always preserved in history and metadata.
+
+Common triggers include copyrighted IP names (e.g. "Mario", "Master Chief"), violence/weapon language, and adult content references. Tip: the **"Preview Enhanced Prompt"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
 
 **Smart canary testing**: Before generating the full batch, ArtSmoker sends a single "canary" image request to test the prompt against the model's moderation filters. If the canary is blocked, the batch stops immediately (1 wasted API call instead of N×M×3). If the canary passes, remaining tasks run in parallel with cooperative cancellation — if any task hits a moderation block, the rest skip their API calls automatically.
 
