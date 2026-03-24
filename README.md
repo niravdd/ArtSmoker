@@ -3,7 +3,7 @@
 
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
-![AWS Bedrock](https://img.shields.io/badge/AWS-Bedrock-orange?logo=amazonaws&logoColor=white)
+![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
 A simple, artist-friendly interface for Amazon Bedrock's image and video generation models. ArtSmoker helps creative teams use Bedrock efficiently — without needing to learn the API, CLI, or prompt engineering.
@@ -26,7 +26,7 @@ ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean 
 - **All Bedrock models, all regions** — fully configurable. Choose your text-to-image models, video models, and regions. The system discovers available models dynamically via the Bedrock API
 - **Self-deployed, self-billed** — runs on your own infrastructure, uses your own AWS account. No shared endpoints, no third-party data access, no surprise bills from external services
 
-Built on AWS Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (image editing), Nova Reel, Luma AI Ray (video generation).
+Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (image editing), Nova Reel, Luma AI Ray (video generation).
 
 ## 1. What It Does
 
@@ -826,12 +826,12 @@ Settings in `backend/config.py` can be overridden via environment variables (pre
 
 Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
 
-## 12. AWS Bedrock Pricing & Cost Breakdown
+## 12. Amazon Bedrock Pricing & Cost Breakdown
 
 > [!NOTE]
 > The tables below are **reference pricing for planning purposes**. The app itself shows **live per-model pricing** in the Image Studio sidebar — fetched from the AWS Pricing API during registry refresh and stored in `model_registry.json`. The in-app cost estimate updates dynamically based on selected model, quality tier, region, and batch size.
 
-All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions. See also [SPEC.md](SPEC.md#13-aws-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
+All pricing from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions. See also [SPEC.md](SPEC.md#13-aws-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
 
 ### 12.1 Per-Unit Pricing
 
@@ -849,7 +849,7 @@ All pricing from the official [AWS Bedrock Pricing page](https://aws.amazon.com/
 | **SVG Conversion** | Local (vtracer/potrace) | $0.00 | free |
 
 > [!NOTE]
-> Prices verified against [Anthropic model docs](https://docs.anthropic.com/en/docs/about-claude/models) and [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official sources before budgeting.
+> Prices from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official source before budgeting.
 
 ### 12.2 Additional LLM Costs (Per Use)
 

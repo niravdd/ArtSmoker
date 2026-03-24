@@ -61,7 +61,7 @@
 - [10. Frontend Design System](#10-frontend-design-system)
 - [11. Configuration](#11-configuration)
 - [12. Verification](#12-verification)
-- [13. AWS Bedrock Pricing & Cost Breakdown](#13-aws-bedrock-pricing--cost-breakdown)
+- [13. Amazon Bedrock Pricing & Cost Breakdown](#13-aws-bedrock-pricing--cost-breakdown)
   - [13.1 Per-Unit Pricing](#131-per-unit-pricing)
   - [13.2 Additional LLM Costs](#132-additional-llm-costs-per-use)
   - [13.3 Style Analysis Cost](#133-style-analysis-cost-one-time-per-style)
@@ -117,7 +117,7 @@ FastAPI Backend (Python)
     +-- /api/log            — Client-side error logging
     |
     v
-AI Pipeline (AWS Bedrock)
+AI Pipeline (Amazon Bedrock)
     |
     +-- Claude Sonnet 4.6      — Fast tasks: prompt refinement, generation hints, cohesion check (Phase 1)
     +-- Claude Opus 4.6        — Complex tasks: style analysis (Phase 2), concept generation, marketing copy
@@ -987,7 +987,7 @@ Fields:
 
 ## 6. Prerequisites: AWS Setup
 
-ArtSmoker uses AWS Bedrock and requires working AWS credentials on the host machine **before launching**. No AWS configuration is needed inside the app itself — it uses the standard AWS credential chain.
+ArtSmoker uses Amazon Bedrock and requires working AWS credentials on the host machine **before launching**. No AWS configuration is needed inside the app itself — it uses the standard AWS credential chain.
 
 ### 6.1 AWS Credentials
 
@@ -1295,12 +1295,12 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 17. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears.
 18. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`).
 
-## 13. AWS Bedrock Pricing & Cost Breakdown
+## 13. Amazon Bedrock Pricing & Cost Breakdown
 
 > [!NOTE]
 > The tables below are **reference pricing for deployment planning**. The application shows **live pricing** in the UI — fetched from the AWS Pricing API during registry refresh-all and stored in `model_registry.json`. Each model's `base_price_usd` and per-region `quality_prices` are displayed in the Image Studio's model/region selectors and cost estimate. The pricing data is cached in the registry and only updated when an admin explicitly runs refresh-all.
 
-All prices below are from the official [AWS Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions (us-west-2, us-east-1). Prices are on-demand, per-request.
+All prices below are from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions (us-west-2, us-east-1). Prices are on-demand, per-request.
 
 ### 13.1 Per-Unit Pricing
 
@@ -1318,7 +1318,7 @@ All prices below are from the official [AWS Bedrock Pricing page](https://aws.am
 | **SVG Conversion** | vtracer / potrace / Pillow (local) | $0.00 | free — runs locally |
 
 > [!NOTE]
-> Prices verified against [Anthropic model docs](https://docs.anthropic.com/en/docs/about-claude/models) and [AWS Bedrock pricing](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official sources.
+> Prices from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official source.
 
 > [!NOTE]
 > **Vision token formula**: Claude charges image inputs as tokens: `tokens = (width × height) / 750`. A 1024×1024 image ≈ 1,398 tokens. At Opus $5.00/MTok input = ~$0.007 per image.
@@ -1626,7 +1626,7 @@ DynamoDB
 
 ### 14.7 Cost Estimates (Phase 2)
 
-Rough monthly costs for a small team (10 users, ~500 generation batches/month). See the **AWS Bedrock Pricing & Cost Breakdown** section above for detailed per-operation costs.
+Rough monthly costs for a small team (10 users, ~500 generation batches/month). See the **Amazon Bedrock Pricing & Cost Breakdown** section above for detailed per-operation costs.
 
 | Service | 5×5 Nova Canvas (no upscale) | 3×3 Titan (no upscale) |
 |---------|------------------------------|------------------------|
