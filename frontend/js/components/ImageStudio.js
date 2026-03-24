@@ -874,12 +874,22 @@
                 } else if (totalGenerated === 0) {
                     window.showToast?.('All images failed to generate. Try a different prompt or model.', 'error');
                 } else {
-                    // Clean success — render results
+                    // Render results (full or partial)
                     this._result = result;
                     this._selectedOption = 0;
                     this._selectedVariant = 0;
                     this._renderResults(result);
-                    window.showToast?.(`${totalGenerated} images generated across ${(result.options || []).length} options!`, 'success');
+
+                    const blocked = result.blocked_count || 0;
+                    if (blocked > 0) {
+                        // Partial results — some variants blocked by seed-dependent moderation
+                        window.showToast?.(
+                            `${totalGenerated} of ${totalGenerated + blocked} images generated. ${blocked} blocked by content moderation (seed-dependent). Try regenerating the missing variants with a different model or new seeds.`,
+                            'warning', 10000
+                        );
+                    } else {
+                        window.showToast?.(`${totalGenerated} images generated across ${(result.options || []).length} options!`, 'success');
+                    }
                 }
             } catch (err) {
                 console.error('Generation error:', err);
@@ -1474,9 +1484,10 @@
                         }
                     } else {
                         if (content) {
+                            const explanation = rewriteResult.explanation || 'Could not create a rewrite. The AI service may be temporarily unavailable, or the content may be fundamentally incompatible with this model.';
                             content.innerHTML = `<div class="p-4 text-center space-y-3">
-                                <p class="text-sm text-red-300">Could not create a rewrite for ${this._escapeHtml(currentLabel)}.</p>
-                                <p class="text-xs text-brand-text-muted">The content may be fundamentally incompatible with this model's moderation policy. Try a different model instead.</p>
+                                <p class="text-sm text-red-300">${this._escapeHtml(explanation)}</p>
+                                <p class="text-xs text-brand-text-muted">Try again in a few minutes, use a different model, or modify your prompt manually.</p>
                                 <button class="mod-close-btn btn btn-secondary">Close</button>
                             </div>`;
                             content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());

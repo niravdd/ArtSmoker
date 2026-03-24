@@ -39,6 +39,7 @@ class GenerationResult(BaseModel):
     all_models: bool = False  # True when generated across all enabled models
     model_map: dict[int, str] | None = None  # option_index → model_key (All Models mode only)
     options: list[OptionResult] = Field(default_factory=list)
+    blocked_count: int = 0  # Number of variants blocked by moderation (seed-dependent)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 

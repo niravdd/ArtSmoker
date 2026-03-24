@@ -423,12 +423,21 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                         "not allowed", "unsafe", "policy", "cancelled",
                     ])
                     if is_moderation and not cancel_event.is_set():
-                        # First moderation failure in batch — cancel remaining
-                        cancel_event.set()
-                        logger.warning("Moderation block in batch %s, cancelling remaining tasks.", batch_id)
-                        emit({"type": "moderation_blocked", "error": str(exc),
-                              "option": oi, "variation": vi,
-                              "message": "Content moderation blocked — cancelling remaining"})
+                        if body.pre_composed:
+                            # Pre-composed/rewritten prompt — don't cancel batch.
+                            # The canary passed, so this is a seed-dependent block.
+                            # Let remaining tasks complete and return partial results.
+                            logger.warning("Moderation block on o%d_v%d in batch %s (pre-composed — continuing batch).", oi, vi, batch_id)
+                            emit({"type": "image_error", "option": oi, "variation": vi,
+                                  "completed": completed, "total": total,
+                                  "error": "Blocked by content moderation (seed-dependent — other variants may succeed)"})
+                        else:
+                            # Raw prompt — cancel remaining (prompt itself may be problematic)
+                            cancel_event.set()
+                            logger.warning("Moderation block in batch %s, cancelling remaining tasks.", batch_id)
+                            emit({"type": "moderation_blocked", "error": str(exc),
+                                  "option": oi, "variation": vi,
+                                  "message": "Content moderation blocked — cancelling remaining"})
                     elif not cancel_event.is_set():
                         logger.exception("Option %d / Variant %d failed in batch %s.", oi, vi, batch_id)
                     errors.append(f"o{oi}_v{vi}: {exc}")
@@ -438,11 +447,9 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     # Check if moderation blocked the batch
     moderation_triggered = cancel_event.is_set()
 
-    if moderation_triggered:
-        # Do NOT assemble or return partial results — the batch is tainted
-        # The moderation_blocked event was already emitted
+    if moderation_triggered and not body.pre_composed:
+        # Raw prompt batch cancelled by moderation — discard all results
         logger.warning("Batch %s cancelled due to moderation. Cleaning up partial results.", batch_id)
-        # Clean up any partially saved assets
         for oi_variants in variant_map.values():
             for v in oi_variants:
                 try:
@@ -467,6 +474,18 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         )
         emit({"type": "complete", "result": result.model_dump(mode="json"), "moderation_blocked": True})
         return result
+
+    # Collect blocked variants for retry info
+    blocked_variants = [e for e in errors if "moderation" in e.lower() or "blocked" in e.lower()]
+
+    if moderation_triggered and body.pre_composed:
+        # Pre-composed/rewritten prompt — some variants blocked by seed-dependent moderation.
+        # Keep the successful images and return partial results.
+        successful_count = sum(len(v) for v in variant_map.values())
+        logger.info("Batch %s partial: %d succeeded, %d blocked (pre-composed — keeping results).",
+                     batch_id, successful_count, len(blocked_variants))
+        emit({"type": "stage", "stage": "finalizing",
+              "message": f"Completing with {successful_count} images ({len(blocked_variants)} blocked by moderation on specific seeds)"})
 
     # Assemble successful results
     options = []
@@ -500,6 +519,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         num_options=n_opts,
         num_variations=n_vars,
         options=options,
+        blocked_count=len(blocked_variants) if blocked_variants else 0,
     )
 
     emit({"type": "complete", "result": result.model_dump(mode="json")})
@@ -1319,12 +1339,18 @@ Respond with ONLY a JSON object (no markdown):
             logger.warning("Rewrite analysis attempt %d failed: %s", attempt_num + 1, exc)
             attempts.append({"phase": "rewrite", "attempt": attempt_num + 1, "status": "analysis_error", "error": str(exc)})
 
-    # Nothing worked
+    # Nothing worked — check if we ever got a real rewrite or if all attempts errored
+    got_any_rewrite = any(a.get("phase") == "rewrite" and a.get("prompt") and a["prompt"] != body.prompt
+                          for a in attempts)
     return {
         "action": "failed",
         "issues": list(set(all_issues)),
-        "explanation": "This prompt was rejected by all models even after multiple rewrites. The content may need significant changes. Please try a substantially different description.",
-        "rewritten_prompt": current_prompt,
+        "explanation": (
+            "The AI service is currently unavailable. Please try again in a few minutes."
+            if not got_any_rewrite else
+            "This prompt was rejected by all models even after multiple rewrites. The content may need significant changes. Please try a substantially different description."
+        ),
+        "rewritten_prompt": current_prompt if got_any_rewrite and current_prompt != body.prompt else None,
         "verified": False,
         "attempts": attempts,
     }
