@@ -39,7 +39,7 @@ Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, T
 5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`).
 
 > [!NOTE]
-> All generated content is produced by AI models and depends on the prompts and references you provide. Please review the [Disclaimer](#13-disclaimer) regarding content quality, intellectual property, and applicable service terms before using generated assets in production.
+> All generated content is produced by AI models and depends on the prompts and references you provide. Please review the [Disclaimer](#disclaimer) regarding content quality, intellectual property, and applicable service terms before using generated assets in production.
 
 ### 📝 1.1 Features at a Glance
 
@@ -939,6 +939,8 @@ Includes prompt refinement/concept generation + image generation:
 
 > [!TIP]
 > **Key takeaway**: Image generation itself is cheap ($0.01–$0.14/image). **Creative Upscale at $0.60/image is the dominant cost** — use it selectively on your final chosen assets, not the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free (runs locally).
+
+<a id="disclaimer"></a>
 
 ## 📌 13. Disclaimer
 
