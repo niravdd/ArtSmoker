@@ -136,6 +136,9 @@ This matters at every stage:
 - **Concept generation** — When generating multiple options, the AI creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
 - **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with a clean zone for headline overlay.
 
+> [!NOTE]
+> All generated content is produced by AI models and depends on the prompts and references you provide. Please review the [Disclaimer](#13-disclaimer) regarding content quality, intellectual property, and applicable service terms before using generated assets in production.
+
 ## 2. Prerequisites
 
 - **Python 3.11+** (3.12, 3.13, 3.14 all work)
