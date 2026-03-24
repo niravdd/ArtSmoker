@@ -272,6 +272,9 @@
                                     <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1">Negative prompt (exclusions sent to model)</p>
                                     <p id="gen-negative-prompt-text" class="text-sm text-amber-300/60 leading-relaxed italic"></p>
                                 </div>
+                                <div id="gen-rewrite-disclaimer" class="hidden p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
+                                    <p class="text-[10px] text-amber-300/80"><strong>Rewritten prompt:</strong> The enhanced prompt above was rewritten to address moderation concerns with the selected model. This rewrite is an attempt to make the prompt compatible — it is still subject to the model's own moderation assessment and may be rejected. Please review the enhanced prompt and edit if needed before generating.</p>
+                                </div>
                             </div>
 
                             <!-- Concept prompt display -->
@@ -791,6 +794,7 @@
 
             this._setGenerating(true, total, payload);
             this._moderationErrors = [];
+            document.getElementById('gen-rewrite-disclaimer')?.classList.add('hidden');
 
             let moderationBlocked = false;
             let promptRefused = false;
@@ -1109,17 +1113,16 @@
                                 height: 512,
                             });
                             if (rewriteResult.rewritten_prompt) {
+                                // Keep original prompt, put rewrite in the enhanced/composed area
                                 if (this._promptEditor) {
                                     this._promptEditor._moderationOriginal = originalPrompt;
-                                    this._promptEditor.setText(rewriteResult.rewritten_prompt);
+                                    this._promptEditor.setComposedText(rewriteResult.rewritten_prompt);
                                 }
                                 const modelSel = document.getElementById('gen-model');
                                 if (modelSel) modelSel.value = analysis.original_model;
+                                // Show the disclaimer in prompt info
+                                document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
                                 dialog.remove();
-                                const verifiedNote = rewriteResult.verified
-                                    ? 'The rewrite passed a test generation, but is still subject to the model\'s moderation at full resolution.'
-                                    : 'The rewrite could not be verified and may still be rejected by the model.';
-                                window.showToast?.(`Prompt rewritten for ${originalModelLabel}. ${verifiedNote} Please review before generating.`, rewriteResult.verified ? 'success' : 'warning', 8000);
                             } else {
                                 dialog.remove();
                                 window.showToast?.('Could not create a rewrite for ' + originalModelLabel + '. Try a different model instead.', 'warning');
@@ -1196,7 +1199,7 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
-                                ${verified ? 'Use This Prompt & Generate' : 'Use This Prompt & Try Generating'}
+                                Review Rewritten Prompt
                             </button>
                             <button id="mod-dismiss" class="btn btn-secondary">
                                 Edit Manually
@@ -1210,23 +1213,20 @@
                     const rewritten = document.getElementById('mod-rewritten-prompt')?.value?.trim();
                     if (rewritten && this._promptEditor) {
                         this._promptEditor._moderationOriginal = originalPrompt;
-                        this._promptEditor.setText(rewritten);
+                        this._promptEditor.setComposedText(rewritten);
                     }
+                    document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
                     dialog.remove();
-                    // Skip pre-check — the rewrite was already verified
-                    this._skipPreCheck = true;
-                    setTimeout(() => this._handleGenerate(), 100);
                 });
 
                 document.getElementById('mod-dismiss')?.addEventListener('click', () => {
-                    // Just set the prompt in the editor, let user edit manually
                     const rewritten = document.getElementById('mod-rewritten-prompt')?.value?.trim();
                     if (rewritten && this._promptEditor) {
                         this._promptEditor._moderationOriginal = originalPrompt;
-                        this._promptEditor.setText(rewritten);
+                        this._promptEditor.setComposedText(rewritten);
                     }
+                    document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
                     dialog.remove();
-                    window.showToast?.('Prompt updated — edit and click Generate when ready', 'info');
                 });
 
                 } // end else (rewrite dialog)
@@ -1404,14 +1404,14 @@
                         force_rewrite: true,
                     });
                     if (rewriteResult.rewritten_prompt) {
+                        // Keep original prompt, put rewrite in the enhanced/composed area
                         if (this._promptEditor) {
-                            this._promptEditor.setText(rewriteResult.rewritten_prompt);
+                            this._promptEditor.setComposedText(rewriteResult.rewritten_prompt);
+                            this._promptEditor._moderationOriginal = originalPrompt;
                         }
+                        // Show the disclaimer in prompt info
+                        document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
                         dialog.remove();
-                        const verifiedNote = rewriteResult.verified
-                            ? 'The rewrite passed a test generation, but is still subject to the model\'s moderation at full resolution.'
-                            : 'The rewrite could not be verified and may still be rejected by the model.';
-                        window.showToast?.(`Prompt rewritten for ${currentLabel}. ${verifiedNote} Please review before generating.`, rewriteResult.verified ? 'success' : 'warning', 8000);
                     } else {
                         if (content) {
                             content.innerHTML = `<div class="p-4 text-center space-y-3">
