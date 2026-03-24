@@ -1138,8 +1138,11 @@ Use `gunicorn` whenever more than one person will access the app concurrently �
 |------|---------|-------|-----------------------|---------|
 | vtracer | Primary SVG conversion (color vector tracing) | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` or [pre-built binaries](https://github.com/visioncortex/vtracer/releases) |
 | potrace | Fallback SVG conversion (monochrome tracing) | `brew install potrace` | `sudo apt install potrace` | Download from [potrace.sourceforge.net](http://potrace.sourceforge.net/#downloading) |
+| ffmpeg | Video thumbnail extraction + metadata (duration, resolution, FPS) | `brew install ffmpeg` | `sudo apt install ffmpeg` | [ffmpeg.org/download](https://ffmpeg.org/download.html) or `winget install ffmpeg` |
 
-If neither is installed, SVG conversion falls back to Pillow's embedded-raster approach (base64 PNG wrapped inside an SVG element). This is functional but not true vector output — the file size is roughly the same as the PNG.
+If neither vtracer nor potrace is installed, SVG conversion falls back to Pillow's embedded-raster approach (base64 PNG wrapped inside an SVG element). This is functional but not true vector output — the file size is roughly the same as the PNG.
+
+If ffmpeg is not installed, Video Studio still generates and plays videos (streamed from S3 or downloaded as MP4), but thumbnails will be missing (black placeholder in Gallery and Video Studio) and video metadata (duration, resolution) won't be extracted. `ffprobe` (included with ffmpeg) is used for metadata. Verify installation with `ffmpeg -version`.
 
 **System requirements by platform**:
 
@@ -1148,6 +1151,7 @@ If neither is installed, SVG conversion falls back to Pillow's embedded-raster a
 | Python 3.11+ | `brew install python@3.12` or [python.org](https://www.python.org/downloads/) | `sudo apt install python3 python3-pip python3-venv` | [python.org](https://www.python.org/downloads/) (check "Add to PATH") |
 | AWS CLI | `brew install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | `sudo apt install awscli` or [AWS installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) | [AWS MSI installer](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html) |
 | Python command | `python3` / `pip3` | `python3` / `pip3` | `python` / `pip` |
+| ffmpeg (optional) | `brew install ffmpeg` | `sudo apt install ffmpeg` | [ffmpeg.org/download](https://ffmpeg.org/download.html) or `winget install ffmpeg` |
 | Venv activation | `source .venv/bin/activate` | `source .venv/bin/activate` | `.venv\Scripts\activate` |
 | Multi-user server | gunicorn (pip install) | gunicorn (pip install) | uvicorn with `--workers` flag (gunicorn not supported on Windows) |
 | System fonts (Type Studio) | Detected from `/System/Library/Fonts`, `/Library/Fonts`, `~/Library/Fonts` | Detected from `/usr/share/fonts`, `/usr/local/share/fonts`, `~/.fonts`, `~/.local/share/fonts` | Not auto-detected — use global or style-specific custom fonts |

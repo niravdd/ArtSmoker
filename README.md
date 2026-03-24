@@ -139,6 +139,22 @@ SVG conversion uses external CLI tools (not Python packages). Without them, SVG 
 | **vtracer** | Primary SVG (color vector tracing) | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` or [pre-built binaries](https://github.com/visioncortex/vtracer/releases) |
 | **potrace** | Fallback SVG (monochrome tracing) | `brew install potrace` | `sudo apt install potrace` | Download from [potrace.sourceforge.net](http://potrace.sourceforge.net/#downloading) |
 
+### 2.4 Optional: Video Thumbnail & Metadata Tools
+
+Video Studio generates MP4 videos via Amazon Nova Reel and Luma AI Ray. To extract thumbnails (first frame as JPEG) and video metadata (duration, resolution, FPS), **ffmpeg** and **ffprobe** must be installed on the machine running the ArtSmoker backend.
+
+Without ffmpeg:
+- Videos still generate and play correctly (streamed from S3 or downloaded as MP4)
+- Thumbnails will be missing — the Gallery and Video Studio show a black placeholder instead of a preview image
+- Video metadata (duration, resolution) won't be displayed
+
+| Tool | Purpose | macOS | Linux (Debian/Ubuntu) | Windows |
+|------|---------|-------|-----------------------|---------|
+| **ffmpeg** | Thumbnail extraction + video metadata | `brew install ffmpeg` | `sudo apt install ffmpeg` | Download from [ffmpeg.org/download](https://ffmpeg.org/download.html) or `winget install ffmpeg` |
+
+> [!NOTE]
+> `ffprobe` is included with ffmpeg — no separate install needed. After installing, verify with `ffmpeg -version` and `ffprobe -version`. Both should return version info. ArtSmoker checks for ffmpeg at runtime and falls back gracefully if it's not found — video generation works either way, you just won't get thumbnails.
+
 ## 3. Installation
 
 ### 3.1 macOS
