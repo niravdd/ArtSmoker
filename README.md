@@ -34,11 +34,26 @@ Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, T
 
 ## 📌 1. What It Does
 
-1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally). **Smart deduplication** always runs on every import regardless of file count — even small sets can have cross-folder duplicates. Removes rotation variants (barrel_N/E/S/W.png keeps only barrel_S.png) and animation frames (Idle0-Idle8 keeps only Idle), with folder prioritization (Samples > Isometric > Characters > Angle). For example, a 747-file isometric asset pack deduplicates to ~99 unique objects — a 7× reduction. Supports a wide range of formats: .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus automatic texture extraction from 3D models (.glb, .gltf).
-2. **AI learns your style** — Two-phase cohesion-aware analysis: first, a cheap Sonnet check (8 images) determines whether your collection is unified, structurally consistent, or diverse. Then Opus analyzes the full reference set guided by that cohesion assessment — so diverse collections get useful hints about production patterns, not a diluted generic description. Analysis is context-aware: if you provide generation hints, the AI receives them as "Artist's Guidance" alongside the reference images, so the analysis understands your intent, not just what's visible.
-3. **Describe what you need** — type or speak a prompt like "hospital building" or "fire mage character".
-4. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
-5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`).
+ArtSmoker works in two modes — **standalone** (no setup, just describe and generate) and **style-guided** (upload your existing art, and every generation matches your visual identity). Both modes use the same studios and generation pipeline.
+
+### 📝 Standalone Mode (Quick Start)
+
+No style setup needed — open the 2D Image Studio, Video Studio, or Type Studio and start creating immediately.
+
+1. **Describe what you need** — type a prompt like "hospital building" or "fire mage character", or use voice input. The AI automatically enhances your prompt with proper composition directives, negative prompts, and model-specific formatting.
+2. **Choose your model and settings** — select from all available text-to-image models on Amazon Bedrock, pick dimensions, quality tier, and region. Or use "All Available Models" to generate across every enabled model simultaneously for a side-by-side comparison.
+3. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
+4. **Edit and refine** — use inpainting, outpainting, erase, search & replace, or recolor directly in the Asset Viewer. Each edit creates a new version — the original is always preserved.
+5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`). Videos export as MP4.
+
+### 📝 Style-Guided Mode (Match Your Game's Look)
+
+For teams that want every generated asset to match an existing art style — upload reference images and let the AI learn your visual identity first.
+
+1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination). **Smart deduplication** runs automatically — removes rotation variants (barrel_N/E/S/W.png keeps only barrel_S.png) and animation frames (Idle0-Idle8 keeps only Idle). For example, a 747-file isometric asset pack deduplicates to ~99 unique objects. Supports: .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus automatic texture extraction from 3D models (.glb, .gltf).
+2. **AI learns your style** — two-phase cohesion-aware analysis: first, a quick check determines whether your collection is unified, structurally consistent, or diverse. Then a deep analysis of the full reference set produces a metadata-rich style profile — colour palettes, line weights, lighting patterns, composition rules, and production conventions. If you provide generation hints, the AI receives them as "Artist's Guidance" so the analysis understands your intent, not just what's visible.
+3. **Generate with style applied** — when you select a style in the Image Studio, every prompt is automatically enhanced with your style's visual directives. A prompt like "hospital building" becomes a detailed generation instruction that includes your game's colour palette, perspective conventions, and rendering style.
+4. **Everything from Standalone mode applies** — multiple options, model comparison, editing, versioning, and game-ready downloads all work the same way, now guided by your art style.
 
 > [!NOTE]
 > All generated content is produced by AI models and depends on the prompts and references you provide. Please review the [Disclaimer](#disclaimer) regarding content quality, intellectual property, and applicable service terms before using generated assets in production.
