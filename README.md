@@ -49,17 +49,51 @@ Built on AWS Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, Tita
 - ⚙️ **Model Registry** — Admin UI for all AI models (image + video + LLM), Bedrock discovery, per-model prompt limits
 - 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...) and version navigation
 
-### 1.2 Two-Level Generation
+### 1.2 Screenshots
+
+**2D Image Studio** — Settings on the left, prompt with AI enhancement on the right, model comparison results below. All Available Models mode generates across every enabled image model simultaneously.
+
+![2D Image Studio — Settings, prompt, and generated results](docs/images/image-studio-top.png)
+
+![2D Image Studio — Model comparison, post-processing options, and full preview](docs/images/image-studio-bottom.png)
+
+**Style Library** — Upload your game's existing art, AI analyzes the visual style and produces a metadata-rich prompt guide. Reference images are displayed with the full AI analysis and JSON style profile.
+
+![Style Library — AI style analysis with reference images](docs/images/style-library-top.png)
+
+![Style Library — Reference images, import options, and analysis data](docs/images/style-library-bottom.png)
+
+**Gallery** — Unified view of all generated images and videos with media type filter, style filter, search, and sorting. Click any asset to open the full viewer.
+
+![Gallery — Generated assets grid with filters](docs/images/gallery.png)
+
+**Asset Viewer & Image Editing** — Full-size preview with zoom/pan, Edit tab for inpainting (mask paint + prompt), version history, and PNG/SVG download.
+
+![Asset Viewer — Image editing with inpainting](docs/images/asset-viewer-edit.png)
+
+**Video Studio** — Settings on the left (model, generation mode, duration, region, cost estimate), prompt on the right. Supports Nova Reel (single shot, multi-shot auto/manual up to 2 minutes) and Luma AI Ray (aspect ratios, looping).
+
+![Video Studio — Settings and prompt](docs/images/video-studio.png)
+
+![Video Studio — Generation in progress with AI-enhanced prompt](docs/images/video-studio-generating.png)
+
+![Video Studio — Completed video with thumbnail and recent videos](docs/images/video-studio-completed.png)
+
+**Video Player** — Click a video to play it inline with full metadata (original prompt, AI-enhanced prompt, model, duration, region).
+
+![Video Player — Playing a generated video with metadata](docs/images/video-player.png)
+
+### 1.3 Two-Level Generation
 
 For each prompt, the AI creates **Options** — fundamentally different design interpretations (e.g. for "a warrior": Viking berserker, Japanese samurai, tribal fighter, cyber-soldier, Greek hoplite). For each option, the image model produces **Variations** — different random seeds giving subtle visual differences. This gives artists a broad creative palette to choose from.
 
-### 1.3 All Available Models
+### 1.4 All Available Models
 
 Select **"All Available Models"** from the model dropdown to generate your prompt across every enabled image model simultaneously — one image per model. This gives a direct side-by-side comparison of how Nova Canvas, Titan Image, SD 3.5 Large, and Stable Image Ultra each interpret the same prompt. Each model runs independently: if stricter models block the prompt, you still get results from models that accepted it, with clear status labels (success, blocked by moderation, or failed) on each option card.
 
 An optional **"Model-optimized prompts"** toggle tailors the prompt to each model's strengths instead of sending the same prompt to all — useful when you want the best output from each model rather than a direct comparison.
 
-### 1.4 Video Studio
+### 1.5 Video Studio
 
 Generate AI-powered videos and animations from text prompts. Supports **Amazon Nova Reel** (v1.0, v1.1) and **Luma AI Ray** (v2.0).
 
@@ -84,7 +118,7 @@ Generate AI-powered videos and animations from text prompts. Supports **Amazon N
 
 **Video prompt enhancement**: The LLM adds camera movements (pan, zoom, dolly, tracking), lighting details, and temporal cues. Since video models don't support negative prompts, avoidance concepts are woven into the positive prompt naturally.
 
-### 1.5 Asset Type Awareness
+### 1.6 Asset Type Awareness
 
 The selected **Asset Type** fundamentally changes how the AI interprets your prompt — not just the image model, but every stage of the pipeline. When you type "hospital" and select different asset types, you get completely different outputs:
 
