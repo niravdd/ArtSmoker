@@ -36,6 +36,9 @@ Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, T
 4. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
 5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`).
 
+> [!NOTE]
+> All generated content is produced by AI models and depends on the prompts and references you provide. Please review the [Disclaimer](#13-disclaimer) regarding content quality, intellectual property, and applicable service terms before using generated assets in production.
+
 ### 1.1 Features at a Glance
 
 - 🎨 **Style Library** — Upload art, AI learns your visual identity
@@ -135,9 +138,6 @@ This matters at every stage:
 - **"Preview Enhanced Prompt" button** — When you click Compose, the AI uses the asset type to reshape your brief into a detailed generation prompt, combining your words with style guidelines and asset type directives. Your explicit intent always overrides style defaults. You can review the composed version before generating.
 - **Concept generation** — When generating multiple options, the AI creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
 - **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with a clean zone for headline overlay.
-
-> [!NOTE]
-> All generated content is produced by AI models and depends on the prompts and references you provide. Please review the [Disclaimer](#13-disclaimer) regarding content quality, intellectual property, and applicable service terms before using generated assets in production.
 
 ## 2. Prerequisites
 
