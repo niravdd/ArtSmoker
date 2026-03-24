@@ -1121,6 +1121,7 @@ class ModerationRequest(BaseModel):
     image_model: str = "nova_canvas"
     width: int = 512
     height: int = 512
+    force_rewrite: bool = False  # Skip model switching, go straight to rewrite for the target model
 
 
 # Model permissiveness order (most permissive first for fallback testing)
@@ -1153,11 +1154,14 @@ async def analyze_moderation(body: ModerationRequest):
     test_seed = random.randint(0, _SEED_MAX)
 
     # ── Phase 1: Try alternative models with the SAME prompt ──────────
-    # Game art legitimately needs weapons, combat poses, action scenes.
-    # Don't rewrite — find a model that accepts it.
-
-    working_model = None
-    models_to_try = [m for m in _ALTERNATIVE_MODELS if m != original_model_enum]
+    # Skip this phase if force_rewrite is True (user explicitly wants a rewrite for their chosen model)
+    if body.force_rewrite:
+        logger.info("force_rewrite=True — skipping model switching, going straight to rewrite for %s", original_model)
+        working_model = None
+        models_to_try = []
+    else:
+        working_model = None
+        models_to_try = [m for m in _ALTERNATIVE_MODELS if m != original_model_enum]
 
     for alt_model in models_to_try:
         logger.info("Moderation fallback: testing '%s' on %s...", body.prompt[:50], alt_model.value)
@@ -1218,24 +1222,34 @@ async def analyze_moderation(body: ModerationRequest):
     explanation = ""
     max_rewrites = 3
 
-    for attempt_num in range(max_rewrites):
-        rewrite_instruction = f"""A game artist's prompt was blocked by ALL available image generation models
-(Nova Canvas, Stable Diffusion 3.5, Stable Image Ultra, Titan Image). This means the content
-is genuinely problematic, not just a strict filter issue.
+    from backend.services.model_registry import get_all_model_labels as _get_all_labels
+    target_label = _get_all_labels().get(original_model, original_model)
 
-{"Original" if attempt_num == 0 else "Previous rewrite that FAILED"} prompt:
+    for attempt_num in range(max_rewrites):
+        target_context = (
+            f"The rewrite MUST pass {target_label}'s moderation filters specifically."
+            if body.force_rewrite else
+            f"The prompt was blocked by ALL available image generation models."
+        )
+
+        rewrite_instruction = f"""A game artist's prompt was blocked by content moderation.
+{target_context}
+
+{"Original" if attempt_num == 0 else "Previous rewrite that STILL FAILED"} prompt:
 "{current_prompt}"
 
-{f'Previous issues: {json.dumps(all_issues)}' if attempt_num > 0 else f'Error: "{body.error_message}"'}
+{f'Previous issues that caused rejection: {json.dumps(all_issues)}' if attempt_num > 0 else f'Flagged issues: "{body.error_message}"'}
 
 This is for a GAME ART project. The artist needs action/combat content.
-Rewrite to preserve the game art intent while removing genuinely
-problematic content:
-1. Remove copyrighted IP names (One Piece, Naruto, etc.) — use original descriptions
-2. Avoid explicit violence ("blood", "gore", "killing") — action poses are OK
-3. Remove "toward the camera" aggression
-4. Keep weapons if they're stylized/fantasy (swords, staffs are usually fine on most models)
-5. Keep the full visual style description
+Rewrite AGGRESSIVELY to remove ALL moderation triggers while preserving the
+game art intent:
+1. REMOVE all copyrighted IP names and references (One Piece, Naruto, Marvel, etc.) — replace with original character descriptions that capture the same energy
+2. REMOVE all copyrighted character abilities (rubber stretching = Luffy, Sharingan = Naruto) — replace with generic fantasy equivalents
+3. Avoid explicit violence ("blood", "gore", "killing") — action poses and combat stances are OK
+4. Remove "toward the camera" aggression — use "dynamic pose" instead
+5. Keep weapons only if stylized/fantasy (swords, staffs)
+6. Keep the full visual style description and quality directives
+7. The rewrite MUST be substantially different from the original — do NOT return the same prompt
 
 Respond with ONLY a JSON object (no markdown):
 {{
@@ -1260,8 +1274,10 @@ Respond with ONLY a JSON object (no markdown):
                 attempts.append({"phase": "rewrite", "attempt": attempt_num + 1, "prompt": current_prompt, "status": "rewrite_empty"})
                 continue
 
-            # Test rewrite on the most permissive model first
-            for test_model in _ALTERNATIVE_MODELS:
+            # Test rewrite: if force_rewrite, test against the TARGET model specifically;
+            # otherwise test on the most permissive models first
+            test_models = [original_model_enum] if body.force_rewrite else _ALTERNATIVE_MODELS
+            for test_model in test_models:
                 try:
                     generate_image(
                         refined_prompt=rewritten,
