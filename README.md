@@ -6,11 +6,11 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
-## 0. Overview
+## 📌 0. Overview
 
 A simple, artist-friendly interface for Amazon Bedrock's image and video generation models. ArtSmoker helps creative teams use Bedrock efficiently — without needing to learn the API, CLI, or prompt engineering.
 
-### The Problem
+### 📝 The Problem
 
 Creative teams and game studios want to use AI for asset generation, but face real barriers:
 
@@ -19,7 +19,7 @@ Creative teams and game studios want to use AI for asset generation, but face re
 - **Teams don't build/train their own models** — they need access to the many models already available on Bedrock, through something they can actually use
 - **Image editing is inaccessible** — inpainting, outpainting, search & replace, and style transfer all require API knowledge
 
-### The Solution
+### 📝 The Solution
 
 ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean creative interface — purpose-built for game asset production, with applicability across other creative industries such as advertising, e-commerce, publishing, and digital media where AI-generated visual content is valuable.
 
@@ -30,7 +30,7 @@ ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean 
 
 Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (image editing), Nova Reel, Luma AI Ray (video generation).
 
-## 1. What It Does
+## 📌 1. What It Does
 
 1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally). **Smart deduplication** always runs on every import regardless of file count — even small sets can have cross-folder duplicates. Removes rotation variants (barrel_N/E/S/W.png keeps only barrel_S.png) and animation frames (Idle0-Idle8 keeps only Idle), with folder prioritization (Samples > Isometric > Characters > Angle). For example, a 747-file isometric asset pack deduplicates to ~99 unique objects — a 7× reduction. Supports a wide range of formats: .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus automatic texture extraction from 3D models (.glb, .gltf).
 2. **AI learns your style** — Two-phase cohesion-aware analysis: first, a cheap Sonnet check (8 images) determines whether your collection is unified, structurally consistent, or diverse. Then Opus analyzes the full reference set guided by that cohesion assessment — so diverse collections get useful hints about production patterns, not a diluted generic description. Analysis is context-aware: if you provide generation hints, the AI receives them as "Artist's Guidance" alongside the reference images, so the analysis understands your intent, not just what's visible.
@@ -41,7 +41,7 @@ Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, T
 > [!NOTE]
 > All generated content is produced by AI models and depends on the prompts and references you provide. Please review the [Disclaimer](#13-disclaimer) regarding content quality, intellectual property, and applicable service terms before using generated assets in production.
 
-### 1.1 Features at a Glance
+### 📝 1.1 Features at a Glance
 
 - 🎨 **Style Library** — Upload art, AI learns your visual identity
 - 🖼️ **2D Image Studio** — Generate images with options × variations, two-area prompt editor
@@ -54,7 +54,7 @@ Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, T
 - ⚙️ **Model Registry** — Admin UI for all AI models (image + video + LLM), Bedrock discovery, per-model prompt limits
 - 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...) and version navigation
 
-### 1.2 Screenshots
+### 📝 1.2 Screenshots
 
 **2D Image Studio** — Settings on the left, prompt with AI enhancement on the right, model comparison results below. All Available Models mode generates across every enabled image model simultaneously.
 
@@ -88,17 +88,17 @@ Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, T
 
 ![Video Player — Playing a generated video with metadata](docs/images/video-player.png)
 
-### 1.3 Two-Level Generation
+### 📝 1.3 Two-Level Generation
 
 For each prompt, the AI creates **Options** — fundamentally different design interpretations (e.g. for "a warrior": Viking berserker, Japanese samurai, tribal fighter, cyber-soldier, Greek hoplite). For each option, the image model produces **Variations** — different random seeds giving subtle visual differences. This gives artists a broad creative palette to choose from.
 
-### 1.4 All Available Models
+### 📝 1.4 All Available Models
 
 Select **"All Available Models"** from the model dropdown to generate your prompt across every enabled image model simultaneously — one image per model. This gives a direct side-by-side comparison of how Nova Canvas, Titan Image, SD 3.5 Large, and Stable Image Ultra each interpret the same prompt. Each model runs independently: if stricter models block the prompt, you still get results from models that accepted it, with clear status labels (success, blocked by moderation, or failed) on each option card.
 
 An optional **"Model-optimized prompts"** toggle tailors the prompt to each model's strengths instead of sending the same prompt to all — useful when you want the best output from each model rather than a direct comparison.
 
-### 1.5 Video Studio
+### 📝 1.5 Video Studio
 
 Generate AI-powered videos and animations from text prompts. Supports **Amazon Nova Reel** (v1.0, v1.1) and **Luma AI Ray** (v2.0).
 
@@ -123,7 +123,7 @@ Generate AI-powered videos and animations from text prompts. Supports **Amazon N
 
 **Video prompt enhancement**: The LLM adds camera movements (pan, zoom, dolly, tracking), lighting details, and temporal cues. Since video models don't support negative prompts, avoidance concepts are woven into the positive prompt naturally.
 
-### 1.6 Asset Type Awareness
+### 📝 1.6 Asset Type Awareness
 
 The selected **Asset Type** fundamentally changes how the AI interprets your prompt — not just the image model, but every stage of the pipeline. When you type "hospital" and select different asset types, you get completely different outputs:
 
@@ -141,13 +141,13 @@ This matters at every stage:
 - **Concept generation** — When generating multiple options, the AI creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
 - **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with a clean zone for headline overlay.
 
-## 2. Prerequisites
+## 📌 2. Prerequisites
 
 - **Python 3.11+** (3.12, 3.13, 3.14 all work)
 - **AWS CLI** configured with working credentials
 - **IAM permissions** for Bedrock access (see below)
 
-### 2.1 Verify AWS Credentials and Bedrock Access
+### 📝 2.1 Verify AWS Credentials and Bedrock Access
 
 ```bash
 # Step 1: Confirm your identity
@@ -163,7 +163,7 @@ aws bedrock list-foundation-models --region us-west-2 --query "modelSummaries[?c
 
 If this returns model IDs (e.g. `anthropic.claude-...`), your IAM role has Bedrock access. If you get an access denied error, add the required permissions below.
 
-### 2.2 IAM Permissions
+### 📝 2.2 IAM Permissions
 
 Your IAM user or role needs these permissions:
 
@@ -187,7 +187,7 @@ Your IAM user or role needs these permissions:
 > [!NOTE]
 > Bedrock models are available by default in all commercial AWS regions — no manual enablement step is needed. On first invocation of a third-party model (Anthropic, Stability AI), AWS automatically initiates a marketplace subscription in the background (requires the `aws-marketplace` permissions above). Anthropic models require a one-time [First Time Use form](https://console.aws.amazon.com/bedrock/home#/modelaccess) completion.
 
-### 2.3 Optional: SVG Conversion Tools
+### 📝 2.3 Optional: SVG Conversion Tools
 
 SVG conversion uses external CLI tools (not Python packages). Without them, SVG output falls back to a Pillow-based raster-in-SVG wrapper — functional but not true vector output.
 
@@ -196,7 +196,7 @@ SVG conversion uses external CLI tools (not Python packages). Without them, SVG 
 | **vtracer** | Primary SVG (color vector tracing) | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` or [pre-built binaries](https://github.com/visioncortex/vtracer/releases) |
 | **potrace** | Fallback SVG (monochrome tracing) | `brew install potrace` | `sudo apt install potrace` | Download from [potrace.sourceforge.net](http://potrace.sourceforge.net/#downloading) |
 
-### 2.4 Optional: Video Thumbnail & Metadata Tools
+### 📝 2.4 Optional: Video Thumbnail & Metadata Tools
 
 Video Studio generates MP4 videos via Amazon Nova Reel and Luma AI Ray. To extract thumbnails (first frame as JPEG) and video metadata (duration, resolution, FPS), **ffmpeg** and **ffprobe** must be installed on the machine running the ArtSmoker backend.
 
@@ -212,9 +212,9 @@ Without ffmpeg:
 > [!NOTE]
 > `ffprobe` is included with ffmpeg — no separate install needed. After installing, verify with `ffmpeg -version` and `ffprobe -version`. Both should return version info. ArtSmoker checks for ffmpeg at runtime and falls back gracefully if it's not found — video generation works either way, you just won't get thumbnails.
 
-## 3. Installation
+## 📌 3. Installation
 
-### 3.1 macOS
+### 📝 3.1 macOS
 
 ```bash
 git clone <repo-url> && cd ArtSmoker
@@ -231,7 +231,7 @@ pip3 install -r backend/requirements.txt
 > [!NOTE]
 > On macOS, `python3` and `pip3` are available via Homebrew (`brew install python`) or the Xcode command-line tools. If you see "command not found", install Python from [python.org](https://www.python.org/downloads/) or via `brew install python@3.12`.
 
-### 3.2 Linux (Debian/Ubuntu)
+### 📝 3.2 Linux (Debian/Ubuntu)
 
 ```bash
 # Install Python if needed
@@ -251,7 +251,7 @@ pip3 install --user -r backend/requirements.txt
 > [!NOTE]
 > On some Linux distros, `pip install` outside a venv requires the `--user` flag or `--break-system-packages` (PEP 668). Using a venv avoids this entirely.
 
-### 3.3 Windows
+### 📝 3.3 Windows
 
 ```powershell
 git clone <repo-url>
@@ -269,9 +269,9 @@ pip install -r backend\requirements.txt
 > [!NOTE]
 > On Windows, use `python` (not `python3`). Install Python from [python.org](https://www.python.org/downloads/) — check "Add to PATH" during installation. The Type Studio font picker detects fonts from `C:\Windows\Fonts` (system font detection is currently macOS/Linux only — Windows users can use global or style-specific custom fonts).
 
-## 4. Running
+## 📌 4. Running
 
-### 4.1 Solo Development (All Platforms)
+### 📝 4.1 Solo Development (All Platforms)
 
 Single-process with auto-reload on file changes — ideal for one developer working locally:
 
@@ -296,7 +296,7 @@ Open **http://localhost:8000** — the frontend is served by FastAPI, no separat
 
 On startup, the console shows AWS credential validation results. If something's wrong, you'll see a clear error box. You can also check `http://localhost:8000/api/health` for the status.
 
-### 4.2 Multi-User / Shared Test Box / Production (macOS / Linux)
+### 📝 4.2 Multi-User / Shared Test Box / Production (macOS / Linux)
 
 For any environment with more than one concurrent user — whether a shared dev/test box, staging, or production — use **gunicorn** with multiple workers:
 
@@ -322,7 +322,7 @@ gunicorn backend.main:app \
 > [!TIP]
 > **gunicorn** is Linux/macOS only. On Windows, use `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2` for multi-worker serving.
 
-### 4.3 EC2 / Cloud Deployment
+### 📝 4.3 EC2 / Cloud Deployment
 
 Recommended: **t3.small** (~$15/month) for 1-2 concurrent users.
 
@@ -339,7 +339,7 @@ pip install gunicorn
 - Run with the same gunicorn command above.
 - For persistent operation, use `systemd`, `supervisord`, or `screen`/`tmux`.
 
-## 5. Architecture
+## 📌 5. Architecture
 
 ```
 ┌─────────────────────────────────────────────┐
@@ -380,9 +380,9 @@ pip install gunicorn
 └──────────────────────┘
 ```
 
-## 6. Usage
+## 📌 6. Usage
 
-### 6.1 Workflow Overview
+### 📝 6.1 Workflow Overview
 
 ```
                             ┌─────────────────┐
@@ -437,7 +437,7 @@ pip install gunicorn
 
 All generated assets (images, text overlays, standalone text) land in the Gallery. Nothing is overwritten — each generation creates new assets.
 
-### 6.2 Generation Pipeline
+### 📝 6.2 Generation Pipeline
 
 ```
 User prompt: "hospital building"
@@ -486,7 +486,7 @@ User prompt: "hospital building"
 └────────────────────────────────────────────────────────┘
 ```
 
-### 6.3 Content Moderation Flow
+### 📝 6.3 Content Moderation Flow
 
 ```
 User clicks Generate
@@ -537,7 +537,7 @@ dialog   dialog
 (switch) (rewrite)
 ```
 
-### 6.4 2D Image Studio (Generate Assets)
+### 📝 6.4 2D Image Studio (Generate Assets)
 
 1. Go to the **2D Image Studio** tab.
 2. Type a prompt (e.g. "cute cartoon cat") in the **top textarea** — this area is never overwritten by the system.
@@ -560,7 +560,7 @@ Generated results survive navigation — switching tabs and back preserves the 2
 
 **Smart canary testing**: Before generating the full batch, ArtSmoker sends a single "canary" image request to test the prompt against the model's moderation filters. If the canary is blocked, the batch stops immediately (1 wasted API call instead of N×M×3). If the canary passes, remaining tasks run in parallel with cooperative cancellation — if any task hits a moderation block, the rest skip their API calls automatically.
 
-### 6.5 Use a Style Profile
+### 📝 6.5 Use a Style Profile
 
 1. Go to the **Style Library** tab.
 2. Click **Create New Style** — enter a name and optionally add generation hints. In the create modal, use the **"Import References From"** section with **Local** and **S3** browse buttons to select a source directory or bucket path. Browsing opens a server-side file/directory browser modal (single-click selects an item, double-click navigates into directories). Imported references are auto-analyzed on creation.
@@ -571,7 +571,7 @@ Generated results survive navigation — switching tabs and back preserves the 2
 7. **Generation hints** are part of the analysis context — the AI receives both reference images and your hints as "Artist's Guidance" when analyzing, so the style profile understands intent, not just visual appearance. Editing generation hints also triggers **automatic re-analysis**.
 8. Back in the **2D Image Studio**, select your style from the dropdown — all generated assets will match its visual identity (palette, perspective, rendering style, mood).
 
-### 6.6 Style Analysis Flow
+### 📝 6.6 Style Analysis Flow
 
 ```
 ┌──────────────────────────────────────────┐
@@ -615,7 +615,7 @@ Generated results survive navigation — switching tabs and back preserves the 2
 └──────────────────────────────────────────┘
 ```
 
-### 6.7 Type Studio
+### 📝 6.7 Type Studio
 
 Add text to images or generate standalone text assets with AI-designed typography.
 
@@ -627,7 +627,7 @@ Add text to images or generate standalone text assets with AI-designed typograph
 - **Click to zoom** — clicking the result preview opens the AssetViewer with full zoom/pan, metadata, download, and image editing tools.
 - Results are saved as new gallery assets (originals are never overwritten).
 
-### 6.8 Gallery
+### 📝 6.8 Gallery
 
 - **Search bar** for instant filtering across all assets.
 - **Multi-select** with checkboxes for bulk delete. Deletions are **batch-aware** — surviving siblings track how many variants were removed, so reloading a partial batch in the Image Studio shows "X of Y images remaining (Z deleted)".
@@ -642,18 +642,18 @@ Add text to images or generate standalone text assets with AI-designed typograph
   - **Full metadata**: original prompt, AI-improved prompt, generation prompt, negative prompt, style, asset type, image model (friendly names), dimensions, seed, batch ID, option/variation index, IP declaration status, filename, and creation date.
 - **Style snapshot**: Each asset stores a snapshot of the style used at generation time (name, description, hints, analysis). If the original style is later deleted, the asset retains the full context. Backward compatible — older assets without snapshots display normally.
 
-### 6.9 Voice Input
+### 📝 6.9 Voice Input
 
 Click the microphone button next to the prompt editor to dictate your prompt. The audio is sent to Nova Sonic for transcription.
 
 > [!NOTE]
 > Voice transcription requires Nova Sonic's bidirectional streaming API, which depends on a compatible boto3 version and model access enabled in us-east-1. If the streaming API is not available, the service returns a placeholder acknowledgment. Full real-time transcription works when Nova Sonic streaming is properly configured.
 
-### 6.10 View State Preservation
+### 📝 6.10 View State Preservation
 
 Navigation order: **Style Library → 2D Image Studio → Type Studio → Gallery**. Switching between views preserves each view's DOM state. Generated results, form inputs, and scroll positions survive navigation. The amber reset button in 2D Image Studio is the only way to clear its state.
 
-### 6.11 Model Management
+### 📝 6.11 Model Management
 
 All AI model configuration is centralized in `backend/model_registry.json` — the single source of truth. Models, regions, pricing, quality tiers, and format templates are all stored here and managed through the UI or API:
 
@@ -664,7 +664,7 @@ All AI model configuration is centralized in `backend/model_registry.json` — t
 - Changes are persisted immediately to `model_registry.json` via the Admin API.
 - The registry is backward compatible — existing assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs.
 
-### 6.12 Image Generation Models
+### 📝 6.12 Image Generation Models
 
 Image models are **discovered dynamically** from the registry — not hardcoded. The dropdown is populated from `GET /api/admin/models/image-options` on page load. Any model registered and enabled in the registry appears automatically.
 
@@ -686,7 +686,7 @@ Adding a new Bedrock image model requires zero code changes — just register it
 > [!NOTE]
 > **Moderation sensitivity varies by model** and is tracked in the registry (`moderation_strictness`). Nova Canvas is the strictest — it rejects prompts with copyrighted names, weapons, and combat language more aggressively. Stable Diffusion 3.5 Large is more relaxed for action/combat themes. ArtSmoker handles this automatically — when a prompt is blocked, the system tries alternative models ordered by strictness before suggesting a rewrite.
 
-## 7. Tech Stack
+## 📌 7. Tech Stack
 
 | Layer | Technology |
 |-------|-----------|
@@ -703,7 +703,7 @@ Adding a new Bedrock image model requires zero code changes — just register it
 
 No build step required for the frontend.
 
-## 8. Security Model
+## 📌 8. Security Model
 
 ArtSmoker is designed as a **local/trusted-network development tool** — it runs on the developer's own machine or a private EC2 instance. The security model reflects this:
 
@@ -715,7 +715,7 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 > [!WARNING]
 > Do not expose ArtSmoker to untrusted networks without adding authentication and path restrictions. See the [Deployment Roadmap in SPEC.md](SPEC.md#14-deployment--scaling-roadmap) for production hardening guidance (Phase 4 adds Cognito authentication).
 
-## 9. API
+## 📌 9. API
 
 Interactive docs at **http://localhost:8000/docs** (Swagger UI).
 
@@ -761,7 +761,7 @@ Key endpoints:
 | `POST /api/log` | Client-side error/warning logging (recorded as `[CLIENT]` in server console) |
 | `GET /api/health` | Health check + AWS credential/Bedrock validation |
 
-## 10. Project Structure
+## 📌 10. Project Structure
 
 ```
 ArtSmoker/
@@ -817,7 +817,7 @@ ArtSmoker/
 └── README.md                # This file
 ```
 
-## 11. Configurable Limits
+## 📌 11. Configurable Limits
 
 Settings in `backend/config.py` can be overridden via environment variables (prefix `ARTSMOKER_`):
 
@@ -831,14 +831,14 @@ Settings in `backend/config.py` can be overridden via environment variables (pre
 
 Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
 
-## 12. Amazon Bedrock Pricing & Cost Breakdown
+## 📌 12. Amazon Bedrock Pricing & Cost Breakdown
 
 > [!NOTE]
 > The tables below are **reference pricing for planning purposes**. The app itself shows **live per-model pricing** in the Image Studio sidebar — fetched from the AWS Pricing API during registry refresh and stored in `model_registry.json`. The in-app cost estimate updates dynamically based on selected model, quality tier, region, and batch size.
 
 All pricing from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions. See also [SPEC.md](SPEC.md#13-aws-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
 
-### 12.1 Per-Unit Pricing
+### 📝 12.1 Per-Unit Pricing
 
 | Service | Model | Cost | Unit |
 |---------|-------|------|------|
@@ -856,7 +856,7 @@ All pricing from the official [Amazon Bedrock Pricing page](https://aws.amazon.c
 > [!NOTE]
 > Prices from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official source before budgeting.
 
-### 12.2 Additional LLM Costs (Per Use)
+### 📝 12.2 Additional LLM Costs (Per Use)
 
 These LLM calls are included in the generation workflow but not separately itemized in the batch cost tables below:
 
@@ -868,11 +868,11 @@ These LLM calls are included in the generation workflow but not separately itemi
 
 These are small — pre-check and moderation rewrite are a fraction of a cent each. Type Studio layout is comparable to a single-option prompt refinement.
 
-### 12.3 Style Analysis Cost (One-Time per Style)
+### 📝 12.3 Style Analysis Cost (One-Time per Style)
 
 ~**$0.14** per style (20 images sent to Claude Opus + 8 images cohesion check at Claude Sonnet). The cohesion check adds ~$0.01 (Sonnet with 8 images is very cheap).
 
-### 12.4 Generation Cost by Batch Size
+### 📝 12.4 Generation Cost by Batch Size
 
 Includes prompt refinement/concept generation + image generation:
 
@@ -882,7 +882,7 @@ Includes prompt refinement/concept generation + image generation:
 | 1 option × 5 variations | ~$0.31 | ~$0.06 | ~$0.41 | ~$0.71 |
 | 5 options × 5 variations | ~$1.55 | ~$0.30 | ~$2.05 | ~$3.55 |
 
-### 12.5 Post-Processing Add-Ons (Per Image)
+### 📝 12.5 Post-Processing Add-Ons (Per Image)
 
 | Add-on | Per image | 1 image | 5 images | 25 images |
 |--------|-----------|---------|----------|-----------|
@@ -893,7 +893,7 @@ Includes prompt refinement/concept generation + image generation:
 > [!TIP]
 > **Creative Upscale note**: Handles Stability AI's 16MB response payload limit automatically by using JPEG output format internally, then converting back to PNG. Includes retry with exponential backoff for API throttling.
 
-### 12.6 Worked Examples
+### 📝 12.6 Worked Examples
 
 | Example | Configuration | Total Cost |
 |---------|-------------|-----------|
@@ -905,7 +905,7 @@ Includes prompt refinement/concept generation + image generation:
 > [!TIP]
 > **Key takeaway**: Image generation itself is cheap ($0.01–$0.14/image). **Creative Upscale at $0.60/image is the dominant cost** — use it selectively on your final chosen assets, not the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free (runs locally).
 
-## 13. Disclaimer
+## 📌 13. Disclaimer
 
 > [!IMPORTANT]
 > **Generated Content Quality**: All images, videos, and other assets generated by ArtSmoker are produced by AI models available through Amazon Bedrock, including both first-party AWS models and third-party models. The quality, accuracy, and appropriateness of generated content depend entirely on the prompts provided, the models selected, and the style references uploaded by the user. The authors and contributors of ArtSmoker make no guarantees regarding the quality, suitability, or fitness for purpose of any generated content.
@@ -916,6 +916,6 @@ Includes prompt refinement/concept generation + image generation:
 >
 > **No Warranty**: This software is provided "as is" without warranty of any kind. See [LICENSE](LICENSE) for full terms.
 
-## 14. Full Specification
+## 📌 14. Full Specification
 
 See **[SPEC.md](SPEC.md)** for the complete technical specification — architecture, component design, model configuration, API reference, security model, pricing, deployment roadmap, and enough detail to rebuild the project from scratch.
