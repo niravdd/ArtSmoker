@@ -409,17 +409,35 @@ Negative prompts are stored in per-variant `metadata.json` as `negative_prompt`.
 3. **Pre-check toggle** ("Prompt Pre-Check"): Enabled by default. Pre-screens prompts via the fast LLM before any image generation. A **pre-check dialog** (indigo-themed) proactively warns the user about likely moderation issues with specific concerns listed. Options: switch to a recommended model, **rewrite for the current model**, proceed anyway, or cancel. Auto-disabled when IP ownership/licensing is declared. Internally skipped (one-shot `_skipPreCheck` flag) when the user has already reviewed and accepted a model switch or rewrite — the flag resets after one generation so subsequent requests are pre-checked normally.
 4. **Prompt refusal detection**: Catches LLM refusal responses during prompt refinement and shows a **prompt refusal dialog** (red-themed) with the actual AI response (up to 500 chars) and a clear explanation instead of sending garbage to the image model.
 
-**Prompt rewrite implementation**: In all dialogs, choosing "Rewrite" invokes the `POST /api/generate/analyze-moderation` endpoint which:
-- Identifies specific issues (copyrighted IP, violence/weapon language, adult content)
-- Generates a rewritten prompt that preserves creative intent while avoiding triggers
-- Tests the rewrite with a canary image generation to verify it passes moderation
-- Returns `rewritten_prompt`, `verified` (bool), `issues` (list), `explanation`, and `attempts` (log)
+**Prompt rewrite implementation**: The `POST /api/generate/analyze-moderation` endpoint supports two modes controlled by the `force_rewrite` flag:
 
-**Rewrite never overwrites the user's original prompt.** The rewritten text is placed in the **enhanced/composed prompt area** via `PromptEditor.setComposedText()`, leaving the original prompt textarea untouched. A persistent amber disclaimer (`#gen-rewrite-disclaimer`) appears below the prompt info: *"This rewrite is an attempt to make the prompt compatible — it is still subject to the model's own moderation assessment and may be rejected. Please review the enhanced prompt and edit if needed before generating."* The disclaimer clears automatically when a new generation starts. The user must review the enhanced prompt and click Generate themselves — no auto-generation after rewrite.
+- **`force_rewrite: false`** (default) — Two-phase approach: Phase 1 tries the same prompt on alternative models ordered by permissiveness. If one accepts, returns `action: "switch_model"` with the working model. Only if ALL models reject does Phase 2 (rewrite) run.
+- **`force_rewrite: true`** — Skips Phase 1 entirely. Goes straight to rewrite and tests the rewrite against the **target model specifically** (not the most permissive model). Used when the user explicitly chooses "Rewrite for [model]" from any dialog.
+
+**Issue-driven rewrite**: The rewrite LLM prompt is composed from the specific issues identified by the pre-check or the model rejection — not from hardcoded rules. The detected issues (e.g. "copyrighted IP references", "explicit violence", "adult content") are passed directly to the LLM with generic handling rules:
+1. Address each specific issue identified — do not ignore any
+2. For copyrighted IP: replace with original descriptions that capture the same visual energy
+3. For copyrighted character traits/abilities: replace with generic equivalents
+4. For violence/aggression: reframe as dynamic action poses and combat stances
+5. For adult/inappropriate content: remove or replace with tasteful alternatives
+6. Preserve all visual style directives, composition, and quality parameters
+7. Rewrite must be substantially different — not minor word changes
+8. Keep under 900 characters
+
+The rewrite is tested via canary image generation (up to 3 attempts with iterative refinement). If the canary passes, `verified: true` is returned. If all attempts fail, the best rewrite is returned with `verified: false`.
+
+**Rewrite presentation**: The rewrite result is shown **inside the dialog** (not auto-closed) with:
+- Editable textarea containing the rewritten prompt
+- Verified/not-verified badge
+- Amber best-effort disclaimer: *"This is an automated attempt to make your prompt compatible with [model]'s moderation policy. It is not guaranteed to be accepted — the model performs its own independent assessment that may still reject the prompt."*
+- "View original prompt" disclosure
+- "Use This Rewrite & Review" button to accept
+
+**Rewrite never overwrites the user's original prompt.** The rewritten text is placed in the **enhanced/composed prompt area** via `PromptEditor.setComposedText()`, leaving the original prompt textarea untouched. A persistent amber disclaimer (`#gen-rewrite-disclaimer`) appears in the prompt info section. The disclaimer clears when a new generation starts. The user must review the enhanced prompt and click Generate themselves — no auto-generation after rewrite.
 
 All prompts are stored in metadata: `original_prompt` (what the user typed), `prompt` (what was sent to the image model), `negative_prompt`, and `moderation_original` (pre-rewrite prompt when a rewrite was accepted). This provides full audit trail for every generated asset.
 
-The `POST /api/generate/analyze-moderation` endpoint sends the flagged prompt to the fast LLM, which returns: a list of specific issues, a user-facing explanation, and a rewritten prompt. Non-retriable errors (content moderation, policy blocks) are detected and skip the retry loop entirely. The generic image model invoker (`invoke_image_model`) returns the actual error message from the model instead of crashing with a `KeyError` on missing image data.
+Non-retriable errors (content moderation, policy blocks) are detected and skip the retry loop entirely. The generic image model invoker (`invoke_image_model`) returns the actual error message from the model instead of crashing with a `KeyError` on missing image data.
 
 **Canary request and batch cancellation**: Before dispatching the full parallel batch, the system generates a single "canary" image first using the first option's prompt. The canary counts as option 0, variation 0 (`o0_v0`) — if it passes, it becomes the first variant in the results (not wasted). If the canary is blocked by content moderation, the entire batch stops immediately — costing only 1 wasted API call instead of N×M×3 (options × variations × retry attempts). If the canary passes, the remaining tasks dispatch in parallel with a shared `threading.Event` cancel flag. If any task in the parallel batch encounters a non-retriable moderation error, it sets the cancel flag and all remaining tasks skip their API calls. When a batch is partially completed then blocked, **already-generated variants are cleaned up** (deleted from disk) so the user doesn't see orphaned partial results. This two-phase approach (canary + cooperative cancellation) minimizes wasted API spend on prompts that will be rejected across the board.
 
@@ -793,7 +811,7 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 | POST | `/api/generate/post-process` | Apply post-processing to existing generated assets. Accepts asset IDs and processing flags (remove_background, generate_svg, upscale). Updates the assets in-place and refreshes their metadata on disk. Used by the "Apply to Current Results" button in the 2D Image Studio and Type Studio. |
 | POST | `/api/generate/pre-screen` | Pre-screen a prompt for likely moderation issues before generation. Uses Claude Sonnet (fast, cheap). Returns whether the prompt is likely safe, specific issues, and a suggested alternative model if the prompt would work with a less strict model. |
 | POST | `/api/generate/edit` | Image editing services: inpaint, outpaint, erase, search-replace, etc. Accepts `source_image_id`, `model` (registry key), `prompt`, `mask` (base64), `mask_prompt` (natural language, Nova Canvas), outpaint directions. Uses the generic invoker with the model's format family. Result saved as a new gallery asset with metadata linking to the source. |
-| POST | `/api/generate/analyze-moderation` | Analyze a prompt that was rejected by content moderation. Multi-phase: first tries alternative models with the same prompt (model switch), then rewrites as last resort. Returns the action taken, working model (if switched), issues, explanation, and rewritten prompt (if needed). |
+| POST | `/api/generate/analyze-moderation` | Analyze a moderation-blocked prompt. Accepts `force_rewrite` (bool) — when false (default): Phase 1 tries alternative models, Phase 2 rewrites if all reject. When true: skips model switching, rewrites directly for the target model and tests against it. Returns `action`, `working_model`, `issues`, `explanation`, `rewritten_prompt`, `verified`, and `attempts` (log). |
 
 **Pre-screen request body** (`PreScreenRequest`):
 ```json

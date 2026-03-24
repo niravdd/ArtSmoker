@@ -622,7 +622,7 @@ Generated results survive navigation — switching tabs and back preserves the 2
 
 **Prompt rewrite behaviour**: In all three dialogs, choosing "Rewrite" never overwrites your original prompt. The rewritten version appears in the **enhanced prompt area** below your original text, with a persistent amber disclaimer: *"This rewrite is an attempt to make the prompt compatible — it is still subject to the model's own moderation assessment and may be rejected."* You review and edit the enhanced prompt, then click Generate when satisfied. Your original prompt is always preserved in history and metadata.
 
-Common triggers include copyrighted IP names (e.g. "Mario", "Master Chief"), violence/weapon language, and adult content references. Tip: the **"Preview Enhanced Prompt"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
+Common triggers include copyrighted IP names and character references, violence/weapon language, and adult content references. Tip: the **"Preview Enhanced Prompt"** button often produces prompts that pass moderation naturally, since the AI rephrases in descriptive terms.
 
 **Smart canary testing**: Before generating the full batch, ArtSmoker sends a single "canary" image request to test the prompt against the model's moderation filters. If the canary is blocked, the batch stops immediately (1 wasted API call instead of N×M×3). If the canary passes, remaining tasks run in parallel with cooperative cancellation — if any task hits a moderation block, the rest skip their API calls automatically.
 
