@@ -19,7 +19,7 @@ Creative teams and game studios want to use AI for asset generation, but face re
 
 ### The Solution
 
-ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean creative interface. Think of it as a **ComfyUI for Bedrock** — but purpose-built for game asset production.
+ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean creative interface — purpose-built for game asset production, with applicability across other creative industries such as advertising, e-commerce, publishing, and digital media where AI-generated visual content is valuable.
 
 - **Artists describe what they need** in plain language — ArtSmoker handles prompt composition, negative prompt extraction, model-specific formatting, and style application behind the scenes
 - **Style-aware generation** — upload your game's existing art, and ArtSmoker's vision models learn your visual identity. Every generated asset matches your game's look and feel
