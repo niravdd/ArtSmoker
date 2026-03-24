@@ -147,42 +147,77 @@ This matters at every stage:
 - **AWS CLI** configured with working credentials
 - **IAM permissions** for Bedrock access (see below)
 
-### 📝 2.1 Verify AWS Credentials and Bedrock Access
+### 📝 2.1 AWS Credentials
+
+ArtSmoker uses [boto3's standard credential resolution](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials), so any of the following methods work:
+
+| Method | Best for | How |
+|--------|----------|-----|
+| **Environment variables** | CI/CD, containers | `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` |
+| **Shared credentials file** | Local development | `~/.aws/credentials` via `aws configure` |
+| **Named profile** | Multiple accounts | Set `ARTSMOKER_AWS_PROFILE=myprofile` or `AWS_PROFILE` |
+| **AWS SSO** | Enterprise SSO | `aws configure sso` |
+| **IAM Instance Profile** | EC2, ECS, App Runner | Attach an IAM role to the instance — no credentials needed on the machine |
+| **ECS Task Role** | ECS/Fargate containers | Assign a task execution role with the required permissions |
+
+Quick check that credentials are working:
 
 ```bash
-# Step 1: Confirm your identity
 aws sts get-caller-identity
 ```
 
-If this returns your account/user info, credentials are working.
+> [!NOTE]
+> On EC2 and other AWS compute services, you don't need to configure explicit credentials. Attach an [IAM Instance Profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html) with the required permissions, and boto3 picks it up automatically via the instance metadata service.
+
+### 📝 2.1.1 Verify Bedrock Access
+
+Confirming credentials work (`sts:GetCallerIdentity`) only verifies identity — it does not confirm you have Bedrock permissions. ArtSmoker uses multiple Bedrock APIs, so a quick listing test alone is not sufficient. The most reliable check:
 
 ```bash
-# Step 2: Verify Bedrock access (quick test — invoke a model listing)
-aws bedrock list-foundation-models --region us-west-2 --query "modelSummaries[?contains(modelId,'claude')].[modelId]" --output text
+# Test 1: Can you list models? (requires bedrock:ListFoundationModels)
+aws bedrock list-foundation-models --region us-east-1 --query "modelSummaries[0].modelId" --output text
+
+# Test 2: Can you invoke a model? (requires bedrock:InvokeModel)
+aws bedrock-runtime invoke-model --region us-east-1 \
+  --model-id amazon.titan-image-generator-v2:0 \
+  --content-type application/json --accept application/json \
+  --body '{"textToImageParams":{"text":"test"},"imageGenerationConfig":{"numberOfImages":1,"width":512,"height":512}}' \
+  /dev/null 2>&1 && echo "InvokeModel: OK" || echo "InvokeModel: FAILED"
+
+# Test 3: Can you use the Converse API? (requires bedrock:Converse)
+aws bedrock-runtime converse --region us-east-1 \
+  --model-id amazon.titan-text-lite-v1 \
+  --messages '[{"role":"user","content":[{"text":"hi"}]}]' \
+  --inference-config '{"maxTokens":1}' \
+  --query "output.message.content[0].text" --output text 2>&1 && echo "Converse: OK" || echo "Converse: FAILED"
 ```
 
-If this returns model IDs (e.g. `anthropic.claude-...`), your IAM role has Bedrock access. If you get an access denied error, add the required permissions below.
+If all three pass, your permissions are set. If Test 1 passes but Tests 2-3 fail, your IAM policy allows listing but not invoking — update it using the permissions table below.
 
 ### 📝 2.2 IAM Permissions
 
-Your IAM user or role needs these permissions:
+Your IAM user, role, or instance profile needs these permissions:
 
 | Permission | Used for |
 |------------|----------|
-| `bedrock:InvokeModel` | All image models (Nova Canvas, Titan Image, Stability AI) |
-| `bedrock:Converse` | Claude models (Sonnet, Opus) via the Converse API |
-| `bedrock:InvokeModelWithBidirectionalStream` | Nova Sonic voice transcription |
-| `bedrock:InvokeModel` (async) | Video generation (Nova Reel, Luma Ray) via StartAsyncInvoke |
+| `bedrock:InvokeModel` | Image generation, image editing, post-processing (all image models) |
+| `bedrock:Converse` | LLM calls — prompt refinement, style analysis, concept generation |
+| `bedrock:InvokeModelWithBidirectionalStream` | Voice transcription (optional — app works without it) |
+| `bedrock:StartAsyncInvoke` | Video generation (async invocation) |
 | `bedrock:GetAsyncInvoke` | Poll video generation job status |
 | `bedrock:ListAsyncInvokes` | List video generation jobs |
-| `bedrock:ListFoundationModels` | Model discovery in the admin UI |
+| `bedrock:ListFoundationModels` | Model discovery in the admin UI (Sync from AWS) |
 | `s3:CreateBucket` | Create S3 bucket for video storage (optional, via UI) |
 | `s3:PutObject` / `s3:GetObject` / `s3:ListBucket` | Video output storage and retrieval |
-| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models (Anthropic, Stability AI, Luma AI) |
+| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models |
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
 | `sts:GetCallerIdentity` | Startup credential validation |
+| `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
 
-**Quickest setup**: Attach the AWS managed policy **`AmazonBedrockFullAccess`** — this covers all Bedrock actions. For tighter scoping, use the specific permissions above.
+**Quickest setup**: Attach the AWS managed policy **`AmazonBedrockFullAccess`** — this covers all Bedrock actions. For S3 video storage, add `AmazonS3FullAccess` or a scoped S3 policy for your video bucket. For tighter scoping, use the specific permissions above.
+
+> [!TIP]
+> On **EC2/ECS/App Runner**: Create an IAM role with these permissions and attach it as an [Instance Profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html) or Task Role. No access keys needed — boto3 auto-discovers the role from the instance metadata service.
 
 > [!NOTE]
 > Bedrock models are available by default in all commercial AWS regions — no manual enablement step is needed. On first invocation of a third-party model (Anthropic, Stability AI), AWS automatically initiates a marketplace subscription in the background (requires the `aws-marketplace` permissions above). Anthropic models require a one-time [First Time Use form](https://console.aws.amazon.com/bedrock/home#/modelaccess) completion.

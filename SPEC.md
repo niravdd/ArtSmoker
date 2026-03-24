@@ -991,27 +991,35 @@ ArtSmoker uses Amazon Bedrock and requires working AWS credentials on the host m
 
 ### 6.1 AWS Credentials
 
-The app uses boto3's standard credential resolution order:
-1. **Environment variables**: `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` (+ optional `AWS_SESSION_TOKEN`)
-2. **Shared credentials file**: `~/.aws/credentials` (default profile, or set `AWS_PROFILE` for a named profile)
-3. **AWS SSO**: If configured via `aws configure sso`
-4. **Instance role**: Automatic on EC2, Lambda, ECS, etc.
+The app uses [boto3's standard credential resolution](https://boto3.amazonaws.com/v1/documentation/api/latest/guide/credentials.html#configuring-credentials):
 
-Whatever method you use for other AWS work on your machine will work here.
+1. **Environment variables**: `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` (+ optional `AWS_SESSION_TOKEN`)
+2. **Shared credentials file**: `~/.aws/credentials` (default profile, or set `AWS_PROFILE`/`ARTSMOKER_AWS_PROFILE` for a named profile)
+3. **AWS SSO**: If configured via `aws configure sso`
+4. **IAM Instance Profile**: Automatic on EC2 — attach a role with the required permissions, no credentials needed on the machine. See [Instance Profiles](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html).
+5. **ECS Task Role / App Runner Instance Role**: Automatic in containerized environments.
+
+Whatever method you use for other AWS work on your machine will work here. On EC2 and other AWS compute, using an Instance Profile or Task Role is recommended over storing access keys.
 
 ### 6.2 Required IAM Permissions
 
 The IAM principal (user, role, or SSO session) needs the following permissions:
 
-| Permission | Used by | Purpose |
-|------------|---------|---------|
-| `bedrock:InvokeModel` | All image models, Stability AI post-processing | Image generation, background removal, upscaling |
-| `bedrock:Converse` | Claude Sonnet, Claude Opus | Prompt refinement, style analysis, concept generation |
-| `bedrock:InvokeModelWithBidirectionalStream` | Nova Sonic | Voice transcription (optional — app works without it) |
-| `bedrock:ListFoundationModels` | Admin UI model discovery | Listing available models in a region |
-| `aws-marketplace:Subscribe` | Third-party models (first use) | Auto-subscription to Anthropic, Stability AI on first invocation |
-| `aws-marketplace:ViewSubscriptions` | Third-party models | Check existing subscriptions |
-| `sts:GetCallerIdentity` | Startup validation | Credential check on app launch |
+| Permission | Purpose |
+|------------|---------|
+| `bedrock:InvokeModel` | Image generation, image editing, post-processing (all image models) |
+| `bedrock:Converse` | LLM calls — prompt refinement, style analysis, concept generation |
+| `bedrock:InvokeModelWithBidirectionalStream` | Voice transcription (optional — app works without it) |
+| `bedrock:StartAsyncInvoke` | Video generation (async invocation) |
+| `bedrock:GetAsyncInvoke` | Poll video generation job status |
+| `bedrock:ListAsyncInvokes` | List video generation jobs |
+| `bedrock:ListFoundationModels` | Model discovery in the admin UI (Sync from AWS) |
+| `s3:CreateBucket` | Create S3 bucket for video storage (optional, via UI) |
+| `s3:PutObject` / `s3:GetObject` / `s3:ListBucket` | Video output storage and retrieval |
+| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models |
+| `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
+| `sts:GetCallerIdentity` | Startup credential validation |
+| `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
 
 **Quickest setup**: Attach the AWS managed policy **`AmazonBedrockFullAccess`**. This covers all `bedrock:*` actions. You may additionally need `aws-marketplace:Subscribe` and `aws-marketplace:ViewSubscriptions` for first-time third-party model access.
 
@@ -1026,6 +1034,9 @@ For a scoped IAM policy:
         "bedrock:InvokeModel",
         "bedrock:Converse",
         "bedrock:InvokeModelWithBidirectionalStream",
+        "bedrock:StartAsyncInvoke",
+        "bedrock:GetAsyncInvoke",
+        "bedrock:ListAsyncInvokes",
         "bedrock:ListFoundationModels"
       ],
       "Resource": "*"
@@ -1055,29 +1066,29 @@ Bedrock models are **available by default** in all commercial AWS regions — no
 > [!NOTE]
 > **Anthropic models**: Require a one-time [First Time Use form](https://console.aws.amazon.com/bedrock/home#/modelaccess) completion before first invocation.
 
-ArtSmoker uses models in **two regions**:
-
-| Region | Models |
-|--------|--------|
-| us-west-2 | Claude Sonnet 4.6, Claude Opus 4.6, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (Remove BG, Upscale) |
-| us-east-1 | Nova Canvas, Titan Image v2, Nova Sonic |
+ArtSmoker discovers available models and regions dynamically via the **Sync from AWS** feature in the admin UI. Models and regions are not hardcoded — the system reads from Amazon Bedrock's `ListFoundationModels` API and stores the results in the model registry. Each model is configured with its optimal region, and users can override the region per request.
 
 ### 6.4 Verifying Access
 
+Confirming credentials work (`sts:GetCallerIdentity`) only verifies identity — it does **not** confirm Bedrock permissions. ArtSmoker uses multiple Bedrock APIs (`InvokeModel`, `Converse`, `StartAsyncInvoke`, `ListFoundationModels`), so a model listing test alone is not sufficient.
+
 ```bash
-# 1. Confirm credentials
+# 1. Confirm credentials resolve
 aws sts get-caller-identity
 
-# 2. Verify Bedrock access — list Claude models in us-west-2
-aws bedrock list-foundation-models --region us-west-2 \
-  --query "modelSummaries[?contains(modelId,'claude')].[modelId]" --output text
-
-# 3. Verify Bedrock access — list Nova models in us-east-1
+# 2. Can you list models? (bedrock:ListFoundationModels)
 aws bedrock list-foundation-models --region us-east-1 \
-  --query "modelSummaries[?contains(modelId,'nova')].[modelId]" --output text
+  --query "modelSummaries[0].modelId" --output text
+
+# 3. Can you invoke a model? (bedrock:InvokeModel)
+aws bedrock-runtime invoke-model --region us-east-1 \
+  --model-id amazon.titan-image-generator-v2:0 \
+  --content-type application/json --accept application/json \
+  --body '{"textToImageParams":{"text":"test"},"imageGenerationConfig":{"numberOfImages":1,"width":512,"height":512}}' \
+  /dev/null 2>&1 && echo "InvokeModel: OK" || echo "InvokeModel: FAILED"
 ```
 
-If steps 2-3 return model IDs, your IAM permissions are correct. If you get "AccessDeniedException", the role/user lacks the required permissions — attach `AmazonBedrockFullAccess` or the scoped policy above.
+If all three pass, your permissions are set. If step 2 passes but step 3 fails, your IAM policy allows listing but not invoking — update it using the scoped policy above or attach `AmazonBedrockFullAccess`.
 
 ### 6.5 Startup Validation
 
