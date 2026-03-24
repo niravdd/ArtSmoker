@@ -1108,20 +1108,21 @@
                                 width: 512,
                                 height: 512,
                             });
-                            if (rewriteResult.rewritten_prompt && rewriteResult.verified) {
+                            if (rewriteResult.rewritten_prompt) {
                                 if (this._promptEditor) {
                                     this._promptEditor._moderationOriginal = originalPrompt;
                                     this._promptEditor.setText(rewriteResult.rewritten_prompt);
                                 }
-                                // Switch back to original model
                                 const modelSel = document.getElementById('gen-model');
                                 if (modelSel) modelSel.value = analysis.original_model;
                                 dialog.remove();
-                                this._skipPreCheck = true;
-                                setTimeout(() => this._handleGenerate(), 100);
+                                const verifiedNote = rewriteResult.verified
+                                    ? 'The rewrite passed a test generation, but is still subject to the model\'s moderation at full resolution.'
+                                    : 'The rewrite could not be verified and may still be rejected by the model.';
+                                window.showToast?.(`Prompt rewritten for ${originalModelLabel}. ${verifiedNote} Please review before generating.`, rewriteResult.verified ? 'success' : 'warning', 8000);
                             } else {
                                 dialog.remove();
-                                window.showToast?.('Could not create a verified rewrite for ' + originalModelLabel + '. Try Stable Diffusion 3.5 Large instead.', 'warning');
+                                window.showToast?.('Could not create a rewrite for ' + originalModelLabel + '. Try a different model instead.', 'warning');
                             }
                         } catch (err) {
                             dialog.remove();
@@ -1162,7 +1163,7 @@
                                 Recommended Rewrite ${verifiedBadge}
                             </h3>
                             <textarea id="mod-rewritten-prompt" class="input w-full min-h-[120px] text-sm">${this._escapeHtml(analysis.rewritten_prompt || '')}</textarea>
-                            <p class="text-[10px] text-brand-text-muted mt-1">${verified ? 'This rewrite has been tested and passes moderation. You can still edit it.' : 'This rewrite has NOT been verified. You may need to edit further.'}</p>
+                            <p class="text-[10px] text-brand-text-muted mt-1">${verified ? 'This rewrite passed a test generation, but is still subject to the model\'s moderation at full resolution.' : 'This rewrite has NOT been verified and may still be rejected by the model.'} Please review and edit as needed before generating.</p>
                         </div>
 
                         <div>
@@ -1343,7 +1344,13 @@
                                 </svg>
                                 Generate with ${this._escapeHtml(suggestedLabel)}
                             </button>` : ''}
-                            <button id="precheck-proceed" class="btn btn-secondary ${suggested ? '' : 'flex-1'}">
+                            <button id="precheck-rewrite" class="btn bg-amber-600 hover:bg-amber-500 text-white">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                </svg>
+                                Rewrite for ${this._escapeHtml(currentLabel)}
+                            </button>
+                            <button id="precheck-proceed" class="btn btn-secondary">
                                 Try ${this._escapeHtml(currentLabel)} Anyway
                             </button>
                             <button id="precheck-cancel" class="btn btn-secondary btn-sm">
@@ -1372,11 +1379,53 @@
             // Proceed with original model anyway (skip pre-check this time)
             document.getElementById('precheck-proceed')?.addEventListener('click', () => {
                 dialog.remove();
-                // Skip pre-check for this generation — user chose to proceed
                 this._skipPreCheck = true;
                 this._handleGenerate();
-                // Restore after a tick
                 setTimeout(() => { if (cb && wasChecked) cb.checked = true; }, 500);
+            });
+
+            // Rewrite prompt for the current model
+            document.getElementById('precheck-rewrite')?.addEventListener('click', async () => {
+                const content = dialog.querySelector('.flex-1.overflow-auto');
+                if (content) {
+                    content.innerHTML = `<div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
+                        <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
+                        <p>Rewriting prompt for ${this._escapeHtml(currentLabel)}...</p>
+                        <p class="text-[10px] text-brand-text-muted/50">Testing rewrite with a canary image to verify it passes</p>
+                    </div>`;
+                }
+                try {
+                    const rewriteResult = await API.analyzeModeration({
+                        prompt: originalPrompt,
+                        error_message: 'Pre-check flagged: ' + (issues.join(', ') || screen.explanation || 'potential moderation issue'),
+                        image_model: currentModel,
+                        width: 512,
+                        height: 512,
+                        force_rewrite: true,
+                    });
+                    if (rewriteResult.rewritten_prompt) {
+                        if (this._promptEditor) {
+                            this._promptEditor.setText(rewriteResult.rewritten_prompt);
+                        }
+                        dialog.remove();
+                        const verifiedNote = rewriteResult.verified
+                            ? 'The rewrite passed a test generation, but is still subject to the model\'s moderation at full resolution.'
+                            : 'The rewrite could not be verified and may still be rejected by the model.';
+                        window.showToast?.(`Prompt rewritten for ${currentLabel}. ${verifiedNote} Please review before generating.`, rewriteResult.verified ? 'success' : 'warning', 8000);
+                    } else {
+                        if (content) {
+                            content.innerHTML = `<div class="p-4 text-center space-y-3">
+                                <p class="text-sm text-red-300">Could not create a safe rewrite for ${this._escapeHtml(currentLabel)}.</p>
+                                <p class="text-xs text-brand-text-muted">The content may be fundamentally incompatible with this model's moderation policy. Try a different model instead.</p>
+                                <button class="mod-close-btn btn btn-secondary">Close</button>
+                            </div>`;
+                            content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
+                        }
+                    }
+                } catch (err) {
+                    window.showToast?.('Rewrite failed: ' + (err.message || ''), 'error');
+                    dialog.remove();
+                }
             });
         },
 
