@@ -30,6 +30,8 @@ ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean 
 
 Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (image editing), Nova Reel, Luma AI Ray (video generation).
 
+**[Get started now — jump to Prerequisites & Installation ▸](#get-started)**
+
 ## 📌 1. What It Does
 
 1. **Upload your game's art** — import reference images from local directories (recursive scan, symlinked to avoid duplication) or S3 buckets (recursive listing with pagination, downloaded locally). **Smart deduplication** always runs on every import regardless of file count — even small sets can have cross-folder duplicates. Removes rotation variants (barrel_N/E/S/W.png keeps only barrel_S.png) and animation frames (Idle0-Idle8 keeps only Idle), with folder prioritization (Samples > Isometric > Characters > Angle). For example, a 747-file isometric asset pack deduplicates to ~99 unique objects — a 7× reduction. Supports a wide range of formats: .png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg, plus automatic texture extraction from 3D models (.glb, .gltf).
@@ -140,6 +142,8 @@ This matters at every stage:
 - **"Preview Enhanced Prompt" button** — When you click Compose, the AI uses the asset type to reshape your brief into a detailed generation prompt, combining your words with style guidelines and asset type directives. Your explicit intent always overrides style defaults. You can review the composed version before generating.
 - **Concept generation** — When generating multiple options, the AI creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
 - **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with a clean zone for headline overlay.
+
+<a id="get-started"></a>
 
 ## 📌 2. Prerequisites
 
