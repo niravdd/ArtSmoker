@@ -1099,8 +1099,8 @@
                         if (content) {
                             content.innerHTML = `<div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
                                 <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                <p>Rewriting prompt for ${this._escapeHtml(originalModelLabel)}...</p>
-                                <p class="text-[10px] text-brand-text-muted/50">Testing rewrites with canary images</p>
+                                <p>Attempting a best-effort rewrite for ${this._escapeHtml(originalModelLabel)}...</p>
+                                <p class="text-[10px] text-brand-text-muted/50">Testing rewrite with a canary image — not guaranteed to pass the model's own moderation</p>
                             </div>`;
                         }
                         try {
@@ -1113,16 +1113,39 @@
                                 height: 512,
                             });
                             if (rewriteResult.rewritten_prompt) {
-                                // Keep original prompt, put rewrite in the enhanced/composed area
-                                if (this._promptEditor) {
-                                    this._promptEditor._moderationOriginal = originalPrompt;
-                                    this._promptEditor.setComposedText(rewriteResult.rewritten_prompt);
+                                const verifiedBadge = rewriteResult.verified
+                                    ? '<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">Passed canary test</span>'
+                                    : '<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Not verified</span>';
+                                const content = document.getElementById('mod-content');
+                                if (content) {
+                                    content.innerHTML = `<div class="space-y-4">
+                                        <div>
+                                            <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                                Rewritten for ${this._escapeHtml(originalModelLabel)} ${verifiedBadge}
+                                            </h3>
+                                            <textarea id="mod-inline-rewrite" class="input w-full min-h-[100px] text-sm">${this._escapeHtml(rewriteResult.rewritten_prompt)}</textarea>
+                                        </div>
+                                        <div class="p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
+                                            <p class="text-[10px] text-amber-300/80"><strong>Best-effort rewrite:</strong> This is an automated attempt to make your prompt compatible with ${this._escapeHtml(originalModelLabel)}'s moderation policy. It is <strong>not guaranteed</strong> to be accepted — the model performs its own independent assessment that may still reject the prompt. Please review carefully, edit if needed, and only generate when satisfied.</p>
+                                        </div>
+                                        <div class="flex gap-3 pt-2">
+                                            <button id="mod-accept-inline-rewrite" class="btn btn-primary flex-1">Use This Rewrite & Review</button>
+                                            <button class="mod-close-btn btn btn-secondary">Cancel</button>
+                                        </div>
+                                    </div>`;
+                                    content.querySelector('#mod-accept-inline-rewrite')?.addEventListener('click', () => {
+                                        const edited = document.getElementById('mod-inline-rewrite')?.value?.trim();
+                                        if (edited && this._promptEditor) {
+                                            this._promptEditor._moderationOriginal = originalPrompt;
+                                            this._promptEditor.setComposedText(edited);
+                                        }
+                                        const modelSel = document.getElementById('gen-model');
+                                        if (modelSel) modelSel.value = analysis.original_model;
+                                        document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
+                                        dialog.remove();
+                                    });
+                                    content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
                                 }
-                                const modelSel = document.getElementById('gen-model');
-                                if (modelSel) modelSel.value = analysis.original_model;
-                                // Show the disclaimer in prompt info
-                                document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
-                                dialog.remove();
                             } else {
                                 dialog.remove();
                                 window.showToast?.('Could not create a rewrite for ' + originalModelLabel + '. Try a different model instead.', 'warning');
@@ -1390,8 +1413,8 @@
                 if (content) {
                     content.innerHTML = `<div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
                         <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                        <p>Rewriting prompt for ${this._escapeHtml(currentLabel)}...</p>
-                        <p class="text-[10px] text-brand-text-muted/50">Testing rewrite with a canary image to verify it passes</p>
+                        <p>Attempting a best-effort rewrite for ${this._escapeHtml(currentLabel)}...</p>
+                        <p class="text-[10px] text-brand-text-muted/50">Testing rewrite with a canary image — not guaranteed to pass the model's own moderation</p>
                     </div>`;
                 }
                 try {
@@ -1404,18 +1427,51 @@
                         force_rewrite: true,
                     });
                     if (rewriteResult.rewritten_prompt) {
-                        // Keep original prompt, put rewrite in the enhanced/composed area
-                        if (this._promptEditor) {
-                            this._promptEditor.setComposedText(rewriteResult.rewritten_prompt);
-                            this._promptEditor._moderationOriginal = originalPrompt;
+                        const verifiedBadge = rewriteResult.verified
+                            ? '<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">Passed canary test</span>'
+                            : '<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Not verified</span>';
+
+                        if (content) {
+                            content.innerHTML = `<div class="space-y-4">
+                                <div>
+                                    <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+                                        Rewritten Prompt ${verifiedBadge}
+                                    </h3>
+                                    <textarea id="precheck-rewritten-text" class="input w-full min-h-[100px] text-sm">${this._escapeHtml(rewriteResult.rewritten_prompt)}</textarea>
+                                </div>
+                                <div class="p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
+                                    <p class="text-[10px] text-amber-300/80"><strong>Best-effort rewrite:</strong> This is an automated attempt to make your prompt compatible with ${this._escapeHtml(currentLabel)}'s moderation policy. It is <strong>not guaranteed</strong> to be accepted — the model performs its own independent assessment that may still reject the prompt. Please review carefully, edit if needed, and only generate when you are satisfied with the rewritten prompt.</p>
+                                </div>
+                                <details class="text-xs">
+                                    <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">View original prompt</summary>
+                                    <p class="mt-2 p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._escapeHtml(originalPrompt)}</p>
+                                </details>
+                                <div class="flex gap-3 pt-2">
+                                    <button id="precheck-accept-rewrite" class="btn btn-primary flex-1">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/>
+                                        </svg>
+                                        Use This Rewrite & Review
+                                    </button>
+                                    <button class="mod-close-btn btn btn-secondary">Cancel</button>
+                                </div>
+                            </div>`;
+
+                            content.querySelector('#precheck-accept-rewrite')?.addEventListener('click', () => {
+                                const editedRewrite = document.getElementById('precheck-rewritten-text')?.value?.trim();
+                                if (editedRewrite && this._promptEditor) {
+                                    this._promptEditor.setComposedText(editedRewrite);
+                                    this._promptEditor._moderationOriginal = originalPrompt;
+                                }
+                                document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
+                                dialog.remove();
+                            });
+                            content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
                         }
-                        // Show the disclaimer in prompt info
-                        document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
-                        dialog.remove();
                     } else {
                         if (content) {
                             content.innerHTML = `<div class="p-4 text-center space-y-3">
-                                <p class="text-sm text-red-300">Could not create a safe rewrite for ${this._escapeHtml(currentLabel)}.</p>
+                                <p class="text-sm text-red-300">Could not create a rewrite for ${this._escapeHtml(currentLabel)}.</p>
                                 <p class="text-xs text-brand-text-muted">The content may be fundamentally incompatible with this model's moderation policy. Try a different model instead.</p>
                                 <button class="mod-close-btn btn btn-secondary">Close</button>
                             </div>`;
