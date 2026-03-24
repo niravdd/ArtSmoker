@@ -4,11 +4,29 @@
 ![Python](https://img.shields.io/badge/Python-3.11+-blue?logo=python&logoColor=white)
 ![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-green?logo=fastapi&logoColor=white)
 ![AWS Bedrock](https://img.shields.io/badge/AWS-Bedrock-orange?logo=amazonaws&logoColor=white)
-![License](https://img.shields.io/badge/License-MIT-yellow)
+![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
-AI-powered game asset generation platform. Generate game-ready 2D sprites, characters, icons, environments, marketing banners, and videos from text or voice prompts — styled to match your game's visual identity. Add text overlays, generate standalone text assets with AI-designed typography, and create video animations.
+A simple, artist-friendly interface for Amazon Bedrock's image and video generation models. ArtSmoker helps creative teams use Bedrock efficiently — without needing to learn the API, CLI, or prompt engineering.
 
-Built on AWS Bedrock (Claude, Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI, Nova Reel, Luma AI Ray).
+### The Problem
+
+Creative teams and game studios want to use AI for asset generation, but face real barriers:
+
+- **No simple interface** — artists shouldn't need to log into the Bedrock console or write API calls to generate images
+- **Prompt engineering is hard** — composing effective prompts with proper negative prompts, style directives, and model-specific formatting takes expertise most artists don't have
+- **Teams don't build/train their own models** — they need access to the many models already available on Bedrock, through something they can actually use
+- **Image editing is inaccessible** — inpainting, outpainting, search & replace, and style transfer all require API knowledge
+
+### The Solution
+
+ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean creative interface. Think of it as a **ComfyUI for Bedrock** — but purpose-built for game asset production.
+
+- **Artists describe what they need** in plain language — ArtSmoker handles prompt composition, negative prompt extraction, model-specific formatting, and style application behind the scenes
+- **Style-aware generation** — upload your game's existing art, and ArtSmoker's vision models learn your visual identity. Every generated asset matches your game's look and feel
+- **All Bedrock models, all regions** — fully configurable. Choose your text-to-image models, video models, and regions. The system discovers available models dynamically via the Bedrock API
+- **Self-deployed, self-billed** — runs on your own infrastructure, uses your own AWS account. No shared endpoints, no third-party data access, no surprise bills from external services
+
+Built on AWS Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (image editing), Nova Reel, Luma AI Ray (video generation).
 
 ## 1. What It Does
 

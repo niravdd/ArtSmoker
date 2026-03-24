@@ -80,9 +80,15 @@
 
 ## 1. Context
 
-A web-based platform that generates 2D game assets, videos, and marketing materials using AWS Bedrock AI models. The platform accepts text or voice prompts, learns visual styles from user-uploaded reference art, and produces game-ready assets (PNG + SVG + MP4). It is designed to be generic and scalable — any game studio can upload their art theme and generate consistent new assets and animations.
+ArtSmoker is a self-hosted web application that gives creative teams and game studios a simple, artist-friendly interface for Amazon Bedrock's image and video generation models — without needing to learn the Bedrock API, CLI, or prompt engineering.
 
-The system uses a **two-level generation model**: for each user prompt, Claude Opus generates multiple distinctly different creative *options* (concept designs), and for each option the image generator produces multiple seed *variations*. This gives the user a broad creative palette to choose from.
+**Problem**: Creative teams want to use AI for asset generation but face real barriers. They don't build or train their own models — and shouldn't need to. Amazon Bedrock offers a wide range of models, but the Bedrock console and API are built for developers, not artists. Composing effective prompts (with negative prompts, style directives, and model-specific formatting) takes expertise most artists don't have. Image editing operations like inpainting, outpainting, and style transfer are even more inaccessible.
+
+**Solution**: ArtSmoker wraps Bedrock in a clean creative interface — purpose-built for game asset production. Artists describe what they need in plain language. ArtSmoker handles prompt composition, negative prompt extraction, style application, model-specific formatting, and multi-model comparison behind the scenes. Upload existing art, and ArtSmoker's vision models learn the visual identity — every generated asset matches the game's look and feel.
+
+The platform supports all text-to-image models, video models, and image editing services available on Amazon Bedrock, across all regions. Fully configurable, dynamically discovered, self-deployed, and self-billed — no shared endpoints, no third-party data access.
+
+The system uses a **two-level generation model**: for each user prompt, the LLM generates multiple distinctly different creative *options* (concept designs), and for each option the image generator produces multiple seed *variations*. This gives the user a broad creative palette to choose from.
 
 ## 2. Architecture Overview
 
