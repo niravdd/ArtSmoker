@@ -1142,6 +1142,7 @@
                                         const modelSel = document.getElementById('gen-model');
                                         if (modelSel) modelSel.value = analysis.original_model;
                                         document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
+                                        this._skipPreCheck = true; // Skip pre-check — rewrite IS the moderation fix
                                         dialog.remove();
                                     });
                                     content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
@@ -1239,6 +1240,7 @@
                         this._promptEditor.setComposedText(rewritten);
                     }
                     document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
+                    this._skipPreCheck = true; // Skip pre-check — rewrite IS the moderation fix
                     dialog.remove();
                 });
 
@@ -1249,6 +1251,7 @@
                         this._promptEditor.setComposedText(rewritten);
                     }
                     document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
+                    this._skipPreCheck = true; // Skip pre-check — rewrite IS the moderation fix
                     dialog.remove();
                 });
 
@@ -1464,6 +1467,7 @@
                                     this._promptEditor._moderationOriginal = originalPrompt;
                                 }
                                 document.getElementById('gen-rewrite-disclaimer')?.classList.remove('hidden');
+                                this._skipPreCheck = true; // Skip pre-check — rewrite IS the moderation fix
                                 dialog.remove();
                             });
                             content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());

@@ -69,6 +69,7 @@
 
         setComposedText(text) {
             this._composedText = text;
+            this._userComposed = true; // Treat programmatic composed text same as user-composed
             this._showComposed(text);
         }
 
