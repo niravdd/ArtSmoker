@@ -1198,13 +1198,13 @@ async def analyze_moderation(body: ModerationRequest):
         model_labels = _get_labels()
         return {
             "action": "switch_model",
-            "working_model": str(working_model),
-            "working_model_label": model_labels.get(str(working_model), str(working_model)),
+            "working_model": working_model.value,
+            "working_model_label": model_labels.get(working_model.value, working_model.value),
             "original_model": original_model,
             "original_model_label": model_labels.get(original_model, original_model),
             "issues": [f"{model_labels.get(original_model, original_model)} has strict content moderation that blocks game art with combat/weapon content"],
             "explanation": (
-                f"Your prompt works with {model_labels.get(str(working_model), str(working_model))} "
+                f"Your prompt works with {model_labels.get(working_model.value, working_model.value)} "
                 f"but was blocked by {model_labels.get(original_model, original_model)}. "
                 f"This is common for game art — Stable Diffusion 3.5 Large and Stable Image Ultra are more "
                 f"permissive with action/combat content while still producing high-quality results."
