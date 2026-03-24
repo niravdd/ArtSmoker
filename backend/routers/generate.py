@@ -1232,24 +1232,28 @@ async def analyze_moderation(body: ModerationRequest):
             f"The prompt was blocked by ALL available image generation models."
         )
 
-        rewrite_instruction = f"""A game artist's prompt was blocked by content moderation.
+        rewrite_instruction = f"""A user's prompt was blocked by an AI image generation model's content moderation.
 {target_context}
 
 {"Original" if attempt_num == 0 else "Previous rewrite that STILL FAILED"} prompt:
 "{current_prompt}"
 
-{f'Previous issues that caused rejection: {json.dumps(all_issues)}' if attempt_num > 0 else f'Flagged issues: "{body.error_message}"'}
+Specific issues identified:
+{f'{json.dumps(all_issues, indent=2)}' if attempt_num > 0 else f'{body.error_message}'}
 
-This is for a GAME ART project. The artist needs action/combat content.
-Rewrite AGGRESSIVELY to remove ALL moderation triggers while preserving the
-game art intent:
-1. REMOVE all copyrighted IP names and references (One Piece, Naruto, Marvel, etc.) — replace with original character descriptions that capture the same energy
-2. REMOVE all copyrighted character abilities (rubber stretching = Luffy, Sharingan = Naruto) — replace with generic fantasy equivalents
-3. Avoid explicit violence ("blood", "gore", "killing") — action poses and combat stances are OK
-4. Remove "toward the camera" aggression — use "dynamic pose" instead
-5. Keep weapons only if stylized/fantasy (swords, staffs)
-6. Keep the full visual style description and quality directives
-7. The rewrite MUST be substantially different from the original — do NOT return the same prompt
+Your task: Rewrite this prompt to address EVERY identified issue above while
+preserving the user's creative intent as closely as possible.
+
+Rules:
+1. Address each specific issue listed above — do not ignore any of them
+2. For copyrighted IP references: replace with original character descriptions that capture the same visual energy without naming the source material
+3. For copyrighted character traits/abilities: replace with generic equivalents (e.g. "elastic powers" → "enhanced strength", "fire breathing" → "energy blasts")
+4. For violence/aggression concerns: reframe as dynamic action poses, combat stances, or dramatic compositions — avoid words like "blood", "gore", "killing", "attacking the viewer"
+5. For adult/inappropriate content: remove entirely or replace with tasteful alternatives
+6. Preserve all visual style directives (art style, colours, quality, resolution, format)
+7. Preserve the overall composition and scene structure where possible
+8. The rewrite MUST be substantially different from the original — do NOT return the same prompt with minor word changes
+9. Keep the rewrite under 900 characters
 
 Respond with ONLY a JSON object (no markdown):
 {{
