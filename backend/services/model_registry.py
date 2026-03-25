@@ -233,6 +233,22 @@ _DEFAULT_FORMAT_FAMILIES = {
             "style_preset": {"type": "enum", "required": False, "options": _STYLE_PRESETS},
         },
     },
+    "stability_upscale": {
+        "description": "Stability AI Creative/Conservative Upscale. Accepts image + prompt + creativity.",
+        "image_path": "image",
+        "prompt_path": "prompt",
+        "seed_path": "seed",
+        "response_image_path": "images[0]",
+        "body_template": {"output_format": "jpeg", "creativity": 0.3},
+        "parameters": {
+            "image": {"type": "image", "required": True},
+            "prompt": {"type": "string", "required": False, "description": "Guide the upscale quality"},
+            "negative_prompt": {"type": "string", "required": False},
+            "creativity": {"type": "float", "required": False, "min": 0, "max": 1, "default": 0.3},
+            "seed": {"type": "integer", "required": False, "min": 0, "max": 4294967294},
+            "output_format": {"type": "enum", "required": False, "options": ["png", "jpeg", "webp"], "default": "jpeg"},
+        },
+    },
     # ── Video generation families ──────────────────────────────────────
     "nova_reel": {
         "description": "Amazon Nova Reel text-to-video. Async invocation, outputs MP4 to S3.",

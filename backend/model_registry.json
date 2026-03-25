@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-20T07:01:11.584945",
+  "last_updated": "2026-03-25T06:07:30.888010",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -201,7 +201,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_creative",
-      "format_family": "stability_control",
+      "format_family": "stability_upscale",
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.6,
@@ -291,7 +291,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_conservative",
-      "format_family": "stability_control",
+      "format_family": "stability_upscale",
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.4,
@@ -351,7 +351,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_fast",
-      "format_family": "stability_erase",
+      "format_family": "stability_upscale",
       "prompt_limit": 0,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.03,
@@ -718,7 +718,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_creative",
-      "format_family": "stability_control",
+      "format_family": "stability_upscale",
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.6,
@@ -808,7 +808,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_conservative",
-      "format_family": "stability_control",
+      "format_family": "stability_upscale",
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.4,
@@ -868,7 +868,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_fast",
-      "format_family": "stability_erase",
+      "format_family": "stability_upscale",
       "prompt_limit": 0,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.03,
@@ -1109,7 +1109,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_creative",
-      "format_family": "stability_control",
+      "format_family": "stability_upscale",
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.6,
@@ -1202,7 +1202,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_conservative",
-      "format_family": "stability_control",
+      "format_family": "stability_upscale",
       "prompt_limit": 10000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.4,
@@ -1264,7 +1264,7 @@
       "provider": "Stability AI",
       "enabled": true,
       "model_purpose": "upscale_fast",
-      "format_family": "stability_erase",
+      "format_family": "stability_upscale",
       "prompt_limit": 0,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.03,
@@ -2669,6 +2669,55 @@
             "webp"
           ],
           "default": "png"
+        }
+      }
+    },
+    "stability_upscale": {
+      "description": "Stability AI Creative/Conservative Upscale. Accepts image + prompt + creativity.",
+      "image_path": "image",
+      "prompt_path": "prompt",
+      "seed_path": "seed",
+      "response_image_path": "images[0]",
+      "body_template": {
+        "output_format": "jpeg",
+        "creativity": 0.3
+      },
+      "parameters": {
+        "image": {
+          "type": "image",
+          "required": true
+        },
+        "prompt": {
+          "type": "string",
+          "required": false,
+          "description": "Guide the upscale quality"
+        },
+        "negative_prompt": {
+          "type": "string",
+          "required": false
+        },
+        "creativity": {
+          "type": "float",
+          "required": false,
+          "min": 0,
+          "max": 1,
+          "default": 0.3
+        },
+        "seed": {
+          "type": "integer",
+          "required": false,
+          "min": 0,
+          "max": 4294967294
+        },
+        "output_format": {
+          "type": "enum",
+          "required": false,
+          "options": [
+            "png",
+            "jpeg",
+            "webp"
+          ],
+          "default": "jpeg"
         }
       }
     }

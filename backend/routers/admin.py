@@ -459,11 +459,11 @@ async def auto_register_image_models(region: str):
             if "remove-background" in mid:
                 return "remove_background", "stability_remove_bg", 0, 0.07
             if "creative-upscale" in mid:
-                return "upscale_creative", "stability_control", 10000, 0.60
+                return "upscale_creative", "stability_upscale", 10000, 0.60
             if "conservative-upscale" in mid:
-                return "upscale_conservative", "stability_control", 10000, 0.40
+                return "upscale_conservative", "stability_upscale", 10000, 0.40
             if "fast-upscale" in mid:
-                return "upscale_fast", "stability_erase", 0, 0.03
+                return "upscale_fast", "stability_upscale", 0, 0.03
             # Default: text-to-image
             return "text_to_image", "stability_text_to_image", 2000, 0.08
 

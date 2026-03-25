@@ -40,7 +40,7 @@ class GenerationResult(BaseModel):
     model_map: dict[int, str] | None = None  # option_index → model_key (All Models mode only)
     options: list[OptionResult] = Field(default_factory=list)
     blocked_count: int = 0  # Number of variants blocked by moderation (seed-dependent)
-    total_cost_usd: float = 0.0  # Actual total cost of all Bedrock calls in this request
+    total_cost_usd: float = 0.0  # Estimated cost based on actual usage metrics and public list pricing
     cost_breakdown: dict = Field(default_factory=dict)  # {component: {cost, count, details}}
     created_at: datetime = Field(default_factory=datetime.utcnow)
 

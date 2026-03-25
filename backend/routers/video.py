@@ -65,7 +65,7 @@ async def generate_video(req: VideoGenerateRequest):
     vid_cfg = get_video_model(req.model_key) if req.model_key else {}
     price_per_sec = vid_cfg.get("base_price_per_second_usd", 0) or 0
     estimated_cost = price_per_sec * dur
-    track_video_generation(model=req.model_key, cost_usd=estimated_cost, duration_seconds=dur)
+    track_video_generation(model=req.model_key, cost_usd=0, duration_seconds=dur)  # Actual cost tracked separately
 
     vs = get_video_settings()
     if not vs.get("s3_bucket"):

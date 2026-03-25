@@ -274,7 +274,7 @@
                                 </div>
                                 <div id="gen-cost-breakdown" class="hidden p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/20">
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] text-emerald-400/80 uppercase tracking-wider font-semibold">Actual Cost</span>
+                                        <span class="text-[10px] text-emerald-400/80 uppercase tracking-wider font-semibold">Estimated Cost</span>
                                         <span id="gen-cost-total" class="text-sm font-bold text-emerald-400">$0.00</span>
                                     </div>
                                     <div id="gen-cost-details" class="text-[10px] text-emerald-300/60 space-y-0.5"></div>
@@ -802,6 +802,10 @@
             this._setGenerating(true, total, payload);
             this._moderationErrors = [];
             document.getElementById('gen-rewrite-disclaimer')?.classList.add('hidden');
+            document.getElementById('gen-cost-breakdown')?.classList.add('hidden');
+            // Unlock upscale toggle for new generation
+            const upscaleToggle = document.getElementById('gen-upscale');
+            if (upscaleToggle) { upscaleToggle.disabled = false; upscaleToggle.closest('label')?.removeAttribute('title'); }
 
             let moderationBlocked = false;
             let promptRefused = false;
@@ -2019,7 +2023,14 @@
                 if (genSvg) genSvg.checked = result.generate_svg ?? false;
 
                 const upscale = document.getElementById('gen-upscale');
-                if (upscale) upscale.checked = result.upscale ?? false;
+                if (upscale) {
+                    upscale.checked = result.upscale ?? false;
+                    // If images were already upscaled, lock the toggle
+                    if (result.upscale) {
+                        upscale.disabled = true;
+                        upscale.closest('label')?.setAttribute('title', 'Already upscaled — cannot upscale again');
+                    }
+                }
 
                 // Restore options/variations counts
                 const optsSel = document.getElementById('gen-num-options');

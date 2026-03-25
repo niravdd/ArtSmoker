@@ -42,6 +42,17 @@ router = APIRouter(prefix="/api/generate", tags=["generate"])
 _SEED_MAX = 2**31 - 1
 
 
+def _get_model_price(model_key) -> float:
+    """Get the per-image price for a model from the registry."""
+    key = model_key.value if hasattr(model_key, 'value') else str(model_key)
+    try:
+        from backend.services.model_registry import get_image_model
+        cfg = get_image_model(key)
+        return cfg.get("base_price_usd", 0) or 0 if cfg else 0
+    except Exception:
+        return 0
+
+
 def _get_model_region(model_key) -> str:
     """Get the region for a model from the registry."""
     key = model_key.value if hasattr(model_key, 'value') else str(model_key)
@@ -179,6 +190,7 @@ def _build_variant(
         "remove_background": body.remove_background,
         "generate_svg": body.generate_svg,
         "upscale": body.upscale,
+        "upscaled": body.upscale,  # True if upscale was requested (process_asset ran it)
         "ip_owned": body.ip_owned,
         "ip_licensed": body.ip_licensed,
         "png_path": f"/api/gallery/{asset_id}/png",
@@ -186,6 +198,8 @@ def _build_variant(
         "png_filename": png_filename,
         "svg_filename": svg_filename,
         "created_at": datetime.utcnow().isoformat(),
+        "estimated_image_cost_usd": _get_model_price(effective_model),
+        "cost_history": [{"action": "generate", "model": effective_model.value if hasattr(effective_model, 'value') else str(effective_model), "cost_usd": _get_model_price(effective_model)}],
     })
 
     result = VariantResult(
@@ -691,11 +705,10 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 style_snapshot=style_snapshot,
                 progress_queue=progress_q,
             )
-            # Track each model individually with its cost
-            mcfg = _get_model(model_key)
+            # Track each model individually (no cost — actual cost sent by generation_cost at the end)
             track_image_generation(
                 model=model_key,
-                cost_usd=mcfg.get("base_price_usd", 0) or 0,
+                cost_usd=0,
                 num_options=1,
                 num_variations=1,
             )
@@ -835,17 +848,12 @@ async def generate_asset_stream(body: GenerationRequest):
       - complete:    {result: GenerationResult}
       - error:       {detail: string}
     """
-    # Track telemetry — for single model, track here; for "all models", track per-model inside the loop
+    # Track telemetry — event count only (no cost here — actual cost sent by generation_cost at the end)
     if not body.all_models:
         from backend.services.telemetry import track_image_generation
-        from backend.services.model_registry import get_image_model
-        model_cfg = get_image_model(body.image_model or "") if body.image_model else {}
-        base_price = model_cfg.get("base_price_usd", 0) or 0
-        num_images = body.num_options * body.num_variations
-        estimated_cost = base_price * num_images
         track_image_generation(
             model=body.image_model or "",
-            cost_usd=estimated_cost,
+            cost_usd=0,  # Actual cost tracked by cost_tracker and sent in generation_cost event
             num_options=body.num_options,
             num_variations=body.num_variations,
         )
@@ -922,11 +930,10 @@ async def edit_image(body: ImageEditRequest):
     from backend.services.post_processor import process_asset
     from backend.services.telemetry import track_image_edit
     edit_cfg = get_image_model(body.model) if body.model else {}
-    edit_cost = edit_cfg.get("base_price_usd", 0) or 0
     track_image_edit(
         edit_type=edit_cfg.get("model_purpose", ""),
         model=body.model or "",
-        cost_usd=edit_cost,
+        cost_usd=0,  # Actual cost tracked by cost_tracker via invoke_image_model
     )
 
     # Validate model exists and has an editing purpose
@@ -1418,26 +1425,40 @@ async def post_process_assets(body: PostProcessRequest):
             meta = store.load_generation_metadata(asset_id) or {}
             changed = False
 
+            cost_history = meta.get("cost_history", [])
+
             # 1. Background removal
             if body.remove_background:
                 try:
                     current_bytes = remove_background(current_bytes)
                     changed = True
+                    from backend.services.post_processor import _find_model_key_by_purpose
+                    bg_key = _find_model_key_by_purpose("remove_background")
+                    bg_price = _get_model_price(bg_key) if bg_key else 0
+                    cost_history.append({"action": "remove_background", "model": bg_key or "", "cost_usd": bg_price})
                     logger.info("BG removed for %s (%d/%d)", asset_id, idx + 1, total)
                 except Exception as exc:
                     logger.warning("BG removal failed for %s: %s", asset_id, exc)
 
-            # 2. Upscale (with throttle delay)
+            # 2. Upscale (with throttle delay) — skip if already upscaled
             if body.upscale:
-                if idx > 0:
-                    time.sleep(1)  # Throttle between upscale calls
-                try:
-                    prompt = meta.get("refined_prompt", meta.get("prompt", ""))
-                    current_bytes = upscale_image(current_bytes, prompt)
-                    changed = True
-                    logger.info("Upscaled %s (%d/%d)", asset_id, idx + 1, total)
-                except Exception as exc:
-                    logger.warning("Upscale failed for %s: %s", asset_id, exc)
+                if meta.get("upscaled"):
+                    logger.info("Skipping upscale for %s — already upscaled", asset_id)
+                else:
+                    if idx > 0:
+                        time.sleep(1)  # Throttle between upscale calls
+                    try:
+                        prompt = meta.get("refined_prompt", meta.get("prompt", ""))
+                        current_bytes = upscale_image(current_bytes, prompt)
+                        changed = True
+                        meta["upscaled"] = True
+                        from backend.services.post_processor import _find_model_key_by_purpose
+                        up_key = _find_model_key_by_purpose("upscale_creative")
+                        up_price = _get_model_price(up_key) if up_key else 0
+                        cost_history.append({"action": "upscale", "model": up_key or "", "cost_usd": up_price})
+                        logger.info("Upscaled %s (%d/%d)", asset_id, idx + 1, total)
+                    except Exception as exc:
+                        logger.warning("Upscale failed for %s: %s", asset_id, exc)
 
             # Save updated PNG if changed
             if changed:
@@ -1458,6 +1479,8 @@ async def post_process_assets(body: PostProcessRequest):
             meta["remove_background"] = body.remove_background
             meta["generate_svg"] = body.generate_svg
             meta["upscale"] = body.upscale
+            meta["cost_history"] = cost_history
+            meta["estimated_total_cost_usd"] = round(sum(c.get("cost_usd", 0) for c in cost_history), 6)
             if svg_url:
                 meta["svg_path"] = svg_url
             store.save_generation_metadata(asset_id, meta)
