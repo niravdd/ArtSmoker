@@ -212,6 +212,8 @@ def _build_variant(
 
 def _run_generation(body: GenerationRequest, progress_cb=None):
     """Run the full generation pipeline. Calls progress_cb(event_dict) at each stage."""
+    from backend.services.cost_tracker import reset_costs, get_total_cost, get_cost_breakdown
+    reset_costs()  # Start fresh cost tracking for this request
 
     # Dispatch to All Models pipeline if requested
     if body.all_models:
@@ -506,6 +508,10 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
 
     emit({"type": "stage", "stage": "finalizing", "message": "Finalizing..."})
 
+    # Compute total actual cost from all Bedrock calls in this request
+    actual_cost = get_total_cost()
+    cost_breakdown = get_cost_breakdown()
+
     result = GenerationResult(
         id=batch_id,
         prompt=body.prompt,
@@ -520,7 +526,14 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         num_variations=n_vars,
         options=options,
         blocked_count=len(blocked_variants) if blocked_variants else 0,
+        total_cost_usd=actual_cost,
+        cost_breakdown=cost_breakdown,
     )
+
+    # Send accurate cost to telemetry (replaces the estimate sent at stream start)
+    from backend.services.telemetry import _track
+    _track("generation_cost", cost_usd=actual_cost, model=body.image_model,
+           breakdown=json.dumps(cost_breakdown, default=str))
 
     emit({"type": "complete", "result": result.model_dump(mode="json")})
     return result
@@ -753,6 +766,10 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
 
     emit({"type": "stage", "stage": "finalizing", "message": "Finalizing..."})
 
+    from backend.services.cost_tracker import get_total_cost, get_cost_breakdown
+    actual_cost = get_total_cost()
+    cost_breakdown = get_cost_breakdown()
+
     result = GenerationResult(
         id=batch_id,
         prompt=body.prompt,
@@ -768,7 +785,13 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
         all_models=True,
         model_map=model_map,
         options=options,
+        total_cost_usd=actual_cost,
+        cost_breakdown=cost_breakdown,
     )
+
+    from backend.services.telemetry import _track
+    _track("generation_cost", cost_usd=actual_cost, model="all_models",
+           breakdown=json.dumps(cost_breakdown, default=str))
 
     # Summary
     summary_parts = []

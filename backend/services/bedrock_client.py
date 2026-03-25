@@ -219,7 +219,16 @@ def invoke_llm(
 
     try:
         response = client.converse(**converse_kwargs)
-        return response["output"]["message"]["content"][0]["text"]
+        text = response["output"]["message"]["content"][0]["text"]
+        # Track LLM cost
+        usage = response.get("usage", {})
+        in_tok = usage.get("inputTokens", 0)
+        out_tok = usage.get("outputTokens", 0)
+        if in_tok or out_tok:
+            from backend.services.cost_tracker import add_cost, compute_llm_cost
+            llm_cost = compute_llm_cost(model_id, in_tok, out_tok)
+            add_cost("llm", llm_cost, f"{model_id}: {in_tok} in, {out_tok} out")
+        return text
     except client.exceptions.AccessDeniedException:
         fallback_id, fallback_region = _get_fallback_llm()
         logger.warning(
@@ -238,7 +247,15 @@ def invoke_llm(
         if system:
             fallback_kwargs["system"] = [{"text": system}]
         response = fallback_client.converse(**fallback_kwargs)
-        return response["output"]["message"]["content"][0]["text"]
+        text = response["output"]["message"]["content"][0]["text"]
+        usage = response.get("usage", {})
+        in_tok = usage.get("inputTokens", 0)
+        out_tok = usage.get("outputTokens", 0)
+        if in_tok or out_tok:
+            from backend.services.cost_tracker import add_cost, compute_llm_cost
+            llm_cost = compute_llm_cost(fallback_id, in_tok, out_tok)
+            add_cost("llm", llm_cost, f"{fallback_id} (fallback): {in_tok} in, {out_tok} out")
+        return text
 
 
 # ── Generic image generation (registry-driven) ──────────────────────────
@@ -383,6 +400,14 @@ def invoke_image_model(
         body=json.dumps(body),
     )
     result = json.loads(response["body"].read())
+
+    # Track image model cost
+    purpose = model_config.get("model_purpose", "text_to_image")
+    image_cost = model_config.get("base_price_usd", 0) or 0
+    if image_cost > 0:
+        from backend.services.cost_tracker import add_cost
+        component = "image_generation" if purpose == "text_to_image" else f"image_{purpose}"
+        add_cost(component, image_cost, f"{label} × 1")
 
     # Extract image from response
     try:

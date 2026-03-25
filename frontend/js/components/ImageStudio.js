@@ -272,6 +272,13 @@
                                     <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1">Negative prompt (exclusions sent to model)</p>
                                     <p id="gen-negative-prompt-text" class="text-sm text-amber-300/60 leading-relaxed italic"></p>
                                 </div>
+                                <div id="gen-cost-breakdown" class="hidden p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/20">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] text-emerald-400/80 uppercase tracking-wider font-semibold">Actual Cost</span>
+                                        <span id="gen-cost-total" class="text-sm font-bold text-emerald-400">$0.00</span>
+                                    </div>
+                                    <div id="gen-cost-details" class="text-[10px] text-emerald-300/60 space-y-0.5"></div>
+                                </div>
                                 <div id="gen-rewrite-disclaimer" class="hidden p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
                                     <p class="text-[10px] text-amber-300/80"><strong>Rewritten prompt:</strong> The enhanced prompt above was rewritten to address moderation concerns with the selected model. This rewrite is an attempt to make the prompt compatible — it is still subject to the model's own moderation assessment and may be rejected. Please review the enhanced prompt and edit if needed before generating.</p>
                                 </div>
@@ -881,14 +888,19 @@
                     this._renderResults(result);
 
                     const blocked = result.blocked_count || 0;
+                    const costStr = result.total_cost_usd ? ` (Cost: $${result.total_cost_usd.toFixed(4)})` : '';
                     if (blocked > 0) {
-                        // Partial results — some variants blocked by seed-dependent moderation
                         window.showToast?.(
-                            `${totalGenerated} of ${totalGenerated + blocked} images generated. ${blocked} blocked by content moderation (seed-dependent). Try regenerating the missing variants with a different model or new seeds.`,
+                            `${totalGenerated} of ${totalGenerated + blocked} images generated. ${blocked} blocked by content moderation (seed-dependent).${costStr}`,
                             'warning', 10000
                         );
                     } else {
-                        window.showToast?.(`${totalGenerated} images generated across ${(result.options || []).length} options!`, 'success');
+                        window.showToast?.(`${totalGenerated} images generated across ${(result.options || []).length} options!${costStr}`, 'success');
+                    }
+
+                    // Show cost breakdown in prompt info section
+                    if (result.total_cost_usd > 0) {
+                        this._showCostBreakdown(result.total_cost_usd, result.cost_breakdown || {});
                     }
                 }
             } catch (err) {
@@ -2110,6 +2122,37 @@
             } else {
                 note.classList.add('hidden');
             }
+        },
+
+        _showCostBreakdown(totalCost, breakdown) {
+            const section = document.getElementById('gen-cost-breakdown');
+            const totalEl = document.getElementById('gen-cost-total');
+            const detailsEl = document.getElementById('gen-cost-details');
+            if (!section || !totalEl || !detailsEl) return;
+
+            section.classList.remove('hidden');
+            totalEl.textContent = `$${totalCost.toFixed(4)}`;
+
+            const labels = {
+                'llm': 'LLM (prompt enhancement, concepts, pre-check)',
+                'image_generation': 'Image generation',
+                'image_inpainting': 'Inpainting',
+                'image_outpainting': 'Outpainting',
+                'image_erase': 'Erase',
+                'image_remove_background': 'Background removal',
+                'image_upscale_creative': 'Creative upscale',
+                'image_search_replace': 'Search & replace',
+            };
+
+            detailsEl.innerHTML = Object.entries(breakdown)
+                .sort((a, b) => b[1].cost - a[1].cost)
+                .map(([key, val]) => {
+                    const label = labels[key] || key.replace(/_/g, ' ');
+                    return `<div class="flex justify-between"><span>${label} (${val.count}x)</span><span>$${val.cost.toFixed(4)}</span></div>`;
+                }).join('');
+
+            // Also show in prompt info section
+            document.getElementById('gen-prompt-info')?.classList.remove('hidden');
         },
 
         _escapeHtml(str) {
