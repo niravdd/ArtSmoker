@@ -104,6 +104,24 @@ def track_prompt_refinement():
     _track("prompt_refinement")
 
 
+# ── Chat Studio Events ───────────────────────────────────────────────
+
+def track_chat_session(
+    model: str = "", messages: int = 0, input_tokens: int = 0,
+    output_tokens: int = 0, cost_usd: float = 0, duration_seconds: int = 0,
+    has_vision: bool = False, compacted: bool = False,
+):
+    """Single summary event per chat session interaction.
+
+    Fired when a user navigates away from a session — captures the full
+    session's cost and usage in one event, avoiding per-message clutter.
+    """
+    _track("chat_session", model=model, cost_usd=cost_usd,
+           messages=messages, input_tokens=input_tokens,
+           output_tokens=output_tokens, duration_seconds=duration_seconds,
+           has_vision=has_vision, compacted=compacted)
+
+
 # ── Error Events ─────────────────────────────────────────────────────
 
 def track_error(error_type: str = "", message: str = ""):

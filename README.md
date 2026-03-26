@@ -28,7 +28,7 @@ ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean 
 - **All Bedrock models, all regions** — fully configurable. Choose your text-to-image models, video models, and regions. The system discovers available models dynamically via the Bedrock API
 - **Self-deployed, self-billed** — runs on your own infrastructure, uses your own AWS account. No shared endpoints, no third-party data access, no surprise bills from external services
 
-Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (image editing), Nova Reel, Luma AI Ray (video generation).
+Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering & chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (image editing), Nova Reel, Luma AI Ray (video generation), plus 80+ LLMs from 16 providers for Chat Studio.
 
 **[Get started now — jump to Prerequisites & Installation ▸](#get-started)**
 
@@ -61,15 +61,17 @@ For teams that want every generated asset to match an existing art style — upl
 ### 📝 1.1 Features at a Glance
 
 - 🎨 **Style Library** — Upload art, AI learns your visual identity
-- 🖼️ **2D Image Studio** — Generate images with options × variations, two-area prompt editor
+- 🖼️ **2D Image Studio** — Generate images with options x variations, two-area prompt editor
 - 🎬 **Video Studio** — Text-to-video with Nova Reel & Luma Ray, multi-shot, image-to-video
 - ✍️ **Type Studio** — AI-designed text overlays with font picker
+- 💬 **Chat Studio** — Multi-model LLM chat with streaming, markdown, code highlighting, vision, sessions, context compaction
 - 📁 **Unified Gallery** — Browse images + videos, media filter, search, download, delete
 - ✏️ **Image Editing** — Inpainting, outpainting, erase, search & replace, recolor (in AssetViewer)
 - 🔄 **Real-time progress** — SSE streaming with retry/throttle visibility
 - 🛡️ **Smart moderation** — Canary testing, auto model switching, AI-assisted rewriting
-- ⚙️ **Model Registry** — Admin UI for all AI models (image + video + LLM), Bedrock discovery, per-model prompt limits
+- ⚙️ **Model Registry** — Admin UI for all AI models (image + video + chat + LLM), Bedrock discovery, custom model support
 - 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...) and version navigation
+- 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 
 ### 📝 1.2 Screenshots
 
@@ -151,7 +153,37 @@ Storage mode: download locally (default) or stream from S3 on demand.
 
 **Video prompt enhancement**: The LLM adds camera movements (pan, zoom, dolly, tracking), lighting details, and temporal cues. Since video models don't support negative prompts, avoidance concepts are woven into the positive prompt naturally.
 
-### 📝 1.6 Asset Type Awareness
+### 📝 1.6 Chat Studio
+
+A full-featured LLM chat interface — like a self-hosted conversational AI, running on your own AWS account with no third-party data access.
+
+**80+ models from 16 providers** — Claude (Sonnet, Opus, Haiku), Amazon Nova, Meta Llama, Mistral, Cohere, Qwen, DeepSeek, Google Gemma, NVIDIA Nemotron, and more. Plus any custom/imported models in your account. All discovered automatically via Sync from AWS.
+
+**Core features:**
+- **Streaming responses** — real-time token-by-token rendering via Bedrock ConverseStream
+- **Markdown rendering** — headings, bold/italic, lists, tables, blockquotes, horizontal rules
+- **Code blocks** — syntax highlighting (highlight.js) with language badge + copy button
+- **Per-message metrics** — input/output tokens, latency, estimated cost, model used
+- **Context window bar** — visual fill indicator (green/amber/red) with used/max token count
+- **Region switching** — each model shows all available regions, pick the closest or cheapest
+
+**Session management:**
+- Multiple concurrent sessions with auto-save
+- Inline rename, duplicate, delete, search/filter in sidebar
+- Export conversations as Markdown
+- Session totals: token count, estimated cost, message count
+
+**Advanced features:**
+- **System prompt templates** — General Assistant, Coding Expert, Creative Writer, Game Designer, Data Analyst, Technical Writer
+- **Vision/multimodal** — drag-drop, file picker, or Ctrl+V paste images for vision-capable models
+- **Context compaction** — AI summarizes older messages to free context window space
+- **Regenerate** — re-run any AI response with the same prompt
+- **Edit & resend** — modify any user message and replay from that point
+- **Fork** — branch a conversation from any message into a new session
+
+**Pricing transparency:** model picker shows cost per 1K tokens, pricing info bar shows estimated cost for 10K and 100K token conversations.
+
+### 📝 1.7 Asset Type Awareness
 
 The selected **Asset Type** fundamentally changes how the AI interprets your prompt — not just the image model, but every stage of the pipeline. When you type "hospital" and select different asset types, you get completely different outputs:
 
@@ -584,11 +616,13 @@ Open **http://YOUR_INSTANCE_IP:8000** — ensure your EC2 security group allows 
 │  /api/styles      Style CRUD + import       │
 │  /api/generate    Two-level generation      │
 │  /api/type-studio Text overlay + fonts      │
+│  /api/video       Video generation + jobs   │
+│  /api/chat        LLM chat + sessions       │
 │  /api/gallery     Asset browsing + export   │
 │  /api/browse      File/S3 browser           │
 │  /api/admin       Model registry mgmt       │
-│  /api/transcribe  Voice-to-text             │
 │  /api/refine-prompt  Prompt preview         │
+│  /api/transcribe  Voice-to-text             │
 └────────────┬────────────────────┬───────────┘
              │                    │
              ▼                    ▼
@@ -607,6 +641,8 @@ Open **http://YOUR_INSTANCE_IP:8000** — ensure your EC2 security group allows 
 │  Local Storage       │
 │  data/styles/        │
 │  data/generated/     │
+│  data/video/         │
+│  data/chat/          │
 └──────────────────────┘
 ```
 
@@ -619,18 +655,18 @@ Open **http://YOUR_INSTANCE_IP:8000** — ensure your EC2 security group allows 
                             │   ArtSmoker     │
                             └────────┬────────┘
                                      │
-              ┌──────────────┼──────────────┼──────────────┐
-              │              │              │              │
-              ▼              ▼              ▼              ▼
-      ┌──────────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐
-      │Style Library │ │2D Image  │ │  Video   │ │ Type Studio  │
-      │              │ │  Studio  │ │  Studio  │ │              │
-      │ Upload art   │ │ Generate │ │ Generate │ │ Add text to  │
-      │ Analyze style│ │ images   │ │ videos & │ │ images or    │
-      │ Set fonts    │ │ from     │ │ anims    │ │ standalone   │
-      │              │ │ prompts  │ │ from     │ │ text assets  │
-      │              │ │          │ │ prompts  │ │              │
-      └──────┬───────┘ └────┬─────┘ └────┬─────┘ └──────┬───────┘
+       ┌───────────┼───────────┼───────────┼───────────┐
+       │           │           │           │           │
+       ▼           ▼           ▼           ▼           ▼
+  ┌──────────┐ ┌────────┐ ┌────────┐ ┌──────────┐ ┌────────┐
+  │  Style   │ │  2D    │ │ Video  │ │   Type   │ │  Chat  │
+  │ Library  │ │ Image  │ │ Studio │ │  Studio  │ │ Studio │
+  │          │ │ Studio │ │        │ │          │ │        │
+  │ Upload   │ │Generate│ │Generate│ │ Add text │ │ Multi- │
+  │ Analyze  │ │ images │ │ videos │ │ to imgs  │ │ model  │
+  │ Set fonts│ │        │ │        │ │          │ │ LLM    │
+  │          │ │        │ │        │ │          │ │ chat   │
+  └────┬─────┘ └───┬────┘ └───┬────┘ └────┬─────┘ └────────┘
              │              │            │               │
              │    ┌─────────┴────────────┴─────────┐     │
              │    │  Style selected? (optional)    │     │
@@ -1052,6 +1088,7 @@ ArtSmoker/
 │           ├── ImageStudio.js   # 2D Image Studio (options × variations)
 │           ├── TypeStudio.js    # Type Studio (text overlay)
 │           ├── VideoStudio.js   # Video Studio (text-to-video generation)
+│           ├── ChatStudio.js    # Chat Studio (multi-model LLM chat)
 │           ├── Gallery.js       # Gallery grid + search + bulk ops
 │           ├── StyleLibrary.js  # Style management + file browser
 │           ├── AssetViewer.js   # Full-size preview + metadata + download

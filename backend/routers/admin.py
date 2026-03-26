@@ -483,6 +483,65 @@ async def auto_register_image_models(region: str):
             return "text_to_video", "luma_ray", 5000, 1.50, has_image_input
         return "text_to_video", None, 512, None, has_image_input
 
+    def _register_chat_model(m: dict, region: str, registry: dict, registered: list):
+        """Register a text LLM into the chat_models registry section."""
+        model_id = m.get("modelId", "")
+        provider = m.get("providerName", "")
+        inp = m.get("inputModalities", [])
+        inference_types = m.get("inferenceTypesSupported", [])
+
+        effective_id = model_id
+        if "INFERENCE_PROFILE" in inference_types and not model_id.startswith("us."):
+            effective_id = f"us.{model_id}"
+
+        chat_models = registry.setdefault("chat_models", {})
+
+        # Key: provider.model-name (deduplicated by family)
+        key = model_id.split(".")[-1].split(":")[0].replace("-", "_")
+        family_key = _model_family_key(model_id)
+
+        # Check if a model from this family is already registered
+        existing_key = None
+        for k, cfg in chat_models.items():
+            if _model_family_key(cfg.get("model_id", "").replace("us.", "")) == family_key:
+                existing_key = k
+                break
+
+        if existing_key:
+            # Update regions
+            existing = chat_models[existing_key]
+            regions = existing.get("available_regions", [])
+            if region not in regions:
+                regions.append(region)
+                regions.sort()
+                existing["available_regions"] = regions
+            # Keep the longer model_id (more specific version)
+            if len(effective_id) > len(existing.get("model_id", "")):
+                existing["model_id"] = effective_id
+                existing["model_arn"] = m.get("modelArn", "")
+            return
+
+        has_vision = "IMAGE" in inp
+        streaming = m.get("responseStreamingSupported", False)
+
+        chat_models[key] = {
+            "label": m.get("modelName", model_id),
+            "model_id": effective_id,
+            "region": region,
+            "available_regions": [region],
+            "provider": provider,
+            "enabled": True,
+            "model_source": "foundation",
+            "model_arn": m.get("modelArn", ""),
+            "has_vision": has_vision,
+            "streaming_supported": streaming,
+            "max_context_tokens": 128000,  # Default — admin can override per model
+            "customizations_supported": m.get("customizationsSupported", []),
+            "inference_types": inference_types,
+        }
+        registered.append({"key": key, "model_id": model_id, "label": chat_models[key]["label"],
+                          "region": region, "purpose": "chat", "media": "text"})
+
     registered = []
     updated = []
 
@@ -494,8 +553,14 @@ async def auto_register_image_models(region: str):
 
         is_image = "IMAGE" in output
         is_video = "VIDEO" in output
+        is_text = "TEXT" in output and "TEXT" in inp
 
-        # Must produce images or video
+        # ── Text/LLM models → chat_models registry ───────────────────
+        if is_text and not is_image and not is_video:
+            _register_chat_model(m, region, registry, registered)
+            continue
+
+        # Must produce images or video for the sections below
         if not is_image and not is_video:
             continue
 
@@ -898,6 +963,9 @@ async def refresh_all_regions():
     from backend.services.model_registry import update_image_model
     for key in list(registry.get("image_models", {}).keys()):
         update_image_model(key, {"available_regions": []})
+    # Also reset chat_models regions
+    for key in list(registry.get("chat_models", {}).keys()):
+        registry["chat_models"][key]["available_regions"] = []
 
     # Step 3: Scan each region for foundation + custom + imported models
 

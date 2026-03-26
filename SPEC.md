@@ -46,9 +46,10 @@
   - [5.5 Gallery](#55-gallery)
   - [5.6 Type Studio](#56-type-studio)
   - [5.7 Video](#57-video)
-  - [5.8 Browse](#58-browse)
-  - [5.9 Admin (Model Management)](#59-admin-model-management)
-  - [5.10 System](#510-system)
+  - [5.8 Chat Studio](#58-chat-studio)
+  - [5.9 Browse](#59-browse)
+  - [5.10 Admin (Model Management)](#510-admin-model-management)
+  - [5.11 System](#511-system)
 - [6. Prerequisites: AWS Setup](#6-prerequisites-aws-setup)
   - [6.1 AWS Credentials](#61-aws-credentials)
   - [6.2 Required IAM Permissions](#62-required-iam-permissions)
@@ -160,7 +161,8 @@ ArtSmoker/
 │   │   ├── gallery.py             # Generated asset browsing + file serving + versioned assets
 │   │   ├── browse.py              # Server-side file/S3 browser + S3 bucket creation
 │   │   ├── typestudio.py          # Type Studio: text overlay, font serving, AI layout
-│   │   └── admin.py               # Model registry admin API + Bedrock discovery (image + video) + video settings
+│   │   ├── chat.py                # Chat Studio: LLM chat streaming, sessions, export, context compaction
+│   │   └── admin.py               # Model registry admin API + Bedrock discovery (image + video + chat) + video settings
 │   ├── services/
 │   │   ├── model_registry.py      # Model registry manager: loads/saves model_registry.json, provides config to system
 │   │   ├── video_generator.py     # Video generation: async Bedrock invoke, S3 download, ffmpeg thumbnails
@@ -192,6 +194,7 @@ ArtSmoker/
 │   │   │   ├── StyleLibrary.js    # Style profile browser + uploader
 │   │   │   ├── ImageStudio.js     # 2D Image Studio: two-tier generation UI (options + variations)
 │   │   │   ├── VideoStudio.js     # Video Studio: text-to-video generation, job polling, video player
+│   │   │   ├── ChatStudio.js      # Chat Studio: multi-model LLM chat with streaming, sessions, vision
 │   │   │   ├── TypeStudio.js      # Type Studio: text overlay system (on-image + standalone)
 │   │   │   ├── VoiceInput.js      # Voice recording + transcription
 │   │   │   ├── PromptEditor.js    # Text input with inline LLM refinement
@@ -990,7 +993,24 @@ Fields:
 | POST | `/api/video/revise` | Re-generate with modified prompt, linked to original video in metadata. Inherits settings from the original job. |
 | DELETE | `/api/video/{video_id}` | Delete video (local files). |
 
-### 5.8 Browse
+### 5.8 Chat Studio
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/api/chat/stream` | Send messages to an LLM and stream the response via SSE (Bedrock ConverseStream). Returns events: delta (text chunks), metadata (tokens, cost, latency), stop, error. |
+| GET | `/api/chat/models` | List all available LLM models for chat. Aggregates from discovered chat_models, LLM categories, and custom/imported models. Includes per-model pricing, regions, context window, vision capability. |
+| POST | `/api/chat/sessions` | Create a new chat session. |
+| GET | `/api/chat/sessions` | List chat sessions, sorted by last activity. |
+| GET | `/api/chat/sessions/{id}` | Load a full session (all messages + metadata). |
+| PUT | `/api/chat/sessions/{id}` | Update session (title, messages, model, temperature, etc.). |
+| DELETE | `/api/chat/sessions/{id}` | Delete a session. |
+| POST | `/api/chat/sessions/{id}/duplicate` | Duplicate a session with a new ID. |
+| GET | `/api/chat/sessions/{id}/export` | Export session as Markdown file download. |
+| GET | `/api/chat/sessions/{id}/search?q=` | Search within a session's messages. Returns matching snippets with context. |
+| POST | `/api/chat/compact` | Compact older messages via LLM summarization. Keeps last N messages verbatim, replaces older with summary. |
+| POST | `/api/chat/telemetry` | Receive session summary event from frontend (one event per session interaction, not per message). |
+
+### 5.9 Browse
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -999,7 +1019,7 @@ Fields:
 | GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. |
 | POST | `/api/browse/s3/create-bucket` | Create a new S3 bucket. Payload: `name`, `region`. Validates bucket name format. Returns created bucket info. |
 
-### 5.9 Admin (Model Management)
+### 5.10 Admin (Model Management)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -1020,7 +1040,7 @@ Fields:
 | POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for foundation image + video models. Classifies by output modality (IMAGE → image registry, VIDEO → video registry). Custom/imported models are discovered separately during refresh-all. |
 | GET | `/api/admin/discover/{region}` | Raw model listing: image generators, video generators, text/LLM, vision models. |
 
-### 5.10 System
+### 5.11 System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -1225,7 +1245,7 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
    - Log a prominent error box if credentials are missing, a warning if some Bedrock checks fail, or an info message if all checks pass.
 3. **NoCacheStaticMiddleware** — custom `BaseHTTPMiddleware` that adds `Cache-Control: no-cache, no-store, must-revalidate` and `Pragma: no-cache` headers to all responses where the request path does NOT start with `/api/`. This ensures frontend static files are never cached during development.
 4. **CORS middleware** — `CORSMiddleware` with `allow_origins=["*"]`, `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`. Development-mode open CORS.
-5. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, admin — in that order.
+5. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, chat, admin — in that order.
 6. **Health check endpoint** (`GET /api/health`) — defined inline on `app`, returns `{status: "ok"|"degraded", aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`.
 7. **Client log endpoint** (`POST /api/log`) — defined inline on `app`, receives `{level, message, context}`, logs as `[CLIENT] {message} | {context}` at the appropriate Python log level.
 8. **Static files mount** — `app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True))` mounted LAST so `/api/*` routes take priority. `FRONTEND_DIR` is `Path(__file__).resolve().parent.parent / "frontend"`. The `html=True` flag enables serving `index.html` for directory requests.

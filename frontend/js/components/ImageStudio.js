@@ -486,8 +486,8 @@
             // Show pointer cursor on the preview image
             const previewImg = document.getElementById('gen-result-img');
             if (previewImg) previewImg.style.cursor = 'pointer';
-            document.getElementById('btn-reset')?.addEventListener('click', () => {
-                if (this._result && !confirm('Reset the generator? Current results will be cleared.')) return;
+            document.getElementById('btn-reset')?.addEventListener('click', async () => {
+                if (this._result && !await window.showConfirm('Reset the generator?', { title: 'Reset', detail: 'Current results will be cleared.', confirmLabel: 'Reset', danger: true })) return;
                 window.resetView('image-studio');
             });
         },

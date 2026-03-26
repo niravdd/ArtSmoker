@@ -15,7 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from backend.config import settings
-from backend.routers import admin, browse, gallery, generate, refine, styles, transcribe, typestudio, video
+from backend.routers import admin, browse, chat, gallery, generate, refine, styles, transcribe, typestudio, video
 from backend.services.bedrock_client import validate_aws_credentials
 
 logger = logging.getLogger(__name__)
@@ -38,6 +38,7 @@ async def lifespan(app: FastAPI):
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.styles_dir.mkdir(parents=True, exist_ok=True)
     settings.generated_dir.mkdir(parents=True, exist_ok=True)
+    (settings.data_dir / "chat").mkdir(parents=True, exist_ok=True)
     logger.info("Data directories ensured: %s", settings.data_dir)
 
     # Validate AWS credentials and Bedrock access
@@ -120,6 +121,7 @@ app.include_router(gallery.router)
 app.include_router(browse.router)
 app.include_router(typestudio.router)
 app.include_router(video.router)
+app.include_router(chat.router)
 app.include_router(admin.router)
 
 

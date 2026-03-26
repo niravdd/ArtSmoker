@@ -393,7 +393,7 @@
 
             // Delete button
             document.querySelector('.btn-delete-style')?.addEventListener('click', async () => {
-                if (!confirm(`Delete style "${style.name}"? This cannot be undone.`)) return;
+                if (!await window.showConfirm(`Delete style "${style.name}"?`, { title: 'Delete Style', detail: 'This will remove the style and all its reference images. This cannot be undone.', confirmLabel: 'Delete', danger: true })) return;
                 try {
                     window.showLoading && window.showLoading('Deleting...');
                     await API.styles.delete(style.id);

@@ -292,7 +292,7 @@
             const ids = Array.from(this._selected);
             if (ids.length === 0) return;
 
-            if (!confirm(`Permanently delete ${ids.length} asset${ids.length !== 1 ? 's' : ''}? This cannot be undone.`)) return;
+            if (!await window.showConfirm(`Permanently delete ${ids.length} asset${ids.length !== 1 ? 's' : ''}?`, { title: 'Delete Assets', detail: 'This cannot be undone. All versions of the selected assets will be removed.', confirmLabel: 'Delete', danger: true })) return;
 
             window.showLoading?.(`Deleting ${ids.length} asset${ids.length !== 1 ? 's' : ''}...`);
             try {

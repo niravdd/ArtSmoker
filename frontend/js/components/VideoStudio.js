@@ -126,11 +126,17 @@
                                 </details>
                             </div>
 
-                            <!-- Video Settings button -->
-                            <button id="vs-settings-btn" class="w-full text-left p-3 rounded-lg bg-brand-bg/30 border border-brand-border/50 hover:border-brand-accent/30 hover:bg-brand-bg/50 transition-colors flex items-center gap-2 text-xs text-brand-text-muted">
+                            <!-- Settings buttons -->
+                            <button id="vs-model-settings-btn" class="w-full text-left p-3 rounded-lg bg-brand-bg/30 border border-brand-border/50 hover:border-brand-accent/30 hover:bg-brand-bg/50 transition-colors flex items-center gap-2 text-xs text-brand-text-muted">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                                Model Settings
+                            </button>
+                            <button id="vs-settings-btn" class="w-full text-left p-3 rounded-lg bg-brand-bg/30 border border-brand-border/50 hover:border-brand-accent/30 hover:bg-brand-bg/50 transition-colors flex items-center gap-2 text-xs text-brand-text-muted">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2"/>
                                 </svg>
                                 Video Settings (S3 Storage)
                             </button>
@@ -331,7 +337,8 @@
             document.getElementById('vs-generate-btn')?.addEventListener('click', () => this._generate());
             document.getElementById('vs-reset-btn')?.addEventListener('click', () => this._reset());
 
-            // Settings dialog
+            // Settings
+            document.getElementById('vs-model-settings-btn')?.addEventListener('click', () => window.ModelSettings?.open());
             document.getElementById('vs-settings-btn')?.addEventListener('click', () => this._showSettings());
             document.getElementById('vs-settings-close')?.addEventListener('click', () => this._hideSettings());
             document.getElementById('vs-settings-test')?.addEventListener('click', () => this._testAndSaveSettings());
@@ -985,7 +992,7 @@
 
             // Delete handler
             overlay.querySelector('.vs-delete-btn')?.addEventListener('click', async () => {
-                if (!confirm('Delete this video permanently?')) return;
+                if (!await window.showConfirm('Delete this video permanently?', { title: 'Delete Video', detail: 'The video file and thumbnail will be removed from disk.', confirmLabel: 'Delete', danger: true })) return;
                 try {
                     await API.video.delete(videoId);
                     overlay.remove();

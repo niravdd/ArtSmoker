@@ -77,6 +77,10 @@
                             Video Studio
                             <span class="text-[9px] opacity-60 ml-1">(${vidCount})</span>
                         </button>
+                        <button class="tab" data-ms-tab="chat-studio">
+                            Chat Studio
+                            <span class="text-[9px] opacity-60 ml-1">(${Object.keys(reg.chat_models || {}).length})</span>
+                        </button>
                         <button class="tab" data-ms-tab="ai-engine">
                             AI Engine
                             <span class="text-[9px] opacity-60 ml-1">(${llmCount})</span>
@@ -100,6 +104,14 @@
                             <p class="text-[10px] text-brand-text-muted mb-3">Models used for video generation in Video Studio.</p>
                             <div id="ms-video-models" class="space-y-3">
                                 ${this._renderVideoModels(reg)}
+                            </div>
+                        </div>
+
+                        <!-- Tab: Chat Studio -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="chat-studio">
+                            <p class="text-[10px] text-brand-text-muted mb-3">LLM models available for Chat Studio conversations. All discovered text models from all regions.</p>
+                            <div id="ms-chat-models" class="space-y-2">
+                                ${this._renderChatModels(reg)}
                             </div>
                         </div>
 
@@ -275,6 +287,63 @@
                 `;
         },
 
+        _renderChatModels(reg) {
+            const models = reg.chat_models || {};
+            if (Object.keys(models).length === 0) {
+                return '<p class="text-sm text-brand-text-muted py-4 text-center">No chat models discovered yet. Click "Sync from AWS" to discover available LLMs.</p>';
+            }
+
+            // Group by provider
+            const groups = {};
+            for (const [key, m] of Object.entries(models)) {
+                const provider = m.provider || 'Other';
+                if (!groups[provider]) groups[provider] = [];
+                groups[provider].push([key, m]);
+            }
+
+            return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([provider, entries]) => {
+                return `
+                    <div class="mb-4">
+                        <h4 class="text-xs font-semibold text-brand-accent uppercase tracking-wider mb-2 flex items-center gap-2">
+                            ${this._esc(provider)}
+                            <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
+                        </h4>
+                        <div class="space-y-1.5">
+                            ${entries.sort((a, b) => (a[1].label || '').localeCompare(b[1].label || '')).map(([key, m]) => {
+                                const regions = (m.available_regions || []).length;
+                                const vision = m.has_vision ? '<span class="text-[9px] px-1 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20">vision</span>' : '';
+                                const streaming = m.streaming_supported ? '' : '<span class="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">no stream</span>';
+                                const ctx = (m.max_context_tokens || 128000) >= 1000000
+                                    ? `${Math.round((m.max_context_tokens || 128000) / 1000000)}M`
+                                    : `${Math.round((m.max_context_tokens || 128000) / 1000)}K`;
+                                const enabled = m.enabled !== false;
+                                return `
+                                    <div class="p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border ${enabled ? '' : 'opacity-50'} flex items-center gap-3">
+                                        <label class="toggle toggle-sm flex-shrink-0">
+                                            <input type="checkbox" class="ms-chat-toggle" data-key="${this._esc(key)}" ${enabled ? 'checked' : ''} />
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                        <div class="flex-1 min-w-0">
+                                            <div class="flex items-center gap-2">
+                                                <span class="text-xs font-medium truncate">${this._esc(m.label || key)}</span>
+                                                ${vision}${streaming}
+                                                <span class="text-[9px] text-brand-text-muted">${ctx} context</span>
+                                            </div>
+                                            <div class="text-[10px] text-brand-text-muted font-mono truncate mt-0.5">${this._esc(m.model_id || '')}</div>
+                                        </div>
+                                        <div class="flex-shrink-0 text-right">
+                                            <span class="text-[10px] text-brand-accent">${regions} region${regions !== 1 ? 's' : ''}</span>
+                                            <div class="flex flex-wrap gap-0.5 mt-0.5 justify-end max-w-[200px]">
+                                                ${(m.available_regions || []).map(r => `<span class="text-[8px] px-1 py-0 rounded bg-brand-bg text-brand-text-muted/60">${this._esc(r)}</span>`).join('')}
+                                            </div>
+                                        </div>
+                                    </div>`;
+                            }).join('')}
+                        </div>
+                    </div>`;
+            }).join('');
+        },
+
         _renderVideoModels(reg) {
             const models = reg.video_models || {};
             if (Object.keys(models).length === 0) {
@@ -413,7 +482,11 @@
             // Refresh All
             modal.querySelector('#ms-refresh-all')?.addEventListener('click', async () => {
                 if (this._refreshing) return;
-                if (!confirm('This will scan all AWS Bedrock regions for foundation, custom, and imported models, and fetch pricing data.\n\nThis makes multiple AWS API calls and may take 30-60 seconds.\n\nRun this only when:\n\u2022 Setting up for the first time\n\u2022 AWS has released new models\n\u2022 You\u2019ve created or imported custom models\n\u2022 You need updated pricing\n\nContinue?')) return;
+                if (!await window.showConfirm('Scan all AWS Bedrock regions for models and pricing?', {
+                    title: 'Sync from AWS',
+                    detail: 'This discovers foundation, custom, and imported models, and fetches pricing data.\n\nMakes multiple AWS API calls \u2014 may take 30\u201360 seconds.\n\nRun this only when:\n\u2022 Setting up for the first time\n\u2022 AWS has released new models\n\u2022 You\u2019ve created or imported custom models\n\u2022 You need updated pricing',
+                    confirmLabel: 'Sync Now',
+                })) return;
                 this._refreshing = true;
                 const btn = modal.querySelector('#ms-refresh-all');
                 btn.disabled = true;
@@ -421,18 +494,35 @@
 
                 try {
                     const result = await API.admin.refreshAll();
-                    const customMsg = result.total_custom > 0 ? `, ${result.total_custom} custom/imported` : '';
-                    window.showToast?.(
-                        `Refreshed: ${result.regions_scanned} regions, ${result.total_new} new models, ${result.total_updated} updated${customMsg}` +
-                        (result.disabled?.length ? `, ${result.disabled.length} disabled` : ''),
-                        'success', 6000
-                    );
-                    // Reload the modal with fresh data
+                    const customMsg = result.total_custom > 0 ? `\nCustom/imported models: ${result.total_custom}` : '';
+                    const disabledMsg = result.disabled?.length ? `\nDisabled (no longer available): ${result.disabled.length}` : '';
+                    const chatCount = result.per_region ? Object.values(result.per_region).reduce((s, r) => s + (r.new || 0), 0) : 0;
+
+                    // Reload the modal with fresh data first
                     this._registry = await API.admin.getModels();
+                    const imgCount = Object.keys(this._registry.image_models || {}).length;
+                    const vidCount = Object.keys(this._registry.video_models || {}).length;
+                    const chatModels = Object.keys(this._registry.chat_models || {}).length;
+
                     modal.remove();
                     this._renderModal();
+
+                    // Show completion summary
+                    await window.showConfirm(
+                        `Scanned ${result.regions_scanned} AWS regions successfully.`, {
+                        title: 'Sync Complete',
+                        detail: `New models discovered: ${result.total_new}\nExisting models updated: ${result.total_updated}${customMsg}${disabledMsg}\n\nRegistry totals:\n  Image models: ${imgCount}\n  Video models: ${vidCount}\n  Chat/LLM models: ${chatModels}\n  Errors: ${result.errors || 0}`,
+                        confirmLabel: 'OK',
+                        cancelLabel: '',
+                    });
                 } catch (err) {
-                    window.showToast?.('Refresh failed: ' + (err.message || ''), 'error');
+                    await window.showConfirm('Sync from AWS failed.', {
+                        title: 'Sync Failed',
+                        detail: err.message || 'Unknown error',
+                        confirmLabel: 'OK',
+                        cancelLabel: '',
+                        danger: true,
+                    });
                 } finally {
                     this._refreshing = false;
                 }
@@ -452,6 +542,32 @@
                         window.showToast?.('Failed: ' + (err.message || ''), 'error');
                         cb.checked = !enabled; // Revert
                         container?.classList.toggle('opacity-50', enabled);
+                    }
+                });
+            });
+
+            // Chat model toggles (enable/disable)
+            modal.querySelectorAll('.ms-chat-toggle').forEach(cb => {
+                cb.addEventListener('change', async () => {
+                    const key = cb.dataset.key;
+                    const enabled = cb.checked;
+                    cb.closest('.rounded-lg')?.classList.toggle('opacity-50', !enabled);
+                    try {
+                        // Update chat_models in registry via full PUT
+                        if (this._registry?.chat_models?.[key]) {
+                            this._registry.chat_models[key].enabled = enabled;
+                        }
+                        const resp = await fetch('/api/admin/models', {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(this._registry),
+                        });
+                        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                        window.showToast?.(`${key} ${enabled ? 'enabled' : 'disabled'}`, 'success');
+                    } catch (err) {
+                        window.showToast?.('Failed: ' + (err.message || ''), 'error');
+                        cb.checked = !enabled;
+                        cb.closest('.rounded-lg')?.classList.toggle('opacity-50', enabled);
                     }
                 });
             });

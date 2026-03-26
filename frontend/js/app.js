@@ -15,6 +15,7 @@
         'image-studio':  { component: window.ImageStudio, label: '2D Image Studio' },
         'type-studio':   { component: window.TypeStudio, label: 'Type Studio' },
         'video-studio':  { component: window.VideoStudio, label: 'Video Studio' },
+        'chat-studio':   { component: window.ChatStudio, label: 'Chat Studio' },
         styles:          { component: window.StyleLibrary, label: 'Style Library' },
         gallery:         { component: window.Gallery, label: 'Gallery' },
     };
@@ -191,6 +192,62 @@
         div.textContent = str;
         return div.innerHTML;
     }
+
+    /**
+     * Styled confirmation dialog — replaces browser confirm().
+     * Returns a Promise<boolean>.
+     *
+     * Usage:
+     *   if (!await showConfirm('Delete this?', { detail: 'Cannot be undone.', confirmLabel: 'Delete', danger: true })) return;
+     *
+     * Options:
+     *   title     — heading text (default: 'Confirm')
+     *   detail    — optional secondary text (supports \n for line breaks)
+     *   confirmLabel — confirm button text (default: 'Continue')
+     *   cancelLabel  — cancel button text (default: 'Cancel')
+     *   danger    — if true, confirm button is red instead of accent
+     */
+    window.showConfirm = function (message, opts = {}) {
+        return new Promise((resolve) => {
+            const title = opts.title || 'Confirm';
+            const detail = opts.detail || '';
+            const confirmLabel = opts.confirmLabel || 'Continue';
+            const cancelLabel = opts.cancelLabel || 'Cancel';
+            const danger = opts.danger || false;
+            const btnClass = danger
+                ? 'bg-red-600 hover:bg-red-500 text-white'
+                : 'bg-brand-accent hover:bg-brand-accent-hover text-white';
+
+            const backdrop = document.createElement('div');
+            backdrop.className = 'fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+            backdrop.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4 animate-[fadeIn_0.15s_ease-out]">
+                    <h3 class="text-sm font-semibold text-brand-text">${escapeHTML(title)}</h3>
+                    <p class="text-sm text-brand-text-muted">${escapeHTML(message)}</p>
+                    ${detail ? `<p class="text-xs text-brand-text-muted/70 whitespace-pre-line">${escapeHTML(detail)}</p>` : ''}
+                    <div class="flex gap-2 justify-end pt-2">
+                        ${cancelLabel ? `<button class="cs-confirm-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${escapeHTML(cancelLabel)}</button>` : ''}
+                        <button class="cs-confirm-ok btn btn-sm text-xs px-4 py-2 rounded-lg ${btnClass} font-medium">${escapeHTML(confirmLabel)}</button>
+                    </div>
+                </div>`;
+
+            const cleanup = (result) => {
+                backdrop.remove();
+                resolve(result);
+            };
+
+            backdrop.querySelector('.cs-confirm-cancel')?.addEventListener('click', () => cleanup(false));
+            backdrop.querySelector('.cs-confirm-ok')?.addEventListener('click', () => cleanup(true));
+            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(false); });
+            document.addEventListener('keydown', function handler(e) {
+                if (e.key === 'Escape') { document.removeEventListener('keydown', handler); cleanup(false); }
+                if (e.key === 'Enter') { document.removeEventListener('keydown', handler); cleanup(true); }
+            });
+
+            document.body.appendChild(backdrop);
+            backdrop.querySelector('.cs-confirm-ok').focus();
+        });
+    };
 
     // ============================================================
     //  Mobile Menu Toggle
