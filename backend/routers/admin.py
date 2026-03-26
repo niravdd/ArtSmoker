@@ -563,6 +563,7 @@ async def auto_register_image_models(region: str):
                 "enabled": True,
                 "model_purpose": purpose,
                 "format_family": family,
+                "model_source": "foundation",
                 "prompt_limit": prompt_limit,
                 "supports_image_input": has_img_input,
                 "base_price_per_second_usd": base_price,
@@ -685,6 +686,7 @@ async def auto_register_image_models(region: str):
             "enabled": True,  # Discovered and enabled by default — admin can disable
             "model_purpose": purpose,
             "format_family": family,
+            "model_source": "foundation",
             "prompt_limit": prompt_limit,
             "moderation_strictness": "moderate",
             "base_price_usd": base_price,
@@ -897,11 +899,12 @@ async def refresh_all_regions():
     for key in list(registry.get("image_models", {}).keys()):
         update_image_model(key, {"available_regions": []})
 
-    # Step 3: Scan each region for models — each scan adds its region back
+    # Step 3: Scan each region for foundation + custom + imported models
 
     results = {}
     total_new = 0
     total_updated = 0
+    total_custom = 0
     errors = 0
 
     for region in all_regions:
@@ -916,6 +919,17 @@ async def refresh_all_regions():
         except Exception as exc:
             results[region] = {"error": str(exc)[:100]}
             errors += 1
+
+        # Discover custom + imported models in this region
+        try:
+            custom_result = _discover_custom_models(region)
+            custom_count = custom_result.get("registered_count", 0) + custom_result.get("updated_count", 0)
+            if custom_count > 0:
+                results[region] = results.get(region, {})
+                results[region]["custom"] = custom_count
+                total_custom += custom_count
+        except Exception as exc:
+            logger.warning("Custom model discovery failed in %s: %s", region, exc)
 
     # Step 4: Prune — check which models in the registry are still available.
     # After Step 3, each model's available_regions reflects what was discovered.
@@ -933,6 +947,7 @@ async def refresh_all_regions():
         "regions_scanned": len(all_regions),
         "total_new": total_new,
         "total_updated": total_updated,
+        "total_custom": total_custom,
         "disabled": disabled,
         "errors": errors,
         "per_region": results,
@@ -990,4 +1005,271 @@ async def discover_models(region: str):
         "video_generators": video_generators,
         "text_models": text_models,
         "vision_models": vision_models,
+    }
+
+
+# ── Custom & Imported Model Discovery ─────────────────────────────────────
+
+
+def _find_base_model_in_registry(base_model_arn: str, registry: dict) -> dict | None:
+    """Look up a base model in the existing registry by its ARN or model_id.
+
+    This is the dynamic approach: instead of hardcoding which base models map
+    to which format families, we look at what's already registered from
+    ListFoundationModels discovery. The base model's format_family, purpose,
+    and output modalities are inherited by its custom/fine-tuned variants.
+    """
+    if not base_model_arn:
+        return None
+
+    # Extract the model_id portion from the ARN
+    # e.g. "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-canvas-v1:0"
+    # → "amazon.nova-canvas-v1:0"
+    base_model_id = base_model_arn.rsplit("/", 1)[-1] if "/" in base_model_arn else base_model_arn
+
+    # Search image_models
+    for key, cfg in registry.get("image_models", {}).items():
+        stored_id = cfg.get("model_id", "")
+        stored_arn = cfg.get("model_arn", "")
+        # Match by model_id (with or without us. prefix), or by ARN
+        if stored_id in (base_model_id, f"us.{base_model_id}") or stored_arn == base_model_arn:
+            return {**cfg, "_registry_key": key, "_model_type": "image"}
+
+    # Search video_models
+    for key, cfg in registry.get("video_models", {}).items():
+        stored_id = cfg.get("model_id", "")
+        stored_arn = cfg.get("model_arn", "")
+        if stored_id in (base_model_id, f"us.{base_model_id}") or stored_arn == base_model_arn:
+            return {**cfg, "_registry_key": key, "_model_type": "video"}
+
+    return None
+
+
+def _discover_custom_models(region: str) -> dict:
+    """Discover custom (fine-tuned) and imported models in a region.
+
+    Calls ListCustomModels, ListImportedModels, and ListProvisionedModelThroughputs.
+    Auto-registers usable models with format families inherited dynamically from
+    their base model (looked up in the existing registry — no hardcoded mappings).
+
+    Fine-tuned models require provisioned throughput or on-demand deployment to invoke,
+    so we also check ListProvisionedModelThroughputs to find invocable models.
+    Imported models can be invoked directly via their ARN.
+    """
+    from backend.services.model_registry import (
+        get_registry, add_image_model, get_image_model, update_image_model,
+        add_video_model, get_video_model, update_video_model,
+        _save,
+    )
+
+    session = boto3.Session()
+    bedrock = session.client("bedrock", region_name=region)
+    registry = get_registry()
+
+    registered = []
+    updated_list = []
+
+    # ── 1. Find invocable custom models ─────────────────────────────────────
+    # Custom models need either a deployment or provisioned throughput to invoke.
+    # InvokeModel accepts custom-model-deployment ARNs and provisioned-model ARNs
+    # (not raw custom-model ARNs). We check both sources.
+    invocable_by_model_arn: dict[str, str] = {}  # model_arn → invocation_arn
+
+    # 1a. Custom model deployments (on-demand, newer API)
+    try:
+        resp = bedrock.list_custom_model_deployments(statusEquals="Active")
+        for dep in resp.get("modelDeploymentSummaries", []):
+            model_arn = dep.get("modelArn", "")
+            dep_arn = dep.get("modelDeploymentArn", "")
+            if model_arn and dep_arn:
+                invocable_by_model_arn[model_arn] = dep_arn
+    except Exception as exc:
+        logger.debug("ListCustomModelDeployments not available in %s: %s", region, exc)
+
+    # 1b. Provisioned throughputs (traditional)
+    try:
+        paginator = bedrock.get_paginator("list_provisioned_model_throughputs")
+        for page in paginator.paginate(statusEquals="InService"):
+            for pt in page.get("provisionedModelSummaries", []):
+                model_arn = pt.get("modelArn", "")
+                prov_arn = pt.get("provisionedModelArn", "")
+                if model_arn and prov_arn and model_arn not in invocable_by_model_arn:
+                    invocable_by_model_arn[model_arn] = prov_arn
+    except Exception as exc:
+        logger.debug("ListProvisionedModelThroughputs not available in %s: %s", region, exc)
+
+    # ── 2. Custom models (fine-tuned, distilled, etc.) ────────────────────
+    try:
+        custom_models = []
+        kwargs = {}
+        while True:
+            resp = bedrock.list_custom_models(**kwargs)
+            custom_models.extend(resp.get("modelSummaries", []))
+            if resp.get("nextToken"):
+                kwargs["nextToken"] = resp["nextToken"]
+            else:
+                break
+    except Exception as exc:
+        logger.debug("ListCustomModels not available in %s: %s", region, exc)
+        custom_models = []
+
+    for cm in custom_models:
+        model_arn = cm.get("modelArn", "")
+        model_name = cm.get("modelName", "")
+        base_model_arn = cm.get("baseModelArn", "")
+        customization_type = cm.get("customizationType", "")
+
+        # Only process Active models
+        if cm.get("modelStatus", "Active") != "Active":
+            continue
+
+        # Determine invocation ID (provisioned throughput ARN if available)
+        invocation_id = invocable_by_model_arn.get(model_arn, model_arn)
+        is_invocable = model_arn in invocable_by_model_arn
+
+        # Generate registry key
+        key = f"custom_{model_name.lower().replace(' ', '_').replace('-', '_')}"
+        key = _re.sub(r"[^a-z0-9_]", "", key)[:60]
+
+        # Look up base model in the existing registry to inherit format family
+        base_info = _find_base_model_in_registry(base_model_arn, registry)
+
+        if base_info:
+            model_type = base_info["_model_type"]  # "image" or "video"
+            purpose = base_info.get("model_purpose", "text_to_image")
+            format_family = base_info.get("format_family", "")
+            prompt_limit = base_info.get("prompt_limit", 900)
+
+            if model_type == "image":
+                existing = get_image_model(key)
+                if existing:
+                    backfill = {"model_source": "custom", "customization_type": customization_type}
+                    if invocation_id != existing.get("model_id"):
+                        backfill["model_id"] = invocation_id
+                    update_image_model(key, backfill)
+                    updated_list.append({"key": key, "model_arn": model_arn})
+                else:
+                    config = {
+                        "label": f"{model_name} (Custom)",
+                        "model_id": invocation_id,
+                        "model_arn": model_arn,
+                        "base_model_arn": base_model_arn,
+                        "region": region,
+                        "available_regions": [region],
+                        "provider": "Custom",
+                        "enabled": is_invocable,
+                        "model_purpose": purpose,
+                        "format_family": format_family,
+                        "model_source": "custom",
+                        "customization_type": customization_type,
+                        "prompt_limit": prompt_limit,
+                        "moderation_strictness": "moderate",
+                        "base_price_usd": None,
+                        "extra_body": base_info.get("extra_body", {}),
+                    }
+                    add_image_model(key, config)
+                    registered.append({"key": key, "model_name": model_name, "type": f"custom_{model_type}"})
+                    logger.info("Registered custom %s model: %s (%s) in %s", model_type, key, model_name, region)
+
+            elif model_type == "video":
+                existing = get_video_model(key)
+                if existing:
+                    update_video_model(key, {"model_source": "custom", "customization_type": customization_type})
+                    updated_list.append({"key": key, "model_arn": model_arn})
+                else:
+                    config = {
+                        "label": f"{model_name} (Custom)",
+                        "model_id": invocation_id,
+                        "model_arn": model_arn,
+                        "base_model_arn": base_model_arn,
+                        "region": region,
+                        "available_regions": [region],
+                        "provider": "Custom",
+                        "enabled": is_invocable,
+                        "model_purpose": purpose,
+                        "format_family": format_family,
+                        "model_source": "custom",
+                        "customization_type": customization_type,
+                        "prompt_limit": prompt_limit,
+                    }
+                    add_video_model(key, config)
+                    registered.append({"key": key, "model_name": model_name, "type": "custom_video"})
+        else:
+            # Base model not found in registry — likely a text/LLM model.
+            # Register as a custom LLM alternative.
+            llm_key = f"custom_llm_{key}"
+            custom_llms = registry.setdefault("categories", {}).setdefault("custom_llms", {
+                "label": "Custom LLMs",
+                "description": "Fine-tuned and custom text models",
+                "models": {},
+            })
+            if llm_key not in custom_llms.get("models", {}):
+                custom_llms.setdefault("models", {})[llm_key] = {
+                    "label": f"{model_name} (Custom)",
+                    "model_id": invocation_id,
+                    "model_arn": model_arn,
+                    "base_model_arn": base_model_arn,
+                    "region": region,
+                    "model_source": "custom",
+                    "customization_type": customization_type,
+                    "enabled": is_invocable,
+                }
+                registered.append({"key": llm_key, "model_name": model_name, "type": "custom_llm"})
+
+    # ── 3. Imported models ────────────────────────────────────────────────
+    try:
+        imported_models = []
+        kwargs = {}
+        while True:
+            resp = bedrock.list_imported_models(**kwargs)
+            imported_models.extend(resp.get("modelSummaries", []))
+            if resp.get("nextToken"):
+                kwargs["nextToken"] = resp["nextToken"]
+            else:
+                break
+    except Exception as exc:
+        logger.debug("ListImportedModels not available in %s: %s", region, exc)
+        imported_models = []
+
+    for im in imported_models:
+        model_arn = im.get("modelArn", "")
+        model_name = im.get("modelName", "")
+        architecture = im.get("modelArchitecture", "")
+        instruct_supported = im.get("instructSupported", False)
+
+        # Imported models are invocable directly via their ARN
+        key = f"imported_{model_name.lower().replace(' ', '_').replace('-', '_')}"
+        key = _re.sub(r"[^a-z0-9_]", "", key)[:60]
+
+        # All imported models are registered as LLM alternatives
+        # (Bedrock import currently supports transformer text/vision architectures)
+        custom_llms = registry.setdefault("categories", {}).setdefault("custom_llms", {
+            "label": "Custom LLMs",
+            "description": "Fine-tuned and imported text models",
+            "models": {},
+        })
+        if key not in custom_llms.get("models", {}):
+            custom_llms.setdefault("models", {})[key] = {
+                "label": f"{model_name} (Imported)",
+                "model_id": model_arn,
+                "model_arn": model_arn,
+                "region": region,
+                "model_source": "imported",
+                "architecture": architecture,
+                "instruct_supported": instruct_supported,
+                "enabled": True,
+            }
+            registered.append({"key": key, "model_name": model_name, "type": "imported_llm"})
+            logger.info("Registered imported model: %s (%s, %s) in %s", key, model_name, architecture, region)
+
+    # Save registry
+    if registered or updated_list:
+        _save()
+
+    return {
+        "region": region,
+        "registered": registered,
+        "updated": updated_list,
+        "registered_count": len(registered),
+        "updated_count": len(updated_list),
     }

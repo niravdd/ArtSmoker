@@ -136,7 +136,18 @@ Generate AI-powered videos and animations from text prompts. Supports **Amazon N
 4. Poll status every 5 seconds — on completion, thumbnail is extracted (via ffmpeg) and MP4 is downloaded locally (or streamed from S3)
 5. Videos appear in both the Video Studio's "Recent Videos" section and the unified Gallery
 
-**S3 bucket required**: Video generation outputs to S3. Configure via Video Settings (browse existing buckets or create new). Storage mode: download locally (default) or stream from S3 on demand.
+**S3 bucket required**: Video generation outputs to S3. You can configure via Video Settings in the UI (browse existing buckets or create new), or create one via CLI:
+
+```bash
+# Create an S3 bucket for video storage (replace REGION and YOUR_ORG)
+aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-east-1
+
+# For regions other than us-east-1, add the LocationConstraint:
+aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
+  --create-bucket-configuration LocationConstraint=us-west-2
+```
+
+Storage mode: download locally (default) or stream from S3 on demand.
 
 **Video prompt enhancement**: The LLM adds camera movements (pan, zoom, dolly, tracking), lighting details, and temporal cues. Since video models don't support negative prompts, avoidance concepts are woven into the positive prompt naturally.
 
@@ -209,9 +220,13 @@ aws bedrock-runtime converse --region us-east-1 \
   --messages '[{"role":"user","content":[{"text":"hi"}]}]' \
   --inference-config '{"maxTokens":1}' \
   --query "output.message.content[0].text" --output text 2>&1 && echo "Converse: OK" || echo "Converse: FAILED"
+
+# Test 4: Can you list custom models? (requires bedrock:ListCustomModels)
+aws bedrock list-custom-models --region us-east-1 \
+  --query "modelSummaries[0].modelName" --output text 2>&1 && echo "ListCustomModels: OK" || echo "ListCustomModels: no custom models (or permission denied)"
 ```
 
-If all three pass, your permissions are set. If Test 1 passes but Tests 2-3 fail, your IAM policy allows listing but not invoking — update it using the permissions table below.
+If Tests 1-3 pass, your core permissions are set. Test 4 is needed only for custom model discovery. If Test 1 passes but Tests 2-3 fail, your IAM policy allows listing but not invoking — update it using the permissions table below.
 
 ### 📝 2.2 IAM Permissions
 
@@ -225,18 +240,87 @@ Your IAM user, role, or instance profile needs these permissions:
 | `bedrock:StartAsyncInvoke` | Video generation (async invocation) |
 | `bedrock:GetAsyncInvoke` | Poll video generation job status |
 | `bedrock:ListAsyncInvokes` | List video generation jobs |
-| `bedrock:ListFoundationModels` | Model discovery in the admin UI (Sync from AWS) |
+| `bedrock:ListFoundationModels` | Foundation model discovery (Sync from AWS) |
+| `bedrock:ListCustomModels` | Discover fine-tuned custom models in your account |
+| `bedrock:ListImportedModels` | Discover imported models in your account |
+| `bedrock:GetCustomModel` | Read custom model details (base model, status) |
+| `bedrock:GetImportedModel` | Read imported model details (architecture, status) |
+| `bedrock:ListProvisionedModelThroughputs` | Find invocable custom models with provisioned throughput |
+| `bedrock:ListCustomModelDeployments` | Find custom models with on-demand deployments |
 | `s3:CreateBucket` | Create S3 bucket for video storage (optional, via UI) |
-| `s3:PutObject` / `s3:GetObject` / `s3:ListBucket` | Video output storage and retrieval |
+| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Video output storage and retrieval |
 | `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models |
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
 | `sts:GetCallerIdentity` | Startup credential validation |
 | `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
 
-**Quickest setup**: Attach the AWS managed policy **`AmazonBedrockFullAccess`** — this covers all Bedrock actions. For S3 video storage, add `AmazonS3FullAccess` or a scoped S3 policy for your video bucket. For tighter scoping, use the specific permissions above.
+**Quickest setup** (managed policies — broadest access):
+
+```bash
+# Option A: Attach managed policies to your IAM user (simplest for local development)
+aws iam attach-user-policy --user-name YOUR_USERNAME \
+  --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+
+# Add S3 access for video storage
+aws iam attach-user-policy --user-name YOUR_USERNAME \
+  --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+```
+
+**Scoped setup** (tighter permissions — recommended for production):
+
+```bash
+# Create a scoped IAM policy with only the permissions ArtSmoker needs
+aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "Bedrock",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:Converse",
+        "bedrock:InvokeModelWithBidirectionalStream",
+        "bedrock:StartAsyncInvoke",
+        "bedrock:GetAsyncInvoke",
+        "bedrock:ListAsyncInvokes",
+        "bedrock:ListFoundationModels",
+        "bedrock:ListCustomModels",
+        "bedrock:ListImportedModels",
+        "bedrock:GetCustomModel",
+        "bedrock:GetImportedModel",
+        "bedrock:ListProvisionedModelThroughputs",
+        "bedrock:ListCustomModelDeployments"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "S3VideoStorage",
+      "Effect": "Allow",
+      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject", "s3:HeadBucket"],
+      "Resource": ["arn:aws:s3:::artsmoker-*", "arn:aws:s3:::artsmoker-*/*"]
+    },
+    {
+      "Sid": "Marketplace",
+      "Effect": "Allow",
+      "Action": ["aws-marketplace:Subscribe", "aws-marketplace:ViewSubscriptions"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "Utility",
+      "Effect": "Allow",
+      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts"],
+      "Resource": "*"
+    }
+  ]
+}'
+
+# Attach to your IAM user (replace YOUR_ACCOUNT_ID and YOUR_USERNAME)
+aws iam attach-user-policy --user-name YOUR_USERNAME \
+  --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/ArtSmokerAccess
+```
 
 > [!TIP]
-> On **EC2/ECS/App Runner**: Create an IAM role with these permissions and attach it as an [Instance Profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html) or Task Role. No access keys needed — boto3 auto-discovers the role from the instance metadata service.
+> **For EC2/ECS/App Runner** — create an IAM role instead of attaching to a user. See the [EC2 Deployment](#43-ec2--cloud-deployment) section for the complete role creation commands. No access keys needed — boto3 auto-discovers the role from the instance metadata service.
 
 > [!NOTE]
 > Bedrock models are available by default in all commercial AWS regions — no manual enablement step is needed. On first invocation of a third-party model (Anthropic, Stability AI), AWS automatically initiates a marketplace subscription in the background (requires the `aws-marketplace` permissions above). Anthropic models require a one-time [First Time Use form](https://console.aws.amazon.com/bedrock/home#/modelaccess) completion.
@@ -249,6 +333,14 @@ SVG conversion uses external CLI tools (not Python packages). Without them, SVG 
 |------|---------|-------|-----------------------|---------|
 | **vtracer** | Primary SVG (color vector tracing) | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` | `pip install vtracer` or `cargo install vtracer` or [pre-built binaries](https://github.com/visioncortex/vtracer/releases) |
 | **potrace** | Fallback SVG (monochrome tracing) | `brew install potrace` | `sudo apt install potrace` | Download from [potrace.sourceforge.net](http://potrace.sourceforge.net/#downloading) |
+
+Verify installation:
+
+```bash
+# Check SVG conversion tools
+which vtracer && echo "vtracer: OK" || echo "vtracer: not installed (optional)"
+which potrace && echo "potrace: OK" || echo "potrace: not installed (optional)"
+```
 
 ### 📝 2.4 Optional: Video Thumbnail & Metadata Tools
 
@@ -264,7 +356,14 @@ Without ffmpeg:
 | **ffmpeg** | Thumbnail extraction + video metadata | `brew install ffmpeg` | `sudo apt install ffmpeg` | Download from [ffmpeg.org/download](https://ffmpeg.org/download.html) or `winget install ffmpeg` |
 
 > [!NOTE]
-> `ffprobe` is included with ffmpeg — no separate install needed. After installing, verify with `ffmpeg -version` and `ffprobe -version`. Both should return version info. ArtSmoker checks for ffmpeg at runtime and falls back gracefully if it's not found — video generation works either way, you just won't get thumbnails.
+> `ffprobe` is included with ffmpeg — no separate install needed. ArtSmoker checks for ffmpeg at runtime and falls back gracefully if it's not found — video generation works either way, you just won't get thumbnails.
+
+Verify installation:
+
+```bash
+ffmpeg -version 2>&1 | head -1 && echo "ffmpeg: OK" || echo "ffmpeg: not installed (optional)"
+ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not installed (optional)"
+```
 
 ## 📌 3. Installation
 
@@ -376,22 +475,99 @@ gunicorn backend.main:app \
 > [!TIP]
 > **gunicorn** is Linux/macOS only. On Windows, use `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2` for multi-worker serving.
 
+<a id="43-ec2--cloud-deployment"></a>
+
 ### 📝 4.3 EC2 / Cloud Deployment
 
 Recommended: **t3.small** (~$15/month) for 1-2 concurrent users.
 
+**Step 1: Create an IAM role for the EC2 instance** (run from your local machine):
+
+```bash
+# Create the IAM role with EC2 trust policy
+aws iam create-role --role-name ArtSmokerEC2Role \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": {"Service": "ec2.amazonaws.com"},
+      "Action": "sts:AssumeRole"
+    }]
+  }'
+
+# Attach the ArtSmoker policy (use the scoped policy from section 2.2, or the managed policy)
+aws iam attach-role-policy --role-name ArtSmokerEC2Role \
+  --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+aws iam attach-role-policy --role-name ArtSmokerEC2Role \
+  --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+# Create an instance profile and attach the role
+aws iam create-instance-profile --instance-profile-name ArtSmokerEC2Profile
+aws iam add-role-to-instance-profile \
+  --instance-profile-name ArtSmokerEC2Profile \
+  --role-name ArtSmokerEC2Role
+```
+
+**Step 2: Launch an EC2 instance** (or attach the profile to an existing one):
+
+```bash
+# Attach to an existing running instance
+aws ec2 associate-iam-instance-profile \
+  --instance-id i-YOUR_INSTANCE_ID \
+  --iam-instance-profile Name=ArtSmokerEC2Profile
+```
+
+**Step 3: Install and run on the instance** (SSH into the instance):
+
 ```bash
 # Install (one-time)
+sudo yum install -y python3 python3-pip git   # Amazon Linux
+# sudo apt install -y python3 python3-pip python3-venv git   # Ubuntu
+
 git clone <repo-url> && cd ArtSmoker
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
 pip install gunicorn
+
+# Optional: install ffmpeg for video thumbnails
+sudo yum install -y ffmpeg   # Amazon Linux
+# sudo apt install -y ffmpeg   # Ubuntu
 ```
 
-- Attach an **IAM role** to the EC2 instance with `bedrock:InvokeModel`, `bedrock:Converse`, and `bedrock:ListFoundationModels` — no access keys needed on the instance.
-- Run with the same gunicorn command above.
-- For persistent operation, use `systemd`, `supervisord`, or `screen`/`tmux`.
+**Step 4: Run as a systemd service** (persistent, auto-restarts):
+
+```bash
+# Create the service file
+sudo tee /etc/systemd/system/artsmoker.service > /dev/null << 'EOF'
+[Unit]
+Description=ArtSmoker
+After=network.target
+
+[Service]
+WorkingDirectory=/home/ec2-user/ArtSmoker
+ExecStart=/home/ec2-user/ArtSmoker/.venv/bin/gunicorn backend.main:app \
+  -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
+Restart=always
+User=ec2-user
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+# Enable and start
+sudo systemctl daemon-reload
+sudo systemctl enable artsmoker
+sudo systemctl start artsmoker
+
+# Verify it's running
+sudo systemctl status artsmoker
+
+# View logs
+sudo journalctl -u artsmoker -f
+```
+
+Open **http://YOUR_INSTANCE_IP:8000** — ensure your EC2 security group allows inbound TCP 8000.
 
 ## 📌 5. Architecture
 
@@ -744,9 +920,11 @@ The **Image Model** dropdown is the primary selection. Below it, a smart summary
 
 A **cost estimate** updates dynamically based on all selections (model × quality × region × options × variations).
 
-**Format families**: Models are invoked through a generic invoker that reads request templates from the registry (`format_families`). Currently two families:
-- **amazon_text_to_image** — taskType/textToImageParams structure with pixel dimensions (Nova Canvas, Titan Image)
-- **stability_text_to_image** — flat prompt field with aspect ratios (SD 3.5 Large, Stable Image Ultra, Stable Image Core)
+**Format families**: Models are invoked through a generic invoker (`invoke_image_model`) that reads request templates from the registry (`format_families`). Currently 15 families covering image generation (2), image editing (8), post-processing (2), and video generation (2):
+- **Image generation**: `amazon_text_to_image` (Nova Canvas, Titan Image), `stability_text_to_image` (SD 3.5 Large, Stable Image Ultra)
+- **Image editing**: `amazon_inpainting`, `amazon_outpainting`, `stability_inpaint`, `stability_outpaint`, `stability_erase`, `stability_search_replace`, `stability_search_recolor`, `stability_control`, `stability_style_transfer`
+- **Post-processing**: `stability_remove_bg`, `stability_upscale`
+- **Video**: `nova_reel`, `luma_ray`
 
 Adding a new Bedrock image model requires zero code changes — just register it via the admin API or auto-discovery with the correct format family.
 
@@ -873,6 +1051,7 @@ ArtSmoker/
 │       └── components/
 │           ├── ImageStudio.js   # 2D Image Studio (options × variations)
 │           ├── TypeStudio.js    # Type Studio (text overlay)
+│           ├── VideoStudio.js   # Video Studio (text-to-video generation)
 │           ├── Gallery.js       # Gallery grid + search + bulk ops
 │           ├── StyleLibrary.js  # Style management + file browser
 │           ├── AssetViewer.js   # Full-size preview + metadata + download

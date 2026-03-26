@@ -171,6 +171,9 @@ ArtSmoker/
 │   │   ├── transcriber.py         # Nova Sonic: bidirectional streaming speech-to-text
 │   │   ├── texture_extractor.py   # glTF/GLB texture extraction (base64, binary chunks, external refs)
 │   │   ├── import_dedup.py        # Smart deduplication for directory imports (rotation variants, animation frames, folder priority)
+│   │   ├── cost_tracker.py        # Request-scoped cost accumulator: tracks LLM tokens + image model prices
+│   │   ├── telemetry.py           # PulseBoard SDK wrapper: tracks server events (startup, generation, errors)
+│   │   ├── pulseboard.py          # Zero-dependency PulseBoard client SDK (copied from PulseBoard project)
 │   │   └── bedrock_client.py      # Shared Bedrock client: invoke_llm (with system prompt), invoke_image_model (generic)
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update models
@@ -596,7 +599,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 - **Pillow rendering**: The backend (`POST /api/type-studio/preview`) renders the final composition using Pillow with support for **shadow**, **outline**, and **glow** text effects. The rendered result is saved as a new gallery asset.
 
-- **Click to zoom**: Clicking the result preview opens the AssetViewer with full zoom/pan, metadata, download buttons, and the Edit tab (inpaint/outpaint/erase).
+- **Click to zoom**: Clicking the result preview opens the AssetViewer with full zoom/pan, metadata, download buttons, and the Edit tab (inpaint/outpaint/erase/replace/recolor).
 
 - **Font picker**: Shows fonts in priority order:
   1. **Style-specific fonts** — fonts associated with the selected style profile.
@@ -626,11 +629,13 @@ If there is only one option, the options row is hidden. If there is only one var
 **AssetViewer** — Full-size preview with zoom/pan and image editing. Fetches full metadata from `GET /api/gallery/{id}` on open. Four tabs:
 
 - **PNG tab** — zoom/pan viewer: mouse wheel to zoom (centered on cursor), click-drag to pan, Fit/1:1/+/- buttons. Active mode (Fit or 1:1) highlighted. Image starts at fit-to-view.
-- **Edit tab** — three editing modes:
+- **Edit tab** — five editing modes:
   - **Inpaint**: Canvas brush mask painter (adjustable brush size). Paint the area to edit → enter a prompt → select an inpainting model from the registry → Apply. Mask extracted as black/white image (white = edit area).
   - **Erase**: Same mask UI, no prompt needed — removes objects and fills background.
   - **Outpaint**: Directional pixel controls (left/right/up/down) + optional prompt. Extends the image.
-  - Models populated dynamically from registry filtered by `model_purpose` (inpainting, erase, or outpainting). Shows price per model.
+  - **Replace**: Search & Replace — enter what to find and what to replace it with. Uses `stability_search_replace` format family.
+  - **Recolor**: Search & Recolor — select an object and specify the target color. Uses `stability_search_recolor` format family.
+  - Models populated dynamically from registry filtered by `model_purpose` (inpainting, erase, outpainting, search_replace, or search_recolor). Shows price per model.
   - **Replace original** checkbox (default: checked) — replaces the source image in-place. Uncheck to save as a new gallery asset instead. Metadata records the `source_image_id` and `edit_type` for provenance.
 - **SVG tab** — SVG preview (hidden when no SVG exists).
 - **Metadata tab** — full prompt lineage: original prompt → AI-improved prompt → generation prompt → negative prompt (amber-styled). Plus style (from `style_snapshot` fallback), asset type, image model (reads `model_label` from metadata), dimensions, seed, batch ID, option/variation, IP status, filename, created date. Adapts for Type Studio assets.
@@ -662,17 +667,16 @@ If there is only one option, the options row is hidden. If there is only one var
 **Bedrock client** (`backend/services/bedrock_client.py`):
 - Lazy-initialized boto3 clients keyed by region with connection pooling (10 max pool connections).
 - Adaptive retry configuration (3 max attempts).
-- `invoke_claude(prompt, complexity, images, max_tokens, temperature)` — routes to Sonnet or Opus based on complexity parameter.
-- `invoke_sd35_large(prompt, seed, width, height)` — generates images via Stable Diffusion 3.5 Large.
-- `invoke_stable_image_ultra(prompt, seed, width, height)` — generates images via Stable Image Ultra.
-- `_dimensions_to_aspect_ratio(width, height)` — maps pixel dimensions to the closest Stability AI supported aspect ratio (1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21). Used by both Stability generation methods.
-- Uses the Bedrock **Converse API** for Claude invocations (supports text + vision inputs).
+- `invoke_llm(prompt, system, complexity, images, max_tokens, temperature)` — routes to Sonnet or Opus based on complexity parameter. Uses the Bedrock **Converse API** (supports text + vision inputs).
+- `invoke_image_model(model_key, prompt, ...)` — generic image model invoker. Reads format family from the registry to build the request body dynamically. Handles all image services: text-to-image, inpainting, outpainting, erase, search & replace, recolor, style transfer, upscale, and remove background — with zero model-specific code.
+- `_dimensions_to_aspect_ratio(width, height)` — maps pixel dimensions to the closest Stability AI supported aspect ratio.
+- `_set_nested(obj, path, value)` / `_get_nested(obj, path)` — dot-notation helpers for building/reading nested request/response bodies.
 
-**Claude Model Selection Logic:**
-- `invoke_claude(complexity="fast")` routes to Sonnet.
-- `invoke_claude(complexity="complex")` routes to Opus.
+**LLM Model Selection Logic:**
+- `invoke_llm(complexity="fast")` routes to Sonnet (or whichever model is configured in the `fast_llm` registry category).
+- `invoke_llm(complexity="complex")` routes to Opus (or whichever model is configured in the `complex_llm` registry category).
 
-**Model fallback**: On `AccessDeniedException` from the primary Claude model, the system automatically falls back to Claude 3.5 Sonnet v2.
+**Model fallback**: On `AccessDeniedException` from the primary LLM model, the system automatically falls back to the `fallback_llm` category model.
 
 | Model | ID | Region | Purpose |
 |-------|----|--------|---------|
@@ -730,7 +734,7 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 
 **Registry structure** (v2):
 
-1. **Format families** (`format_families`): Define request/response templates by provider. Each family specifies: `prompt_path`, `negative_prompt_path`, `seed_path`, `dimensions_mode` ("pixels" or "aspect_ratio"), `dimensions_paths`, `response_image_path`, and `body_template`. Currently two families: `amazon_text_to_image` and `stability_text_to_image`. Adding a new provider means adding a format family — no code changes needed.
+1. **Format families** (`format_families`): Define request/response templates by provider. Each family specifies: `prompt_path`, `negative_prompt_path`, `seed_path`, `dimensions_mode` ("pixels" or "aspect_ratio"), `dimensions_paths`, `response_image_path`, and `body_template`. Currently 15 families covering all image services (`amazon_text_to_image`, `stability_text_to_image`, `amazon_inpainting`, `amazon_outpainting`, `stability_inpaint`, `stability_outpaint`, `stability_erase`, `stability_search_replace`, `stability_search_recolor`, `stability_control`, `stability_style_transfer`, `stability_remove_bg`, `stability_upscale`) and video generation (`nova_reel`, `luma_ray`). Adding a new provider or service means adding a format family — no code changes needed.
 
 2. **Bedrock regions** (`bedrock_regions`): Cached list of all AWS regions supporting Bedrock (currently 33). Discovered dynamically during refresh-all via `boto3.Session().get_available_regions("bedrock")`. Read from cache for all other operations — zero AWS calls.
 
@@ -961,6 +965,8 @@ Fields:
 | GET | `/api/gallery/{id}/svg` | Download the SVG file. `Content-Disposition` header uses the smart filename. |
 | DELETE | `/api/gallery/` | Bulk delete assets. Request body: `{ "ids": ["asset_id_1", "asset_id_2", ...] }`. Deletes the asset directories and their contents from disk. Returns `{deleted, not_found}`. **Batch-aware**: when deleting batch assets, updates surviving siblings' metadata with `batch_deleted_count`, `original_num_options`, and `original_num_variations` so the system can report partial batch context on reload. |
 | GET | `/api/gallery/batch/{batch_id}` | Reconstruct the full options × variations structure for a batch (includes `style_snapshot` and `negative_prompt` per variant). Returns enriched batch context: `batch_surviving_count`, `batch_original_total`, `batch_deleted_count`, `original_num_options`, `original_num_variations` — so the frontend can display "4 of 25 images remaining (21 deleted)" when loading a partial batch. |
+| GET | `/api/gallery/{id}/version/{version}` | Download a specific version of an asset (e.g. `v1` = original, `v2` = after edit). |
+| GET | `/api/gallery/{id}/version-svg/{version}` | Download the SVG for a specific version. |
 
 ### 5.6 Type Studio
 
@@ -1007,15 +1013,19 @@ Fields:
 | PATCH | `/api/admin/models/image/{key}` | Update an image model. |
 | PATCH | `/api/admin/models/video/{key}` | Update a video model (enable/disable, region, prompt limit). |
 | POST | `/api/admin/models/image` | Add a new image model to the registry. |
-| POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions, fetches pricing, scans all regions for image + video models, backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming, customizations). |
-| POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for image + video models. Classifies by output modality (IMAGE → image registry, VIDEO → video registry). |
+| PUT | `/api/admin/models` | Replace the entire model registry JSON. Validates required top-level keys. Used by the raw JSON editor. |
+| PATCH | `/api/admin/models/postprocess/{key}` | Update a post-processing model (model_id, region, enabled). |
+| POST | `/api/admin/models/reload` | Reload the model registry from disk (e.g. after external edit). |
+| POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions, fetches pricing, scans all regions for foundation + custom + imported models, backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming, customizations). |
+| POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for foundation image + video models. Classifies by output modality (IMAGE → image registry, VIDEO → video registry). Custom/imported models are discovered separately during refresh-all. |
 | GET | `/api/admin/discover/{region}` | Raw model listing: image generators, video generators, text/LLM, vision models. |
 
 ### 5.10 System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/health` | Health check — returns status + AWS credential/Bedrock validation results. |
+| GET | `/api/health` | Health check — returns `{status, version, aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`. |
+| POST | `/api/ping` | Frontend telemetry ping. Accepts `{event, properties}` and forwards to PulseBoard if telemetry is enabled. |
 | POST | `/api/log` | Receive client-side log entries. Body: `{ "level": "error", "message": "...", "context": {} }`. Logged server-side with `[CLIENT]` prefix. |
 | GET | `/docs` | Swagger UI (auto-generated by FastAPI). |
 
@@ -1047,9 +1057,15 @@ The IAM principal (user, role, or SSO session) needs the following permissions:
 | `bedrock:StartAsyncInvoke` | Video generation (async invocation) |
 | `bedrock:GetAsyncInvoke` | Poll video generation job status |
 | `bedrock:ListAsyncInvokes` | List video generation jobs |
-| `bedrock:ListFoundationModels` | Model discovery in the admin UI (Sync from AWS) |
+| `bedrock:ListFoundationModels` | Foundation model discovery (Sync from AWS) |
+| `bedrock:ListCustomModels` | Discover fine-tuned custom models in your account |
+| `bedrock:ListImportedModels` | Discover imported models in your account |
+| `bedrock:GetCustomModel` | Read custom model details (base model, status) |
+| `bedrock:GetImportedModel` | Read imported model details (architecture, status) |
+| `bedrock:ListProvisionedModelThroughputs` | Find invocable custom models with provisioned throughput |
+| `bedrock:ListCustomModelDeployments` | Find custom models with on-demand deployments |
 | `s3:CreateBucket` | Create S3 bucket for video storage (optional, via UI) |
-| `s3:PutObject` / `s3:GetObject` / `s3:ListBucket` | Video output storage and retrieval |
+| `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Video output storage and retrieval |
 | `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models |
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
 | `sts:GetCallerIdentity` | Startup credential validation |
@@ -1071,7 +1087,13 @@ For a scoped IAM policy:
         "bedrock:StartAsyncInvoke",
         "bedrock:GetAsyncInvoke",
         "bedrock:ListAsyncInvokes",
-        "bedrock:ListFoundationModels"
+        "bedrock:ListFoundationModels",
+        "bedrock:ListCustomModels",
+        "bedrock:ListImportedModels",
+        "bedrock:GetCustomModel",
+        "bedrock:GetImportedModel",
+        "bedrock:ListProvisionedModelThroughputs",
+        "bedrock:ListCustomModelDeployments"
       ],
       "Resource": "*"
     },
@@ -1086,11 +1108,52 @@ For a scoped IAM policy:
     },
     {
       "Effect": "Allow",
-      "Action": "sts:GetCallerIdentity",
+      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket", "s3:HeadBucket"],
+      "Resource": ["arn:aws:s3:::artsmoker-*", "arn:aws:s3:::artsmoker-*/*"]
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts"],
       "Resource": "*"
     }
   ]
 }
+```
+
+**Apply the policy via CLI:**
+
+```bash
+# Option A: Quickest — attach managed policies to your IAM user
+aws iam attach-user-policy --user-name YOUR_USERNAME \
+  --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+aws iam attach-user-policy --user-name YOUR_USERNAME \
+  --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+
+# Option B: Scoped — create and attach the policy above
+aws iam create-policy --policy-name ArtSmokerAccess \
+  --policy-document file://artsmoker-policy.json
+# Then attach to your user or role:
+aws iam attach-user-policy --user-name YOUR_USERNAME \
+  --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/ArtSmokerAccess
+
+# Option C: EC2 role — create a role for EC2 instance profiles
+aws iam create-role --role-name ArtSmokerEC2Role \
+  --assume-role-policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [{
+      "Effect": "Allow",
+      "Principal": {"Service": "ec2.amazonaws.com"},
+      "Action": "sts:AssumeRole"
+    }]
+  }'
+aws iam attach-role-policy --role-name ArtSmokerEC2Role \
+  --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+aws iam attach-role-policy --role-name ArtSmokerEC2Role \
+  --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+aws iam create-instance-profile --instance-profile-name ArtSmokerEC2Profile
+aws iam add-role-to-instance-profile \
+  --instance-profile-name ArtSmokerEC2Profile \
+  --role-name ArtSmokerEC2Role
 ```
 
 ### 6.3 Bedrock Model Availability
@@ -1100,7 +1163,7 @@ Bedrock models are **available by default** in all commercial AWS regions — no
 > [!NOTE]
 > **Anthropic models**: Require a one-time [First Time Use form](https://console.aws.amazon.com/bedrock/home#/modelaccess) completion before first invocation.
 
-ArtSmoker discovers available models and regions dynamically via the **Sync from AWS** feature in the admin UI. Models and regions are not hardcoded — the system reads from Amazon Bedrock's `ListFoundationModels` API and stores the results in the model registry. Each model is configured with its optimal region, and users can override the region per request.
+ArtSmoker discovers available models and regions dynamically via the **Sync from AWS** feature in the admin UI. Models and regions are not hardcoded — the system reads from Amazon Bedrock's `ListFoundationModels`, `ListCustomModels`, and `ListImportedModels` APIs and stores the results in the model registry. Custom (fine-tuned) models inherit their format family from their base model dynamically — no hardcoded model mappings. Imported models are registered as LLM alternatives. Each model is configured with its optimal region, and users can override the region per request.
 
 ### 6.4 Verifying Access
 
@@ -1120,9 +1183,13 @@ aws bedrock-runtime invoke-model --region us-east-1 \
   --content-type application/json --accept application/json \
   --body '{"textToImageParams":{"text":"test"},"imageGenerationConfig":{"numberOfImages":1,"width":512,"height":512}}' \
   /dev/null 2>&1 && echo "InvokeModel: OK" || echo "InvokeModel: FAILED"
+
+# 4. Can you list custom models? (bedrock:ListCustomModels — needed for custom model discovery)
+aws bedrock list-custom-models --region us-east-1 \
+  --query "modelSummaries[0].modelName" --output text 2>&1 && echo "ListCustomModels: OK" || echo "ListCustomModels: no custom models (or permission denied)"
 ```
 
-If all three pass, your permissions are set. If step 2 passes but step 3 fails, your IAM policy allows listing but not invoking — update it using the scoped policy above or attach `AmazonBedrockFullAccess`.
+If steps 1-3 pass, your core permissions are set. Step 4 is only needed for custom model discovery. If step 2 passes but step 3 fails, your IAM policy allows listing but not invoking — update it using the scoped policy above or attach `AmazonBedrockFullAccess`.
 
 ### 6.5 Startup Validation
 
@@ -1152,12 +1219,13 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 
 1. **FastAPI app** with `title="ArtSmoker"`, `description="AI-Powered Game Asset Generation"`, and a `lifespan` handler.
 2. **Lifespan handler** (async context manager):
-   - On startup: create data directories (`data/`, `data/styles/`, `data/generated/`) via `mkdir(parents=True, exist_ok=True)`.
+   - On startup: create data directories (`data/`, `data/styles/`, `data/generated/`, `data/video/`) via `mkdir(parents=True, exist_ok=True)`.
    - On startup: call `validate_aws_credentials()` from `bedrock_client.py` — stores result in a module-level `_aws_status` dict.
+   - On startup: initialize PulseBoard telemetry (`telemetry_init()`, `track_server_start()`) — fire-and-forget.
    - Log a prominent error box if credentials are missing, a warning if some Bedrock checks fail, or an info message if all checks pass.
 3. **NoCacheStaticMiddleware** — custom `BaseHTTPMiddleware` that adds `Cache-Control: no-cache, no-store, must-revalidate` and `Pragma: no-cache` headers to all responses where the request path does NOT start with `/api/`. This ensures frontend static files are never cached during development.
 4. **CORS middleware** — `CORSMiddleware` with `allow_origins=["*"]`, `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`. Development-mode open CORS.
-5. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, admin — in that order.
+5. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, admin — in that order.
 6. **Health check endpoint** (`GET /api/health`) — defined inline on `app`, returns `{status: "ok"|"degraded", aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`.
 7. **Client log endpoint** (`POST /api/log`) — defined inline on `app`, receives `{level, message, context}`, logs as `[CLIENT] {message} | {context}` at the appropriate Python log level.
 8. **Static files mount** — `app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True))` mounted LAST so `/api/*` routes take priority. `FRONTEND_DIR` is `Path(__file__).resolve().parent.parent / "frontend"`. The `html=True` flag enables serving `index.html` for directory requests.
@@ -1341,6 +1409,8 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 17. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Test the rewrite option in each dialog — verify the rewritten prompt appears in the enhanced prompt area (not the original textarea) with the amber disclaimer. Verify the original prompt is preserved. Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears with specific issues, model switch, and rewrite options.
 18. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`).
 
+<a id="13-aws-bedrock-pricing--cost-breakdown"></a>
+
 ## 13. Amazon Bedrock Pricing & Cost Breakdown
 
 > [!NOTE]
@@ -1359,7 +1429,7 @@ All prices below are from the official [Amazon Bedrock Pricing page](https://aws
 | **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | per image (1024×1024) |
 | **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | per image |
-| **Remove Background** | `stability.stable-image-remove-background-v1:0` | $0.07 | per image |
+| **Remove Background** | `us.stability.stable-image-remove-background-v1:0` | $0.07 | per image |
 | **Creative Upscale** | `stability.stable-creative-upscale-v1:0` | $0.60 | per image |
 | **SVG Conversion** | vtracer / potrace / Pillow (local) | $0.00 | free — runs locally |
 
@@ -1467,6 +1537,8 @@ The generation cost depends on the image model chosen and the options×variation
 > [!TIP]
 > **Key takeaway**: Image generation is cheap ($0.01–$0.14/image). **Creative Upscale is the big cost driver at $0.60/image** — use it selectively on your final chosen assets, not on the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free.
 
+<a id="14-deployment--scaling-roadmap"></a>
+
 ## 14. Deployment & Scaling Roadmap
 
 The current architecture runs as a single local process (uvicorn + local filesystem). This section documents the phased plan for production deployment and scaling.
@@ -1482,6 +1554,8 @@ AWS Lambda is not suitable as the primary compute for this application:
 - **Concurrency model mismatch**: The generation pipeline uses `ThreadPoolExecutor` internally to parallelize image generation. Lambda's single-request-per-invocation model means each Lambda would serialize its own internal threads, negating the concurrency benefit unless the architecture is decomposed into separate Lambdas per image.
 
 Lambda _could_ work for lightweight endpoints (styles CRUD, gallery listing, health check), but mixing Lambda and non-Lambda compute for the same API adds routing complexity without meaningful benefit at this stage.
+
+<a id="142-phase-1-current--local-development-done"></a>
 
 ### 14.2 Phase 1: Current — Local Development (Done)
 
@@ -1525,10 +1599,35 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
     --bind 0.0.0.0:8000 --timeout 300
   ```
   The `--timeout 300` (5 minutes) accommodates large batch generations with retries.
-- **IAM role**: Attach an IAM role with `bedrock:InvokeModel`, `bedrock:Converse`, and `bedrock:ListFoundationModels` permissions — no access keys needed on the instance.
-- **Persistent operation**: Use `systemd` or `supervisord` to keep the process running:
-  ```ini
-  # /etc/systemd/system/artsmoker.service
+- **IAM role**: Create and attach an IAM role (no access keys needed on the instance):
+  ```bash
+  # Create role + instance profile (run from your local machine, one-time)
+  aws iam create-role --role-name ArtSmokerEC2Role \
+    --assume-role-policy-document '{
+      "Version": "2012-10-17",
+      "Statement": [{
+        "Effect": "Allow",
+        "Principal": {"Service": "ec2.amazonaws.com"},
+        "Action": "sts:AssumeRole"
+      }]
+    }'
+  aws iam attach-role-policy --role-name ArtSmokerEC2Role \
+    --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+  aws iam attach-role-policy --role-name ArtSmokerEC2Role \
+    --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
+  aws iam create-instance-profile --instance-profile-name ArtSmokerEC2Profile
+  aws iam add-role-to-instance-profile \
+    --instance-profile-name ArtSmokerEC2Profile --role-name ArtSmokerEC2Role
+
+  # Attach to your instance
+  aws ec2 associate-iam-instance-profile \
+    --instance-id i-YOUR_INSTANCE_ID \
+    --iam-instance-profile Name=ArtSmokerEC2Profile
+  ```
+- **Persistent operation**: Create a systemd service:
+  ```bash
+  # Create the service file
+  sudo tee /etc/systemd/system/artsmoker.service > /dev/null << 'UNIT'
   [Unit]
   Description=ArtSmoker
   After=network.target
@@ -1538,13 +1637,22 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
   ExecStart=/home/ec2-user/ArtSmoker/.venv/bin/gunicorn backend.main:app \
     -w 2 -k uvicorn.workers.UvicornWorker --bind 0.0.0.0:8000 --timeout 300
   Restart=always
+  User=ec2-user
 
   [Install]
   WantedBy=multi-user.target
+  UNIT
+
+  # Enable, start, and verify
+  sudo systemctl daemon-reload
+  sudo systemctl enable artsmoker
+  sudo systemctl start artsmoker
+  sudo systemctl status artsmoker
   ```
-  Then: `sudo systemctl enable artsmoker && sudo systemctl start artsmoker`
 - **No race conditions for concurrent users** — each generation uses unique UUIDs, file writes don't overlap.
 - **Migrating style data**: Style references use relative symlinks, so they work across machines as long as the source art directories maintain the same relative position to the ArtSmoker project.
+
+<a id="143-phase-2-containerized-deployment--app-runner--s3"></a>
 
 ### 14.3 Phase 2: Containerized Deployment — App Runner + S3
 
@@ -1582,6 +1690,8 @@ AWS App Runner
 5. **Environment variables**: All config passes through environment variables (already supported via `ARTSMOKER_` prefix). App Runner environment configuration maps directly.
 
 **Estimated effort**: 1-2 days. The S3 storage swap is the main work; Dockerfile and App Runner setup are straightforward.
+
+<a id="144-phase-3-optimized-delivery--cloudfront--async-generation"></a>
 
 ### 14.4 Phase 3: Optimized Delivery — CloudFront + Async Generation
 

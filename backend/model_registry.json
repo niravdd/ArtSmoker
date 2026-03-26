@@ -90,7 +90,8 @@
       "streaming_supported": false,
       "customizations_supported": [
         "FINE_TUNING"
-      ]
+      ],
+      "model_source": "foundation"
     },
     "titan_image": {
       "label": "Amazon Titan Image v2",
@@ -141,7 +142,8 @@
       "streaming_supported": false,
       "customizations_supported": [
         "FINE_TUNING"
-      ]
+      ],
+      "model_source": "foundation"
     },
     "sd35_large": {
       "label": "Stable Diffusion 3.5 Large",
@@ -157,7 +159,8 @@
       "prompt_limit": 2000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.08,
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_ultra": {
       "label": "Stable Image Ultra",
@@ -173,7 +176,8 @@
       "prompt_limit": 2000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.14,
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_core_v1": {
       "label": "Stable Image Core 1.0",
@@ -189,7 +193,8 @@
       "prompt_limit": 2000,
       "moderation_strictness": "moderate",
       "base_price_usd": 0.04,
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_creative_upscale_v1": {
       "label": "Stable Image Creative Upscale",
@@ -219,7 +224,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-creative-upscale-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_remove_background_v1": {
       "label": "Stable Image Remove Background",
@@ -249,7 +255,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-remove-background-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_control_sketch_v1": {
       "label": "Stable Image Control Sketch",
@@ -279,7 +286,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-sketch-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_conservative_upscale_v1": {
       "label": "Stable Image Conservative Upscale",
@@ -309,7 +317,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-conservative-upscale-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_search_recolor_v1": {
       "label": "Stable Image Search and Recolor",
@@ -339,7 +348,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-recolor-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_fast_upscale_v1": {
       "label": "Stable Image Fast Upscale",
@@ -369,7 +379,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-fast-upscale-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_erase_object_v1": {
       "label": "Stable Image Erase Object",
@@ -399,7 +410,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-erase-object-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_control_structure_v1": {
       "label": "Stable Image Control Structure",
@@ -429,7 +441,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-structure-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_outpaint_v1": {
       "label": "Stable Image Outpaint",
@@ -459,7 +472,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-outpaint-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_inpaint_v1": {
       "label": "Stable Image Inpaint",
@@ -489,7 +503,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-inpaint-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_style_guide_v1": {
       "label": "Stable Image Style Guide",
@@ -519,7 +534,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-style-guide-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_style_transfer_v1": {
       "label": "Stable Image Style Transfer",
@@ -549,7 +565,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-style-transfer-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_search_replace_v1": {
       "label": "Stable Image Search and Replace",
@@ -579,7 +596,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-replace-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "titan_image_inpaint": {
       "label": "Titan Image Generator G1 v2 Inpainting",
@@ -608,7 +626,8 @@
       "streaming_supported": false,
       "customizations_supported": [
         "FINE_TUNING"
-      ]
+      ],
+      "model_source": "foundation"
     },
     "titan_image_outpaint": {
       "label": "Titan Image Generator G1 v2 Outpainting",
@@ -638,7 +657,8 @@
       "streaming_supported": false,
       "customizations_supported": [
         "FINE_TUNING"
-      ]
+      ],
+      "model_source": "foundation"
     },
     "nova_canvas_inpaint": {
       "label": "Nova Canvas Inpainting",
@@ -671,7 +691,8 @@
       "streaming_supported": false,
       "customizations_supported": [
         "FINE_TUNING"
-      ]
+      ],
+      "model_source": "foundation"
     },
     "nova_canvas_outpaint": {
       "label": "Nova Canvas Outpainting",
@@ -706,7 +727,8 @@
       "streaming_supported": false,
       "customizations_supported": [
         "FINE_TUNING"
-      ]
+      ],
+      "model_source": "foundation"
     },
     "stable_creative_upscale_v1_us_east_1": {
       "label": "Stable Image Creative Upscale",
@@ -736,7 +758,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_remove_background_v1_us_east_1": {
       "label": "Stable Image Remove Background",
@@ -766,7 +789,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_control_sketch_v1_us_east_1": {
       "label": "Stable Image Control Sketch",
@@ -796,7 +820,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_conservative_upscale_v1_us_east_1": {
       "label": "Stable Image Conservative Upscale",
@@ -826,7 +851,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_search_recolor_v1_us_east_1": {
       "label": "Stable Image Search and Recolor",
@@ -856,7 +882,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_fast_upscale_v1_us_east_1": {
       "label": "Stable Image Fast Upscale",
@@ -886,7 +913,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_erase_object_v1_us_east_1": {
       "label": "Stable Image Erase Object",
@@ -916,7 +944,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_control_structure_v1_us_east_1": {
       "label": "Stable Image Control Structure",
@@ -946,7 +975,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_outpaint_v1_us_east_1": {
       "label": "Stable Image Outpaint",
@@ -976,7 +1006,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_inpaint_v1_us_east_1": {
       "label": "Stable Image Inpaint",
@@ -1006,7 +1037,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_style_guide_v1_us_east_1": {
       "label": "Stable Image Style Guide",
@@ -1036,7 +1068,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_style_transfer_v1_us_east_1": {
       "label": "Stable Image Style Transfer",
@@ -1066,7 +1099,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_image_search_replace_v1_us_east_1": {
       "label": "Stable Image Search and Replace",
@@ -1096,7 +1130,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "extra_body": {}
+      "extra_body": {},
+      "model_source": "foundation"
     },
     "stable_creative_upscale_v1_us_west_2": {
       "label": "Stable Image Creative Upscale",
@@ -1127,7 +1162,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-creative-upscale-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_remove_background_v1_us_west_2": {
       "label": "Stable Image Remove Background",
@@ -1158,7 +1194,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-remove-background-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_control_sketch_v1_us_west_2": {
       "label": "Stable Image Control Sketch",
@@ -1189,7 +1226,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-sketch-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_conservative_upscale_v1_us_west_2": {
       "label": "Stable Image Conservative Upscale",
@@ -1220,7 +1258,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-conservative-upscale-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_search_recolor_v1_us_west_2": {
       "label": "Stable Image Search and Recolor",
@@ -1251,7 +1290,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-recolor-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_fast_upscale_v1_us_west_2": {
       "label": "Stable Image Fast Upscale",
@@ -1282,7 +1322,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-fast-upscale-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_erase_object_v1_us_west_2": {
       "label": "Stable Image Erase Object",
@@ -1313,7 +1354,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-erase-object-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_control_structure_v1_us_west_2": {
       "label": "Stable Image Control Structure",
@@ -1344,7 +1386,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-structure-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_outpaint_v1_us_west_2": {
       "label": "Stable Image Outpaint",
@@ -1375,7 +1418,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-outpaint-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_inpaint_v1_us_west_2": {
       "label": "Stable Image Inpaint",
@@ -1406,7 +1450,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-inpaint-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_style_guide_v1_us_west_2": {
       "label": "Stable Image Style Guide",
@@ -1437,7 +1482,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-style-guide-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_style_transfer_v1_us_west_2": {
       "label": "Stable Image Style Transfer",
@@ -1468,7 +1514,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-style-transfer-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "stable_image_search_replace_v1_us_west_2": {
       "label": "Stable Image Search and Replace",
@@ -1499,7 +1546,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-replace-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     }
   },
   "post_processing": {
@@ -2752,7 +2800,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-reel-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "nova_reel_v1_1": {
       "label": "Nova Reel v1.1",
@@ -2781,7 +2830,8 @@
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-reel-v1:1",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "model_source": "foundation"
     },
     "ray_v2_0": {
       "label": "Ray v2.0",
@@ -2799,7 +2849,8 @@
       "base_price_per_second_usd": 1.5,
       "inference_types": [
         "ON_DEMAND"
-      ]
+      ],
+      "model_source": "foundation"
     }
   },
   "video_settings": {

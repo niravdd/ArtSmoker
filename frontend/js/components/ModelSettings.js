@@ -2,8 +2,8 @@
  * ArtSmoker — Model Settings Component
  *
  * Admin modal for managing AI model configurations.
- * Three tabs: Image Models, LLM & Post-Processing, Raw Registry JSON.
- * Refresh All button discovers models, pricing, and regions from AWS.
+ * Tabs aligned with app studios: Image Studio, Video Studio, AI Engine.
+ * Sync from AWS discovers foundation, custom, and imported models.
  */
 (function () {
     'use strict';
@@ -34,6 +34,11 @@
                 ? new Date(reg.last_updated).toLocaleString()
                 : 'never';
 
+            // Count models per tab
+            const imgCount = Object.keys(reg.image_models || {}).length;
+            const vidCount = Object.keys(reg.video_models || {}).length;
+            const llmCount = Object.keys(reg.categories || {}).length + Object.keys(reg.post_processing || {}).length;
+
             const modal = document.createElement('div');
             modal.id = 'model-settings-modal';
             modal.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
@@ -49,11 +54,11 @@
                             <h2 class="text-lg font-semibold">Model Settings</h2>
                         </div>
                         <div class="flex items-center gap-3">
-                            <button id="ms-refresh-all" class="btn btn-sm text-xs bg-amber-600 hover:bg-amber-500 text-white" title="Scans all AWS regions for models, fetches pricing. Makes multiple API calls — run only when needed.">
+                            <button id="ms-refresh-all" class="btn btn-sm text-xs bg-amber-600 hover:bg-amber-500 text-white" title="Scans all AWS regions for foundation + custom + imported models, fetches pricing. Makes multiple API calls — run only when needed.">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                                 Sync from AWS
                             </button>
-                            <span class="text-[10px] text-brand-text-muted" title="Run only when AWS adds new models or you need updated pricing">Updated: ${lastUpdated}</span>
+                            <span class="text-[10px] text-brand-text-muted" title="Discovers foundation, custom, and imported models from all Bedrock regions">Updated: ${lastUpdated}</span>
                             <button class="ms-close p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -62,40 +67,53 @@
                         </div>
                     </div>
 
-                    <!-- Tabs -->
+                    <!-- Tabs — aligned with app studios -->
                     <div class="tab-bar px-6 pt-3">
-                        <button class="tab active" data-ms-tab="image-models">Image Models</button>
-                        <button class="tab" data-ms-tab="video-models">Video Models</button>
-                        <button class="tab" data-ms-tab="llm-post">LLM & Post-Processing</button>
+                        <button class="tab active" data-ms-tab="image-studio">
+                            Image Studio
+                            <span class="text-[9px] opacity-60 ml-1">(${imgCount})</span>
+                        </button>
+                        <button class="tab" data-ms-tab="video-studio">
+                            Video Studio
+                            <span class="text-[9px] opacity-60 ml-1">(${vidCount})</span>
+                        </button>
+                        <button class="tab" data-ms-tab="ai-engine">
+                            AI Engine
+                            <span class="text-[9px] opacity-60 ml-1">(${llmCount})</span>
+                        </button>
                         <button class="tab" data-ms-tab="registry-json">Registry JSON</button>
                     </div>
 
                     <!-- Tab content -->
                     <div class="flex-1 overflow-auto p-6">
 
-                        <!-- Tab 1: Image Models -->
-                        <div class="ms-tab-panel" data-ms-panel="image-models">
+                        <!-- Tab: Image Studio -->
+                        <div class="ms-tab-panel" data-ms-panel="image-studio">
+                            <p class="text-[10px] text-brand-text-muted mb-3">Models used for 2D image generation, editing, and post-processing in Image Studio.</p>
                             <div id="ms-image-models" class="space-y-3">
                                 ${this._renderImageModels(reg)}
                             </div>
                         </div>
 
-                        <!-- Tab 2: Video Models -->
-                        <div class="ms-tab-panel hidden" data-ms-panel="video-models">
+                        <!-- Tab: Video Studio -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="video-studio">
+                            <p class="text-[10px] text-brand-text-muted mb-3">Models used for video generation in Video Studio.</p>
                             <div id="ms-video-models" class="space-y-3">
                                 ${this._renderVideoModels(reg)}
                             </div>
                         </div>
 
-                        <!-- Tab 3: LLM & Post-Processing -->
-                        <div class="ms-tab-panel hidden" data-ms-panel="llm-post">
+                        <!-- Tab: AI Engine -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="ai-engine">
+                            <p class="text-[10px] text-brand-text-muted mb-3">LLM models powering prompt enhancement, moderation, style analysis, Type Studio, and all AI-assisted features.</p>
                             <div class="space-y-6">
                                 <div>
-                                    <h3 class="text-sm font-semibold text-brand-accent uppercase tracking-wider mb-3">AI / LLM Models</h3>
+                                    <h3 class="text-sm font-semibold text-brand-accent uppercase tracking-wider mb-3">LLM Categories</h3>
                                     <div class="space-y-3">
-                                        ${Object.entries(reg.categories || {}).map(([name, cat]) => this._renderCategory(name, cat)).join('')}
+                                        ${Object.entries(reg.categories || {}).filter(([name]) => name !== 'custom_llms').map(([name, cat]) => this._renderCategory(name, cat)).join('')}
                                     </div>
                                 </div>
+                                ${this._renderCustomLLMs(reg)}
                                 <div>
                                     <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-3">Post-Processing</h3>
                                     <div class="space-y-3">
@@ -105,7 +123,7 @@
                             </div>
                         </div>
 
-                        <!-- Tab 3: Raw Registry JSON -->
+                        <!-- Tab: Registry JSON -->
                         <div class="ms-tab-panel hidden" data-ms-panel="registry-json">
                             <p class="text-xs text-brand-text-muted mb-2">Raw model_registry.json — edit carefully. Invalid JSON will be rejected.</p>
                             <textarea id="ms-json-editor" class="w-full h-[50vh] font-mono text-xs p-3 rounded-lg bg-brand-bg border border-brand-border text-brand-text resize-none" spellcheck="false">${this._esc(JSON.stringify(reg, null, 2))}</textarea>
@@ -121,6 +139,13 @@
 
             document.body.appendChild(modal);
             this._attachEvents(modal);
+        },
+
+        _sourceBadge(model) {
+            const source = model.model_source || 'foundation';
+            if (source === 'custom') return '<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>';
+            if (source === 'imported') return '<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>';
+            return '';
         },
 
         _renderImageModels(reg) {
@@ -185,6 +210,7 @@
             const quality = (m.quality_options || []).map(q => q.label).join(' / ') || 'No tiers';
             const price = m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : 'unknown';
             const strictColor = m.moderation_strictness === 'very_strict' ? 'text-red-400' : m.moderation_strictness === 'strict' ? 'text-amber-400' : 'text-emerald-400';
+            const sourceBadge = this._sourceBadge(m);
 
             return `
                     <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-50'}" data-image-model="${key}">
@@ -196,6 +222,7 @@
                                 </label>
                                 <span class="text-sm font-medium">${this._esc(m.label || key)}</span>
                                 <span class="text-[10px] text-brand-text-muted">${this._esc(m.provider || '')}</span>
+                                ${sourceBadge}
                             </div>
                             <span class="${strictColor} text-[10px]">${m.moderation_strictness || ''}</span>
                         </div>
@@ -257,6 +284,7 @@
                 const enabled = m.enabled !== false;
                 const regions = m.available_regions || [m.region].filter(Boolean);
                 const price = m.base_price_per_second_usd ? `$${m.base_price_per_second_usd}/sec` : '';
+                const sourceBadge = this._sourceBadge(m);
                 return `
                     <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${!enabled ? 'opacity-50' : ''}" data-video-key="${key}">
                         <div class="flex items-center justify-between mb-2">
@@ -267,6 +295,7 @@
                                 </label>
                                 <span class="text-sm font-medium">${this._esc(m.label || key)}</span>
                                 <span class="text-[10px] text-brand-text-muted">${this._esc(m.provider || '')}</span>
+                                ${sourceBadge}
                             </div>
                             <div class="flex items-center gap-1.5">
                                 ${price ? `<span class="badge badge-indigo">${price}</span>` : ''}
@@ -300,6 +329,46 @@
                         <input type="text" class="ms-cat-model input text-xs flex-1 font-mono" value="${this._esc(cat.current || '')}" data-cat="${name}" placeholder="Model ID" />
                         <input type="text" class="ms-cat-region input text-xs w-28" value="${this._esc(cat.region || '')}" data-cat="${name}" placeholder="Region" />
                         <button class="ms-cat-save btn btn-primary btn-sm text-xs" data-cat="${name}">Save</button>
+                    </div>
+                </div>
+            `;
+        },
+
+        _renderCustomLLMs(reg) {
+            const customLLMs = (reg.categories || {}).custom_llms;
+            if (!customLLMs || !customLLMs.models || Object.keys(customLLMs.models).length === 0) {
+                return '';
+            }
+            const models = customLLMs.models;
+            return `
+                <div>
+                    <h3 class="text-sm font-semibold text-purple-400 uppercase tracking-wider mb-3">Custom & Imported LLMs</h3>
+                    <p class="text-[10px] text-brand-text-muted mb-2">Fine-tuned and imported text models discovered from your AWS account. Set one as the active LLM in a category above to use it.</p>
+                    <div class="space-y-2">
+                        ${Object.entries(models).map(([key, m]) => {
+                            const source = m.model_source || 'custom';
+                            const badge = source === 'imported'
+                                ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>'
+                                : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>';
+                            const enabledBadge = m.enabled
+                                ? '<span class="text-[9px] text-emerald-400">Ready</span>'
+                                : '<span class="text-[9px] text-amber-400">Needs provisioned throughput</span>';
+                            return `
+                                <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-60'}">
+                                    <div class="flex items-center gap-2 mb-1">
+                                        <span class="text-sm font-medium">${this._esc(m.label || key)}</span>
+                                        ${badge}
+                                        ${enabledBadge}
+                                    </div>
+                                    <div class="grid grid-cols-2 gap-x-4 text-[10px] text-brand-text-muted">
+                                        <span>Model ID: <span class="font-mono text-brand-text/70 break-all">${this._esc((m.model_id || '').slice(-40))}</span></span>
+                                        <span>Region: <span class="text-brand-text/70">${this._esc(m.region || '')}</span></span>
+                                        ${m.architecture ? `<span>Architecture: <span class="text-brand-text/70">${this._esc(m.architecture)}</span></span>` : ''}
+                                        ${m.customization_type ? `<span>Type: <span class="text-brand-text/70">${this._esc(m.customization_type)}</span></span>` : ''}
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
                     </div>
                 </div>
             `;
@@ -344,7 +413,7 @@
             // Refresh All
             modal.querySelector('#ms-refresh-all')?.addEventListener('click', async () => {
                 if (this._refreshing) return;
-                if (!confirm('This will scan all AWS Bedrock regions for available models and fetch pricing data. This makes multiple AWS API calls and may take 30-60 seconds.\n\nRun this only when:\n• Setting up for the first time\n• AWS has released new models\n• You need updated pricing\n\nContinue?')) return;
+                if (!confirm('This will scan all AWS Bedrock regions for foundation, custom, and imported models, and fetch pricing data.\n\nThis makes multiple AWS API calls and may take 30-60 seconds.\n\nRun this only when:\n\u2022 Setting up for the first time\n\u2022 AWS has released new models\n\u2022 You\u2019ve created or imported custom models\n\u2022 You need updated pricing\n\nContinue?')) return;
                 this._refreshing = true;
                 const btn = modal.querySelector('#ms-refresh-all');
                 btn.disabled = true;
@@ -352,8 +421,9 @@
 
                 try {
                     const result = await API.admin.refreshAll();
+                    const customMsg = result.total_custom > 0 ? `, ${result.total_custom} custom/imported` : '';
                     window.showToast?.(
-                        `Refreshed: ${result.regions_scanned} regions, ${result.total_new} new models, ${result.total_updated} updated` +
+                        `Refreshed: ${result.regions_scanned} regions, ${result.total_new} new models, ${result.total_updated} updated${customMsg}` +
                         (result.disabled?.length ? `, ${result.disabled.length} disabled` : ''),
                         'success', 6000
                     );
@@ -496,15 +566,12 @@
                     if (!parsed.categories || !parsed.image_models) {
                         throw new Error('Missing required keys: categories, image_models');
                     }
-                    // Save via a full registry write
-                    // We'll use a PUT-style approach: update every section
                     const resp = await fetch('/api/admin/models', {
                         method: 'PUT',
                         headers: { 'Content-Type': 'application/json' },
                         body: jsonEditor.value,
                     });
                     if (!resp.ok) {
-                        // PUT may not be supported — fall back to info
                         jsonStatus.textContent = 'Direct JSON save requires PUT /api/admin/models (not yet implemented). Use individual edit fields instead.';
                         jsonStatus.className = 'text-[10px] text-amber-400';
                         return;
