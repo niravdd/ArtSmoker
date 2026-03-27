@@ -44,4 +44,8 @@ async def transcribe_audio_endpoint(file: UploadFile):
         ) from exc
 
     logger.info("Transcription complete: %d chars", len(text))
+
+    from backend.services.telemetry import track_voice_transcription
+    track_voice_transcription()
+
     return {"text": text}

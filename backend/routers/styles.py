@@ -454,4 +454,8 @@ async def analyze_style_endpoint(style_id: str):
     store.save_style_profile(style_id, updated_profile.model_dump(mode="json"))
 
     logger.info("Style analysis complete for '%s'.", style_id)
+
+    from backend.services.telemetry import track_style_analysis
+    track_style_analysis(num_images=len(profile.reference_images))
+
     return updated_profile

@@ -544,10 +544,10 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         cost_breakdown=cost_breakdown,
     )
 
-    # Send accurate cost to telemetry (replaces the estimate sent at stream start)
-    from backend.services.telemetry import _track
-    _track("generation_cost", cost_usd=actual_cost, model=body.image_model,
-           breakdown=json.dumps(cost_breakdown, default=str))
+    # Send accurate cost to telemetry
+    from backend.services.telemetry import track_image_cost
+    track_image_cost(cost_usd=actual_cost, model=body.image_model,
+                     breakdown=json.dumps(cost_breakdown, default=str))
 
     emit({"type": "complete", "result": result.model_dump(mode="json")})
     return result
@@ -802,9 +802,9 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
         cost_breakdown=cost_breakdown,
     )
 
-    from backend.services.telemetry import _track
-    _track("generation_cost", cost_usd=actual_cost, model="all_models",
-           breakdown=json.dumps(cost_breakdown, default=str))
+    from backend.services.telemetry import track_image_cost
+    track_image_cost(cost_usd=actual_cost, model="all_models",
+                     breakdown=json.dumps(cost_breakdown, default=str))
 
     # Summary
     summary_parts = []

@@ -5,6 +5,16 @@ Fully opt-out: set ARTSMOKER_TELEMETRY=false to disable all tracking.
 
 No PII is collected. Only anonymous machine fingerprint, version, OS,
 and aggregate feature usage counters.
+
+Event naming convention: <studio/area>.<action>
+  system.*            — server lifecycle, frontend load, errors
+  image_studio.*      — 2D image generation, editing, post-processing, cost
+  video_studio.*      — video generation
+  type_studio.*       — text overlay generation
+  chat_studio.*       — LLM chat sessions
+  style_library.*     — style analysis
+  gallery.*           — gallery browsing
+  model_settings.*    — model registry admin
 """
 
 import logging
@@ -40,71 +50,70 @@ def _track(event: str, **props):
         _pb.track(event, **props)
 
 
-# ── Lifecycle Events ─────────────────────────────────────────────────
+# ── System Events ────────────────────────────────────────────────────
 
 def track_server_start():
-    _track("server_start")
+    _track("system.server_start")
 
 
 def track_server_stop():
-    _track("server_stop")
+    _track("system.server_stop")
 
-
-# ── Frontend Events ──────────────────────────────────────────────────
 
 def track_frontend_load(client_os: str = "", client_browser: str = "", screen: str = ""):
-    _track("frontend_load", client_os=client_os, client_browser=client_browser, screen=screen)
+    _track("system.frontend_load", client_os=client_os, client_browser=client_browser, screen=screen)
 
 
-# ── Generation Events ────────────────────────────────────────────────
+def track_error(error_type: str = "", message: str = ""):
+    _track("system.error", error_type=error_type, message=message[:200])
+
+
+# ── Image Studio Events ─────────────────────────────────────────────
 
 def track_image_generation(model: str = "", cost_usd: float = 0, num_options: int = 1,
                            num_variations: int = 1, duration_ms: float = 0):
-    _track("generate_2d_image", model=model, cost_usd=cost_usd,
+    """Image generation started. cost_usd=0 here — actual cost sent via track_image_cost."""
+    _track("image_studio.generate", model=model, cost_usd=0,
            num_options=num_options, num_variations=num_variations,
            duration_ms=duration_ms)
 
 
-def track_type_generation(duration_ms: float = 0):
-    _track("generate_type_text", duration_ms=duration_ms)
-
-
-def track_video_generation(model: str = "", cost_usd: float = 0, duration_seconds: int = 0):
-    _track("generate_video", model=model, cost_usd=cost_usd,
-           video_duration=duration_seconds)
+def track_image_cost(cost_usd: float = 0, model: str = "", breakdown: str = ""):
+    """Actual total cost for an image generation (LLM refinement + image model + post-processing)."""
+    _track("image_studio.cost", cost_usd=cost_usd, model=model, breakdown=breakdown)
 
 
 def track_image_edit(edit_type: str = "", model: str = "", cost_usd: float = 0):
-    _track("image_edit", edit_type=edit_type, model=model, cost_usd=cost_usd)
+    _track("image_studio.edit", edit_type=edit_type, model=model, cost_usd=cost_usd)
 
 
-# ── Feature Usage Events ─────────────────────────────────────────────
-
-def track_gallery_load():
-    _track("gallery_load")
-
-
-def track_model_settings_load():
-    _track("model_settings_load")
+def track_post_process(action: str = "", model: str = "", cost_usd: float = 0):
+    """Post-processing action (upscale, remove background)."""
+    _track("image_studio.post_process", action=action, model=model, cost_usd=cost_usd)
 
 
-def track_model_settings_refresh():
-    _track("model_settings_refresh")
-
-
-def track_style_analysis(num_images: int = 0):
-    _track("style_analysis", num_images=num_images)
+def track_prompt_refinement(cost_usd: float = 0):
+    _track("image_studio.prompt_preview", cost_usd=cost_usd)
 
 
 def track_voice_transcription():
-    _track("voice_transcription")
+    _track("image_studio.voice_input")
 
 
-def track_prompt_refinement():
-    _track("prompt_refinement")
+# ── Video Studio Events ─────────────────────────────────────────────
+
+def track_video_generation(model: str = "", cost_usd: float = 0, duration_seconds: int = 0):
+    _track("video_studio.generate", model=model, cost_usd=cost_usd,
+           video_duration=duration_seconds)
 
 
-# ── Chat Studio Events ───────────────────────────────────────────────
+# ── Type Studio Events ──────────────────────────────────────────────
+
+def track_type_generation(cost_usd: float = 0, duration_ms: float = 0):
+    _track("type_studio.generate", cost_usd=cost_usd, duration_ms=duration_ms)
+
+
+# ── Chat Studio Events ──────────────────────────────────────────────
 
 def track_chat_session(
     model: str = "", messages: int = 0, input_tokens: int = 0,
@@ -116,13 +125,29 @@ def track_chat_session(
     Fired when a user navigates away from a session — captures the full
     session's cost and usage in one event, avoiding per-message clutter.
     """
-    _track("chat_session", model=model, cost_usd=cost_usd,
+    _track("chat_studio.session", model=model, cost_usd=cost_usd,
            messages=messages, input_tokens=input_tokens,
            output_tokens=output_tokens, duration_seconds=duration_seconds,
            has_vision=has_vision, compacted=compacted)
 
 
-# ── Error Events ─────────────────────────────────────────────────────
+# ── Style Library Events ────────────────────────────────────────────
 
-def track_error(error_type: str = "", message: str = ""):
-    _track("error", error_type=error_type, message=message[:200])
+def track_style_analysis(num_images: int = 0, cost_usd: float = 0):
+    _track("style_library.analysis", num_images=num_images, cost_usd=cost_usd)
+
+
+# ── Gallery Events ──────────────────────────────────────────────────
+
+def track_gallery_load():
+    _track("gallery.load")
+
+
+# ── Model Settings Events ───────────────────────────────────────────
+
+def track_model_settings_load():
+    _track("model_settings.load")
+
+
+def track_model_settings_refresh():
+    _track("model_settings.sync_aws")

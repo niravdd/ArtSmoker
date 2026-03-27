@@ -46,4 +46,8 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
 
     negative = get_last_negative_prompt()
     logger.info("Prompt refined: %d chars -> %d chars (negative: %s)", len(body.prompt), len(refined), negative[:80] if negative else "none")
+
+    from backend.services.telemetry import track_prompt_refinement
+    track_prompt_refinement()
+
     return {"original": body.prompt, "refined": refined, "negative_prompt": negative or ""}
