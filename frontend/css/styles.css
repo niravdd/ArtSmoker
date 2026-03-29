@@ -28,6 +28,7 @@
 }
 
 body {
+    font-family: 'Inter', 'Noto Sans JP', 'Noto Sans SC', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
     scrollbar-color: var(--accent-muted) var(--surface);
 }
 

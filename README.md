@@ -6,6 +6,21 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
+## Language / 言語 / 语言 / 언어 / Langue / Idioma
+
+ArtSmoker supports 6 languages. Switch the UI language using the language buttons in the top navigation bar (EN | JA | ZH | KO | FR | ES). Your selection is saved automatically.
+
+| Language | README |
+|----------|--------|
+| English | This document |
+| 日本語 (Japanese) | [README.ja.md](README.ja.md) |
+| 中文 (Chinese) | [README.zh.md](README.zh.md) |
+| 한국어 (Korean) | [README.ko.md](README.ko.md) |
+| Français (French) | [README.fr.md](README.fr.md) |
+| Español (Spanish) | [README.es.md](README.es.md) |
+
+Non-English prompts are automatically detected and translated to English before generation. The original prompt, detected language, and translation are all preserved in the asset metadata.
+
 ## 📌 0. Overview
 
 A simple, artist-friendly interface for Amazon Bedrock's image and video generation models. ArtSmoker helps creative teams use Bedrock efficiently — without needing to learn the API, CLI, or prompt engineering.

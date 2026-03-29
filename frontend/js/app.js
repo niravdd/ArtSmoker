@@ -250,6 +250,28 @@
     };
 
     // ============================================================
+    //  Language Switcher
+    // ============================================================
+
+    function _renderLangSwitcher() {
+        const container = document.getElementById('lang-switcher');
+        if (!container || typeof I18n === 'undefined') return;
+
+        const current = I18n.getLang();
+        container.innerHTML = I18n.SUPPORTED_LANGS.map(l => {
+            const active = l.code === current;
+            return `<button class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${active
+                ? 'bg-brand-accent text-white'
+                : 'text-brand-text-muted hover:text-brand-text hover:bg-white/5'}" data-lang="${l.code}" title="${l.label}">${l.flag}</button>`;
+        }).join('');
+
+        container.addEventListener('click', (e) => {
+            const btn = e.target.closest('[data-lang]');
+            if (btn) I18n.setLang(btn.dataset.lang);
+        });
+    }
+
+    // ============================================================
     //  Mobile Menu Toggle
     // ============================================================
 
@@ -262,10 +284,32 @@
     //  Boot
     // ============================================================
 
-    if (!window.location.hash || window.location.hash === '#') {
-        window.location.hash = '#' + DEFAULT_ROUTE;
-    }
-    navigate();
+    // Initialize i18n, then navigate
+    (async function _boot() {
+        if (typeof I18n !== 'undefined') {
+            await I18n.init();
+            _renderLangSwitcher();
+            I18n.updateDOM(); // Translate static HTML elements
+            I18n.onChange(() => {
+                // On language change: update static HTML, re-render lang switcher,
+                // clear all cached views and re-navigate
+                I18n.updateDOM();
+                _renderLangSwitcher();
+                for (const route of Object.keys(_viewCache)) {
+                    _viewCache[route].remove();
+                    delete _viewCache[route];
+                    delete _viewInited[route];
+                }
+                currentRoute = null;
+                navigate();
+            });
+        }
+
+        if (!window.location.hash || window.location.hash === '#') {
+            window.location.hash = '#' + DEFAULT_ROUTE;
+        }
+        navigate();
+    })();
 
     // Fetch version from backend — store globally, apply to all views
     let _appVersion = '';

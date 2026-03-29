@@ -175,6 +175,8 @@ def _build_variant(
         "original_prompt": body.original_prompt,
         "moderation_original": body.moderation_original,
         "prompt": body.prompt,
+        "original_language": translation_result["source_lang"] if translation_result else "en",
+        "original_language_prompt": translation_result["original"] if translation_result and translation_result["was_translated"] else None,
         "refined_prompt": refined_prompt,
         "negative_prompt": negative_prompt,
         "style_id": body.style_id,
@@ -262,6 +264,19 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             "generation_hints": style_profile.generation_hints,
             "analyzed_style": style_profile.analyzed_style.model_dump() if style_profile.analyzed_style else None,
         }
+
+    # Translate non-English prompts to English before refinement
+    translation_result = None
+    try:
+        from backend.services.prompt_translator import translate_to_english
+        translation_result = translate_to_english(body.prompt)
+        if translation_result["was_translated"]:
+            logger.info("Prompt translated from %s to English: '%s' → '%s'",
+                        translation_result["source_lang"],
+                        body.prompt[:50], translation_result["translated"][:50])
+            body.prompt = translation_result["translated"]
+    except Exception as exc:
+        logger.warning("Prompt translation failed, using original: %s", exc)
 
     # Generate concept prompts (skip if pre-composed by the user)
     if body.pre_composed and n_opts == 1:
