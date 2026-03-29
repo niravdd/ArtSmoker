@@ -77,6 +77,10 @@
             if (typeof routeDef.component.onShow === 'function') {
                 routeDef.component.onShow();
             }
+            // Translate cached view if language changed
+            if (typeof I18n !== 'undefined' && I18n.isLoaded()) {
+                I18n.translateView(_viewCache[route]);
+            }
             return;
         }
 
@@ -94,6 +98,11 @@
             } catch (err) {
                 console.error(`Error initializing ${route}:`, err);
             }
+        }
+
+        // Translate the rendered view if not in English
+        if (typeof I18n !== 'undefined' && I18n.isLoaded()) {
+            I18n.translateView(wrapper);
         }
     }
 

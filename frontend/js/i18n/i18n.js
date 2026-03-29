@@ -70,6 +70,7 @@
             } else {
                 _strings = _fallback;
             }
+            _buildReverseLookup();
             _loaded = true;
         },
 
@@ -89,6 +90,7 @@
             } else {
                 _strings = await _loadLangFile(code);
             }
+            _buildReverseLookup();
 
             // Update the lang attribute for CSS selectors / font loading
             document.documentElement.lang = code;
@@ -135,6 +137,75 @@
             return {};
         }
     }
+
+    /**
+     * Build a reverse lookup: English text → translation key.
+     * Used for post-render DOM translation of component-generated HTML.
+     */
+    let _reverseLookup = null;  // English text → i18n key
+
+    function _buildReverseLookup() {
+        if (_currentLang === 'en') { _reverseLookup = null; return; }
+        _reverseLookup = {};
+        for (const [key, enText] of Object.entries(_fallback)) {
+            if (typeof enText === 'string' && enText.length > 1 && !/^\d+$/.test(enText)) {
+                _reverseLookup[enText] = key;
+            }
+        }
+    }
+
+    /**
+     * Translate component-rendered HTML by scanning text nodes and replacing
+     * known English strings with translations. Safe: only touches textContent,
+     * not structure or attributes.
+     *
+     * Call after a component renders: I18n.translateView(container)
+     */
+    window.I18n.translateView = function (container) {
+        if (!container || _currentLang === 'en' || !_reverseLookup) return;
+
+        // Translate text in elements with common UI roles
+        const selectors = 'h1,h2,h3,h4,h5,h6,p,span,label,button,a,option,summary,th,td';
+        container.querySelectorAll(selectors).forEach(el => {
+            // Skip elements with data-i18n (already handled)
+            if (el.dataset.i18n) return;
+            // Skip elements with children that are also text-bearing (avoid double-translating)
+            if (el.querySelector(selectors)) return;
+
+            const text = el.textContent.trim();
+            if (!text) return;
+
+            // Exact match
+            const key = _reverseLookup[text];
+            if (key && _strings[key]) {
+                el.textContent = _strings[key];
+                return;
+            }
+        });
+
+        // Translate placeholders
+        container.querySelectorAll('input[placeholder],textarea[placeholder]').forEach(el => {
+            const ph = el.placeholder;
+            if (!ph) return;
+            const key = _reverseLookup[ph];
+            if (key && _strings[key]) {
+                el.placeholder = _strings[key];
+            }
+        });
+
+        // Translate title attributes
+        container.querySelectorAll('[title]').forEach(el => {
+            const title = el.title;
+            if (!title) return;
+            const key = _reverseLookup[title];
+            if (key && _strings[key]) {
+                el.title = _strings[key];
+            }
+        });
+
+        // Also handle data-i18n attributes in dynamic content
+        I18n.updateDOM();
+    };
 
     /**
      * Flatten nested JSON into dot-notation keys.
