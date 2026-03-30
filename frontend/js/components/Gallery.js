@@ -121,6 +121,7 @@
                     <div id="gal-load-more" class="hidden text-center py-4">
                         <button id="btn-load-more" class="btn btn-secondary btn-sm">${t('gallery.load_more')}</button>
                     </div>
+                    <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-6">ArtSmoker</p>
                 </div>
             `;
         },

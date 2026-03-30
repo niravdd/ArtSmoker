@@ -57,6 +57,7 @@
                     <input id="cs-session-search" type="text" class="input text-[10px] w-full" placeholder="${t('chat_studio.search_sessions')}">
                 </div>
                 <div id="cs-session-list" class="flex-1 overflow-auto p-2 space-y-1"></div>
+                <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center py-2">ArtSmoker</p>
             </div>
 
             <!-- Main Chat Area -->

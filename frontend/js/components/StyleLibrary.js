@@ -95,6 +95,7 @@
                         </form>
                     </div>
                 </div>
+                <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-6">ArtSmoker</p>
             `;
         },
 
