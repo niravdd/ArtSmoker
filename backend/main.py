@@ -8,12 +8,19 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# Configure logging format with timestamp for all loggers
-logging.basicConfig(
-    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-    level=logging.INFO,
-)
+# Configure logging format with timestamp for ALL loggers (including uvicorn)
+_log_fmt = "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s"
+_log_datefmt = "%Y-%m-%d %H:%M:%S"
+logging.basicConfig(format=_log_fmt, datefmt=_log_datefmt, level=logging.INFO)
+
+# Override uvicorn's loggers to use the same format
+for _uv_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+    _uv_logger = logging.getLogger(_uv_name)
+    _uv_logger.handlers.clear()
+    _uv_handler = logging.StreamHandler()
+    _uv_handler.setFormatter(logging.Formatter(_log_fmt, datefmt=_log_datefmt))
+    _uv_logger.addHandler(_uv_handler)
+    _uv_logger.propagate = False
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
