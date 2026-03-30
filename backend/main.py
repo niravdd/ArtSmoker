@@ -8,18 +8,42 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-# Configure logging format with timestamp for ALL loggers (including uvicorn)
-_log_fmt = "%(asctime)s  %(levelname)-8s  %(name)s  %(message)s"
-_log_datefmt = "%Y-%m-%d %H:%M:%S"
-logging.basicConfig(format=_log_fmt, datefmt=_log_datefmt, level=logging.INFO)
+# ── Coloured logging with timestamps ──────────────────────────────────────
 
-# Override uvicorn's loggers to use the same format
+class _ColorFormatter(logging.Formatter):
+    """ANSI-coloured log formatter: dim timestamp, coloured level, muted module."""
+
+    RESET = "\033[0m"
+    DIM = "\033[2m"
+    BOLD = "\033[1m"
+    COLORS = {
+        logging.DEBUG:    "\033[36m",       # cyan
+        logging.INFO:     "\033[32m",       # green
+        logging.WARNING:  "\033[33m",       # yellow
+        logging.ERROR:    "\033[31m",       # red
+        logging.CRITICAL: "\033[1;31m",     # bold red
+    }
+
+    def format(self, record):
+        color = self.COLORS.get(record.levelno, self.RESET)
+        ts = self.formatTime(record, self.datefmt)
+        level = record.levelname.ljust(8)
+        name = record.name
+        msg = record.getMessage()
+        return f"{self.DIM}{ts}{self.RESET}  {color}{self.BOLD}{level}{self.RESET}  {self.DIM}{name}{self.RESET}  {msg}"
+
+_log_datefmt = "%Y-%m-%d %H:%M:%S"
+_color_handler = logging.StreamHandler()
+_color_handler.setFormatter(_ColorFormatter(datefmt=_log_datefmt))
+
+# Apply to root logger
+logging.root.setLevel(logging.INFO)
+logging.root.handlers = [_color_handler]
+
+# Override uvicorn's loggers to use the same coloured format
 for _uv_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
     _uv_logger = logging.getLogger(_uv_name)
-    _uv_logger.handlers.clear()
-    _uv_handler = logging.StreamHandler()
-    _uv_handler.setFormatter(logging.Formatter(_log_fmt, datefmt=_log_datefmt))
-    _uv_logger.addHandler(_uv_handler)
+    _uv_logger.handlers = [_color_handler]
     _uv_logger.propagate = False
 
 from fastapi import FastAPI, Request
