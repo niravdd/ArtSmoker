@@ -286,7 +286,15 @@
             const typeLabel = TYPE_LABELS[meta.asset_type] || meta.asset_type || 'N/A';
 
             container.innerHTML = `
-                ${meta.original_prompt ? `
+                ${meta.original_language_prompt ? `
+                <div>
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_original_prompt')} <span class="text-[9px] text-brand-accent font-normal">(${this._esc(meta.original_language || '?')})</span></label>
+                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.original_language_prompt)}</p>
+                </div>
+                <div>
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_original_prompt')} <span class="text-[9px] text-emerald-400/70 font-normal">(English)</span></label>
+                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.original_prompt || meta.prompt)}</p>
+                </div>` : meta.original_prompt ? `
                 <div>
                     <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_original_prompt')}</label>
                     <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.original_prompt)}</p>
