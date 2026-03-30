@@ -8,6 +8,13 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
+# Configure logging format with timestamp for all loggers
+logging.basicConfig(
+    format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+    level=logging.INFO,
+)
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
