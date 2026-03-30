@@ -35,8 +35,20 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
         style_profile = StyleProfile(**data)
         logger.info("Loaded style profile '%s' for prompt refinement.", body.style_id)
 
+    # Translate non-English prompt before refinement
+    prompt_to_refine = body.prompt
+    original_language = "en"
     try:
-        refined = refine_prompt(body.prompt, style_profile, body.asset_type, image_model=body.image_model)
+        from backend.services.prompt_translator import translate_to_english
+        tr = translate_to_english(body.prompt)
+        original_language = tr["source_lang"]
+        if tr["was_translated"]:
+            prompt_to_refine = tr["translated"]
+    except Exception:
+        pass
+
+    try:
+        refined = refine_prompt(prompt_to_refine, style_profile, body.asset_type, image_model=body.image_model)
     except Exception as exc:
         logger.exception("Prompt refinement failed.")
         raise HTTPException(

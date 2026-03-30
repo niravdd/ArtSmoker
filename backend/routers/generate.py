@@ -65,6 +65,16 @@ def _get_model_region(model_key) -> str:
 
 
 def _slugify_prompt(prompt: str, max_len: int = 40) -> str:
+    """Create a filesystem-safe slug from a prompt. Translates non-English text first."""
+    # If prompt contains non-ASCII, translate to English for a meaningful slug
+    if any(ord(c) > 127 for c in prompt):
+        try:
+            from backend.services.prompt_translator import translate_to_english
+            result = translate_to_english(prompt)
+            if result["was_translated"]:
+                prompt = result["translated"]
+        except Exception:
+            pass  # Fall through to slugify whatever we have
     slug = prompt.lower().strip()
     slug = re.sub(r"[^\w\s-]", "", slug)
     slug = re.sub(r"[\s_]+", "-", slug)
@@ -616,6 +626,18 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
             "analyzed_style": style_profile.analyzed_style.model_dump() if style_profile.analyzed_style else None,
         }
 
+    # Translate non-English prompts to English
+    translation_result = None
+    try:
+        from backend.services.prompt_translator import translate_to_english
+        translation_result = translate_to_english(body.prompt)
+        if translation_result["was_translated"]:
+            logger.info("All-models: translated %s → English: '%s'",
+                        translation_result["source_lang"], translation_result["translated"][:50])
+            body.prompt = translation_result["translated"]
+    except Exception as exc:
+        logger.warning("Prompt translation failed in all-models, using original: %s", exc)
+
     # Generate prompts — one shared prompt or one per model
     emit({"type": "stage", "stage": "prompts",
           "message": f"Creating prompts for {n_models} models..."})
@@ -985,6 +1007,32 @@ async def edit_image(body: ImageEditRequest):
         if body.outpaint_down > 0:
             extra["down"] = body.outpaint_down
 
+    # Translate non-English edit prompts
+    if body.prompt:
+        try:
+            from backend.services.prompt_translator import translate_to_english
+            tr = translate_to_english(body.prompt)
+            if tr["was_translated"]:
+                body.prompt = tr["translated"]
+        except Exception:
+            pass
+    if body.search_prompt:
+        try:
+            from backend.services.prompt_translator import translate_to_english
+            tr = translate_to_english(body.search_prompt)
+            if tr["was_translated"]:
+                body.search_prompt = tr["translated"]
+        except Exception:
+            pass
+    if body.select_prompt:
+        try:
+            from backend.services.prompt_translator import translate_to_english
+            tr = translate_to_english(body.select_prompt)
+            if tr["was_translated"]:
+                body.select_prompt = tr["translated"]
+        except Exception:
+            pass
+
     logger.info("Image edit: model=%s purpose=%s source=%s prompt=%s",
                 body.model, purpose, body.source_image_id, body.prompt[:50] if body.prompt else "(none)")
 
@@ -1129,10 +1177,20 @@ async def pre_screen_prompt(body: PreScreenRequest):
     model_labels = get_enabled_model_labels()
     model_label = model_labels.get(body.image_model, body.image_model)
 
+    # Translate non-English prompt for consistent moderation
+    prompt_for_screen = body.prompt
+    try:
+        from backend.services.prompt_translator import translate_to_english
+        tr = translate_to_english(body.prompt)
+        if tr["was_translated"]:
+            prompt_for_screen = tr["translated"]
+    except Exception:
+        pass
+
     screen_prompt = f"""You are a content moderation analyst for AI image generation models.
 
 Analyze this prompt for the model "{model_label}":
-"{body.prompt}"
+"{prompt_for_screen}"
 
 Model strictness levels:
 - Nova Canvas: VERY strict — blocks weapons, combat, fighting, copyrighted IP, aggressive poses

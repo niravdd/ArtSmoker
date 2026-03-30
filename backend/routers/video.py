@@ -75,6 +75,20 @@ async def generate_video(req: VideoGenerateRequest):
     if not prompt:
         raise HTTPException(400, detail="Prompt is required")
 
+    # Translate non-English prompts to English
+    original_language_prompt = None
+    original_language = "en"
+    try:
+        from backend.services.prompt_translator import translate_to_english
+        tr = translate_to_english(prompt)
+        original_language = tr["source_lang"]
+        if tr["was_translated"]:
+            original_language_prompt = prompt
+            prompt = tr["translated"]
+            logger.info("Video: translated %s → English: '%s'", original_language, prompt[:50])
+    except Exception as exc:
+        logger.warning("Video prompt translation failed: %s", exc)
+
     # Enhance prompt via LLM for better video results
     enhanced_prompt = prompt
     negative_concepts = ""
@@ -123,6 +137,8 @@ async def generate_video(req: VideoGenerateRequest):
         raise HTTPException(502, detail=f"Bedrock async invoke failed: {exc}")
 
     job["original_prompt"] = prompt
+    job["original_language"] = original_language
+    job["original_language_prompt"] = original_language_prompt
     job["enhanced_prompt"] = enhanced_prompt
     job["negative_concepts"] = negative_concepts
     _active_jobs[job["job_id"]] = job
