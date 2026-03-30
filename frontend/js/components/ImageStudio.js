@@ -9,11 +9,11 @@
     'use strict';
 
     const ASSET_TYPES = [
-        { value: 'game_asset', label: 'Game Asset' },
-        { value: 'marketing_banner', label: 'Marketing Banner' },
-        { value: 'icon', label: 'Icon' },
-        { value: 'character', label: 'Character' },
-        { value: 'environment', label: 'Environment' },
+        { value: 'game_asset', labelKey: 'image_studio.asset_type_game' },
+        { value: 'marketing_banner', labelKey: 'image_studio.asset_type_banner' },
+        { value: 'icon', labelKey: 'image_studio.asset_type_icon' },
+        { value: 'character', labelKey: 'image_studio.asset_type_character' },
+        { value: 'environment', labelKey: 'image_studio.asset_type_environment' },
     ];
 
     // Fallback models — used only if API fetch fails on first render.
@@ -77,7 +77,7 @@
                                 <div>
                                     <label class="block text-sm font-medium mb-1.5">${t('image_studio.asset_type')}</label>
                                     <select id="gen-asset-type" class="input">
-                                        ${ASSET_TYPES.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
+                                        ${ASSET_TYPES.map(at => `<option value="${at.value}">${t(at.labelKey)}</option>`).join('')}
                                     </select>
                                 </div>
 
@@ -92,15 +92,15 @@
                                     <div id="gen-all-models-opts" class="hidden mt-2 p-2 rounded-lg bg-brand-bg/50 space-y-1.5">
                                         <label class="flex items-center gap-2 text-xs text-brand-text-muted cursor-pointer">
                                             <input type="checkbox" id="gen-model-optimized" class="rounded" />
-                                            Model-optimized prompts
+                                            ${t('image_studio.model_optimized_prompts')}
                                         </label>
-                                        <p class="text-[10px] text-brand-text-dim">When on, each model gets a prompt tailored to its strengths. When off, all models receive the same prompt for direct comparison.</p>
+                                        <p class="text-[10px] text-brand-text-dim">${t('image_studio.model_optimized_desc')}</p>
                                         <p id="gen-all-models-info" class="text-[10px] text-emerald-400/70"></p>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.aspect_ratio')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.dimensions')}</label>
                                     <select id="gen-size" class="input">
                                         ${SIZE_PRESETS.map((s, i) => `<option value="${i}" ${i === 2 ? 'selected' : ''}>${s.label}</option>`).join('')}
                                     </select>
@@ -109,8 +109,8 @@
                                 <!-- Advanced: Quality + Region (collapsible) -->
                                 <details id="gen-advanced-section" class="group">
                                     <summary class="text-xs font-medium text-brand-text-muted cursor-pointer hover:text-brand-text transition-colors select-none">
-                                        <span class="group-open:hidden">\u25B8 Advanced (quality, region)</span>
-                                        <span class="hidden group-open:inline">\u25BE Advanced</span>
+                                        <span class="group-open:hidden">\u25B8 ${t('image_studio.advanced_expand')}</span>
+                                        <span class="hidden group-open:inline">\u25BE ${t('image_studio.advanced_collapse')}</span>
                                     </summary>
                                     <div class="mt-2 space-y-3 p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border/50">
                                         <div>
@@ -120,9 +120,9 @@
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">${t('common.region')}</label>
+                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">${t('image_studio.region')}</label>
                                             <select id="gen-region" class="input text-xs">
-                                                <option value="">${t('common.default')}</option>
+                                                <option value="">${t('image_studio.region_auto')}</option>
                                             </select>
                                         </div>
                                     </div>
@@ -138,14 +138,14 @@
                                         <select id="gen-num-options" class="input">
                                             ${COUNT_OPTIONS.map(n => `<option value="${n}" ${n === 5 ? 'selected' : ''}>${n}</option>`).join('')}
                                         </select>
-                                        <p class="text-[10px] text-brand-text-muted mt-0.5">Different designs</p>
+                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${t('image_studio.different_designs')}</p>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium mb-1.5">${t('image_studio.num_variations') || 'Variations'}</label>
+                                        <label class="block text-sm font-medium mb-1.5">${t('image_studio.num_variations')}</label>
                                         <select id="gen-num-variations" class="input">
                                             ${COUNT_OPTIONS.map(n => `<option value="${n}" ${n === 5 ? 'selected' : ''}>${n}</option>`).join('')}
                                         </select>
-                                        <p class="text-[10px] text-brand-text-muted mt-0.5">Per option</p>
+                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${t('image_studio.per_option')}</p>
                                     </div>
                                 </div>
 
@@ -157,20 +157,20 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                     </svg>
-                                    ${t('asset_viewer.meta_ip_declaration') || 'Intellectual Property (IP) Declaration'}
+                                    ${t('image_studio.ip_declaration')}
                                 </h2>
                                 <div class="space-y-2">
                                     <label class="flex items-start gap-2 cursor-pointer">
                                         <input type="checkbox" id="gen-ip-own" class="mt-0.5 rounded border-brand-border bg-brand-bg text-brand-accent focus:ring-brand-accent">
-                                        <span class="text-xs text-brand-text/80">I/We own this IP</span>
+                                        <span class="text-xs text-brand-text/80">${t('image_studio.ip_own')}</span>
                                     </label>
                                     <label class="flex items-start gap-2 cursor-pointer">
                                         <input type="checkbox" id="gen-ip-license" class="mt-0.5 rounded border-brand-border bg-brand-bg text-brand-accent focus:ring-brand-accent">
-                                        <span class="text-xs text-brand-text/80">I/We have a license for this IP</span>
+                                        <span class="text-xs text-brand-text/80">${t('image_studio.ip_license')}</span>
                                     </label>
                                 </div>
                                 <div id="gen-ip-model-note" class="hidden p-2 rounded-lg bg-amber-950/20 border border-amber-500/20 text-[10px] text-amber-300/80"></div>
-                                <p class="text-[10px] text-brand-text-muted/50">Declaring IP ownership helps when strict models (like Nova Canvas) block content that references known franchises or characters. Some models are more permissive with licensed content.</p>
+                                <p class="text-[10px] text-brand-text-muted/50">${t('image_studio.ip_help')}</p>
 
                                 <!-- Prompt Pre-Check (within IP section) -->
                                 <div class="flex items-center justify-between pt-2 border-t border-brand-border/30">
@@ -178,11 +178,11 @@
                                         <svg class="w-3.5 h-3.5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                                         </svg>
-                                        <label class="text-xs font-medium">${t('image_studio.pre_check')}</label>
+                                        <label class="text-xs font-medium">${t('image_studio.pre_check_label')}</label>
                                     </div>
                                     <label class="toggle"><input type="checkbox" id="gen-precheck" checked><span class="toggle-slider"></span></label>
                                 </div>
-                                <p class="text-[10px] text-brand-text-muted/50 -mt-1">Pre-screens your prompt for moderation issues before generating. Suggests a better-suited model if needed.</p>
+                                <p class="text-[10px] text-brand-text-muted/50 -mt-1">${t('image_studio.pre_check_help')}</p>
                             </div>
 
                             <!-- Model Settings -->
@@ -204,15 +204,15 @@
                                 </h2>
                                 <div class="space-y-3">
                                     <div class="flex items-center justify-between">
-                                        <label class="text-sm">Remove Background</label>
+                                        <label class="text-sm">${t('image_studio.remove_bg')}</label>
                                         <label class="toggle"><input type="checkbox" id="gen-remove-bg"><span class="toggle-slider"></span></label>
                                     </div>
                                     <div class="flex items-center justify-between">
-                                        <label class="text-sm">Convert to SVG</label>
+                                        <label class="text-sm">${t('image_studio.convert_svg')}</label>
                                         <label class="toggle"><input type="checkbox" id="gen-svg" checked><span class="toggle-slider"></span></label>
                                     </div>
                                     <div class="flex items-center justify-between">
-                                        <label class="text-sm">Upscale</label>
+                                        <label class="text-sm">${t('image_studio.upscale')}</label>
                                         <label class="toggle"><input type="checkbox" id="gen-upscale"><span class="toggle-slider"></span></label>
                                     </div>
                                 </div>
@@ -220,12 +220,12 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                     </svg>
-                                    Apply to Current Results
+                                    ${t('image_studio.pp_apply')}
                                 </button>
-                                <p id="pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">Toggle settings above, then click Apply to re-process existing images without regenerating.</p>
+                                <p id="pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">${t('image_studio.pp_hint')}</p>
                             </div>
 
-                            <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-4">ArtSmoker</p>
+                            <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-4">${t('app.version_prefix')}</p>
                         </aside>
 
                         <!-- Center: Prompt + Results -->
@@ -237,7 +237,7 @@
                                     <svg class="w-5 h-5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                     </svg>
-                                    Prompt
+                                    ${t('common.prompt')}
                                 </h2>
                                 <div id="prompt-editor-container"></div>
                             </div>
@@ -261,15 +261,15 @@
                             <!-- Prompt info (original + AI-improved + negative) -->
                             <div id="gen-prompt-info" class="hidden card-static p-4 space-y-3">
                                 <div id="gen-original-prompt-section">
-                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">Original prompt</p>
+                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">${t('image_studio.original_prompt_label')}</p>
                                     <p id="gen-original-prompt-text" class="text-sm text-brand-text/80 leading-relaxed"></p>
                                 </div>
                                 <div id="gen-used-prompt-section">
-                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">AI-improved prompt (sent to generator)</p>
+                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">${t('image_studio.enhanced_prompt_label')}</p>
                                     <p id="gen-used-prompt-text" class="text-sm text-brand-text/60 leading-relaxed"></p>
                                 </div>
                                 <div id="gen-negative-prompt-section" class="hidden">
-                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1">Negative prompt (exclusions sent to model)</p>
+                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1">${t('image_studio.negative_prompt_exclusions')}</p>
                                     <p id="gen-negative-prompt-text" class="text-sm text-amber-300/60 leading-relaxed italic"></p>
                                 </div>
                                 <div id="gen-cost-breakdown" class="hidden p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/20">
@@ -280,16 +280,16 @@
                                     <div id="gen-cost-details" class="text-[10px] text-emerald-300/60 space-y-0.5"></div>
                                 </div>
                                 <div id="gen-rewrite-disclaimer" class="hidden p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
-                                    <p class="text-[10px] text-amber-300/80"><strong>Rewritten prompt:</strong> The enhanced prompt above was rewritten to address moderation concerns with the selected model. This rewrite is an attempt to make the prompt compatible — it is still subject to the model's own moderation assessment and may be rejected. Please review the enhanced prompt and edit if needed before generating.</p>
+                                    <p class="text-[10px] text-amber-300/80"><strong>${t('image_studio.rewritten_prompt_note')}</strong> ${t('image_studio.rewrite_disclaimer_text')}</p>
                                 </div>
                             </div>
 
                             <!-- Concept prompt display -->
                             <div id="gen-concept-prompt" class="hidden card-static p-3 space-y-2">
-                                <p id="gen-concept-prompt-label" class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold">Generated prompt</p>
+                                <p id="gen-concept-prompt-label" class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold">${t('image_studio.generated_prompt')}</p>
                                 <p id="gen-concept-prompt-text" class="text-xs text-brand-text/70 leading-relaxed"></p>
                                 <div id="gen-concept-negative" class="hidden">
-                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-0.5">Negative prompt</p>
+                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-0.5">${t('image_studio.negative_prompt_label')}</p>
                                     <p id="gen-concept-negative-text" class="text-xs text-amber-300/60 italic leading-relaxed"></p>
                                 </div>
                             </div>
@@ -298,7 +298,7 @@
                             <div id="gen-options-section" class="hidden">
                                 <div class="flex items-center justify-between mb-2">
                                     <h3 id="gen-options-header" class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
-                                        Options — different designs
+                                        ${t('image_studio.options_header')}
                                     </h3>
                                     <span id="gen-options-count" class="text-xs text-brand-text-muted"></span>
                                 </div>
@@ -309,7 +309,7 @@
                             <div id="gen-variations-section" class="hidden">
                                 <div class="flex items-center justify-between mb-2">
                                     <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
-                                        Variations of selected option
+                                        ${t('image_studio.variations_header')}
                                     </h3>
                                     <span id="gen-variations-count" class="text-xs text-brand-text-muted"></span>
                                 </div>
@@ -323,11 +323,11 @@
                                         <svg class="w-16 h-16 mx-auto text-brand-text-muted/20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                         </svg>
-                                        <p class="text-brand-text-muted/40 text-sm">Your generated images will appear here</p>
+                                        <p class="text-brand-text-muted/40 text-sm">${t('image_studio.placeholder_text')}</p>
                                     </div>
                                     <div id="gen-loading" class="hidden absolute inset-0 bg-brand-bg/60 flex flex-col items-center justify-center gap-4 px-8">
                                         <div class="loading-spinner w-10 h-10 border-4 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                        <p id="gen-loading-text" class="text-sm text-brand-text-muted font-medium">Generating...</p>
+                                        <p id="gen-loading-text" class="text-sm text-brand-text-muted font-medium">${t('image_studio.generating')}</p>
                                         <p id="gen-loading-sub" class="text-xs text-brand-text-muted/60"></p>
                                         <div class="w-full max-w-xs mt-2">
                                             <div class="h-1.5 bg-brand-border rounded-full overflow-hidden">
@@ -336,7 +336,7 @@
                                             <p id="gen-loading-elapsed" class="text-[10px] text-brand-text-muted/40 text-center mt-1.5"></p>
                                         </div>
                                     </div>
-                                    <img id="gen-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="Generated image" />
+                                    <img id="gen-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="${t('image_studio.title')}" />
                                 </div>
 
                                 <!-- Download bar -->
@@ -487,7 +487,7 @@
             const previewImg = document.getElementById('gen-result-img');
             if (previewImg) previewImg.style.cursor = 'pointer';
             document.getElementById('btn-reset')?.addEventListener('click', async () => {
-                if (this._result && !await window.showConfirm('Reset the generator?', { title: 'Reset', detail: 'Current results will be cleared.', confirmLabel: 'Reset', danger: true })) return;
+                if (this._result && !await window.showConfirm(t('image_studio.reset_confirm'), { title: t('image_studio.reset'), detail: t('image_studio.reset_detail'), confirmLabel: t('image_studio.reset'), danger: true })) return;
                 window.resetView('image-studio');
             });
         },
@@ -547,7 +547,7 @@
         _updateQualityForModel(modelKey) {
             const qualSel = document.getElementById('gen-quality');
             if (!qualSel || modelKey === 'all_models') {
-                if (qualSel) { qualSel.innerHTML = '<option value="">Default</option>'; }
+                if (qualSel) { qualSel.innerHTML = `<option value="">${t('image_studio.quality_default')}</option>`; }
                 return;
             }
             const modelData = MODELS.find(m => m.value === modelKey);
@@ -558,13 +558,13 @@
             if (options.length === 0) {
                 const opt = document.createElement('option');
                 opt.value = '';
-                opt.textContent = 'Default (no tiers)';
+                opt.textContent = t('image_studio.quality_default_no_tiers');
                 qualSel.appendChild(opt);
             } else {
                 options.forEach(q => {
                     const opt = document.createElement('option');
                     opt.value = q.value;
-                    opt.textContent = q.value === defaultQ ? `${q.label} (default)` : q.label;
+                    opt.textContent = q.value === defaultQ ? `${q.label} (${t('common.default')})` : q.label;
                     if (q.value === defaultQ) opt.selected = true;
                     qualSel.appendChild(opt);
                 });
@@ -613,7 +613,7 @@
                 const numVars = parseInt(document.getElementById('gen-num-variations')?.value || '5', 10);
                 const total = numOpts * numVars;
                 const est = (price * total).toFixed(2);
-                costEl.textContent = `Est. cost: ~$${est} (${total} images \u00d7 $${price.toFixed(2)})`;
+                costEl.textContent = t('image_studio.est_cost_line').replace('{{est}}', est).replace('{{total}}', total).replace('{{price}}', price.toFixed(2));
             } else if (costEl) {
                 costEl.textContent = '';
             }
@@ -668,8 +668,8 @@
                 const auto = document.createElement('option');
                 auto.value = '';
                 auto.textContent = cheapest.price_usd != null
-                    ? `Auto \u2014 ${cheapest.region} ($${cheapest.price_usd.toFixed(2)}/img, cheapest)`
-                    : `Auto \u2014 ${cheapest.region}`;
+                    ? `${t('image_studio.region_auto')} \u2014 ${cheapest.region} ($${cheapest.price_usd.toFixed(2)}/img)`
+                    : `${t('image_studio.region_auto')} \u2014 ${cheapest.region}`;
                 regionSel.appendChild(auto);
                 regions.forEach(rp => {
                     const opt = document.createElement('option');
@@ -690,7 +690,7 @@
             const regionSel = document.getElementById('gen-region');
             if (!regionSel) return;
             const current = regionSel.value;
-            regionSel.innerHTML = '<option value="">All Regions</option>';
+            regionSel.innerHTML = `<option value="">${t('image_studio.region_all')}</option>`;
             (regions || []).forEach(r => {
                 const opt = document.createElement('option');
                 opt.value = r;
@@ -730,7 +730,7 @@
             // Get the user's raw prompt (always required)
             const userPrompt = this._promptEditor ? this._promptEditor.getUserText().trim() : '';
             if (!userPrompt) {
-                window.showToast?.('Enter a prompt before generating', 'warning');
+                window.showToast?.(t('image_studio.enter_prompt'), 'warning');
                 return;
             }
 
@@ -782,7 +782,7 @@
             this._skipPreCheck = false; // Reset flag after reading
             if (preCheckOn) {
                 try {
-                    window.showLoading?.('Pre-checking prompt...');
+                    window.showLoading?.(t('image_studio.pre_checking'));
                     const screen = await API.preScreen({
                         prompt: prompt,
                         image_model: payload.image_model,
@@ -831,12 +831,12 @@
                     // Track moderation blocks
                     if (evt.type === 'moderation_blocked') {
                         moderationBlocked = true;
-                        this._moderationErrors.push(evt.error || 'Content moderation blocked');
+                        this._moderationErrors.push(evt.error || t('image_studio.moderation_blocked'));
                     }
                     // Track prompt refusals (Claude declined to refine)
                     if (evt.type === 'prompt_refused') {
                         promptRefused = true;
-                        refusalReason = evt.reason || evt.message || 'The AI declined to process this prompt.';
+                        refusalReason = evt.reason || evt.message || t('image_studio.prompt_declined');
                     }
                     if (evt.type === 'image_error' && evt.error) {
                         const errLower = (evt.error || '').toLowerCase();
@@ -867,23 +867,23 @@
                     const totalModels = (result.options || []).length;
 
                     if (blocked.length > 0 || failed.length > 0) {
-                        const parts = [`${succeeded} of ${totalModels} models generated`];
+                        const parts = [t('image_studio.models_generated').replace('{{succeeded}}', succeeded).replace('{{total}}', totalModels)];
                         if (blocked.length > 0) {
-                            const names = blocked.map(o => o.model_label || 'Unknown').join(', ');
-                            parts.push(`${blocked.length} blocked (${names})`);
+                            const names = blocked.map(o => o.model_label || t('common.unknown')).join(', ');
+                            parts.push(t('image_studio.models_blocked').replace('{{count}}', blocked.length).replace('{{names}}', names));
                         }
-                        if (failed.length > 0) parts.push(`${failed.length} failed`);
+                        if (failed.length > 0) parts.push(t('image_studio.models_failed').replace('{{count}}', failed.length));
                         window.showToast?.(parts.join('. ') + '.', succeeded > 0 ? 'warning' : 'error', 8000);
                     } else {
-                        window.showToast?.(`All ${totalModels} models generated successfully!`, 'success');
+                        window.showToast?.(t('image_studio.all_models_success').replace('{{count}}', totalModels), 'success');
                     }
                 }
                 // Single-model moderation block
                 else if (moderationBlocked || (totalGenerated === 0 && this._moderationErrors.length > 0)) {
                     this._result = null;
-                    this._showModerationDialog(prompt, this._moderationErrors[0] || 'Content moderation blocked this prompt', payload);
+                    this._showModerationDialog(prompt, this._moderationErrors[0] || t('image_studio.moderation_blocked'), payload);
                 } else if (totalGenerated === 0) {
-                    window.showToast?.('All images failed to generate. Try a different prompt or model.', 'error');
+                    window.showToast?.(t('image_studio.all_failed'), 'error');
                 } else {
                     // Render results (full or partial)
                     this._result = result;
@@ -895,11 +895,11 @@
                     const costStr = result.total_cost_usd ? ` (Cost: $${result.total_cost_usd.toFixed(4)})` : '';
                     if (blocked > 0) {
                         window.showToast?.(
-                            `${totalGenerated} of ${totalGenerated + blocked} images generated. ${blocked} blocked by content moderation (seed-dependent).${costStr}`,
+                            t('image_studio.images_partial').replace('{{generated}}', totalGenerated).replace('{{total}}', totalGenerated + blocked).replace('{{blocked}}', blocked) + costStr,
                             'warning', 10000
                         );
                     } else {
-                        window.showToast?.(`${totalGenerated} images generated across ${(result.options || []).length} options!${costStr}`, 'success');
+                        window.showToast?.(t('image_studio.images_generated').replace('{{count}}', totalGenerated).replace('{{options}}', (result.options || []).length) + costStr, 'success');
                     }
 
                     // Show cost breakdown in prompt info section
@@ -911,9 +911,9 @@
                 console.error('Generation error:', err);
                 // If we had any moderation errors during the stream, show the dialog
                 if (this._moderationErrors.length > 0 || moderationBlocked) {
-                    this._showModerationDialog(prompt, this._moderationErrors[0] || 'Generation failed', payload);
+                    this._showModerationDialog(prompt, this._moderationErrors[0] || t('image_studio.generation_failed'), payload);
                 } else {
-                    window.showToast?.(err.message || 'Generation failed', 'error');
+                    window.showToast?.(err.message || t('image_studio.generation_failed'), 'error');
                 }
             } finally {
                 this._setGenerating(false);
@@ -922,7 +922,7 @@
 
         async _handlePostProcess() {
             if (!this._result) {
-                window.showToast?.('Generate images first', 'warning');
+                window.showToast?.(t('image_studio.generate_first'), 'warning');
                 return;
             }
 
@@ -934,7 +934,7 @@
                 }
             }
             if (assetIds.length === 0) {
-                window.showToast?.('No images to process', 'warning');
+                window.showToast?.(t('image_studio.no_images_process'), 'warning');
                 return;
             }
 
@@ -943,13 +943,13 @@
             const upscale = document.getElementById('gen-upscale').checked;
 
             if (!removeBg && !genSvg && !upscale) {
-                window.showToast?.('Enable at least one post-processing option', 'warning');
+                window.showToast?.(t('image_studio.enable_pp_option'), 'warning');
                 return;
             }
 
             const btn = document.getElementById('btn-apply-postprocess');
             const origHTML = btn.innerHTML;
-            btn.innerHTML = '<span class="spinner-sm"></span> Processing...';
+            btn.innerHTML = `<span class="spinner-sm"></span> ${t('image_studio.processing_btn')}`;
             btn.disabled = true;
 
             try {
@@ -960,7 +960,7 @@
                     upscale: upscale,
                 });
                 const count = (result.processed || []).length;
-                window.showToast?.(`Post-processing applied to ${count} image${count !== 1 ? 's' : ''}`, 'success');
+                window.showToast?.(t('image_studio.pp_applied').replace('{{count}}', count).replace('{{plural}}', count !== 1 ? 's' : ''), 'success');
 
                 // Refresh the preview to show updated images (cache-bust)
                 const img = document.getElementById('gen-result-img');
@@ -993,7 +993,7 @@
                         <svg class="w-6 h-6 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                         </svg>
-                        <h2 class="text-lg font-semibold text-amber-300">Content Moderation Issue</h2>
+                        <h2 class="text-lg font-semibold text-amber-300">${t('image_studio.content_moderation_issue')}</h2>
                         <button class="mod-close ml-auto p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1003,8 +1003,8 @@
                     <div class="flex-1 overflow-auto p-6" id="mod-content">
                         <div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
                             <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                            <p>Testing your prompt on alternative models...</p>
-                            <p class="text-[10px] text-brand-text-muted/50">Game art with weapons/combat often works on Stable Diffusion 3.5 even when Nova Canvas blocks it</p>
+                            <p>${t('image_studio.testing_alternative')}</p>
+                            <p class="text-[10px] text-brand-text-muted/50">${t('image_studio.alternative_hint')}</p>
                         </div>
                     </div>
                 </div>
@@ -1048,30 +1048,30 @@
                                     <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                     </svg>
-                                    <span class="text-sm font-semibold text-emerald-300">Your prompt works with ${this._escapeHtml(workingModelLabel)}</span>
+                                    <span class="text-sm font-semibold text-emerald-300">${t('image_studio.prompt_works_with').replace('{{model}}', this._escapeHtml(workingModelLabel))}</span>
                                 </div>
                                 <p class="text-sm text-brand-text/90 leading-relaxed">${this._escapeHtml(analysis.explanation)}</p>
                             </div>
 
                             ${hasIpClaim ? `
                             <div class="p-3 rounded-lg bg-brand-accent/10 border border-brand-accent/20 text-xs text-brand-text/80">
-                                <strong>IP Declaration noted:</strong>
-                                ${ipOwned ? ' You own this IP.' : ''}${ipLicensed ? ' You have a license for this IP.' : ''}
-                                <br>Note: ${this._escapeHtml(originalModelLabel)}'s content moderation is platform-enforced and cannot be bypassed regardless of IP ownership. The recommended model accepts your content as-is.
+                                <strong>${t('image_studio.ip_declaration_noted')}</strong>
+                                ${ipOwned ? ' ' + t('image_studio.ip_own_noted') : ''}${ipLicensed ? ' ' + t('image_studio.ip_license_noted') : ''}
+                                <br>${t('image_studio.ip_moderation_note').replace('{{model}}', this._escapeHtml(originalModelLabel))}
                             </div>` : ''}
 
-                            <p class="text-xs text-brand-text-muted">Your prompt is preserved exactly as-is — no changes needed.${!hasIpClaim ? ' This is common for game art with weapons, combat poses, and action scenes.' : ''}</p>
+                            <p class="text-xs text-brand-text-muted">${!hasIpClaim ? t('image_studio.prompt_preserved_game') : t('image_studio.prompt_preserved')}</p>
 
                             ${!hasIpClaim ? `
                             <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border space-y-2">
-                                <p class="text-[10px] text-brand-text-muted font-medium">If this content references IP you own or are licensed to use:</p>
+                                <p class="text-[10px] text-brand-text-muted font-medium">${t('image_studio.ip_reference_hint')}</p>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" id="mod-ip-own" class="rounded border-brand-border bg-brand-bg text-brand-accent">
-                                    <span class="text-xs text-brand-text/80">I/We own this IP</span>
+                                    <span class="text-xs text-brand-text/80">${t('image_studio.ip_own')}</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" id="mod-ip-license" class="rounded border-brand-border bg-brand-bg text-brand-accent">
-                                    <span class="text-xs text-brand-text/80">I/We have a license for this IP</span>
+                                    <span class="text-xs text-brand-text/80">${t('image_studio.ip_license')}</span>
                                 </label>
                             </div>` : ''}
 
@@ -1080,15 +1080,15 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                     </svg>
-                                    Generate with ${this._escapeHtml(workingModelLabel)}
+                                    ${t('image_studio.generate_with').replace('{{model}}', this._escapeHtml(workingModelLabel))}
                                 </button>
                                 <button id="mod-rewrite-instead" class="btn btn-secondary btn-sm">
-                                    Rewrite for ${this._escapeHtml(originalModelLabel)}
+                                    ${t('image_studio.rewrite_for').replace('{{model}}', this._escapeHtml(originalModelLabel))}
                                 </button>
                             </div>
 
                             <details class="text-xs">
-                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">View ${(analysis.attempts || []).length} model tests</summary>
+                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('image_studio.view_model_tests').replace('{{count}}', (analysis.attempts || []).length)}</summary>
                                 <div class="mt-2 space-y-1">
                                     ${(analysis.attempts || []).map(a => `
                                         <div class="p-1.5 rounded bg-brand-bg/40 text-[10px] flex items-center gap-2">
@@ -1125,8 +1125,8 @@
                         if (content) {
                             content.innerHTML = `<div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
                                 <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                <p>Attempting a best-effort rewrite for ${this._escapeHtml(originalModelLabel)}...</p>
-                                <p class="text-[10px] text-brand-text-muted/50">Testing rewrite with a canary image — not guaranteed to pass the model's own moderation</p>
+                                <p>${t('image_studio.attempting_rewrite').replace('{{model}}', this._escapeHtml(originalModelLabel))}</p>
+                                <p class="text-[10px] text-brand-text-muted/50">${t('image_studio.canary_hint')}</p>
                             </div>`;
                         }
                         try {
@@ -1140,23 +1140,23 @@
                             });
                             if (rewriteResult.rewritten_prompt) {
                                 const verifiedBadge = rewriteResult.verified
-                                    ? '<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">Passed canary test</span>'
-                                    : '<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Not verified</span>';
+                                    ? `<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">${t('image_studio.passed_canary')}</span>`
+                                    : `<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">${t('image_studio.not_verified')}</span>`;
                                 const content = document.getElementById('mod-content');
                                 if (content) {
                                     content.innerHTML = `<div class="space-y-4">
                                         <div>
                                             <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                                Rewritten for ${this._escapeHtml(originalModelLabel)} ${verifiedBadge}
+                                                ${t('image_studio.rewritten_for').replace('{{model}}', this._escapeHtml(originalModelLabel))} ${verifiedBadge}
                                             </h3>
                                             <textarea id="mod-inline-rewrite" class="input w-full min-h-[100px] text-sm">${this._escapeHtml(rewriteResult.rewritten_prompt)}</textarea>
                                         </div>
                                         <div class="p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
-                                            <p class="text-[10px] text-amber-300/80"><strong>Best-effort rewrite:</strong> This is an automated attempt to make your prompt compatible with ${this._escapeHtml(originalModelLabel)}'s moderation policy. It is <strong>not guaranteed</strong> to be accepted — the model performs its own independent assessment that may still reject the prompt. Please review carefully, edit if needed, and only generate when satisfied.</p>
+                                            <p class="text-[10px] text-amber-300/80"><strong>${t('image_studio.best_effort_rewrite')}</strong> ${t('image_studio.rewrite_disclaimer').replace('{{model}}', this._escapeHtml(originalModelLabel))}</p>
                                         </div>
                                         <div class="flex gap-3 pt-2">
-                                            <button id="mod-accept-inline-rewrite" class="btn btn-primary flex-1">Use This Rewrite & Review</button>
-                                            <button class="mod-close-btn btn btn-secondary">Cancel</button>
+                                            <button id="mod-accept-inline-rewrite" class="btn btn-primary flex-1">${t('image_studio.use_rewrite_review')}</button>
+                                            <button class="mod-close-btn btn btn-secondary">${t('common.cancel')}</button>
                                         </div>
                                     </div>`;
                                     content.querySelector('#mod-accept-inline-rewrite')?.addEventListener('click', () => {
@@ -1175,30 +1175,30 @@
                                 }
                             } else {
                                 dialog.remove();
-                                window.showToast?.('Could not create a rewrite for ' + originalModelLabel + '. Try a different model instead.', 'warning');
+                                window.showToast?.(t('image_studio.could_not_rewrite').replace('{{model}}', originalModelLabel), 'warning');
                             }
                         } catch (err) {
                             dialog.remove();
-                            window.showToast?.('Rewrite failed: ' + (err.message || ''), 'error');
+                            window.showToast?.(t('image_studio.rewrite_failed') + ': ' + (err.message || ''), 'error');
                         }
                     });
 
                 } else {
                     // ── Rewrite dialog — all models rejected, need to modify the prompt ──
                     const verifiedBadge = verified
-                        ? '<span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">Verified — passed moderation</span>'
-                        : '<span class="inline-flex items-center gap-1 text-xs font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">Not verified — may still be rejected</span>';
+                        ? `<span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">${t('image_studio.verified_passed')}</span>`
+                        : `<span class="inline-flex items-center gap-1 text-xs font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">${t('image_studio.not_verified_may_reject')}</span>`;
 
                     content.innerHTML = `
                         <div class="space-y-5">
                             <div>
-                                <p class="text-sm text-brand-text/90 leading-relaxed">${this._escapeHtml(analysis.explanation || 'Your prompt was blocked by all available image models.')}</p>
-                                <p class="text-xs text-brand-text-muted mt-1">${(analysis.attempts || []).length} attempt(s) tested internally</p>
+                                <p class="text-sm text-brand-text/90 leading-relaxed">${this._escapeHtml(analysis.explanation || t('image_studio.all_models_rejected'))}</p>
+                                <p class="text-xs text-brand-text-muted mt-1">${t('image_studio.attempts_tested').replace('{{count}}', (analysis.attempts || []).length)}</p>
                         </div>
 
                         ${(analysis.issues || []).length > 0 ? `
                         <div>
-                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">Issues Detected</h3>
+                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">${t('image_studio.issues_detected')}</h3>
                             <ul class="space-y-1.5">
                                 ${analysis.issues.map(issue => `
                                     <li class="flex items-start gap-2 text-sm text-brand-text-muted">
@@ -1213,15 +1213,15 @@
 
                         <div>
                             <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                Recommended Rewrite ${verifiedBadge}
+                                ${t('image_studio.recommended_rewrite')} ${verifiedBadge}
                             </h3>
                             <textarea id="mod-rewritten-prompt" class="input w-full min-h-[120px] text-sm">${this._escapeHtml(analysis.rewritten_prompt || '')}</textarea>
-                            <p class="text-[10px] text-brand-text-muted mt-1">${verified ? 'This rewrite passed a test generation, but is still subject to the model\'s moderation at full resolution.' : 'This rewrite has NOT been verified and may still be rejected by the model.'} Please review and edit as needed before generating.</p>
+                            <p class="text-[10px] text-brand-text-muted mt-1">${verified ? t('image_studio.rewrite_verified_note') : t('image_studio.rewrite_not_verified_note')} ${t('image_studio.review_edit_note')}</p>
                         </div>
 
                         <div>
                             <details class="text-xs">
-                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">View original prompt</summary>
+                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('image_studio.view_original_prompt')}</summary>
                                 <p class="mt-2 p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._escapeHtml(originalPrompt)}</p>
                             </details>
                         </div>
@@ -1229,12 +1229,12 @@
                         ${(analysis.attempts || []).length > 1 ? `
                         <div>
                             <details class="text-xs">
-                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">View ${analysis.attempts.length} rewrite attempts</summary>
+                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('image_studio.view_rewrite_attempts').replace('{{count}}', analysis.attempts.length)}</summary>
                                 <div class="mt-2 space-y-2">
                                     ${(analysis.attempts || []).map((a, i) => `
                                         <div class="p-2 rounded-lg bg-brand-bg/40 border border-brand-border">
                                             <div class="flex items-center gap-2 mb-1">
-                                                <span class="text-[10px] font-bold">Attempt ${a.attempt}</span>
+                                                <span class="text-[10px] font-bold">${t('image_studio.attempt_label').replace('{{num}}', a.attempt)}</span>
                                                 <span class="text-[10px] ${a.status === 'passed' ? 'text-emerald-400' : 'text-red-400'}">${a.status}</span>
                                             </div>
                                             <p class="text-[10px] text-brand-text-muted whitespace-pre-wrap">${this._escapeHtml(a.prompt || '').substring(0, 200)}${(a.prompt || '').length > 200 ? '...' : ''}</p>
@@ -1249,10 +1249,10 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
-                                Review Rewritten Prompt
+                                ${t('image_studio.review_rewritten_prompt')}
                             </button>
                             <button id="mod-dismiss" class="btn btn-secondary">
-                                Edit Manually
+                                ${t('image_studio.edit_manually')}
                             </button>
                         </div>
                     </div>
@@ -1288,9 +1288,9 @@
                 if (content) {
                     content.innerHTML = `
                         <div class="text-center py-8">
-                            <p class="text-red-400 mb-2">Failed to analyze the prompt</p>
-                            <p class="text-sm text-brand-text-muted">Try rephrasing your prompt to remove references to violence, copyrighted characters, or sensitive content.</p>
-                            <button class="mod-close-btn btn btn-secondary btn-sm mt-4">Close</button>
+                            <p class="text-red-400 mb-2">${t('image_studio.analyze_failed')}</p>
+                            <p class="text-sm text-brand-text-muted">${t('image_studio.analyze_failed_hint')}</p>
+                            <button class="mod-close-btn btn btn-secondary btn-sm mt-4">${t('common.close')}</button>
                         </div>
                     `;
                     content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
@@ -1310,7 +1310,7 @@
                         <svg class="w-6 h-6 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                         </svg>
-                        <h2 class="text-lg font-semibold text-red-300">Prompt Cannot Be Processed</h2>
+                        <h2 class="text-lg font-semibold text-red-300">${t('image_studio.prompt_cannot_be_processed')}</h2>
                         <button class="mod-close ml-auto p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1318,19 +1318,19 @@
                         </button>
                     </div>
                     <div class="flex-1 overflow-auto p-6 space-y-4">
-                        <p class="text-sm text-brand-text/90 leading-relaxed">The AI prompt engine declined to process your request. This typically happens with prompts that ask for:</p>
+                        <p class="text-sm text-brand-text/90 leading-relaxed">${t('image_studio.prompt_declined_reason')}</p>
                         <ul class="space-y-1 text-sm text-brand-text-muted">
-                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> Recognizable likenesses of real, living people</li>
-                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> Content that could be used for misinformation</li>
-                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> Explicitly harmful or unsafe content</li>
+                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> ${t('image_studio.decline_likeness')}</li>
+                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> ${t('image_studio.decline_misinfo')}</li>
+                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> ${t('image_studio.decline_harmful')}</li>
                         </ul>
                         <div class="p-3 rounded-lg bg-brand-bg/60 text-xs text-brand-text-muted">
-                            <p class="font-medium mb-1">AI response:</p>
+                            <p class="font-medium mb-1">${t('image_studio.ai_response')}</p>
                             <p class="whitespace-pre-wrap">${this._escapeHtml(reason).substring(0, 500)}</p>
                         </div>
-                        <p class="text-xs text-brand-text-muted">Note: AI image models cannot generate recognizable likenesses of specific real people. For game art, use original character descriptions instead of real-person names.</p>
+                        <p class="text-xs text-brand-text-muted">${t('image_studio.decline_note')}</p>
                         <div class="flex gap-3 pt-2">
-                            <button class="mod-close-btn btn btn-secondary flex-1">Edit Prompt</button>
+                            <button class="mod-close-btn btn btn-secondary flex-1">${t('image_studio.edit_prompt_btn')}</button>
                         </div>
                     </div>
                 </div>
@@ -1362,7 +1362,7 @@
                         <svg class="w-6 h-6 text-brand-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                         </svg>
-                        <h2 class="text-lg font-semibold">Prompt Pre-Check</h2>
+                        <h2 class="text-lg font-semibold">${t('image_studio.pre_check_title')}</h2>
                         <button class="mod-close ml-auto p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1370,11 +1370,11 @@
                         </button>
                     </div>
                     <div class="flex-1 overflow-auto p-6 space-y-5">
-                        <p class="text-sm text-brand-text/90">${this._escapeHtml(screen.explanation || 'This prompt may be blocked by the selected model.')}</p>
+                        <p class="text-sm text-brand-text/90">${this._escapeHtml(screen.explanation || '')}</p>
 
                         ${issues.length > 0 ? `
                         <div>
-                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">Potential Issues</h3>
+                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">${t('image_studio.potential_issues')}</h3>
                             <ul class="space-y-1">
                                 ${issues.map(i => `<li class="flex items-start gap-2 text-sm text-brand-text-muted">
                                     <span class="text-amber-400 mt-0.5">•</span> ${this._escapeHtml(i)}
@@ -1384,8 +1384,8 @@
 
                         ${suggested ? `
                         <div class="p-4 rounded-lg bg-emerald-950/30 border border-emerald-500/20">
-                            <p class="text-sm text-emerald-300 font-medium mb-1">Recommended: Switch to ${this._escapeHtml(suggestedLabel)}</p>
-                            <p class="text-xs text-brand-text-muted">Your prompt will work as-is on this model. No changes needed.</p>
+                            <p class="text-sm text-emerald-300 font-medium mb-1">${t('image_studio.recommended_switch').replace('{{model}}', this._escapeHtml(suggestedLabel))}</p>
+                            <p class="text-xs text-brand-text-muted">${t('image_studio.prompt_works_as_is')}</p>
                         </div>` : ''}
 
                         <div class="flex flex-wrap gap-3 pt-2">
@@ -1394,19 +1394,19 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
-                                Generate with ${this._escapeHtml(suggestedLabel)}
+                                ${t('image_studio.generate_with').replace('{{model}}', this._escapeHtml(suggestedLabel))}
                             </button>` : ''}
                             <button id="precheck-rewrite" class="btn bg-amber-600 hover:bg-amber-500 text-white">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                 </svg>
-                                Rewrite for ${this._escapeHtml(currentLabel)}
+                                ${t('image_studio.rewrite_for').replace('{{model}}', this._escapeHtml(currentLabel))}
                             </button>
                             <button id="precheck-proceed" class="btn btn-secondary">
-                                Try ${this._escapeHtml(currentLabel)} Anyway
+                                ${t('image_studio.try_anyway').replace('{{model}}', this._escapeHtml(currentLabel))}
                             </button>
                             <button id="precheck-cancel" class="btn btn-secondary btn-sm">
-                                Cancel
+                                ${t('common.cancel')}
                             </button>
                         </div>
                     </div>
@@ -1442,8 +1442,8 @@
                 if (content) {
                     content.innerHTML = `<div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
                         <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                        <p>Attempting a best-effort rewrite for ${this._escapeHtml(currentLabel)}...</p>
-                        <p class="text-[10px] text-brand-text-muted/50">Testing rewrite with a canary image — not guaranteed to pass the model's own moderation</p>
+                        <p>${t('image_studio.attempting_rewrite').replace('{{model}}', this._escapeHtml(currentLabel))}</p>
+                        <p class="text-[10px] text-brand-text-muted/50">${t('image_studio.canary_hint')}</p>
                     </div>`;
                 }
                 try {
@@ -1457,22 +1457,22 @@
                     });
                     if (rewriteResult.rewritten_prompt) {
                         const verifiedBadge = rewriteResult.verified
-                            ? '<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">Passed canary test</span>'
-                            : '<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">Not verified</span>';
+                            ? `<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">${t('image_studio.passed_canary')}</span>`
+                            : `<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">${t('image_studio.not_verified')}</span>`;
 
                         if (content) {
                             content.innerHTML = `<div class="space-y-4">
                                 <div>
                                     <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                        Rewritten Prompt ${verifiedBadge}
+                                        ${t('image_studio.rewritten_prompt')} ${verifiedBadge}
                                     </h3>
                                     <textarea id="precheck-rewritten-text" class="input w-full min-h-[100px] text-sm">${this._escapeHtml(rewriteResult.rewritten_prompt)}</textarea>
                                 </div>
                                 <div class="p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
-                                    <p class="text-[10px] text-amber-300/80"><strong>Best-effort rewrite:</strong> This is an automated attempt to make your prompt compatible with ${this._escapeHtml(currentLabel)}'s moderation policy. It is <strong>not guaranteed</strong> to be accepted — the model performs its own independent assessment that may still reject the prompt. Please review carefully, edit if needed, and only generate when you are satisfied with the rewritten prompt.</p>
+                                    <p class="text-[10px] text-amber-300/80"><strong>${t('image_studio.best_effort_rewrite')}</strong> ${t('image_studio.rewrite_not_guaranteed').replace('{{model}}', this._escapeHtml(currentLabel))}</p>
                                 </div>
                                 <details class="text-xs">
-                                    <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">View original prompt</summary>
+                                    <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('image_studio.view_original_prompt')}</summary>
                                     <p class="mt-2 p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._escapeHtml(originalPrompt)}</p>
                                 </details>
                                 <div class="flex gap-3 pt-2">
@@ -1480,9 +1480,9 @@
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/>
                                         </svg>
-                                        Use This Rewrite & Review
+                                        ${t('image_studio.use_rewrite_review')}
                                     </button>
-                                    <button class="mod-close-btn btn btn-secondary">Cancel</button>
+                                    <button class="mod-close-btn btn btn-secondary">${t('common.cancel')}</button>
                                 </div>
                             </div>`;
 
@@ -1500,17 +1500,17 @@
                         }
                     } else {
                         if (content) {
-                            const explanation = rewriteResult.explanation || 'Could not create a rewrite. The AI service may be temporarily unavailable, or the content may be fundamentally incompatible with this model.';
+                            const explanation = rewriteResult.explanation || t('image_studio.rewrite_unavailable');
                             content.innerHTML = `<div class="p-4 text-center space-y-3">
                                 <p class="text-sm text-red-300">${this._escapeHtml(explanation)}</p>
-                                <p class="text-xs text-brand-text-muted">Try again in a few minutes, use a different model, or modify your prompt manually.</p>
-                                <button class="mod-close-btn btn btn-secondary">Close</button>
+                                <p class="text-xs text-brand-text-muted">${t('image_studio.retry_hint')}</p>
+                                <button class="mod-close-btn btn btn-secondary">${t('common.close')}</button>
                             </div>`;
                             content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
                         }
                     }
                 } catch (err) {
-                    window.showToast?.('Rewrite failed: ' + (err.message || ''), 'error');
+                    window.showToast?.(t('image_studio.rewrite_failed') + ': ' + (err.message || ''), 'error');
                     dialog.remove();
                 }
             });
@@ -1530,7 +1530,7 @@
 
             if (on) {
                 btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-sm"></span> Generating...';
+                btn.innerHTML = `<span class="spinner-sm"></span> ${t('image_studio.generating')}`;
                 loadingEl?.classList.remove('hidden');
                 placeholder?.classList.add('hidden');
                 document.getElementById('gen-result-img')?.classList.add('hidden');
@@ -1548,7 +1548,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
-                    Generate`;
+                    ${t('image_studio.generate')}`;
                 loadingEl?.classList.add('hidden');
                 this._stopProgress();
             }
@@ -1563,8 +1563,8 @@
             const bar = document.getElementById('gen-progress-bar');
             const startTime = Date.now();
 
-            if (text) text.textContent = 'Starting...';
-            if (sub) sub.textContent = `${total} image${total > 1 ? 's' : ''} queued`;
+            if (text) text.textContent = t('image_studio.starting');
+            if (sub) sub.textContent = t('image_studio.images_queued').replace('{{count}}', total).replace('{{plural}}', total > 1 ? 's' : '');
             if (bar) bar.style.width = '2%';
 
             // Elapsed timer
@@ -1572,7 +1572,7 @@
                 const secs = Math.floor((Date.now() - startTime) / 1000);
                 const min = Math.floor(secs / 60);
                 const sec = secs % 60;
-                if (elapsedEl) elapsedEl.textContent = min > 0 ? `${min}m ${sec}s elapsed` : `${sec}s elapsed`;
+                if (elapsedEl) elapsedEl.textContent = min > 0 ? t('image_studio.elapsed_min').replace('{{min}}', min).replace('{{sec}}', sec) : t('image_studio.elapsed_sec').replace('{{sec}}', sec);
             }, 1000);
 
             this._progressTimer = { tick };
@@ -1592,20 +1592,20 @@
 
             switch (evt.type) {
                 case 'started':
-                    if (text) text.textContent = 'Starting generation...';
+                    if (text) text.textContent = t('image_studio.starting_generation');
                     if (bar) bar.style.width = '5%';
                     break;
 
                 case 'stage':
                     if (text) text.textContent = evt.message || evt.stage;
                     if (evt.stage === 'prompts') {
-                        if (sub) sub.textContent = 'AI is creating concept prompts';
+                        if (sub) sub.textContent = t('image_studio.creating_concepts');
                         if (bar) bar.style.width = '10%';
                     } else if (evt.stage === 'generating') {
-                        if (sub) sub.textContent = `${evt.prompts_done || ''} concept${(evt.prompts_done || 0) > 1 ? 's' : ''} ready`;
+                        if (sub) sub.textContent = t('image_studio.concepts_ready').replace('{{count}}', evt.prompts_done || '').replace('{{plural}}', (evt.prompts_done || 0) > 1 ? 's' : '');
                         if (bar) bar.style.width = '20%';
                     } else if (evt.stage === 'finalizing') {
-                        if (sub) sub.textContent = 'Saving assets and metadata';
+                        if (sub) sub.textContent = t('image_studio.saving_assets');
                         if (bar) bar.style.width = '95%';
                     }
                     break;
@@ -1614,8 +1614,8 @@
                     const done = evt.completed || 0;
                     const tot = evt.total || total;
                     const pct = 20 + Math.round((done / tot) * 70);
-                    if (text) text.textContent = `Generating images... ${done}/${tot}`;
-                    if (sub) sub.textContent = `Option ${(evt.option || 0) + 1}, Variation ${(evt.variation || 0) + 1} complete`;
+                    if (text) text.textContent = t('image_studio.generating_images').replace('{{done}}', done).replace('{{total}}', tot);
+                    if (sub) sub.textContent = t('image_studio.option_variation_complete').replace('{{opt}}', (evt.option || 0) + 1).replace('{{var}}', (evt.variation || 0) + 1);
                     if (bar) bar.style.width = Math.min(pct, 92) + '%';
                     break;
                 }
@@ -1623,45 +1623,45 @@
                 case 'image_error': {
                     const done = evt.completed || 0;
                     const tot = evt.total || total;
-                    if (sub) sub.textContent = `Option ${(evt.option || 0) + 1}, Variation ${(evt.variation || 0) + 1} failed — continuing`;
+                    if (sub) sub.textContent = t('image_studio.option_variation_failed').replace('{{opt}}', (evt.option || 0) + 1).replace('{{var}}', (evt.variation || 0) + 1);
                     break;
                 }
 
                 case 'throttled': {
-                    if (text) text.textContent = 'API throttled — waiting to retry...';
-                    if (sub) sub.textContent = `Option ${(evt.option || 0) + 1}, Variation ${(evt.variation || 0) + 1} — waiting ${evt.delay || '?'}s`;
+                    if (text) text.textContent = t('image_studio.api_throttled');
+                    if (sub) sub.textContent = t('image_studio.option_variation_waiting').replace('{{opt}}', (evt.option || 0) + 1).replace('{{var}}', (evt.variation || 0) + 1).replace('{{delay}}', evt.delay || '?');
                     break;
                 }
 
                 case 'retry': {
-                    if (text) text.textContent = `Retrying... (attempt ${evt.attempt || '?'}/${evt.max_retries || '?'})`;
-                    if (sub) sub.textContent = `Option ${(evt.option || 0) + 1}, Variation ${(evt.variation || 0) + 1}`;
+                    if (text) text.textContent = t('image_studio.retrying').replace('{{attempt}}', evt.attempt || '?').replace('{{max}}', evt.max_retries || '?');
+                    if (sub) sub.textContent = `${t('image_studio.option')} ${(evt.option || 0) + 1}, ${t('image_studio.variation')} ${(evt.variation || 0) + 1}`;
                     break;
                 }
 
                 case 'canary':
-                    if (text) text.textContent = evt.message || 'Testing prompt...';
-                    if (sub) sub.textContent = 'Verifying prompt passes content moderation';
+                    if (text) text.textContent = evt.message || t('image_studio.testing_prompt');
+                    if (sub) sub.textContent = t('image_studio.verifying_moderation');
                     if (bar) bar.style.width = '15%';
                     break;
 
                 case 'moderation_blocked':
-                    if (text) text.textContent = 'Content moderation blocked';
-                    if (sub) sub.textContent = evt.message || 'Stopping generation — prompt needs revision';
+                    if (text) text.textContent = t('image_studio.moderation_blocked');
+                    if (sub) sub.textContent = evt.message || t('image_studio.moderation_stopping');
                     if (bar) bar.style.width = '100%';
                     // Track for the dialog
                     this._moderationErrors.push(evt.error || 'Content moderation blocked');
                     break;
 
                 case 'prompt_refused':
-                    if (text) text.textContent = 'Prompt cannot be processed';
-                    if (sub) sub.textContent = evt.message || 'The AI declined to process this prompt';
+                    if (text) text.textContent = t('image_studio.prompt_cannot_process');
+                    if (sub) sub.textContent = evt.message || t('image_studio.prompt_declined');
                     if (bar) bar.style.width = '100%';
                     break;
 
                 case 'complete':
                     if (bar) bar.style.width = '100%';
-                    if (text) text.textContent = 'Done!';
+                    if (text) text.textContent = t('image_studio.done');
                     break;
             }
         },
@@ -1673,7 +1673,7 @@
 
             // Switch to "Post-Processing" mode now that results exist
             const labelEl = document.getElementById('gen-processing-label');
-            if (labelEl) labelEl.textContent = 'Post-Processing';
+            if (labelEl) labelEl.textContent = t('image_studio.post_processing');
             document.getElementById('btn-apply-postprocess')?.classList.remove('hidden');
             document.getElementById('pp-hint')?.classList.remove('hidden');
 
@@ -1693,7 +1693,7 @@
                     origSection?.classList.add('hidden');
                     if (usedText) usedText.textContent = result.prompt;
                     const usedLabel = document.querySelector('#gen-used-prompt-section > p:first-child');
-                    if (usedLabel) usedLabel.textContent = 'PROMPT';
+                    if (usedLabel) usedLabel.textContent = t('image_studio.prompt_label');
                 }
             }
 
@@ -1737,13 +1737,13 @@
             const header = document.getElementById('gen-options-header');
             if (header) {
                 header.textContent = isAllModels
-                    ? 'Models — comparison across image models'
-                    : 'Options — different designs';
+                    ? t('image_studio.models_header')
+                    : t('image_studio.options_header');
             }
             if (countEl) {
                 countEl.textContent = isAllModels
-                    ? `${options.length} models`
-                    : `${options.length} options`;
+                    ? `${options.length} ${t('common.model').toLowerCase()}s`
+                    : `${options.length} ${t('image_studio.num_options').toLowerCase()}`;
             }
 
             // Adjust grid columns to match option count
@@ -1760,18 +1760,18 @@
                     >
                         <div class="aspect-square bg-brand-bg">
                             ${thumbSrc
-                                ? `<img src="${thumbSrc}" alt="Option ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
-                                : `<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">No image</div>`
+                                ? `<img src="${thumbSrc}" alt="${t('image_studio.option')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
+                                : `<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
                             }
                         </div>
                         <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
                         <div class="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                            ${opt.model_label || `Option ${i + 1}`}
+                            ${opt.model_label || `${t('image_studio.option')} ${i + 1}`}
                         </div>
                         ${opt.status && opt.status !== 'success' ? `
                         <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
                             <span class="px-2 py-1 rounded text-xs font-semibold ${opt.status === 'moderation_blocked' ? 'bg-amber-500/80 text-amber-950' : 'bg-red-500/80 text-white'}">
-                                ${opt.status === 'moderation_blocked' ? 'Blocked — moderation' : 'Failed'}
+                                ${opt.status === 'moderation_blocked' ? t('image_studio.blocked_moderation') : t('image_studio.failed')}
                             </span>
                         </div>` : ''}
                         <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
@@ -1823,8 +1823,8 @@
                 conceptSection.classList.remove('hidden');
                 // Label: "Generated prompt — Option N" or "Generated prompt — Nova Canvas"
                 const label = option.model_label
-                    ? `Generated prompt \u2014 ${option.model_label}`
-                    : `Generated prompt \u2014 Option ${index + 1}`;
+                    ? `${t('image_studio.generated_prompt')} \u2014 ${option.model_label}`
+                    : `${t('image_studio.generated_prompt')} \u2014 ${t('image_studio.option')} ${index + 1}`;
                 if (conceptLabel) conceptLabel.textContent = label;
                 conceptText.textContent = option.refined_prompt;
 
@@ -1841,7 +1841,7 @@
 
                 // Show status detail for blocked/failed options
                 if (option.status && option.status !== 'success') {
-                    conceptText.textContent = `[${option.status === 'moderation_blocked' ? 'Blocked by moderation' : 'Generation failed'}] ${option.status_detail || ''}`;
+                    conceptText.textContent = `[${option.status === 'moderation_blocked' ? t('image_studio.blocked_by_moderation') : t('image_studio.generation_failed_status')}] ${option.status_detail || ''}`;
                 }
             }
 
@@ -1865,7 +1865,7 @@
             }
 
             section.classList.remove('hidden');
-            if (countEl) countEl.textContent = `${variants.length} variations`;
+            if (countEl) countEl.textContent = `${variants.length} ${t('image_studio.num_variations').toLowerCase()}`;
 
             grid.className = `grid gap-3 grid-cols-${Math.min(variants.length, 5)}`;
 
@@ -1875,7 +1875,7 @@
                            ${i === 0 ? 'border-emerald-400 ring-2 ring-emerald-400/30' : 'border-brand-border hover:border-emerald-400/50'}"
                     data-variant-index="${i}"
                 >
-                    <img src="${v.png_path}" alt="Variation ${i + 1}" class="w-full h-full object-cover" loading="lazy" />
+                    <img src="${v.png_path}" alt="${t('image_studio.variation')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />
                     <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
                     <span class="absolute bottom-1 right-1 text-[10px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">
                         v${i + 1}
@@ -1954,7 +1954,7 @@
         // ── Load batch from Gallery ──────────────────────────────────
 
         async loadBatch(batchId) {
-            window.showLoading?.('Loading batch...');
+            window.showLoading?.(t('image_studio.loading_batch'));
 
             // Navigate to image-studio and wait for the view to be fully ready.
             // Setting the hash triggers navigate() via hashchange, but navigate()
@@ -2028,7 +2028,7 @@
                     // If images were already upscaled, lock the toggle
                     if (result.upscale) {
                         upscale.disabled = true;
-                        upscale.closest('label')?.setAttribute('title', 'Already upscaled — cannot upscale again');
+                        upscale.closest('label')?.setAttribute('title', t('image_studio.already_upscaled'));
                     }
                 }
 
@@ -2050,12 +2050,12 @@
                 const deletedCount = result.batch_deleted_count || 0;
                 if (deletedCount > 0 && originalTotal > 0) {
                     window.showToast?.(
-                        `Batch loaded: ${surviving} of ${originalTotal} images remaining (${deletedCount} deleted from gallery)`,
+                        t('image_studio.batch_loaded_partial').replace('{{surviving}}', surviving).replace('{{total}}', originalTotal).replace('{{deleted}}', deletedCount),
                         'info', 6000
                     );
                 } else {
                     window.showToast?.(
-                        `Batch loaded: ${result.num_options} options \u00d7 ${result.num_variations} variations`,
+                        t('image_studio.batch_loaded').replace('{{options}}', result.num_options).replace('{{variations}}', result.num_variations),
                         'success'
                     );
                 }
@@ -2090,7 +2090,7 @@
                 if (varsSelect) { varsSelect.value = '1'; varsSelect.disabled = true; }
                 // Count real models (exclude the "All Available Models" entry)
                 const modelCount = MODELS.filter(m => m.value !== 'all_models').length;
-                if (infoEl) infoEl.textContent = `Will generate 1 image per model (${modelCount} models) = ${modelCount} images total`;
+                if (infoEl) infoEl.textContent = t('image_studio.will_generate_info').replace(/\{\{count\}\}/g, modelCount);
             } else {
                 allModelsOpts?.classList.add('hidden');
                 if (optsSelect) optsSelect.disabled = false;
@@ -2115,9 +2115,8 @@
             if ((ip.ip_owned || ip.ip_licensed) && strictModels.includes(model)) {
                 const modelLabel = document.getElementById('gen-model')?.selectedOptions?.[0]?.text || model;
                 note.innerHTML = `
-                    <strong>${modelLabel}</strong> has strict content moderation that may block IP-related content regardless of ownership.
-                    We recommend <strong>Stable Diffusion 3.5 Large</strong> or <strong>Stable Image Ultra</strong> which are more permissive.
-                    <button id="gen-ip-switch-model" class="underline text-amber-200 hover:text-amber-100 ml-1">Switch now</button>
+                    ${t('image_studio.ip_strict_model_warning').replace('{{model}}', '<strong>' + modelLabel + '</strong>')}
+                    <button id="gen-ip-switch-model" class="underline text-amber-200 hover:text-amber-100 ml-1">${t('image_studio.ip_switch_now')}</button>
                 `;
                 note.classList.remove('hidden');
 
@@ -2127,7 +2126,7 @@
                         const sel = document.getElementById('gen-model');
                         if (sel) sel.value = 'sd35_large';
                         this._updateIpModelNote();
-                        window.showToast?.('Switched to Stable Diffusion 3.5 Large', 'success');
+                        window.showToast?.(t('image_studio.switched_to'), 'success');
                     });
                 }, 0);
             } else {
@@ -2145,14 +2144,14 @@
             totalEl.textContent = `$${totalCost.toFixed(4)}`;
 
             const labels = {
-                'llm': 'LLM (prompt enhancement, concepts, pre-check)',
-                'image_generation': 'Image generation',
-                'image_inpainting': 'Inpainting',
-                'image_outpainting': 'Outpainting',
-                'image_erase': 'Erase',
-                'image_remove_background': 'Background removal',
-                'image_upscale_creative': 'Creative upscale',
-                'image_search_replace': 'Search & replace',
+                'llm': t('image_studio.cost_llm'),
+                'image_generation': t('image_studio.cost_image_generation'),
+                'image_inpainting': t('image_studio.cost_image_inpainting'),
+                'image_outpainting': t('image_studio.cost_image_outpainting'),
+                'image_erase': t('image_studio.cost_image_erase'),
+                'image_remove_background': t('image_studio.cost_image_remove_bg'),
+                'image_upscale_creative': t('image_studio.cost_image_upscale'),
+                'image_search_replace': t('image_studio.cost_image_search_replace'),
             };
 
             detailsEl.innerHTML = Object.entries(breakdown)
