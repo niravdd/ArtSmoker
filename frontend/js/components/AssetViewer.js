@@ -133,10 +133,10 @@
 
                     <!-- Tabs -->
                     <div class="tab-bar px-6 pt-3">
-                        <button class="tab active" data-tab="png">${t('asset_viewer.png_tab')}</button>
+                        <button class="tab active" data-tab="png">${t('asset_viewer.png_tab')} <span id="av-tab-version-badge" class="text-[9px] opacity-60"></span></button>
                         <button class="tab" data-tab="edit">${t('asset_viewer.edit_tab')}</button>
-                        <button class="tab" data-tab="svg">${t('asset_viewer.svg_tab')}</button>
-                        <button class="tab" data-tab="meta">${t('asset_viewer.metadata_tab')}</button>
+                        <button class="tab" data-tab="svg">${t('asset_viewer.svg_tab')} <span id="av-tab-svg-version" class="text-[9px] opacity-60"></span></button>
+                        <button class="tab" data-tab="meta">${t('asset_viewer.metadata_tab')} <span id="av-tab-meta-version" class="text-[9px] opacity-60"></span></button>
                     </div>
 
                     <!-- Version bar (shared across all tabs, populated when metadata loads) -->
@@ -471,13 +471,76 @@
                 btn.addEventListener('click', () => {
                     const version = parseInt(btn.dataset.version, 10);
                     const assetId = btn.dataset.asset;
+                    const v = versions.find(vv => vv.version === version);
+                    const vLabel = version === 1 ? t('asset_viewer.version_original') : `v${version}`;
 
-                    // Update image in the PNG tab (with cache buster)
+                    // Update PNG image
                     const img = this._overlay?.querySelector('#av-zoom-img');
                     if (img) {
                         img.src = version === currentVersion
                             ? `/api/gallery/${assetId}/png?t=${Date.now()}`
                             : `/api/gallery/${assetId}/version/${version}?t=${Date.now()}`;
+                    }
+
+                    // Update SVG image
+                    const svgImg = this._overlay?.querySelector('[data-panel="svg"] img');
+                    if (svgImg) {
+                        svgImg.src = version === currentVersion
+                            ? `/api/gallery/${assetId}/svg?t=${Date.now()}`
+                            : `/api/gallery/${assetId}/version-svg/${version}?t=${Date.now()}`;
+                    }
+
+                    // Update tab version badges
+                    const pngBadge = this._overlay?.querySelector('#av-tab-version-badge');
+                    const svgBadge = this._overlay?.querySelector('#av-tab-svg-version');
+                    const metaBadge = this._overlay?.querySelector('#av-tab-meta-version');
+                    if (pngBadge) pngBadge.textContent = versions.length > 1 ? `(${vLabel})` : '';
+                    if (svgBadge) svgBadge.textContent = versions.length > 1 ? `(${vLabel})` : '';
+                    if (metaBadge) metaBadge.textContent = versions.length > 1 ? `(${vLabel})` : '';
+
+                    // Update metadata tab to show this version's info
+                    const metaContent = this._overlay?.querySelector('#asset-meta-content');
+                    if (metaContent && v) {
+                        const isOriginal = v.type === 'original';
+                        metaContent.innerHTML = `
+                            <div class="p-3 rounded-lg bg-brand-accent/5 border border-brand-accent/20 mb-3">
+                                <span class="text-xs font-semibold text-brand-accent">${t('asset_viewer.version_label')}: ${vLabel}</span>
+                                <span class="text-[10px] text-brand-text-muted ml-2">${isOriginal ? t('asset_viewer.version_original') : v.type}</span>
+                                ${v.timestamp ? `<span class="text-[10px] text-brand-text-dim ml-2">${new Date(v.timestamp).toLocaleString()}</span>` : ''}
+                            </div>
+                            ${v.original_language_prompts?.prompt ? `
+                            <div>
+                                <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('common.prompt')} <span class="text-[9px] text-brand-accent font-normal">(${v.original_language || '?'})</span></label>
+                                <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(v.original_language_prompts.prompt)}</p>
+                            </div>` : ''}
+                            ${v.prompt ? `
+                            <div>
+                                <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('common.prompt')} ${v.original_language_prompts?.prompt ? '<span class="text-[9px] text-emerald-400/70 font-normal">(English)</span>' : ''}</label>
+                                <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(v.prompt)}</p>
+                            </div>` : ''}
+                            ${v.refined_prompt ? `
+                            <div>
+                                <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_generation_prompt')}</label>
+                                <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._esc(v.refined_prompt)}</p>
+                            </div>` : ''}
+                            ${v.negative_prompt ? `
+                            <div>
+                                <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1 text-amber-400/80">${t('asset_viewer.meta_negative')}</label>
+                                <p class="p-3 rounded-lg bg-amber-950/10 border border-amber-500/10 whitespace-pre-wrap text-amber-200/70">${this._esc(v.negative_prompt)}</p>
+                            </div>` : ''}
+                            ${v.mask_prompt ? `<p class="text-xs text-brand-text-muted">${t('asset_viewer.meta_mask_label')} "${this._esc(v.mask_prompt)}"</p>` : ''}
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                                <p><span class="text-brand-text-muted">${t('asset_viewer.meta_model')}:</span> ${this._esc(v.model_label || v.image_model || 'N/A')}</p>
+                                ${v.region ? `<p><span class="text-brand-text-muted">${t('common.region')}:</span> ${this._esc(v.region)}</p>` : ''}
+                                ${v.seed != null ? `<p><span class="text-brand-text-muted">${t('asset_viewer.meta_seed')}:</span> ${v.seed}</p>` : ''}
+                            </div>
+                            <p class="text-[10px] text-brand-text-dim mt-2"><a href="#" class="text-brand-accent hover:underline av-back-to-full-meta">${t('asset_viewer.metadata_tab')} →</a></p>
+                        `;
+                        // Add click handler to go back to full metadata
+                        metaContent.querySelector('.av-back-to-full-meta')?.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            this._populateMetadata(this._overlay?.querySelector('#asset-meta-content'), meta);
+                        });
                     }
 
                     // Highlight active button
@@ -492,8 +555,7 @@
                         }
                     });
 
-                    // Show version detail
-                    const v = versions.find(vv => vv.version === version);
+                    // Show version detail summary
                     if (detail && v) {
                         detail.classList.remove('hidden');
                         detail.innerHTML = `
