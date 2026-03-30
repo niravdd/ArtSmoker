@@ -104,6 +104,9 @@
         if (typeof I18n !== 'undefined' && I18n.isLoaded()) {
             I18n.translateView(wrapper);
         }
+
+        // Apply version string to newly rendered view
+        if (_appVersion) _applyVersion();
     }
 
     /**
@@ -326,6 +329,8 @@
         if (data.version) {
             _appVersion = data.version;
             _applyVersion();
+            // Retry shortly in case view was still rendering when health resolved
+            setTimeout(_applyVersion, 500);
         }
     }).catch(() => {});
 
