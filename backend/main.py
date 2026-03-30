@@ -11,26 +11,31 @@ from pathlib import Path
 # ── Coloured logging with timestamps ──────────────────────────────────────
 
 class _ColorFormatter(logging.Formatter):
-    """ANSI-coloured log formatter: dim timestamp, coloured level, muted module."""
+    """ANSI-coloured log formatter with distinct level colours."""
 
     RESET = "\033[0m"
-    DIM = "\033[2m"
     BOLD = "\033[1m"
-    COLORS = {
-        logging.DEBUG:    "\033[36m",       # cyan
-        logging.INFO:     "\033[32m",       # green
-        logging.WARNING:  "\033[33m",       # yellow
-        logging.ERROR:    "\033[31m",       # red
-        logging.CRITICAL: "\033[1;31m",     # bold red
+    LEVEL_STYLES = {
+        logging.DEBUG:    ("\033[96m",  "DEBUG   "),   # bright cyan
+        logging.INFO:     ("\033[92m",  "INFO    "),   # bright green
+        logging.WARNING:  ("\033[93m",  "WARNING "),   # bright yellow
+        logging.ERROR:    ("\033[91m",  "ERROR   "),   # bright red
+        logging.CRITICAL: ("\033[95m",  "CRITICAL"),   # bright magenta
     }
+    TS_COLOR = "\033[37m"    # white for timestamp
+    NAME_COLOR = "\033[36m"  # cyan for module name
 
     def format(self, record):
-        color = self.COLORS.get(record.levelno, self.RESET)
+        color, label = self.LEVEL_STYLES.get(record.levelno, ("\033[0m", record.levelname.ljust(8)))
         ts = self.formatTime(record, self.datefmt)
-        level = record.levelname.ljust(8)
         name = record.name
         msg = record.getMessage()
-        return f"{self.DIM}{ts}{self.RESET}  {color}{self.BOLD}{level}{self.RESET}  {self.DIM}{name}{self.RESET}  {msg}"
+        return (
+            f"{self.TS_COLOR}{ts}{self.RESET}  "
+            f"{color}{self.BOLD}{label}{self.RESET}  "
+            f"{self.NAME_COLOR}{name}{self.RESET}  "
+            f"{msg}"
+        )
 
 _log_datefmt = "%Y-%m-%d %H:%M:%S"
 _color_handler = logging.StreamHandler()
