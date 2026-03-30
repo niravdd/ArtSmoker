@@ -9,3 +9,4 @@ __pycache__/
 # Private style profiles (not for public repo)
 data/styles/prop-ludo-club/
 data/styles/manojs-swordman/
+data/chat/
