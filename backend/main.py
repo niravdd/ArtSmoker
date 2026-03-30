@@ -16,19 +16,22 @@ class _ColorFormatter(logging.Formatter):
     RESET = "\033[0m"
     BOLD = "\033[1m"
     LEVEL_STYLES = {
-        logging.DEBUG:    ("\033[96m",  "DEBUG   "),   # bright cyan
-        logging.INFO:     ("\033[92m",  "INFO    "),   # bright green
-        logging.WARNING:  ("\033[93m",  "WARNING "),   # bright yellow
-        logging.ERROR:    ("\033[91m",  "ERROR   "),   # bright red
-        logging.CRITICAL: ("\033[95m",  "CRITICAL"),   # bright magenta
+        logging.DEBUG:    ("\033[38;5;44m",   "DEBUG   "),   # teal
+        logging.INFO:     ("\033[38;5;40m",   "INFO    "),   # vivid green
+        logging.WARNING:  ("\033[38;5;220m",  "WARNING "),   # bright yellow
+        logging.ERROR:    ("\033[38;5;196m",  "ERROR   "),   # vivid red
+        logging.CRITICAL: ("\033[38;5;201m",  "CRITICAL"),   # hot pink
     }
-    TS_COLOR = "\033[37m"    # white for timestamp
-    NAME_COLOR = "\033[36m"  # cyan for module name
+    TS_COLOR = "\033[38;5;245m"   # medium grey for timestamp
+    NAME_COLOR = "\033[38;5;39m"  # sky blue for module name
+
+    # Clean up misleading logger names for display
+    NAME_MAP = {"uvicorn.error": "uvicorn", "uvicorn.access": "uvicorn.access"}
 
     def format(self, record):
         color, label = self.LEVEL_STYLES.get(record.levelno, ("\033[0m", record.levelname.ljust(8)))
         ts = self.formatTime(record, self.datefmt)
-        name = record.name
+        name = self.NAME_MAP.get(record.name, record.name)
         msg = record.getMessage()
         return (
             f"{self.TS_COLOR}{ts}{self.RESET}  "
