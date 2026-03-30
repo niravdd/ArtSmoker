@@ -7,9 +7,9 @@
   },
   "asset_viewer": {
     "add_text": "テキスト追加",
-    "add_text_title": "Add text to this image in Type Studio",
+    "add_text_title": "タイプスタジオでこの画像にテキストを追加",
     "apply_edit": "編集を適用",
-    "applying": "Applying...",
+    "applying": "適用中...",
     "brush_size": "ブラシ",
     "clear_mask": "マスクをクリア",
     "close_title": "Close",

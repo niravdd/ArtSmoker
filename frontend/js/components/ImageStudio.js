@@ -51,8 +51,8 @@
             return `
                 <div id="generator-view" class="view-enter">
                     <div class="mb-6">
-                        <h1 class="text-2xl font-bold">2D Image Studio</h1>
-                        <p class="text-brand-text-muted text-sm mt-1">Generate AI-powered 2D art assets from text prompts</p>
+                        <h1 class="text-2xl font-bold">${t('image_studio.title')}</h1>
+                        <p class="text-brand-text-muted text-sm mt-1">${t('image_studio.subtitle')}</p>
                     </div>
 
                     <div class="flex flex-col lg:flex-row gap-6">
@@ -64,25 +64,25 @@
                                     <svg class="w-5 h-5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
                                     </svg>
-                                    Settings
+                                    ${t('common.settings')}
                                 </h2>
 
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">Art Style</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.style')}</label>
                                     <select id="gen-style" class="input">
-                                        <option value="">None (default)</option>
+                                        <option value="">${t('image_studio.style_none')}</option>
                                     </select>
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">Asset Type</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.asset_type')}</label>
                                     <select id="gen-asset-type" class="input">
                                         ${ASSET_TYPES.map(t => `<option value="${t.value}">${t.label}</option>`).join('')}
                                     </select>
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">Image Model</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.model')}</label>
                                     <select id="gen-model" class="input">
                                         ${MODELS.map(m => `<option value="${m.value}">${m.label}</option>`).join('')}
                                     </select>
@@ -100,7 +100,7 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">Dimensions</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.aspect_ratio')}</label>
                                     <select id="gen-size" class="input">
                                         ${SIZE_PRESETS.map((s, i) => `<option value="${i}" ${i === 2 ? 'selected' : ''}>${s.label}</option>`).join('')}
                                     </select>
@@ -114,15 +114,15 @@
                                     </summary>
                                     <div class="mt-2 space-y-3 p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border/50">
                                         <div>
-                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">Quality</label>
+                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">${t('image_studio.quality')}</label>
                                             <select id="gen-quality" class="input text-xs">
-                                                <option value="">Default</option>
+                                                <option value="">${t('common.default')}</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">Region</label>
+                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">${t('common.region')}</label>
                                             <select id="gen-region" class="input text-xs">
-                                                <option value="">Auto</option>
+                                                <option value="">${t('common.default')}</option>
                                             </select>
                                         </div>
                                     </div>
@@ -134,14 +134,14 @@
                                 <!-- Two-level counts -->
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label class="block text-sm font-medium mb-1.5">Options</label>
+                                        <label class="block text-sm font-medium mb-1.5">${t('image_studio.num_options')}</label>
                                         <select id="gen-num-options" class="input">
                                             ${COUNT_OPTIONS.map(n => `<option value="${n}" ${n === 5 ? 'selected' : ''}>${n}</option>`).join('')}
                                         </select>
                                         <p class="text-[10px] text-brand-text-muted mt-0.5">Different designs</p>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium mb-1.5">Variations</label>
+                                        <label class="block text-sm font-medium mb-1.5">${t('image_studio.num_variations') || 'Variations'}</label>
                                         <select id="gen-num-variations" class="input">
                                             ${COUNT_OPTIONS.map(n => `<option value="${n}" ${n === 5 ? 'selected' : ''}>${n}</option>`).join('')}
                                         </select>
@@ -157,7 +157,7 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                     </svg>
-                                    Intellectual Property (IP) Declaration
+                                    ${t('asset_viewer.meta_ip_declaration') || 'Intellectual Property (IP) Declaration'}
                                 </h2>
                                 <div class="space-y-2">
                                     <label class="flex items-start gap-2 cursor-pointer">
@@ -178,7 +178,7 @@
                                         <svg class="w-3.5 h-3.5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                                         </svg>
-                                        <label class="text-xs font-medium">Prompt Pre-Check</label>
+                                        <label class="text-xs font-medium">${t('image_studio.pre_check')}</label>
                                     </div>
                                     <label class="toggle"><input type="checkbox" id="gen-precheck" checked><span class="toggle-slider"></span></label>
                                 </div>
@@ -191,7 +191,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
-                                Model Settings
+                                ${t('image_studio.model_settings')}
                             </button>
 
                             <!-- Processing Options -->
@@ -200,7 +200,7 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343"/>
                                     </svg>
-                                    <span id="gen-processing-label">Pre-Processing</span>
+                                    <span id="gen-processing-label">${t('image_studio.post_processing')}</span>
                                 </h2>
                                 <div class="space-y-3">
                                     <div class="flex items-center justify-between">
@@ -248,13 +248,13 @@
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                     </svg>
-                                    Generate
+                                    ${t('image_studio.generate')}
                                 </button>
                                 <button id="btn-reset" class="btn btn-lg text-base bg-amber-600 hover:bg-amber-500 text-white">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                     </svg>
-                                    Reset
+                                    ${t('image_studio.reset')}
                                 </button>
                             </div>
 
@@ -274,7 +274,7 @@
                                 </div>
                                 <div id="gen-cost-breakdown" class="hidden p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/20">
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] text-emerald-400/80 uppercase tracking-wider font-semibold">Estimated Cost</span>
+                                        <span class="text-[10px] text-emerald-400/80 uppercase tracking-wider font-semibold">${t('image_studio.est_cost')}</span>
                                         <span id="gen-cost-total" class="text-sm font-bold text-emerald-400">$0.00</span>
                                     </div>
                                     <div id="gen-cost-details" class="text-[10px] text-emerald-300/60 space-y-0.5"></div>
