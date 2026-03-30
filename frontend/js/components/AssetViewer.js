@@ -395,7 +395,8 @@
                                 <span>${edit.timestamp ? new Date(edit.timestamp).toLocaleString() : ''}</span>
                             </div>
                             <p class="text-xs">${this._esc(edit.model_label || edit.edit_model || '')}</p>
-                            ${edit.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5">"${this._esc(edit.prompt)}"</p>` : ''}
+                            ${edit.original_language_prompts?.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5"><span class="text-[9px] text-brand-accent">(${edit.original_language || '?'})</span> "${this._esc(edit.original_language_prompts.prompt)}"</p>` : ''}
+                            ${edit.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5">${edit.original_language_prompts?.prompt ? '<span class="text-[9px] text-emerald-400/70">(en)</span> ' : ''}"${this._esc(edit.prompt)}"</p>` : ''}
                             ${edit.negative_prompt ? `<p class="text-[10px] text-amber-300/60 italic mt-0.5">${t('asset_viewer.meta_negative_label')} ${this._esc(edit.negative_prompt)}</p>` : ''}
                             ${edit.mask_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_mask_label')} "${this._esc(edit.mask_prompt)}"</p>` : ''}
                             ${edit.extra_params?.search_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_find_label')} "${this._esc(edit.extra_params.search_prompt)}"</p>` : ''}
@@ -498,7 +499,8 @@
                         detail.innerHTML = `
                             <strong>${v.type === 'original' ? t('asset_viewer.version_original') : v.type}</strong>
                             ${v.model_label || v.image_model || ''}
-                            ${v.prompt ? ` — "${this._esc(v.prompt)}"` : ''}
+                            ${v.original_language_prompts?.prompt ? ` — <span class="text-[9px] text-brand-accent">(${v.original_language || '?'})</span> "${this._esc(v.original_language_prompts.prompt)}"` : ''}
+                            ${v.prompt ? ` — ${v.original_language_prompts?.prompt ? '<span class="text-[9px] text-emerald-400/70">(en)</span> ' : ''}"${this._esc(v.prompt)}"` : ''}
                             ${v.negative_prompt ? ` <span class="text-amber-300/60">[neg: ${this._esc(v.negative_prompt)}]</span>` : ''}
                             ${v.timestamp ? ` <span class="text-brand-text-dim">${new Date(v.timestamp).toLocaleString()}</span>` : ''}
                         `;

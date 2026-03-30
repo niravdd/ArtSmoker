@@ -1007,29 +1007,21 @@ async def edit_image(body: ImageEditRequest):
         if body.outpaint_down > 0:
             extra["down"] = body.outpaint_down
 
-    # Translate non-English edit prompts
-    if body.prompt:
+    # Translate non-English edit prompts — preserve originals for metadata
+    from backend.services.prompt_translator import translate_to_english
+    edit_original_language = "en"
+    edit_original_prompts = {}  # field → original non-English text
+
+    for field_name in ("prompt", "search_prompt", "select_prompt"):
+        val = getattr(body, field_name, None)
+        if not val:
+            continue
         try:
-            from backend.services.prompt_translator import translate_to_english
-            tr = translate_to_english(body.prompt)
+            tr = translate_to_english(val)
             if tr["was_translated"]:
-                body.prompt = tr["translated"]
-        except Exception:
-            pass
-    if body.search_prompt:
-        try:
-            from backend.services.prompt_translator import translate_to_english
-            tr = translate_to_english(body.search_prompt)
-            if tr["was_translated"]:
-                body.search_prompt = tr["translated"]
-        except Exception:
-            pass
-    if body.select_prompt:
-        try:
-            from backend.services.prompt_translator import translate_to_english
-            tr = translate_to_english(body.select_prompt)
-            if tr["was_translated"]:
-                body.select_prompt = tr["translated"]
+                edit_original_language = tr["source_lang"]
+                edit_original_prompts[field_name] = val
+                setattr(body, field_name, tr["translated"])
         except Exception:
             pass
 
@@ -1120,6 +1112,8 @@ async def edit_image(body: ImageEditRequest):
         "prompt": body.prompt,
         "negative_prompt": body.negative_prompt,
         "mask_prompt": body.mask_prompt,
+        "original_language": edit_original_language,
+        "original_language_prompts": edit_original_prompts if edit_original_prompts else None,
         "image_model": body.model,
         "model_label": label,
         "region": body.region or model_config.get("region", ""),
