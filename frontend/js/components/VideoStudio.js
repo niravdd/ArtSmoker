@@ -162,6 +162,17 @@
                                 </h2>
                                 <textarea id="vs-prompt" rows="4" class="input w-full"
                                     placeholder="${t('video_studio.prompt_placeholder')}"></textarea>
+                                <!-- Translation preview -->
+                                <div id="vs-translation-preview" class="hidden">
+                                    <div class="flex items-center gap-1 my-1">
+                                        <span id="vs-translation-badge" class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent font-medium"></span>
+                                        <div class="flex gap-0.5 ml-auto">
+                                            <button type="button" id="vs-tab-original" class="text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium">${t('common.prompt') || 'Original'}</button>
+                                            <button type="button" id="vs-tab-english" class="text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent">English</button>
+                                        </div>
+                                    </div>
+                                    <div id="vs-translation-text" class="hidden p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-xs text-brand-text/70 whitespace-pre-wrap max-h-20 overflow-auto"></div>
+                                </div>
                                 <div class="flex items-center justify-between">
                                     <span id="vs-char-count" class="text-xs text-brand-text-muted">0 / 512</span>
                                     <label class="flex items-center gap-1.5 text-xs text-brand-text-muted cursor-pointer">
@@ -319,7 +330,25 @@
         _attachEvents() {
             // Prompt char counter
             const prompt = document.getElementById('vs-prompt');
-            prompt?.addEventListener('input', () => this._updateCharCount());
+            prompt?.addEventListener('input', () => {
+                this._updateCharCount();
+                clearTimeout(this._translationTimer);
+                this._translationTimer = setTimeout(() => this._checkVideoTranslation(), 500);
+            });
+
+            // Video translation tab switching
+            document.getElementById('vs-tab-original')?.addEventListener('click', () => {
+                document.getElementById('vs-tab-original').className = 'text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium';
+                document.getElementById('vs-tab-english').className = 'text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent';
+                document.getElementById('vs-translation-text')?.classList.add('hidden');
+                document.getElementById('vs-prompt')?.classList.remove('hidden');
+            });
+            document.getElementById('vs-tab-english')?.addEventListener('click', () => {
+                document.getElementById('vs-tab-english').className = 'text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium';
+                document.getElementById('vs-tab-original').className = 'text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent';
+                document.getElementById('vs-translation-text')?.classList.remove('hidden');
+                document.getElementById('vs-prompt')?.classList.add('hidden');
+            });
 
             // Model change
             document.getElementById('vs-model')?.addEventListener('change', () => this._onModelChange());
@@ -593,6 +622,41 @@
                 counter.textContent = `${prompt.length} / ${limit}`;
                 counter.classList.toggle('text-red-400', prompt.length > limit);
             }
+        },
+
+        async _checkVideoTranslation() {
+            const text = document.getElementById('vs-prompt')?.value?.trim();
+            const preview = document.getElementById('vs-translation-preview');
+            const badge = document.getElementById('vs-translation-badge');
+            const engText = document.getElementById('vs-translation-text');
+            if (!preview || !text) { preview?.classList.add('hidden'); return; }
+
+            const hasNonAscii = /[^\x00-\x7F]/.test(text);
+            const hasAccented = /[àâäéèêëïîôùûüÿçñ¿¡]/i.test(text);
+            if (!hasNonAscii && !hasAccented) {
+                preview.classList.add('hidden');
+                document.getElementById('vs-prompt')?.classList.remove('hidden');
+                engText?.classList.add('hidden');
+                return;
+            }
+
+            try {
+                const resp = await fetch('/api/refine-prompt/translate-preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text }),
+                });
+                if (!resp.ok) return;
+                const result = await resp.json();
+                if (result.was_translated) {
+                    const langNames = { ja: '日本語', zh: '中文', ko: '한국어', fr: 'Français', es: 'Español' };
+                    badge.textContent = `${langNames[result.source_lang] || result.source_lang} → English`;
+                    engText.textContent = result.translated;
+                    preview.classList.remove('hidden');
+                } else {
+                    preview.classList.add('hidden');
+                }
+            } catch { /* silent */ }
         },
 
         _updateCostEstimate() {

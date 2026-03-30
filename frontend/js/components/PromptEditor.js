@@ -110,6 +110,18 @@
                         </div>
                     </div>
 
+                    <!-- Translation preview (shown when non-English detected) -->
+                    <div class="translation-preview hidden">
+                        <div class="flex items-center gap-1 mb-1">
+                            <span class="translation-lang-badge text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent font-medium"></span>
+                            <div class="flex gap-0.5 ml-auto">
+                                <button type="button" class="translation-tab-original text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium">${typeof t !== 'undefined' ? t('common.prompt') : 'Original'}</button>
+                                <button type="button" class="translation-tab-english text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent">English</button>
+                            </div>
+                        </div>
+                        <div class="translation-english-text hidden p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-xs text-brand-text/70 whitespace-pre-wrap max-h-24 overflow-auto"></div>
+                    </div>
+
                     <!-- Toolbar: Compose button + Voice -->
                     <div class="flex flex-wrap items-center gap-2">
                         <button type="button" class="btn-compose btn btn-secondary btn-sm flex-1 sm:flex-none">
@@ -172,11 +184,31 @@
         }
 
         _attachEvents() {
-            // User typing clears the composed prompt
+            // User typing clears the composed prompt + triggers translation preview
+            this._translationTimer = null;
+            this._lastTranslation = null;
+
             this._textareaEl.addEventListener('input', () => {
                 this._updateCharCount();
                 if (this._composedText) this._clearComposed();
                 if (this._changeCb) this._changeCb(this._textareaEl.value);
+                // Debounced translation preview (500ms after user stops typing)
+                clearTimeout(this._translationTimer);
+                this._translationTimer = setTimeout(() => this._checkTranslation(), 500);
+            });
+
+            // Translation tab switching
+            this.container.querySelector('.translation-tab-original')?.addEventListener('click', () => {
+                this.container.querySelector('.translation-tab-original').className = 'translation-tab-original text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium';
+                this.container.querySelector('.translation-tab-english').className = 'translation-tab-english text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent';
+                this.container.querySelector('.translation-english-text')?.classList.add('hidden');
+                this._textareaEl.classList.remove('hidden');
+            });
+            this.container.querySelector('.translation-tab-english')?.addEventListener('click', () => {
+                this.container.querySelector('.translation-tab-english').className = 'translation-tab-english text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium';
+                this.container.querySelector('.translation-tab-original').className = 'translation-tab-original text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent';
+                this.container.querySelector('.translation-english-text')?.classList.remove('hidden');
+                this._textareaEl.classList.add('hidden');
             });
 
             // Compose button
@@ -257,6 +289,63 @@
             this._userComposed = false;
             this._composedPanel.classList.add('hidden');
             this._composedTextarea.value = '';
+        }
+
+        async _checkTranslation() {
+            const text = this._textareaEl.value.trim();
+            const preview = this.container.querySelector('.translation-preview');
+            const langBadge = this.container.querySelector('.translation-lang-badge');
+            const englishText = this.container.querySelector('.translation-english-text');
+            if (!preview || !text) {
+                preview?.classList.add('hidden');
+                this._lastTranslation = null;
+                return;
+            }
+
+            // Quick heuristic: check if text has non-ASCII characters
+            const hasNonAscii = /[^\x00-\x7F]/.test(text);
+            // Also check for French/Spanish accented words
+            const hasAccented = /[àâäéèêëïîôùûüÿçñ¿¡]/i.test(text);
+            // Check for common non-English word patterns
+            const looksNonEnglish = hasNonAscii || hasAccented;
+
+            if (!looksNonEnglish) {
+                preview.classList.add('hidden');
+                this._lastTranslation = null;
+                // Ensure textarea is visible (in case English tab was active)
+                this._textareaEl.classList.remove('hidden');
+                englishText?.classList.add('hidden');
+                return;
+            }
+
+            // Fetch translation preview
+            try {
+                const resp = await fetch('/api/refine-prompt/translate-preview', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text }),
+                });
+                if (!resp.ok) return;
+                const result = await resp.json();
+
+                if (result.was_translated && result.source_lang !== 'en') {
+                    this._lastTranslation = result;
+                    const langNames = { ja: '日本語', zh: '中文', ko: '한국어', fr: 'Français', es: 'Español' };
+                    langBadge.textContent = `${langNames[result.source_lang] || result.source_lang} → English`;
+                    englishText.textContent = result.translated;
+                    preview.classList.remove('hidden');
+                    // Reset to original tab
+                    this.container.querySelector('.translation-tab-original').className = 'translation-tab-original text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium';
+                    this.container.querySelector('.translation-tab-english').className = 'translation-tab-english text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent';
+                    this._textareaEl.classList.remove('hidden');
+                    englishText.classList.add('hidden');
+                } else {
+                    preview.classList.add('hidden');
+                    this._lastTranslation = null;
+                }
+            } catch {
+                // Silent failure — translation preview is a nice-to-have
+            }
         }
     }
 

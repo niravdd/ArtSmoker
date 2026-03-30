@@ -63,3 +63,27 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
     track_prompt_refinement()
 
     return {"original": body.prompt, "refined": refined, "negative_prompt": negative or ""}
+
+
+from pydantic import BaseModel as _BaseModel
+
+
+class TranslatePreviewRequest(_BaseModel):
+    text: str
+    source_lang: str = ""
+
+
+@router.post("/translate-preview")
+async def translate_preview(body: TranslatePreviewRequest):
+    """Lightweight translation preview — detects language and translates to English.
+
+    Used by the frontend to show a bilingual prompt view (original + English)
+    before generation. Fast: single LLM call (~$0.001, <1s).
+    """
+    from backend.services.prompt_translator import translate_to_english, detect_language
+
+    if not body.text or not body.text.strip():
+        return {"original": body.text, "translated": body.text, "source_lang": "en", "was_translated": False}
+
+    result = translate_to_english(body.text, source_lang=body.source_lang)
+    return result

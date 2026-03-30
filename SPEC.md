@@ -68,14 +68,13 @@
   - [13.3 Style Analysis Cost](#133-style-analysis-cost-one-time-per-style)
   - [13.4 Generation Cost Scenarios](#134-generation-cost-scenarios)
   - [13.5 Full Cost Examples](#135-full-cost-examples)
-- [14. Deployment & Scaling Roadmap](#14-deployment--scaling-roadmap)
-  - [14.1 Why Not Lambda](#141-why-not-lambda)
-  - [14.2 Phase 1: Local Development](#142-phase-1-current--local-development-done)
-  - [14.3 Phase 2: App Runner + S3](#143-phase-2-containerized-deployment--app-runner--s3)
-  - [14.4 Phase 3: CloudFront + Async](#144-phase-3-optimized-delivery--cloudfront--async-generation)
-  - [14.5 Phase 4: Multi-Tenant](#145-phase-4-multi-tenant-platform)
-  - [14.6 Infrastructure Summary](#146-infrastructure-summary)
-  - [14.7 Cost Estimates (Phase 2)](#147-cost-estimates-phase-2)
+- [14. Internationalization (i18n)](#14-internationalization-i18n)
+- [15. Deployment & Scaling Roadmap](#15-deployment--scaling-roadmap)
+  - [15.1 Why Not Lambda](#151-why-not-lambda)
+  - [15.2 Phase 1: Local Development](#152-phase-1-current--local-development-done)
+  - [15.3 Phase 2: App Runner + S3](#153-phase-2-containerized-deployment--app-runner--s3)
+  - [15.4 Phase 3: CloudFront + Async](#154-phase-3-optimized-delivery--cloudfront--async-generation)
+  - [15.5 Phase 4: Multi-Tenant](#155-phase-4-multi-tenant-platform)
 
 ---
 
@@ -1557,13 +1556,102 @@ The generation cost depends on the image model chosen and the options×variation
 > [!TIP]
 > **Key takeaway**: Image generation is cheap ($0.01–$0.14/image). **Creative Upscale is the big cost driver at $0.60/image** — use it selectively on your final chosen assets, not on the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free.
 
-<a id="14-deployment--scaling-roadmap"></a>
+## 14. Internationalization (i18n)
 
-## 14. Deployment & Scaling Roadmap
+ArtSmoker supports 6 languages: English (base), Japanese, Simplified Chinese, Korean, French, and Spanish.
+
+### 14.1 Architecture
+
+```
+frontend/js/i18n/
+├── i18n.js          # Core: t() function, JSON loader, DOM updater, reverse lookup
+├── en.json          # English (base) — 775 keys, source of truth
+├── ja.json          # Japanese — 775 keys
+├── zh.json          # Simplified Chinese — 775 keys
+├── ko.json          # Korean — 775 keys
+├── fr.json          # French — 775 keys
+└── es.json          # Spanish — 775 keys
+```
+
+**Key design decisions:**
+- `t('key')` is a global function available in all JS — returns the translated string for the active language
+- `t('key', {count: 5})` supports `{{variable}}` placeholder substitution
+- Language files are flat JSON loaded on demand (not bundled)
+- `I18n.updateDOM()` translates static HTML elements via `data-i18n` attributes
+- `I18n.translateView(container)` post-renders component HTML using a reverse lookup (English text → key → translated text)
+- Language selection persisted in `localStorage` (`artsmoker_lang` key)
+- On language change: all cached views cleared and re-rendered in the new language
+- CJK font support: Noto Sans JP/SC/KR loaded via Google Fonts CDN
+
+### 14.2 Prompt Translation Pipeline
+
+Non-English prompts are auto-detected and translated to English before processing. The translation uses the fast LLM (Claude Sonnet) at ~$0.001 per call.
+
+```
+User types prompt (any language)
+    ↓
+detect_language() — Unicode heuristic (CJK/Hangul/Latin+accents)
+    ↓ (if ambiguous)
+LLM fallback detection
+    ↓
+translate_to_english() via Claude Sonnet
+    ↓
+Returns: { original, translated, source_lang, was_translated }
+```
+
+**Where translation is applied:**
+
+| Path | Translates? | Why |
+|------|------------|-----|
+| Image Studio — single model | Yes | Image models work best with English |
+| Image Studio — all models | Yes | Same |
+| Image editing (inpaint/outpaint/erase/replace/recolor) | Yes | Edit models expect English |
+| Video Studio | Yes | Video models expect English |
+| Prompt refinement preview | Yes | LLM refinement assumes English |
+| Pre-screen moderation | Yes | Consistent moderation results |
+| Chat Studio | No | LLMs are natively multilingual |
+| Type Studio text lines | No | Text rendered on image in user's language |
+
+**Metadata stored per asset:**
+- `original_language`: Detected language code (e.g., "ja", "fr")
+- `original_language_prompt`: The user's original text (only if translated)
+- `prompt`: The English translation (sent to the model)
+- `refined_prompt`: AI-enhanced English prompt
+- `negative_prompt`: Extracted negative concepts
+
+**File names:** `_slugify_prompt()` translates non-ASCII prompts to English before slugifying, so Japanese "病院の建物" becomes `hospital-building_opt1_var1.png` (not `asset.png`).
+
+### 14.3 Bilingual Prompt Preview
+
+When a user types a non-English prompt, a translation preview bar appears with:
+- Language badge (e.g., "日本語 → English")
+- Two tabs: **Original** (shows user's text) and **English** (shows what the model will receive)
+- Translation fetched via debounced API call (`POST /api/refine-prompt/translate-preview`)
+- Available in Image Studio (PromptEditor) and Video Studio prompt areas
+
+### 14.4 UI String Translation
+
+- 775 translation keys across 16 categories (nav, common, image_studio, video_studio, etc.)
+- Components use `t('key')` in template literals: `${t('image_studio.title')}`
+- Confirm dialogs, toast messages, tooltips, placeholders all translated
+- Technical terms stay in English: AI, LLM, SVG, PNG, S3, AWS, Bedrock, API
+- Product names stay in English: ArtSmoker, Nova Canvas, Stable Diffusion
+
+### 14.5 Adding a New Language
+
+1. Copy `frontend/js/i18n/en.json` to `frontend/js/i18n/{code}.json`
+2. Translate all 775 values (keep keys identical)
+3. Add the language to `SUPPORTED_LANGS` in `frontend/js/i18n/i18n.js`
+4. Add the language code to `SUPPORTED_LANGS` in `backend/services/prompt_translator.py`
+5. Add CJK font if needed in `frontend/index.html` (Google Fonts link)
+
+<a id="15-deployment--scaling-roadmap"></a>
+
+## 15. Deployment & Scaling Roadmap
 
 The current architecture runs as a single local process (uvicorn + local filesystem). This section documents the phased plan for production deployment and scaling.
 
-### 14.1 Why Not Lambda
+### 15.1 Why Not Lambda
 
 AWS Lambda is not suitable as the primary compute for this application:
 
@@ -1575,9 +1663,11 @@ AWS Lambda is not suitable as the primary compute for this application:
 
 Lambda _could_ work for lightweight endpoints (styles CRUD, gallery listing, health check), but mixing Lambda and non-Lambda compute for the same API adds routing complexity without meaningful benefit at this stage.
 
-<a id="142-phase-1-current--local-development-done"></a>
 
-### 14.2 Phase 1: Current — Local Development (Done)
+
+<a id="152-phase-1-current--local-development-done"></a>
+
+### 15.2 Phase 1: Current — Local Development (Done)
 
 ```
 Developer machine
@@ -1672,9 +1762,11 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
 - **No race conditions for concurrent users** — each generation uses unique UUIDs, file writes don't overlap.
 - **Migrating style data**: Style references use relative symlinks, so they work across machines as long as the source art directories maintain the same relative position to the ArtSmoker project.
 
-<a id="143-phase-2-containerized-deployment--app-runner--s3"></a>
 
-### 14.3 Phase 2: Containerized Deployment — App Runner + S3
+
+<a id="153-phase-2-containerized-deployment--app-runner--s3"></a>
+
+### 15.3 Phase 2: Containerized Deployment — App Runner + S3
 
 **Goal**: Production URL accessible by the whole team, persistent storage, no server management.
 
@@ -1711,9 +1803,11 @@ AWS App Runner
 
 **Estimated effort**: 1-2 days. The S3 storage swap is the main work; Dockerfile and App Runner setup are straightforward.
 
-<a id="144-phase-3-optimized-delivery--cloudfront--async-generation"></a>
 
-### 14.4 Phase 3: Optimized Delivery — CloudFront + Async Generation
+
+<a id="154-phase-3-optimized-delivery--cloudfront--async-generation"></a>
+
+### 15.4 Phase 3: Optimized Delivery — CloudFront + Async Generation
 
 **Goal**: Fast global frontend delivery, resilient generation pipeline that handles heavy usage without timeouts.
 
@@ -1757,7 +1851,7 @@ Step Functions (generation pipeline)
 
 **Estimated effort**: 3-5 days. Step Functions state machine + Lambda decomposition is the main work. CloudFront setup is well-documented.
 
-### 14.5 Phase 4: Multi-Tenant Platform
+### 15.5 Phase 4: Multi-Tenant Platform
 
 **Goal**: Multiple studios/users, each with their own styles and generated assets, with authentication and access control.
 
@@ -1791,7 +1885,7 @@ DynamoDB
 
 **Estimated effort**: 1-2 weeks depending on auth requirements and billing complexity.
 
-### 14.6 Infrastructure Summary
+### 15.6 Infrastructure Summary
 
 | Phase | Compute | Storage | Frontend | Auth | Scale |
 |-------|---------|---------|----------|------|-------|
@@ -1800,7 +1894,7 @@ DynamoDB
 | 3 (Optimize) | App Runner + Step Functions + Lambda | S3 + DynamoDB | S3 + CloudFront | Optional | Heavy usage |
 | 4 (Multi-tenant) | Same as Phase 3 | S3 (tenant-prefixed) + DynamoDB | S3 + CloudFront | Cognito | Multiple teams |
 
-### 14.7 Cost Estimates (Phase 2)
+### 15.7 Cost Estimates (Phase 2)
 
 Rough monthly costs for a small team (10 users, ~500 generation batches/month). See the **Amazon Bedrock Pricing & Cost Breakdown** section above for detailed per-operation costs.
 
@@ -1816,7 +1910,7 @@ Rough monthly costs for a small team (10 users, ~500 generation batches/month). 
 > [!TIP]
 > **Biggest cost levers**: Image model choice (Titan at $0.01 vs Ultra at $0.14 = 14× difference), batch size (3×3 = 9 images vs 5×5 = 25 = 2.8× difference), and Creative Upscale ($0.60/image — only use on final selected assets).
 
-## 15. Disclaimer
+## 16. Disclaimer
 
 **Generated Content Quality**: All images, videos, and other assets generated by ArtSmoker are produced by AI models available through Amazon Bedrock, including both first-party AWS models and third-party models. The quality, accuracy, and appropriateness of generated content depend entirely on the prompts provided, the models selected, and the style references uploaded by the user. The authors and contributors of ArtSmoker make no guarantees regarding the quality, suitability, or fitness for purpose of any generated content.
 

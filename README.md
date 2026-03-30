@@ -19,7 +19,14 @@ ArtSmoker supports 6 languages. Switch the UI language using the language button
 | Français (French) | [README.fr.md](README.fr.md) |
 | Español (Spanish) | [README.es.md](README.es.md) |
 
-Non-English prompts are automatically detected and translated to English before generation. The original prompt, detected language, and translation are all preserved in the asset metadata.
+**Multi-lingual prompt support:**
+- Non-English prompts are automatically detected (Japanese, Chinese, Korean, French, Spanish) and translated to English before generation
+- A bilingual preview appears in the prompt area: toggle between your original text and the English translation to see exactly what the model will receive
+- The original prompt, detected language, and English translation are all preserved in the asset metadata
+- File names are generated from the translated English prompt (so "病院の建物" → `hospital-building_opt1_var1.png`)
+- Chat Studio passes prompts directly to the LLM (no translation) since models like Claude are natively multilingual
+- Type Studio text stays in your language (it's rendered on the image as-is)
+- All moderation pre-checks and content screening work on the translated English prompt for consistency
 
 ## 📌 0. Overview
 
