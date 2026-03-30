@@ -25,31 +25,31 @@
                     <!-- Header -->
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
-                            <h1 class="text-2xl font-bold">Gallery</h1>
-                            <p class="text-sm text-brand-text-muted mt-1">Browse your generated images, videos, and art assets</p>
+                            <h1 class="text-2xl font-bold">${t('gallery.title')}</h1>
+                            <p class="text-sm text-brand-text-muted mt-1">${t('gallery.subtitle')}</p>
                         </div>
                         <a href="#image-studio" class="btn btn-primary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                             </svg>
-                            Generate New
+                            ${t('gallery.generate_new')}
                         </a>
                     </div>
 
                     <!-- Selection bar (hidden until items are selected) -->
                     <div id="gal-selection-bar" class="hidden card-static p-3 bg-red-950/30 border-red-500/30 flex items-center justify-between gap-4">
                         <div class="flex items-center gap-3">
-                            <button id="gal-select-all" class="btn btn-secondary btn-sm text-xs">Select All</button>
-                            <button id="gal-deselect-all" class="btn btn-secondary btn-sm text-xs">Deselect All</button>
+                            <button id="gal-select-all" class="btn btn-secondary btn-sm text-xs">${t('gallery.select_all')}</button>
+                            <button id="gal-deselect-all" class="btn btn-secondary btn-sm text-xs">${t('gallery.deselect_all')}</button>
                             <span id="gal-selected-count" class="text-sm text-red-300 font-medium"></span>
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="text-[10px] text-red-400/70">Deletion is permanent and cannot be undone</span>
+                            <span class="text-[10px] text-red-400/70">${t('gallery.delete_warning')}</span>
                             <button id="gal-delete-btn" class="btn btn-sm bg-red-600 hover:bg-red-500 text-white">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                 </svg>
-                                Delete Selected
+                                ${t('gallery.delete_selected')}
                             </button>
                         </div>
                     </div>
@@ -61,41 +61,41 @@
                             <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                             </svg>
-                            <input type="text" id="gal-search" class="input w-full pl-10" placeholder="Search prompts, styles, types...">
+                            <input type="text" id="gal-search" class="input w-full pl-10" placeholder="${t('gallery.search_placeholder')}">
                         </div>
                         <!-- Filters -->
                         <div class="flex flex-wrap items-center gap-3">
                             <div class="flex-1 min-w-[120px]">
-                                <label class="block text-xs text-brand-text-muted mb-1">Media</label>
+                                <label class="block text-xs text-brand-text-muted mb-1">${t('gallery.filter_media')}</label>
                                 <select id="gal-filter-media" class="input">
-                                    <option value="">All Media</option>
-                                    <option value="image">2D Artwork</option>
-                                    <option value="video">Video</option>
+                                    <option value="">${t('gallery.filter_all_media')}</option>
+                                    <option value="image">${t('gallery.filter_images')}</option>
+                                    <option value="video">${t('gallery.filter_videos')}</option>
                                 </select>
                             </div>
                             <div class="flex-1 min-w-[160px]">
-                                <label class="block text-xs text-brand-text-muted mb-1">Style</label>
+                                <label class="block text-xs text-brand-text-muted mb-1">${t('gallery.filter_style')}</label>
                                 <select id="gal-filter-style" class="input">
-                                    <option value="">All Styles</option>
+                                    <option value="">${t('gallery.filter_all_styles')}</option>
                                 </select>
                             </div>
                             <div class="flex-1 min-w-[160px]">
-                                <label class="block text-xs text-brand-text-muted mb-1">Asset Type</label>
+                                <label class="block text-xs text-brand-text-muted mb-1">${t('gallery.filter_type')}</label>
                                 <select id="gal-filter-type" class="input">
-                                    <option value="">All Types</option>
-                                    <option value="game_asset">Game Asset</option>
-                                    <option value="marketing_banner">Marketing Banner</option>
-                                    <option value="icon">Icon</option>
-                                    <option value="character">Character</option>
-                                    <option value="environment">Environment</option>
-                                    <option value="video">Video</option>
+                                    <option value="">${t('gallery.filter_all_types')}</option>
+                                    <option value="game_asset">${t('gallery.filter_game_asset')}</option>
+                                    <option value="marketing_banner">${t('gallery.filter_marketing_banner')}</option>
+                                    <option value="icon">${t('gallery.filter_icon')}</option>
+                                    <option value="character">${t('gallery.filter_character')}</option>
+                                    <option value="environment">${t('gallery.filter_environment')}</option>
+                                    <option value="video">${t('gallery.filter_video')}</option>
                                 </select>
                             </div>
                             <div class="flex-1 min-w-[160px]">
-                                <label class="block text-xs text-brand-text-muted mb-1">Sort By</label>
+                                <label class="block text-xs text-brand-text-muted mb-1">${t('gallery.sort')}</label>
                                 <select id="gal-sort" class="input">
-                                    <option value="newest">Newest First</option>
-                                    <option value="oldest">Oldest First</option>
+                                    <option value="newest">${t('gallery.sort_newest')}</option>
+                                    <option value="oldest">${t('gallery.sort_oldest')}</option>
                                 </select>
                             </div>
                             <div class="flex items-end">
@@ -103,7 +103,7 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                                     </svg>
-                                    Apply
+                                    ${t('common.apply')}
                                 </button>
                             </div>
                         </div>
@@ -119,7 +119,7 @@
 
                     <!-- Load More -->
                     <div id="gal-load-more" class="hidden text-center py-4">
-                        <button id="btn-load-more" class="btn btn-secondary btn-sm">Load More</button>
+                        <button id="btn-load-more" class="btn btn-secondary btn-sm">${t('gallery.load_more')}</button>
                     </div>
                 </div>
             `;
@@ -259,7 +259,7 @@
             } catch (err) {
                 console.error('Gallery load error:', err);
                 if (grid && this._items.length === 0) {
-                    grid.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">Failed to load gallery.</div>`;
+                    grid.innerHTML = `<div class="col-span-full text-center py-8 text-red-400">${t('gallery.load_error')}</div>`;
                 }
             } finally {
                 this._loading = false;
@@ -275,7 +275,7 @@
             const count = document.getElementById('gal-selected-count');
             const n = this._selected.size;
             if (bar) bar.classList.toggle('hidden', n === 0);
-            if (count) count.textContent = `${n} item${n !== 1 ? 's' : ''} selected`;
+            if (count) count.textContent = t('gallery.selected', { count: n, plural: n !== 1 ? 's' : '' });
 
             // Sync checkboxes
             document.querySelectorAll('.gal-select-cb').forEach(cb => {
@@ -292,9 +292,9 @@
             const ids = Array.from(this._selected);
             if (ids.length === 0) return;
 
-            if (!await window.showConfirm(`Permanently delete ${ids.length} asset${ids.length !== 1 ? 's' : ''}?`, { title: 'Delete Assets', detail: 'This cannot be undone. All versions of the selected assets will be removed.', confirmLabel: 'Delete', danger: true })) return;
+            if (!await window.showConfirm(t('gallery.delete_confirm', { count: ids.length, plural: ids.length !== 1 ? 's' : '' }), { title: t('gallery.delete_title'), detail: t('gallery.delete_detail'), confirmLabel: t('gallery.confirm_label'), danger: true })) return;
 
-            window.showLoading?.(`Deleting ${ids.length} asset${ids.length !== 1 ? 's' : ''}...`);
+            window.showLoading?.(t('gallery.deleting', { count: ids.length, plural: ids.length !== 1 ? 's' : '' }));
             try {
                 // Separate image and video IDs
                 const imageIds = [];
@@ -321,7 +321,7 @@
 
                 window.hideLoading?.();
                 this._selected.clear();
-                window.showToast?.(`${deletedCount} asset${deletedCount !== 1 ? 's' : ''} deleted`, 'success');
+                window.showToast?.(t('gallery.deleted', { count: deletedCount, plural: deletedCount !== 1 ? 's' : '' }), 'success');
                 await this._loadItems(true);
             } catch (err) {
                 window.hideLoading?.();
@@ -358,8 +358,10 @@
             if (countEl) {
                 countEl.classList.remove('hidden');
                 const displayItems = this._filteredItems !== null ? this._filteredItems : this._items;
-                const searchNote = this._filteredItems !== null ? ` (${displayItems.length} matching)` : '';
-                countEl.textContent = `${this._items.length} asset${this._items.length !== 1 ? 's' : ''}${searchNote}${this._hasMore ? ' — more available' : ''}`;
+                const countText = t('gallery.asset_count', { count: this._items.length, plural: this._items.length !== 1 ? 's' : '' });
+                const searchNote = this._filteredItems !== null ? t('gallery.matching', { count: displayItems.length }) : '';
+                const moreNote = this._hasMore ? t('gallery.more_available') : '';
+                countEl.textContent = `${countText}${searchNote}${moreNote}`;
             }
         },
 
@@ -379,7 +381,7 @@
                 // Search returned no results
                 grid.innerHTML = `
                     <div class="col-span-full text-center py-12 text-brand-text-muted">
-                        <p class="text-sm">No assets match your search.</p>
+                        <p class="text-sm">${t('gallery.no_results')}</p>
                     </div>
                 `;
                 return;
@@ -392,13 +394,13 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        <h3 class="text-lg font-semibold text-brand-text mb-1">No Assets Yet</h3>
-                        <p class="text-brand-text-muted text-sm mb-4">Generate your first image to see it here.</p>
+                        <h3 class="text-lg font-semibold text-brand-text mb-1">${t('gallery.no_assets')}</h3>
+                        <p class="text-brand-text-muted text-sm mb-4">${t('gallery.no_assets_desc')}</p>
                         <a href="#image-studio" class="btn btn-primary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
-                            Go to 2D Image Studio
+                            ${t('gallery.go_to_studio')}
                         </a>
                     </div>
                 `;
@@ -458,7 +460,7 @@
             return `
                 <div class="gallery-card card cursor-pointer overflow-hidden group ${isSelected ? 'ring-2 ring-red-500/50' : ''}" data-id="${this._esc(item.id)}" data-media="${isVideo ? 'video' : 'image'}">
                     <div class="img-hover-zoom ${isVideo ? 'aspect-video' : 'aspect-[4/3]'} bg-brand-bg flex items-center justify-center overflow-hidden relative">
-                        <img src="${thumbUrl}" alt="${isVideo ? 'Video thumbnail' : 'Generated asset'}"
+                        <img src="${thumbUrl}" alt="${isVideo ? t('gallery.alt_video_thumb') : t('gallery.alt_asset')}"
                              class="w-full h-full object-cover"
                              loading="lazy" />
                         ${isVideo ? `
@@ -473,12 +475,12 @@
                             <input type="checkbox" class="gal-select-cb w-4 h-4 rounded border-brand-border bg-brand-bg/80 text-red-500 focus:ring-red-500 cursor-pointer"
                                 data-id="${this._esc(item.id)}" ${isSelected ? 'checked' : ''} />
                         </label>
-                        ${isVideo ? '<span class="absolute top-2 right-2 bg-brand-accent/80 text-white text-[9px] px-1.5 py-0.5 rounded font-medium">VIDEO</span>' : ''}
+                        ${isVideo ? `<span class="absolute top-2 right-2 bg-brand-accent/80 text-white text-[9px] px-1.5 py-0.5 rounded font-medium">${t('gallery.video_badge')}</span>` : ''}
                     </div>
                     <div class="p-4 space-y-2">
-                        <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${this._esc(truncPrompt) || '<em class="text-brand-text-muted">No prompt</em>'}</p>
+                        <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${this._esc(truncPrompt) || `<em class="text-brand-text-muted">${t('gallery.no_prompt')}</em>`}</p>
                         <div class="flex items-center flex-wrap gap-2 text-xs text-brand-text-muted">
-                            ${isVideo ? `<span class="badge badge-indigo">${this._esc(item.model_label || 'Video')}</span>` : ''}
+                            ${isVideo ? `<span class="badge badge-indigo">${this._esc(item.model_label || t('gallery.filter_videos'))}</span>` : ''}
                             ${styleName ? `<span class="badge badge-indigo">${this._esc(styleName)}</span>` : ''}
                             ${item.asset_type && item.asset_type !== 'video' ? `<span class="badge badge-indigo">${this._esc(item.asset_type)}</span>` : ''}
                             ${createdAt ? `<span>${createdAt}</span>` : ''}

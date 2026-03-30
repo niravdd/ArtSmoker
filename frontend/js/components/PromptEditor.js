@@ -102,7 +102,7 @@
                         <textarea
                             id="prompt-textarea"
                             class="input w-full min-h-[100px] pr-12"
-                            placeholder="Describe what you want to generate..."
+                            placeholder="${typeof t !== 'undefined' ? t('prompt_editor.placeholder') : 'Describe what you want to generate...'}"
                             rows="3"
                         ></textarea>
                         <div class="absolute bottom-2 right-2 flex items-center gap-1">
@@ -117,11 +117,11 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                     d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                             </svg>
-                            Preview Enhanced Prompt
+                            ${typeof t !== 'undefined' ? t('prompt_editor.compose') : 'Preview Enhanced Prompt'}
                         </button>
                         <div class="voice-container"></div>
                     </div>
-                    <p class="compose-note text-[10px] text-brand-text-muted/60 -mt-1">Tip: Generate will auto-enhance your prompt. Use this button to preview and edit the enhanced version first.</p>
+                    <p class="compose-note text-[10px] text-brand-text-muted/60 -mt-1">${typeof t !== 'undefined' ? t('prompt_editor.compose_tip') : 'Tip: Generate will auto-enhance your prompt. Use this button to preview and edit the enhanced version first.'}</p>
 
                     <!-- Composed generation prompt (hidden until composed) -->
                     <div class="composed-panel hidden space-y-2">
@@ -130,15 +130,15 @@
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
-                                Generation Prompt
+                                ${typeof t !== 'undefined' ? t('prompt_editor.generation_prompt') : 'Generation Prompt'}
                             </h4>
-                            <button type="button" class="btn-clear-composed text-[10px] text-brand-text-muted hover:text-red-400 transition-colors">Clear</button>
+                            <button type="button" class="btn-clear-composed text-[10px] text-brand-text-muted hover:text-red-400 transition-colors">${typeof t !== 'undefined' ? t('prompt_editor.clear') : 'Clear'}</button>
                         </div>
                         <textarea
                             class="composed-textarea input w-full min-h-[80px] text-xs text-brand-text/80 bg-emerald-950/10 border-emerald-500/20"
                             rows="3"
                         ></textarea>
-                        <p class="text-[10px] text-brand-text-muted/50">This is what the image model will receive. You can edit it. Style guidelines and asset type directives have been integrated.</p>
+                        <p class="text-[10px] text-brand-text-muted/50">${typeof t !== 'undefined' ? t('prompt_editor.composed_desc') : 'This is what the image model will receive. You can edit it.'}</p>
                     </div>
                 </div>
             `;
@@ -201,23 +201,23 @@
             if (!this._composeNote) return;
             const hasStyle = !!this.opts.styleId;
             if (hasStyle) {
-                this._composeNote.textContent = 'Your prompt will be composed with the selected style guidelines, asset type directives, and AI-enhanced details.';
+                this._composeNote.textContent = typeof t !== 'undefined' ? t('prompt_editor.compose_tip') : 'Your prompt will be composed with the selected style guidelines.';
             } else {
-                this._composeNote.textContent = 'No style selected — AI will enhance your prompt with composition, lighting, and quality details based on the asset type.';
+                this._composeNote.textContent = typeof t !== 'undefined' ? t('prompt_editor.compose_tip') : 'AI will enhance your prompt with composition, lighting, and quality details.';
             }
         }
 
         async _handleCompose() {
             const text = this._textareaEl.value.trim();
             if (!text) {
-                window.showToast?.('Enter a prompt first', 'warning');
+                window.showToast?.(typeof t !== 'undefined' ? t('prompt_editor.compose_error') : 'Enter a prompt first', 'warning');
                 return;
             }
             if (this._isComposing) return;
             this._isComposing = true;
 
             const origHTML = this._btnCompose.innerHTML;
-            this._btnCompose.innerHTML = '<span class="spinner-sm"></span> Composing...';
+            this._btnCompose.innerHTML = `<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('prompt_editor.composing') : 'Composing...'}`;
             this._btnCompose.disabled = true;
 
             try {

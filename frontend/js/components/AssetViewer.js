@@ -91,39 +91,39 @@
                 <div class="modal-content bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
-                        <h2 class="text-lg font-semibold truncate flex-1">${this._esc(item.png_filename || 'Generated Asset')}</h2>
+                        <h2 class="text-lg font-semibold truncate flex-1">${this._esc(item.png_filename || t('asset_viewer.generated_asset'))}</h2>
                         <div class="flex items-center gap-2 ml-4">
-                            <button class="btn-reload btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="Reload this batch in 2D Image Studio">
+                            <button class="btn-reload btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="${t('asset_viewer.reload_studio_title')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                 </svg>
-                                2D Studio
+                                ${t('asset_viewer.to_studio')}
                             </button>
-                            <button class="btn-add-text btn btn-sm bg-emerald-600 hover:bg-emerald-500 text-white" title="Add text to this image in Type Studio">
+                            <button class="btn-add-text btn btn-sm bg-emerald-600 hover:bg-emerald-500 text-white" title="${t('asset_viewer.add_text_title')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/>
                                 </svg>
-                                Add Text
+                                ${t('asset_viewer.add_text')}
                             </button>
-                            <button class="btn-reload-type hidden btn btn-sm bg-purple-600 hover:bg-purple-500 text-white" title="Reload in Type Studio with original settings">
+                            <button class="btn-reload-type hidden btn btn-sm bg-purple-600 hover:bg-purple-500 text-white" title="${t('asset_viewer.edit_type_title')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/>
                                 </svg>
-                                Edit in Type Studio
+                                ${t('asset_viewer.edit_type')}
                             </button>
                             <div class="flex items-center gap-1 ml-2">
-                                <button class="btn-prev p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="Previous">
+                                <button class="btn-prev p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="${t('asset_viewer.previous')}">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                                     </svg>
                                 </button>
-                                <button class="btn-next p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="Next">
+                                <button class="btn-next p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="${t('asset_viewer.next')}">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                     </svg>
                                 </button>
                             </div>
-                            <button class="btn-close p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors" title="Close">
+                            <button class="btn-close p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors" title="${t('asset_viewer.close_title')}">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                 </svg>
@@ -133,16 +133,16 @@
 
                     <!-- Tabs -->
                     <div class="tab-bar px-6 pt-3">
-                        <button class="tab active" data-tab="png">PNG</button>
-                        <button class="tab" data-tab="edit">Edit</button>
-                        <button class="tab" data-tab="svg">SVG</button>
-                        <button class="tab" data-tab="meta">Metadata</button>
+                        <button class="tab active" data-tab="png">${t('asset_viewer.png_tab')}</button>
+                        <button class="tab" data-tab="edit">${t('asset_viewer.edit_tab')}</button>
+                        <button class="tab" data-tab="svg">${t('asset_viewer.svg_tab')}</button>
+                        <button class="tab" data-tab="meta">${t('asset_viewer.metadata_tab')}</button>
                     </div>
 
                     <!-- Version bar (shared across all tabs, populated when metadata loads) -->
                     <div id="av-version-bar" class="hidden px-6 py-2 bg-brand-bg/40 border-b border-brand-border">
                         <div class="flex items-center gap-2">
-                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">Version:</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('asset_viewer.version_label')}</span>
                             <div id="av-version-buttons" class="flex gap-1 flex-wrap"></div>
                         </div>
                         <div id="av-version-detail" class="text-[10px] text-brand-text-muted mt-1 hidden"></div>
@@ -159,15 +159,15 @@
                                 </div>
                                 <!-- Zoom controls — floating overlay at top-right -->
                                 <div class="absolute top-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1">
-                                    <button id="av-zoom-out" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="Zoom out">
+                                    <button id="av-zoom-out" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="${t('asset_viewer.zoom_out_title')}">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"/></svg>
                                     </button>
                                     <span id="av-zoom-level" class="text-[10px] text-white/70 font-mono w-10 text-center">100%</span>
-                                    <button id="av-zoom-in" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="Zoom in">
+                                    <button id="av-zoom-in" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="${t('asset_viewer.zoom_in_title')}">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"/></svg>
                                     </button>
-                                    <button id="av-zoom-fit" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="Fit to view">Fit</button>
-                                    <button id="av-zoom-actual" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="Actual size">1:1</button>
+                                    <button id="av-zoom-fit" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="${t('asset_viewer.zoom_fit_title')}">${t('asset_viewer.zoom_fit')}</button>
+                                    <button id="av-zoom-actual" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="${t('asset_viewer.zoom_actual_title')}">${t('asset_viewer.zoom_1to1')}</button>
                                 </div>
                             </div>
                         </div>
@@ -177,22 +177,22 @@
                             <div class="space-y-3">
                                 <!-- Edit mode selector -->
                                 <div class="flex gap-2">
-                                    <button class="av-edit-mode btn btn-sm btn-secondary active" data-mode="inpaint">Inpaint</button>
-                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="erase">Erase</button>
-                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="outpaint">Outpaint</button>
-                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_replace">Replace</button>
-                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_recolor">Recolor</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary active" data-mode="inpaint">${t('asset_viewer.inpaint')}</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="erase">${t('asset_viewer.erase')}</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="outpaint">${t('asset_viewer.outpaint')}</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_replace">${t('asset_viewer.replace')}</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_recolor">${t('asset_viewer.recolor')}</button>
                                 </div>
 
                                 <!-- Inpaint/Erase: Canvas + Mask -->
                                 <div id="av-mask-section">
                                     <div class="flex items-center gap-3 mb-2">
-                                        <label class="text-xs text-brand-text-muted">Brush:</label>
+                                        <label class="text-xs text-brand-text-muted">${t('asset_viewer.brush_size')}:</label>
                                         <input id="av-brush-size" type="range" min="5" max="80" value="20" class="w-24" />
                                         <span id="av-brush-size-label" class="text-xs text-brand-text-muted font-mono w-8">20px</span>
-                                        <button id="av-mask-clear" class="btn btn-sm btn-secondary text-xs">Clear mask</button>
+                                        <button id="av-mask-clear" class="btn btn-sm btn-secondary text-xs">${t('asset_viewer.clear_mask')}</button>
                                     </div>
-                                    <p class="text-[10px] text-brand-text-dim mb-1">Paint white over the area you want to edit. The rest of the image will be preserved.</p>
+                                    <p class="text-[10px] text-brand-text-dim mb-1">${t('asset_viewer.mask_hint_full')}</p>
                                     <div class="relative rounded-lg overflow-hidden border border-brand-border" style="display: inline-block;">
                                         <canvas id="av-mask-canvas" class="cursor-crosshair" style="max-width: 100%; max-height: 50vh;"></canvas>
                                     </div>
@@ -200,37 +200,37 @@
 
                                 <!-- Outpaint: Direction controls -->
                                 <div id="av-outpaint-section" class="hidden">
-                                    <p class="text-[10px] text-brand-text-dim mb-2">Extend the image in any direction (pixels to add):</p>
+                                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.outpaint_hint_full')}</p>
                                     <div class="grid grid-cols-4 gap-2 max-w-xs">
-                                        <div><label class="text-[10px] text-brand-text-muted">Left</label><input id="av-out-left" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
-                                        <div><label class="text-[10px] text-brand-text-muted">Right</label><input id="av-out-right" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
-                                        <div><label class="text-[10px] text-brand-text-muted">Up</label><input id="av-out-up" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
-                                        <div><label class="text-[10px] text-brand-text-muted">Down</label><input id="av-out-down" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_left')}</label><input id="av-out-left" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_right')}</label><input id="av-out-right" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_up')}</label><input id="av-out-up" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_down')}</label><input id="av-out-down" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
                                     </div>
                                 </div>
 
                                 <!-- Search prompt (Replace/Recolor modes) -->
                                 <div id="av-search-section" class="hidden">
-                                    <label class="text-xs text-brand-text-muted mb-1 block" id="av-search-label">Find object</label>
-                                    <input id="av-search-prompt" type="text" class="input text-sm w-full" placeholder="e.g. the red car, the old barrel..." />
+                                    <label class="text-xs text-brand-text-muted mb-1 block" id="av-search-label">${t('asset_viewer.find_object')}</label>
+                                    <input id="av-search-prompt" type="text" class="input text-sm w-full" placeholder="${t('asset_viewer.find_placeholder')}" />
                                 </div>
 
                                 <!-- Prompt + Model + Generate -->
                                 <div>
-                                    <label class="text-xs text-brand-text-muted mb-1 block" id="av-prompt-label">Prompt (describe what to generate in the edited area)</label>
-                                    <textarea id="av-edit-prompt" class="input text-sm w-full h-16" placeholder="e.g. a treasure chest, a wooden door, blue sky..."></textarea>
+                                    <label class="text-xs text-brand-text-muted mb-1 block" id="av-prompt-label">${t('asset_viewer.edit_prompt')}</label>
+                                    <textarea id="av-edit-prompt" class="input text-sm w-full h-16" placeholder="${t('asset_viewer.edit_prompt_placeholder')}"></textarea>
                                 </div>
                                 <div class="flex items-end gap-2">
                                     <div class="flex-1">
-                                        <label class="text-[10px] text-brand-text-muted mb-0.5 block">Model</label>
+                                        <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.edit_model')}</label>
                                         <select id="av-edit-model" class="input text-xs"></select>
                                     </div>
                                     <button id="av-edit-generate" class="btn btn-primary btn-sm">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                        Apply Edit
+                                        ${t('asset_viewer.apply_edit')}
                                     </button>
                                 </div>
-                                <p class="text-[10px] text-brand-text-dim mt-1">Edit creates a new version. All previous versions are preserved and browsable.</p>
+                                <p class="text-[10px] text-brand-text-dim mt-1">${t('asset_viewer.edit_hint_full')}</p>
                                 <div id="av-edit-status" class="text-xs text-brand-text-muted hidden"></div>
                             </div>
                         </div>
@@ -239,7 +239,7 @@
                         <div class="tab-panel hidden" data-panel="svg">
                             <div class="preview-checkerboard rounded-lg flex items-center justify-center p-4 min-h-[300px]">
                                 <img src="${svgUrl}" alt="Generated SVG" class="max-w-full max-h-[60vh] rounded shadow-lg" loading="lazy"
-                                     onerror="this.parentElement.innerHTML='<p class=\\'text-brand-text-muted text-sm\\'>SVG not available for this asset.</p>'" />
+                                     onerror="this.parentElement.innerHTML='<p class=\\'text-brand-text-muted text-sm\\'>${t('asset_viewer.svg_error_inline')}</p>'" />
                             </div>
                         </div>
 
@@ -248,7 +248,7 @@
                             <div id="asset-meta-content" class="space-y-4 text-sm">
                                 <div class="flex items-center gap-2 text-brand-text-muted py-8 justify-center">
                                     <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                    Loading metadata...
+                                    ${t('asset_viewer.loading_metadata')}
                                 </div>
                             </div>
                         </div>
@@ -260,13 +260,13 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
-                            Download PNG
+                            ${t('asset_viewer.download_png')}
                         </a>
                         <a href="${svgUrl}" download="${this._esc(item.svg_filename || 'asset.svg')}" class="btn btn-secondary btn-sm btn-dl-svg">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
-                            Download SVG
+                            ${t('asset_viewer.download_svg')}
                         </a>
                     </div>
                 </div>
@@ -288,84 +288,84 @@
             container.innerHTML = `
                 ${meta.original_prompt ? `
                 <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Original Prompt</label>
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_original_prompt')}</label>
                     <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.original_prompt)}</p>
                 </div>` : ''}
                 <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${isTypeStudio ? 'Text Content' : (meta.original_prompt ? 'AI-Improved Prompt' : 'Prompt')}</label>
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${isTypeStudio ? t('asset_viewer.meta_text_content') : (meta.original_prompt ? t('asset_viewer.meta_enhanced') : t('common.prompt'))}</label>
                     <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.prompt || 'N/A')}</p>
                 </div>
                 ${!isTypeStudio && meta.refined_prompt ? `
                 <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Generation Prompt (sent to image model)</label>
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_generation_prompt')}</label>
                     <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._esc(meta.refined_prompt)}</p>
                 </div>` : ''}
                 ${meta.negative_prompt ? `
                 <div>
-                    <label class="block text-xs text-amber-400/80 uppercase tracking-wider mb-1">Negative Prompt (exclusions sent to model)</label>
+                    <label class="block text-xs text-amber-400/80 uppercase tracking-wider mb-1">${t('asset_viewer.meta_negative_exclusions')}</label>
                     <p class="p-3 rounded-lg bg-amber-950/20 border border-amber-900/20 whitespace-pre-wrap text-amber-300/70 italic text-sm">${this._esc(meta.negative_prompt)}</p>
                 </div>` : ''}
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Style</label>
-                        <p class="font-medium">${this._esc(meta.style_snapshot?.name || meta.style_id || 'None')}</p>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_style')}</label>
+                        <p class="font-medium">${this._esc(meta.style_snapshot?.name || meta.style_id || t('common.none'))}</p>
                     </div>
                     <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Asset Type</label>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_type')}</label>
                         <p class="font-medium">${typeLabel}</p>
                     </div>
                     ${modelLabel ? `<div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Image Model</label>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_model')}</label>
                         <p class="font-medium">${modelLabel}</p>
                     </div>` : ''}
                     <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Dimensions</label>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_dimensions')}</label>
                         <p class="font-medium">${meta.width || '?'} x ${meta.height || '?'}</p>
                     </div>
                     ${meta.seed != null ? `<div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Seed</label>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_seed')}</label>
                         <p class="font-medium font-mono text-xs">${meta.seed}</p>
                     </div>` : ''}
                     <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Created</label>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_created')}</label>
                         <p class="font-medium">${createdAt}</p>
                     </div>
                 </div>
                 ${(meta.ip_owned || meta.ip_licensed) ? `
                 <div class="p-2 rounded-lg bg-brand-accent/10 border border-brand-accent/20 text-xs">
-                    <span class="font-medium">IP Declaration:</span>
-                    ${meta.ip_owned ? ' Owner' : ''}${meta.ip_licensed ? ' Licensed' : ''}
+                    <span class="font-medium">${t('asset_viewer.meta_ip_declaration')}</span>
+                    ${meta.ip_owned ? ' ' + t('asset_viewer.meta_ip_owner') : ''}${meta.ip_licensed ? ' ' + t('asset_viewer.meta_ip_licensed') : ''}
                 </div>` : ''}
                 <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Batch ID</label>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_batch')}</label>
                         <p class="font-mono text-xs text-brand-text-muted">${this._esc(meta.batch_id || meta.id)}</p>
                     </div>
                     <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Option / Variation</label>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_option_var')}</label>
                         <p class="font-medium">${(meta.option_index ?? 0) + 1} / ${(meta.variant_index ?? 0) + 1}</p>
                     </div>
                     <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Filename</label>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_filename')}</label>
                         <p class="font-mono text-xs">${this._esc(meta.png_filename || 'N/A')}</p>
                     </div>
                 </div>
                 ${meta.style_snapshot?.generation_hints ? `
                 <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Style Hints (at generation time)</label>
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_style_hints')}</label>
                     <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-xs text-brand-text-muted">${this._esc(meta.style_snapshot.generation_hints)}</p>
                 </div>` : ''}
                 ${meta.type === 'type-studio' ? `
                 <div class="border-t border-brand-border pt-4 mt-2">
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">Type Studio Details</label>
-                    ${meta.source_image_id ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">Source image:</span> ${this._esc(meta.source_image_id)}</p>` : '<p class="text-sm mb-1 text-brand-text-muted">Standalone text (no source image)</p>'}
-                    ${meta.style_note ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">Style note:</span> ${this._esc(meta.style_note)}</p>` : ''}
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">${t('asset_viewer.meta_type_studio_details')}</label>
+                    ${meta.source_image_id ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('asset_viewer.meta_source_image')}</span> ${this._esc(meta.source_image_id)}</p>` : '<p class="text-sm mb-1 text-brand-text-muted">' + t('asset_viewer.meta_standalone_text') + '</p>'}
+                    ${meta.style_note ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('asset_viewer.meta_style_note')}</span> ${this._esc(meta.style_note)}</p>` : ''}
                     ${meta.lines ? `
                     <div class="mt-2 space-y-1">
                         ${meta.lines.map((l, i) => `
                             <div class="text-sm p-2 rounded bg-brand-bg/40">
-                                <span class="text-brand-text-muted">Line ${i+1}:</span> "${this._esc(l.text)}"
-                                <span class="text-brand-text-muted/60 text-xs ml-2">${l.font || 'default'} / ${l.position || 'center'}</span>
+                                <span class="text-brand-text-muted">${t('asset_viewer.meta_line', {num: i+1})}</span> "${this._esc(l.text)}"
+                                <span class="text-brand-text-muted/60 text-xs ml-2">${l.font || t('common.default')} / ${l.position || 'center'}</span>
                             </div>
                         `).join('')}
                     </div>` : ''}
@@ -373,12 +373,12 @@
                 ${meta.edit_history?.length ? `
                 <div class="border-t border-brand-border pt-4 mt-2">
                     <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">
-                        Edit History (${meta.edit_count || meta.edit_history.length} edit${meta.edit_history.length > 1 ? 's' : ''})
+                        ${t('asset_viewer.meta_edit_history')} (${meta.edit_count || meta.edit_history.length} edit${meta.edit_history.length > 1 ? 's' : ''})
                     </label>
                     ${meta.original_prompt ? `
-                    <p class="text-[10px] text-brand-text-dim mb-2">Original prompt: "${this._esc(meta.original_prompt)}"</p>` : ''}
+                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.meta_original_prompt_label')} "${this._esc(meta.original_prompt)}"</p>` : ''}
                     ${meta.original_image_model ? `
-                    <p class="text-[10px] text-brand-text-dim mb-2">Originally generated with: ${this._esc(meta.original_image_model)}</p>` : ''}
+                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.meta_originally_generated')} ${this._esc(meta.original_image_model)}</p>` : ''}
                     <div class="space-y-2">
                         ${meta.edit_history.map((edit, i) => `
                         <div class="p-2 rounded bg-brand-bg/40 border-l-2 ${i === meta.edit_history.length - 1 ? 'border-emerald-400' : 'border-brand-border'}">
@@ -388,21 +388,21 @@
                             </div>
                             <p class="text-xs">${this._esc(edit.model_label || edit.edit_model || '')}</p>
                             ${edit.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5">"${this._esc(edit.prompt)}"</p>` : ''}
-                            ${edit.negative_prompt ? `<p class="text-[10px] text-amber-300/60 italic mt-0.5">Negative: ${this._esc(edit.negative_prompt)}</p>` : ''}
-                            ${edit.mask_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">Mask: "${this._esc(edit.mask_prompt)}"</p>` : ''}
-                            ${edit.extra_params?.search_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">Find: "${this._esc(edit.extra_params.search_prompt)}"</p>` : ''}
-                            ${edit.extra_params?.select_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">Select: "${this._esc(edit.extra_params.select_prompt)}"</p>` : ''}
-                            ${edit.replaced_original ? '<span class="text-[9px] text-amber-400/50">replaced original</span>' : '<span class="text-[9px] text-emerald-400/50">saved as new</span>'}
+                            ${edit.negative_prompt ? `<p class="text-[10px] text-amber-300/60 italic mt-0.5">${t('asset_viewer.meta_negative_label')} ${this._esc(edit.negative_prompt)}</p>` : ''}
+                            ${edit.mask_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_mask_label')} "${this._esc(edit.mask_prompt)}"</p>` : ''}
+                            ${edit.extra_params?.search_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_find_label')} "${this._esc(edit.extra_params.search_prompt)}"</p>` : ''}
+                            ${edit.extra_params?.select_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_select_label')} "${this._esc(edit.extra_params.select_prompt)}"</p>` : ''}
+                            ${edit.replaced_original ? '<span class="text-[9px] text-amber-400/50">' + t('asset_viewer.meta_replaced_original') + '</span>' : '<span class="text-[9px] text-emerald-400/50">' + t('asset_viewer.meta_saved_as_new') + '</span>'}
                         </div>
                         `).join('')}
                     </div>
                 </div>` : ''}
                 ${meta.edit_type && !meta.edit_history?.length ? `
                 <div class="border-t border-brand-border pt-4 mt-2">
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">Edit Info</label>
-                    <p class="text-sm"><span class="text-brand-text-muted">Type:</span> ${this._esc(meta.edit_type)}</p>
-                    <p class="text-sm"><span class="text-brand-text-muted">Model:</span> ${this._esc(meta.model_label || meta.edit_model || '')}</p>
-                    ${meta.source_image_id ? `<p class="text-sm"><span class="text-brand-text-muted">Source:</span> ${this._esc(meta.source_image_id)}</p>` : ''}
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_edit_info')}</label>
+                    <p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_type_label')}</span> ${this._esc(meta.edit_type)}</p>
+                    <p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_model_label')}</span> ${this._esc(meta.model_label || meta.edit_model || '')}</p>
+                    ${meta.source_image_id ? `<p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_source_label')}</span> ${this._esc(meta.source_image_id)}</p>` : ''}
                 </div>` : ''}
             `;
 
@@ -452,7 +452,7 @@
                         : 'bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent hover:text-brand-text'}"
                     data-version="${v.version}" data-asset="${meta.id}"
                     title="${v.type}${v.timestamp ? ' — ' + new Date(v.timestamp).toLocaleString() : ''}">
-                    ${v.version === 1 ? 'Original' : 'v' + v.version}
+                    ${v.version === 1 ? t('asset_viewer.version_original') : 'v' + v.version}
                     ${v.type !== 'original' ? '<span class="opacity-50 ml-0.5">' + v.type + '</span>' : ''}
                 </button>
             `).join('');
@@ -488,7 +488,7 @@
                     if (detail && v) {
                         detail.classList.remove('hidden');
                         detail.innerHTML = `
-                            <strong>${v.type === 'original' ? 'Original' : v.type}</strong>
+                            <strong>${v.type === 'original' ? t('asset_viewer.version_original') : v.type}</strong>
                             ${v.model_label || v.image_model || ''}
                             ${v.prompt ? ` — "${this._esc(v.prompt)}"` : ''}
                             ${v.negative_prompt ? ` <span class="text-amber-300/60">[neg: ${this._esc(v.negative_prompt)}]</span>` : ''}
@@ -572,7 +572,7 @@
             this._overlay.querySelector('.btn-reload')?.addEventListener('click', async () => {
                 const meta = this._meta;
                 if (!meta) {
-                    window.showToast?.('Metadata not loaded yet', 'warning');
+                    window.showToast?.(t('asset_viewer.metadata_not_loaded'), 'warning');
                     return;
                 }
                 const batchId = meta.batch_id || meta.id;
@@ -601,7 +601,7 @@
             this._overlay.querySelector('.btn-reload-type')?.addEventListener('click', async () => {
                 const meta = this._meta;
                 if (!meta) {
-                    window.showToast?.('Metadata not loaded yet', 'warning');
+                    window.showToast?.(t('asset_viewer.metadata_not_loaded'), 'warning');
                     return;
                 }
                 this.close();
@@ -710,18 +710,18 @@
                     // Update labels for context
                     if (searchLabel) {
                         searchLabel.textContent = editMode === 'search_recolor'
-                            ? 'Object to recolor (e.g. "the jacket")'
-                            : 'Object to find and replace';
+                            ? t('asset_viewer.search_recolor_label')
+                            : t('asset_viewer.search_replace_label');
                     }
                     if (promptLabel) {
                         const labels = {
-                            'inpaint': 'Prompt (what to generate in the masked area)',
-                            'erase': 'Prompt (optional — leave empty to auto-fill background)',
-                            'outpaint': 'Prompt (describe what to generate in the extended area)',
-                            'search_replace': 'Replace with (e.g. "a leather jacket")',
-                            'search_recolor': 'New color/appearance (e.g. "bright red")',
+                            'inpaint': t('asset_viewer.edit_prompt_inpaint'),
+                            'erase': t('asset_viewer.edit_prompt_erase_full'),
+                            'outpaint': t('asset_viewer.edit_prompt_outpaint'),
+                            'search_replace': t('asset_viewer.edit_prompt_replace'),
+                            'search_recolor': t('asset_viewer.edit_prompt_recolor'),
                         };
-                        promptLabel.textContent = labels[editMode] || 'Prompt';
+                        promptLabel.textContent = labels[editMode] || t('asset_viewer.edit_prompt_default');
                     }
                 });
             });
@@ -740,13 +740,13 @@
                 const prompt = this._overlay.querySelector('#av-edit-prompt')?.value || '';
 
                 if (!model) {
-                    window.showToast?.('Select an editing model', 'warning');
+                    window.showToast?.(t('asset_viewer.select_edit_model'), 'warning');
                     return;
                 }
 
                 btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-sm"></span> Applying...';
-                if (statusEl) { statusEl.textContent = 'Processing...'; statusEl.classList.remove('hidden'); }
+                btn.innerHTML = '<span class="spinner-sm"></span> ' + t('asset_viewer.applying');
+                if (statusEl) { statusEl.textContent = t('asset_viewer.processing'); statusEl.classList.remove('hidden'); }
 
                 try {
                     // Extract mask from canvas (only for mask-based modes)
@@ -755,9 +755,9 @@
                     if (needsMask) {
                         const maskResult = this._extractMask(canvas);
                         if (maskResult.isEmpty) {
-                            window.showToast?.('Paint a mask on the image first — the white areas will be edited.', 'warning');
+                            window.showToast?.(t('asset_viewer.no_mask_full'), 'warning');
                             btn.disabled = false;
-                            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Apply Edit';
+                            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ' + t('asset_viewer.apply_edit');
                             return;
                         }
                         maskB64 = maskResult.data;
@@ -793,8 +793,8 @@
                         return r.json();
                     });
 
-                    if (statusEl) { statusEl.textContent = `Done! Saved as ${result.id}`; }
-                    window.showToast?.(`Image edited with ${result.model_label}. Saved to Gallery.`, 'success');
+                    if (statusEl) { statusEl.textContent = t('asset_viewer.edit_saved', {id: result.id}); }
+                    window.showToast?.(t('asset_viewer.edit_success', {model: result.model_label}), 'success');
 
                     // Reload the viewer with cache-busted URLs
                     const cacheBust = `?t=${Date.now()}`;
@@ -809,11 +809,11 @@
                     this.close();
                     setTimeout(() => this.open(newItem), 300);
                 } catch (err) {
-                    if (statusEl) { statusEl.textContent = `Error: ${err.message}`; }
-                    window.showToast?.('Edit failed: ' + err.message, 'error');
+                    if (statusEl) { statusEl.textContent = t('asset_viewer.error_prefix', {message: err.message}); }
+                    window.showToast?.(t('asset_viewer.edit_failed') + ': ' + err.message, 'error');
                 } finally {
                     btn.disabled = false;
-                    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> Apply Edit';
+                    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ' + t('asset_viewer.apply_edit');
                 }
             });
         },
@@ -859,7 +859,7 @@
                 if (sel.options.length === 0) {
                     const opt = document.createElement('option');
                     opt.value = '';
-                    opt.textContent = 'No models available for this edit type';
+                    opt.textContent = t('asset_viewer.no_models_for_type');
                     sel.appendChild(opt);
                 }
             }).catch(() => {});
