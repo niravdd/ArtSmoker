@@ -436,17 +436,31 @@
             // Build model options from chat_models in registry
             const chatModels = this._registry?.chat_models || {};
             const currentId = cat.current || '';
+            // Extract model family for fuzzy matching: "us.anthropic.claude-opus-4-6-v1" → "claude-opus"
+            const familyOf = (id) => {
+                const tail = id.replace(/^us\./, '').split('.').pop() || '';
+                return tail.replace(/-\d.*/, '').toLowerCase();
+            };
+            const currentFamily = familyOf(currentId);
             const modelOptions = Object.entries(chatModels)
                 .filter(([, m]) => m.enabled !== false)
                 .sort((a, b) => (a[1].label || '').localeCompare(b[1].label || ''))
                 .map(([, m]) => {
                     const mid = m.model_id || '';
-                    const selected = (mid === currentId || currentId.includes(mid.replace('us.', '')) || mid.includes(currentId.replace('us.', ''))) ? 'selected' : '';
+                    // Match by exact ID, substring, or model family
+                    const isMatch = mid === currentId
+                        || currentId.includes(mid.replace('us.', ''))
+                        || mid.includes(currentId.replace('us.', ''))
+                        || (currentFamily && familyOf(mid) === currentFamily);
+                    const selected = isMatch ? 'selected' : '';
                     const regions = (m.available_regions || []).length;
-                    return `<option value="${this._esc(mid)}" data-region="${this._esc(m.region || '')}" ${selected}>${this._esc(m.label || mid)} (${this._esc(m.provider || '')}${regions > 1 ? `, ${regions} regions` : ''})</option>`;
+                    return `<option value="${this._esc(currentId && isMatch ? currentId : mid)}" data-region="${this._esc(m.region || '')}" ${selected}>${this._esc(m.label || mid)} (${this._esc(m.provider || '')}${regions > 1 ? `, ${regions} regions` : ''})</option>`;
                 }).join('');
             // Add current value as fallback if not in dropdown
-            const hasMatch = Object.values(chatModels).some(m => m.model_id === currentId || currentId.includes((m.model_id || '').replace('us.', '')));
+            const hasMatch = Object.values(chatModels).some(m => {
+                const mid = m.model_id || '';
+                return mid === currentId || currentId.includes(mid.replace('us.', '')) || mid.includes(currentId.replace('us.', '')) || (currentFamily && familyOf(mid) === currentFamily);
+            });
             const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(currentId)} (current)</option>` : '';
 
             return `
