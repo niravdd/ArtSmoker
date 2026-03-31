@@ -523,17 +523,33 @@
         },
 
         _renderPostProcess(key, m) {
-            // Build model options from image_models filtered by matching purpose
+            // Build model options filtered to ONLY models matching this entry's purpose
             const imgModels = this._registry?.image_models || {};
             const currentId = m.model_id || '';
-            const purpose = key.includes('remove') ? 'remove_background' : key.includes('upscale') ? /upscale/ : key;
             const familyOf = (id) => (id || '').replace(/^us\./, '').split('.').pop().replace(/-\d.*/, '').toLowerCase();
             const currentFamily = familyOf(currentId);
 
+            // Determine which purposes match this post-processing entry
+            const purposeFilter = key.includes('remove') || key.includes('bg')
+                ? (p) => p === 'remove_background'
+                : key.includes('conservative')
+                ? (p) => p === 'upscale_conservative'
+                : key.includes('fast')
+                ? (p) => p === 'upscale_fast'
+                : key.includes('upscale')
+                ? (p) => p.includes('upscale')  // "upscale" entry shows all upscale types
+                : (p) => p.includes('upscale') || p === 'remove_background';
+
+            // Deduplicate by model family (same model in multiple regions → one option)
+            const seenFamilies = new Set();
             const modelOptions = Object.entries(imgModels)
                 .filter(([, im]) => {
                     const p = im.model_purpose || '';
-                    return p.includes('upscale') || p === 'remove_background';
+                    if (!purposeFilter(p)) return false;
+                    const fam = familyOf(im.model_id || '');
+                    if (seenFamilies.has(fam)) return false;
+                    seenFamilies.add(fam);
+                    return true;
                 })
                 .sort((a, b) => (a[1].label || '').localeCompare(b[1].label || ''))
                 .map(([, im]) => {

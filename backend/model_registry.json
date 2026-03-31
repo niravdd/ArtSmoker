@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-26T03:58:38.821826",
+  "last_updated": "2026-03-31T02:53:15.523391",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -1657,7 +1657,19 @@
       "provider": "Stability AI",
       "enabled": true
     },
-    "upscale": {
+    "upscale_conservative": {
+      "label": "Conservative Upscale",
+      "model_id": "us.stability.stable-conservative-upscale-v1:0",
+      "region": "us-west-2",
+      "enabled": true
+    },
+    "upscale_fast": {
+      "label": "Fast Upscale",
+      "model_id": "us.stability.stable-fast-upscale-v1:0",
+      "region": "us-west-2",
+      "enabled": true
+    },
+    "upscale_creative": {
       "label": "Creative Upscale",
       "model_id": "us.stability.stable-creative-upscale-v1:0",
       "region": "us-west-2",
