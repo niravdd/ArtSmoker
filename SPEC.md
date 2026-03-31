@@ -105,7 +105,9 @@ Browser (Vanilla JS + Tailwind CSS)
     +-- Style library management (upload, browse, edit, directory import)
     +-- 2D Image Studio: two-tier generation UI (options × variations)
     +-- Video Studio: text-to-video generation (async, S3-backed)
+    +-- Chat Studio: multi-model LLM chat with streaming, sessions, vision
     +-- Type Studio: text overlay system (on-image + standalone)
+    +-- i18n: 6 languages (EN, JA, ZH, KO, FR, ES) with language switcher
     +-- Unified gallery: images + videos with filtering and export
     |
     v
@@ -125,8 +127,9 @@ FastAPI Backend (Python)
     v
 AI Pipeline (Amazon Bedrock)
     |
-    +-- Claude Sonnet 4.6      — Fast tasks: prompt refinement, generation hints, cohesion check (Phase 1)
-    +-- Claude Opus 4.6        — Complex tasks: style analysis (Phase 2), concept generation, marketing copy
+    +-- Claude Sonnet 4.6      — Fast tasks: prompt refinement, generation hints, cohesion check (Phase 1), chat
+    +-- Claude Opus 4.6        — Complex tasks: style analysis (Phase 2), concept generation, marketing copy, chat
+    +-- 80+ LLMs              — Chat Studio: Claude, Nova, Llama, Mistral, Cohere, Qwen, DeepSeek, etc.
     +-- Nova Canvas             — Primary image generation (text-to-image)
     +-- Titan Image v2          — Alternative image generation
     +-- Stable Diffusion 3.5 Large            — Image generation (Stability AI)
@@ -141,6 +144,7 @@ Storage (Local filesystem + S3)
     +-- /data/styles/       — Style profiles + reference images
     +-- /data/generated/    — Output image assets (PNG + SVG) + metadata + versions
     +-- /data/video/        — Video assets (MP4 + thumbnails + job metadata)
+    +-- /data/chat/         — Chat sessions (JSON per session)
     +-- S3 bucket           — Video generation output (required for async Bedrock invoke)
 ```
 
@@ -152,6 +156,7 @@ ArtSmoker/
 │   ├── main.py                    # FastAPI app, CORS, lifespan, static mount
 │   ├── config.py                  # AWS config, model IDs, paths, defaults
 │   ├── model_registry.json        # Persisted model configuration (LLMs, image models, post-processing)
+│   ├── prompt_templates.json      # Persisted editable LLM directive prompts (14 templates)
 │   ├── routers/
 │   │   ├── styles.py              # Style profile CRUD + directory import + analysis
 │   │   ├── generate.py            # Two-level asset generation (options × variations) + image editing
@@ -175,6 +180,8 @@ ArtSmoker/
 │   │   ├── import_dedup.py        # Smart deduplication for directory imports (rotation variants, animation frames, folder priority)
 │   │   ├── cost_tracker.py        # Request-scoped cost accumulator: tracks LLM tokens + image model prices
 │   │   ├── telemetry.py           # PulseBoard SDK wrapper: tracks server events (startup, generation, errors)
+│   │   ├── prompt_translator.py   # Auto-detect language (Unicode heuristic + LLM fallback), translate to English
+│   │   ├── prompt_templates.py    # Editable LLM directive prompts: load, save, validate variables, reset, enhance
 │   │   ├── pulseboard.py          # Zero-dependency PulseBoard client SDK (copied from PulseBoard project)
 │   │   └── bedrock_client.py      # Shared Bedrock client: invoke_llm (with system prompt), invoke_image_model (generic)
 │   ├── models/
@@ -189,7 +196,15 @@ ArtSmoker/
 │   ├── css/
 │   │   └── styles.css             # Tailwind + custom styles
 │   ├── js/
-│   │   ├── app.js                 # Main app logic, routing
+│   │   ├── app.js                 # Main app logic, routing, showConfirm(), language switcher
+│   │   ├── i18n/
+│   │   │   ├── i18n.js            # Core: t() function, language switching, reverse lookup, translateView()
+│   │   │   ├── en.json            # English (base) — 817 translation keys
+│   │   │   ├── ja.json            # Japanese
+│   │   │   ├── zh.json            # Simplified Chinese
+│   │   │   ├── ko.json            # Korean
+│   │   │   ├── fr.json            # French
+│   │   │   └── es.json            # Spanish
 │   │   ├── components/
 │   │   │   ├── StyleLibrary.js    # Style profile browser + uploader
 │   │   │   ├── ImageStudio.js     # 2D Image Studio: two-tier generation UI (options + variations)
@@ -200,14 +215,15 @@ ArtSmoker/
 │   │   │   ├── PromptEditor.js    # Text input with inline LLM refinement
 │   │   │   ├── Gallery.js         # Unified gallery: images + videos, media filter, type filter
 │   │   │   ├── AssetViewer.js     # Full-size image preview + zoom/pan + edit + versioning
-│   │   │   └── ModelSettings.js   # Model registry admin UI: image models, video models, LLM, JSON editor
+│   │   │   └── ModelSettings.js   # Model registry admin UI: 7 tabs (Image/Video/Chat/Type/Shared Studio, Templates, JSON)
 │   │   └── services/
 │   │       └── api.js             # Backend API client
 │   └── (no build step — served as static files by FastAPI)
 ├── data/
 │   ├── styles/                    # User-uploaded style profiles + reference images
 │   ├── generated/                 # Output image assets (PNG + SVG + metadata + versions)
-│   └── video/                     # Video assets (MP4 + thumbnails + job metadata)
+│   ├── video/                     # Video assets (MP4 + thumbnails + job metadata)
+│   └── chat/                      # Chat sessions (JSON per session)
 ├── .gitattributes                 # Marks generated SVGs as binary (secret scanner false-positive prevention)
 ├── .github/
 │   └── secret_scanning.yml        # Excludes data/ and *.svg from GitHub secret scanning
@@ -751,7 +767,9 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 
    Each category stores: `current` (the model ID), `region`, `provider`, `api_type`, `label`, `description`.
 
-5. **Image models** (`image_models`): Keyed by internal name (e.g. `nova_canvas`, `sd35_large`). Each entry stores:
+5. **Chat models** (`chat_models`): Discovered LLM models available for Chat Studio. Keyed by internal name (e.g. `claude_sonnet_4_6`, `llama_3_3_70b`). Each entry stores: `label`, `model_id`, `provider`, `available_regions`, `context_window`, `supports_vision`, `supports_streaming`, `input_price_per_1k`, `output_price_per_1k`, `model_source` (`foundation`, `custom`, `imported`). Custom and imported models inherit `format_family` from their base model.
+
+6. **Image models** (`image_models`): Keyed by internal name (e.g. `nova_canvas`, `sd35_large`). Each entry stores:
    - `label` — human-readable display name
    - `model_id` — Bedrock model identifier
    - `region` — default AWS region for invocation
@@ -767,7 +785,7 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
    - `base_price_usd` — fallback per-image price when the Pricing API has no data
    - `extra_body` — model-specific body overrides deep-merged into the format family template (e.g. Nova Canvas `{"imageGenerationConfig": {"quality": "premium"}}`)
 
-6. **Post-processing** (`post_processing`): Keyed by operation name (`remove_background`, `upscale`). Each stores: `label`, `model_id`, `region`, `provider`, `enabled`.
+7. **Post-processing** (`post_processing`): Keyed by operation name (`remove_background`, `upscale`). Each stores: `label`, `model_id`, `region`, `provider`, `enabled`.
 
 **Generic invoker** (`backend/services/bedrock_client.py: invoke_image_model()`): Reads the model's format family from the registry, constructs the request body dynamically using dot-path helpers (`_set_nested`, `_get_nested`, `_deep_merge`), applies quality overrides, gets the Bedrock client for the model's region (with `region_override` support), invokes, and parses the response. No per-model invoke functions needed — any model with a registered format family works.
 
@@ -775,14 +793,27 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 1. Discovers all Bedrock-supported regions from AWS
 2. Fetches per-image pricing from the AWS Pricing API
 3. Resets all `available_regions` to empty (prunes stale data)
-4. Scans each region — registers new text-to-image models (enabled=false), updates `available_regions` for existing models
-5. Disables models no longer found in any region
+4. Scans each region — registers new text-to-image, video, and chat models, updates `available_regions` for existing models
+5. Discovers custom models via `ListCustomModels`, `ListImportedModels`, `ListCustomModelDeployments`, and `ListProvisionedModelThroughputs` — custom models inherit format family from their base model
+6. Disables models no longer found in any region
+7. Backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming support)
 
 This is the **only** operation that calls AWS discovery/pricing APIs. All other operations read from the cached registry file.
 
 **Model validation**: The `GenerationRequest.image_model` field is a plain string validated against registry keys at runtime — not limited to a fixed enum. Dynamically added models are accepted without code changes.
 
-**Frontend**: The model dropdowns in Image Studio and Video Studio are populated from `GET /api/admin/models/image-options` and `GET /api/admin/models/video-options` respectively on page load. No hardcoded model lists in JavaScript.
+**Frontend**: Model dropdowns are populated from the API on page load — `GET /api/admin/models/image-options` for Image Studio, `GET /api/admin/models/video-options` for Video Studio, and `GET /api/chat/models` for Chat Studio. LLM categories and post-processing use dropdown model pickers (not text fields) populated from discovered models. No hardcoded model lists in JavaScript.
+
+**Model Settings UI** (`ModelSettings.js`): A modal with 7 tabs organized by studio:
+- **Image Studio** — image generation models, regions, quality tiers, prompt limits, moderation strictness
+- **Video Studio** — video models, S3 bucket settings, regions, pricing
+- **Chat Studio** — discovered chat/LLM models with context window, vision support, pricing per 1K tokens
+- **Type Studio** — LLM model used for text layout generation
+- **Shared Studio** — cross-studio LLM categories (Fast/Complex/Fallback LLM, Voice), post-processing models
+- **Prompt Templates** — 14 editable LLM directive prompts organized by studio with two-level navigation
+- **Registry JSON** — raw JSON editor for the full model registry
+
+All sections are collapsible with Show All / Hide All toggles. Clicking "Model Settings" in any studio opens the modal to the relevant tab. The modal is 72rem wide.
 
 **Registry as single source of truth**: The application code contains **zero hardcoded model IDs, API parameters, or invocation templates**. Everything the system needs to invoke any Bedrock service — model IDs, regions, request body structures, prompt paths, negative prompt paths, mask paths, seed ranges, quality tiers, dimension modes, response parsing, pricing, and parameter constraints — is stored in `model_registry.json` and read at runtime. The format families define the complete API contract for each provider/service type, including a `parameters` spec with types, ranges, defaults, and descriptions for every configurable field. This means:
 
@@ -995,6 +1026,28 @@ Fields:
 
 ### 5.8 Chat Studio
 
+A full-featured LLM chat interface running on the user's own AWS account. 80+ models from 16 providers, all discovered automatically via Sync from AWS.
+
+**Frontend features** (`ChatStudio.js`):
+- **Streaming responses** — real-time token-by-token rendering via Bedrock ConverseStream SSE
+- **Markdown rendering** — headings, bold/italic, lists, tables, blockquotes, horizontal rules (via marked.js)
+- **Code blocks** — syntax highlighting (highlight.js) with language badge and one-click copy button
+- **Per-message metrics** — input/output tokens, latency, estimated cost, model used
+- **Context window bar** — visual fill indicator (green/amber/red) with used/max token count
+- **Region switching** — each model shows all available regions; pick the closest or cheapest
+- **Session management** — sidebar with session list, inline rename, duplicate, delete, search/filter
+- **System prompt templates** — 6 built-in: General Assistant, Coding Expert, Creative Writer, Game Designer, Data Analyst, Technical Writer
+- **Vision/multimodal** — drag-drop, file picker, or Ctrl+V paste images for vision-capable models
+- **Context compaction** — AI summarizes older messages to free context window space (summary injected as user message to maintain alternation)
+- **Regenerate** — re-run any AI response with the same prompt
+- **Edit & resend** — modify any user message and replay from that point
+- **Fork** — branch a conversation from any message into a new session
+- **Export** — download conversation as Markdown with full metadata
+- **Search** — search within session messages, returns matching snippets with context
+- **Auto-title** — AI generates a 3-8 word session title from the first exchange
+- **Pricing info** — model picker shows cost per 1K tokens; pricing bar shows estimated cost for 10K/100K token conversations
+- **PulseBoard telemetry** — session summary events (one per session interaction, not per message)
+
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/chat/stream` | Send messages to an LLM and stream the response via SSE (Bedrock ConverseStream). Returns events: delta (text chunks), metadata (tokens, cost, latency), stop, error. |
@@ -1005,9 +1058,9 @@ Fields:
 | PUT | `/api/chat/sessions/{id}` | Update session (title, messages, model, temperature, etc.). |
 | DELETE | `/api/chat/sessions/{id}` | Delete a session. |
 | POST | `/api/chat/sessions/{id}/duplicate` | Duplicate a session with a new ID. |
-| GET | `/api/chat/sessions/{id}/export` | Export session as Markdown file download. |
-| GET | `/api/chat/sessions/{id}/search?q=` | Search within a session's messages. Returns matching snippets with context. |
-| POST | `/api/chat/compact` | Compact older messages via LLM summarization. Keeps last N messages verbatim, replaces older with summary. |
+| GET | `/api/chat/sessions/{id}/export` | Export session as Markdown file download. Includes session metadata, model info, and all messages with timestamps. |
+| GET | `/api/chat/sessions/{id}/search?q=` | Search within a session's messages. Case-insensitive substring search. Returns matching snippets with surrounding context. |
+| POST | `/api/chat/compact` | Compact older messages via LLM summarization. Keeps last N messages verbatim, replaces older with a summary message (role: user to maintain strict alternation). |
 | POST | `/api/chat/telemetry` | Receive session summary event from frontend (one event per session interaction, not per message). |
 
 ### 5.9 Browse
@@ -1039,6 +1092,10 @@ Fields:
 | POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions, fetches pricing, scans all regions for foundation + custom + imported models, backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming, customizations). |
 | POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for foundation image + video models. Classifies by output modality (IMAGE → image registry, VIDEO → video registry). Custom/imported models are discovered separately during refresh-all. |
 | GET | `/api/admin/discover/{region}` | Raw model listing: image generators, video generators, text/LLM, vision models. |
+| GET | `/api/admin/templates` | Get all 14 prompt templates with metadata (description, variables, modified flag, group). |
+| PATCH | `/api/admin/templates/{key}` | Update a template's content. Validates required variables are present — returns missing vars if not. |
+| POST | `/api/admin/templates/{key}/reset` | Reset a template to its default content. |
+| POST | `/api/admin/templates/{key}/enhance` | Enhance a template using an LLM. Accepts model_id, region, optional instructions. Returns suggested improved content for review. |
 
 ### 5.11 System
 
@@ -1051,7 +1108,7 @@ Fields:
 
 ## 6. LLM Directive Prompts (Prompt Templates)
 
-ArtSmoker uses 13 directive prompts to guide LLM behavior across different features. All prompts are stored in `backend/prompt_templates.json` and are fully editable via the Model Settings UI (Prompt Templates tab) or the raw JSON editor.
+ArtSmoker uses 14 directive prompts to guide LLM behavior across different features. All prompts are stored in `backend/prompt_templates.json` and are fully editable via the Model Settings UI (Prompt Templates tab) or the raw JSON editor.
 
 ### 7.1 How Templates Work
 
@@ -1112,12 +1169,18 @@ Templates are organized by the feature they serve:
 
 ### 7.9 Editing Templates
 
-Users can edit any template via **Model Settings → Prompt Templates** tab. Each template shows:
-- Template name and description
-- Where it's used in the pipeline
-- Available variables (must be preserved when editing)
-- A "Reset to Default" button to restore the original
-- An **"Enhance with AI"** button that uses any available LLM to refine the template
+Users can edit any template via **Model Settings → Prompt Templates** tab.
+
+**Two-level navigation:**
+1. **"View All / Hide All"** toggles group sections (2D Image Studio, Style Library, Content Safety, Video Studio, Type Studio, Chat Studio, Translation)
+2. **"Expand editors / Collapse editors"** inside each group toggles the individual template text boxes
+
+Each template shows:
+- Friendly description of what it controls (e.g., "Creative Options — how multiple distinct concepts are generated from one idea")
+- Available `{variables}` that must be preserved
+- **Save** — validates variables, blocks save if any are missing (offers "Fix & Save" to auto-insert)
+- **Enhance with AI** — select any LLM model to improve the template
+- **Reset to Default** — restore the original
 
 ### 6.10 AI-Assisted Template Refinement
 
@@ -1342,16 +1405,17 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 
 1. **FastAPI app** with `title="ArtSmoker"`, `description="AI-Powered Game Asset Generation"`, and a `lifespan` handler.
 2. **Lifespan handler** (async context manager):
-   - On startup: create data directories (`data/`, `data/styles/`, `data/generated/`, `data/video/`) via `mkdir(parents=True, exist_ok=True)`.
+   - On startup: create data directories (`data/`, `data/styles/`, `data/generated/`, `data/video/`, `data/chat/`) via `mkdir(parents=True, exist_ok=True)`.
    - On startup: call `validate_aws_credentials()` from `bedrock_client.py` — stores result in a module-level `_aws_status` dict.
    - On startup: initialize PulseBoard telemetry (`telemetry_init()`, `track_server_start()`) — fire-and-forget.
    - Log a prominent error box if credentials are missing, a warning if some Bedrock checks fail, or an info message if all checks pass.
-3. **NoCacheStaticMiddleware** — custom `BaseHTTPMiddleware` that adds `Cache-Control: no-cache, no-store, must-revalidate` and `Pragma: no-cache` headers to all responses where the request path does NOT start with `/api/`. This ensures frontend static files are never cached during development.
-4. **CORS middleware** — `CORSMiddleware` with `allow_origins=["*"]`, `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`. Development-mode open CORS.
-5. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, chat, admin — in that order.
-6. **Health check endpoint** (`GET /api/health`) — defined inline on `app`, returns `{status: "ok"|"degraded", aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`.
-7. **Client log endpoint** (`POST /api/log`) — defined inline on `app`, receives `{level, message, context}`, logs as `[CLIENT] {message} | {context}` at the appropriate Python log level.
-8. **Static files mount** — `app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True))` mounted LAST so `/api/*` routes take priority. `FRONTEND_DIR` is `Path(__file__).resolve().parent.parent / "frontend"`. The `html=True` flag enables serving `index.html` for directory requests.
+3. **Colored console logging** — custom `ColoredFormatter` using ANSI 256-color codes. Each log level gets a distinct color (cyan for INFO, yellow for WARNING, red for ERROR). Timestamps are included. The formatter overrides uvicorn's default logger for consistent output.
+4. **NoCacheStaticMiddleware** — custom `BaseHTTPMiddleware` that adds `Cache-Control: no-cache, no-store, must-revalidate` and `Pragma: no-cache` headers to all responses where the request path does NOT start with `/api/`. This ensures frontend static files are never cached during development.
+5. **CORS middleware** — `CORSMiddleware` with `allow_origins=["*"]`, `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`. Development-mode open CORS.
+6. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, chat, admin — in that order.
+7. **Health check endpoint** (`GET /api/health`) — defined inline on `app`, returns `{status: "ok"|"degraded", aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`.
+8. **Client log endpoint** (`POST /api/log`) — defined inline on `app`, receives `{level, message, context}`, logs as `[CLIENT] {message} | {context}` at the appropriate Python log level.
+9. **Static files mount** — `app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True))` mounted LAST so `/api/*` routes take priority. `FRONTEND_DIR` is `Path(__file__).resolve().parent.parent / "frontend"`. The `html=True` flag enables serving `index.html` for directory requests.
 
 ## 10. Dependencies (requirements.txt)
 
@@ -1459,8 +1523,10 @@ The frontend uses a dark theme with CSS custom properties. These values define t
 
 **Global JavaScript utilities** (exposed by `app.js` on `window`):
 - `showToast(message, type, duration)` — types: `success`, `error`, `warning`, `info`. Auto-dismisses. Pauses on hover. Error/warning toasts are also sent to `POST /api/log`.
+- `showConfirm({ title, message, confirmText, cancelText, variant })` — styled confirmation dialog replacing all browser `confirm()` calls. Returns a Promise resolving to `true`/`false`. Variant options: `danger` (red confirm button), `warning` (amber), default (indigo). Used for destructive actions: Sync from AWS, delete sessions, reset templates, etc.
 - `showLoading(text)` / `hideLoading()` — fullscreen loading overlay with spinner.
 - `resetView(route)` — destroys the DOM cache for a specific view, forcing fresh render on next visit.
+- `t(key, params)` — global translation function (see [Section 15: i18n](#15-internationalization-i18n)).
 
 **Frontend component pattern** — every component is an IIFE that attaches to `window`:
 ```javascript
@@ -1528,9 +1594,13 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 14. **Browse gallery**: Switch to Gallery view — verify generated images and videos appear with the Media filter (All / 2D Artwork / Video), style filter, and search. Test multi-select and bulk delete (both image and video assets).
 15. **Test AssetViewer buttons**: Open an image asset — verify "2D Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears. Click a video card — verify the video player modal opens with metadata.
 16. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
-17. **Test Model Settings**: Click "Model Settings" in the sidebar — verify the modal shows Image Models, Video Models, LLM & Post-Processing tabs, and Registry JSON. Verify video models show regions and pricing. Try Sync from AWS — verify both image and video models are discovered.
+17. **Test Model Settings**: Click "Model Settings" in any studio sidebar — verify it opens to the relevant tab. Tabs: Image Studio, Video Studio, Chat Studio, Type Studio, Shared Studio, Prompt Templates, Registry JSON. All sections should be collapsible with Show All / Hide All toggles. LLM categories and post-processing should show dropdown model pickers (not raw text fields). Try Sync from AWS — verify image, video, and chat models are discovered.
 17. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Test the rewrite option in each dialog — verify the rewritten prompt appears in the enhanced prompt area (not the original textarea) with the amber disclaimer. Verify the original prompt is preserved. Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears with specific issues, model switch, and rewrite options.
-18. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`).
+18. **Test Chat Studio**: Navigate to Chat Studio, select a model and region, type a message. Verify streaming response with markdown rendering and code highlighting. Test: create/rename/delete sessions, vision (paste an image), context compaction (fill context then compact), export as Markdown, fork from a message, regenerate a response.
+19. **Test i18n**: Click a language button (JA, ZH, KO, FR, ES) in the nav bar. Verify all UI text switches to the selected language. Switch back to EN. Verify prompts in non-English languages show the bilingual preview (Original/English tabs) in Image Studio and Video Studio.
+20. **Test prompt templates**: Open Model Settings → Prompt Templates. Verify two-level navigation: "View All" opens groups, "Expand editors" opens text boxes. Edit a template, remove a required variable — verify "Fix & Save" offers to auto-insert it. Test "Enhance with AI" and "Reset to Default".
+21. **Test custom confirmation dialogs**: Click "Sync from AWS" — verify a styled modal appears (not a browser confirm popup). Same for delete operations.
+22. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`, `/api/chat/*`, `/api/video/*`).
 
 <a id="13-aws-bedrock-pricing--cost-breakdown"></a>
 
@@ -1671,12 +1741,12 @@ ArtSmoker supports 6 languages: English (base), Japanese, Simplified Chinese, Ko
 ```
 frontend/js/i18n/
 ├── i18n.js          # Core: t() function, JSON loader, DOM updater, reverse lookup
-├── en.json          # English (base) — 775 keys, source of truth
-├── ja.json          # Japanese — 775 keys
-├── zh.json          # Simplified Chinese — 775 keys
-├── ko.json          # Korean — 775 keys
-├── fr.json          # French — 775 keys
-└── es.json          # Spanish — 775 keys
+├── en.json          # English (base) — 817 keys, source of truth
+├── ja.json          # Japanese — 817 keys
+├── zh.json          # Simplified Chinese — 817 keys
+├── ko.json          # Korean — 817 keys
+├── fr.json          # French — 817 keys
+└── es.json          # Spanish — 817 keys
 ```
 
 **Key design decisions:**

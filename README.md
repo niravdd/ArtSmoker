@@ -91,9 +91,12 @@ For teams that want every generated asset to match an existing art style — upl
 - ✏️ **Image Editing** — Inpainting, outpainting, erase, search & replace, recolor (in AssetViewer)
 - 🔄 **Real-time progress** — SSE streaming with retry/throttle visibility
 - 🛡️ **Smart moderation** — Canary testing, auto model switching, AI-assisted rewriting
-- ⚙️ **Model Registry** — Admin UI for all AI models (image + video + chat + LLM), Bedrock discovery, custom model support
+- ⚙️ **Model Registry** — Admin UI organized by studio (Image, Video, Chat, Type, Shared), Bedrock discovery, custom model support
+- 📝 **Prompt Templates** — 14 editable LLM directive prompts, AI-assisted refinement, variable validation with auto-fix
 - 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...) and version navigation
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
+- 🌐 **6-Language i18n** — Full UI translation (EN, JA, ZH, KO, FR, ES), auto-detect non-English prompts, bilingual preview
+- 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
 
 ### 📝 1.2 Screenshots
 
@@ -680,8 +683,8 @@ All templates are stored in `backend/prompt_templates.json` and self-heal from c
 │  /api/chat        LLM chat + sessions       │
 │  /api/gallery     Asset browsing + export   │
 │  /api/browse      File/S3 browser           │
-│  /api/admin       Model registry mgmt       │
-│  /api/refine-prompt  Prompt preview         │
+│  /api/admin       Model registry + templates│
+│  /api/refine-prompt  Prompt + translate      │
 │  /api/transcribe  Voice-to-text             │
 └────────────┬────────────────────┬───────────┘
              │                    │
@@ -698,11 +701,11 @@ All templates are stored in `backend/prompt_templates.json` and self-heal from c
              │
              ▼
 ┌──────────────────────┐
-│  Local Storage       │
-│  data/styles/        │
-│  data/generated/     │
-│  data/video/         │
-│  data/chat/          │
+│  Local Storage        │
+│  data/styles/         │
+│  data/generated/      │
+│  data/video/          │
+│  data/chat/           │
 └──────────────────────┘
 ```
 
@@ -997,11 +1000,21 @@ Navigation order: **Style Library → 2D Image Studio → Type Studio → Video 
 
 All AI model configuration is centralized in `backend/model_registry.json` — the single source of truth. Models, regions, pricing, quality tiers, and format templates are all stored here and managed through the UI or API:
 
-- Click **"Model Settings"** in the sidebar of any studio to open the admin modal.
-- Tabs for **Image Models**, **Video Models**, **LLM & Post-Processing**, and **Registry JSON**.
-- View and edit all model IDs, regions, prompt limits, and enabled/disabled status.
-- **Sync from AWS**: Scans all Bedrock-supported AWS regions (discovered dynamically), auto-registers new image and video models, updates regional availability, fetches per-model pricing from the AWS Pricing API, and disables models no longer available. This is the **only** action that calls AWS discovery APIs — all other operations read from the cached registry.
-- **Auto-discovery**: New models are registered with `enabled=true` — the admin can disable them. Existing models get their `available_regions` and Bedrock metadata (modalities, lifecycle, ARN) updated automatically.
+- Click **"Model Settings"** in the sidebar of any studio to open the admin modal — it opens to the relevant tab for that studio.
+- **7 tabs** organized by studio:
+  - **Image Studio** — Image generation models (Nova Canvas, Titan, SD 3.5, Ultra), regions, quality tiers, prompt limits, moderation strictness
+  - **Video Studio** — Video models (Nova Reel, Luma Ray), S3 bucket settings, regions, pricing
+  - **Chat Studio** — Discovered chat/LLM models (80+ from 16 providers), context windows, vision capability, pricing per 1K tokens
+  - **Type Studio** — LLM model for text layout generation (Complex or Fast LLM)
+  - **Shared Studio** — Cross-studio LLM categories (Fast LLM, Complex LLM, Fallback LLM, Voice), post-processing models (Remove Background, Upscale)
+  - **Prompt Templates** — 14 editable LLM directive prompts organized by studio (see section 4.4)
+  - **Registry JSON** — Raw JSON editor for the full model registry
+- All sections are **collapsible** with **Show All / Hide All** toggles for quick navigation.
+- LLM categories and post-processing use **dropdown model pickers** (populated from discovered models) — not raw text fields.
+- **Sync from AWS**: Scans all Bedrock-supported AWS regions (discovered dynamically), auto-registers new image, video, and **chat models**, updates regional availability, fetches per-model pricing from the AWS Pricing API, and disables models no longer available. This is the **only** action that calls AWS discovery APIs — all other operations read from the cached registry.
+- **Custom model discovery**: Sync also discovers **fine-tuned custom models** (`ListCustomModels`), **imported models** (`ListImportedModels`), and models with **on-demand deployments** (`ListCustomModelDeployments`) or **provisioned throughput** (`ListProvisionedModelThroughputs`). Custom models inherit their format family from the base model automatically.
+- **Auto-discovery**: New foundation models are registered with `enabled=true` — the admin can disable them. Existing models get their `available_regions` and Bedrock metadata (modalities, lifecycle, ARN) updated automatically.
+- **Styled confirmation dialogs**: All destructive actions (Sync, delete, reset) use custom styled modals — no browser `confirm()` popups.
 - Changes are persisted immediately to `model_registry.json` via the Admin API.
 - The registry is backward compatible — existing assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs.
 
@@ -1038,7 +1051,10 @@ Adding a new Bedrock image model requires zero code changes — just register it
 | AI (LLM) | Claude Sonnet 4.6 (fast tasks), Claude Opus 4.6 (complex tasks) |
 | AI (Image) | Nova Canvas, Titan Image v2, Stable Diffusion 3.5 Large, Stable Image Ultra |
 | AI (Post-processing) | Stability AI (Remove Background, Creative Upscale) |
+| AI (Chat) | 80+ LLMs from 16 providers via Bedrock ConverseStream (Claude, Nova, Llama, Mistral, etc.) |
+| AI (Video) | Nova Reel v1.0/v1.1 (up to 2min), Luma AI Ray v2 (up to 9s) |
 | AI (Voice) | Nova Sonic (speech-to-text via bidirectional streaming) |
+| i18n | Custom t() function, 817 keys × 6 languages, reverse-lookup DOM translation |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) |
 | Text Rendering | Pillow (shadow, outline, glow effects) |
 | Storage | Local filesystem (S3-ready interface) |
@@ -1090,6 +1106,18 @@ Key endpoints:
 | `GET /api/browse/local?path=~` | Browse local directory contents |
 | `GET /api/browse/s3/buckets` | List available S3 buckets |
 | `GET /api/browse/s3?bucket=name&prefix=path` | Browse S3 bucket contents |
+| **Chat** | |
+| `POST /api/chat/stream` | Stream LLM response via SSE (Bedrock ConverseStream) |
+| `GET /api/chat/models` | List all available chat models (foundation + custom + imported) |
+| `POST /api/chat/sessions` | Create a new chat session |
+| `GET /api/chat/sessions` | List chat sessions |
+| `GET /api/chat/sessions/{id}` | Load a full session (messages + metadata) |
+| `GET /api/chat/sessions/{id}/export` | Export session as Markdown |
+| `POST /api/chat/compact` | Compact older messages via LLM summarization |
+| **Video** | |
+| `POST /api/video/generate` | Start async video generation job |
+| `GET /api/video/status/{job_id}` | Poll video generation job status |
+| `GET /api/video/jobs` | List all video generation jobs |
 | **Admin** | |
 | `GET /api/admin/models` | Get full model registry (LLMs, image models, post-processing) |
 | `GET /api/admin/models/image-options` | Enabled text-to-image models for the dropdown (with pricing, quality tiers, regions). Accepts `?region=` filter. |
@@ -1113,15 +1141,18 @@ ArtSmoker/
 │   ├── config.py            # Settings (AWS regions, model IDs, paths, limits)
 │   ├── model_registry.json  # Single source of truth: models, regions, pricing, format families, quality tiers
 │   ├── requirements.txt
+│   ├── prompt_templates.json # Persisted editable LLM directive prompts (14 templates)
 │   ├── routers/
 │   │   ├── generate.py      # Two-level asset generation + SSE streaming
 │   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis
 │   │   ├── gallery.py       # Asset browsing + file serving + bulk delete
 │   │   ├── typestudio.py    # Type Studio: text overlay, font serving, AI layout
+│   │   ├── video.py         # Video generation (async), job polling, MP4/thumbnail serving
+│   │   ├── chat.py          # Chat Studio: LLM streaming, sessions, export, context compaction
 │   │   ├── browse.py        # Server-side file/S3 browser for reference import
-│   │   ├── refine.py        # Prompt refinement preview
+│   │   ├── refine.py        # Prompt refinement preview + translation preview
 │   │   ├── transcribe.py    # Voice transcription
-│   │   └── admin.py         # Model registry management + Bedrock discovery
+│   │   └── admin.py         # Model registry management + Bedrock discovery + prompt templates
 │   ├── services/
 │   │   ├── bedrock_client.py     # Shared Bedrock client with connection pooling
 │   │   ├── model_registry.py     # Model registry: loads/saves model_registry.json
@@ -1131,7 +1162,12 @@ ArtSmoker/
 │   │   ├── post_processor.py     # Stability AI: bg removal, upscale; vtracer: SVG
 │   │   ├── transcriber.py        # Nova Sonic: streaming speech-to-text
 │   │   ├── import_dedup.py       # Smart deduplication (rotations, animations, folders)
-│   │   └── texture_extractor.py  # glTF/GLB texture extraction
+│   │   ├── texture_extractor.py  # glTF/GLB texture extraction
+│   │   ├── prompt_translator.py  # Auto-detect language + translate to English
+│   │   ├── prompt_templates.py   # Editable LLM directive prompts (load/save/validate)
+│   │   ├── video_generator.py   # Video: async Bedrock invoke, S3 download, ffmpeg thumbnails
+│   │   ├── cost_tracker.py      # Request-scoped cost accumulator
+│   │   └── telemetry.py         # PulseBoard SDK wrapper: tracks server events
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update
 │   │   ├── generation_request.py  # GenerationRequest, AssetType, ImageModel enums
@@ -1142,7 +1178,15 @@ ArtSmoker/
 │   ├── index.html           # SPA entry point
 │   ├── css/styles.css       # Dark theme + animations
 │   └── js/
-│       ├── app.js               # SPA router + DOM caching + navigation
+│       ├── app.js               # SPA router + DOM caching + navigation + showConfirm()
+│       ├── i18n/
+│       │   ├── i18n.js          # Core: t() function, language switching, reverse lookup
+│       │   ├── en.json          # English (base) — 817 keys
+│       │   ├── ja.json          # Japanese
+│       │   ├── zh.json          # Simplified Chinese
+│       │   ├── ko.json          # Korean
+│       │   ├── fr.json          # French
+│       │   └── es.json          # Spanish
 │       ├── services/api.js      # Backend API client
 │       └── components/
 │           ├── ImageStudio.js   # 2D Image Studio (options × variations)
@@ -1157,7 +1201,9 @@ ArtSmoker/
 │           └── VoiceInput.js    # MediaRecorder + transcription
 ├── data/
 │   ├── styles/              # Style profiles + reference images (symlinked)
-│   └── generated/           # Output assets (PNG + SVG + metadata.json)
+│   ├── generated/           # Output assets (PNG + SVG + metadata.json)
+│   ├── video/               # Video assets (MP4 + thumbnails + job metadata)
+│   └── chat/                # Chat sessions (JSON per session)
 ├── SPEC.md                  # Full technical specification (rebuild blueprint)
 └── README.md                # This file
 ```
