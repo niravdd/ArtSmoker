@@ -33,6 +33,7 @@ from backend.services.prompt_engineer import (
     refine_marketing_prompt,
     refine_prompt,
 )
+from backend.services.prompt_templates import get_template
 from backend.storage.local_store import store
 
 logger = logging.getLogger(__name__)
@@ -136,6 +137,7 @@ def _build_variant(
     model_override: ImageModel | None = None,
     model_label: str | None = None,
     style_snapshot: dict | None = None,
+    translation_result: dict | None = None,
     progress_queue: queue.Queue | None = None,
     cancel_event: threading.Event | None = None,
 ) -> VariantResult:
@@ -374,6 +376,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             seed=canary_seed,
             prompt_slug=prompt_slug,
             style_snapshot=style_snapshot,
+            translation_result=translation_result,
             progress_queue=progress_q,
         )
         variant_map[0].append(_canary_result)
@@ -441,6 +444,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                     seed=seed,
                     prompt_slug=prompt_slug,
                     style_snapshot=style_snapshot,
+                    translation_result=translation_result,
                     progress_queue=progress_q,
                     cancel_event=cancel_event,
                 )
@@ -740,6 +744,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 model_override=model_enum,
                 model_label=label,
                 style_snapshot=style_snapshot,
+                translation_result=translation_result,
                 progress_queue=progress_q,
             )
             # Track each model individually (no cost — actual cost sent by generation_cost at the end)
@@ -1181,26 +1186,10 @@ async def pre_screen_prompt(body: PreScreenRequest):
     except Exception:
         pass
 
-    screen_prompt = f"""You are a content moderation analyst for AI image generation models.
-
-Analyze this prompt for the model "{model_label}":
-"{prompt_for_screen}"
-
-Model strictness levels:
-- Nova Canvas: VERY strict — blocks weapons, combat, fighting, copyrighted IP, aggressive poses
-- Titan Image v2: Strict — similar to Nova Canvas
-- Stable Diffusion 3.5 Large: Moderate — allows stylized weapons, fantasy combat, action poses. Blocks explicit violence, gore, real weapons
-- Stable Image Ultra: Moderate — similar to Stable Diffusion 3.5 Large
-
-Will this prompt likely be BLOCKED by {model_label}?
-
-Respond with ONLY a JSON object (no markdown):
-{{
-  "likely_safe": true/false,
-  "issues": ["specific concern 1", "specific concern 2"],
-  "explanation": "Brief explanation for the user",
-  "suggested_model": "one of: sd35_large, stable_image_ultra, titan_image, nova_canvas — whichever would likely accept this prompt, or null if none would"
-}}"""
+    screen_prompt = get_template('moderation_prescreen').format(
+        prompt_for_screen=prompt_for_screen,
+        model_label=model_label,
+    )
 
     try:
         raw = invoke_llm(screen_prompt, complexity="fast", max_tokens=512, temperature=0.2)
@@ -1349,35 +1338,19 @@ async def analyze_moderation(body: ModerationRequest):
             f"The prompt was blocked by ALL available image generation models."
         )
 
-        rewrite_instruction = f"""A user's prompt was blocked by an AI image generation model's content moderation.
-{target_context}
+        prompt_label = "Original" if attempt_num == 0 else "Previous rewrite that STILL FAILED"
+        issues_text = json.dumps(all_issues, indent=2) if attempt_num > 0 else body.error_message
 
-{"Original" if attempt_num == 0 else "Previous rewrite that STILL FAILED"} prompt:
-"{current_prompt}"
+        rewrite_context = (
+            f"A user's prompt was blocked by an AI image generation model's content moderation.\n"
+            f"{target_context}\n\n"
+            f"{prompt_label} prompt:\n"
+            f'"{current_prompt}"\n\n'
+            f"Specific issues identified:\n"
+            f"{issues_text}\n\n"
+        )
 
-Specific issues identified:
-{f'{json.dumps(all_issues, indent=2)}' if attempt_num > 0 else f'{body.error_message}'}
-
-Your task: Rewrite this prompt to address EVERY identified issue above while
-preserving the user's creative intent as closely as possible.
-
-Rules:
-1. Address each specific issue listed above — do not ignore any of them
-2. For copyrighted IP references: replace with original character descriptions that capture the same visual energy without naming the source material
-3. For copyrighted character traits/abilities: replace with generic equivalents (e.g. "elastic powers" → "enhanced strength", "fire breathing" → "energy blasts")
-4. For violence/aggression concerns: reframe as dynamic action poses, combat stances, or dramatic compositions — avoid words like "blood", "gore", "killing", "attacking the viewer"
-5. For adult/inappropriate content: remove entirely or replace with tasteful alternatives
-6. Preserve all visual style directives (art style, colours, quality, resolution, format)
-7. Preserve the overall composition and scene structure where possible
-8. The rewrite MUST be substantially different from the original — do NOT return the same prompt with minor word changes
-9. Keep the rewrite under 900 characters
-
-Respond with ONLY a JSON object (no markdown):
-{{
-  "issues": ["specific triggers"],
-  "explanation": "Friendly explanation",
-  "rewritten_prompt": "Game-art-friendly rewrite under 900 chars"
-}}"""
+        rewrite_instruction = rewrite_context + get_template('moderation_rewrite')
 
         try:
             raw = invoke_llm(rewrite_instruction, complexity="fast", max_tokens=2048, temperature=0.3)

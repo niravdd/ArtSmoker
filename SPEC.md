@@ -1132,10 +1132,25 @@ Users can ask an LLM to improve any template:
 
 **API**: `POST /api/admin/templates/{name}/enhance` with `{model_id, region, instructions}`.
 
-**Storage**: All templates stored in `backend/prompt_templates.json`. Code defaults are baked into `backend/services/prompt_templates.py` (source of truth for resets). User edits are marked with `"modified": true`.
+### 6.11 Variable Validation & Auto-Fix
+
+Templates use `{curly_brace}` variables that are substituted at runtime (e.g., `{user_prompt}` becomes the user's actual text). Removing a variable breaks the feature that uses the template.
+
+**Validation on save** (`PATCH /api/admin/templates/{name}`):
+1. Backend checks all required `{variables}` are present in the edited text
+2. If variables are missing, returns HTTP 400 with the list of missing variables
+3. Frontend shows a dialog explaining which variables are missing and why they matter
+4. User clicks **"Fix & Save"** — sends `{fix_variables: true}` to the API
+5. Backend calls the fast LLM (Claude Sonnet) to intelligently insert the missing variables in the right positions within the user's edited text
+6. Backend validates the LLM's fix actually restored all variables
+7. If fix succeeds → saves. If fix fails → returns error with manual instructions.
+
+**Self-healing**: If `prompt_templates.json` is deleted, corrupted, or has missing templates, the service regenerates from code defaults on next load. User edits for existing templates are preserved; missing templates are added from defaults.
+
+**Storage**: `backend/prompt_templates.json`. Code defaults in `backend/services/prompt_templates.py`. User edits marked with `"modified": true`.
 
 > [!WARNING]
-> Editing directive prompts changes how the AI behaves across the entire application. Test changes carefully. Removing required variables (e.g., `{user_prompt}`) will break the feature that uses the template. The AI enhancement validates variable preservation and warns if any are missing.
+> Editing directive prompts changes how the AI behaves across the entire application. Test changes carefully. The variable validation prevents accidental breakage, but semantic changes to the instructions can still affect output quality.
 
 ## 7. Prerequisites: AWS Setup
 

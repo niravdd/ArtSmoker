@@ -10,111 +10,12 @@ from pathlib import Path
 from backend.config import settings
 from backend.models.style_profile import AnalyzedStyle
 from backend.services.bedrock_client import invoke_llm
+from backend.services.prompt_templates import get_template
 from backend.storage.local_store import store
 
 logger = logging.getLogger(__name__)
 
-# ── Prompt templates ──────────────────────────────────────────────────────
-
-_ANALYSIS_PROMPT = """\
-You are an expert art director and visual style analyst specializing in game
-asset production. Carefully study ALL the reference images provided. These are
-individual game asset sprites — typically isolated objects on transparent
-backgrounds. Analyze the RENDERING STYLE, not the composition (since each
-image shows a single object).
-
-{user_guidance_section}
-
-Analyze these attributes by examining the full set of images together:
-
-- **perspective**: Camera/viewpoint used consistently across assets (e.g.
-  "isometric 30-degree dimetric", "top-down orthographic", "side-scroll",
-  "3/4 top-down"). Be specific about the angle.
-- **palette**: 5-8 dominant hex colors, grouped by material where possible
-  (e.g. "stone: #A0926B, wood: #8B7355, metal: #4A4A4A, accent: #C44B3F").
-- **rendering**: Precise rendering technique. Not just "3D" but specifics like
-  "pre-rendered 3D to 2D sprites with soft ambient occlusion and subtle surface
-  textures (visible stone mortar, wood grain)". Mention texture detail level.
-- **line_weight**: How edges and forms are defined (e.g. "no outlines, form
-  defined by material shading and soft shadow edges" or "thin dark outlines
-  with interior detail lines").
-- **mood**: Overall emotional/thematic feel (e.g. "dark medieval dungeon,
-  slightly whimsical miniature scale" or "bright cheerful cartoon city").
-- **scale**: Proportions and sizing system (e.g. "chunky miniature proportions,
-  ~128px isometric tile grid, slightly exaggerated toylike scale").
-- **background**: Background treatment (e.g. "transparent with semi-transparent
-  drop shadow at base, consistent 45-degree shadow angle").
-- **materials**: Key material rendering details — how stone, wood, metal,
-  fabric etc. are differentiated visually. This is crucial for generating
-  new assets that match.
-- **detail_level**: Level of surface detail (e.g. "medium — visible mortar
-  lines on stone, wood plank grain, simplified metal reflections, no fine
-  ornamentation").
-
-Return ONLY valid JSON matching this exact schema (no markdown fences, no extra text):
-{{
-  "perspective": "...",
-  "palette": ["#hex1", "#hex2", ...],
-  "rendering": "...",
-  "line_weight": "...",
-  "mood": "...",
-  "scale": "...",
-  "background": "...",
-  "materials": "...",
-  "detail_level": "..."
-}}
-"""
-
-_HINTS_PROMPT_TEMPLATE = """\
-You are a concise prompt-engineering expert for AI image generation. Given the
-analyzed visual style below, write generation hints that an AI image model
-MUST follow to produce assets matching this exact style.
-
-Analyzed style (from AI vision analysis of reference images):
-{style_json}
-
-{user_guidance_section}
-
-Write a SINGLE PARAGRAPH (max 200 words) that covers ALL of these in order:
-1. Perspective/camera angle (be specific — "isometric 30-degree dimetric" not just "isometric")
-2. Rendering technique with material specifics (how stone, wood, metal look)
-3. Color palette (name the key material colors)
-4. Proportions and scale (chunky? realistic? miniature?)
-5. Edge treatment (outlines? shading-defined? soft edges?)
-6. Shadow and lighting (direction, softness, transparency)
-7. Detail level (what surface details are visible, what is simplified)
-8. Background treatment
-
-The hints should be specific enough that an image model can produce an asset
-that seamlessly blends with the existing reference images. Generic descriptions
-like "isometric, earth tones" are NOT sufficient. Be precise about materials,
-proportions, and rendering details.
-
-Respond with ONLY the hints paragraph — no preamble, no bullet points.
-"""
-
-
-# ── Cohesion check prompt (Phase 1 — fast, cheap via Sonnet) ──────────────
-
-_COHESION_CHECK_PROMPT = """\
-You are a visual style analyst. Look at these reference images and determine
-whether they represent a SINGLE cohesive visual style or a DIVERSE collection
-with multiple themes/styles.
-
-Respond with ONLY a JSON object (no markdown fences):
-{{
-  "cohesion": "high" | "medium" | "low",
-  "reasoning": "One sentence explaining why",
-  "common_patterns": "What is consistent across ALL images (if anything)",
-  "variation_areas": "What varies between images (if anything)"
-}}
-
-- "high": All images share the same rendering style, perspective, palette, and
-  design language. Variations are only in subject matter, not visual treatment.
-- "medium": Images share structural patterns (sizing, composition, quality level)
-  but themes/palettes differ (e.g. multiple event themes for the same game).
-- "low": Images are from completely different visual styles with little in common.
-"""
+# ── Prompt templates (loaded from prompt_templates registry) ──────────────
 
 # ── Smart sampling ────────────────────────────────────────────────────────
 
@@ -242,7 +143,7 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
     try:
         logger.info("Phase 1: Checking cohesion for style '%s' with %d images (Sonnet).", style_id, len(cohesion_sample))
         cohesion_raw = invoke_llm(
-            _COHESION_CHECK_PROMPT,
+            get_template('style_cohesion_check'),
             complexity="fast",
             images=cohesion_sample,
             max_tokens=512,
@@ -301,7 +202,7 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
 
     guidance = "\n\n".join(guidance_parts)
 
-    prompt = _ANALYSIS_PROMPT.format(user_guidance_section=guidance)
+    prompt = get_template('style_analysis_full').format(user_guidance_section=guidance)
 
     logger.info(
         "Phase 2: Analyzing %d/%d reference image(s) for style '%s' (user hints: %s) using Claude Opus.",
@@ -366,7 +267,7 @@ def generate_hints(style_id: str, analyzed_style: AnalyzedStyle, user_hints: str
     else:
         guidance = "No additional artist guidance provided."
 
-    prompt = _HINTS_PROMPT_TEMPLATE.format(
+    prompt = get_template('style_hints_generation').format(
         style_json=style_json,
         user_guidance_section=guidance,
     )

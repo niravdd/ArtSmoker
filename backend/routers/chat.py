@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from starlette.responses import StreamingResponse
 
 from backend.config import settings
+from backend.services.prompt_templates import get_template
 
 logger = logging.getLogger(__name__)
 
@@ -560,7 +561,7 @@ async def compact_context(body: CompactRequest):
 
     try:
         summary = invoke_llm(
-            prompt=f"Summarize this conversation concisely, preserving key facts, decisions, and context that would be needed to continue the conversation naturally:\n\n{convo_text}",
+            prompt=get_template('chat_context_compact').format(convo_text=convo_text),
             system="You are a conversation summarizer. Output a clear, concise summary in 2-4 paragraphs. Include any specific names, numbers, code snippets, or decisions mentioned.",
             max_tokens=1000,
             temperature=0.3,
@@ -568,9 +569,12 @@ async def compact_context(body: CompactRequest):
     except Exception as exc:
         raise HTTPException(502, detail=f"Summarization failed: {exc}")
 
-    # Replace old messages with summary
+    # Replace old messages with summary.
+    # Use role "user" to avoid consecutive assistant messages (Converse API
+    # requires strict user/assistant alternation). The compacted marker in
+    # the content makes it clear this is a system-generated summary.
     summary_msg = {
-        "role": "assistant",
+        "role": "user",
         "content": f"*[Context summary — {len(to_summarize)} earlier messages compacted]*\n\n{summary}",
         "timestamp": datetime.utcnow().isoformat(),
         "compacted": True,
@@ -634,10 +638,10 @@ async def generate_title(body: TitleRequest):
     from backend.services.bedrock_client import invoke_llm
 
     try:
-        prompt = f"Generate a short title (3-8 words, no quotes, no punctuation at the end) for a chat conversation that starts with:\n\nUser: {body.user_message[:300]}"
-        if body.assistant_snippet:
-            prompt += f"\n\nAssistant: {body.assistant_snippet[:200]}"
-        prompt += "\n\nTitle:"
+        prompt = get_template('chat_title_generate').format(
+            user_message=body.user_message[:300],
+            assistant_snippet=body.assistant_snippet[:200] if body.assistant_snippet else "(none)",
+        )
 
         title = invoke_llm(
             prompt=prompt,

@@ -138,11 +138,12 @@
 
                         <!-- Tab: Prompt Templates -->
                         <div class="ms-tab-panel hidden" data-ms-panel="prompt-templates">
-                            <p class="text-xs text-brand-text-muted mb-2">${t('model_settings.templates_desc')}</p>
+                            <p class="text-xs text-red-400 mb-2">${t('model_settings.templates_desc')}</p>
                             <div class="flex items-center gap-2 mb-3 p-2 rounded-lg bg-brand-bg/40 border border-brand-border/50">
                                 <span class="text-[10px] text-brand-text-muted flex-shrink-0">${t('model_settings.templates_refinement_model')}:</span>
                                 <select id="ms-tmpl-model" class="input text-xs font-mono flex-1"></select>
                                 <input type="text" id="ms-tmpl-instructions" class="input text-xs flex-1" placeholder="${t('model_settings.templates_instructions_placeholder')}">
+                                <button id="ms-tmpl-toggle-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" title="Show or hide all template editors">View All</button>
                             </div>
                             <div id="ms-templates-list" class="space-y-3">
                                 <p class="text-xs text-brand-text-muted text-center py-4">Loading templates...</p>
@@ -495,6 +496,17 @@
                         this._loadTemplates(modal);
                     }
                 });
+            });
+
+            // Toggle all template editors open/closed
+            let _allExpanded = false;
+            modal.querySelector('#ms-tmpl-toggle-all')?.addEventListener('click', () => {
+                _allExpanded = !_allExpanded;
+                const btn = modal.querySelector('#ms-tmpl-toggle-all');
+                modal.querySelectorAll('#ms-templates-list details').forEach(d => {
+                    d.open = _allExpanded;
+                });
+                if (btn) btn.textContent = _allExpanded ? 'Hide All' : 'View All';
             });
 
             // Refresh All

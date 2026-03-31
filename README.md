@@ -645,8 +645,17 @@ Each template can be:
 - **Enhanced with AI** — select any LLM model, optionally add instructions (e.g., "optimize for pixel art"), and click "Enhance with AI". Review the suggestion, then Accept or Dismiss
 - **Reset to default** — restore the original at any time
 
+Templates are organized by studio (Image Studio, Style Library, Content Safety, Video Studio, Type Studio, Chat Studio, Translation) with friendly descriptions of what each one controls.
+
+**Variable safety:** Templates use `{curly_brace}` variables (e.g., `{user_prompt}`, `{model_name}`) that are substituted at runtime. If you accidentally remove a required variable, ArtSmoker will:
+1. Block the save and show which variables are missing
+2. Offer **"Fix & Save"** — an LLM automatically inserts the missing variables back into your edited text in the right places
+3. Verify the fix before saving
+
+All templates are stored in `backend/prompt_templates.json` and self-heal from code defaults if the file is deleted or corrupted.
+
 > [!TIP]
-> Start by reviewing the **Image Prompt Refinement** and **Multi-Concept Generation** templates. These have the biggest impact on output quality. If your team specializes in a particular art style (e.g., pixel art, watercolor, isometric), add those preferences directly into the templates so every generation benefits.
+> Start by reviewing the **Image Prompt Refinement** and **Creative Options** templates. These have the biggest impact on output quality. If your team specializes in a particular art style (e.g., pixel art, watercolor, isometric), add those preferences directly into the templates so every generation benefits.
 
 **3. Set up a style profile** (optional) — Go to **Style Library**, create a new style, upload reference images, and click **Analyze**. This teaches ArtSmoker your visual identity.
 

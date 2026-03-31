@@ -11,6 +11,7 @@ from pydantic import BaseModel
 
 from backend.config import settings
 from backend.services.model_registry import get_video_settings
+from backend.services.prompt_templates import get_template
 
 logger = logging.getLogger(__name__)
 
@@ -424,16 +425,7 @@ def _enhance_video_prompt(prompt: str, model_key: str) -> dict:
     prompt_limit = model_config.get("prompt_limit", 512) if model_config else 512
     family = model_config.get("format_family", "") if model_config else ""
 
-    system_prompt = f"""You are a video generation prompt engineer. Enhance the user's prompt for AI video generation.
-
-Guidelines:
-- Add specific camera movements (pan, zoom, dolly, tracking shot, aerial view)
-- Include lighting and atmosphere details (golden hour, dramatic shadows, ambient glow)
-- Add temporal cues for smooth motion (gradual, continuous, smooth transition)
-- Keep the core intent and subject of the original prompt
-- If the user mentions things to avoid (e.g. "no text", "avoid blurry"), weave avoidance into the prompt naturally (e.g. "sharp, clean visuals without text overlays") since this model has no negative prompt support
-- Maximum {prompt_limit} characters for the enhanced prompt
-- For game assets: emphasize clean motion, consistent style, looping-friendly if short"""
+    system_prompt = get_template('video_enhance_prompt').format(prompt_limit=prompt_limit)
 
     if "luma" in family:
         system_prompt += "\n- This model supports up to 5000 characters. Be richly descriptive."

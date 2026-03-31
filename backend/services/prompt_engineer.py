@@ -8,6 +8,7 @@ import logging
 from backend.models.generation_request import AssetType, ImageModel
 from backend.models.style_profile import StyleProfile
 from backend.services.bedrock_client import invoke_llm
+from backend.services.prompt_templates import get_template
 
 logger = logging.getLogger(__name__)
 
@@ -116,62 +117,7 @@ _ASSET_TYPE_CONTEXT: dict[AssetType, str] = {
 # 4. Most important details first, quality markers last (truncation safety)
 # 5. For SD models: use quality boosters, style tokens, and detailed descriptors
 
-_REFINE_PROMPT_TEMPLATE = """\
-You are an expert image-generation prompt engineer for game art. Your job is
-to rewrite the user's description as a DESCRIPTIVE IMAGE CAPTION optimized
-for the target model: {model_name}.
-
-=== TARGET MODEL: {model_name} ===
-{model_specific_instructions}
-
-=== ASSET TYPE GUIDELINES (adapt, don't force) ===
-{asset_context}
-
-=== STYLE GUIDELINES ===
-{style_section}
-
-=== USER REQUEST ===
-"{user_prompt}"
-
-INSTRUCTIONS — follow in PRIORITY ORDER:
-
-1. **USER INTENT IS KING.** The user's explicit words override everything else.
-   If the user says "real-world like" but the style says "toylike", follow the user.
-   If the user describes a scene but the asset type says "single object", describe
-   the scene. Never contradict what the user explicitly asked for.
-
-2. **Intelligently interpret the asset type.** The asset type is a GUIDE, not a
-   rigid template. A "game asset" could be an isolated object (barrel, sword),
-   a tileable panel (ceiling, floor), a UI element, or a complex prop. Adapt
-   the composition to what the user is actually describing.
-
-3. **Write as a DESCRIPTIVE CAPTION, not a command.** Image models understand
-   descriptions, not instructions. Write what the image SHOWS, not what to do.
-   - BAD: "Create an isometric dragon. Ensure clean edges. Do not add shadows."
-   - GOOD: "An isometric low-poly dragon, cel-shaded flat colors, clean sharp
-     edges, centered on transparent background, soft ambient lighting from top-left"
-
-4. **Follow this structure order** (most important first for truncation safety):
-   Subject → Environment/Context → Pose/Position → Lighting → Camera/Framing → Visual Style/Medium → Quality Markers
-
-5. **NEVER use negation words** in the prompt: no "no", "not", "without", "don't",
-   "never", "avoid", "DO NOT", "must not". These confuse image models.
-   Instead, describe what you WANT, not what you don't want.
-   - BAD: "no shadows, no text, without background"
-   - GOOD: "shadowless, clean, transparent background"
-   If exclusions are truly needed, output them on a SEPARATE line starting with
-   "NEGATIVE:" — they will be sent via the model's negative prompt parameter.
-
-6. **Style guidelines enhance, not override.** Use the style's palette, rendering
-   technique, and proportions to INFORM the output — but if the user's description
-   calls for something different, follow the user.
-
-OUTPUT FORMAT:
-Line 1: The image description prompt (under {max_chars} characters)
-Line 2 (optional): NEGATIVE: comma-separated terms to exclude
-
-Respond with ONLY the prompt lines — no preamble, no quotation marks, no explanation.
-"""
+# _REFINE_PROMPT_TEMPLATE loaded from prompt_templates registry as 'image_refine_single'
 
 # Model-specific instructions inserted into the template
 # See: https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html
@@ -216,33 +162,7 @@ _DEFAULT_MODEL_INSTRUCTIONS = (
     "NEVER use negation words — use the NEGATIVE line instead."
 )
 
-_MARKETING_PROMPT_TEMPLATE = """\
-You are a senior creative director specialising in game marketing materials.
-Craft a highly detailed image-generation prompt for a marketing banner BACKDROP.
-
-{style_section}
-
-User's brief:
-"{user_prompt}"
-
-Requirements:
-- The banner must be a visually striking ILLUSTRATION ONLY — no text, no letters,
-  no words, no typography of any kind. AI image models cannot render readable text.
-- If the user mentions a title or text (like "CARNIVAL SAGA"), ignore it for the
-  image prompt. Instead, leave a clean, visually quiet area where text can be
-  overlaid later in a design tool.
-- Include a clear focal point with dramatic lighting and rich color.
-- Leave a well-defined "safe zone" on the left or right third — low detail, muted
-  tones, suitable for text overlay in post-production.
-- Ensure the composition works at common banner aspect ratios (16:9, 3:1, 1:1).
-- Incorporate any style hints so the banner is consistent with the game's visual identity.
-- Specify professional quality markers: "high resolution", "polished", "publication ready".
-- Mention specific lighting direction, color grading, and atmosphere.
-
-CRITICAL: The prompt MUST be under {max_chars} characters. NO TEXT IN THE IMAGE.
-
-Respond with ONLY the refined prompt — no preamble, no quotation marks.
-"""
+# _MARKETING_PROMPT_TEMPLATE loaded from prompt_templates registry as 'image_refine_marketing'
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
@@ -410,7 +330,7 @@ def refine_prompt(
     model_name = _get_model_label(image_model)
     model_instructions = _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
 
-    prompt = _REFINE_PROMPT_TEMPLATE.format(
+    prompt = get_template('image_refine_single').format(
         asset_context=asset_context,
         style_section=style_section,
         user_prompt=user_prompt,
@@ -461,7 +381,7 @@ def refine_marketing_prompt(
     max_chars = get_prompt_limit(image_model)
     style_section = _build_style_section(style_profile)
 
-    prompt = _MARKETING_PROMPT_TEMPLATE.format(
+    prompt = get_template('image_refine_marketing').format(
         style_section=style_section,
         user_prompt=user_prompt,
         max_chars=max_chars,
@@ -487,51 +407,7 @@ def refine_marketing_prompt(
 
 # ── Multi-option concept generation ──────────────────────────────────────
 
-_CONCEPTS_PROMPT_TEMPLATE = """\
-You are a creative director generating DISTINCTLY DIFFERENT design concepts
-for an AI image generator.
-
-=== ASSET TYPE ===
-{asset_context}
-
-=== STYLE ===
-{style_section}
-
-=== USER REQUEST ===
-"{user_prompt}"
-
-Generate exactly {num_options} COMPLETELY DIFFERENT creative interpretations
-of the user's request. Each concept must be a fundamentally different design —
-not just color or pose variations, but different visual approaches, moods,
-silhouettes, aesthetics, or character archetypes.
-
-For example, if the user asks for "a warrior":
-- Concept 1: Bulky armored knight, heavy plate mail, great-shield, stoic pose
-- Concept 2: Agile ninja-like rogue, sleek dark outfit, dual daggers, dynamic crouch
-- Concept 3: Tribal warrior, face paint, bone jewelry, wooden spear, fierce expression
-- Concept 4: Futuristic cyber-soldier, glowing visor, energy blade, neon accents
-- Concept 5: Ancient Greek hoplite, bronze helm, round shield, red cloak, spear
-
-Each concept must:
-1. **RESPECT THE USER'S INTENT FIRST** — their explicit words override asset type
-   and style defaults. If they describe a tileable panel, don't force it into an
-   isolated object. If they say "real-world like", don't make it toylike.
-2. Use the asset type and style as GUIDELINES that inform, not override
-3. Be a self-contained image-generation prompt under {max_chars} characters
-4. Be visually distinct enough that an artist would see them as different options
-
-IMPORTANT: Do NOT use negation words ("no", "not", "without", "DO NOT") in the prompts
-themselves. Instead, describe what you WANT positively. If exclusions are needed for
-ALL concepts (e.g. "blurry, text, watermark"), include a final entry in the array
-prefixed with "NEGATIVE:" — this will be sent separately via the model's negative
-prompt parameter.
-
-Return a JSON array of strings — each string is a complete image-generation prompt.
-The last entry MAY optionally be a "NEGATIVE: ..." entry for shared exclusions.
-Example: ["prompt 1...", "prompt 2...", "NEGATIVE: blurry, text, watermark"]
-
-Return ONLY the JSON array. No markdown fences, no explanation.
-"""
+# _CONCEPTS_PROMPT_TEMPLATE loaded from prompt_templates registry as 'image_concepts_multi'
 
 
 def generate_concept_prompts(
@@ -546,7 +422,7 @@ def generate_concept_prompts(
     asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
     style_section = _build_style_section(style_profile)
 
-    prompt = _CONCEPTS_PROMPT_TEMPLATE.format(
+    prompt = get_template('image_concepts_multi').format(
         asset_context=asset_context,
         style_section=style_section,
         user_prompt=user_prompt,
