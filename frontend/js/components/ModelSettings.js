@@ -98,7 +98,10 @@
 
                         <!-- Tab: Image Studio -->
                         <div class="ms-tab-panel" data-ms-panel="image-studio">
-                            <p class="text-[10px] text-brand-text-muted mb-3">${t('model_settings.desc_image')}</p>
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_image')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="image-studio">Show All</button>
+                            </div>
                             <div id="ms-image-models" class="space-y-3">
                                 ${this._renderImageModels(reg)}
                             </div>
@@ -106,15 +109,24 @@
 
                         <!-- Tab: Video Studio -->
                         <div class="ms-tab-panel hidden" data-ms-panel="video-studio">
-                            <p class="text-[10px] text-brand-text-muted mb-3">${t('model_settings.desc_video')}</p>
-                            <div id="ms-video-models" class="space-y-3">
-                                ${this._renderVideoModels(reg)}
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_video')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="video-studio">Show All</button>
                             </div>
+                            <details class="ms-collapsible" open>
+                                <summary class="text-xs font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none mb-2">${t('model_settings.tab_video')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.video_models || {}).length})</span></summary>
+                                <div id="ms-video-models" class="space-y-3">
+                                    ${this._renderVideoModels(reg)}
+                                </div>
+                            </details>
                         </div>
 
                         <!-- Tab: Chat Studio -->
                         <div class="ms-tab-panel hidden" data-ms-panel="chat-studio">
-                            <p class="text-[10px] text-brand-text-muted mb-3">${t('model_settings.desc_chat')}</p>
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_chat')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="chat-studio">Show All</button>
+                            </div>
                             <div id="ms-chat-models" class="space-y-2">
                                 ${this._renderChatModels(reg)}
                             </div>
@@ -122,38 +134,44 @@
 
                         <!-- Tab: Type Studio -->
                         <div class="ms-tab-panel hidden" data-ms-panel="type-studio">
-                            <p class="text-[10px] text-brand-text-muted mb-3">${t('model_settings.desc_type')}</p>
-                            <div class="space-y-6">
-                                <div>
-                                    <h3 class="text-sm font-semibold text-cyan-400 uppercase tracking-wider mb-3">${t('model_settings.type_llm_heading')}</h3>
-                                    <p class="text-[10px] text-brand-text-muted mb-2">${t('model_settings.type_llm_desc')}</p>
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_type')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="type-studio">Show All</button>
+                            </div>
+                            <div class="space-y-4">
+                                <details class="ms-collapsible">
+                                    <summary class="text-sm font-semibold text-cyan-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('model_settings.type_llm_heading')}</summary>
+                                    <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('model_settings.type_llm_desc')}</p>
                                     <div class="space-y-3">
                                         ${['complex_llm', 'fast_llm'].map(name => {
                                             const cat = (reg.categories || {})[name];
                                             return cat ? this._renderCategory(name, cat) : '';
                                         }).join('')}
                                     </div>
-                                </div>
-                                <div>
-                                    <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-3">${t('model_settings.post_processing')}</h3>
-                                    <p class="text-[10px] text-brand-text-muted mb-2">${t('model_settings.type_pp_desc')}</p>
+                                </details>
+                                <details class="ms-collapsible">
+                                    <summary class="text-sm font-semibold text-amber-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('model_settings.post_processing')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.post_processing || {}).length})</span></summary>
+                                    <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('model_settings.type_pp_desc')}</p>
                                     <div class="space-y-3">
                                         ${Object.entries(reg.post_processing || {}).map(([key, m]) => this._renderPostProcess(key, m)).join('')}
                                     </div>
-                                </div>
+                                </details>
                             </div>
                         </div>
 
                         <!-- Tab: Shared AI -->
                         <div class="ms-tab-panel hidden" data-ms-panel="shared-ai">
-                            <p class="text-[10px] text-brand-text-muted mb-3">${t('model_settings.desc_shared')}</p>
-                            <div class="space-y-6">
-                                <div>
-                                    <h3 class="text-sm font-semibold text-brand-accent uppercase tracking-wider mb-3">${t('model_settings.llm_categories')}</h3>
-                                    <div class="space-y-3">
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_shared')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="shared-ai">Show All</button>
+                            </div>
+                            <div class="space-y-4">
+                                <details class="ms-collapsible">
+                                    <summary class="text-sm font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('model_settings.llm_categories')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.categories || {}).length - (reg.categories?.custom_llms ? 1 : 0)})</span></summary>
+                                    <div class="space-y-3 mt-2">
                                         ${Object.entries(reg.categories || {}).filter(([name]) => name !== 'custom_llms').map(([name, cat]) => this._renderCategory(name, cat)).join('')}
                                     </div>
-                                </div>
+                                </details>
                                 ${this._renderCustomLLMs(reg)}
                             </div>
                         </div>
@@ -250,15 +268,15 @@
                 const entries = groups[purpose];
                 const isEditing = purpose !== 'text_to_image' && !purpose.startsWith('upscale') && purpose !== 'remove_background';
                 return `
-                    <div class="mb-4">
-                        <h4 class="text-xs font-semibold ${isEditing ? 'text-emerald-400' : 'text-brand-accent'} uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <details class="mb-3 ms-collapsible">
+                        <summary class="text-xs font-semibold ${isEditing ? 'text-emerald-400' : 'text-brand-accent'} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
                             ${label}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
-                        </h4>
-                        <div class="space-y-2">
+                        </summary>
+                        <div class="space-y-2 mt-2">
                             ${entries.map(([key, m]) => this._renderSingleModel(key, m)).join('')}
                         </div>
-                    </div>
+                    </details>
                 `;
             }).join('');
         },
@@ -349,12 +367,12 @@
 
             return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([provider, entries]) => {
                 return `
-                    <div class="mb-4">
-                        <h4 class="text-xs font-semibold text-brand-accent uppercase tracking-wider mb-2 flex items-center gap-2">
+                    <details class="mb-3 ms-collapsible">
+                        <summary class="text-xs font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
                             ${this._esc(provider)}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
-                        </h4>
-                        <div class="space-y-1.5">
+                        </summary>
+                        <div class="space-y-1.5 mt-2">
                             ${entries.sort((a, b) => (a[1].label || '').localeCompare(b[1].label || '')).map(([key, m]) => {
                                 const regions = (m.available_regions || []).length;
                                 const vision = m.has_vision ? '<span class="text-[9px] px-1 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20">' + t('model_settings.vision_badge') + '</span>' : '';
@@ -386,7 +404,7 @@
                                     </div>`;
                             }).join('')}
                         </div>
-                    </div>`;
+                    </details>`;
             }).join('');
         },
 
@@ -489,9 +507,9 @@
             }
             const models = customLLMs.models;
             return `
-                <div>
-                    <h3 class="text-sm font-semibold text-purple-400 uppercase tracking-wider mb-3">${t('model_settings.custom_llms')}</h3>
-                    <p class="text-[10px] text-brand-text-muted mb-2">${t('model_settings.custom_llms_desc')}</p>
+                <details class="ms-collapsible">
+                    <summary class="text-sm font-semibold text-purple-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('model_settings.custom_llms')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(models).length})</span></summary>
+                    <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('model_settings.custom_llms_desc')}</p>
                     <div class="space-y-2">
                         ${Object.entries(models).map(([key, m]) => {
                             const source = m.model_source || 'custom';
@@ -518,7 +536,7 @@
                             `;
                         }).join('')}
                     </div>
-                </div>
+                </details>
             `;
         },
 
@@ -603,14 +621,29 @@
             });
 
             // Toggle all template editors open/closed
-            let _allExpanded = false;
+            // Toggle all sections per tab (Show All / Hide All)
+            modal.querySelectorAll('.ms-toggle-sections').forEach(btn => {
+                let expanded = false;
+                btn.addEventListener('click', () => {
+                    expanded = !expanded;
+                    const panel = btn.dataset.panel;
+                    const container = modal.querySelector(`[data-ms-panel="${panel}"]`);
+                    if (container) {
+                        container.querySelectorAll('details.ms-collapsible').forEach(d => { d.open = expanded; });
+                    }
+                    btn.textContent = expanded ? 'Hide All' : 'Show All';
+                });
+            });
+
+            // Prompt Templates: View All opens sections + inner text boxes
+            let _tmplAllExpanded = false;
             modal.querySelector('#ms-tmpl-toggle-all')?.addEventListener('click', () => {
-                _allExpanded = !_allExpanded;
+                _tmplAllExpanded = !_tmplAllExpanded;
                 const btn = modal.querySelector('#ms-tmpl-toggle-all');
                 modal.querySelectorAll('#ms-templates-list details').forEach(d => {
-                    d.open = _allExpanded;
+                    d.open = _tmplAllExpanded;
                 });
-                if (btn) btn.textContent = _allExpanded ? 'Hide All' : 'View All';
+                if (btn) btn.textContent = _tmplAllExpanded ? 'Hide All' : 'View All';
             });
 
             // Refresh All
