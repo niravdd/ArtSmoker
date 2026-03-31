@@ -369,16 +369,52 @@ def get_all_templates() -> dict:
     return result
 
 
-def update_template(name: str, text: str) -> dict:
-    """Update a template's text. Marks as modified."""
+def validate_template(name: str, text: str) -> list[str]:
+    """Validate that all required variables are present in the template text.
+
+    Returns a list of missing variables. Empty list = valid.
+    """
+    tmpl = _templates.get(name) or _DEFAULTS.get(name)
+    if not tmpl:
+        return []
+    missing = []
+    for var in tmpl.get("variables", []):
+        # Only check {curly_brace} variables, skip context descriptions
+        if var.startswith("{") and var.endswith("}"):
+            var_name = var.strip("{}")
+            if "{" + var_name + "}" not in text:
+                missing.append(var)
+    return missing
+
+
+def update_template(name: str, text: str, force: bool = False) -> dict:
+    """Update a template's text. Validates variables unless force=True.
+
+    Returns the updated template dict. Raises ValueError if variables are missing
+    and force is False.
+    """
     if name not in _templates and name not in _DEFAULTS:
         raise ValueError(f"Unknown template: {name}")
+
+    # Validate variables
+    missing = validate_template(name, text)
+    if missing and not force:
+        raise ValueError(
+            f"Cannot save: required variables missing from template text: {', '.join(missing)}. "
+            f"These variables are substituted at runtime — removing them will break the feature. "
+            f"To save anyway, use force=True (API: add ?force=true)."
+        )
+
     if name not in _templates:
         _templates[name] = {**_DEFAULTS[name]}
     _templates[name]["text"] = text
     _templates[name]["modified"] = True
+    if missing:
+        _templates[name]["warning"] = f"Missing variables: {', '.join(missing)}"
+    else:
+        _templates[name].pop("warning", None)
     _save()
-    return _templates[name]
+    return {**_templates[name], "missing_variables": missing}
 
 
 def reset_template(name: str) -> dict:

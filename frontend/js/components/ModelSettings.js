@@ -853,25 +853,53 @@
         },
 
         _attachTemplateEvents(container, modal, templates) {
-            // Save handlers
+            // Save handlers (with variable validation)
             container.querySelectorAll('.ms-tmpl-save').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const name = btn.dataset.tmpl;
                     const textarea = container.querySelector(`.ms-tmpl-text[data-tmpl="${name}"]`);
                     if (!textarea) return;
                     btn.disabled = true;
-                    try {
+
+                    const doSave = async (force = false) => {
                         const resp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text: textarea.value }),
+                            body: JSON.stringify({ text: textarea.value, force }),
                         });
-                        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                        window.showToast?.(t('model_settings.templates_saved'), 'success');
-                        this._templatesLoaded = false;
-                        this._loadTemplates(modal);
+                        if (resp.ok) {
+                            window.showToast?.(t('model_settings.templates_saved'), 'success');
+                            this._templatesLoaded = false;
+                            this._loadTemplates(modal);
+                            return true;
+                        }
+                        return resp;
+                    };
+
+                    try {
+                        const result = await doSave(false);
+                        if (result !== true) {
+                            // Validation failed — show missing variables warning
+                            const err = await result.json();
+                            const detail = err.detail || 'Unknown error';
+                            if (detail.includes('missing')) {
+                                // Offer "Save Anyway" option
+                                const saveAnyway = await window.showConfirm?.(
+                                    'Required variables are missing from your template.', {
+                                    title: 'Missing Variables',
+                                    detail: detail + '\n\nSaving without these variables will break the feature that uses this template. The model will not receive the expected input.',
+                                    confirmLabel: 'Save Anyway (not recommended)',
+                                    danger: true,
+                                });
+                                if (saveAnyway) {
+                                    await doSave(true);
+                                }
+                            } else {
+                                window.showToast?.(t('model_settings.templates_save_failed') + ': ' + detail, 'error');
+                            }
+                        }
                     } catch (err) {
-                        window.showToast?.('Save failed: ' + err.message, 'error');
+                        window.showToast?.(t('model_settings.templates_save_failed') + ': ' + err.message, 'error');
                     }
                     btn.disabled = false;
                 });

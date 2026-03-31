@@ -178,17 +178,24 @@ async def get_templates():
 
 class TemplateUpdate(BaseModel):
     text: str
+    force: bool = False  # If true, save even with missing variables
 
 
 @router.patch("/templates/{name}")
 async def update_template_endpoint(name: str, body: TemplateUpdate):
-    """Update a prompt template's text."""
+    """Update a prompt template's text. Validates required variables.
+
+    Returns 400 with details if required variables are missing (unless force=True).
+    """
     from backend.services.prompt_templates import update_template
     try:
-        result = update_template(name, body.text)
+        result = update_template(name, body.text, force=body.force)
         return result
     except ValueError as exc:
-        raise HTTPException(404, detail=str(exc))
+        error_msg = str(exc)
+        if "missing" in error_msg.lower():
+            raise HTTPException(400, detail=error_msg)
+        raise HTTPException(404, detail=error_msg)
 
 
 @router.post("/templates/{name}/reset")
