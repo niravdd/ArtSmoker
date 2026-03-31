@@ -307,7 +307,7 @@
         // Group by provider
         const byProvider = {};
         for (const m of _models) {
-            const provider = m.provider || 'Other';
+            const provider = m.provider || t('common.unknown');
             if (!byProvider[provider]) byProvider[provider] = [];
             byProvider[provider].push(m);
         }
@@ -498,7 +498,7 @@
         try {
             const session = await fetch('/api/chat/sessions', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: 'New Chat', model_id: model.model_id || '' }),
+                body: JSON.stringify({ title: t('chat_studio.new_chat').replace('+ ', ''), model_id: model.model_id || '' }),
             }).then(r => r.json());
             await _loadSessions();
             await _loadSession(session.session_id);
@@ -709,7 +709,7 @@
         _renderAttachments();
 
         // Quick title from first message (immediate, before LLM responds)
-        if (_currentSession.messages.filter(m => m.role === 'user').length === 1 && _currentSession.title === 'New Chat') {
+        if (_currentSession.messages.filter(m => m.role === 'user').length === 1 && (_currentSession.title === 'New Chat' || _currentSession.title === t('chat_studio.new_chat').replace('+ ', ''))) {
             _currentSession.title = text.slice(0, 50) + (text.length > 50 ? '...' : '');
         }
 
@@ -802,7 +802,7 @@
                 }
             }
         } catch (err) {
-            if (err.name !== 'AbortError') fullText += `\n\n**Error:** ${err.message}`;
+            if (err.name !== 'AbortError') fullText += `\n\n**${t('common.error')}:** ${err.message}`;
         }
 
         clearInterval(timerInterval);
@@ -972,7 +972,7 @@
 
             if (!resp.ok) {
                 const err = await resp.json();
-                throw new Error(err.detail || 'Compact failed');
+                throw new Error(err.detail || t('model_settings.templates_enhance_failed'));
             }
 
             const result = await resp.json();

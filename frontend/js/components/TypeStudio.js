@@ -8,16 +8,16 @@
     'use strict';
 
     const POSITIONS = [
-        { value: 'top-left',       label: 'Top Left' },
-        { value: 'top-center',     label: 'Top Center' },
-        { value: 'top-right',      label: 'Top Right' },
-        { value: 'center-left',    label: 'Center Left' },
-        { value: 'center',         label: 'Center' },
-        { value: 'center-right',   label: 'Center Right' },
-        { value: 'bottom-left',    label: 'Bottom Left' },
-        { value: 'bottom-center',  label: 'Bottom Center' },
-        { value: 'bottom-right',   label: 'Bottom Right' },
-        { value: 'below-previous', label: 'Below Previous' },
+        { value: 'top-left',       labelKey: 'type_studio.pos_top_left' },
+        { value: 'top-center',     labelKey: 'type_studio.pos_top_center' },
+        { value: 'top-right',      labelKey: 'type_studio.pos_top_right' },
+        { value: 'center-left',    labelKey: 'type_studio.pos_center_left' },
+        { value: 'center',         labelKey: 'type_studio.pos_center' },
+        { value: 'center-right',   labelKey: 'type_studio.pos_center_right' },
+        { value: 'bottom-left',    labelKey: 'type_studio.pos_bottom_left' },
+        { value: 'bottom-center',  labelKey: 'type_studio.pos_bottom_center' },
+        { value: 'bottom-right',   labelKey: 'type_studio.pos_bottom_right' },
+        { value: 'below-previous', labelKey: 'type_studio.pos_below_previous' },
     ];
 
     // Font display helpers
@@ -632,7 +632,7 @@
             this._syncLinesFromDOM();
 
             const positionOptions = POSITIONS.map(p =>
-                `<option value="${p.value}">${p.label}</option>`
+                `<option value="${p.value}">${t(p.labelKey)}</option>`
             ).join('');
 
             // Group fonts by source for the picker
