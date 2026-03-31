@@ -3,7 +3,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.3-20260330_03"
+APP_VERSION = "1.4-20260331_01"
 
 
 class Settings(BaseSettings):
