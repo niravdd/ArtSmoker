@@ -174,5 +174,5 @@
     "text": "Translate the following {lang_name} text to English. Preserve the meaning, tone, and any technical terms. Output ONLY the English translation, nothing else.\n\nText: {text}",
     "modified": false
   },
-  "_last_updated": "2026-03-31T01:20:57.884142"
+  "_last_updated": "2026-03-31T01:40:39.291266"
 }
