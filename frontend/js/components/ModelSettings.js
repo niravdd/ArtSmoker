@@ -85,6 +85,7 @@
                             ${t('model_settings.tab_ai')}
                             <span class="text-[9px] opacity-60 ml-1">(${llmCount})</span>
                         </button>
+                        <button class="tab" data-ms-tab="prompt-templates">Prompt Templates</button>
                         <button class="tab" data-ms-tab="registry-json">${t('model_settings.tab_json')}</button>
                     </div>
 
@@ -132,6 +133,19 @@
                                         ${Object.entries(reg.post_processing || {}).map(([key, m]) => this._renderPostProcess(key, m)).join('')}
                                     </div>
                                 </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Prompt Templates -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="prompt-templates">
+                            <p class="text-xs text-brand-text-muted mb-2">Edit the directive prompts that guide LLM behavior. Variables in <code class="text-brand-accent">{curly_braces}</code> are substituted at runtime — do not remove them.</p>
+                            <div class="flex items-center gap-2 mb-3 p-2 rounded-lg bg-brand-bg/40 border border-brand-border/50">
+                                <span class="text-[10px] text-brand-text-muted flex-shrink-0">Refinement model:</span>
+                                <select id="ms-tmpl-model" class="input text-xs font-mono flex-1"></select>
+                                <input type="text" id="ms-tmpl-instructions" class="input text-xs flex-1" placeholder="Optional: specific instructions for refinement...">
+                            </div>
+                            <div id="ms-templates-list" class="space-y-3">
+                                <p class="text-xs text-brand-text-muted text-center py-4">Loading templates...</p>
                             </div>
                         </div>
 
@@ -471,11 +485,15 @@
             // Tab switching
             modal.querySelectorAll('[data-ms-tab]').forEach(tab => {
                 tab.addEventListener('click', () => {
-                    modal.querySelectorAll('[data-ms-tab]').forEach(t => t.classList.remove('active'));
+                    modal.querySelectorAll('[data-ms-tab]').forEach(t2 => t2.classList.remove('active'));
                     tab.classList.add('active');
                     modal.querySelectorAll('.ms-tab-panel').forEach(p => {
                         p.classList.toggle('hidden', p.dataset.msPanel !== tab.dataset.msTab);
                     });
+                    // Load templates on first click
+                    if (tab.dataset.msTab === 'prompt-templates' && !this._templatesLoaded) {
+                        this._loadTemplates(modal);
+                    }
                 });
             });
 
@@ -705,6 +723,195 @@
                 jsonEditor.value = JSON.stringify(this._registry, null, 2);
                 jsonStatus.textContent = t('model_settings.reset_to_loaded');
                 jsonStatus.className = 'text-[10px] text-brand-text-muted';
+            });
+        },
+
+        async _loadTemplates(modal) {
+            const container = modal.querySelector('#ms-templates-list');
+            if (!container) return;
+            try {
+                // Load templates
+                const resp = await fetch('/api/admin/templates');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                this._templatesLoaded = true;
+                this._templatesData = data.templates || {};
+
+                // Populate model dropdown for refinement (reuse chat models)
+                const modelSel = modal.querySelector('#ms-tmpl-model');
+                if (modelSel && modelSel.options.length <= 1) {
+                    try {
+                        const modelResp = await fetch('/api/chat/models');
+                        const modelData = await modelResp.json();
+                        modelSel.innerHTML = (modelData.models || []).map(m =>
+                            `<option value="${this._esc(m.model_id)}" data-region="${this._esc(m.region)}">${this._esc(m.label)} (${this._esc(m.provider)})</option>`
+                        ).join('');
+                    } catch { modelSel.innerHTML = '<option value="">No models available</option>'; }
+                }
+
+                this._renderTemplates(modal);
+            } catch (err) {
+                container.innerHTML = `<p class="text-xs text-red-400 py-4">Failed to load templates: ${this._esc(err.message)}</p>`;
+            }
+        },
+
+        _renderTemplates(modal) {
+            const container = modal.querySelector('#ms-templates-list');
+            if (!container || !this._templatesData) return;
+            const templates = this._templatesData;
+
+            container.innerHTML = Object.entries(templates).map(([name, tmpl]) => {
+                const modified = tmpl.modified ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">modified</span>' : '';
+                const vars = (tmpl.variables || []).map(v => `<code class="text-[9px] text-brand-accent bg-brand-accent/10 px-1 rounded">${this._esc(v)}</code>`).join(' ');
+                return `
+                    <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-tmpl="${this._esc(name)}">
+                        <div class="flex items-center justify-between mb-1">
+                            <div class="flex items-center gap-2">
+                                <span class="text-sm font-medium">${this._esc(tmpl.label || name)}</span>
+                                ${modified}
+                            </div>
+                            <span class="text-[9px] text-brand-text-muted">${this._esc(tmpl.model || '')}</span>
+                        </div>
+                        <p class="text-[10px] text-brand-text-muted mb-1">${this._esc(tmpl.description || '')}</p>
+                        <p class="text-[10px] text-brand-text-muted/60 mb-2">Used by: ${this._esc(tmpl.used_by || '')} | Variables: ${vars || 'none'}</p>
+                        <details class="group">
+                            <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
+                                <span class="group-open:hidden">Edit template</span>
+                                <span class="hidden group-open:inline">Close editor</span>
+                            </summary>
+                            <div class="mt-2 space-y-2">
+                                <textarea class="ms-tmpl-text input w-full h-48 font-mono text-xs resize-y" data-tmpl="${this._esc(name)}" spellcheck="false">${this._esc(tmpl.text || '')}</textarea>
+                                <div class="flex gap-2 flex-wrap">
+                                    <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${this._esc(name)}">Save</button>
+                                    <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${this._esc(name)}">Enhance with AI</button>
+                                    <button class="ms-tmpl-reset btn btn-sm text-xs border border-brand-border text-brand-text-muted hover:border-amber-500 hover:text-amber-400" data-tmpl="${this._esc(name)}">Reset to Default</button>
+                                </div>
+                                <div class="ms-tmpl-suggestion hidden mt-2 p-2 rounded-lg bg-purple-950/20 border border-purple-500/20" data-tmpl="${this._esc(name)}">
+                                    <div class="flex items-center justify-between mb-1">
+                                        <span class="text-[10px] text-purple-400 font-medium">AI Suggestion</span>
+                                        <div class="flex gap-1">
+                                            <button class="ms-tmpl-accept text-[10px] px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-500" data-tmpl="${this._esc(name)}">Accept</button>
+                                            <button class="ms-tmpl-dismiss text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent" data-tmpl="${this._esc(name)}">Dismiss</button>
+                                        </div>
+                                    </div>
+                                    <div class="ms-tmpl-suggestion-warning hidden text-[10px] text-amber-400 mb-1"></div>
+                                    <pre class="ms-tmpl-suggestion-text text-xs font-mono whitespace-pre-wrap text-purple-200/70 max-h-48 overflow-auto"></pre>
+                                </div>
+                            </div>
+                        </details>
+                    </div>`;
+            }).join('');
+
+            // Save handlers
+            container.querySelectorAll('.ms-tmpl-save').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const name = btn.dataset.tmpl;
+                    const textarea = container.querySelector(`.ms-tmpl-text[data-tmpl="${name}"]`);
+                    if (!textarea) return;
+                    btn.disabled = true;
+                    try {
+                        const resp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ text: textarea.value }),
+                        });
+                        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                        window.showToast?.(`Template "${name}" saved`, 'success');
+                        this._templatesLoaded = false;
+                        this._loadTemplates(modal);
+                    } catch (err) {
+                        window.showToast?.('Save failed: ' + err.message, 'error');
+                    }
+                    btn.disabled = false;
+                });
+            });
+
+            // Enhance with AI handlers
+            container.querySelectorAll('.ms-tmpl-enhance').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const name = btn.dataset.tmpl;
+                    const modelSel = modal.querySelector('#ms-tmpl-model');
+                    const modelId = modelSel?.value;
+                    const region = modelSel?.selectedOptions[0]?.dataset.region || '';
+                    const instructions = modal.querySelector('#ms-tmpl-instructions')?.value || '';
+
+                    if (!modelId) { window.showToast?.('Select a refinement model first', 'warning'); return; }
+
+                    btn.disabled = true;
+                    const origText = btn.textContent;
+                    btn.textContent = 'Enhancing...';
+
+                    try {
+                        const resp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}/enhance`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ model_id: modelId, region, instructions }),
+                        });
+                        if (!resp.ok) {
+                            const err = await resp.json();
+                            throw new Error(err.detail || `HTTP ${resp.status}`);
+                        }
+                        const result = await resp.json();
+
+                        // Show suggestion
+                        const suggBox = container.querySelector(`.ms-tmpl-suggestion[data-tmpl="${name}"]`);
+                        const suggText = suggBox?.querySelector('.ms-tmpl-suggestion-text');
+                        const suggWarn = suggBox?.querySelector('.ms-tmpl-suggestion-warning');
+                        if (suggBox && suggText) {
+                            suggText.textContent = result.improved;
+                            if (result.warning) {
+                                suggWarn.textContent = result.warning;
+                                suggWarn.classList.remove('hidden');
+                            } else {
+                                suggWarn.classList.add('hidden');
+                            }
+                            suggBox.classList.remove('hidden');
+                        }
+                    } catch (err) {
+                        window.showToast?.('Enhancement failed: ' + err.message, 'error');
+                    }
+                    btn.disabled = false;
+                    btn.textContent = origText;
+                });
+            });
+
+            // Accept suggestion handlers
+            container.querySelectorAll('.ms-tmpl-accept').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const name = btn.dataset.tmpl;
+                    const suggBox = container.querySelector(`.ms-tmpl-suggestion[data-tmpl="${name}"]`);
+                    const suggText = suggBox?.querySelector('.ms-tmpl-suggestion-text')?.textContent;
+                    const textarea = container.querySelector(`.ms-tmpl-text[data-tmpl="${name}"]`);
+                    if (textarea && suggText) {
+                        textarea.value = suggText;
+                        suggBox?.classList.add('hidden');
+                        window.showToast?.('Suggestion applied — click Save to persist', 'info');
+                    }
+                });
+            });
+
+            // Dismiss suggestion handlers
+            container.querySelectorAll('.ms-tmpl-dismiss').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const name = btn.dataset.tmpl;
+                    container.querySelector(`.ms-tmpl-suggestion[data-tmpl="${name}"]`)?.classList.add('hidden');
+                });
+            });
+
+            // Reset handlers
+            container.querySelectorAll('.ms-tmpl-reset').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const name = btn.dataset.tmpl;
+                    if (!await window.showConfirm?.(`Reset "${name}" to its default text?`, { title: 'Reset Template', confirmLabel: 'Reset', danger: true })) return;
+                    try {
+                        await fetch(`/api/admin/templates/${encodeURIComponent(name)}/reset`, { method: 'POST' });
+                        window.showToast?.(`Template "${name}" reset to default`, 'success');
+                        this._templatesLoaded = false;
+                        this._loadTemplates(modal);
+                    } catch (err) {
+                        window.showToast?.('Reset failed: ' + err.message, 'error');
+                    }
+                });
             });
         },
 

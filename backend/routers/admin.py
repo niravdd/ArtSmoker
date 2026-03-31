@@ -167,6 +167,134 @@ async def reload_registry():
     return {"status": "reloaded"}
 
 
+# ── Prompt Templates ──────────────────────────────────────────────────────
+
+@router.get("/templates")
+async def get_templates():
+    """Return all editable prompt templates with metadata."""
+    from backend.services.prompt_templates import get_all_templates
+    return {"templates": get_all_templates()}
+
+
+class TemplateUpdate(BaseModel):
+    text: str
+
+
+@router.patch("/templates/{name}")
+async def update_template_endpoint(name: str, body: TemplateUpdate):
+    """Update a prompt template's text."""
+    from backend.services.prompt_templates import update_template
+    try:
+        result = update_template(name, body.text)
+        return result
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
+
+
+@router.post("/templates/{name}/reset")
+async def reset_template_endpoint(name: str):
+    """Reset a prompt template to its default."""
+    from backend.services.prompt_templates import reset_template
+    try:
+        result = reset_template(name)
+        return result
+    except ValueError as exc:
+        raise HTTPException(404, detail=str(exc))
+
+
+@router.post("/templates/reset-all")
+async def reset_all_templates_endpoint():
+    """Reset all prompt templates to defaults."""
+    from backend.services.prompt_templates import reset_all_templates
+    reset_all_templates()
+    return {"status": "all templates reset to defaults"}
+
+
+class TemplateEnhanceRequest(BaseModel):
+    model_id: str
+    region: str | None = None
+    instructions: str = ""  # Optional user instructions for how to improve
+
+
+@router.post("/templates/{name}/enhance")
+async def enhance_template(name: str, body: TemplateEnhanceRequest):
+    """Use an LLM to refine/improve a prompt template.
+
+    Sends the current template text + its metadata to the chosen model,
+    asking it to improve the directive while preserving all variables.
+    Returns the suggested improved text for the user to review.
+    """
+    from backend.services.prompt_templates import get_all_templates
+    from backend.services.bedrock_client import _get_client
+
+    templates = get_all_templates()
+    if name not in templates:
+        raise HTTPException(404, detail=f"Unknown template: {name}")
+
+    tmpl = templates[name]
+    current_text = tmpl["text"]
+    variables = tmpl.get("variables", [])
+    var_list = ", ".join(variables) if variables else "none"
+
+    user_instructions = ""
+    if body.instructions:
+        user_instructions = f"\n\nThe user specifically requests: {body.instructions}"
+
+    enhance_prompt = f"""You are an expert at writing LLM system prompts and directive templates for AI applications.
+
+Below is a prompt template used in a game art generation tool called ArtSmoker. Your task is to improve it — make it clearer, more effective, and better at guiding the LLM to produce high-quality results.
+
+Template name: {tmpl['label']}
+Purpose: {tmpl['description']}
+Used by: {tmpl['used_by']}
+Variables that MUST be preserved exactly: {var_list}
+{user_instructions}
+
+RULES:
+1. PRESERVE all variables in {{curly_braces}} exactly as they are — the code substitutes these at runtime
+2. Keep the same general structure and intent
+3. Make instructions clearer and more specific
+4. Add examples where helpful
+5. Remove ambiguity
+6. Output ONLY the improved template text — no explanations, no markdown fences
+
+Current template:
+---
+{current_text}
+---
+
+Improved template:"""
+
+    region = body.region or "us-west-2"
+    client = _get_client(region)
+
+    try:
+        response = client.converse(
+            modelId=body.model_id,
+            messages=[{"role": "user", "content": [{"text": enhance_prompt}]}],
+            inferenceConfig={"maxTokens": 4000, "temperature": 0.3},
+        )
+        improved = response["output"]["message"]["content"][0]["text"].strip()
+
+        # Verify all variables are preserved
+        missing_vars = []
+        for var in variables:
+            if var.startswith("{") and var.endswith("}"):
+                var_name = var.strip("{}")
+                if "{" + var_name + "}" not in improved:
+                    missing_vars.append(var)
+
+        return {
+            "original": current_text,
+            "improved": improved,
+            "model_id": body.model_id,
+            "missing_variables": missing_vars,
+            "warning": f"Variables missing in improved text: {missing_vars}" if missing_vars else None,
+        }
+    except Exception as exc:
+        raise HTTPException(502, detail=f"Enhancement failed: {exc}")
+
+
 @router.get("/models/image-options")
 async def get_image_model_options(region: str | None = Query(default=None)):
     """Return enabled image models for the frontend dropdown.
