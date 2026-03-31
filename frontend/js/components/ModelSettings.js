@@ -113,7 +113,7 @@
                                 <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_video')}</p>
                                 <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="video-studio">Show All</button>
                             </div>
-                            <details class="ms-collapsible" open>
+                            <details class="ms-collapsible">
                                 <summary class="text-xs font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none mb-2">${t('model_settings.tab_video')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.video_models || {}).length})</span></summary>
                                 <div id="ms-video-models" class="space-y-3">
                                     ${this._renderVideoModels(reg)}
@@ -365,10 +365,12 @@
                 groups[provider].push([key, m]);
             }
 
-            return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([provider, entries]) => {
+            const _providerColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400', 'text-amber-400', 'text-pink-400', 'text-teal-400', 'text-indigo-400'];
+            return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([provider, entries], idx) => {
+                const color = _providerColors[idx % _providerColors.length];
                 return `
                     <details class="mb-3 ms-collapsible">
-                        <summary class="text-xs font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                        <summary class="text-xs font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
                             ${this._esc(provider)}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
                         </summary>
@@ -965,16 +967,16 @@
                 const groupTemplates = group.templates.filter(gt => templates[gt.name]);
                 if (groupTemplates.length === 0) return '';
                 return `
-                    <div class="mb-5">
-                        <h4 class="text-xs font-semibold ${group.color} uppercase tracking-wider mb-2">${this._esc(group.label)} <span class="text-[9px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></h4>
-                        <div class="space-y-2">
+                    <details class="mb-4 ms-collapsible">
+                        <summary class="text-xs font-semibold ${group.color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${this._esc(group.label)} <span class="text-[9px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></summary>
+                        <div class="space-y-2 mt-2">
                             ${groupTemplates.map(gt => {
                                 const name = gt.name;
                                 const tmpl = templates[name];
                                 return this._renderSingleTemplate(name, tmpl, gt.friendlyLabel);
                             }).join('')}
                         </div>
-                    </div>`;
+                    </details>`;
             }).join('');
 
             this._attachTemplateEvents(container, modal, templates);
