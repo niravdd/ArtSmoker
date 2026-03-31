@@ -72,6 +72,7 @@
             }
             _buildReverseLookup();
             _loaded = true;
+            console.log(`[i18n] Loaded: lang=${_currentLang}, strings=${Object.keys(_strings).length}, fallback=${Object.keys(_fallback).length}, sample: t('type_studio.title')="${_strings['type_studio.title'] || '(missing)'}", t('chat_studio.title')="${_strings['chat_studio.title'] || '(missing)'}"`);
         },
 
         getLang() {
