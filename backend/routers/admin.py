@@ -178,24 +178,85 @@ async def get_templates():
 
 class TemplateUpdate(BaseModel):
     text: str
-    force: bool = False  # If true, save even with missing variables
+    fix_variables: bool = False  # If true, use LLM to fix missing variables before saving
 
 
 @router.patch("/templates/{name}")
 async def update_template_endpoint(name: str, body: TemplateUpdate):
     """Update a prompt template's text. Validates required variables.
 
-    Returns 400 with details if required variables are missing (unless force=True).
+    If variables are missing and fix_variables=True, uses an LLM to intelligently
+    insert them in the right places. Otherwise returns 400 with details.
     """
-    from backend.services.prompt_templates import update_template
+    from backend.services.prompt_templates import update_template, validate_template, get_all_templates
+
+    # Check if template exists
+    templates = get_all_templates()
+    if name not in templates:
+        raise HTTPException(404, detail=f"Unknown template: {name}")
+
+    # Validate variables first
+    missing = validate_template(name, body.text)
+
+    if missing and body.fix_variables:
+        # Use LLM to fix the template — insert missing variables in the right places
+        from backend.services.bedrock_client import invoke_llm
+        tmpl = templates[name]
+        var_descriptions = ", ".join(missing)
+
+        try:
+            fixed = invoke_llm(
+                prompt=f"""This prompt template is missing required variables that must be present for the system to work.
+
+Missing variables: {var_descriptions}
+
+Each variable uses {{curly_brace}} syntax and gets replaced at runtime with actual values.
+For example, {{user_prompt}} gets replaced with the user's actual text input.
+
+Insert the missing variables in the most logical positions within this template.
+Do NOT remove any existing content — only ADD the missing variables where they make sense.
+
+Template:
+---
+{body.text}
+---
+
+Output ONLY the fixed template text with all variables inserted. No explanations.""",
+                system="You fix prompt templates by inserting missing variables. Output only the fixed template. Never remove existing content.",
+                max_tokens=4000,
+                temperature=0.1,
+                complexity="fast",
+            ).strip()
+
+            # Verify the fix actually has the variables
+            still_missing = validate_template(name, fixed)
+            if still_missing:
+                raise HTTPException(400, detail=f"LLM fix attempted but variables still missing: {', '.join(still_missing)}. Please add them manually: {', '.join(missing)}")
+
+            # Save the fixed version
+            result = update_template(name, fixed, force=True)
+            result["auto_fixed"] = True
+            result["fixed_variables"] = missing
+            return result
+
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(502, detail=f"Auto-fix failed: {exc}. Please add manually: {', '.join(missing)}")
+
+    elif missing:
+        raise HTTPException(400, detail={
+            "message": f"Required variables missing: {', '.join(missing)}",
+            "missing_variables": missing,
+            "hint": "These variables are substituted at runtime. Removing them breaks the feature. Click 'Fix & Save' to auto-insert them.",
+        })
+
+    # No missing variables — save directly
     try:
-        result = update_template(name, body.text, force=body.force)
+        result = update_template(name, body.text, force=True)
         return result
     except ValueError as exc:
-        error_msg = str(exc)
-        if "missing" in error_msg.lower():
-            raise HTTPException(400, detail=error_msg)
-        raise HTTPException(404, detail=error_msg)
+        raise HTTPException(404, detail=str(exc))
 
 
 @router.post("/templates/{name}/reset")

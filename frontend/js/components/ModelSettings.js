@@ -881,21 +881,38 @@
                         if (result !== true) {
                             // Validation failed — show missing variables warning
                             const err = await result.json();
-                            const detail = err.detail || 'Unknown error';
-                            if (detail.includes('missing')) {
-                                // Offer "Save Anyway" option
-                                const saveAnyway = await window.showConfirm?.(
+                            const detail = err.detail;
+                            const missing = typeof detail === 'object' ? detail.missing_variables : [];
+                            const message = typeof detail === 'object' ? detail.message : (detail || 'Unknown error');
+
+                            if (missing?.length || (typeof message === 'string' && message.includes('missing'))) {
+                                const varList = missing?.join(', ') || message;
+                                const doFix = await window.showConfirm?.(
                                     'Required variables are missing from your template.', {
                                     title: 'Missing Variables',
-                                    detail: detail + '\n\nSaving without these variables will break the feature that uses this template. The model will not receive the expected input.',
-                                    confirmLabel: 'Save Anyway (not recommended)',
-                                    danger: true,
+                                    detail: `Missing: ${varList}\n\nThese variables are replaced with actual values at runtime. Without them, the feature won't receive the expected input.\n\nClick "Fix & Save" to let the AI insert the missing variables in the right places automatically.`,
+                                    confirmLabel: 'Fix & Save',
                                 });
-                                if (saveAnyway) {
-                                    await doSave(true);
+                                if (doFix) {
+                                    // Call API with fix_variables=true
+                                    btn.textContent = 'Fixing...';
+                                    const fixResp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ text: textarea.value, fix_variables: true }),
+                                    });
+                                    if (fixResp.ok) {
+                                        const fixResult = await fixResp.json();
+                                        window.showToast?.(`Template fixed and saved — ${fixResult.fixed_variables?.length || 0} variables inserted`, 'success');
+                                        this._templatesLoaded = false;
+                                        this._loadTemplates(modal);
+                                    } else {
+                                        const fixErr = await fixResp.json();
+                                        window.showToast?.(t('model_settings.templates_save_failed') + ': ' + (fixErr.detail || ''), 'error');
+                                    }
                                 }
                             } else {
-                                window.showToast?.(t('model_settings.templates_save_failed') + ': ' + detail, 'error');
+                                window.showToast?.(t('model_settings.templates_save_failed') + ': ' + message, 'error');
                             }
                         }
                     } catch (err) {
