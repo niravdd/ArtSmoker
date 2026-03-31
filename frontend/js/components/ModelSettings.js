@@ -523,6 +523,27 @@
         },
 
         _renderPostProcess(key, m) {
+            // Build model options from image_models filtered by matching purpose
+            const imgModels = this._registry?.image_models || {};
+            const currentId = m.model_id || '';
+            const purpose = key.includes('remove') ? 'remove_background' : key.includes('upscale') ? /upscale/ : key;
+            const familyOf = (id) => (id || '').replace(/^us\./, '').split('.').pop().replace(/-\d.*/, '').toLowerCase();
+            const currentFamily = familyOf(currentId);
+
+            const modelOptions = Object.entries(imgModels)
+                .filter(([, im]) => {
+                    const p = im.model_purpose || '';
+                    return p.includes('upscale') || p === 'remove_background';
+                })
+                .sort((a, b) => (a[1].label || '').localeCompare(b[1].label || ''))
+                .map(([, im]) => {
+                    const mid = im.model_id || '';
+                    const isMatch = mid === currentId || familyOf(mid) === currentFamily;
+                    return `<option value="${this._esc(isMatch ? currentId : mid)}" data-region="${this._esc(im.region || '')}" ${isMatch ? 'selected' : ''}>${this._esc(im.label || mid)} (${this._esc(im.provider || '')})</option>`;
+                }).join('');
+            const hasMatch = modelOptions.includes('selected');
+            const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(m.label || currentId)}</option>` : '';
+
             return `
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-50'}" data-pp="${key}">
                     <div class="flex items-center gap-2 mb-2">
@@ -534,9 +555,12 @@
                         <span class="text-[10px] font-mono text-brand-text-muted ml-auto">${this._esc(m.region || '')}</span>
                     </div>
                     <div class="flex gap-2">
-                        <input type="text" class="ms-pp-field input text-xs font-mono flex-1" value="${this._esc(m.model_id || '')}" data-key="${key}" data-field="model_id" />
+                        <select class="ms-pp-field input text-xs font-mono flex-1" data-key="${key}" data-field="model_id">
+                            ${fallbackOpt}
+                            ${modelOptions}
+                        </select>
                         <input type="text" class="ms-pp-field input text-xs w-28" value="${this._esc(m.region || '')}" data-key="${key}" data-field="region" />
-                        <button class="ms-pp-save btn btn-primary btn-sm text-xs" data-key="${key}">${t('model_settings.save_label')}</button>
+                        <button class="ms-pp-save btn btn-primary btn-sm text-xs" data-key="${key}">${t('common.save')}</button>
                     </div>
                 </div>
             `;
@@ -718,6 +742,16 @@
                     const opt = sel.selectedOptions[0];
                     const region = opt?.dataset.region;
                     const regionInput = sel.closest('[data-category]')?.querySelector('.ms-cat-region');
+                    if (region && regionInput) regionInput.value = region;
+                });
+            });
+
+            // Auto-populate region when post-processing model selected
+            modal.querySelectorAll('[data-pp] select.ms-pp-field').forEach(sel => {
+                sel.addEventListener('change', () => {
+                    const opt = sel.selectedOptions[0];
+                    const region = opt?.dataset.region;
+                    const regionInput = sel.closest('[data-pp]')?.querySelector('input.ms-pp-field[data-field="region"]');
                     if (region && regionInput) regionInput.value = region;
                 });
             });
