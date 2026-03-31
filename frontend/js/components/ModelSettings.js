@@ -760,48 +760,99 @@
             if (!container || !this._templatesData) return;
             const templates = this._templatesData;
 
-            container.innerHTML = Object.entries(templates).map(([name, tmpl]) => {
-                const modified = tmpl.modified ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">${t('model_settings.templates_modified')}</span>` : '';
-                const vars = (tmpl.variables || []).map(v => `<code class="text-[9px] text-brand-accent bg-brand-accent/10 px-1 rounded">${this._esc(v)}</code>`).join(' ');
+            // Group templates by studio/area with user-friendly labels
+            const GROUPS = [
+                { key: 'image_studio', label: t('nav.image_studio'), color: 'text-brand-accent', templates: [
+                    { name: 'image_refine_single', friendlyLabel: 'Prompt Refinement — how your text is turned into a detailed image prompt' },
+                    { name: 'image_concepts_multi', friendlyLabel: 'Creative Options — how multiple distinct concepts are generated from one idea' },
+                    { name: 'image_refine_marketing', friendlyLabel: 'Marketing Banners — specialized prompt for banner compositions' },
+                ]},
+                { key: 'style_library', label: t('nav.style_library'), color: 'text-purple-400', templates: [
+                    { name: 'style_analysis_full', friendlyLabel: 'Style Analysis — how reference images are analyzed for visual attributes' },
+                    { name: 'style_hints_generation', friendlyLabel: 'Style Hints — how analyzed style is distilled into generation directives' },
+                    { name: 'style_cohesion_check', friendlyLabel: 'Cohesion Check — quick check if references are unified or diverse' },
+                ]},
+                { key: 'moderation', label: 'Content Safety', color: 'text-amber-400', templates: [
+                    { name: 'moderation_prescreen', friendlyLabel: 'Pre-Screen — predicts if a prompt will be blocked before generating' },
+                    { name: 'moderation_rewrite', friendlyLabel: 'Rewrite — rewrites blocked prompts to pass moderation' },
+                ]},
+                { key: 'video_studio', label: t('nav.video_studio'), color: 'text-emerald-400', templates: [
+                    { name: 'video_enhance_prompt', friendlyLabel: 'Prompt Enhancement — adds camera movements, lighting, and temporal cues' },
+                ]},
+                { key: 'type_studio', label: t('nav.type_studio'), color: 'text-cyan-400', templates: [
+                    { name: 'typestudio_layout', friendlyLabel: 'Text Layout — designs text positions, fonts, sizes, and effects' },
+                ]},
+                { key: 'chat_studio', label: t('nav.chat_studio'), color: 'text-indigo-400', templates: [
+                    { name: 'chat_context_compact', friendlyLabel: 'Context Compaction — summarizes older messages to free context space' },
+                    { name: 'chat_title_generate', friendlyLabel: 'Session Title — auto-generates a title from the first exchange' },
+                ]},
+                { key: 'translation', label: 'Translation', color: 'text-teal-400', templates: [
+                    { name: 'translate_detect_language', friendlyLabel: 'Language Detection — detects language when heuristics are ambiguous' },
+                    { name: 'translate_to_english', friendlyLabel: 'Translation to English — translates non-English prompts before generation' },
+                ]},
+            ];
+
+            container.innerHTML = GROUPS.map(group => {
+                const groupTemplates = group.templates.filter(gt => templates[gt.name]);
+                if (groupTemplates.length === 0) return '';
                 return `
-                    <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-tmpl="${this._esc(name)}">
-                        <div class="flex items-center justify-between mb-1">
-                            <div class="flex items-center gap-2">
-                                <span class="text-sm font-medium">${this._esc(tmpl.label || name)}</span>
-                                ${modified}
-                            </div>
-                            <span class="text-[9px] text-brand-text-muted">${this._esc(tmpl.model || '')}</span>
+                    <div class="mb-5">
+                        <h4 class="text-xs font-semibold ${group.color} uppercase tracking-wider mb-2">${this._esc(group.label)} <span class="text-[9px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></h4>
+                        <div class="space-y-2">
+                            ${groupTemplates.map(gt => {
+                                const name = gt.name;
+                                const tmpl = templates[name];
+                                return this._renderSingleTemplate(name, tmpl, gt.friendlyLabel);
+                            }).join('')}
                         </div>
-                        <p class="text-[10px] text-brand-text-muted mb-1">${this._esc(tmpl.description || '')}</p>
-                        <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('model_settings.templates_used_by')}: ${this._esc(tmpl.used_by || '')} | ${t('model_settings.templates_variables')}: ${vars || 'none'}</p>
-                        <details class="group">
-                            <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
-                                <span class="group-open:hidden">${t('model_settings.templates_edit')}</span>
-                                <span class="hidden group-open:inline">${t('model_settings.templates_close_editor')}</span>
-                            </summary>
-                            <div class="mt-2 space-y-2">
-                                <textarea class="ms-tmpl-text input w-full h-48 font-mono text-xs resize-y" data-tmpl="${this._esc(name)}" spellcheck="false">${this._esc(tmpl.text || '')}</textarea>
-                                <div class="flex gap-2 flex-wrap">
-                                    <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${this._esc(name)}">${t('model_settings.templates_save')}</button>
-                                    <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${this._esc(name)}">${t('model_settings.templates_enhance')}</button>
-                                    <button class="ms-tmpl-reset btn btn-sm text-xs border border-brand-border text-brand-text-muted hover:border-amber-500 hover:text-amber-400" data-tmpl="${this._esc(name)}">${t('model_settings.templates_reset')}</button>
-                                </div>
-                                <div class="ms-tmpl-suggestion hidden mt-2 p-2 rounded-lg bg-purple-950/20 border border-purple-500/20" data-tmpl="${this._esc(name)}">
-                                    <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] text-purple-400 font-medium">${t('model_settings.templates_ai_suggestion')}</span>
-                                        <div class="flex gap-1">
-                                            <button class="ms-tmpl-accept text-[10px] px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-500" data-tmpl="${this._esc(name)}">${t('model_settings.templates_accept')}</button>
-                                            <button class="ms-tmpl-dismiss text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent" data-tmpl="${this._esc(name)}">${t('model_settings.templates_dismiss')}</button>
-                                        </div>
-                                    </div>
-                                    <div class="ms-tmpl-suggestion-warning hidden text-[10px] text-amber-400 mb-1"></div>
-                                    <pre class="ms-tmpl-suggestion-text text-xs font-mono whitespace-pre-wrap text-purple-200/70 max-h-48 overflow-auto"></pre>
-                                </div>
-                            </div>
-                        </details>
                     </div>`;
             }).join('');
 
+            this._attachTemplateEvents(container, modal, templates);
+        },
+
+        _renderSingleTemplate(name, tmpl, friendlyLabel) {
+            const modified = tmpl.modified ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">${t('model_settings.templates_modified')}</span>` : '';
+            const vars = (tmpl.variables || []).map(v => `<code class="text-[9px] text-brand-accent bg-brand-accent/10 px-1 rounded">${this._esc(v)}</code>`).join(' ');
+            return `
+                <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-tmpl="${this._esc(name)}">
+                    <div class="flex items-center justify-between mb-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-sm font-medium">${this._esc(friendlyLabel || tmpl.label || name)}</span>
+                            ${modified}
+                        </div>
+                        <span class="text-[9px] text-brand-text-muted">${this._esc(tmpl.model || '')}</span>
+                    </div>
+                    <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('model_settings.templates_variables')}: ${vars || 'none'}</p>
+                    <details class="group">
+                        <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
+                            <span class="group-open:hidden">${t('model_settings.templates_edit')}</span>
+                            <span class="hidden group-open:inline">${t('model_settings.templates_close_editor')}</span>
+                        </summary>
+                        <div class="mt-2 space-y-2">
+                            <textarea class="ms-tmpl-text input w-full h-48 font-mono text-xs resize-y" data-tmpl="${this._esc(name)}" spellcheck="false">${this._esc(tmpl.text || '')}</textarea>
+                            <div class="flex gap-2 flex-wrap">
+                                <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${this._esc(name)}">${t('model_settings.templates_save')}</button>
+                                <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${this._esc(name)}">${t('model_settings.templates_enhance')}</button>
+                                <button class="ms-tmpl-reset btn btn-sm text-xs border border-brand-border text-brand-text-muted hover:border-amber-500 hover:text-amber-400" data-tmpl="${this._esc(name)}">${t('model_settings.templates_reset')}</button>
+                            </div>
+                            <div class="ms-tmpl-suggestion hidden mt-2 p-2 rounded-lg bg-purple-950/20 border border-purple-500/20" data-tmpl="${this._esc(name)}">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] text-purple-400 font-medium">${t('model_settings.templates_ai_suggestion')}</span>
+                                    <div class="flex gap-1">
+                                        <button class="ms-tmpl-accept text-[10px] px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-500" data-tmpl="${this._esc(name)}">${t('model_settings.templates_accept')}</button>
+                                        <button class="ms-tmpl-dismiss text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent" data-tmpl="${this._esc(name)}">${t('model_settings.templates_dismiss')}</button>
+                                    </div>
+                                </div>
+                                <div class="ms-tmpl-suggestion-warning hidden text-[10px] text-amber-400 mb-1"></div>
+                                <pre class="ms-tmpl-suggestion-text text-xs font-mono whitespace-pre-wrap text-purple-200/70 max-h-48 overflow-auto"></pre>
+                            </div>
+                        </div>
+                    </details>
+                </div>`;
+        },
+
+        _attachTemplateEvents(container, modal, templates) {
             // Save handlers
             container.querySelectorAll('.ms-tmpl-save').forEach(btn => {
                 btn.addEventListener('click', async () => {
