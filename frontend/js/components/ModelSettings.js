@@ -637,15 +637,16 @@
                 });
             });
 
-            // Prompt Templates: View All opens sections + inner text boxes
-            let _tmplAllExpanded = false;
+            // Prompt Templates: View All only toggles GROUP sections (not inner editors)
+            let _tmplGroupsExpanded = false;
             modal.querySelector('#ms-tmpl-toggle-all')?.addEventListener('click', () => {
-                _tmplAllExpanded = !_tmplAllExpanded;
+                _tmplGroupsExpanded = !_tmplGroupsExpanded;
                 const btn = modal.querySelector('#ms-tmpl-toggle-all');
-                modal.querySelectorAll('#ms-templates-list details').forEach(d => {
-                    d.open = _tmplAllExpanded;
+                // Only toggle the top-level group <details>, not inner template <details>
+                modal.querySelectorAll('#ms-templates-list > details.ms-collapsible').forEach(d => {
+                    d.open = _tmplGroupsExpanded;
                 });
-                if (btn) btn.textContent = _tmplAllExpanded ? 'Hide All' : 'View All';
+                if (btn) btn.textContent = _tmplGroupsExpanded ? 'Hide All' : 'View All';
             });
 
             // Refresh All
@@ -969,12 +970,17 @@
                 return `
                     <details class="mb-4 ms-collapsible">
                         <summary class="text-xs font-semibold ${group.color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${this._esc(group.label)} <span class="text-[9px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></summary>
-                        <div class="space-y-2 mt-2">
-                            ${groupTemplates.map(gt => {
-                                const name = gt.name;
-                                const tmpl = templates[name];
-                                return this._renderSingleTemplate(name, tmpl, gt.friendlyLabel);
-                            }).join('')}
+                        <div class="mt-2">
+                            <div class="flex justify-end mb-1">
+                                <button class="ms-tmpl-group-toggle text-[9px] text-brand-text-muted hover:text-brand-accent cursor-pointer" data-group="${group.key}">Expand editors</button>
+                            </div>
+                            <div class="space-y-2">
+                                ${groupTemplates.map(gt => {
+                                    const name = gt.name;
+                                    const tmpl = templates[name];
+                                    return this._renderSingleTemplate(name, tmpl, gt.friendlyLabel);
+                                }).join('')}
+                            </div>
                         </div>
                     </details>`;
             }).join('');
@@ -1024,6 +1030,20 @@
         },
 
         _attachTemplateEvents(container, modal, templates) {
+            // Per-group expand/collapse for template editors within each group
+            container.querySelectorAll('.ms-tmpl-group-toggle').forEach(btn => {
+                let expanded = false;
+                btn.addEventListener('click', () => {
+                    expanded = !expanded;
+                    const group = btn.dataset.group;
+                    const groupEl = btn.closest('details.ms-collapsible');
+                    if (groupEl) {
+                        groupEl.querySelectorAll('details.group').forEach(d => { d.open = expanded; });
+                    }
+                    btn.textContent = expanded ? 'Collapse editors' : 'Expand editors';
+                });
+            });
+
             // Save handlers (with variable validation)
             container.querySelectorAll('.ms-tmpl-save').forEach(btn => {
                 btn.addEventListener('click', async () => {
