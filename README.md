@@ -623,6 +623,35 @@ sudo journalctl -u artsmoker -f
 
 Open **http://YOUR_INSTANCE_IP:8000** — ensure your EC2 security group allows inbound TCP 8000.
 
+### 📝 4.4 First Steps After Setup
+
+After ArtSmoker is running, complete these steps to get the best results:
+
+**1. Sync models from AWS** — Open **Model Settings** (gear icon in any studio) → click **Sync from AWS**. This discovers all available image, video, and chat models across all Bedrock regions. Takes 30-60 seconds. Only needed once, or when AWS adds new models.
+
+**2. Review and customize prompt templates** — This is the most impactful configuration you can do. Open **Model Settings → Prompt Templates** tab. ArtSmoker uses 14 editable directive prompts that control how the AI behaves:
+
+| Template | What it controls |
+|----------|-----------------|
+| Image Prompt Refinement | How your text descriptions are turned into detailed image generation prompts |
+| Multi-Concept Generation | How multiple creative options are generated from a single idea |
+| Style Analysis | How reference images are analyzed to learn your art style |
+| Content Moderation | How strict the pre-check and rewrite system is |
+| Video Enhancement | How video prompts are enriched with camera movements and lighting |
+| Text Layout | How Type Studio designs text positioning on images |
+
+Each template can be:
+- **Edited directly** — modify the instructions to match your team's needs
+- **Enhanced with AI** — select any LLM model, optionally add instructions (e.g., "optimize for pixel art"), and click "Enhance with AI". Review the suggestion, then Accept or Dismiss
+- **Reset to default** — restore the original at any time
+
+> [!TIP]
+> Start by reviewing the **Image Prompt Refinement** and **Multi-Concept Generation** templates. These have the biggest impact on output quality. If your team specializes in a particular art style (e.g., pixel art, watercolor, isometric), add those preferences directly into the templates so every generation benefits.
+
+**3. Set up a style profile** (optional) — Go to **Style Library**, create a new style, upload reference images, and click **Analyze**. This teaches ArtSmoker your visual identity.
+
+**4. Choose your language** — Click a language button in the nav bar (EN | JA | ZH | KO | FR | ES) if you prefer a non-English interface.
+
 ## 📌 5. Architecture
 
 ```

@@ -1117,9 +1117,25 @@ Users can edit any template via **Model Settings → Prompt Templates** tab. Eac
 - Where it's used in the pipeline
 - Available variables (must be preserved when editing)
 - A "Reset to Default" button to restore the original
+- An **"Enhance with AI"** button that uses any available LLM to refine the template
+
+### 6.10 AI-Assisted Template Refinement
+
+Users can ask an LLM to improve any template:
+
+1. Select a refinement model from the dropdown (all chat-capable models available)
+2. Optionally type specific instructions (e.g., "optimize for pixel art", "make moderation less strict")
+3. Click "Enhance with AI" — the LLM receives the current template + its metadata + instructions
+4. A purple suggestion panel shows the improved version
+5. If the AI's suggestion is missing required `{variables}`, a warning is displayed
+6. Click "Accept" to copy into the editor (then "Save" to persist), or "Dismiss" to discard
+
+**API**: `POST /api/admin/templates/{name}/enhance` with `{model_id, region, instructions}`.
+
+**Storage**: All templates stored in `backend/prompt_templates.json`. Code defaults are baked into `backend/services/prompt_templates.py` (source of truth for resets). User edits are marked with `"modified": true`.
 
 > [!WARNING]
-> Editing directive prompts changes how the AI behaves across the entire application. Test changes carefully. Removing required variables (e.g., `{user_prompt}`) will break the feature that uses the template.
+> Editing directive prompts changes how the AI behaves across the entire application. Test changes carefully. Removing required variables (e.g., `{user_prompt}`) will break the feature that uses the template. The AI enhancement validates variable preservation and warns if any are missing.
 
 ## 7. Prerequisites: AWS Setup
 
