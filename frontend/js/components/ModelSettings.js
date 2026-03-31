@@ -44,7 +44,7 @@
             modal.id = 'model-settings-modal';
             modal.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
             modal.innerHTML = `
-                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
                         <div class="flex items-center gap-3">
@@ -82,8 +82,11 @@
                             ${t('model_settings.tab_chat')}
                             <span class="text-[9px] opacity-60 ml-1">(${Object.keys(reg.chat_models || {}).length})</span>
                         </button>
-                        <button class="tab" data-ms-tab="ai-engine">
-                            ${t('model_settings.tab_ai')}
+                        <button class="tab" data-ms-tab="type-studio">
+                            ${t('model_settings.tab_type')}
+                        </button>
+                        <button class="tab" data-ms-tab="shared-ai">
+                            ${t('model_settings.tab_shared')}
                             <span class="text-[9px] opacity-60 ml-1">(${llmCount})</span>
                         </button>
                         <button class="tab" data-ms-tab="prompt-templates">${t('model_settings.tab_templates')}</button>
@@ -117,9 +120,33 @@
                             </div>
                         </div>
 
-                        <!-- Tab: AI Engine -->
-                        <div class="ms-tab-panel hidden" data-ms-panel="ai-engine">
-                            <p class="text-[10px] text-brand-text-muted mb-3">${t('model_settings.desc_ai')}</p>
+                        <!-- Tab: Type Studio -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="type-studio">
+                            <p class="text-[10px] text-brand-text-muted mb-3">${t('model_settings.desc_type')}</p>
+                            <div class="space-y-6">
+                                <div>
+                                    <h3 class="text-sm font-semibold text-cyan-400 uppercase tracking-wider mb-3">${t('model_settings.type_llm_heading')}</h3>
+                                    <p class="text-[10px] text-brand-text-muted mb-2">${t('model_settings.type_llm_desc')}</p>
+                                    <div class="space-y-3">
+                                        ${['complex_llm', 'fast_llm'].map(name => {
+                                            const cat = (reg.categories || {})[name];
+                                            return cat ? this._renderCategory(name, cat) : '';
+                                        }).join('')}
+                                    </div>
+                                </div>
+                                <div>
+                                    <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-3">${t('model_settings.post_processing')}</h3>
+                                    <p class="text-[10px] text-brand-text-muted mb-2">${t('model_settings.type_pp_desc')}</p>
+                                    <div class="space-y-3">
+                                        ${Object.entries(reg.post_processing || {}).map(([key, m]) => this._renderPostProcess(key, m)).join('')}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Shared AI -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="shared-ai">
+                            <p class="text-[10px] text-brand-text-muted mb-3">${t('model_settings.desc_shared')}</p>
                             <div class="space-y-6">
                                 <div>
                                     <h3 class="text-sm font-semibold text-brand-accent uppercase tracking-wider mb-3">${t('model_settings.llm_categories')}</h3>
@@ -128,12 +155,6 @@
                                     </div>
                                 </div>
                                 ${this._renderCustomLLMs(reg)}
-                                <div>
-                                    <h3 class="text-sm font-semibold text-amber-400 uppercase tracking-wider mb-3">${t('model_settings.post_processing')}</h3>
-                                    <div class="space-y-3">
-                                        ${Object.entries(reg.post_processing || {}).map(([key, m]) => this._renderPostProcess(key, m)).join('')}
-                                    </div>
-                                </div>
                             </div>
                         </div>
 
@@ -412,6 +433,22 @@
 
         _renderCategory(name, cat) {
             if (!cat) return '';
+            // Build model options from chat_models in registry
+            const chatModels = this._registry?.chat_models || {};
+            const currentId = cat.current || '';
+            const modelOptions = Object.entries(chatModels)
+                .filter(([, m]) => m.enabled !== false)
+                .sort((a, b) => (a[1].label || '').localeCompare(b[1].label || ''))
+                .map(([, m]) => {
+                    const mid = m.model_id || '';
+                    const selected = (mid === currentId || currentId.includes(mid.replace('us.', '')) || mid.includes(currentId.replace('us.', ''))) ? 'selected' : '';
+                    const regions = (m.available_regions || []).length;
+                    return `<option value="${this._esc(mid)}" data-region="${this._esc(m.region || '')}" ${selected}>${this._esc(m.label || mid)} (${this._esc(m.provider || '')}${regions > 1 ? `, ${regions} regions` : ''})</option>`;
+                }).join('');
+            // Add current value as fallback if not in dropdown
+            const hasMatch = Object.values(chatModels).some(m => m.model_id === currentId || currentId.includes((m.model_id || '').replace('us.', '')));
+            const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(currentId)} (current)</option>` : '';
+
             return `
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-category="${name}">
                     <div class="flex items-center justify-between mb-2">
@@ -420,9 +457,12 @@
                     </div>
                     <p class="text-[10px] text-brand-text-muted/50 mb-2">${this._esc(cat.description || '')}</p>
                     <div class="flex gap-2">
-                        <input type="text" class="ms-cat-model input text-xs flex-1 font-mono" value="${this._esc(cat.current || '')}" data-cat="${name}" placeholder="${t('model_settings.model_id_placeholder')}" />
-                        <input type="text" class="ms-cat-region input text-xs w-28" value="${this._esc(cat.region || '')}" data-cat="${name}" placeholder="${t('model_settings.region_placeholder')}" />
-                        <button class="ms-cat-save btn btn-primary btn-sm text-xs" data-cat="${name}">${t('model_settings.save_label')}</button>
+                        <select class="ms-cat-model input text-xs flex-1 font-mono" data-cat="${name}">
+                            ${fallbackOpt}
+                            ${modelOptions}
+                        </select>
+                        <input type="text" class="ms-cat-region input text-xs w-28" value="${this._esc(cat.region || '')}" data-cat="${name}" placeholder="${t('common.region')}" />
+                        <button class="ms-cat-save btn btn-primary btn-sm text-xs" data-cat="${name}">${t('common.save')}</button>
                     </div>
                 </div>
             `;
@@ -655,6 +695,16 @@
                         window.showToast?.('Failed: ' + (err.message || ''), 'error');
                     }
                     btn.disabled = false;
+                });
+            });
+
+            // Auto-populate region when model selected from dropdown
+            modal.querySelectorAll('.ms-cat-model').forEach(sel => {
+                sel.addEventListener('change', () => {
+                    const opt = sel.selectedOptions[0];
+                    const region = opt?.dataset.region;
+                    const regionInput = sel.closest('[data-category]')?.querySelector('.ms-cat-region');
+                    if (region && regionInput) regionInput.value = region;
                 });
             });
 
