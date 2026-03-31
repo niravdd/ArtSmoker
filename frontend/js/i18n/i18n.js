@@ -72,7 +72,6 @@
             }
             _buildReverseLookup();
             _loaded = true;
-            console.log(`[i18n] Loaded: lang=${_currentLang}, strings=${Object.keys(_strings).length}, fallback=${Object.keys(_fallback).length}, sample: t('type_studio.title')="${_strings['type_studio.title'] || '(missing)'}", t('chat_studio.title')="${_strings['chat_studio.title'] || '(missing)'}"`);
         },
 
         getLang() {
@@ -115,10 +114,6 @@
 
     window.t = function (key, params) {
         let str = _strings[key] || _fallback[key] || key;
-        // Debug: log if t() returns English when it shouldn't
-        if (_currentLang !== 'en' && str === _fallback[key] && _strings[key] === undefined && key.includes('.')) {
-            console.warn(`[i18n] Key "${key}" missing from ${_currentLang}, falling back to English`);
-        }
 
         // Replace {{param}} placeholders
         if (params) {
