@@ -85,7 +85,7 @@
                             ${t('model_settings.tab_ai')}
                             <span class="text-[9px] opacity-60 ml-1">(${llmCount})</span>
                         </button>
-                        <button class="tab" data-ms-tab="prompt-templates">Prompt Templates</button>
+                        <button class="tab" data-ms-tab="prompt-templates">${t('model_settings.tab_templates')}</button>
                         <button class="tab" data-ms-tab="registry-json">${t('model_settings.tab_json')}</button>
                     </div>
 
@@ -138,11 +138,11 @@
 
                         <!-- Tab: Prompt Templates -->
                         <div class="ms-tab-panel hidden" data-ms-panel="prompt-templates">
-                            <p class="text-xs text-brand-text-muted mb-2">Edit the directive prompts that guide LLM behavior. Variables in <code class="text-brand-accent">{curly_braces}</code> are substituted at runtime — do not remove them.</p>
+                            <p class="text-xs text-brand-text-muted mb-2">${t('model_settings.templates_desc')}</p>
                             <div class="flex items-center gap-2 mb-3 p-2 rounded-lg bg-brand-bg/40 border border-brand-border/50">
-                                <span class="text-[10px] text-brand-text-muted flex-shrink-0">Refinement model:</span>
+                                <span class="text-[10px] text-brand-text-muted flex-shrink-0">${t('model_settings.templates_refinement_model')}:</span>
                                 <select id="ms-tmpl-model" class="input text-xs font-mono flex-1"></select>
-                                <input type="text" id="ms-tmpl-instructions" class="input text-xs flex-1" placeholder="Optional: specific instructions for refinement...">
+                                <input type="text" id="ms-tmpl-instructions" class="input text-xs flex-1" placeholder="${t('model_settings.templates_instructions_placeholder')}">
                             </div>
                             <div id="ms-templates-list" class="space-y-3">
                                 <p class="text-xs text-brand-text-muted text-center py-4">Loading templates...</p>
@@ -761,7 +761,7 @@
             const templates = this._templatesData;
 
             container.innerHTML = Object.entries(templates).map(([name, tmpl]) => {
-                const modified = tmpl.modified ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">modified</span>' : '';
+                const modified = tmpl.modified ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">${t('model_settings.templates_modified')}</span>` : '';
                 const vars = (tmpl.variables || []).map(v => `<code class="text-[9px] text-brand-accent bg-brand-accent/10 px-1 rounded">${this._esc(v)}</code>`).join(' ');
                 return `
                     <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-tmpl="${this._esc(name)}">
@@ -773,25 +773,25 @@
                             <span class="text-[9px] text-brand-text-muted">${this._esc(tmpl.model || '')}</span>
                         </div>
                         <p class="text-[10px] text-brand-text-muted mb-1">${this._esc(tmpl.description || '')}</p>
-                        <p class="text-[10px] text-brand-text-muted/60 mb-2">Used by: ${this._esc(tmpl.used_by || '')} | Variables: ${vars || 'none'}</p>
+                        <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('model_settings.templates_used_by')}: ${this._esc(tmpl.used_by || '')} | ${t('model_settings.templates_variables')}: ${vars || 'none'}</p>
                         <details class="group">
                             <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
-                                <span class="group-open:hidden">Edit template</span>
-                                <span class="hidden group-open:inline">Close editor</span>
+                                <span class="group-open:hidden">${t('model_settings.templates_edit')}</span>
+                                <span class="hidden group-open:inline">${t('model_settings.templates_close_editor')}</span>
                             </summary>
                             <div class="mt-2 space-y-2">
                                 <textarea class="ms-tmpl-text input w-full h-48 font-mono text-xs resize-y" data-tmpl="${this._esc(name)}" spellcheck="false">${this._esc(tmpl.text || '')}</textarea>
                                 <div class="flex gap-2 flex-wrap">
-                                    <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${this._esc(name)}">Save</button>
-                                    <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${this._esc(name)}">Enhance with AI</button>
-                                    <button class="ms-tmpl-reset btn btn-sm text-xs border border-brand-border text-brand-text-muted hover:border-amber-500 hover:text-amber-400" data-tmpl="${this._esc(name)}">Reset to Default</button>
+                                    <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${this._esc(name)}">${t('model_settings.templates_save')}</button>
+                                    <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${this._esc(name)}">${t('model_settings.templates_enhance')}</button>
+                                    <button class="ms-tmpl-reset btn btn-sm text-xs border border-brand-border text-brand-text-muted hover:border-amber-500 hover:text-amber-400" data-tmpl="${this._esc(name)}">${t('model_settings.templates_reset')}</button>
                                 </div>
                                 <div class="ms-tmpl-suggestion hidden mt-2 p-2 rounded-lg bg-purple-950/20 border border-purple-500/20" data-tmpl="${this._esc(name)}">
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] text-purple-400 font-medium">AI Suggestion</span>
+                                        <span class="text-[10px] text-purple-400 font-medium">${t('model_settings.templates_ai_suggestion')}</span>
                                         <div class="flex gap-1">
-                                            <button class="ms-tmpl-accept text-[10px] px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-500" data-tmpl="${this._esc(name)}">Accept</button>
-                                            <button class="ms-tmpl-dismiss text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent" data-tmpl="${this._esc(name)}">Dismiss</button>
+                                            <button class="ms-tmpl-accept text-[10px] px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-500" data-tmpl="${this._esc(name)}">${t('model_settings.templates_accept')}</button>
+                                            <button class="ms-tmpl-dismiss text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent" data-tmpl="${this._esc(name)}">${t('model_settings.templates_dismiss')}</button>
                                         </div>
                                     </div>
                                     <div class="ms-tmpl-suggestion-warning hidden text-[10px] text-amber-400 mb-1"></div>
@@ -816,7 +816,7 @@
                             body: JSON.stringify({ text: textarea.value }),
                         });
                         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                        window.showToast?.(`Template "${name}" saved`, 'success');
+                        window.showToast?.(t('model_settings.templates_saved'), 'success');
                         this._templatesLoaded = false;
                         this._loadTemplates(modal);
                     } catch (err) {
@@ -835,11 +835,11 @@
                     const region = modelSel?.selectedOptions[0]?.dataset.region || '';
                     const instructions = modal.querySelector('#ms-tmpl-instructions')?.value || '';
 
-                    if (!modelId) { window.showToast?.('Select a refinement model first', 'warning'); return; }
+                    if (!modelId) { window.showToast?.(t('model_settings.templates_no_model'), 'warning'); return; }
 
                     btn.disabled = true;
                     const origText = btn.textContent;
-                    btn.textContent = 'Enhancing...';
+                    btn.textContent = t('model_settings.templates_enhancing');
 
                     try {
                         const resp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}/enhance`, {
@@ -868,7 +868,7 @@
                             suggBox.classList.remove('hidden');
                         }
                     } catch (err) {
-                        window.showToast?.('Enhancement failed: ' + err.message, 'error');
+                        window.showToast?.(t('model_settings.templates_enhance_failed') + ': ' + err.message, 'error');
                     }
                     btn.disabled = false;
                     btn.textContent = origText;
@@ -885,7 +885,7 @@
                     if (textarea && suggText) {
                         textarea.value = suggText;
                         suggBox?.classList.add('hidden');
-                        window.showToast?.('Suggestion applied — click Save to persist', 'info');
+                        window.showToast?.(t('model_settings.templates_accepted_hint'), 'info');
                     }
                 });
             });
@@ -902,10 +902,10 @@
             container.querySelectorAll('.ms-tmpl-reset').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const name = btn.dataset.tmpl;
-                    if (!await window.showConfirm?.(`Reset "${name}" to its default text?`, { title: 'Reset Template', confirmLabel: 'Reset', danger: true })) return;
+                    if (!await window.showConfirm?.(t('model_settings.templates_reset_confirm'), { title: t('model_settings.templates_reset_title'), confirmLabel: t('image_studio.reset'), danger: true })) return;
                     try {
                         await fetch(`/api/admin/templates/${encodeURIComponent(name)}/reset`, { method: 'POST' });
-                        window.showToast?.(`Template "${name}" reset to default`, 'success');
+                        window.showToast?.(t('model_settings.templates_reset_done'), 'success');
                         this._templatesLoaded = false;
                         this._loadTemplates(modal);
                     } catch (err) {
