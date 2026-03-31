@@ -12,7 +12,8 @@
         _registry: null,
         _refreshing: false,
 
-        async open() {
+        async open(activeTab) {
+            this._requestedTab = activeTab || null;
             document.getElementById('model-settings-modal')?.remove();
             window.showLoading?.(t('model_settings.loading_settings'));
 
@@ -166,6 +167,15 @@
 
             document.body.appendChild(modal);
             this._attachEvents(modal);
+
+            // Activate requested tab (if opened from a specific studio)
+            if (this._requestedTab) {
+                const targetTab = modal.querySelector(`[data-ms-tab="${this._requestedTab}"]`);
+                if (targetTab) {
+                    targetTab.click();
+                }
+                this._requestedTab = null;
+            }
         },
 
         _sourceBadge(model) {

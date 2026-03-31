@@ -198,9 +198,9 @@
             }
         });
 
-        // Open Model Settings
-        _container.querySelector('#cs-open-settings')?.addEventListener('click', () => window.ModelSettings?.open());
-        _container.querySelector('#cs-model-settings')?.addEventListener('click', () => window.ModelSettings?.open());
+        // Open Model Settings — jump to Chat Studio tab
+        _container.querySelector('#cs-open-settings')?.addEventListener('click', () => window.ModelSettings?.open('chat-studio'));
+        _container.querySelector('#cs-model-settings')?.addEventListener('click', () => window.ModelSettings?.open('chat-studio'));
 
         _container.querySelector('#cs-temperature')?.addEventListener('change', (e) => {
             if (_currentSession) { _currentSession.temperature = parseFloat(e.target.value) || 0.7; _saveCurrentSession(); }

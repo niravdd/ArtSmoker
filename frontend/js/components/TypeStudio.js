@@ -391,7 +391,7 @@
             this._loadLlmInfo();
 
             // Event listeners
-            document.getElementById('ts-model-settings-btn')?.addEventListener('click', () => window.ModelSettings?.open());
+            document.getElementById('ts-model-settings-btn')?.addEventListener('click', () => window.ModelSettings?.open('ai-engine'));
             document.getElementById('ts-mode-on-image')?.addEventListener('click', () => this._setMode('on-image'));
             document.getElementById('ts-mode-standalone')?.addEventListener('click', () => this._setMode('standalone'));
 

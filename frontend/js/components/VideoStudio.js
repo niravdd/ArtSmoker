@@ -367,7 +367,7 @@
             document.getElementById('vs-reset-btn')?.addEventListener('click', () => this._reset());
 
             // Settings
-            document.getElementById('vs-model-settings-btn')?.addEventListener('click', () => window.ModelSettings?.open());
+            document.getElementById('vs-model-settings-btn')?.addEventListener('click', () => window.ModelSettings?.open('video-studio'));
             document.getElementById('vs-settings-btn')?.addEventListener('click', () => this._showSettings());
             document.getElementById('vs-settings-close')?.addEventListener('click', () => this._hideSettings());
             document.getElementById('vs-settings-test')?.addEventListener('click', () => this._testAndSaveSettings());

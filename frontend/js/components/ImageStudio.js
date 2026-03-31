@@ -423,7 +423,7 @@
             document.getElementById('gen-num-options')?.addEventListener('change', () => this._updateModelSummary());
             document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateModelSummary());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
-            document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open());
+            document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open('image-studio'));
 
             // IP declaration — show model recommendation + disable pre-check when claimed
             const updateIpNote = () => {
