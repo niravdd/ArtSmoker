@@ -115,6 +115,10 @@
 
     window.t = function (key, params) {
         let str = _strings[key] || _fallback[key] || key;
+        // Debug: log if t() returns English when it shouldn't
+        if (_currentLang !== 'en' && str === _fallback[key] && _strings[key] === undefined && key.includes('.')) {
+            console.warn(`[i18n] Key "${key}" missing from ${_currentLang}, falling back to English`);
+        }
 
         // Replace {{param}} placeholders
         if (params) {
