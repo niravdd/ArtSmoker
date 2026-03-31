@@ -44,7 +44,7 @@
             modal.id = 'model-settings-modal';
             modal.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
             modal.innerHTML = `
-                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-5xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden" style="max-width: 72rem;">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
                         <div class="flex items-center gap-3">
