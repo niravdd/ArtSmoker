@@ -77,7 +77,7 @@ async def update_model_category(name: str, body: CategoryUpdate):
     updates = body.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(400, detail="No updates provided")
-    result = update_category(name, updates)
+    result = update_category(name, updates, user_pref=True)
     logger.info("Updated category '%s': %s", name, updates)
     return result
 
@@ -99,7 +99,7 @@ async def update_image_model_config(key: str, body: ImageModelUpdate):
     updates = body.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(400, detail="No updates provided")
-    result = update_image_model(key, updates)
+    result = update_image_model(key, updates, user_pref=True)
     logger.info("Updated image model '%s': %s", key, updates)
     return result
 
@@ -116,7 +116,7 @@ async def update_video_model_config(key: str, body: VideoModelUpdate):
     updates = body.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(400, detail="No updates provided")
-    result = update_video_model(key, updates)
+    result = update_video_model(key, updates, user_pref=True)
     logger.info("Updated video model '%s': %s", key, updates)
     return result
 
@@ -156,7 +156,7 @@ async def update_postprocess_model(key: str, body: PostProcessUpdate):
     updates = body.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(400, detail="No updates provided")
-    result = update_post_processing(key, updates)
+    result = update_post_processing(key, updates, user_pref=True)
     logger.info("Updated post-processing '%s': %s", key, updates)
     return result
 

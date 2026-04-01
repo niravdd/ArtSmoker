@@ -95,14 +95,63 @@ def _apply_user_prefs(registry: dict, prefs: dict) -> int:
 
 
 def _save():
-    """Save the full registry to the main file (source of truth).
+    """Save the registry to the main file (source of truth for structural data).
 
-    Called after Sync from AWS, model updates, and all admin operations.
-    Writes everything to model_registry.json.
+    Called after Sync from AWS and system operations. Before writing, strips
+    user preference overrides from the output so the main file always reflects
+    the system/default state. User preferences live only in .user.json.
     """
-    _registry["last_updated"] = datetime.utcnow().isoformat()
-    _REGISTRY_PATH.write_text(json.dumps(_registry, indent=2, default=str))
+    import copy
+    # Deep copy to avoid mutating in-memory registry
+    output = copy.deepcopy(_registry)
+
+    # Strip user preference fields — restore them to defaults so the main file
+    # stays clean. User prefs are reapplied from .user.json on next load.
+    if _USER_PREFS_PATH.exists():
+        try:
+            prefs = json.loads(_USER_PREFS_PATH.read_text())
+            _strip_user_prefs_from_output(output, prefs)
+        except Exception:
+            pass
+
+    output["last_updated"] = datetime.utcnow().isoformat()
+    _REGISTRY_PATH.write_text(json.dumps(output, indent=2, default=str))
     logger.info("Model registry saved.")
+
+
+def _strip_user_prefs_from_output(output: dict, prefs: dict):
+    """Remove user preference overrides from the output before writing to main file.
+
+    For each user pref (e.g., image_models.titan_image.enabled=False), look up
+    what the value was BEFORE user changed it and restore it in the output.
+    This way the main file always has the 'system default' for preference fields.
+    """
+    # Load the previous main file to get pre-user-pref values
+    try:
+        original = json.loads(_REGISTRY_PATH.read_text())
+    except Exception:
+        return  # Can't diff, skip stripping
+
+    for section, overrides in prefs.items():
+        if section.startswith("_") or not isinstance(overrides, dict):
+            continue
+        if section in _USER_PREF_SECTIONS:
+            # Categories — restore original values
+            if section in output and section in original:
+                for key, fields in overrides.items():
+                    if isinstance(fields, dict) and key in output[section] and key in original.get(section, {}):
+                        for field in fields:
+                            if field in original[section].get(key, {}):
+                                output[section][key][field] = original[section][key][field]
+        elif section in output and isinstance(output[section], dict):
+            # Model sections — restore user pref fields to original
+            for model_key, model_prefs in overrides.items():
+                if isinstance(model_prefs, dict) and model_key in output[section]:
+                    for field in _USER_PREF_FIELDS:
+                        if field in model_prefs and model_key in original.get(section, {}):
+                            orig_val = original[section][model_key].get(field)
+                            if orig_val is not None:
+                                output[section][model_key][field] = orig_val
 
 
 def _save_user_pref(section: str, key: str, field: str, value):
@@ -544,35 +593,38 @@ def get_enabled_model_labels() -> dict[str, str]:
 
 # ── Admin API functions ───────────────────────────────────────────────────
 
-def update_category(name: str, updates: dict) -> dict:
+def update_category(name: str, updates: dict, user_pref: bool = False) -> dict:
     """Update a model category (fast_llm, complex_llm, etc.).
 
-    Category selections are user preferences — saved to both main registry
-    and .user.json so they survive git pulls.
+    user_pref=True: User action from Model Settings UI → writes ONLY to .user.json.
+    user_pref=False: System action (Sync, code) → writes to main file.
     """
     if name not in _registry.get("categories", {}):
         _registry.setdefault("categories", {})[name] = {}
     _registry["categories"][name].update(updates)
-    _save()
-    # Persist category selection as user preference
-    for field, value in updates.items():
-        _save_user_pref("categories", name, field, value)
+    if user_pref:
+        for field, value in updates.items():
+            _save_user_pref("categories", name, field, value)
+    else:
+        _save()
     return _registry["categories"][name]
 
 
-def update_image_model(key: str, updates: dict) -> dict:
+def update_image_model(key: str, updates: dict, user_pref: bool = False) -> dict:
     """Update an image model config.
 
-    If 'enabled' is being changed, it's a user preference — also saved to
-    .user.json so it survives Sync refreshes and git pulls.
+    user_pref=True: User action (enable/disable from UI) → writes ONLY to .user.json.
+    user_pref=False: System action (Sync from AWS) → writes to main file.
     """
     if key not in _registry.get("image_models", {}):
         _registry.setdefault("image_models", {})[key] = {}
     _registry["image_models"][key].update(updates)
-    _save()
-    # Persist enabled/disabled as user preference
-    if "enabled" in updates:
-        _save_user_pref("image_models", key, "enabled", updates["enabled"])
+    if user_pref:
+        for field in _USER_PREF_FIELDS:
+            if field in updates:
+                _save_user_pref("image_models", key, field, updates[field])
+    else:
+        _save()
     return _registry["image_models"][key]
 
 
@@ -583,14 +635,17 @@ def add_image_model(key: str, config: dict) -> dict:
     return config
 
 
-def update_post_processing(key: str, updates: dict) -> dict:
+def update_post_processing(key: str, updates: dict, user_pref: bool = False) -> dict:
     """Update a post-processing model config."""
     if key not in _registry.get("post_processing", {}):
         _registry.setdefault("post_processing", {})[key] = {}
     _registry["post_processing"][key].update(updates)
-    _save()
-    if "enabled" in updates:
-        _save_user_pref("post_processing", key, "enabled", updates["enabled"])
+    if user_pref:
+        for field in _USER_PREF_FIELDS:
+            if field in updates:
+                _save_user_pref("post_processing", key, field, updates[field])
+    else:
+        _save()
     return _registry["post_processing"][key]
 
 
@@ -624,14 +679,17 @@ def add_video_model(key: str, config: dict) -> dict:
     return config
 
 
-def update_video_model(key: str, updates: dict) -> dict:
+def update_video_model(key: str, updates: dict, user_pref: bool = False) -> dict:
     """Update a video model config."""
     if key not in _registry.get("video_models", {}):
         _registry.setdefault("video_models", {})[key] = {}
     _registry["video_models"][key].update(updates)
-    _save()
-    if "enabled" in updates:
-        _save_user_pref("video_models", key, "enabled", updates["enabled"])
+    if user_pref:
+        for field in _USER_PREF_FIELDS:
+            if field in updates:
+                _save_user_pref("video_models", key, field, updates[field])
+    else:
+        _save()
     return _registry["video_models"][key]
 
 
