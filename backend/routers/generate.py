@@ -1199,14 +1199,6 @@ async def pre_screen_prompt(body: PreScreenRequest):
     Returns: likely_safe, issues, suggested_model (if the prompt is better
     suited for a more permissive model).
     """
-    try:
-        return await _do_pre_screen(body)
-    except Exception as exc:
-        logger.exception("Pre-screen endpoint error")
-        return {"likely_safe": True, "issues": [], "explanation": "Pre-screening unavailable", "suggested_model": None}
-
-
-async def _do_pre_screen(body: PreScreenRequest):
     from backend.services.bedrock_client import invoke_llm
     import re as _re
 

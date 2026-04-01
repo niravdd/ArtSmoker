@@ -204,11 +204,11 @@ This paragraph will be prepended to every generation prompt. Be directive and pr
         "text": """You are a visual style analyst. Look at these reference images and determine whether they represent a SINGLE cohesive visual style or a DIVERSE collection with multiple themes/styles.
 
 Respond with ONLY a JSON object (no markdown fences):
-{
+{{
   "cohesion": "high" | "medium" | "low",
   "reasoning": "One sentence explaining why",
   "common_patterns": "What is consistent across ALL images (if anything)"
-}""",
+}}""",
     },
 
     "moderation_prescreen": {
@@ -231,12 +231,12 @@ Model strictness levels:
 Will this prompt likely be BLOCKED by {model_label}?
 
 Respond with ONLY a JSON object (no markdown):
-{
+{{
   "likely_safe": true/false,
   "issues": ["specific concern 1", "specific concern 2"],
   "explanation": "Brief explanation for the user",
   "suggested_model": "alternative model name if current is too strict, or null"
-}""",
+}}""",
     },
 
     "moderation_rewrite": {

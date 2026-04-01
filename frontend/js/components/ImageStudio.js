@@ -784,6 +784,29 @@
                 ...this._getIpDeclaration(),
             };
 
+            // ── Asset Type Mismatch Check (client-side, no API call) ─────
+            if (window.showConfirm) {
+                const assetCheck = this._checkAssetTypeMismatch(userPrompt, payload.asset_type);
+                if (assetCheck) {
+                    const sugLabel = assetCheck.suggested.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    const curLabel = assetCheck.current.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    const shouldSwitch = await window.showConfirm(
+                        assetCheck.reason,
+                        {
+                            title: `Switch to "${sugLabel}"?`,
+                            detail: `Current type: ${curLabel}`,
+                            confirmLabel: `Switch to ${sugLabel}`,
+                            cancelLabel: `Keep ${curLabel}`,
+                        }
+                    );
+                    if (shouldSwitch) {
+                        const sel = document.getElementById('gen-asset-type');
+                        if (sel) { sel.value = assetCheck.suggested; sel.dispatchEvent(new Event('change')); }
+                        payload.asset_type = assetCheck.suggested;
+                    }
+                }
+            }
+
             // ── Prompt Pre-Check (if enabled and not skipped) ─────
             const preCheckOn = document.getElementById('gen-precheck')?.checked && !this._skipPreCheck;
             this._skipPreCheck = false; // Reset flag after reading
@@ -2087,6 +2110,36 @@
         },
         _getAssetType() {
             return document.getElementById('gen-asset-type')?.value || 'game_asset';
+        },
+
+        _checkAssetTypeMismatch(prompt, assetType) {
+            if (assetType !== 'game_asset') return null;
+            const lower = prompt.toLowerCase();
+            const charWords = ['character','warrior','knight','archer','mage','wizard','witch','pirate',
+                'captain','soldier','sailor','pilot','merchant','hunter','king','queen','prince','princess',
+                'hero','heroine','female','male','woman','man','girl','boy','lady','lord','young','old',
+                'wearing','holding','wielding','standing','sitting','running','fighting','armor','cloak',
+                'robe','dress','uniform','sword','bow','staff','shield','weapon','hair','eyes','portrait','pose'];
+            const sceneWords = ['scene','landscape','environment','background','cinematic','village','city',
+                'forest','ocean','sea','mountain','desert','beach','castle','temple','harbor','sunset',
+                'sunrise','sky','clouds','rain','storm','on a ship','on a boat','on a horse','on a dragon',
+                'on a throne','on deck','standing in','walking through','sitting on','riding','sailing',
+                'behind the','in front of','surrounded by','in the distance'];
+            const charHits = charWords.filter(w => lower.includes(w)).length;
+            const sceneHits = sceneWords.filter(w => lower.includes(w)).length;
+            if (charHits >= 2 && sceneHits >= 1) {
+                return { current: 'game_asset', suggested: 'character',
+                    reason: "Your prompt describes a character in a setting. 'Character' type keeps the figure as the focal point while preserving scene context. 'Game Asset' forces an isolated sprite on a transparent background." };
+            }
+            if (charHits >= 2) {
+                return { current: 'game_asset', suggested: 'character',
+                    reason: "Your prompt describes a character. 'Character' type optimizes for figure proportions, pose, and silhouette readability." };
+            }
+            if (sceneHits >= 2) {
+                return { current: 'game_asset', suggested: 'environment',
+                    reason: "Your prompt describes a scene or environment. 'Environment' type preserves the full composition. 'Game Asset' forces an isolated object on a transparent background." };
+            }
+            return null;
         },
         _isAllModels() {
             return document.getElementById('gen-model')?.value === 'all_models';
