@@ -424,47 +424,28 @@ Output ONLY the fixed template text with all variables inserted. No explanations
 # ── Load / Save (Layered: defaults + user overrides) ─────────────────────
 #
 # Two files:
-#   prompt_templates.json      — git-tracked defaults, updated by git pulls
-#   prompt_templates.user.json — user overrides only, gitignored, never conflicts
+#   prompt_templates.json      — defaults from code _DEFAULTS, always regenerated
+#                                on startup to stay current. Git-tracked.
+#   prompt_templates.user.json — user overrides only (edited templates).
+#                                Gitignored. Survives git pulls and code updates.
 #
-# Merge order: start with _DEFAULTS (code), overlay defaults file (git),
-# then overlay user file on top. User edits always win.
-# Saving only writes to the .user.json file.
+# Load order: code _DEFAULTS → overlay user overrides. User edits always win.
+# Defaults file is written on every startup so it always reflects current code.
+# User edits only write to .user.json — defaults file is never modified at runtime.
 
 _user_overrides: dict = {}  # Raw user overrides (only modified templates)
 
 
 def _load():
-    """Load templates: code defaults → defaults file → user overrides."""
+    """Load templates: code defaults → user overrides on top."""
     global _templates, _user_overrides
 
-    # 1. Start with code defaults
+    # 1. Start from code _DEFAULTS (always the source of truth for defaults)
     _templates = {}
     for name, default in _DEFAULTS.items():
         _templates[name] = {**default, "modified": False}
 
-    # 2. Overlay defaults file (git-tracked — may have newer defaults from a pull)
-    if _DEFAULTS_PATH.exists():
-        try:
-            disk_defaults = json.loads(_DEFAULTS_PATH.read_text())
-            for name, tmpl in disk_defaults.items():
-                if name.startswith("_"):
-                    continue
-                if name in _templates:
-                    # Update metadata from disk defaults (may be newer than code)
-                    for key in ("label", "description", "used_by", "variables", "model", "system_prompt"):
-                        if key in tmpl:
-                            _templates[name][key] = tmpl[key]
-                    # Update text ONLY if it's from defaults (not user-modified)
-                    if not tmpl.get("modified", False):
-                        _templates[name]["text"] = tmpl.get("text", _templates[name]["text"])
-                else:
-                    # New template from defaults file (added by a git pull)
-                    _templates[name] = {**tmpl, "modified": False}
-        except Exception as exc:
-            logger.warning("Failed to read defaults file: %s", exc)
-
-    # 3. Overlay user overrides (local-only, gitignored)
+    # 2. Overlay user overrides (local-only, gitignored)
     _user_overrides = {}
     if _USER_PATH.exists():
         try:
@@ -473,25 +454,28 @@ def _load():
                 if name.startswith("_"):
                     continue
                 if name in _templates:
-                    # Apply user's text and system_prompt overrides
                     if "text" in overrides:
                         _templates[name]["text"] = overrides["text"]
                     if "system_prompt" in overrides:
                         _templates[name]["system_prompt"] = overrides["system_prompt"]
                     _templates[name]["modified"] = True
-            logger.info("Prompt templates loaded: %d defaults + %d user overrides",
-                        len(_DEFAULTS), len([k for k in _user_overrides if not k.startswith("_")]))
+            user_count = len([k for k in _user_overrides if not k.startswith("_")])
+            logger.info("Prompt templates loaded: %d defaults + %d user overrides", len(_DEFAULTS), user_count)
         except Exception as exc:
             logger.warning("Failed to read user overrides: %s", exc)
     else:
         logger.info("Prompt templates loaded: %d templates", len(_templates))
 
-    # 4. Ensure defaults file is up to date (write code defaults if file is missing/stale)
-    _save_defaults()
+    # 3. Always regenerate defaults file from code (so it stays current after code updates)
+    _write_defaults_file()
 
 
-def _save_defaults():
-    """Write the defaults file from code _DEFAULTS (git-tracked)."""
+def _write_defaults_file():
+    """Write code _DEFAULTS to the defaults file (git-tracked).
+
+    Called on every startup so the file always reflects current code.
+    This is what gets committed to git and updated by git pulls.
+    """
     defaults_out = {}
     for name, default in _DEFAULTS.items():
         defaults_out[name] = {**default, "modified": False}

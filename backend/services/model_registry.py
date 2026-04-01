@@ -14,103 +14,117 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_DEFAULTS_PATH = Path(__file__).resolve().parent.parent / "model_registry.json"       # Git-tracked defaults
-_USER_PATH = Path(__file__).resolve().parent.parent / "model_registry.user.json"     # User overrides (gitignored)
+_REGISTRY_PATH = Path(__file__).resolve().parent.parent / "model_registry.json"       # Main registry (source of truth)
+_USER_PREFS_PATH = Path(__file__).resolve().parent.parent / "model_registry.user.json"  # User preference overrides (gitignored)
 _registry: dict = {}
+
+# Fields in model entries that are USER PREFERENCES (not structural data).
+# These are the only fields that go into .user.json — everything else
+# (discovered models, pricing, regions, format families) stays in the main file.
+_USER_PREF_FIELDS = {"enabled"}
+# Top-level sections that are user preferences
+_USER_PREF_SECTIONS = {"categories"}
 
 
 def _load():
-    """Load the registry: defaults file (git-tracked) + user overrides (local).
+    """Load the registry: main file + user preference overrides.
 
-    The defaults file contains format families, base model configs, and default
-    categories. The user file contains discovered models, custom regions, pricing,
-    enabled/disabled states, and category selections from Sync from AWS.
-    User values override defaults for matching keys (deep merge).
+    model_registry.json is the single source of truth — contains everything:
+    format families, discovered models, pricing, regions. Updated by Sync from
+    AWS and by code (format family defaults).
+
+    model_registry.user.json contains ONLY user preference overrides:
+    enabled/disabled flags, category model selections. These survive Sync
+    refreshes and git pulls.
     """
     global _registry
-    # 1. Load defaults (git-tracked)
+    # 1. Load main registry (the full source of truth)
     try:
-        _registry = json.loads(_DEFAULTS_PATH.read_text())
+        _registry = json.loads(_REGISTRY_PATH.read_text())
     except Exception as exc:
-        logger.error("Failed to load model registry defaults: %s", exc)
+        logger.error("Failed to load model registry: %s", exc)
         _registry = {"categories": {}, "image_models": {}, "post_processing": {}}
 
-    # 2. Overlay user overrides (deep merge)
-    if _USER_PATH.exists():
+    # 2. Overlay user preference overrides
+    if _USER_PREFS_PATH.exists():
         try:
-            user_data = json.loads(_USER_PATH.read_text())
-            _deep_merge_registry(_registry, user_data)
-            user_models = len(user_data.get("image_models", {})) + len(user_data.get("chat_models", {}))
-            logger.info("Model registry loaded: %d image models, %d categories (+%d user overrides)",
-                        len(_registry.get("image_models", {})),
-                        len(_registry.get("categories", {})),
-                        user_models)
+            prefs = json.loads(_USER_PREFS_PATH.read_text())
+            overrides_applied = _apply_user_prefs(_registry, prefs)
+            if overrides_applied:
+                logger.info("Model registry loaded: %d image models, %d categories (+%d user prefs)",
+                            len(_registry.get("image_models", {})),
+                            len(_registry.get("categories", {})),
+                            overrides_applied)
+            else:
+                logger.info("Model registry loaded: %d image models, %d categories",
+                            len(_registry.get("image_models", {})),
+                            len(_registry.get("categories", {})))
         except Exception as exc:
-            logger.warning("Failed to load user registry overrides: %s", exc)
+            logger.warning("Failed to load user prefs: %s", exc)
     else:
         logger.info("Model registry loaded: %d image models, %d categories",
                      len(_registry.get("image_models", {})),
                      len(_registry.get("categories", {})))
 
 
-def _deep_merge_registry(base: dict, overrides: dict):
-    """Deep-merge user overrides into the base registry.
-
-    For dict values: recursively merge (user keys override base keys).
-    For non-dict values: user value replaces base value.
-    """
-    for key, value in overrides.items():
-        if key.startswith("_"):
+def _apply_user_prefs(registry: dict, prefs: dict) -> int:
+    """Apply user preference overrides to the loaded registry. Returns count applied."""
+    count = 0
+    for section, overrides in prefs.items():
+        if section.startswith("_") or not isinstance(overrides, dict):
             continue
-        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
-            _deep_merge_registry(base[key], value)
-        else:
-            base[key] = value
+        if section in _USER_PREF_SECTIONS:
+            # Category selections — deep merge
+            if section in registry and isinstance(registry[section], dict):
+                for key, val in overrides.items():
+                    if key in registry[section] and isinstance(val, dict):
+                        registry[section][key].update(val)
+                    else:
+                        registry[section][key] = val
+                    count += 1
+        elif section in registry and isinstance(registry[section], dict):
+            # Model sections (image_models, video_models, chat_models, post_processing)
+            # Only apply _USER_PREF_FIELDS
+            for model_key, model_prefs in overrides.items():
+                if model_key in registry[section] and isinstance(model_prefs, dict):
+                    for field in _USER_PREF_FIELDS:
+                        if field in model_prefs:
+                            registry[section][model_key][field] = model_prefs[field]
+                            count += 1
+    return count
 
 
 def _save():
-    """Save user-modified data to the user overrides file.
+    """Save the full registry to the main file (source of truth).
 
-    Computes the diff between current _registry and the defaults file,
-    writing only the parts that differ to the user file.
+    Called after Sync from AWS, model updates, and all admin operations.
+    Writes everything to model_registry.json.
     """
-    # Load clean defaults to diff against
-    try:
-        defaults = json.loads(_DEFAULTS_PATH.read_text())
-    except Exception:
-        defaults = {}
-
-    # Compute user overrides (keys/values that differ from defaults)
-    user_data = _compute_overrides(_registry, defaults)
-    user_data["_last_updated"] = datetime.utcnow().isoformat()
-
-    _USER_PATH.write_text(json.dumps(user_data, indent=2, default=str))
-    logger.info("Model registry user overrides saved.")
+    _registry["last_updated"] = datetime.utcnow().isoformat()
+    _REGISTRY_PATH.write_text(json.dumps(_registry, indent=2, default=str))
+    logger.info("Model registry saved.")
 
 
-def _compute_overrides(current: dict, defaults: dict) -> dict:
-    """Compute the minimal set of overrides: current - defaults.
+def _save_user_pref(section: str, key: str, field: str, value):
+    """Save a single user preference override to the user prefs file.
 
-    Sections that are user-generated (discovered models, pricing, regions)
-    are always included if they exist in current but not in defaults.
-    Dict values are recursively diffed.
+    Called when the user makes a preference change (enable/disable, category selection).
     """
-    overrides = {}
-    for key, value in current.items():
-        if key.startswith("_") or key == "last_updated":
-            continue
-        if key not in defaults:
-            # New key (user-added, e.g., discovered models) — include entirely
-            overrides[key] = value
-        elif isinstance(value, dict) and isinstance(defaults.get(key), dict):
-            # Recurse for dicts
-            sub_diff = _compute_overrides(value, defaults[key])
-            if sub_diff:
-                overrides[key] = sub_diff
-        elif value != defaults.get(key):
-            # Value changed from default
-            overrides[key] = value
-    return overrides
+    prefs = {}
+    if _USER_PREFS_PATH.exists():
+        try:
+            prefs = json.loads(_USER_PREFS_PATH.read_text())
+        except Exception:
+            prefs = {}
+
+    if section not in prefs:
+        prefs[section] = {}
+    if key not in prefs[section]:
+        prefs[section][key] = {}
+    prefs[section][key][field] = value
+    prefs["_last_updated"] = datetime.utcnow().isoformat()
+
+    _USER_PREFS_PATH.write_text(json.dumps(prefs, indent=2, default=str))
 
 
 # ── Format family definitions (code as source of truth) ──────────────────
@@ -531,20 +545,34 @@ def get_enabled_model_labels() -> dict[str, str]:
 # ── Admin API functions ───────────────────────────────────────────────────
 
 def update_category(name: str, updates: dict) -> dict:
-    """Update a model category (fast_llm, complex_llm, etc.)."""
+    """Update a model category (fast_llm, complex_llm, etc.).
+
+    Category selections are user preferences — saved to both main registry
+    and .user.json so they survive git pulls.
+    """
     if name not in _registry.get("categories", {}):
         _registry.setdefault("categories", {})[name] = {}
     _registry["categories"][name].update(updates)
     _save()
+    # Persist category selection as user preference
+    for field, value in updates.items():
+        _save_user_pref("categories", name, field, value)
     return _registry["categories"][name]
 
 
 def update_image_model(key: str, updates: dict) -> dict:
-    """Update an image model config."""
+    """Update an image model config.
+
+    If 'enabled' is being changed, it's a user preference — also saved to
+    .user.json so it survives Sync refreshes and git pulls.
+    """
     if key not in _registry.get("image_models", {}):
         _registry.setdefault("image_models", {})[key] = {}
     _registry["image_models"][key].update(updates)
     _save()
+    # Persist enabled/disabled as user preference
+    if "enabled" in updates:
+        _save_user_pref("image_models", key, "enabled", updates["enabled"])
     return _registry["image_models"][key]
 
 
@@ -561,6 +589,8 @@ def update_post_processing(key: str, updates: dict) -> dict:
         _registry.setdefault("post_processing", {})[key] = {}
     _registry["post_processing"][key].update(updates)
     _save()
+    if "enabled" in updates:
+        _save_user_pref("post_processing", key, "enabled", updates["enabled"])
     return _registry["post_processing"][key]
 
 
@@ -600,6 +630,8 @@ def update_video_model(key: str, updates: dict) -> dict:
         _registry.setdefault("video_models", {})[key] = {}
     _registry["video_models"][key].update(updates)
     _save()
+    if "enabled" in updates:
+        _save_user_pref("video_models", key, "enabled", updates["enabled"])
     return _registry["video_models"][key]
 
 
