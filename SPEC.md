@@ -851,7 +851,19 @@ prompt_templates.user.json   (gitignored, user edits only)
 
 **Deleting `.user.json`**: Restores all settings to defaults. No user preferences leak into the main files.
 
+**First deployment auto-Sync**: On startup, the system checks for a `last_synced` field in the model registry. If missing (fresh deployment that has never been synced), a full Sync from AWS runs automatically after credential validation. This discovers all available models, pricing, and regions in the user's AWS account. Subsequent starts skip auto-Sync since `last_synced` is present. Users can always Sync manually from Model Settings at any time.
+
+**Code defaults for self-healing**: If `model_registry.json` is deleted, the system regenerates it from code-defined defaults on startup: 4 base image models (Nova Canvas, Titan Image, SD 3.5 Large, Stable Image Ultra), 4 LLM categories, 15 format families, and 2 post-processing models. The auto-Sync then discovers and adds all remaining models from AWS.
+
 **Prompt templates**: Code `_DEFAULTS` are the source of truth for template defaults. `prompt_templates.json` is regenerated from code on every startup, so it always reflects the latest code version. User edits are stored in `prompt_templates.user.json` with only the changed `text` and/or `system_prompt` fields.
+
+**Startup sequence**:
+1. Auto-update: check GitHub for code updates, pull if available
+2. Check config freshness: prompt templates regenerated from code, registry checked for `last_synced`
+3. Ensure data directories
+4. Validate AWS credentials + Bedrock access
+5. If registry never synced + credentials valid → auto-Sync from AWS (30-60 seconds, first deployment only)
+6. Initialize telemetry, start server
 
 **Registry as single source of truth**: The application code contains **zero hardcoded model IDs, API parameters, or invocation templates**. Everything the system needs to invoke any Bedrock service — model IDs, regions, request body structures, prompt paths, negative prompt paths, mask paths, seed ranges, quality tiers, dimension modes, response parsing, pricing, and parameter constraints — is stored in `model_registry.json` and read at runtime. The format families define the complete API contract for each provider/service type, including a `parameters` spec with types, ranges, defaults, and descriptions for every configurable field. This means:
 
