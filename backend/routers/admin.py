@@ -293,7 +293,9 @@ async def enhance_template(name: str, body: TemplateEnhanceRequest):
     Returns the suggested improved text for the user to review.
     """
     from backend.services.prompt_templates import get_all_templates
-    from backend.services.bedrock_client import _get_client
+    from backend.services.bedrock_client import invoke_llm
+    from backend.services.cost_tracker import reset_costs
+    reset_costs()
 
     templates = get_all_templates()
     if name not in templates:
@@ -333,16 +335,14 @@ Current template:
 
 Improved template:"""
 
-    region = body.region or "us-west-2"
-    client = _get_client(region)
-
     try:
-        response = client.converse(
-            modelId=body.model_id,
-            messages=[{"role": "user", "content": [{"text": enhance_prompt}]}],
-            inferenceConfig={"maxTokens": 4000, "temperature": 0.3},
-        )
-        improved = response["output"]["message"]["content"][0]["text"].strip()
+        improved = invoke_llm(
+            enhance_prompt,
+            model_id=body.model_id,
+            region_override=body.region or "us-west-2",
+            max_tokens=4000,
+            temperature=0.3,
+        ).strip()
 
         # Verify all variables are preserved
         missing_vars = []

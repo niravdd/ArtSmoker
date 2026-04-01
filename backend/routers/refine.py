@@ -47,6 +47,9 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
     except Exception:
         pass
 
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    reset_costs()
+
     try:
         refined = refine_prompt(prompt_to_refine, style_profile, body.asset_type, image_model=body.image_model)
     except Exception as exc:
@@ -60,7 +63,7 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
     logger.info("Prompt refined: %d chars -> %d chars (negative: %s)", len(body.prompt), len(refined), negative[:80] if negative else "none")
 
     from backend.services.telemetry import track_prompt_refinement
-    track_prompt_refinement()
+    track_prompt_refinement(cost_usd=get_total_cost())
 
     return {"original": body.prompt, "refined": refined, "negative_prompt": negative or ""}
 

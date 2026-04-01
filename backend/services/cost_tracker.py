@@ -86,6 +86,25 @@ def reset_costs():
     _get_accumulator().reset()
 
 
+def share_accumulator_with_thread():
+    """Get the current accumulator so it can be shared with child threads.
+
+    Call in the parent thread to get the accumulator, then call
+    `install_shared_accumulator(acc)` in each child thread.
+    This solves the ContextVar isolation problem with ThreadPoolExecutor.
+    """
+    return _get_accumulator()
+
+
+def install_shared_accumulator(acc: CostAccumulator):
+    """Install a shared accumulator in the current thread's context.
+
+    Call at the start of a worker thread function to share costs
+    back to the parent thread's accumulator.
+    """
+    _cost_ctx.set(acc)
+
+
 def add_cost(component: str, cost_usd: float, detail: str = ""):
     """Add a cost entry. Called from invoke_llm, invoke_image_model, etc."""
     if cost_usd > 0:
@@ -102,8 +121,19 @@ def get_cost_breakdown() -> dict:
     return _get_accumulator().breakdown()
 
 
-def compute_llm_cost(model_id: str, input_tokens: int, output_tokens: int) -> float:
-    """Compute the cost of an LLM call from token usage."""
+def compute_llm_cost(model_id: str, input_tokens: int, output_tokens: int,
+                     input_price_per_mtok: float | None = None,
+                     output_price_per_mtok: float | None = None) -> float:
+    """Compute the cost of an LLM call from token usage.
+
+    If explicit pricing is provided (e.g., from chat_models registry), it is used directly.
+    Otherwise falls back to the hardcoded LLM_PRICING dict, then to Sonnet pricing.
+    """
+    if input_price_per_mtok is not None and output_price_per_mtok is not None:
+        input_cost = (input_tokens / 1_000_000) * input_price_per_mtok
+        output_cost = (output_tokens / 1_000_000) * output_price_per_mtok
+        return round(input_cost + output_cost, 6)
+
     pricing = LLM_PRICING.get(model_id)
     if not pricing:
         # Try partial match
@@ -112,6 +142,20 @@ def compute_llm_cost(model_id: str, input_tokens: int, output_tokens: int) -> fl
                 pricing = p
                 break
     if not pricing:
+        # Try chat_models registry for discovered models
+        try:
+            from backend.services.model_registry import get_registry
+            reg = get_registry()
+            for cm in reg.get("chat_models", {}).values():
+                if cm.get("model_id") == model_id:
+                    in_p = cm.get("input_price_per_1k", 0)
+                    out_p = cm.get("output_price_per_1k", 0)
+                    if in_p or out_p:
+                        input_cost = (input_tokens / 1_000_000) * (in_p * 1000)
+                        output_cost = (output_tokens / 1_000_000) * (out_p * 1000)
+                        return round(input_cost + output_cost, 6)
+        except Exception:
+            pass
         # Default to Sonnet pricing as a reasonable estimate
         pricing = {"input_per_mtok": 3.00, "output_per_mtok": 15.00}
 

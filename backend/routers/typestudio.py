@@ -475,7 +475,8 @@ def _get_layouts_from_llm(
 async def preview(request: TypeStudioRequest):
     """Generate a text-composited image and save it as a new gallery asset."""
     from backend.services.telemetry import track_type_generation
-    track_type_generation()
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    reset_costs()
 
     # 1. Load source image if provided
     source_image: Image.Image | None = None
@@ -571,7 +572,9 @@ async def preview(request: TypeStudioRequest):
             "layout": layout.model_dump(),
         })
 
-    # 5. Return result
+    # 5. Track cost and return result
+    track_type_generation(cost_usd=get_total_cost())
+
     return {
         "id": batch_id,
         "num_options": len(options),

@@ -431,6 +431,9 @@ async def analyze_style_endpoint(style_id: str):
             detail=f"Style '{style_id}' has no reference images to analyze.",
         )
 
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    reset_costs()
+
     try:
         existing_hints = profile.generation_hints or ""
         analyzed: AnalyzedStyle = analyze_style(style_id, user_hints=existing_hints)
@@ -456,6 +459,6 @@ async def analyze_style_endpoint(style_id: str):
     logger.info("Style analysis complete for '%s'.", style_id)
 
     from backend.services.telemetry import track_style_analysis
-    track_style_analysis(num_images=len(profile.reference_images))
+    track_style_analysis(num_images=len(profile.reference_images), cost_usd=get_total_cost())
 
     return updated_profile

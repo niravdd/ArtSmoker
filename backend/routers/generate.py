@@ -140,7 +140,13 @@ def _build_variant(
     translation_result: dict | None = None,
     progress_queue: queue.Queue | None = None,
     cancel_event: threading.Event | None = None,
+    cost_accumulator=None,
 ) -> VariantResult:
+    # Share cost accumulator with this worker thread so image costs are tracked
+    if cost_accumulator:
+        from backend.services.cost_tracker import install_shared_accumulator
+        install_shared_accumulator(cost_accumulator)
+
     asset_id = f"{batch_id}_o{option_index}_v{variant_index}"
 
     # Check if batch has been cancelled (moderation block on another task)
@@ -429,6 +435,8 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         emit({"type": "stage", "stage": "generating",
               "message": f"Generating remaining {len(all_tasks)} images..."})
 
+        from backend.services.cost_tracker import share_accumulator_with_thread
+        shared_acc = share_accumulator_with_thread()
         max_workers = 3 if body.upscale else min(len(all_tasks), 5)
         with ThreadPoolExecutor(max_workers=max_workers) as pool:
             futures = {}
@@ -447,6 +455,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                     translation_result=translation_result,
                     progress_queue=progress_q,
                     cancel_event=cancel_event,
+                    cost_accumulator=shared_acc,
                 )
                 futures[future] = (oi, vi)
 
@@ -721,6 +730,9 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
     max_workers = 3 if body.upscale else min(n_models, 5)
     progress_q = queue.Queue()
 
+    from backend.services.cost_tracker import share_accumulator_with_thread
+    shared_acc = share_accumulator_with_thread()
+
     def _generate_for_model(option_index: int, model_key: str) -> OptionResult:
         """Generate one variant with a specific model. Returns OptionResult with status."""
         from backend.services.telemetry import track_image_generation
@@ -746,6 +758,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 style_snapshot=style_snapshot,
                 translation_result=translation_result,
                 progress_queue=progress_q,
+                cost_accumulator=shared_acc,
             )
             # Track each model individually (no cost — actual cost sent by generation_cost at the end)
             track_image_generation(
@@ -971,12 +984,8 @@ async def edit_image(body: ImageEditRequest):
     from backend.services.model_registry import get_image_model, get_image_model_label
     from backend.services.post_processor import process_asset
     from backend.services.telemetry import track_image_edit
-    edit_cfg = get_image_model(body.model) if body.model else {}
-    track_image_edit(
-        edit_type=edit_cfg.get("model_purpose", ""),
-        model=body.model or "",
-        cost_usd=0,  # Actual cost tracked by cost_tracker via invoke_image_model
-    )
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    reset_costs()
 
     # Validate model exists and has an editing purpose
     model_config = get_image_model(body.model)
@@ -1143,6 +1152,15 @@ async def edit_image(body: ImageEditRequest):
 
     svg_url = new_meta.get("svg_path")
     png_filename = new_meta.get("png_filename", f"{asset_id}.png")
+
+    # Track cost for this edit
+    edit_cost = get_total_cost()
+    edit_cfg = get_image_model(body.model) if body.model else {}
+    track_image_edit(
+        edit_type=edit_cfg.get("model_purpose", ""),
+        model=body.model or "",
+        cost_usd=edit_cost,
+    )
 
     return {
         "id": asset_id,
@@ -1449,6 +1467,9 @@ async def post_process_assets(body: PostProcessRequest):
         remove_background,
         upscale_image,
     )
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_post_process
+    reset_costs()
 
     results = []
     errors = []
@@ -1529,5 +1550,15 @@ async def post_process_assets(body: PostProcessRequest):
         except Exception as exc:
             logger.exception("Post-processing failed for %s", asset_id)
             errors.append(f"{asset_id}: {exc}")
+
+    # Track post-processing cost
+    pp_cost = get_total_cost()
+    if pp_cost > 0:
+        actions = []
+        if body.remove_background:
+            actions.append("remove_background")
+        if body.upscale:
+            actions.append("upscale")
+        track_post_process(action="+".join(actions), cost_usd=pp_cost)
 
     return {"processed": results, "errors": errors}

@@ -34,13 +34,11 @@ def init():
     """Initialize telemetry. Call once on app startup."""
     global _pb
     if not settings.telemetry_enabled:
-        logger.info("Telemetry disabled (ARTSMOKER_TELEMETRY=false)")
         return
     _pb = PulseBoard(
         api_key="pb_516e85fdb5904c6fa9ec99cf661468d4",
         endpoint="https://d3fjcw1jutg51a.cloudfront.net/ingest",
     )
-    logger.info("Telemetry initialized (PulseBoard)")
 
 
 def _track(event: str, **props):
@@ -151,3 +149,11 @@ def track_model_settings_load():
 
 def track_model_settings_refresh():
     _track("model_settings.sync_aws")
+
+
+# ── Auto-Update Events ────────────────────────────────────────────
+
+def track_auto_update(updated: bool = False, from_version: str = "", to_version: str = "",
+                      commits: int = 0, skipped_reason: str = ""):
+    _track("system.auto_update", updated=updated, from_version=from_version,
+           to_version=to_version, commits=commits, skipped_reason=skipped_reason)

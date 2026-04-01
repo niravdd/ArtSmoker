@@ -80,6 +80,20 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler — runs on startup and shutdown."""
     global _aws_status
 
+    # Auto-update: check GitHub for new version and pull if available
+    update_result = {}
+    try:
+        from backend.services.auto_update import check_and_update
+        update_result = check_and_update()
+        if update_result.get("updated"):
+            logger.info("Auto-update: %s → %s", update_result["from_version"], update_result["to_version"])
+        elif update_result.get("skipped_reason"):
+            logger.info("Auto-update: %s", update_result["skipped_reason"])
+        elif update_result.get("error"):
+            logger.info("Auto-update: check failed (%s)", update_result["error"])
+    except Exception as exc:
+        logger.info("Auto-update: unavailable (%s)", exc)
+
     # Startup: ensure data directories exist
     settings.data_dir.mkdir(parents=True, exist_ok=True)
     settings.styles_dir.mkdir(parents=True, exist_ok=True)
@@ -117,9 +131,18 @@ async def lifespan(app: FastAPI):
         logger.info("All AWS checks passed. Identity: %s", _aws_status["identity"])
 
     # Initialize telemetry
-    from backend.services.telemetry import init as telemetry_init, track_server_start, track_server_stop
+    from backend.services.telemetry import init as telemetry_init, track_server_start, track_server_stop, track_auto_update
     telemetry_init()
     track_server_start()
+
+    # Track auto-update result (after telemetry is initialized)
+    if update_result.get("checked"):
+        track_auto_update(
+            updated=update_result.get("updated", False),
+            from_version=update_result.get("from_version", ""),
+            to_version=update_result.get("to_version", ""),
+            skipped_reason=update_result.get("skipped_reason", ""),
+        )
 
     logger.info("ArtSmoker backend started.")
     yield
@@ -207,6 +230,45 @@ async def health_check():
             "errors": _aws_status.get("errors", []),
         },
     }
+
+
+# ── Version check endpoint ────────────────────────────────────────────────
+
+@app.get("/api/admin/check-update", tags=["admin"])
+async def check_for_update():
+    """Check if a newer version is available on GitHub (without pulling)."""
+    from backend.config import APP_VERSION
+    try:
+        from backend.services.auto_update import _git, _read_version, PROJECT_ROOT
+        _git("fetch", "origin", "main", "--quiet")
+        local_sha = _git("rev-parse", "HEAD").strip()
+        remote_sha = _git("rev-parse", "origin/main").strip()
+        behind = int(_git("rev-list", "--count", f"HEAD..origin/main").strip())
+
+        # Read remote version from fetched origin/main
+        remote_version = APP_VERSION  # default
+        try:
+            raw = _git("show", "origin/main:backend/config.py")
+            for line in raw.splitlines():
+                if line.startswith("APP_VERSION"):
+                    remote_version = line.split("=", 1)[1].strip().strip('"').strip("'")
+                    break
+        except Exception:
+            pass
+
+        return {
+            "current_version": APP_VERSION,
+            "latest_version": remote_version,
+            "update_available": behind > 0,
+            "commits_behind": behind,
+        }
+    except Exception as exc:
+        return {
+            "current_version": APP_VERSION,
+            "latest_version": None,
+            "update_available": False,
+            "error": str(exc),
+        }
 
 
 # ── Client-side log endpoint ──────────────────────────────────────────────

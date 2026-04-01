@@ -67,7 +67,8 @@ async def chat_stream(req: ChatMessageRequest):
     Returns SSE events: delta (text chunks), metadata (tokens, cost, latency), error.
     """
     from backend.services.bedrock_client import _get_client
-    from backend.services.cost_tracker import compute_llm_cost
+    from backend.services.cost_tracker import compute_llm_cost, reset_costs, add_cost
+    reset_costs()
 
     if not req.messages:
         raise HTTPException(400, detail="Messages are required")
@@ -134,6 +135,7 @@ async def chat_stream(req: ChatMessageRequest):
                     out_tok = usage.get("outputTokens", 0)
                     latency_ms = round((time.time() - start_time) * 1000)
                     cost = compute_llm_cost(model_id, in_tok, out_tok)
+                    add_cost("chat_llm", cost, f"{model_id}: {in_tok} in, {out_tok} out")
 
                     yield sse({
                         "type": "metadata",
@@ -253,8 +255,19 @@ async def list_chat_models():
     from backend.services.cost_tracker import LLM_PRICING
     registry = get_registry()
 
-    def _get_pricing(model_id: str) -> dict:
-        """Get pricing per 1K tokens for a model. Tries exact match then partial."""
+    def _get_pricing(model_id: str, chat_model_entry: dict | None = None) -> dict:
+        """Get pricing per 1K tokens for a model.
+
+        Tries: 1) chat_model registry entry pricing, 2) hardcoded LLM_PRICING, 3) empty.
+        """
+        # Try chat_models registry entry first (populated by discovery)
+        if chat_model_entry:
+            in_p = chat_model_entry.get("input_price_per_1k", 0)
+            out_p = chat_model_entry.get("output_price_per_1k", 0)
+            if in_p or out_p:
+                return {"input_per_1k": round(in_p, 4), "output_per_1k": round(out_p, 4)}
+
+        # Fall back to hardcoded pricing
         pricing = LLM_PRICING.get(model_id)
         if not pricing:
             for key, p in LLM_PRICING.items():
@@ -310,7 +323,7 @@ async def list_chat_models():
             "max_context_tokens": cfg.get("max_context_tokens", 128000),
             "model_source": cfg.get("model_source", "foundation"),
             "is_active_llm": is_active,
-            "pricing": _get_pricing(effective_id) or _get_pricing(mid),
+            "pricing": _get_pricing(effective_id, cfg) or _get_pricing(mid, cfg),
         })
 
     # 2. LLM categories — only add if not already covered by chat_models discovery

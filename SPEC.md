@@ -1095,6 +1095,7 @@ A full-featured LLM chat interface running on the user's own AWS account. 80+ mo
 | GET | `/api/admin/templates` | Get all 14 prompt templates with metadata (description, variables, modified flag, group). |
 | PATCH | `/api/admin/templates/{key}` | Update a template's content. Validates required variables are present — returns missing vars if not. |
 | POST | `/api/admin/templates/{key}/reset` | Reset a template to its default content. |
+| POST | `/api/admin/templates/reset-all` | Reset all templates to their defaults. |
 | POST | `/api/admin/templates/{key}/enhance` | Enhance a template using an LLM. Accepts model_id, region, optional instructions. Returns suggested improved content for review. |
 
 ### 5.11 System
@@ -1409,7 +1410,7 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
    - On startup: call `validate_aws_credentials()` from `bedrock_client.py` — stores result in a module-level `_aws_status` dict.
    - On startup: initialize PulseBoard telemetry (`telemetry_init()`, `track_server_start()`) — fire-and-forget.
    - Log a prominent error box if credentials are missing, a warning if some Bedrock checks fail, or an info message if all checks pass.
-3. **Colored console logging** — custom `ColoredFormatter` using ANSI 256-color codes. Each log level gets a distinct color (cyan for INFO, yellow for WARNING, red for ERROR). Timestamps are included. The formatter overrides uvicorn's default logger for consistent output.
+3. **Colored console logging** — custom `_ColorFormatter` using ANSI 256-color codes. Each log level gets a distinct color (cyan for INFO, yellow for WARNING, red for ERROR). Timestamps are included. The formatter overrides uvicorn's default logger for consistent output.
 4. **NoCacheStaticMiddleware** — custom `BaseHTTPMiddleware` that adds `Cache-Control: no-cache, no-store, must-revalidate` and `Pragma: no-cache` headers to all responses where the request path does NOT start with `/api/`. This ensures frontend static files are never cached during development.
 5. **CORS middleware** — `CORSMiddleware` with `allow_origins=["*"]`, `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`. Development-mode open CORS.
 6. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, chat, admin — in that order.

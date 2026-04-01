@@ -1112,12 +1112,20 @@ Key endpoints:
 | `POST /api/chat/sessions` | Create a new chat session |
 | `GET /api/chat/sessions` | List chat sessions |
 | `GET /api/chat/sessions/{id}` | Load a full session (messages + metadata) |
+| `PUT /api/chat/sessions/{id}` | Update session (title, messages, model, temperature) |
+| `DELETE /api/chat/sessions/{id}` | Delete a session |
+| `POST /api/chat/sessions/{id}/duplicate` | Duplicate a session |
 | `GET /api/chat/sessions/{id}/export` | Export session as Markdown |
+| `GET /api/chat/sessions/{id}/search?q=` | Search within a session's messages |
 | `POST /api/chat/compact` | Compact older messages via LLM summarization |
+| `POST /api/chat/generate-title` | Auto-generate a session title from first exchange |
 | **Video** | |
 | `POST /api/video/generate` | Start async video generation job |
 | `GET /api/video/status/{job_id}` | Poll video generation job status |
 | `GET /api/video/jobs` | List all video generation jobs |
+| `GET /api/video/{id}/mp4` | Serve video MP4 file |
+| `GET /api/video/{id}/thumbnail` | Serve video thumbnail |
+| `DELETE /api/video/{id}` | Delete a video |
 | **Admin** | |
 | `GET /api/admin/models` | Get full model registry (LLMs, image models, post-processing) |
 | `GET /api/admin/models/image-options` | Enabled text-to-image models for the dropdown (with pricing, quality tiers, regions). Accepts `?region=` filter. |
@@ -1128,6 +1136,10 @@ Key endpoints:
 | `POST /api/admin/discover/refresh-all` | Full refresh: discover regions + scan models + fetch pricing + prune stale data. The ONLY endpoint that calls AWS discovery APIs. |
 | `POST /api/admin/discover/{region}/auto-register` | Scan a single region for models, register new ones, update regions for existing |
 | `GET /api/admin/discover/{region}` | Discover available Bedrock models in a region (raw listing) |
+| `GET /api/admin/templates` | Get all 14 editable prompt templates |
+| `PATCH /api/admin/templates/{name}` | Update a template (validates required variables) |
+| `POST /api/admin/templates/{name}/reset` | Reset a template to default |
+| `POST /api/admin/templates/{name}/enhance` | Enhance a template with AI |
 | **System** | |
 | `POST /api/log` | Client-side error/warning logging (recorded as `[CLIENT]` in server console) |
 | `GET /api/health` | Health check + AWS credential/Bedrock validation |

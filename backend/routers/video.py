@@ -61,12 +61,14 @@ async def generate_video(req: VideoGenerateRequest):
     from backend.services.model_registry import get_video_model
     import base64
 
-    # Estimate cost: price_per_second × duration
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    reset_costs()
+
+    # Estimate video model cost: price_per_second × duration
     dur = int(req.duration or 6)
     vid_cfg = get_video_model(req.model_key) if req.model_key else {}
     price_per_sec = vid_cfg.get("base_price_per_second_usd", 0) or 0
-    estimated_cost = round(price_per_sec * dur, 4)
-    track_video_generation(model=req.model_key, cost_usd=estimated_cost, duration_seconds=dur)
+    estimated_video_cost = round(price_per_sec * dur, 4)
 
     vs = get_video_settings()
     if not vs.get("s3_bucket"):
@@ -100,6 +102,11 @@ async def generate_video(req: VideoGenerateRequest):
             negative_concepts = result["negative_concepts"]
         except Exception as exc:
             logger.warning("Video prompt enhancement failed, using original: %s", exc)
+
+    # Track total cost: LLM enhancement (actual from cost_tracker) + estimated video model cost
+    llm_cost = get_total_cost()
+    total_estimated_cost = round(estimated_video_cost + llm_cost, 4)
+    track_video_generation(model=req.model_key, cost_usd=total_estimated_cost, duration_seconds=dur)
 
     # Decode source image if provided
     source_image = None
