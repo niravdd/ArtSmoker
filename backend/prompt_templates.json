@@ -137,7 +137,8 @@
     ],
     "model": "fast LLM (Sonnet)",
     "text": "Summarize this conversation concisely, preserving key facts, decisions, and context that would be needed to continue the conversation naturally:\n\n{convo_text}",
-    "modified": false
+    "modified": false,
+    "system_prompt": "You are a conversation summarizer. Output a clear, concise summary in 2-4 paragraphs. Include any specific names, numbers, code snippets, or decisions mentioned."
   },
   "chat_title_generate": {
     "label": "Chat Session Title",
@@ -149,7 +150,8 @@
     ],
     "model": "fast LLM (Sonnet)",
     "text": "Generate a short title (3-8 words, no quotes, no punctuation at the end) for a chat conversation that starts with:\n\nUser: {user_message}\n\nAssistant: {assistant_snippet}\n\nTitle:",
-    "modified": false
+    "modified": false,
+    "system_prompt": "You generate concise chat titles. Output ONLY the title — no quotes, no explanation, no prefix. 3-8 words maximum."
   },
   "translate_detect_language": {
     "label": "Language Detection",
@@ -160,7 +162,8 @@
     ],
     "model": "fast LLM (Sonnet)",
     "text": "What language is this text? Reply with ONLY the ISO 639-1 code (en, ja, zh, ko, fr, es). Text: {text}",
-    "modified": false
+    "modified": false,
+    "system_prompt": "Reply with only the 2-letter language code. Nothing else."
   },
   "translate_to_english": {
     "label": "Translation to English",
@@ -172,7 +175,37 @@
     ],
     "model": "fast LLM (Sonnet)",
     "text": "Translate the following {lang_name} text to English. Preserve the meaning, tone, and any technical terms. Output ONLY the English translation, nothing else.\n\nText: {text}",
+    "modified": false,
+    "system_prompt": "You are a precise translator. Output only the English translation. No explanations, no notes, no quotes around the text."
+  },
+  "_last_updated": "2026-04-01T03:07:28.124127",
+  "admin_template_enhance": {
+    "label": "Template Enhancement",
+    "description": "Improves an editable prompt template — makes it clearer and more effective.",
+    "used_by": "Model Settings — Prompt Templates — Enhance with AI button",
+    "variables": [
+      "{template_label}",
+      "{template_description}",
+      "{template_used_by}",
+      "{variable_list}",
+      "{user_instructions}",
+      "{current_text}"
+    ],
+    "model": "user-selected LLM",
+    "text": "You are an expert at writing LLM system prompts and directive templates for AI applications.\n\nBelow is a prompt template used in a game art generation tool called ArtSmoker. Your task is to improve it — make it clearer, more effective, and better at guiding the LLM to produce high-quality results.\n\nTemplate name: {template_label}\nPurpose: {template_description}\nUsed by: {template_used_by}\nVariables that MUST be preserved exactly: {variable_list}\n{user_instructions}\n\nRULES:\n1. PRESERVE all variables in {{curly_braces}} exactly as they are — the code substitutes these at runtime\n2. Keep the same general structure and intent\n3. Make instructions clearer and more specific\n4. Add examples where helpful\n5. Remove ambiguity\n6. Output ONLY the improved template text — no explanations, no markdown fences\n\nCurrent template:\n---\n{current_text}\n---\n\nImproved template:",
     "modified": false
   },
-  "_last_updated": "2026-03-31T02:07:57.002554"
+  "admin_template_fix_variables": {
+    "label": "Template Variable Auto-Fixer",
+    "description": "Inserts missing required variables back into an edited template.",
+    "used_by": "Model Settings — Prompt Templates — Fix & Save button",
+    "variables": [
+      "{missing_variables}",
+      "{template_text}"
+    ],
+    "model": "fast LLM (Sonnet)",
+    "system_prompt": "You fix prompt templates by inserting missing variables. Output only the fixed template. Never remove existing content.",
+    "text": "This prompt template is missing required variables that must be present for the system to work.\n\nMissing variables: {missing_variables}\n\nEach variable uses {{curly_brace}} syntax and gets replaced at runtime with actual values.\nFor example, {{user_prompt}} gets replaced with the user's actual text input.\n\nInsert the missing variables in the most logical positions within this template.\nDo NOT remove any existing content — only ADD the missing variables where they make sense.\n\nTemplate:\n---\n{template_text}\n---\n\nOutput ONLY the fixed template text with all variables inserted. No explanations.",
+    "modified": false
+  }
 }

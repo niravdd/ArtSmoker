@@ -573,9 +573,10 @@ async def compact_context(body: CompactRequest):
     )
 
     try:
+        from backend.services.prompt_templates import get_system_prompt
         summary = invoke_llm(
             prompt=get_template('chat_context_compact').format(convo_text=convo_text),
-            system="You are a conversation summarizer. Output a clear, concise summary in 2-4 paragraphs. Include any specific names, numbers, code snippets, or decisions mentioned.",
+            system=get_system_prompt('chat_context_compact'),
             max_tokens=1000,
             temperature=0.3,
         )
@@ -656,9 +657,10 @@ async def generate_title(body: TitleRequest):
             assistant_snippet=body.assistant_snippet[:200] if body.assistant_snippet else "(none)",
         )
 
+        from backend.services.prompt_templates import get_system_prompt
         title = invoke_llm(
             prompt=prompt,
-            system="You generate concise chat titles. Output ONLY the title — no quotes, no explanation, no prefix. 3-8 words maximum.",
+            system=get_system_prompt('chat_title_generate'),
             max_tokens=30,
             temperature=0.3,
             complexity="fast",

@@ -90,9 +90,10 @@ def detect_language(text: str) -> str:
 def _llm_detect_language(text: str) -> str:
     """Use LLM to detect language when heuristics are ambiguous."""
     try:
+        from backend.services.prompt_templates import get_system_prompt
         result = invoke_llm(
             prompt=get_template('translate_detect_language').format(text=text[:200]),
-            system="Reply with only the 2-letter language code. Nothing else.",
+            system=get_system_prompt('translate_detect_language'),
             max_tokens=5,
             temperature=0,
             complexity="fast",
@@ -125,9 +126,10 @@ def translate_to_english(text: str, source_lang: str = "") -> dict:
 
     # Translate via LLM
     try:
+        from backend.services.prompt_templates import get_system_prompt
         translated = invoke_llm(
             prompt=get_template('translate_to_english').format(text=text, lang_name=_lang_name(lang)),
-            system="You are a precise translator. Output only the English translation. No explanations, no notes, no quotes around the text.",
+            system=get_system_prompt('translate_to_english'),
             max_tokens=min(len(text) * 3, 4000),
             temperature=0.1,
             complexity="fast",

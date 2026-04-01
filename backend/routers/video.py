@@ -432,18 +432,15 @@ def _enhance_video_prompt(prompt: str, model_key: str) -> dict:
     prompt_limit = model_config.get("prompt_limit", 512) if model_config else 512
     family = model_config.get("format_family", "") if model_config else ""
 
-    system_prompt = get_template('video_enhance_prompt').format(prompt_limit=prompt_limit)
-
     if "luma" in family:
-        system_prompt += "\n- This model supports up to 5000 characters. Be richly descriptive."
+        model_guidance = "- This model supports up to 5000 characters. Be richly descriptive."
     else:
-        system_prompt += "\n- Keep it concise. This model has a 512 character limit per shot."
+        model_guidance = "- Keep it concise. This model has a 512 character limit per shot."
 
-    system_prompt += """
-
-Output format (exactly two lines):
-ENHANCED: <the enhanced prompt>
-AVOID: <comma-separated list of things the user wants to avoid, or "none" if nothing to avoid>"""
+    system_prompt = get_template('video_enhance_prompt').format(
+        prompt_limit=prompt_limit,
+        model_guidance=model_guidance,
+    )
 
     try:
         result = invoke_llm(

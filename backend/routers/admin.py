@@ -205,24 +205,13 @@ async def update_template_endpoint(name: str, body: TemplateUpdate):
         var_descriptions = ", ".join(missing)
 
         try:
+            from backend.services.prompt_templates import get_system_prompt
             fixed = invoke_llm(
-                prompt=f"""This prompt template is missing required variables that must be present for the system to work.
-
-Missing variables: {var_descriptions}
-
-Each variable uses {{curly_brace}} syntax and gets replaced at runtime with actual values.
-For example, {{user_prompt}} gets replaced with the user's actual text input.
-
-Insert the missing variables in the most logical positions within this template.
-Do NOT remove any existing content — only ADD the missing variables where they make sense.
-
-Template:
----
-{body.text}
----
-
-Output ONLY the fixed template text with all variables inserted. No explanations.""",
-                system="You fix prompt templates by inserting missing variables. Output only the fixed template. Never remove existing content.",
+                prompt=get_template('admin_template_fix_variables').format(
+                    missing_variables=var_descriptions,
+                    template_text=body.text,
+                ),
+                system=get_system_prompt('admin_template_fix_variables'),
                 max_tokens=4000,
                 temperature=0.1,
                 complexity="fast",
@@ -308,32 +297,16 @@ async def enhance_template(name: str, body: TemplateEnhanceRequest):
 
     user_instructions = ""
     if body.instructions:
-        user_instructions = f"\n\nThe user specifically requests: {body.instructions}"
+        user_instructions = f"\nThe user specifically requests: {body.instructions}"
 
-    enhance_prompt = f"""You are an expert at writing LLM system prompts and directive templates for AI applications.
-
-Below is a prompt template used in a game art generation tool called ArtSmoker. Your task is to improve it — make it clearer, more effective, and better at guiding the LLM to produce high-quality results.
-
-Template name: {tmpl['label']}
-Purpose: {tmpl['description']}
-Used by: {tmpl['used_by']}
-Variables that MUST be preserved exactly: {var_list}
-{user_instructions}
-
-RULES:
-1. PRESERVE all variables in {{curly_braces}} exactly as they are — the code substitutes these at runtime
-2. Keep the same general structure and intent
-3. Make instructions clearer and more specific
-4. Add examples where helpful
-5. Remove ambiguity
-6. Output ONLY the improved template text — no explanations, no markdown fences
-
-Current template:
----
-{current_text}
----
-
-Improved template:"""
+    enhance_prompt = get_template('admin_template_enhance').format(
+        template_label=tmpl['label'],
+        template_description=tmpl['description'],
+        template_used_by=tmpl['used_by'],
+        variable_list=var_list,
+        user_instructions=user_instructions,
+        current_text=current_text,
+    )
 
     try:
         improved = invoke_llm(

@@ -1,10 +1,11 @@
 """Prompt Templates — manages editable LLM directive prompts.
 
-All 13 system/directive prompts are stored in prompt_templates.json.
+All templates are stored in prompt_templates.json.
 Users can view, edit, and reset templates via the admin API.
 Code reads templates via get_template(name) instead of hardcoded strings.
 
 Template variables use {curly_braces} and are substituted at runtime.
+Templates may also have a system_prompt field for the LLM system message.
 """
 
 import json
@@ -215,7 +216,7 @@ Rules:
         "label": "Video Prompt Enhancement",
         "description": "Enhances a user prompt with camera movements, lighting, and temporal cues for video generation. The user's prompt is sent as the user message; this template is the system instruction.",
         "used_by": "Video Studio — AI-enhance prompt toggle",
-        "variables": ["{prompt_limit}", "(context: user prompt sent as message)"],
+        "variables": ["{prompt_limit}", "{model_guidance}"],
         "model": "fast LLM (Sonnet)",
         "text": """You are a video generation prompt engineer. Enhance the user's prompt for AI video generation.
 
@@ -227,10 +228,11 @@ Guidelines:
 - If the user mentions things to avoid, weave avoidance into the prompt naturally since video models have no negative prompt support
 - Maximum {prompt_limit} characters for the enhanced prompt
 - For game assets: emphasize clean motion, consistent style, looping-friendly if short
+{model_guidance}
 
-Respond in this format:
+Output format (exactly two lines):
 ENHANCED: <the enhanced prompt>
-NEGATIVE_CONCEPTS: <comma-separated concepts to avoid, if any>""",
+AVOID: <comma-separated list of things the user wants to avoid, or "none" if nothing to avoid>""",
     },
 
     "typestudio_layout": {
@@ -248,13 +250,29 @@ Text lines to layout:
 {lines_desc}
 
 Design a visually appealing text layout. For each line, specify:
-- x, y pixel coordinates (anchor point of the text)
-- anchor: alignment relative to (x, y) — "mm" (center), "lt" (left-top), "mt" (middle-top), "la" (left-ascender)
-- font_size: in pixels (scale appropriately for the canvas)
-- color: hex color that contrasts well with the background
-- effects: optional array of shadow/outline/glow effects
+- x, y pixel coordinates — this is the **anchor point** of the text
+- anchor: how the text is aligned relative to (x, y):
+  - "mm" = middle-middle (x, y is the CENTER of the text) — best for centered layouts
+  - "lt" = left-top (x, y is the top-left corner)
+  - "mt" = middle-top (x is center, y is top)
+  - "la" = left-ascender
+- Font size in pixels
+- Color as a hex code (e.g. "#FFD700")
+- The font filename to use (or "default" if no specific font)
+- Visual effects: shadow, outline, and/or glow
 
-Return a JSON array of layout options (1-5 different creative approaches). Each option is an array of line objects.""",
+CRITICAL for centering: To center text horizontally, set x to half the canvas width and use anchor "mm" or "mt". Do NOT try to calculate left-offset manually.
+
+Position hints guide general placement:
+- "top-center": x at center, y near the top, anchor "mt"
+- "bottom-center": x at center, y near the bottom, anchor "mm"
+- "center": x and y at canvas center, anchor "mm"
+- "below-previous": same x as previous line, y offset by previous font_size + spacing
+- Other hints should be interpreted creatively
+
+Not every line needs every effect. Use effects judiciously to create hierarchy and readability.
+The "effects" field for each line can contain any combination of "shadow", "outline", and "glow", or be empty.
+Make sure text does not overflow the canvas boundaries. Account for font size when placing text.""",
     },
 
     "chat_context_compact": {
@@ -263,6 +281,7 @@ Return a JSON array of layout options (1-5 different creative approaches). Each 
         "used_by": "Chat Studio — Compact button",
         "variables": ["{convo_text}"],
         "model": "fast LLM (Sonnet)",
+        "system_prompt": "You are a conversation summarizer. Output a clear, concise summary in 2-4 paragraphs. Include any specific names, numbers, code snippets, or decisions mentioned.",
         "text": "Summarize this conversation concisely, preserving key facts, decisions, and context that would be needed to continue the conversation naturally:\n\n{convo_text}",
     },
 
@@ -272,6 +291,7 @@ Return a JSON array of layout options (1-5 different creative approaches). Each 
         "used_by": "Chat Studio — after first message exchange",
         "variables": ["{user_message}", "{assistant_snippet}"],
         "model": "fast LLM (Sonnet)",
+        "system_prompt": "You generate concise chat titles. Output ONLY the title — no quotes, no explanation, no prefix. 3-8 words maximum.",
         "text": "Generate a short title (3-8 words, no quotes, no punctuation at the end) for a chat conversation that starts with:\n\nUser: {user_message}\n\nAssistant: {assistant_snippet}\n\nTitle:",
     },
 
@@ -281,6 +301,7 @@ Return a JSON array of layout options (1-5 different creative approaches). Each 
         "used_by": "Prompt translator — fallback detection",
         "variables": ["{text}"],
         "model": "fast LLM (Sonnet)",
+        "system_prompt": "Reply with only the 2-letter language code. Nothing else.",
         "text": "What language is this text? Reply with ONLY the ISO 639-1 code (en, ja, zh, ko, fr, es). Text: {text}",
     },
 
@@ -290,7 +311,67 @@ Return a JSON array of layout options (1-5 different creative approaches). Each 
         "used_by": "Prompt translator — all studios except Chat",
         "variables": ["{text}", "{lang_name}"],
         "model": "fast LLM (Sonnet)",
+        "system_prompt": "You are a precise translator. Output only the English translation. No explanations, no notes, no quotes around the text.",
         "text": "Translate the following {lang_name} text to English. Preserve the meaning, tone, and any technical terms. Output ONLY the English translation, nothing else.\n\nText: {text}",
+    },
+
+    # ── Admin Templates ────────────────────────────────────────────────
+
+    "admin_template_enhance": {
+        "label": "Template Enhancement",
+        "description": "Improves an editable prompt template — makes it clearer and more effective.",
+        "used_by": "Model Settings — Prompt Templates — Enhance with AI button",
+        "variables": ["{template_label}", "{template_description}", "{template_used_by}", "{variable_list}", "{user_instructions}", "{current_text}"],
+        "model": "user-selected LLM",
+        "text": """You are an expert at writing LLM system prompts and directive templates for AI applications.
+
+Below is a prompt template used in a game art generation tool called ArtSmoker. Your task is to improve it — make it clearer, more effective, and better at guiding the LLM to produce high-quality results.
+
+Template name: {template_label}
+Purpose: {template_description}
+Used by: {template_used_by}
+Variables that MUST be preserved exactly: {variable_list}
+{user_instructions}
+
+RULES:
+1. PRESERVE all variables in {{curly_braces}} exactly as they are — the code substitutes these at runtime
+2. Keep the same general structure and intent
+3. Make instructions clearer and more specific
+4. Add examples where helpful
+5. Remove ambiguity
+6. Output ONLY the improved template text — no explanations, no markdown fences
+
+Current template:
+---
+{current_text}
+---
+
+Improved template:""",
+    },
+
+    "admin_template_fix_variables": {
+        "label": "Template Variable Auto-Fixer",
+        "description": "Inserts missing required variables back into an edited template.",
+        "used_by": "Model Settings — Prompt Templates — Fix & Save button",
+        "variables": ["{missing_variables}", "{template_text}"],
+        "model": "fast LLM (Sonnet)",
+        "system_prompt": "You fix prompt templates by inserting missing variables. Output only the fixed template. Never remove existing content.",
+        "text": """This prompt template is missing required variables that must be present for the system to work.
+
+Missing variables: {missing_variables}
+
+Each variable uses {{curly_brace}} syntax and gets replaced at runtime with actual values.
+For example, {{user_prompt}} gets replaced with the user's actual text input.
+
+Insert the missing variables in the most logical positions within this template.
+Do NOT remove any existing content — only ADD the missing variables where they make sense.
+
+Template:
+---
+{template_text}
+---
+
+Output ONLY the fixed template text with all variables inserted. No explanations.""",
     },
 }
 
@@ -318,8 +399,8 @@ def _load():
             changed = True
         else:
             # Ensure metadata fields exist (user may have edited text only)
-            for key in ("label", "description", "used_by", "variables", "model"):
-                if key not in _templates[name]:
+            for key in ("label", "description", "used_by", "variables", "model", "system_prompt"):
+                if key in default and key not in _templates[name]:
                     _templates[name][key] = default[key]
                     changed = True
 
@@ -351,13 +432,24 @@ def get_template(name: str) -> str:
     return ""
 
 
+def get_system_prompt(name: str) -> str:
+    """Get the system prompt for a template (if it has one). Returns empty string if none."""
+    tmpl = _templates.get(name)
+    if tmpl and tmpl.get("system_prompt"):
+        return tmpl["system_prompt"]
+    default = _DEFAULTS.get(name)
+    if default and default.get("system_prompt"):
+        return default["system_prompt"]
+    return ""
+
+
 def get_all_templates() -> dict:
     """Return all templates with metadata (for admin UI)."""
     result = {}
     for name, tmpl in _templates.items():
         if name.startswith("_"):
             continue
-        result[name] = {
+        entry = {
             "label": tmpl.get("label", name),
             "description": tmpl.get("description", ""),
             "used_by": tmpl.get("used_by", ""),
@@ -366,6 +458,9 @@ def get_all_templates() -> dict:
             "text": tmpl.get("text", ""),
             "modified": tmpl.get("modified", False),
         }
+        if tmpl.get("system_prompt"):
+            entry["system_prompt"] = tmpl["system_prompt"]
+        result[name] = entry
     return result
 
 

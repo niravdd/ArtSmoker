@@ -216,39 +216,14 @@ Return a JSON array of {num_opts} layout objects (no markdown, no explanation):
 Return ONLY a JSON object (no markdown, no explanation) in this exact format:
 {layout_example}"""
 
-    return f"""You are a creative director designing text layout for a game asset graphic.
-
-Canvas dimensions: {canvas_width}x{canvas_height} pixels.
-{image_context}
-{style_section}
-Text lines to layout:
-{lines_desc}
-
-Design a visually appealing text layout. For each line, specify:
-- x, y pixel coordinates — this is the **anchor point** of the text
-- anchor: how the text is aligned relative to (x, y):
-  - "mm" = middle-middle (x, y is the CENTER of the text) — best for centered layouts
-  - "lt" = left-top (x, y is the top-left corner)
-  - "mt" = middle-top (x is center, y is top)
-  - "la" = left-ascender
-- Font size in pixels
-- Color as a hex code (e.g. "#FFD700")
-- The font filename to use (or "default" if no specific font)
-- Visual effects: shadow, outline, and/or glow
-
-CRITICAL for centering: To center text horizontally, set x to {canvas_width // 2} and use anchor "mm" or "mt". Do NOT try to calculate left-offset manually.
-
-Position hints guide general placement:
-- "top-center": x={canvas_width // 2}, y near the top, anchor "mt"
-- "bottom-center": x={canvas_width // 2}, y near the bottom, anchor "mm"
-- "center": x={canvas_width // 2}, y={canvas_height // 2}, anchor "mm"
-- "below-previous": same x as previous line, y = previous y + previous font_size + spacing, same anchor
-- Other hints should be interpreted creatively
-{multi_instruction}
-
-Not every line needs every effect. Use effects judiciously to create hierarchy and readability.
-The "effects" field for each line can contain any combination of "shadow", "outline", and "glow", or be empty.
-Make sure text does not overflow the canvas boundaries. Account for font size when placing text."""
+    from backend.services.prompt_templates import get_template as _get_tmpl
+    return _get_tmpl('typestudio_layout').format(
+        canvas_width=canvas_width,
+        canvas_height=canvas_height,
+        image_context=image_context,
+        style_section=style_section,
+        lines_desc=lines_desc,
+    ) + "\n" + multi_instruction
 
 
 def _parse_layout_response(response_text: str, expect_multiple: bool = False) -> list[LayoutSpec]:
