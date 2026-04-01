@@ -133,9 +133,8 @@ async def lifespan(app: FastAPI):
     # Initialize telemetry
     from backend.services.telemetry import init as telemetry_init, track_server_start, track_server_stop, track_auto_update
     telemetry_init()
-    track_server_start()
 
-    # Track auto-update result (after telemetry is initialized)
+    # Track auto-update result first (happened before server_start)
     if update_result.get("checked"):
         track_auto_update(
             updated=update_result.get("updated", False),
@@ -143,6 +142,8 @@ async def lifespan(app: FastAPI):
             to_version=update_result.get("to_version", ""),
             skipped_reason=update_result.get("skipped_reason", ""),
         )
+
+    track_server_start()
 
     logger.info("ArtSmoker backend started.")
     yield

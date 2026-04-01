@@ -3,7 +3,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.4-20260331_03"
+APP_VERSION = "1.4-20260401_01"
 
 
 class Settings(BaseSettings):
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     video_dir: Path = data_dir / "video"
 
     # ── Telemetry ──────────────────────────────────────────────────────────
-    telemetry_enabled: bool = True  # Set ARTSMOKER_TELEMETRY=false to disable
+    telemetry_enabled: bool = True
 
     # ── Generation defaults ───────────────────────────────────────────────
     default_image_width: int = 1024
