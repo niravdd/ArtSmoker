@@ -15,8 +15,9 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_TEMPLATES_PATH = Path(__file__).resolve().parent.parent / "prompt_templates.json"
-_templates: dict = {}
+_DEFAULTS_PATH = Path(__file__).resolve().parent.parent / "prompt_templates.json"   # Git-tracked defaults
+_USER_PATH = Path(__file__).resolve().parent.parent / "prompt_templates.user.json"  # User overrides (gitignored)
+_templates: dict = {}  # Merged view: defaults + user overrides
 
 
 # ── Default templates (code as source of truth for resets) ────────────────
@@ -420,42 +421,92 @@ Output ONLY the fixed template text with all variables inserted. No explanations
 }
 
 
-# ── Load / Save ───────────────────────────────────────────────────────────
+# ── Load / Save (Layered: defaults + user overrides) ─────────────────────
+#
+# Two files:
+#   prompt_templates.json      — git-tracked defaults, updated by git pulls
+#   prompt_templates.user.json — user overrides only, gitignored, never conflicts
+#
+# Merge order: start with _DEFAULTS (code), overlay defaults file (git),
+# then overlay user file on top. User edits always win.
+# Saving only writes to the .user.json file.
+
+_user_overrides: dict = {}  # Raw user overrides (only modified templates)
+
 
 def _load():
-    """Load templates from disk, merging with defaults for any missing templates."""
-    global _templates
-    if _TEMPLATES_PATH.exists():
-        try:
-            _templates = json.loads(_TEMPLATES_PATH.read_text())
-            logger.info("Prompt templates loaded: %d templates", len(_templates))
-        except Exception as exc:
-            logger.error("Failed to load prompt templates: %s", exc)
-            _templates = {}
-    else:
-        _templates = {}
+    """Load templates: code defaults → defaults file → user overrides."""
+    global _templates, _user_overrides
 
-    # Merge defaults — add any missing templates, preserve user edits
-    changed = False
+    # 1. Start with code defaults
+    _templates = {}
     for name, default in _DEFAULTS.items():
-        if name not in _templates:
-            _templates[name] = {**default, "modified": False}
-            changed = True
-        else:
-            # Ensure metadata fields exist (user may have edited text only)
-            for key in ("label", "description", "used_by", "variables", "model", "system_prompt"):
-                if key in default and key not in _templates[name]:
-                    _templates[name][key] = default[key]
-                    changed = True
+        _templates[name] = {**default, "modified": False}
 
-    if changed:
-        _save()
+    # 2. Overlay defaults file (git-tracked — may have newer defaults from a pull)
+    if _DEFAULTS_PATH.exists():
+        try:
+            disk_defaults = json.loads(_DEFAULTS_PATH.read_text())
+            for name, tmpl in disk_defaults.items():
+                if name.startswith("_"):
+                    continue
+                if name in _templates:
+                    # Update metadata from disk defaults (may be newer than code)
+                    for key in ("label", "description", "used_by", "variables", "model", "system_prompt"):
+                        if key in tmpl:
+                            _templates[name][key] = tmpl[key]
+                    # Update text ONLY if it's from defaults (not user-modified)
+                    if not tmpl.get("modified", False):
+                        _templates[name]["text"] = tmpl.get("text", _templates[name]["text"])
+                else:
+                    # New template from defaults file (added by a git pull)
+                    _templates[name] = {**tmpl, "modified": False}
+        except Exception as exc:
+            logger.warning("Failed to read defaults file: %s", exc)
+
+    # 3. Overlay user overrides (local-only, gitignored)
+    _user_overrides = {}
+    if _USER_PATH.exists():
+        try:
+            _user_overrides = json.loads(_USER_PATH.read_text())
+            for name, overrides in _user_overrides.items():
+                if name.startswith("_"):
+                    continue
+                if name in _templates:
+                    # Apply user's text and system_prompt overrides
+                    if "text" in overrides:
+                        _templates[name]["text"] = overrides["text"]
+                    if "system_prompt" in overrides:
+                        _templates[name]["system_prompt"] = overrides["system_prompt"]
+                    _templates[name]["modified"] = True
+            logger.info("Prompt templates loaded: %d defaults + %d user overrides",
+                        len(_DEFAULTS), len([k for k in _user_overrides if not k.startswith("_")]))
+        except Exception as exc:
+            logger.warning("Failed to read user overrides: %s", exc)
+    else:
+        logger.info("Prompt templates loaded: %d templates", len(_templates))
+
+    # 4. Ensure defaults file is up to date (write code defaults if file is missing/stale)
+    _save_defaults()
 
 
-def _save():
-    """Persist templates to disk."""
-    _templates["_last_updated"] = datetime.utcnow().isoformat()
-    _TEMPLATES_PATH.write_text(json.dumps(_templates, indent=2, ensure_ascii=False, default=str))
+def _save_defaults():
+    """Write the defaults file from code _DEFAULTS (git-tracked)."""
+    defaults_out = {}
+    for name, default in _DEFAULTS.items():
+        defaults_out[name] = {**default, "modified": False}
+    defaults_out["_last_updated"] = datetime.utcnow().isoformat()
+    _DEFAULTS_PATH.write_text(json.dumps(defaults_out, indent=2, ensure_ascii=False, default=str))
+
+
+def _save_user():
+    """Write only user-modified templates to the user overrides file."""
+    if _user_overrides:
+        _user_overrides["_last_updated"] = datetime.utcnow().isoformat()
+        _USER_PATH.write_text(json.dumps(_user_overrides, indent=2, ensure_ascii=False, default=str))
+    elif _USER_PATH.exists():
+        # No overrides left — clean up the file
+        _USER_PATH.unlink()
 
 
 # ── Load on import ────────────────────────────────────────────────────────
@@ -526,9 +577,10 @@ def validate_template(name: str, text: str) -> list[str]:
     return missing
 
 
-def update_template(name: str, text: str, force: bool = False) -> dict:
+def update_template(name: str, text: str, force: bool = False, system_prompt: str | None = None) -> dict:
     """Update a template's text. Validates variables unless force=True.
 
+    Writes to the user overrides file (gitignored), not the defaults file.
     Returns the updated template dict. Raises ValueError if variables are missing
     and force is False.
     """
@@ -548,26 +600,37 @@ def update_template(name: str, text: str, force: bool = False) -> dict:
         _templates[name] = {**_DEFAULTS[name]}
     _templates[name]["text"] = text
     _templates[name]["modified"] = True
+    if system_prompt is not None:
+        _templates[name]["system_prompt"] = system_prompt
     if missing:
         _templates[name]["warning"] = f"Missing variables: {', '.join(missing)}"
     else:
         _templates[name].pop("warning", None)
-    _save()
+
+    # Save to user overrides file (only the changed fields)
+    _user_overrides[name] = {"text": text}
+    if system_prompt is not None:
+        _user_overrides[name]["system_prompt"] = system_prompt
+    _save_user()
+
     return {**_templates[name], "missing_variables": missing}
 
 
 def reset_template(name: str) -> dict:
-    """Reset a template to its default text."""
+    """Reset a template to its default text. Removes from user overrides."""
     if name not in _DEFAULTS:
         raise ValueError(f"Unknown template: {name}")
     _templates[name] = {**_DEFAULTS[name], "modified": False}
-    _save()
+    # Remove from user overrides
+    _user_overrides.pop(name, None)
+    _save_user()
     return _templates[name]
 
 
 def reset_all_templates():
-    """Reset all templates to defaults."""
-    global _templates
+    """Reset all templates to defaults. Clears all user overrides."""
+    global _templates, _user_overrides
     _templates = {name: {**default, "modified": False} for name, default in _DEFAULTS.items()}
-    _save()
+    _user_overrides = {}
+    _save_user()
     return _templates

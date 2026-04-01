@@ -24,11 +24,10 @@ logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
-# Files that contain user-specific configuration and must survive a pull
-PROTECTED_FILES = [
-    "backend/model_registry.json",
-    "backend/prompt_templates.json",
-]
+# Protected files list — no longer needed since user data is now stored in
+# separate .user.json files (gitignored). Defaults files update via git pull,
+# user overrides are never touched. Kept empty for backward compatibility.
+PROTECTED_FILES = []
 
 
 def check_and_update() -> dict:

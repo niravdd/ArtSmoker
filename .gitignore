@@ -6,6 +6,9 @@ __pycache__/
 *.egg-info/
 .vscode/
 
+# User override files (local config, never committed)
+backend/*.user.json
+
 # Private style profiles (not for public repo)
 data/styles/prop-ludo-club/
 data/styles/manojs-swordman/

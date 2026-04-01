@@ -14,28 +14,103 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_REGISTRY_PATH = Path(__file__).resolve().parent.parent / "model_registry.json"
+_DEFAULTS_PATH = Path(__file__).resolve().parent.parent / "model_registry.json"       # Git-tracked defaults
+_USER_PATH = Path(__file__).resolve().parent.parent / "model_registry.user.json"     # User overrides (gitignored)
 _registry: dict = {}
 
 
 def _load():
-    """Load the registry from disk."""
+    """Load the registry: defaults file (git-tracked) + user overrides (local).
+
+    The defaults file contains format families, base model configs, and default
+    categories. The user file contains discovered models, custom regions, pricing,
+    enabled/disabled states, and category selections from Sync from AWS.
+    User values override defaults for matching keys (deep merge).
+    """
     global _registry
+    # 1. Load defaults (git-tracked)
     try:
-        _registry = json.loads(_REGISTRY_PATH.read_text())
+        _registry = json.loads(_DEFAULTS_PATH.read_text())
+    except Exception as exc:
+        logger.error("Failed to load model registry defaults: %s", exc)
+        _registry = {"categories": {}, "image_models": {}, "post_processing": {}}
+
+    # 2. Overlay user overrides (deep merge)
+    if _USER_PATH.exists():
+        try:
+            user_data = json.loads(_USER_PATH.read_text())
+            _deep_merge_registry(_registry, user_data)
+            user_models = len(user_data.get("image_models", {})) + len(user_data.get("chat_models", {}))
+            logger.info("Model registry loaded: %d image models, %d categories (+%d user overrides)",
+                        len(_registry.get("image_models", {})),
+                        len(_registry.get("categories", {})),
+                        user_models)
+        except Exception as exc:
+            logger.warning("Failed to load user registry overrides: %s", exc)
+    else:
         logger.info("Model registry loaded: %d image models, %d categories",
                      len(_registry.get("image_models", {})),
                      len(_registry.get("categories", {})))
-    except Exception as exc:
-        logger.error("Failed to load model registry: %s", exc)
-        _registry = {"categories": {}, "image_models": {}, "post_processing": {}}
+
+
+def _deep_merge_registry(base: dict, overrides: dict):
+    """Deep-merge user overrides into the base registry.
+
+    For dict values: recursively merge (user keys override base keys).
+    For non-dict values: user value replaces base value.
+    """
+    for key, value in overrides.items():
+        if key.startswith("_"):
+            continue
+        if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            _deep_merge_registry(base[key], value)
+        else:
+            base[key] = value
 
 
 def _save():
-    """Persist the registry to disk."""
-    _registry["last_updated"] = datetime.utcnow().isoformat()
-    _REGISTRY_PATH.write_text(json.dumps(_registry, indent=2, default=str))
-    logger.info("Model registry saved.")
+    """Save user-modified data to the user overrides file.
+
+    Computes the diff between current _registry and the defaults file,
+    writing only the parts that differ to the user file.
+    """
+    # Load clean defaults to diff against
+    try:
+        defaults = json.loads(_DEFAULTS_PATH.read_text())
+    except Exception:
+        defaults = {}
+
+    # Compute user overrides (keys/values that differ from defaults)
+    user_data = _compute_overrides(_registry, defaults)
+    user_data["_last_updated"] = datetime.utcnow().isoformat()
+
+    _USER_PATH.write_text(json.dumps(user_data, indent=2, default=str))
+    logger.info("Model registry user overrides saved.")
+
+
+def _compute_overrides(current: dict, defaults: dict) -> dict:
+    """Compute the minimal set of overrides: current - defaults.
+
+    Sections that are user-generated (discovered models, pricing, regions)
+    are always included if they exist in current but not in defaults.
+    Dict values are recursively diffed.
+    """
+    overrides = {}
+    for key, value in current.items():
+        if key.startswith("_") or key == "last_updated":
+            continue
+        if key not in defaults:
+            # New key (user-added, e.g., discovered models) — include entirely
+            overrides[key] = value
+        elif isinstance(value, dict) and isinstance(defaults.get(key), dict):
+            # Recurse for dicts
+            sub_diff = _compute_overrides(value, defaults[key])
+            if sub_diff:
+                overrides[key] = sub_diff
+        elif value != defaults.get(key):
+            # Value changed from default
+            overrides[key] = value
+    return overrides
 
 
 # ── Format family definitions (code as source of truth) ──────────────────
