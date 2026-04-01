@@ -75,7 +75,7 @@
       "reference images (sent as vision input)"
     ],
     "model": "fast LLM (Sonnet) with vision",
-    "text": "You are a visual style analyst. Look at these reference images and determine whether they represent a SINGLE cohesive visual style or a DIVERSE collection with multiple themes/styles.\n\nRespond with ONLY a JSON object (no markdown fences):\n{\n  \"cohesion\": \"high\" | \"medium\" | \"low\",\n  \"reasoning\": \"One sentence explaining why\",\n  \"common_patterns\": \"What is consistent across ALL images (if anything)\"\n}",
+    "text": "You are a visual style analyst. Look at these reference images and determine whether they represent a SINGLE cohesive visual style or a DIVERSE collection with multiple themes/styles.\n\nRespond with ONLY a JSON object (no markdown fences):\n{{\n  \"cohesion\": \"high\" | \"medium\" | \"low\",\n  \"reasoning\": \"One sentence explaining why\",\n  \"common_patterns\": \"What is consistent across ALL images (if anything)\"\n}}",
     "modified": false
   },
   "moderation_prescreen": {
@@ -87,7 +87,7 @@
       "{model_label}"
     ],
     "model": "fast LLM (Sonnet)",
-    "text": "You are a content moderation analyst for AI image generation models.\n\nAnalyze this prompt for the model \"{model_label}\":\n\"{prompt_for_screen}\"\n\nModel strictness levels:\n- Nova Canvas: VERY strict — blocks weapons, combat, fighting, copyrighted IP, aggressive poses\n- Titan Image v2: Strict — similar to Nova Canvas\n- Stable Diffusion 3.5 Large: Moderate — allows stylized weapons, fantasy combat, action poses\n- Stable Image Ultra: Moderate — similar to SD 3.5 Large\n\nWill this prompt likely be BLOCKED by {model_label}?\n\nRespond with ONLY a JSON object (no markdown):\n{\n  \"likely_safe\": true/false,\n  \"issues\": [\"specific concern 1\", \"specific concern 2\"],\n  \"explanation\": \"Brief explanation for the user\",\n  \"suggested_model\": \"alternative model name if current is too strict, or null\"\n}",
+    "text": "You are a content moderation analyst for AI image generation models.\n\nAnalyze this prompt for the model \"{model_label}\":\n\"{prompt_for_screen}\"\n\nModel strictness levels:\n- Nova Canvas: VERY strict — blocks weapons, combat, fighting, copyrighted IP, aggressive poses\n- Titan Image v2: Strict — similar to Nova Canvas\n- Stable Diffusion 3.5 Large: Moderate — allows stylized weapons, fantasy combat, action poses\n- Stable Image Ultra: Moderate — similar to SD 3.5 Large\n\nWill this prompt likely be BLOCKED by {model_label}?\n\nRespond with ONLY a JSON object (no markdown):\n{{\n  \"likely_safe\": true/false,\n  \"issues\": [\"specific concern 1\", \"specific concern 2\"],\n  \"explanation\": \"Brief explanation for the user\",\n  \"suggested_model\": \"alternative model name if current is too strict, or null\"\n}}",
     "modified": false
   },
   "moderation_rewrite": {
@@ -178,6 +178,18 @@
     "text": "Translate the following {lang_name} text to English. Preserve the meaning, tone, and any technical terms. Output ONLY the English translation, nothing else.\n\nText: {text}",
     "modified": false
   },
+  "asset_type_classify": {
+    "label": "Asset Type Classification",
+    "description": "Classifies a user prompt into the best-matching asset type before generation.",
+    "used_by": "Image Studio — before generation, to suggest the right asset type",
+    "variables": [
+      "{user_prompt}"
+    ],
+    "model": "fast LLM (Sonnet)",
+    "system_prompt": "You classify image generation prompts. Reply with ONLY a JSON object, no explanation.",
+    "text": "Classify this image generation prompt into the best asset type.\n\nPrompt: \"{user_prompt}\"\n\nAsset types:\n- game_asset: A single isolated object, item, or prop on a transparent background. No scene, no characters. Examples: a sword, a treasure chest, a potion bottle, a tree, a crystal.\n- character: A person, humanoid, creature, or animal — with or without a scene/setting. Any prompt describing a living being with personality, pose, or action. Examples: a warrior, a female sailor on a ship, a dragon, a fox, a wizard in a tower.\n- environment: A landscape, scene, location, or architectural setting WITHOUT a central character figure. Examples: a medieval village, a dark forest, an underwater cave, a space station interior.\n- marketing_banner: A wide cinematic scene designed for promotional use, with dramatic composition and space for text overlay. Only if the user explicitly mentions banner, promotional, marketing, or advertisement.\n- icon: A simple bold symbol for use as a UI icon or app icon. Only if the user mentions icon, button, or the description is extremely simple and symbolic.\n\nRespond with ONLY this JSON (no markdown fences):\n{{\n  \"recommended\": \"game_asset\" | \"character\" | \"environment\" | \"marketing_banner\" | \"icon\",\n  \"reason\": \"One sentence explaining why\",\n  \"confidence\": \"high\" | \"medium\" | \"low\"\n}}",
+    "modified": false
+  },
   "admin_template_enhance": {
     "label": "Template Enhancement",
     "description": "Improves an editable prompt template — makes it clearer and more effective.",
@@ -207,5 +219,5 @@
     "text": "This prompt template is missing required variables that must be present for the system to work.\n\nMissing variables: {missing_variables}\n\nEach variable uses {{curly_brace}} syntax and gets replaced at runtime with actual values.\nFor example, {{user_prompt}} gets replaced with the user's actual text input.\n\nInsert the missing variables in the most logical positions within this template.\nDo NOT remove any existing content — only ADD the missing variables where they make sense.\n\nTemplate:\n---\n{template_text}\n---\n\nOutput ONLY the fixed template text with all variables inserted. No explanations.",
     "modified": false
   },
-  "_last_updated": "2026-04-01T07:53:40.542867"
+  "_last_updated": "2026-04-01T08:08:20.398399"
 }
