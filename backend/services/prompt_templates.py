@@ -44,7 +44,7 @@ _DEFAULTS = {
 
 INSTRUCTIONS — follow in PRIORITY ORDER:
 
-1. **USER INTENT IS KING.** The user's explicit words override everything below. Never contradict what the user explicitly asked for.
+1. **USER INTENT IS KING — this overrides ALL other rules.** Read the user's request carefully. If they describe a scene, environment, camera angle, background, or composition — FOLLOW THAT, even if the asset type says "isolated sprite" or "transparent background". The asset type is a DEFAULT that applies only when the user gives a bare noun like "a cat" or "a sword". When the user writes a detailed description with scene context, camera placement, or environmental details, they are telling you what they want — do NOT override it with asset type defaults. Never strip away elements the user explicitly described.
 
 2. **ADD SUBJECT-SPECIFIC STRUCTURAL ACCURACY.** Identify what the subject IS and add domain knowledge:
    - Human/humanoid character: well-proportioned figure (7.5-8 head ratio), natural joint articulation, correct hand pose with proper finger placement on any held objects, believable weight distribution and balance, specific armor/clothing construction details
@@ -100,19 +100,27 @@ Output ONLY the refined prompt and NEGATIVE: line. No explanations.""",
 === USER REQUEST ===
 "{user_prompt}"
 
-Generate exactly {num_options} COMPLETELY DIFFERENT creative interpretations. Each must be a fundamentally different design — different visual approach, mood, silhouette, aesthetic, or archetype. NOT just color or pose variations.
+Generate exactly {num_options} COMPLETELY DIFFERENT creative interpretations.
+
+CRITICAL: "Different" means fundamentally different DESIGN APPROACHES — not just swapping colors or materials on the same composition. Each option must differ in at least 2 of these dimensions:
+- Camera angle / perspective (low angle vs overhead vs eye-level vs isometric)
+- Composition approach (close-up portrait vs full-body vs wide scene vs action shot)
+- Art style / rendering (painterly vs photorealistic vs stylized vs cel-shaded)
+- Mood / atmosphere (dramatic vs serene vs gritty vs whimsical)
+- Character archetype / design direction (if applicable)
+
+USER INTENT IS KING: If the user describes a specific scene, environment, or camera angle — ALL options must respect that context. Vary the creative approach WITHIN the user's description, don't strip away elements they explicitly asked for. The asset type is a default for bare prompts ("a cat") — when the user gives detailed scene context, follow it.
 
 EVERY concept must include:
-1. **Subject-specific structural accuracy** — correct anatomy for characters (proportions, joint articulation, hand detail), species-accurate forms for animals/creatures (skeletal structure, limb joints), mechanically plausible proportions for vehicles, structurally sound architecture for buildings
-2. **Material rendering specifics** — describe how each surface behaves (metal reflection type, wood grain, fabric drape, skin/fur texture) rather than just naming colors
-3. **Professional lighting** — key light direction and warmth, rim/edge light for separation, ambient fill
-4. **A complete NEGATIVE: line** at the end with failure-prevention terms (bad anatomy, extra limbs, deformed, blurry, low quality, text, watermark)
+1. **Subject-specific structural accuracy** — correct anatomy for characters, species-accurate forms for creatures, mechanically plausible proportions for vehicles, structurally sound architecture
+2. **Material rendering specifics** — describe surface properties (metal reflection, wood grain, fabric drape) not just colors
+3. **Professional lighting** — key light direction, rim light, ambient fill
+4. **NEGATIVE: line** — failure-prevention terms (bad anatomy, extra limbs, deformed, blurry, low quality, text, watermark)
 
 Each concept must:
-- RESPECT THE USER'S INTENT FIRST — their words override asset type and style
 - Be a self-contained descriptive image caption under {max_chars} characters
-- Be visually distinct enough that an artist would see them as genuinely different options
-- Describe what the image SHOWS positively (no commands or instructions to the model)
+- Be visually distinct enough that an artist would present them as genuinely different options to a client
+- Describe what the image SHOWS (a caption, not a command)
 
 Return a JSON array of strings — each string is a complete image-generation prompt. The LAST entry should be prefixed with "NEGATIVE:" containing shared exclusions for all concepts.""",
     },

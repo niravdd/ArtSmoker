@@ -15,6 +15,58 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/refine-prompt", tags=["refine"])
 
 
+def _detect_asset_type_mismatch(prompt: str, asset_type) -> dict | None:
+    """Detect when the user's prompt implies a different asset type than selected.
+
+    Returns a suggestion dict or None if the current type seems appropriate.
+    """
+    from backend.models.generation_request import AssetType
+    lower = prompt.lower()
+    words = len(prompt.split())
+
+    # Scene/environment indicators — user describes a scene, not a sprite
+    scene_keywords = ["scene", "landscape", "environment", "background", "panorama",
+                      "village", "city", "forest", "ocean", "mountain", "valley",
+                      "sunset", "sunrise", "horizon", "sky", "weather",
+                      "standing in", "walking through", "sitting on", "looking at",
+                      "behind the", "in front of", "in the distance",
+                      "camera angle", "wide shot", "cinematic", "dramatic sky",
+                      "churning", "towering waves", "billowing sails"]
+
+    # Character indicators
+    character_keywords = ["character", "warrior", "knight", "archer", "mage",
+                          "pirate", "captain", "soldier", "figure", "person",
+                          "wearing", "holding", "standing", "sitting",
+                          "full body", "portrait", "face"]
+
+    scene_hits = sum(1 for kw in scene_keywords if kw in lower)
+    char_hits = sum(1 for kw in character_keywords if kw in lower)
+
+    # Long prompts with scene keywords + game_asset type = likely mismatch
+    if asset_type == AssetType.GAME_ASSET:
+        if scene_hits >= 3 and words > 30:
+            if char_hits >= 2:
+                return {
+                    "current": "game_asset",
+                    "suggested": "character",
+                    "reason": "Your prompt describes a character in a scene. 'Character' type allows full scene context while keeping the figure as the focal point. 'Game Asset' forces an isolated sprite on a transparent background.",
+                }
+            else:
+                return {
+                    "current": "game_asset",
+                    "suggested": "environment",
+                    "reason": "Your prompt describes a scene with environmental elements. 'Environment' type preserves the full composition. 'Game Asset' forces an isolated object on a transparent background.",
+                }
+        if char_hits >= 3 and scene_hits < 2:
+            return {
+                "current": "game_asset",
+                "suggested": "character",
+                "reason": "Your prompt describes a character. 'Character' type optimizes for figure proportions, pose, and silhouette readability.",
+            }
+
+    return None
+
+
 @router.post("/")
 async def refine_prompt_endpoint(body: PromptRefineRequest):
     """Refine a user prompt into a detailed image-generation prompt.
@@ -65,7 +117,13 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
     from backend.services.telemetry import track_prompt_refinement
     track_prompt_refinement(cost_usd=get_total_cost())
 
-    return {"original": body.prompt, "refined": refined, "negative_prompt": negative or ""}
+    # Detect asset type mismatch — suggest a better type if the prompt implies a scene
+    suggestion = _detect_asset_type_mismatch(body.prompt, body.asset_type)
+
+    result = {"original": body.prompt, "refined": refined, "negative_prompt": negative or ""}
+    if suggestion:
+        result["asset_type_suggestion"] = suggestion
+    return result
 
 
 from pydantic import BaseModel as _BaseModel
