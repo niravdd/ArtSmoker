@@ -39,22 +39,23 @@ async def replace_registry(request: Request):
     """Replace the entire model registry with the provided JSON.
 
     Used by the raw JSON editor in Model Settings. Validates the JSON
-    has required top-level keys before saving.
+    has required top-level keys before saving. With the layered system,
+    this writes changes as user overrides (differences from defaults).
     """
     from backend.services.model_registry import get_registry, _save, _load
-    import json as _json
 
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(400, detail="Invalid JSON")
 
+    # Validate BEFORE modifying anything
     required = ["categories", "image_models"]
     missing = [k for k in required if k not in body]
     if missing:
         raise HTTPException(400, detail=f"Missing required keys: {', '.join(missing)}")
 
-    # Replace the in-memory registry and save to disk
+    # Replace the in-memory registry and save (writes diff to .user.json)
     registry = get_registry()
     registry.clear()
     registry.update(body)
