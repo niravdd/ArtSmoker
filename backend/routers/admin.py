@@ -1181,9 +1181,10 @@ async def refresh_all_regions():
             disabled.append(key)
             logger.info("Disabled model %s — no longer found in any region", key)
 
-    # Stamp the registry with sync timestamp
+    # Stamp as discovered — written to .user.json (gitignored) so fresh clones still trigger auto-Sync
     from datetime import datetime, timezone
-    registry["last_synced"] = datetime.now(timezone.utc).isoformat()
+    from backend.services.model_registry import _save_user_pref
+    _save_user_pref("_meta", "aws_account_discovered", "timestamp", datetime.now(timezone.utc).isoformat())
     _save()
 
     return {

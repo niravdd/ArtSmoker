@@ -465,9 +465,22 @@ def _load():
             logger.warning("Failed to read user overrides: %s", exc)
     else:
         logger.info("Prompt templates loaded: %d templates", len(_templates))
+        # First deployment — stamp the user file so we know defaults have been initialized
+        _stamp_deployment()
 
     # 3. Always regenerate defaults file from code (so it stays current after code updates)
     _write_defaults_file()
+
+
+def _stamp_deployment():
+    """Stamp the user file to mark this deployment as initialized.
+
+    Written to .user.json (gitignored) so fresh clones are always recognized
+    as new deployments.
+    """
+    global _user_overrides
+    _user_overrides["_deployment_initialized"] = datetime.utcnow().isoformat()
+    _save_user()
 
 
 def _write_defaults_file():

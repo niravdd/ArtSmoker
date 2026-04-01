@@ -75,9 +75,10 @@ FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 def _check_and_refresh_configs():
     """Check if model registry needs first-time Sync from AWS.
 
-    Looks for a 'last_synced' field in the registry — this is only set by
-    a successful Sync from AWS. If missing, this is a fresh deployment that
-    has never been synced → auto-Sync will run after credential validation.
+    Looks for 'aws_account_discovered' in the user prefs file (.user.json,
+    gitignored). Set only by a successful Sync from AWS. If missing, this is
+    a fresh deployment → auto-Sync runs after credential validation.
+    Stored in .user.json so fresh git clones always trigger auto-Sync.
 
     Prompt templates are always regenerated from code _DEFAULTS on startup
     (handled by prompt_templates._load()).
@@ -85,17 +86,19 @@ def _check_and_refresh_configs():
     import json
 
     try:
-        from backend.services.model_registry import _REGISTRY_PATH
+        from backend.services.model_registry import _USER_PREFS_PATH
         needs_sync = False
-        if _REGISTRY_PATH.exists():
-            data = json.loads(_REGISTRY_PATH.read_text())
-            if data.get("last_synced"):
-                logger.info("Model registry: last synced %s", data["last_synced"][:19])
+        # Check .user.json for the discovery stamp (gitignored, deployment-specific)
+        if _USER_PREFS_PATH.exists():
+            prefs = json.loads(_USER_PREFS_PATH.read_text())
+            ts = prefs.get("_meta", {}).get("aws_account_discovered", {}).get("timestamp")
+            if ts:
+                logger.info("Model registry: AWS account discovered %s", ts[:19])
             else:
                 logger.info("Model registry: never synced — will auto-Sync from AWS")
                 needs_sync = True
         else:
-            logger.info("Model registry: file missing — will auto-Sync from AWS")
+            logger.info("Model registry: first deployment — will auto-Sync from AWS")
             needs_sync = True
 
         _check_and_refresh_configs._needs_registry_sync = needs_sync

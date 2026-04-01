@@ -851,7 +851,7 @@ prompt_templates.user.json   (gitignored, user edits only)
 
 **Deleting `.user.json`**: Restores all settings to defaults. No user preferences leak into the main files.
 
-**First deployment auto-Sync**: On startup, the system checks for a `last_synced` field in the model registry. If missing (fresh deployment that has never been synced), a full Sync from AWS runs automatically after credential validation. This discovers all available models, pricing, and regions in the user's AWS account. Subsequent starts skip auto-Sync since `last_synced` is present. Users can always Sync manually from Model Settings at any time.
+**First deployment auto-Sync**: On startup, the system checks for an `aws_account_discovered` timestamp in `model_registry.user.json` (gitignored). If missing (fresh deployment — models have never been discovered from this AWS account), a full Sync from AWS runs automatically after credential validation. This discovers all available models, pricing, and regions. Subsequent starts find the timestamp and skip auto-Sync. Since the timestamp is in the gitignored `.user.json`, fresh clones always trigger auto-Sync. Users can always Sync manually from Model Settings at any time.
 
 **Code defaults for self-healing**: If `model_registry.json` is deleted, the system regenerates it from code-defined defaults on startup: 4 base image models (Nova Canvas, Titan Image, SD 3.5 Large, Stable Image Ultra), 4 LLM categories, 15 format families, and 2 post-processing models. The auto-Sync then discovers and adds all remaining models from AWS.
 
@@ -859,7 +859,7 @@ prompt_templates.user.json   (gitignored, user edits only)
 
 **Startup sequence**:
 1. Auto-update: check GitHub for code updates, pull if available
-2. Check config freshness: prompt templates regenerated from code, registry checked for `last_synced`
+2. Check config freshness: prompt templates regenerated from code, registry checked for `aws_account_discovered` field
 3. Ensure data directories
 4. Validate AWS credentials + Bedrock access
 5. If registry never synced + credentials valid → auto-Sync from AWS (30-60 seconds, first deployment only)
