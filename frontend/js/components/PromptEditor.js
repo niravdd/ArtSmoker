@@ -260,7 +260,36 @@
                     image_model: this.opts.imageModel || undefined,
                 };
 
-                const result = await API.refinePrompt(payload);
+                let result = await API.refinePrompt(payload);
+
+                // Check for asset type mismatch suggestion
+                if (result.asset_type_suggestion && window.showConfirm) {
+                    const sug = result.asset_type_suggestion;
+                    const sugLabel = sug.suggested.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+                    const curLabel = sug.current.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+
+                    const shouldSwitch = await window.showConfirm(
+                        sug.reason,
+                        {
+                            title: `Switch to "${sugLabel}"?`,
+                            detail: `Current type: ${curLabel}. The suggested type may produce better results for your prompt.`,
+                            confirmLabel: `Switch to ${sugLabel}`,
+                            cancelLabel: `Keep ${curLabel}`,
+                        }
+                    );
+
+                    if (shouldSwitch) {
+                        // Update asset type and re-compose with new type
+                        const newType = sug.suggested;
+                        if (this.opts.onAssetTypeChange) {
+                            this.opts.onAssetTypeChange(newType);
+                        }
+                        this.opts.assetType = newType;
+                        payload.asset_type = newType;
+                        result = await API.refinePrompt(payload);
+                    }
+                }
+
                 const composed = result.refined || result.refined_prompt || result;
 
                 this._originalText = text;

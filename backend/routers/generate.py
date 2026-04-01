@@ -918,7 +918,15 @@ async def generate_asset_stream(body: GenerationRequest):
     def sse_format(data: dict) -> str:
         return f"data: {json.dumps(data, default=str)}\n\n"
 
+    # Check for asset type mismatch (before starting generation)
+    from backend.routers.refine import _detect_asset_type_mismatch
+    asset_suggestion = _detect_asset_type_mismatch(body.prompt, body.asset_type)
+
     def generate():
+        # Emit asset type suggestion as first event if detected
+        if asset_suggestion:
+            yield sse_format({"type": "asset_type_suggestion", **asset_suggestion})
+
         def progress_cb(event):
             event_queue.put(event)
 

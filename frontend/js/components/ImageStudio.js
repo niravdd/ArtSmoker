@@ -384,6 +384,13 @@
                         styleId: this._getStyleId(),
                         assetType: this._getAssetType(),
                         imageModel: document.getElementById('gen-model')?.value,
+                        onAssetTypeChange: (newType) => {
+                            const sel = document.getElementById('gen-asset-type');
+                            if (sel) {
+                                sel.value = newType;
+                                sel.dispatchEvent(new Event('change'));
+                            }
+                        },
                     });
                 } catch (err) {
                     console.error('Failed to create PromptEditor:', err);
@@ -814,6 +821,14 @@
             try {
                 const result = await API.generateStream(payload, (evt) => {
                     this._handleProgressEvent(evt, total);
+                    // Asset type mismatch suggestion — show toast with guidance
+                    if (evt.type === 'asset_type_suggestion') {
+                        const sugLabel = (evt.suggested || '').replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
+                        window.showToast?.(
+                            `Tip: Your prompt describes a ${sugLabel.toLowerCase()}. Consider switching Asset Type to "${sugLabel}" for better results.`,
+                            'info', 8000
+                        );
+                    }
                     // Show the composed/refined prompts in the editor
                     if (evt.type === 'prompts_ready') {
                         if (this._promptEditor) {
