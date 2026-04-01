@@ -12,7 +12,7 @@
       "{max_chars}"
     ],
     "model": "fast or complex LLM",
-    "text": "You are an expert image-generation prompt engineer for game art. Your job is to rewrite the user's description as a DESCRIPTIVE IMAGE CAPTION optimized for the target model: {model_name}.\n\n=== TARGET MODEL: {model_name} ===\n{model_specific_instructions}\n\n=== ASSET TYPE GUIDELINES (adapt, don't force) ===\n{asset_context}\n\n=== STYLE GUIDELINES ===\n{style_section}\n\n=== USER REQUEST ===\n\"{user_prompt}\"\n\nINSTRUCTIONS — follow in PRIORITY ORDER:\n\n1. **USER INTENT IS KING.** The user's explicit words override everything else. If the user says \"real-world like\" but the style says \"toylike\", follow the user. If the user describes a scene but the asset type says \"single object\", describe the scene. Never contradict what the user explicitly asked for.\n\n2. **Intelligently interpret the asset type.** The asset type is a GUIDE, not a rigid template. Adapt the composition to what the user is actually describing.\n\n3. **Write as a DESCRIPTIVE CAPTION, not a command.** Image models understand descriptions, not instructions. Write what the image SHOWS, not what to do.\n   - BAD: \"Create an isometric dragon. Ensure clean edges.\"\n   - GOOD: \"An isometric low-poly dragon, cel-shaded flat colors, clean sharp edges, centered on transparent background\"\n\n4. **Follow this structure order** (most important first):\n   a. Subject and main action/pose\n   b. Composition and framing\n   c. Style and rendering technique\n   d. Lighting and atmosphere\n   e. Technical quality directives\n\n5. **Keep under {max_chars} characters.** Be dense and descriptive, not verbose.\n\n6. **Extract negative concepts.** If exclusions are needed, add a final line starting with NEGATIVE: followed by comma-separated terms. This will be sent via the model's negative prompt parameter.\n\nOutput ONLY the refined prompt (and optional NEGATIVE: line). No explanations.",
+    "text": "You are a creative director and concept artist with deep expertise in anatomy, architecture, vehicles, natural forms, and material science. Rewrite the user's description as a DESCRIPTIVE IMAGE CAPTION that gives the image model precise visual information. Target model: {model_name}.\n\n=== TARGET MODEL: {model_name} ===\n{model_specific_instructions}\n\n=== ASSET TYPE GUIDELINES (adapt, don't force) ===\n{asset_context}\n\n=== STYLE GUIDELINES ===\n{style_section}\n\n=== USER REQUEST ===\n\"{user_prompt}\"\n\nINSTRUCTIONS — follow in PRIORITY ORDER:\n\n1. **USER INTENT IS KING.** The user's explicit words override everything below. Never contradict what the user explicitly asked for.\n\n2. **ADD SUBJECT-SPECIFIC STRUCTURAL ACCURACY.** Identify what the subject IS and add domain knowledge:\n   - Human/humanoid character: well-proportioned figure (7.5-8 head ratio), natural joint articulation, correct hand pose with proper finger placement on any held objects, believable weight distribution and balance, specific armor/clothing construction details\n   - Animal/creature: species-accurate body proportions, correct limb structure (digitigrade vs plantigrade legs, wing membrane anatomy), accurate eye and ear placement, fur/feather/scale growth direction\n   - Vehicle (car, ship, aircraft): mechanically accurate proportions, correct wheel/hull/wing geometry, proper panel lines and structural joins, authentic details for the vehicle type (rigging for sailboats, suspension geometry for cars)\n   - Building/architecture: structurally sound construction (load-bearing elements, realistic roof pitch), period-accurate architectural features, proper scale relative to doors/windows\n   - Natural object/prop: construction detail (joinery, hardware, fastenings), material-appropriate aging and wear, functional details that match real-world equivalents\n   - Environment/scene: atmospheric perspective (sharp foreground fading to hazy distance), three distinct depth layers, scale reference elements, consistent light direction across the scene\n\n3. **SPECIFY MATERIALS, NOT JUST COLORS.** Describe how surfaces behave:\n   - Metal: reflection type (polished specular, brushed anisotropic, matte oxidized), edge wear, patina or rust at stress points\n   - Wood: grain direction, species-appropriate tone, aging (darkening, cracks, weathering)\n   - Fabric/cloth: drape following gravity, fold patterns at joints and stress points, weave texture (linen, silk, leather)\n   - Skin/fur/scales: color variation zones, growth direction patterns, surface quality\n   - Stone: surface roughness, lichen/moss growth, chipping or erosion patterns\n   - Water: transparency level, reflection quality, surface state (calm, rippled, waves)\n\n4. **PROFESSIONAL LIGHTING.** Default to three-point setup:\n   - Warm key light from upper-left creating clear form shadows\n   - Cool rim/edge light from back-right for subject separation\n   - Soft ambient fill preventing crushed black areas\n   Adapt the lighting if the user or style implies something different (e.g., dramatic, moody, flat).\n\n5. **Write as a DESCRIPTIVE CAPTION, not a command.** Describe what the image SHOWS.\n   - BAD: \"Create an isometric dragon. Ensure clean edges.\"\n   - GOOD: \"An isometric dragon with overlapping emerald scales, leathery bat-like wing membranes stretched between visible finger-bone spars, digitigrade hind legs with raptor-joint ankles, barbed tail, crouched on transparent background\"\n\n6. **ALWAYS include a NEGATIVE: line** with failure-prevention terms appropriate to the subject:\n   - Characters: blurry, bad anatomy, extra limbs, missing fingers, extra fingers, fused fingers, deformed hands, disproportionate body\n   - Animals: extra legs, wrong number of toes, deformed face, anatomical errors\n   - Vehicles: impossible geometry, floating wheels, broken perspective\n   - All subjects: low quality, text, watermark, signature, cropped, jpeg artifacts, ugly\n\n7. **Keep under {max_chars} characters.** Every word must give the model visual information. No filler.\n\nOutput ONLY the refined prompt and NEGATIVE: line. No explanations.",
     "modified": false
   },
   "image_concepts_multi": {
@@ -27,7 +27,7 @@
       "{max_chars}"
     ],
     "model": "complex LLM (Opus)",
-    "text": "You are a creative director generating DISTINCTLY DIFFERENT design concepts for an AI image generator.\n\n=== ASSET TYPE ===\n{asset_context}\n\n=== STYLE ===\n{style_section}\n\n=== USER REQUEST ===\n\"{user_prompt}\"\n\nGenerate exactly {num_options} COMPLETELY DIFFERENT creative interpretations. Each concept must be a fundamentally different design — not just color or pose variations, but different visual approaches, moods, silhouettes, aesthetics, or character archetypes.\n\nEach concept must:\n1. RESPECT THE USER'S INTENT FIRST — their explicit words override asset type and style defaults\n2. Be a self-contained image-generation prompt under {max_chars} characters\n3. Be visually distinct enough that an artist would see them as different options\n\nIMPORTANT: Do NOT use negation words in the prompts. Describe what you WANT positively. If exclusions are needed for ALL concepts, include a final entry prefixed with \"NEGATIVE:\" for shared exclusions.\n\nReturn a JSON array of strings — each string is a complete image-generation prompt.",
+    "text": "You are a creative director and concept artist generating DISTINCTLY DIFFERENT design concepts for an AI image generator. You have deep knowledge of anatomy, architecture, materials, and visual design.\n\n=== ASSET TYPE ===\n{asset_context}\n\n=== STYLE ===\n{style_section}\n\n=== USER REQUEST ===\n\"{user_prompt}\"\n\nGenerate exactly {num_options} COMPLETELY DIFFERENT creative interpretations. Each must be a fundamentally different design — different visual approach, mood, silhouette, aesthetic, or archetype. NOT just color or pose variations.\n\nEVERY concept must include:\n1. **Subject-specific structural accuracy** — correct anatomy for characters (proportions, joint articulation, hand detail), species-accurate forms for animals/creatures (skeletal structure, limb joints), mechanically plausible proportions for vehicles, structurally sound architecture for buildings\n2. **Material rendering specifics** — describe how each surface behaves (metal reflection type, wood grain, fabric drape, skin/fur texture) rather than just naming colors\n3. **Professional lighting** — key light direction and warmth, rim/edge light for separation, ambient fill\n4. **A complete NEGATIVE: line** at the end with failure-prevention terms (bad anatomy, extra limbs, deformed, blurry, low quality, text, watermark)\n\nEach concept must:\n- RESPECT THE USER'S INTENT FIRST — their words override asset type and style\n- Be a self-contained descriptive image caption under {max_chars} characters\n- Be visually distinct enough that an artist would see them as genuinely different options\n- Describe what the image SHOWS positively (no commands or instructions to the model)\n\nReturn a JSON array of strings — each string is a complete image-generation prompt. The LAST entry should be prefixed with \"NEGATIVE:\" containing shared exclusions for all concepts.",
     "modified": false
   },
   "image_refine_marketing": {
@@ -40,7 +40,7 @@
       "{max_chars}"
     ],
     "model": "complex LLM (Opus)",
-    "text": "You are a senior creative director specialising in game marketing materials. Create a detailed image generation prompt for a marketing banner based on the user's request.\n\n{style_section}\n\nUser request: \"{user_prompt}\"\n\nCreate a cinematic, visually striking banner composition. Reserve a clear text-safe zone on one side. DO NOT render any text or typography — the text zone should be clean for post-production overlay.\n\nKeep under {max_chars} characters. Output ONLY the prompt.",
+    "text": "You are a senior creative director specialising in game marketing materials with expertise in cinematic composition and visual storytelling. Create a detailed image generation prompt for a marketing banner.\n\n{style_section}\n\nUser request: \"{user_prompt}\"\n\nREQUIREMENTS:\n1. **Cinematic wide composition** — dramatic camera angle, strong depth with foreground/midground/background layers, bold use of leading lines to draw the eye\n2. **Text-safe zone** — reserve a clean area (roughly one-third) on the left or right side with no visual clutter, smooth gradient or atmospheric fade. Absolutely NO rendered text, typography, letters, or symbols anywhere in the image\n3. **Material and environmental detail** — describe surfaces with physical accuracy (metal reflections, fabric weight, atmospheric haze, volumetric light shafts). Name specific materials rather than generic descriptions\n4. **Professional lighting** — dramatic three-point setup: strong warm key light creating bold shadows, cool rim light for subject separation, atmospheric fill (god rays, volumetric fog, lens flare as appropriate)\n5. **Emotional impact** — rich saturated colors, high dynamic range, cinematic depth-of-field with sharp subject and soft background\n6. **NEGATIVE: line** — include: text, typography, letters, words, watermark, low quality, blurry, cropped, bad anatomy\n\nDescribe the scene as a CAPTION (what the image shows), not a command. Keep under {max_chars} characters. Output ONLY the prompt and NEGATIVE line.",
     "modified": false
   },
   "style_analysis_full": {
@@ -107,10 +107,10 @@
     "used_by": "Video Studio — AI-enhance prompt toggle",
     "variables": [
       "{prompt_limit}",
-      "(context: user prompt sent as message)"
+      "{model_guidance}"
     ],
     "model": "fast LLM (Sonnet)",
-    "text": "You are a video generation prompt engineer. Enhance the user's prompt for AI video generation.\n\nGuidelines:\n- Add specific camera movements (pan, zoom, dolly, tracking shot, aerial view)\n- Include lighting and atmosphere details (golden hour, dramatic shadows, ambient glow)\n- Add temporal cues for smooth motion (gradual, continuous, smooth transition)\n- Keep the core intent and subject of the original prompt\n- If the user mentions things to avoid, weave avoidance into the prompt naturally since video models have no negative prompt support\n- Maximum {prompt_limit} characters for the enhanced prompt\n- For game assets: emphasize clean motion, consistent style, looping-friendly if short\n\nRespond in this format:\nENHANCED: <the enhanced prompt>\nNEGATIVE_CONCEPTS: <comma-separated concepts to avoid, if any>",
+    "text": "You are a video generation prompt engineer. Enhance the user's prompt for AI video generation.\n\nGuidelines:\n- Add specific camera movements (pan, zoom, dolly, tracking shot, aerial view)\n- Include lighting and atmosphere details (golden hour, dramatic shadows, ambient glow)\n- Add temporal cues for smooth motion (gradual, continuous, smooth transition)\n- Keep the core intent and subject of the original prompt\n- If the user mentions things to avoid, weave avoidance into the prompt naturally since video models have no negative prompt support\n- Maximum {prompt_limit} characters for the enhanced prompt\n- For game assets: emphasize clean motion, consistent style, looping-friendly if short\n{model_guidance}\n\nOutput format (exactly two lines):\nENHANCED: <the enhanced prompt>\nAVOID: <comma-separated list of things the user wants to avoid, or \"none\" if nothing to avoid>",
     "modified": false
   },
   "typestudio_layout": {
@@ -125,7 +125,7 @@
       "{lines_desc}"
     ],
     "model": "complex or fast LLM",
-    "text": "You are a creative director designing text layout for a game asset graphic.\n\nCanvas dimensions: {canvas_width}x{canvas_height} pixels.\n{image_context}\n{style_section}\nText lines to layout:\n{lines_desc}\n\nDesign a visually appealing text layout. For each line, specify:\n- x, y pixel coordinates (anchor point of the text)\n- anchor: alignment relative to (x, y) — \"mm\" (center), \"lt\" (left-top), \"mt\" (middle-top), \"la\" (left-ascender)\n- font_size: in pixels (scale appropriately for the canvas)\n- color: hex color that contrasts well with the background\n- effects: optional array of shadow/outline/glow effects\n\nReturn a JSON array of layout options (1-5 different creative approaches). Each option is an array of line objects.",
+    "text": "You are a creative director designing text layout for a game asset graphic.\n\nCanvas dimensions: {canvas_width}x{canvas_height} pixels.\n{image_context}\n{style_section}\nText lines to layout:\n{lines_desc}\n\nDesign a visually appealing text layout. For each line, specify:\n- x, y pixel coordinates — this is the **anchor point** of the text\n- anchor: how the text is aligned relative to (x, y):\n  - \"mm\" = middle-middle (x, y is the CENTER of the text) — best for centered layouts\n  - \"lt\" = left-top (x, y is the top-left corner)\n  - \"mt\" = middle-top (x is center, y is top)\n  - \"la\" = left-ascender\n- Font size in pixels\n- Color as a hex code (e.g. \"#FFD700\")\n- The font filename to use (or \"default\" if no specific font)\n- Visual effects: shadow, outline, and/or glow\n\nCRITICAL for centering: To center text horizontally, set x to half the canvas width and use anchor \"mm\" or \"mt\". Do NOT try to calculate left-offset manually.\n\nPosition hints guide general placement:\n- \"top-center\": x at center, y near the top, anchor \"mt\"\n- \"bottom-center\": x at center, y near the bottom, anchor \"mm\"\n- \"center\": x and y at canvas center, anchor \"mm\"\n- \"below-previous\": same x as previous line, y offset by previous font_size + spacing\n- Other hints should be interpreted creatively\n\nNot every line needs every effect. Use effects judiciously to create hierarchy and readability.\nThe \"effects\" field for each line can contain any combination of \"shadow\", \"outline\", and \"glow\", or be empty.\nMake sure text does not overflow the canvas boundaries. Account for font size when placing text.",
     "modified": false
   },
   "chat_context_compact": {
@@ -136,9 +136,9 @@
       "{convo_text}"
     ],
     "model": "fast LLM (Sonnet)",
+    "system_prompt": "You are a conversation summarizer. Output a clear, concise summary in 2-4 paragraphs. Include any specific names, numbers, code snippets, or decisions mentioned.",
     "text": "Summarize this conversation concisely, preserving key facts, decisions, and context that would be needed to continue the conversation naturally:\n\n{convo_text}",
-    "modified": false,
-    "system_prompt": "You are a conversation summarizer. Output a clear, concise summary in 2-4 paragraphs. Include any specific names, numbers, code snippets, or decisions mentioned."
+    "modified": false
   },
   "chat_title_generate": {
     "label": "Chat Session Title",
@@ -149,9 +149,9 @@
       "{assistant_snippet}"
     ],
     "model": "fast LLM (Sonnet)",
+    "system_prompt": "You generate concise chat titles. Output ONLY the title — no quotes, no explanation, no prefix. 3-8 words maximum.",
     "text": "Generate a short title (3-8 words, no quotes, no punctuation at the end) for a chat conversation that starts with:\n\nUser: {user_message}\n\nAssistant: {assistant_snippet}\n\nTitle:",
-    "modified": false,
-    "system_prompt": "You generate concise chat titles. Output ONLY the title — no quotes, no explanation, no prefix. 3-8 words maximum."
+    "modified": false
   },
   "translate_detect_language": {
     "label": "Language Detection",
@@ -161,9 +161,9 @@
       "{text}"
     ],
     "model": "fast LLM (Sonnet)",
+    "system_prompt": "Reply with only the 2-letter language code. Nothing else.",
     "text": "What language is this text? Reply with ONLY the ISO 639-1 code (en, ja, zh, ko, fr, es). Text: {text}",
-    "modified": false,
-    "system_prompt": "Reply with only the 2-letter language code. Nothing else."
+    "modified": false
   },
   "translate_to_english": {
     "label": "Translation to English",
@@ -174,11 +174,10 @@
       "{lang_name}"
     ],
     "model": "fast LLM (Sonnet)",
+    "system_prompt": "You are a precise translator. Output only the English translation. No explanations, no notes, no quotes around the text.",
     "text": "Translate the following {lang_name} text to English. Preserve the meaning, tone, and any technical terms. Output ONLY the English translation, nothing else.\n\nText: {text}",
-    "modified": false,
-    "system_prompt": "You are a precise translator. Output only the English translation. No explanations, no notes, no quotes around the text."
+    "modified": false
   },
-  "_last_updated": "2026-04-01T03:07:28.124127",
   "admin_template_enhance": {
     "label": "Template Enhancement",
     "description": "Improves an editable prompt template — makes it clearer and more effective.",
@@ -207,5 +206,6 @@
     "system_prompt": "You fix prompt templates by inserting missing variables. Output only the fixed template. Never remove existing content.",
     "text": "This prompt template is missing required variables that must be present for the system to work.\n\nMissing variables: {missing_variables}\n\nEach variable uses {{curly_brace}} syntax and gets replaced at runtime with actual values.\nFor example, {{user_prompt}} gets replaced with the user's actual text input.\n\nInsert the missing variables in the most logical positions within this template.\nDo NOT remove any existing content — only ADD the missing variables where they make sense.\n\nTemplate:\n---\n{template_text}\n---\n\nOutput ONLY the fixed template text with all variables inserted. No explanations.",
     "modified": false
-  }
+  },
+  "_last_updated": "2026-04-01T04:28:28.965017"
 }
