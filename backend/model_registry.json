@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-03-31T02:53:15.523391",
+  "last_updated": "2026-04-01T07:38:11.937833",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -1675,6 +1675,15 @@
       "region": "us-west-2",
       "provider": "Stability AI",
       "enabled": true
+    },
+    "upscale": {
+      "label": "Creative Upscale",
+      "model_id": "stability.stable-creative-upscale-v1:0",
+      "region": "us-west-2",
+      "provider": "Stability AI",
+      "enabled": true,
+      "purpose": "upscale_creative",
+      "base_price_usd": 0.6
     }
   },
   "bedrock_regions": [
@@ -4233,13 +4242,7 @@
         "ap-northeast-3",
         "ap-south-1",
         "ap-southeast-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-west-1",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
+        "ap-southeast-2"
       ],
       "provider": "Anthropic",
       "enabled": true,
@@ -4564,7 +4567,8 @@
       "available_regions": [
         "us-east-1",
         "us-east-2",
-        "us-west-1"
+        "us-west-1",
+        "us-west-2"
       ],
       "provider": "Writer",
       "enabled": true,
@@ -4585,7 +4589,8 @@
       "available_regions": [
         "us-east-1",
         "us-east-2",
-        "us-west-1"
+        "us-west-1",
+        "us-west-2"
       ],
       "provider": "Writer",
       "enabled": true,
@@ -5008,5 +5013,72 @@
         "ON_DEMAND"
       ]
     }
-  }
+  },
+  "last_synced_summary": "18 new, 135 updated across 33 regions",
+  "sync_failed_regions": [
+    {
+      "region": "af-south-1",
+      "reason": "502: Failed to list models in af-south-1: An error occurred (UnrecognizedClientException) when calli"
+    },
+    {
+      "region": "ap-east-2",
+      "reason": "502: Failed to list models in ap-east-2: An error occurred (UnrecognizedClientException) when callin"
+    },
+    {
+      "region": "ap-south-2",
+      "reason": "502: Failed to list models in ap-south-2: An error occurred (UnrecognizedClientException) when calli"
+    },
+    {
+      "region": "ap-southeast-3",
+      "reason": "502: Failed to list models in ap-southeast-3: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ap-southeast-4",
+      "reason": "502: Failed to list models in ap-southeast-4: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ap-southeast-5",
+      "reason": "502: Failed to list models in ap-southeast-5: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ap-southeast-6",
+      "reason": "502: Failed to list models in ap-southeast-6: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ap-southeast-7",
+      "reason": "502: Failed to list models in ap-southeast-7: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ca-west-1",
+      "reason": "502: Failed to list models in ca-west-1: An error occurred (UnrecognizedClientException) when callin"
+    },
+    {
+      "region": "eu-central-2",
+      "reason": "502: Failed to list models in eu-central-2: An error occurred (UnrecognizedClientException) when cal"
+    },
+    {
+      "region": "eu-south-1",
+      "reason": "502: Failed to list models in eu-south-1: An error occurred (UnrecognizedClientException) when calli"
+    },
+    {
+      "region": "eu-south-2",
+      "reason": "502: Failed to list models in eu-south-2: An error occurred (UnrecognizedClientException) when calli"
+    },
+    {
+      "region": "il-central-1",
+      "reason": "502: Failed to list models in il-central-1: An error occurred (UnrecognizedClientException) when cal"
+    },
+    {
+      "region": "me-central-1",
+      "reason": "502: Failed to list models in me-central-1: An error occurred (UnrecognizedClientException) when cal"
+    },
+    {
+      "region": "me-south-1",
+      "reason": "timed out"
+    },
+    {
+      "region": "mx-central-1",
+      "reason": "502: Failed to list models in mx-central-1: An error occurred (UnrecognizedClientException) when cal"
+    }
+  ]
 }
