@@ -784,27 +784,36 @@
                 ...this._getIpDeclaration(),
             };
 
-            // ── Asset Type Mismatch Check (client-side, no API call) ─────
+            // ── Asset Type Classification (LLM-powered) ─────
             if (window.showConfirm) {
-                const assetCheck = this._checkAssetTypeMismatch(userPrompt, payload.asset_type);
-                if (assetCheck) {
-                    const sugLabel = assetCheck.suggested.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
-                    const curLabel = assetCheck.current.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
-                    const shouldSwitch = await window.showConfirm(
-                        assetCheck.reason,
-                        {
-                            title: `Switch to "${sugLabel}"?`,
-                            detail: `Current type: ${curLabel}`,
-                            confirmLabel: `Switch to ${sugLabel}`,
-                            cancelLabel: `Keep ${curLabel}`,
+                try {
+                    const classifyResp = await fetch('/api/refine-prompt/classify-asset-type', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: userPrompt, asset_type: payload.asset_type }),
+                    });
+                    if (classifyResp.ok) {
+                        const assetCheck = await classifyResp.json();
+                        if (assetCheck.mismatch) {
+                            const sugLabel = (assetCheck.suggested || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                            const curLabel = (assetCheck.current || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                            const shouldSwitch = await window.showConfirm(
+                                assetCheck.reason,
+                                {
+                                    title: `Switch to "${sugLabel}"?`,
+                                    detail: `Your current asset type is "${curLabel}". The AI recommends "${sugLabel}" for this prompt.`,
+                                    confirmLabel: `Switch to ${sugLabel}`,
+                                    cancelLabel: `Keep ${curLabel}`,
+                                }
+                            );
+                            if (shouldSwitch) {
+                                const sel = document.getElementById('gen-asset-type');
+                                if (sel) { sel.value = assetCheck.suggested; sel.dispatchEvent(new Event('change')); }
+                                payload.asset_type = assetCheck.suggested;
+                            }
                         }
-                    );
-                    if (shouldSwitch) {
-                        const sel = document.getElementById('gen-asset-type');
-                        if (sel) { sel.value = assetCheck.suggested; sel.dispatchEvent(new Event('change')); }
-                        payload.asset_type = assetCheck.suggested;
                     }
-                }
+                } catch {}
             }
 
             // ── Prompt Pre-Check (if enabled and not skipped) ─────

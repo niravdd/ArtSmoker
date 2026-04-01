@@ -262,32 +262,37 @@
 
                 let result = await API.refinePrompt(payload);
 
-                // Check for asset type mismatch suggestion
-                if (result.asset_type_suggestion && window.showConfirm) {
-                    const sug = result.asset_type_suggestion;
-                    const sugLabel = sug.suggested.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
-                    const curLabel = sug.current.replace('_', ' ').replace(/\b\w/g, c => c.toUpperCase());
-
-                    const shouldSwitch = await window.showConfirm(
-                        sug.reason,
-                        {
-                            title: `Switch to "${sugLabel}"?`,
-                            detail: `Current type: ${curLabel}. The suggested type may produce better results for your prompt.`,
-                            confirmLabel: `Switch to ${sugLabel}`,
-                            cancelLabel: `Keep ${curLabel}`,
+                // Check for asset type mismatch via LLM classification
+                if (window.showConfirm && this.opts.assetType) {
+                    try {
+                        const classifyResp = await fetch('/api/refine-prompt/classify-asset-type', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: text, asset_type: this.opts.assetType }),
+                        });
+                        if (classifyResp.ok) {
+                            const assetCheck = await classifyResp.json();
+                            if (assetCheck.mismatch) {
+                                const sugLabel = (assetCheck.suggested || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                const curLabel = (assetCheck.current || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                const shouldSwitch = await window.showConfirm(
+                                    assetCheck.reason,
+                                    {
+                                        title: `Switch to "${sugLabel}"?`,
+                                        detail: `Your current asset type is "${curLabel}". The AI recommends "${sugLabel}" for this prompt.`,
+                                        confirmLabel: `Switch to ${sugLabel}`,
+                                        cancelLabel: `Keep ${curLabel}`,
+                                    }
+                                );
+                                if (shouldSwitch) {
+                                    if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(assetCheck.suggested);
+                                    this.opts.assetType = assetCheck.suggested;
+                                    payload.asset_type = assetCheck.suggested;
+                                    result = await API.refinePrompt(payload);
+                                }
+                            }
                         }
-                    );
-
-                    if (shouldSwitch) {
-                        // Update asset type and re-compose with new type
-                        const newType = sug.suggested;
-                        if (this.opts.onAssetTypeChange) {
-                            this.opts.onAssetTypeChange(newType);
-                        }
-                        this.opts.assetType = newType;
-                        payload.asset_type = newType;
-                        result = await API.refinePrompt(payload);
-                    }
+                    } catch {}
                 }
 
                 const composed = result.refined || result.refined_prompt || result;

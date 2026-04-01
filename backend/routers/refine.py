@@ -15,6 +15,51 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/refine-prompt", tags=["refine"])
 
 
+@router.post("/classify-asset-type")
+async def classify_asset_type(body: PromptRefineRequest):
+    """Use an LLM to classify the ideal asset type for a prompt.
+
+    Returns the recommended type and reason. If it differs from the
+    user's current selection, the frontend shows a dialog to switch.
+    """
+    from backend.services.bedrock_client import invoke_llm
+    from backend.services.prompt_templates import get_template, get_system_prompt
+    import json as _json, re as _re
+
+    try:
+        prompt_text = get_template('asset_type_classify').format(user_prompt=body.prompt)
+        raw = invoke_llm(
+            prompt_text,
+            system=get_system_prompt('asset_type_classify'),
+            max_tokens=200,
+            temperature=0.1,
+            complexity="fast",
+        ).strip()
+        cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", raw)
+        cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
+        result = _json.loads(cleaned.strip())
+
+        recommended = result.get("recommended", "game_asset")
+        reason = result.get("reason", "")
+        confidence = result.get("confidence", "medium")
+
+        # Only suggest a change if the recommended type differs from current
+        current = body.asset_type.value if hasattr(body.asset_type, 'value') else str(body.asset_type)
+        if recommended != current and confidence in ("high", "medium"):
+            return {
+                "current": current,
+                "suggested": recommended,
+                "reason": reason,
+                "confidence": confidence,
+                "mismatch": True,
+            }
+        return {"current": current, "suggested": current, "mismatch": False}
+
+    except Exception as exc:
+        logger.warning("Asset type classification failed: %s", exc)
+        return {"current": str(body.asset_type), "suggested": str(body.asset_type), "mismatch": False}
+
+
 def _detect_asset_type_mismatch(prompt: str, asset_type) -> dict | None:
     """Detect when the user's prompt implies a different asset type than selected.
 

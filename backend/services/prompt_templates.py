@@ -360,6 +360,34 @@ Make sure text does not overflow the canvas boundaries. Account for font size wh
         "text": "Translate the following {lang_name} text to English. Preserve the meaning, tone, and any technical terms. Output ONLY the English translation, nothing else.\n\nText: {text}",
     },
 
+    # ── Asset Classification ─────────────────────────────────────────
+
+    "asset_type_classify": {
+        "label": "Asset Type Classification",
+        "description": "Classifies a user prompt into the best-matching asset type before generation.",
+        "used_by": "Image Studio — before generation, to suggest the right asset type",
+        "variables": ["{user_prompt}"],
+        "model": "fast LLM (Sonnet)",
+        "system_prompt": "You classify image generation prompts. Reply with ONLY a JSON object, no explanation.",
+        "text": """Classify this image generation prompt into the best asset type.
+
+Prompt: "{user_prompt}"
+
+Asset types:
+- game_asset: A single isolated object, item, or prop on a transparent background. No scene, no characters. Examples: a sword, a treasure chest, a potion bottle, a tree, a crystal.
+- character: A person, humanoid, creature, or animal — with or without a scene/setting. Any prompt describing a living being with personality, pose, or action. Examples: a warrior, a female sailor on a ship, a dragon, a fox, a wizard in a tower.
+- environment: A landscape, scene, location, or architectural setting WITHOUT a central character figure. Examples: a medieval village, a dark forest, an underwater cave, a space station interior.
+- marketing_banner: A wide cinematic scene designed for promotional use, with dramatic composition and space for text overlay. Only if the user explicitly mentions banner, promotional, marketing, or advertisement.
+- icon: A simple bold symbol for use as a UI icon or app icon. Only if the user mentions icon, button, or the description is extremely simple and symbolic.
+
+Respond with ONLY this JSON (no markdown fences):
+{{
+  "recommended": "game_asset" | "character" | "environment" | "marketing_banner" | "icon",
+  "reason": "One sentence explaining why",
+  "confidence": "high" | "medium" | "low"
+}}""",
+    },
+
     # ── Admin Templates ────────────────────────────────────────────────
 
     "admin_template_enhance": {
