@@ -810,10 +810,48 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 - **Chat Studio** — discovered chat/LLM models with context window, vision support, pricing per 1K tokens
 - **Type Studio** — LLM model used for text layout generation
 - **Shared Studio** — cross-studio LLM categories (Fast/Complex/Fallback LLM, Voice), post-processing models
-- **Prompt Templates** — 14 editable LLM directive prompts organized by studio with two-level navigation
+- **Prompt Templates** — 16 editable LLM directive prompts organized by studio with two-level navigation
 - **Registry JSON** — raw JSON editor for the full model registry
 
 All sections are collapsible with Show All / Hide All toggles. Clicking "Model Settings" in any studio opens the modal to the relevant tab. The modal is 72rem wide.
+
+**Layered configuration (defaults + user overrides)**:
+
+Both the model registry and prompt templates use a two-file layered system that separates system data from user preferences:
+
+```
+model_registry.json          (git-tracked, source of truth)
+├── format_families          ← code defaults (15 families)
+├── image_models             ← discovered by Sync from AWS
+├── video_models             ← discovered by Sync from AWS
+├── chat_models              ← discovered by Sync from AWS
+├── categories               ← default LLM selections
+├── post_processing          ← discovered by Sync from AWS
+├── bedrock_regions          ← discovered by Sync from AWS
+└── image_pricing            ← fetched by Sync from AWS
+
+model_registry.user.json     (gitignored, user preferences only)
+├── image_models.X.enabled   ← user disabled this model
+├── categories.fast_llm      ← user's LLM category choice
+└── video_models.Y.enabled   ← user disabled this model
+
+prompt_templates.json        (git-tracked, regenerated from code on startup)
+└── 16 default templates     ← always reflects current code version
+
+prompt_templates.user.json   (gitignored, user edits only)
+├── chat_title_generate.text ← user customized this template
+└── translate_to_english.system_prompt ← user customized system prompt
+```
+
+**Load order** (every server start): main file → overlay `.user.json` on top. User preferences always win.
+
+**Sync from AWS**: Writes discovered models, pricing, and regions to `model_registry.json`. User preferences in `.user.json` are preserved — a user who disabled a model keeps it disabled even after Sync re-discovers it.
+
+**Git pull / auto-update**: Updates `model_registry.json` (format families, code defaults) and `prompt_templates.json` (regenerated from code `_DEFAULTS`). User `.user.json` files are gitignored and untouched.
+
+**Deleting `.user.json`**: Restores all settings to defaults. No user preferences leak into the main files.
+
+**Prompt templates**: Code `_DEFAULTS` are the source of truth for template defaults. `prompt_templates.json` is regenerated from code on every startup, so it always reflects the latest code version. User edits are stored in `prompt_templates.user.json` with only the changed `text` and/or `system_prompt` fields.
 
 **Registry as single source of truth**: The application code contains **zero hardcoded model IDs, API parameters, or invocation templates**. Everything the system needs to invoke any Bedrock service — model IDs, regions, request body structures, prompt paths, negative prompt paths, mask paths, seed ranges, quality tiers, dimension modes, response parsing, pricing, and parameter constraints — is stored in `model_registry.json` and read at runtime. The format families define the complete API contract for each provider/service type, including a `parameters` spec with types, ranges, defaults, and descriptions for every configurable field. This means:
 

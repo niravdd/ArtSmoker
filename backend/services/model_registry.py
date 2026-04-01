@@ -464,6 +464,114 @@ _DEFAULT_FORMAT_FAMILIES = {
 }
 
 
+_DEFAULT_CATEGORIES = {
+    "fast_llm": {
+        "current": "us.anthropic.claude-sonnet-4-6",
+        "region": "us-west-2",
+        "provider": "Anthropic",
+        "api_type": "converse",
+        "label": "Fast LLM (Sonnet)",
+        "description": "Quick tasks: prompt refinement, hints, pre-check, cohesion check",
+    },
+    "complex_llm": {
+        "current": "us.anthropic.claude-opus-4-6-v1",
+        "region": "us-west-2",
+        "provider": "Anthropic",
+        "api_type": "converse",
+        "label": "Complex LLM (Opus)",
+        "description": "Complex tasks: style analysis, concept generation, Type Studio layout",
+    },
+    "fallback_llm": {
+        "current": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+        "region": "us-west-2",
+        "provider": "Anthropic",
+        "api_type": "converse",
+        "label": "Fallback LLM",
+        "description": "Fallback on AccessDeniedException from primary models",
+    },
+    "voice": {
+        "current": "amazon.nova-sonic-v1:0",
+        "region": "us-east-1",
+        "provider": "Amazon",
+        "api_type": "bidirectional_stream",
+        "label": "Voice (Nova Sonic)",
+        "description": "Speech-to-text transcription via bidirectional streaming",
+    },
+}
+
+_DEFAULT_IMAGE_MODELS = {
+    "nova_canvas": {
+        "label": "Amazon Nova Canvas",
+        "model_id": "amazon.nova-canvas-v1:0",
+        "region": "us-east-1",
+        "provider": "Amazon",
+        "enabled": True,
+        "model_purpose": "text_to_image",
+        "format_family": "amazon_text_to_image",
+        "prompt_limit": 1024,
+        "moderation_strictness": "very_strict",
+        "base_price_usd": 0.06,
+    },
+    "titan_image": {
+        "label": "Amazon Titan Image v2",
+        "model_id": "amazon.titan-image-generator-v2:0",
+        "region": "us-east-1",
+        "provider": "Amazon",
+        "enabled": True,
+        "model_purpose": "text_to_image",
+        "format_family": "amazon_text_to_image",
+        "prompt_limit": 480,
+        "moderation_strictness": "strict",
+        "base_price_usd": 0.01,
+    },
+    "sd35_large": {
+        "label": "Stable Diffusion 3.5 Large",
+        "model_id": "stability.sd3-5-large-v1:0",
+        "region": "us-west-2",
+        "provider": "Stability AI",
+        "enabled": True,
+        "model_purpose": "text_to_image",
+        "format_family": "stability_text_to_image",
+        "prompt_limit": 2048,
+        "moderation_strictness": "moderate",
+        "base_price_usd": 0.08,
+    },
+    "stable_image_ultra": {
+        "label": "Stable Image Ultra",
+        "model_id": "stability.stable-image-ultra-v1:1",
+        "region": "us-west-2",
+        "provider": "Stability AI",
+        "enabled": True,
+        "model_purpose": "text_to_image",
+        "format_family": "stability_text_to_image",
+        "prompt_limit": 2048,
+        "moderation_strictness": "moderate",
+        "base_price_usd": 0.14,
+    },
+}
+
+_DEFAULT_POST_PROCESSING = {
+    "remove_background": {
+        "label": "Remove Background",
+        "model_id": "us.stability.stable-image-remove-background-v1:0",
+        "region": "us-west-2",
+        "provider": "Stability AI",
+        "enabled": True,
+        "purpose": "remove_background",
+        "base_price_usd": 0.07,
+    },
+    "upscale": {
+        "label": "Creative Upscale",
+        "model_id": "stability.stable-creative-upscale-v1:0",
+        "region": "us-west-2",
+        "provider": "Stability AI",
+        "enabled": True,
+        "purpose": "upscale_creative",
+        "base_price_usd": 0.60,
+    },
+}
+
+
 def ensure_format_families():
     """Ensure all known format families exist in the registry with complete parameter specs.
 
@@ -490,9 +598,49 @@ def ensure_format_families():
         _save()
 
 
+def ensure_code_defaults():
+    """Ensure all code-defined defaults exist in the registry.
+
+    Populates missing categories, base image models, and post-processing
+    entries from code defaults. Existing entries are never overwritten —
+    only missing ones are added. This means a deleted model_registry.json
+    gets rebuilt with a working foundation on startup.
+    """
+    global _registry
+    changed = False
+
+    # Categories
+    cats = _registry.setdefault("categories", {})
+    for name, default in _DEFAULT_CATEGORIES.items():
+        if name not in cats:
+            cats[name] = default
+            changed = True
+            logger.info("Added default category: %s", name)
+
+    # Base image models
+    models = _registry.setdefault("image_models", {})
+    for key, default in _DEFAULT_IMAGE_MODELS.items():
+        if key not in models:
+            models[key] = default
+            changed = True
+            logger.info("Added default image model: %s", key)
+
+    # Post-processing
+    pp = _registry.setdefault("post_processing", {})
+    for key, default in _DEFAULT_POST_PROCESSING.items():
+        if key not in pp:
+            pp[key] = default
+            changed = True
+            logger.info("Added default post-processing: %s", key)
+
+    if changed:
+        _save()
+
+
 # ── Load on import ────────────────────────────────────────────────────────
 _load()
-ensure_format_families()  # Populate any missing format families from code defaults
+ensure_format_families()
+ensure_code_defaults()
 
 
 # ── Public API ────────────────────────────────────────────────────────────
