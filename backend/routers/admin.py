@@ -1181,6 +1181,11 @@ async def refresh_all_regions():
             disabled.append(key)
             logger.info("Disabled model %s — no longer found in any region", key)
 
+    # Stamp the registry with sync timestamp
+    from datetime import datetime, timezone
+    registry["last_synced"] = datetime.now(timezone.utc).isoformat()
+    _save()
+
     return {
         "regions_scanned": len(all_regions),
         "total_new": total_new,

@@ -70,6 +70,42 @@ logger = logging.getLogger(__name__)
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 
+# ── Config Freshness Check ────────────────────────────────────────────────
+
+def _check_and_refresh_configs():
+    """Check if model registry needs first-time Sync from AWS.
+
+    Looks for a 'last_synced' field in the registry — this is only set by
+    a successful Sync from AWS. If missing, this is a fresh deployment that
+    has never been synced → auto-Sync will run after credential validation.
+
+    Prompt templates are always regenerated from code _DEFAULTS on startup
+    (handled by prompt_templates._load()).
+    """
+    import json
+
+    try:
+        from backend.services.model_registry import _REGISTRY_PATH
+        needs_sync = False
+        if _REGISTRY_PATH.exists():
+            data = json.loads(_REGISTRY_PATH.read_text())
+            if data.get("last_synced"):
+                logger.info("Model registry: last synced %s", data["last_synced"][:19])
+            else:
+                logger.info("Model registry: never synced — will auto-Sync from AWS")
+                needs_sync = True
+        else:
+            logger.info("Model registry: file missing — will auto-Sync from AWS")
+            needs_sync = True
+
+        _check_and_refresh_configs._needs_registry_sync = needs_sync
+    except Exception as exc:
+        logger.warning("Model registry check failed: %s", exc)
+        _check_and_refresh_configs._needs_registry_sync = False
+
+_check_and_refresh_configs._needs_registry_sync = False
+
+
 # ── Lifespan ───────────────────────────────────────────────────────────────
 
 _aws_status: dict = {}
@@ -101,6 +137,9 @@ async def lifespan(app: FastAPI):
     (settings.data_dir / "chat").mkdir(parents=True, exist_ok=True)
     logger.info("Data directories ensured: %s", settings.data_dir)
 
+    # Check if model registry and prompt templates need regeneration
+    _check_and_refresh_configs()
+
     # Validate AWS credentials and Bedrock access
     logger.info("Validating AWS credentials and Bedrock model access...")
     _aws_status = validate_aws_credentials()
@@ -129,6 +168,30 @@ async def lifespan(app: FastAPI):
         )
     else:
         logger.info("All AWS checks passed. Identity: %s", _aws_status["identity"])
+
+    # Auto-Sync model registry if stale or missing (requires valid AWS credentials)
+    if _check_and_refresh_configs._needs_registry_sync and _aws_status.get("credentials"):
+        try:
+            logger.info(
+                "╔══════════════════════════════════════════════════════════════╗\n"
+                "║  AUTO-SYNC: Discovering models from AWS Bedrock...          ║\n"
+                "║  This runs once on first deployment and when the registry   ║\n"
+                "║  is older than 24 hours. May take 30-60 seconds.           ║\n"
+                "╚══════════════════════════════════════════════════════════════╝"
+            )
+            from backend.routers.admin import refresh_all_regions
+            import asyncio
+            sync_result = await refresh_all_regions()
+            logger.info(
+                "Auto-Sync complete: %d new models, %d updated, %d regions scanned",
+                sync_result.get("total_new", 0),
+                sync_result.get("total_updated", 0),
+                sync_result.get("regions_scanned", 0),
+            )
+        except Exception as exc:
+            logger.warning("Auto-Sync failed (you can Sync manually from Model Settings): %s", exc)
+    elif _check_and_refresh_configs._needs_registry_sync:
+        logger.warning("Model registry needs refresh but AWS credentials not available. Run Sync from Model Settings after configuring credentials.")
 
     # Initialize telemetry
     from backend.services.telemetry import init as telemetry_init, track_server_start, track_server_stop, track_auto_update
