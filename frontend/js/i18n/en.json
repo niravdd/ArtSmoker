@@ -772,7 +772,7 @@
     "no_models": "No image models in registry. Click \"Sync from AWS\" to discover available models.",
     "no_video_models": "No video models in registry. Click \"Sync from AWS\" to discover available models.",
     "no_chat_models": "No chat models discovered yet. Click \"Sync from AWS\" to discover available LLMs.",
-    "sync_confirm": "Scan all AWS Bedrock regions for models and pricing?",
+    "sync_confirm": "Scan all Amazon Bedrock regions for models and pricing?",
     "sync_title": "Sync from AWS",
     "sync_detail": "Discovers foundation, custom, and imported models, and fetches pricing.\n\nMakes multiple API calls — may take 30-60 seconds.",
     "sync_detail_full": "This discovers foundation, custom, and imported models, and fetches pricing data.\n\nMakes multiple AWS API calls — may take 30–60 seconds.\n\nRun this only when:\n• Setting up for the first time\n• AWS has released new models\n• You’ve created or imported custom models\n• You need updated pricing",

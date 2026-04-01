@@ -522,7 +522,7 @@
     "style_transfer": "Style — Transfert",
     "sync_aws": "Synchroniser depuis AWS",
     "sync_complete": "Synchronisation terminée",
-    "sync_confirm": "Scanner toutes les régions AWS Bedrock pour les modèles et la tarification ?",
+    "sync_confirm": "Scanner toutes les régions Amazon Bedrock pour les modèles et la tarification ?",
     "sync_detail": "Découvre les modèles de base, personnalisés et importés, et récupère la tarification.\n\nEffectue plusieurs appels API — peut prendre 30 à 60 secondes.",
     "sync_detail_full": "Cette opération découvre les modèles de base, personnalisés et importés, et récupère les données de tarification.\n\nEffectue plusieurs appels API AWS — peut prendre 30 à 60 secondes.\n\nExécutez cette opération uniquement dans les cas suivants :\n• Configuration initiale\n• AWS a publié de nouveaux modèles\n• Vous avez créé ou importé des modèles personnalisés\n• Vous avez besoin d'une tarification mise à jour",
     "sync_failed": "Échec de la synchronisation",

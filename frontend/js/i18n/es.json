@@ -522,7 +522,7 @@
     "style_transfer": "Estilo — Transferencia",
     "sync_aws": "Sincronizar desde AWS",
     "sync_complete": "Sincronizacion completada",
-    "sync_confirm": "Escanear todas las regiones de AWS Bedrock en busca de modelos y precios?",
+    "sync_confirm": "Escanear todas las regiones de Amazon Bedrock en busca de modelos y precios?",
     "sync_detail": "Descubre modelos base, personalizados e importados, y obtiene precios.\n\nRealiza multiples llamadas API — puede tardar 30-60 segundos.",
     "sync_detail_full": "Esto descubre modelos base, personalizados e importados, y obtiene datos de precios.\n\nRealiza múltiples llamadas a la API de AWS — puede tardar entre 30 y 60 segundos.\n\nEjecútelo solo cuando:\n• Configure el sistema por primera vez\n• AWS haya lanzado nuevos modelos\n• Haya creado o importado modelos personalizados\n• Necesite precios actualizados",
     "sync_failed": "La sincronizacion fallo",

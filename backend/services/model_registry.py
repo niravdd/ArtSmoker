@@ -116,7 +116,10 @@ def _save():
 
     output["last_updated"] = datetime.utcnow().isoformat()
     _REGISTRY_PATH.write_text(json.dumps(output, indent=2, default=str))
-    logger.info("Model registry saved.")
+    if not _save._silent:
+        logger.info("Model registry saved.")
+
+_save._silent = False
 
 
 def _strip_user_prefs_from_output(output: dict, prefs: dict):

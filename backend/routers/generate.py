@@ -919,8 +919,12 @@ async def generate_asset_stream(body: GenerationRequest):
         return f"data: {json.dumps(data, default=str)}\n\n"
 
     # Check for asset type mismatch (before starting generation)
-    from backend.routers.refine import _detect_asset_type_mismatch
-    asset_suggestion = _detect_asset_type_mismatch(body.prompt, body.asset_type)
+    asset_suggestion = None
+    try:
+        from backend.routers.refine import _detect_asset_type_mismatch
+        asset_suggestion = _detect_asset_type_mismatch(body.prompt, body.asset_type)
+    except Exception:
+        pass  # Non-critical — don't block generation
 
     def generate():
         # Emit asset type suggestion as first event if detected

@@ -522,7 +522,7 @@
     "style_transfer": "风格 — 迁移",
     "sync_aws": "从 AWS 同步",
     "sync_complete": "同步完成",
-    "sync_confirm": "扫描所有 AWS Bedrock 区域以发现模型和定价？",
+    "sync_confirm": "扫描所有 Amazon Bedrock 区域以发现模型和定价？",
     "sync_detail": "发现基础模型、自定义模型和导入模型，并获取定价信息。\n\n将发起多个 API 调用 — 可能需要 30-60 秒。",
     "sync_detail_full": "此操作将发现基础模型、自定义模型和导入模型，并获取定价数据。\n\n将发起多次 AWS API 调用——可能需要 30–60 秒。\n\n仅在以下情况下运行：\n• 首次配置\n• AWS 发布了新模型\n• 您已创建或导入自定义模型\n• 需要更新定价信息",
     "sync_failed": "同步失败",

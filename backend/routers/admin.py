@@ -3,8 +3,12 @@
 import logging
 
 import boto3
+from botocore.config import Config as _BotoConfig
 from fastapi import APIRouter, HTTPException, Query, Request
 from pydantic import BaseModel
+
+# Shorter timeouts for discovery — skip unreachable regions quickly
+_DISCOVERY_CONFIG = _BotoConfig(connect_timeout=10, read_timeout=15, retries={"max_attempts": 1})
 
 from backend.services.model_registry import (
     add_image_model,
@@ -571,8 +575,7 @@ async def auto_register_image_models(region: str):
     Returns summary of new registrations and region updates.
     """
     try:
-        session = boto3.Session()
-        bedrock = session.client("bedrock", region_name=region)
+        bedrock = boto3.Session().client("bedrock", region_name=region, config=_DISCOVERY_CONFIG)
         response = bedrock.list_foundation_models()
     except Exception as exc:
         raise HTTPException(502, detail=f"Failed to list models in {region}: {exc}")
@@ -851,7 +854,7 @@ async def auto_register_image_models(region: str):
                     regions.sort()
                     backfill["available_regions"] = regions
                     updated.append({"key": existing_key, "model_id": model_id, "added_region": region})
-                    logger.info("Updated %s: added region %s (now %s)", existing_key, region, regions)
+                    logger.debug("Updated %s: added region %s (now %s)", existing_key, region, regions)
 
                 if backfill:
                     update_image_model(existing_key, backfill)
@@ -1063,7 +1066,7 @@ def _fetch_image_pricing() -> dict:
             if not next_token:
                 break
 
-        logger.info("Fetched %d image pricing entries from AWS Pricing API", len(prices))
+        logger.debug("Fetched %d image pricing entries from AWS Pricing API", len(prices))
         return prices
     except Exception as exc:
         logger.warning("Failed to fetch pricing data: %s", exc)
@@ -1119,14 +1122,14 @@ async def refresh_all_regions():
     registry = get_registry()
     registry["bedrock_regions"] = all_regions
     _save()
-    logger.info("Stored %d Bedrock regions in registry", len(all_regions))
+    logger.debug("Stored %d Bedrock regions in registry", len(all_regions))
 
     # Step 2b: Fetch per-image pricing from AWS Pricing API
     pricing_data = _fetch_image_pricing()
     if pricing_data:
         registry["image_pricing"] = pricing_data
         _save()
-        logger.info("Stored pricing for %d model-region combos", len(pricing_data))
+        logger.debug("Stored pricing for %d model-region combos", len(pricing_data))
 
     # Step 2c: Reset all available_regions before scanning — so stale regions
     # are pruned automatically. Each region scan in Step 3 re-adds itself.
@@ -1179,7 +1182,7 @@ async def refresh_all_regions():
         if not regions and cfg.get("enabled"):
             update_image_model(key, {"enabled": False})
             disabled.append(key)
-            logger.info("Disabled model %s — no longer found in any region", key)
+            logger.debug("Disabled model %s — no longer found in any region", key)
 
     # Stamp as discovered — written to .user.json (gitignored) so fresh clones still trigger auto-Sync
     from datetime import datetime, timezone
@@ -1206,8 +1209,7 @@ async def discover_models(region: str):
     Only shows the latest version of each model family.
     """
     try:
-        session = boto3.Session()
-        bedrock = session.client("bedrock", region_name=region)
+        bedrock = boto3.Session().client("bedrock", region_name=region, config=_DISCOVERY_CONFIG)
         response = bedrock.list_foundation_models()
     except Exception as exc:
         raise HTTPException(502, detail=f"Failed to list models in {region}: {exc}")
@@ -1306,8 +1308,7 @@ def _discover_custom_models(region: str) -> dict:
         _save,
     )
 
-    session = boto3.Session()
-    bedrock = session.client("bedrock", region_name=region)
+    bedrock = boto3.Session().client("bedrock", region_name=region, config=_DISCOVERY_CONFIG)
     registry = get_registry()
 
     registered = []

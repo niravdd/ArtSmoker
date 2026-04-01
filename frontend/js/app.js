@@ -324,15 +324,150 @@
     })();
 
     // Fetch version from backend — store globally, apply to all views
+    // Also check if server is still starting up (auto-Sync in progress)
     let _appVersion = '';
-    fetch('/api/health').then(r => r.json()).then(data => {
-        if (data.version) {
-            _appVersion = data.version;
-            _applyVersion();
-            // Retry shortly in case view was still rendering when health resolved
-            setTimeout(_applyVersion, 500);
+    function _checkHealth() {
+        fetch('/api/health').then(r => r.json()).then(data => {
+            if (data.version) {
+                _appVersion = data.version;
+                _applyVersion();
+                setTimeout(_applyVersion, 500);
+            }
+            // Show sync-in-progress modal if server is still starting
+            if (data.sync_in_progress) {
+                _showSyncModal(data.sync_message || 'Discovering model availability in Amazon Bedrock...', true);
+                setTimeout(_checkHealth, 3000);
+            } else if (!data.ready) {
+                _showSyncModal('Server starting up...', false);
+                setTimeout(_checkHealth, 2000);
+            } else if (data.sync_error) {
+                _closeSyncModal(true, data.sync_error);
+            } else {
+                _closeSyncModal(false);
+            }
+        }).catch(() => {
+            // Server not responding yet — retry
+            setTimeout(_checkHealth, 2000);
+        });
+    }
+    _checkHealth();
+
+    let _syncModal = null;
+    let _sseConnected = false;
+    function _showSyncModal(message, connectSSE) {
+        if (_syncModal) {
+            _syncModal.querySelector('.sync-msg').textContent = message;
+            // Connect SSE if not yet connected and sync is active
+            if (connectSSE && !_sseConnected) _connectSyncSSE();
+            return;
         }
-    }).catch(() => {});
+        _syncModal = document.createElement('div');
+        _syncModal.className = 'fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
+        _syncModal.innerHTML = `
+            <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-8 space-y-4">
+                <div class="text-center">
+                    <div class="text-3xl mb-2 sync-timer" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
+                    <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
+                    <h3 class="text-sm font-semibold text-brand-text">Setting Up ArtSmoker</h3>
+                    <p class="text-xs text-brand-text-muted mt-1">Apologies for the wait — this is a one-time setup to discover which AI models are available in Amazon Bedrock in your AWS account. This ensures ArtSmoker shows you only the models you have access to, with accurate pricing for your regions.</p>
+                </div>
+                <div class="bg-black/20 rounded-lg p-3 space-y-2">
+                    <p class="sync-msg text-xs text-brand-accent font-medium">${message}</p>
+                    <div class="sync-counts text-[10px] text-brand-text-muted flex gap-4"></div>
+                    <div class="sync-log text-[10px] text-brand-text-muted/50 max-h-32 overflow-y-auto font-mono space-y-0.5"></div>
+                </div>
+            </div>`;
+        document.body.appendChild(_syncModal);
+
+        // Connect SSE if sync is active
+        if (connectSSE) _connectSyncSSE();
+    }
+
+    function _connectSyncSSE() {
+        if (_sseConnected) return;
+        _sseConnected = true;
+        try {
+            const sse = new EventSource('/api/sync-progress');
+            sse.onmessage = (e) => {
+                try {
+                    const d = JSON.parse(e.data);
+                    if (d.ready || d.message === 'done') {
+                        sse.close();
+                        return;
+                    }
+                    const msgEl = _syncModal?.querySelector('.sync-msg');
+                    if (msgEl) msgEl.textContent = d.message;
+                    // Update model counts
+                    const countsEl = _syncModal?.querySelector('.sync-counts');
+                    if (countsEl && d.models) {
+                        const parts = [];
+                        if (d.models.image) parts.push(`🖼 ${d.models.image} image`);
+                        if (d.models.chat) parts.push(`💬 ${d.models.chat} chat`);
+                        if (d.models.video) parts.push(`🎬 ${d.models.video} video`);
+                        const regionMatch = d.message?.match(/(\d+)\/(\d+)/);
+                        const regionInfo = regionMatch ? `across ${regionMatch[1]} of ${regionMatch[2]} regions` : 'in Amazon Bedrock';
+                        if (parts.length) countsEl.textContent = `Models discovered ${regionInfo}: ${parts.join('  ·  ')}`;
+                    }
+                    // Prepend to log (newest on top), mark previous as done
+                    const logEl = _syncModal?.querySelector('.sync-log');
+                    if (logEl && d.message) {
+                        const prev = logEl.firstChild;
+                        if (prev && prev.dataset.active) {
+                            prev.dataset.active = '';
+                            prev.textContent = prev.textContent.replace(/^⟳ /, '✓ ');
+                            prev.classList.remove('text-brand-accent');
+                            prev.classList.add('text-brand-text-muted/40');
+                        }
+                        const line = document.createElement('div');
+                        line.textContent = '⟳ ' + d.message;
+                        line.dataset.active = '1';
+                        line.classList.add('text-brand-accent');
+                        logEl.prepend(line);
+                    }
+                } catch {}
+            };
+            sse.onerror = () => { sse.close(); _sseConnected = false; };
+        } catch { _sseConnected = false; }
+    }
+    function _closeSyncModal(hadError, errorMsg) {
+        if (!_syncModal) return;
+        const inner = _syncModal.querySelector('.bg-brand-surface');
+        if (hadError) {
+            inner.innerHTML = `
+                <div class="text-3xl mb-2">⚠</div>
+                <h3 class="text-sm font-semibold text-amber-400">Model Discovery Failed</h3>
+                <p class="text-xs text-brand-text-muted">Automatic model discovery was unsuccessful. Please run <strong>Sync from AWS</strong> in Model Settings before using ArtSmoker.</p>
+                <p class="text-[10px] text-brand-text-muted/50 mt-1">${errorMsg || 'Unknown error'}</p>
+                <div class="flex gap-2 justify-center mt-4">
+                    <button class="sync-open-settings btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Open Model Settings</button>
+                    <button class="sync-dismiss btn btn-sm text-xs px-5 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Dismiss</button>
+                </div>`;
+            inner.querySelector('.sync-open-settings').addEventListener('click', () => {
+                _syncModal.remove();
+                _syncModal = null;
+                // Open Model Settings modal
+                if (window.ModelSettings?.open) window.ModelSettings.open();
+            });
+            inner.querySelector('.sync-dismiss').addEventListener('click', () => {
+                _syncModal.remove();
+                _syncModal = null;
+            });
+            return;
+        } else {
+            inner.innerHTML = `
+                <div class="text-3xl mb-2">✓</div>
+                <h3 class="text-sm font-semibold text-brand-text">ArtSmoker Ready</h3>
+                <p class="text-xs text-brand-text-muted">All models discovered. You're good to go.</p>
+                <button class="btn btn-sm text-xs px-6 py-2 mt-3 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">OK</button>`;
+        }
+        inner.querySelector('button').addEventListener('click', () => {
+            _syncModal.remove();
+            _syncModal = null;
+            // Reload the current view so model dropdowns pick up discovered models
+            window.resetView?.(window.location.hash.slice(1) || 'image-studio');
+            window.dispatchEvent(new HashChangeEvent('hashchange'));
+        });
+    }
 
     function _applyVersion() {
         if (!_appVersion) return;

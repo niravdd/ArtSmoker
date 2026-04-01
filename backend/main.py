@@ -54,6 +54,12 @@ for _uv_name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
     _uv_logger.handlers = [_color_handler]
     _uv_logger.propagate = False
 
+# Suppress noisy third-party loggers
+logging.getLogger("botocore.credentials").setLevel(logging.WARNING)
+logging.getLogger("botocore.httpsession").setLevel(logging.WARNING)
+logging.getLogger("botocore.parsers").setLevel(logging.WARNING)
+logging.getLogger("urllib3.connectionpool").setLevel(logging.WARNING)
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -95,10 +101,10 @@ def _check_and_refresh_configs():
             if ts:
                 logger.info("Model registry: AWS account discovered %s", ts[:19])
             else:
-                logger.info("Model registry: never synced — will auto-Sync from AWS")
+                logger.info("Model registry: model availability in Amazon Bedrock not yet discovered — will auto-Sync")
                 needs_sync = True
         else:
-            logger.info("Model registry: first deployment — will auto-Sync from AWS")
+            logger.info("Model registry: model availability in Amazon Bedrock not yet discovered — will auto-Sync")
             needs_sync = True
 
         _check_and_refresh_configs._needs_registry_sync = needs_sync
@@ -112,6 +118,7 @@ _check_and_refresh_configs._needs_registry_sync = False
 # ── Lifespan ───────────────────────────────────────────────────────────────
 
 _aws_status: dict = {}
+_server_state: dict = {"ready": False, "sync_in_progress": False, "sync_message": ""}
 
 
 @asynccontextmanager
@@ -174,27 +181,147 @@ async def lifespan(app: FastAPI):
 
     # Auto-Sync model registry if stale or missing (requires valid AWS credentials)
     if _check_and_refresh_configs._needs_registry_sync and _aws_status.get("credentials"):
-        try:
-            logger.info(
-                "╔══════════════════════════════════════════════════════════════╗\n"
-                "║  AUTO-SYNC: Discovering models from AWS Bedrock...          ║\n"
-                "║  This runs once on first deployment and when the registry   ║\n"
-                "║  is older than 24 hours. May take 30-60 seconds.           ║\n"
-                "╚══════════════════════════════════════════════════════════════╝"
-            )
-            from backend.routers.admin import refresh_all_regions
+        # Run Sync in a background thread so the server starts immediately.
+        # The frontend shows a "Setting Up" modal while sync_in_progress is true.
+        import threading
+
+        def _sync_progress(msg):
+            _server_state["sync_message"] = msg
+            _server_state.setdefault("sync_log", []).append(msg)
+
+        def _run_sync():
             import asyncio
-            sync_result = await refresh_all_regions()
-            logger.info(
-                "Auto-Sync complete: %d new models, %d updated, %d regions scanned",
-                sync_result.get("total_new", 0),
-                sync_result.get("total_updated", 0),
-                sync_result.get("regions_scanned", 0),
-            )
-        except Exception as exc:
-            logger.warning("Auto-Sync failed (you can Sync manually from Model Settings): %s", exc)
+            try:
+                _server_state["sync_in_progress"] = True
+                _server_state["sync_log"] = []
+                _sync_progress("Discovering model availability in Amazon Bedrock in your AWS account...")
+                logger.info("Auto-Sync: %s", _server_state["sync_message"])
+
+                from backend.routers.admin import refresh_all_regions, _get_bedrock_regions, _fetch_image_pricing
+                from backend.services.model_registry import get_registry, _save as _reg_save
+                _reg_save._silent = True
+
+                try:
+                    # Step 1: Discover regions
+                    _sync_progress("Discovering Amazon Bedrock regions...")
+                    all_regions = _get_bedrock_regions()
+                    registry = get_registry()
+                    registry["bedrock_regions"] = all_regions
+                    _reg_save()
+                    _sync_progress(f"Found {len(all_regions)} regions. Fetching model pricing...")
+
+                    # Step 2: Pricing
+                    pricing_data = _fetch_image_pricing()
+                    if pricing_data:
+                        registry["image_pricing"] = pricing_data
+                        _reg_save()
+                    _sync_progress(f"Scanning {len(all_regions)} regions for available models...")
+
+                    # Step 3: Scan each region
+                    from backend.services.model_registry import update_image_model
+                    for key in list(registry.get("image_models", {}).keys()):
+                        update_image_model(key, {"available_regions": []})
+                    for key in list(registry.get("chat_models", {}).keys()):
+                        registry["chat_models"][key]["available_regions"] = []
+
+                    total_new = 0
+                    total_updated = 0
+                    failed_regions = []
+                    from concurrent.futures import ThreadPoolExecutor as _TPE, TimeoutError as _TE
+
+                    for idx, region in enumerate(all_regions):
+                        _sync_progress(f"Scanning region {idx + 1}/{len(all_regions)}: {region}...")
+                        # Per-region timeout to avoid hanging on unreachable regions
+                        region_new = 0
+                        region_updated = 0
+                        pool = _TPE(max_workers=1)
+                        try:
+                            future = pool.submit(
+                                lambda r=region: asyncio.run(
+                                    __import__('backend.routers.admin', fromlist=['auto_register_image_models']).auto_register_image_models(r)
+                                )
+                            )
+                            result = future.result(timeout=20)
+                            region_new = result.get("new_count", 0)
+                            region_updated = result.get("updated_count", 0)
+                            total_new += region_new
+                            total_updated += region_updated
+                        except _TE:
+                            _sync_progress(f"Skipped {region} (timed out)")
+                            failed_regions.append({"region": region, "reason": "timed out"})
+                            pool.shutdown(wait=False, cancel_futures=True)
+                            continue
+                        except Exception as region_exc:
+                            _sync_progress(f"Skipped {region} (error)")
+                            failed_regions.append({"region": region, "reason": str(region_exc)[:100]})
+                            pool.shutdown(wait=False, cancel_futures=True)
+                            continue
+                        finally:
+                            pool.shutdown(wait=False)
+                        # Custom models (with timeout)
+                        try:
+                            from backend.routers.admin import _discover_custom_models
+                            cpool = _TPE(max_workers=1)
+                            try:
+                                cpool.submit(_discover_custom_models, region).result(timeout=15)
+                            except _TE:
+                                pass
+                            finally:
+                                cpool.shutdown(wait=False)
+                        except Exception:
+                            pass
+                        # Report per-region result with model count
+                        region_total = region_new + region_updated
+                        if region_total:
+                            _sync_progress(f"Done {region} — {region_total} model{'s' if region_total != 1 else ''} found")
+                        else:
+                            _sync_progress(f"Done {region} — no models")
+
+                    # Step 4: Prune
+                    _sync_progress("Finalizing — checking model availability...")
+                    for key, cfg in list(registry.get("image_models", {}).items()):
+                        if not cfg.get("available_regions") and cfg.get("enabled"):
+                            update_image_model(key, {"enabled": False})
+
+                    # Stamp
+                    from datetime import datetime, timezone
+                    from backend.services.model_registry import _save_user_pref
+                    registry["last_synced_summary"] = f"{total_new} new, {total_updated} updated across {len(all_regions)} regions"
+                    if failed_regions:
+                        registry["sync_failed_regions"] = failed_regions
+                        logger.info("Auto-Sync: %d region(s) failed/timed out: %s",
+                                    len(failed_regions), ", ".join(r["region"] for r in failed_regions))
+                    else:
+                        registry.pop("sync_failed_regions", None)
+                    _save_user_pref("_meta", "aws_account_discovered", "timestamp", datetime.now(timezone.utc).isoformat())
+                    _reg_save()
+
+                finally:
+                    _reg_save._silent = False
+
+                _server_state["sync_in_progress"] = False
+                _server_state["sync_message"] = ""
+                logger.info("Auto-Sync: done — %d new, %d updated across %d regions",
+                            total_new, total_updated, len(all_regions))
+            except Exception as exc:
+                _server_state["sync_in_progress"] = False
+                _server_state["sync_message"] = ""
+                _server_state["sync_error"] = str(exc)
+                logger.warning("Auto-Sync failed — run Sync manually from Model Settings: %s", exc)
+
+        def _run_sync_and_mark_ready():
+            _run_sync()
+            _server_state["ready"] = True
+            if not _server_state.get("sync_error"):
+                logger.info("ArtSmoker ready.")
+            else:
+                logger.info("ArtSmoker ready (Sync failed — run Sync from AWS in Model Settings).")
+
+        sync_thread = threading.Thread(target=_run_sync_and_mark_ready, daemon=True)
+        sync_thread.start()
+        logger.info("Auto-Sync: started in background")
     elif _check_and_refresh_configs._needs_registry_sync:
-        logger.warning("Model registry needs refresh but AWS credentials not available. Run Sync from Model Settings after configuring credentials.")
+        logger.warning("Model registry needs refresh — configure AWS credentials, then Sync from Model Settings.")
 
     # Initialize telemetry
     from backend.services.telemetry import init as telemetry_init, track_server_start, track_server_stop, track_auto_update
@@ -211,7 +338,11 @@ async def lifespan(app: FastAPI):
 
     track_server_start()
 
-    logger.info("ArtSmoker backend started.")
+    # Mark ready only if Sync is not running in background
+    # (background Sync thread will set ready=True when it completes)
+    if not _server_state["sync_in_progress"]:
+        _server_state["ready"] = True
+        logger.info("ArtSmoker ready.")
     yield
     # Shutdown
     track_server_stop()
@@ -282,13 +413,65 @@ async def frontend_ping(request: Request):
 
 # ── Health check ───────────────────────────────────────────────────────────
 
+@app.get("/api/sync-progress", tags=["health"])
+async def sync_progress_stream():
+    """SSE stream of sync progress — live updates during auto-Sync."""
+    import time
+    from starlette.responses import StreamingResponse
+
+    def generate():
+        import json
+        last_log_len = 0
+        try:
+            while _server_state.get("sync_in_progress"):
+                sync_log = _server_state.get("sync_log", [])
+                if len(sync_log) > last_log_len:
+                    for entry in sync_log[last_log_len:]:
+                        try:
+                            from backend.services.model_registry import get_registry
+                            reg = get_registry()
+                            counts = {
+                                "image": sum(1 for m in reg.get("image_models", {}).values() if m.get("model_purpose") == "text_to_image"),
+                                "chat": len(reg.get("chat_models", {})),
+                                "video": len(reg.get("video_models", {})),
+                            }
+                        except Exception:
+                            counts = {}
+                        yield f"data: {json.dumps({'message': entry, 'models': counts, 'regions_scanned': last_log_len})}\n\n"
+                    last_log_len = len(sync_log)
+                time.sleep(1)
+            # Final event
+            try:
+                from backend.services.model_registry import get_registry
+                reg = get_registry()
+                final_counts = {
+                    "image": sum(1 for m in reg.get("image_models", {}).values() if m.get("model_purpose") == "text_to_image"),
+                    "chat": len(reg.get("chat_models", {})),
+                    "video": len(reg.get("video_models", {})),
+                }
+            except Exception:
+                final_counts = {}
+            yield f"data: {json.dumps({'message': 'done', 'ready': True, 'error': _server_state.get('sync_error', ''), 'models': final_counts})}\n\n"
+        except GeneratorExit:
+            pass  # Client disconnected — normal for SSE
+        except Exception:
+            pass  # Don't crash on SSE errors
+
+    return StreamingResponse(generate(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 @app.get("/api/health", tags=["health"])
 async def health_check():
     """Health check endpoint — includes AWS credential and Bedrock status."""
     from backend.config import APP_VERSION
     return {
         "version": APP_VERSION,
-        "status": "ok" if _aws_status.get("credentials") else "degraded",
+        "status": "ok" if _server_state["ready"] else "starting",
+        "ready": _server_state["ready"],
+        "sync_in_progress": _server_state["sync_in_progress"],
+        "sync_message": _server_state["sync_message"],
+        "sync_error": _server_state.get("sync_error", ""),
         "aws": {
             "credentials": _aws_status.get("credentials", False),
             "identity": _aws_status.get("identity"),

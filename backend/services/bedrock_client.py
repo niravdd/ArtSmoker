@@ -1,4 +1,4 @@
-"""Shared AWS Bedrock client with connection pooling and model routing."""
+"""Shared Amazon Bedrock client with connection pooling and model routing."""
 
 import base64
 import json

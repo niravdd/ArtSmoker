@@ -24,44 +24,78 @@ def _detect_asset_type_mismatch(prompt: str, asset_type) -> dict | None:
     lower = prompt.lower()
     words = len(prompt.split())
 
-    # Scene/environment indicators — user describes a scene, not a sprite
-    scene_keywords = ["scene", "landscape", "environment", "background", "panorama",
-                      "village", "city", "forest", "ocean", "mountain", "valley",
-                      "sunset", "sunrise", "horizon", "sky", "weather",
-                      "standing in", "walking through", "sitting on", "looking at",
-                      "behind the", "in front of", "in the distance",
-                      "camera angle", "wide shot", "cinematic", "dramatic sky",
-                      "churning", "towering waves", "billowing sails"]
+    # Scene/environment indicators — user describes a setting, not an isolated object
+    scene_keywords = [
+        # Explicit scene words
+        "scene", "landscape", "environment", "background", "panorama", "cinematic",
+        "wide shot", "camera angle", "dramatic sky",
+        # Natural environments
+        "village", "city", "town", "forest", "ocean", "sea", "mountain", "valley",
+        "desert", "beach", "river", "lake", "island", "cave", "dungeon",
+        # Sky/weather
+        "sunset", "sunrise", "horizon", "sky", "clouds", "rain", "storm", "weather",
+        "golden hour", "moonlight", "starry",
+        # Structures as settings
+        "castle", "temple", "church", "tavern", "marketplace", "harbor", "port",
+        "bridge", "tower", "ruins", "garden", "courtyard",
+        # Vehicles as settings (character ON something)
+        "on a ship", "on a boat", "on a horse", "on a dragon", "on a throne",
+        "on deck", "at the helm", "behind the wheel",
+        # Spatial prepositions (character IN a place)
+        "standing in", "walking through", "sitting on", "sitting in", "looking at",
+        "standing on", "riding", "sailing", "flying over",
+        "behind the", "in front of", "in the distance", "surrounded by",
+        # Composition cues
+        "towering", "billowing", "churning", "sprawling", "vast",
+    ]
 
-    # Character indicators
-    character_keywords = ["character", "warrior", "knight", "archer", "mage",
-                          "pirate", "captain", "soldier", "figure", "person",
-                          "wearing", "holding", "standing", "sitting",
-                          "full body", "portrait", "face"]
+    # Character/figure indicators — prompt describes a person or humanoid
+    character_keywords = [
+        # Explicit character words
+        "character", "figure", "person", "hero", "heroine", "protagonist",
+        # Professions/roles
+        "warrior", "knight", "archer", "mage", "wizard", "witch", "thief", "rogue",
+        "pirate", "captain", "soldier", "guard", "samurai", "ninja", "assassin",
+        "sailor", "pilot", "merchant", "blacksmith", "healer", "priest", "monk",
+        "king", "queen", "prince", "princess", "emperor", "goddess", "god",
+        "hunter", "ranger", "bard", "paladin", "necromancer", "druid",
+        # Gender/age descriptors (strong character signal)
+        "female", "male", "woman", "man", "girl", "boy", "lady", "lord",
+        "young", "old", "elderly", "child", "teen",
+        # Body/appearance
+        "wearing", "holding", "wielding", "carrying", "gripping",
+        "standing", "sitting", "kneeling", "crouching", "running", "fighting",
+        "full body", "half body", "portrait", "face", "pose",
+        "armor", "cloak", "robe", "dress", "uniform", "outfit", "helmet",
+        "sword", "bow", "staff", "shield", "weapon",
+        # Hair/features
+        "hair", "eyes", "beard", "scar",
+    ]
 
     scene_hits = sum(1 for kw in scene_keywords if kw in lower)
     char_hits = sum(1 for kw in character_keywords if kw in lower)
 
-    # Long prompts with scene keywords + game_asset type = likely mismatch
     if asset_type == AssetType.GAME_ASSET:
-        if scene_hits >= 3 and words > 30:
-            if char_hits >= 2:
-                return {
-                    "current": "game_asset",
-                    "suggested": "character",
-                    "reason": "Your prompt describes a character in a scene. 'Character' type allows full scene context while keeping the figure as the focal point. 'Game Asset' forces an isolated sprite on a transparent background.",
-                }
-            else:
-                return {
-                    "current": "game_asset",
-                    "suggested": "environment",
-                    "reason": "Your prompt describes a scene with environmental elements. 'Environment' type preserves the full composition. 'Game Asset' forces an isolated object on a transparent background.",
-                }
-        if char_hits >= 3 and scene_hits < 2:
+        # Character in a scene — suggest Character type
+        if char_hits >= 2 and scene_hits >= 1:
+            return {
+                "current": "game_asset",
+                "suggested": "character",
+                "reason": "Your prompt describes a character in a setting. 'Character' type keeps the figure as the focal point while preserving scene context. 'Game Asset' forces an isolated sprite on a transparent background.",
+            }
+        # Pure character (no scene) — suggest Character type
+        if char_hits >= 2:
             return {
                 "current": "game_asset",
                 "suggested": "character",
                 "reason": "Your prompt describes a character. 'Character' type optimizes for figure proportions, pose, and silhouette readability.",
+            }
+        # Scene/environment — suggest Environment type
+        if scene_hits >= 2:
+            return {
+                "current": "game_asset",
+                "suggested": "environment",
+                "reason": "Your prompt describes a scene or environment. 'Environment' type preserves the full composition with depth and atmosphere. 'Game Asset' forces an isolated object on a transparent background.",
             }
 
     return None
