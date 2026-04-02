@@ -12,6 +12,23 @@
 (function () {
     'use strict';
 
+    // Realistic example prompts per asset type — written as a real person would start describing
+    const _ASSET_PLACEHOLDERS = {
+        game_asset: "A weathered wooden treasure chest with iron straps and a brass lock, slightly open with golden light spilling out...",
+        character: "A young female warrior in ornate silver armor, long dark hair braided, holding a glowing sword, standing on a cliff edge at sunset...",
+        environment: "A misty Japanese garden at dawn, stone lanterns lining a curved path through moss-covered rocks, cherry blossoms drifting in still air...",
+        marketing_banner: "An epic dragon soaring over a burning medieval castle, dramatic storm clouds and lightning, armies clashing below...",
+        icon: "A golden shield with a dragon emblem, simple bold design...",
+    };
+
+    const _ASSET_STEP_LABELS = {
+        game_asset: "Describe your game asset",
+        character: "Describe your character",
+        environment: "Describe your scene",
+        marketing_banner: "Describe your banner scene",
+        icon: "Describe your icon",
+    };
+
     class PromptEditor {
         constructor(container, opts = {}) {
             this.container = container;
@@ -25,6 +42,7 @@
 
             this._render();
             this._attachEvents();
+            this._updateAssetContext();
         }
 
         // -- Public API --
@@ -79,8 +97,8 @@
 
         setContext(opts) {
             this.opts = { ...this.opts, ...opts };
-            // Update the style note under the compose button
             this._updateStyleNote();
+            this._updateAssetContext();
             // Clear composed prompt when context changes (style/type switched)
             if (this._composedText) {
                 this._clearComposed();
@@ -101,7 +119,7 @@
                     <div>
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="text-[10px] font-bold text-brand-accent bg-brand-accent/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('prompt_editor.step') : 'STEP'} 1</span>
-                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('prompt_editor.step1_describe') : 'Describe your idea'}</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide step1-label">${typeof t !== 'undefined' ? t('prompt_editor.step1_describe') : 'Describe your idea'}</span>
                             <div class="voice-container ml-auto"></div>
                         </div>
                         <div class="relative">
@@ -260,6 +278,19 @@
         _updateCharCount() {
             if (this._charCountEl) {
                 this._charCountEl.textContent = this._textareaEl.value.length;
+            }
+        }
+
+        _updateAssetContext() {
+            const type = this.opts.assetType || 'game_asset';
+            // Update placeholder
+            if (this._textareaEl) {
+                this._textareaEl.placeholder = _ASSET_PLACEHOLDERS[type] || _ASSET_PLACEHOLDERS.game_asset;
+            }
+            // Update Step 1 label
+            const step1Label = this.container.querySelector('.step1-label');
+            if (step1Label) {
+                step1Label.textContent = _ASSET_STEP_LABELS[type] || _ASSET_STEP_LABELS.game_asset;
             }
         }
 
