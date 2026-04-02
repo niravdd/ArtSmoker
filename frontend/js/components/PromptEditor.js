@@ -100,8 +100,8 @@
                     <!-- Step 1: User prompt -->
                     <div>
                         <div class="flex items-center gap-2 mb-1.5">
-                            <span class="text-[10px] font-bold text-brand-accent bg-brand-accent/10 rounded px-1.5 py-0.5">STEP 1</span>
-                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">Describe your idea</span>
+                            <span class="text-[10px] font-bold text-brand-accent bg-brand-accent/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('prompt_editor.step') : 'STEP'} 1</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('prompt_editor.step1_describe') : 'Describe your idea'}</span>
                             <div class="voice-container ml-auto"></div>
                         </div>
                         <div class="relative">
@@ -132,12 +132,12 @@
                     <!-- Step 2: Refine -->
                     <div>
                         <div class="flex items-center gap-2 mb-1.5">
-                            <span class="text-[10px] font-bold text-brand-accent bg-brand-accent/10 rounded px-1.5 py-0.5">STEP 2</span>
-                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">Refine your prompt</span>
+                            <span class="text-[10px] font-bold text-brand-accent bg-brand-accent/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('prompt_editor.step') : 'STEP'} 2</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('prompt_editor.step2_refine') : 'Refine your prompt'}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
                             <button type="button" class="btn-prompt-designer btn btn-secondary text-xs py-2.5 rounded-lg flex items-center justify-center gap-2">
-                                <span>🎨</span> Prompt Designer
+                                <span>🎨</span> ${typeof t !== 'undefined' ? t('prompt_editor.prompt_designer') : 'Prompt Designer'}
                             </button>
                             <button type="button" class="btn-compose btn btn-secondary text-xs py-2.5 rounded-lg flex items-center justify-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -147,21 +147,24 @@
                                 ${typeof t !== 'undefined' ? t('prompt_editor.compose') : 'Quick Enhance'}
                             </button>
                         </div>
-                        <p class="compose-note text-[10px] text-brand-text-muted/60 mt-1">Prompt Designer gives you full control over every visual element. Quick Enhance auto-improves in one click. Both are optional — Generate works directly too.</p>
+                        <p class="compose-note text-[10px] text-brand-text-muted/60 mt-1">${typeof t !== 'undefined' ? t('prompt_editor.compose_tip') : 'Prompt Designer gives you full control over every visual element. Quick Enhance auto-improves in one click. Both are optional — Generate works directly too.'}</p>
                     </div>
 
-                    <!-- Step 3: Enhanced prompt (shown after Step 2) -->
-                    <div class="composed-panel hidden space-y-2">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-[10px] font-bold text-emerald-400 bg-emerald-400/10 rounded px-1.5 py-0.5">STEP 3</span>
-                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">Review &amp; edit</span>
-                            <button type="button" class="btn-clear-composed text-[10px] text-brand-text-muted hover:text-red-400 transition-colors ml-auto">${typeof t !== 'undefined' ? t('prompt_editor.clear') : 'Clear'}</button>
+                    <!-- Step 3: Enhanced prompt -->
+                    <div>
+                        <div class="flex items-center gap-2 mb-1.5">
+                            <span class="text-[10px] font-bold text-emerald-400/50 bg-emerald-400/5 rounded px-1.5 py-0.5 step3-badge">${typeof t !== 'undefined' ? t('prompt_editor.step') : 'STEP'} 3</span>
+                            <span class="text-[10px] text-brand-text-muted/50 uppercase tracking-wide step3-label">${typeof t !== 'undefined' ? t('prompt_editor.step3_review') : 'Review & edit enhanced prompt'}</span>
+                            <button type="button" class="btn-clear-composed hidden text-[10px] text-brand-text-muted hover:text-red-400 transition-colors ml-auto">${typeof t !== 'undefined' ? t('prompt_editor.clear') : 'Clear'}</button>
                         </div>
-                        <textarea
-                            class="composed-textarea input w-full min-h-[80px] text-xs text-brand-text/80 bg-emerald-950/10 border-emerald-500/20"
-                            rows="3"
-                        ></textarea>
-                        <p class="text-[10px] text-brand-text-muted/50">This is what the image model will receive. You can edit it before generating.</p>
+                        <div class="composed-panel hidden space-y-2">
+                            <textarea
+                                class="composed-textarea input w-full min-h-[80px] text-xs text-brand-text/80 bg-emerald-950/10 border-emerald-500/20"
+                                rows="3"
+                            ></textarea>
+                            <p class="text-[10px] text-brand-text-muted/50">${typeof t !== 'undefined' ? t('prompt_editor.step3_desc') : 'This is what the image model will receive. You can edit it before generating.'}</p>
+                        </div>
+                        <p class="composed-placeholder text-[10px] text-brand-text-muted/30 italic">${typeof t !== 'undefined' ? t('prompt_editor.step3_placeholder') : 'Enhanced prompt will appear here after using Prompt Designer or Quick Enhance.'}</p>
                     </div>
                 </div>
             `;
@@ -345,6 +348,14 @@
         _showComposed(text) {
             this._composedTextarea.value = text;
             this._composedPanel.classList.remove('hidden');
+            this._btnClearComposed?.classList.remove('hidden');
+            // Activate Step 3 badge
+            const badge = this.container.querySelector('.step3-badge');
+            const label = this.container.querySelector('.step3-label');
+            const placeholder = this.container.querySelector('.composed-placeholder');
+            if (badge) { badge.classList.remove('text-emerald-400/50', 'bg-emerald-400/5'); badge.classList.add('text-emerald-400', 'bg-emerald-400/10'); }
+            if (label) { label.classList.remove('text-brand-text-muted/50'); label.classList.add('text-brand-text-muted'); }
+            if (placeholder) placeholder.classList.add('hidden');
         }
 
         _clearComposed() {
@@ -352,7 +363,15 @@
             this._negativePrompt = '';
             this._userComposed = false;
             this._composedPanel.classList.add('hidden');
+            this._btnClearComposed?.classList.add('hidden');
             this._composedTextarea.value = '';
+            // Deactivate Step 3 badge
+            const badge = this.container.querySelector('.step3-badge');
+            const label = this.container.querySelector('.step3-label');
+            const placeholder = this.container.querySelector('.composed-placeholder');
+            if (badge) { badge.classList.add('text-emerald-400/50', 'bg-emerald-400/5'); badge.classList.remove('text-emerald-400', 'bg-emerald-400/10'); }
+            if (label) { label.classList.add('text-brand-text-muted/50'); label.classList.remove('text-brand-text-muted'); }
+            if (placeholder) placeholder.classList.remove('hidden');
         }
 
         async _checkTranslation() {

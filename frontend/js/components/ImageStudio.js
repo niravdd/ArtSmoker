@@ -244,8 +244,8 @@
 
                             <!-- Step 4: Generate / Reset -->
                             <div class="flex items-center gap-2 mb-1.5">
-                                <span class="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 rounded px-1.5 py-0.5">STEP 4</span>
-                                <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">Generate</span>
+                                <span class="text-[10px] font-bold text-emerald-500 bg-emerald-500/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('prompt_editor.step') : 'STEP'} 4</span>
+                                <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${t('image_studio.generate')}</span>
                             </div>
                             <div class="grid grid-cols-2 gap-3">
                                 <button id="btn-generate" class="btn btn-primary btn-lg text-base">
