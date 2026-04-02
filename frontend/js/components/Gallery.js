@@ -150,6 +150,7 @@
 
             // Selection / Delete
             document.getElementById('gal-select-all')?.addEventListener('click', () => {
+                this._selected.clear();  // Start fresh — only select currently visible items
                 const items = this._filteredItems !== null ? this._filteredItems : this._items;
                 items.forEach(i => this._selected.add(i.id));
                 this._updateSelectionUI();
@@ -323,6 +324,7 @@
                 window.hideLoading?.();
                 this._selected.clear();
                 window.showToast?.(t('gallery.deleted', { count: deletedCount, plural: deletedCount !== 1 ? 's' : '' }), 'success');
+                this._loading = false;  // Ensure reload is not blocked
                 await this._loadItems(true);
             } catch (err) {
                 window.hideLoading?.();
