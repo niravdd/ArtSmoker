@@ -85,7 +85,8 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 ### 📝 1.1 Resumen de funcionalidades
 
 - 🎨 **Style Library** — Suba arte, la IA aprende su identidad visual
-- 🖼️ **2D Image Studio** — Genere imágenes con opciones × variaciones, editor de prompt de dos áreas
+- 🖼️ **2D Image Studio** — Generación de imágenes con flujo guiado de 3 pasos
+- 🎨 **Prompt Designer** — La IA descompone tu prompt en componentes visuales editables (sujeto, escena, iluminación, colores) con clasificación inteligente del tipo de asset
 - 🎬 **Video Studio** — Texto a video con Nova Reel y Luma Ray, multi-toma, imagen a video
 - ✍️ **Type Studio** — Superposiciones de texto diseñadas por IA con selector de fuentes
 - 💬 **Chat Studio** — Chat LLM multimodelo con streaming, Markdown, resaltado de código, visión, sesiones, compactación de contexto

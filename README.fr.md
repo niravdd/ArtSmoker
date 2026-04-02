@@ -85,7 +85,8 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 ### 📝 1.1 Aperçu des fonctionnalités
 
 - 🎨 **Style Library** — Téléchargez votre art, l'IA apprend votre identité visuelle
-- 🖼️ **2D Image Studio** — Générez des images avec options × variations, éditeur de prompt à deux zones
+- 🖼️ **2D Image Studio** — Génération d'images avec workflow guidé en 3 étapes
+- 🎨 **Prompt Designer** — L'IA décompose votre prompt en composants visuels éditables (sujet, scène, éclairage, couleurs) avec classification intelligente du type d'asset
 - 🎬 **Video Studio** — Text-to-video avec Nova Reel & Luma Ray, multi-shot, image-to-video
 - ✍️ **Type Studio** — Superpositions de texte conçues par l'IA avec sélecteur de polices
 - 💬 **Chat Studio** — Chat LLM multi-modèle avec streaming, Markdown, coloration syntaxique, vision, sessions, compactage de contexte

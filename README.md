@@ -83,7 +83,8 @@ For teams that want every generated asset to match an existing art style — upl
 ### 📝 1.1 Features at a Glance
 
 - 🎨 **Style Library** — Upload art, AI learns your visual identity
-- 🖼️ **2D Image Studio** — Generate images with options x variations, two-area prompt editor
+- 🖼️ **2D Image Studio** — Generate images with options x variations, guided 3-step prompt workflow
+- 🎨 **Prompt Designer** — AI decomposes your prompt into editable visual components (subject, scene, lighting, colors) with smart asset type classification
 - 🎬 **Video Studio** — Text-to-video with Nova Reel & Luma Ray, multi-shot, image-to-video
 - ✍️ **Type Studio** — AI-designed text overlays with font picker
 - 💬 **Chat Studio** — Multi-model LLM chat with streaming, markdown, code highlighting, vision, sessions, context compaction
@@ -872,18 +873,33 @@ dialog     dialog
 
 ### 📝 6.4 2D Image Studio (Generate Assets)
 
-1. Go to the **2D Image Studio** tab.
-2. Type a prompt (e.g. "cute cartoon cat") in the **top textarea** — this area is never overwritten by the system.
-3. **Select an asset type** — this shapes everything the AI produces (see table above). A "warrior" as a Game Asset looks completely different from a "warrior" as a Marketing Banner.
-4. Optionally click **"Preview Enhanced Prompt"** — the AI creates a **model-optimized** enhanced version in a second green-tinted area below, combining your prompt with style guidelines, asset type directives, and AI-enhanced details. The composition is **model-aware**: it structures prompts as descriptive captions following the [AWS recommended order](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html) (Subject, Environment, Pose, Lighting, Camera, Style) and applies model-specific optimizations — Nova Canvas gets structured 900-char captions, SD 3.5 Large gets richer 2000-char prompts with quality boosters. Changing the image model clears the composed prompt (needs recomposition). Exclusion terms are automatically extracted into a **negative prompt** sent separately to the image model. The note under the button dynamically reflects your style selection. You can review and edit the composed prompt before generating.
-5. Set dimensions and how many options/variations you want.
-6. Configure **Pre-Processing** (applied during generation) and **Post-Processing** (applied after generation, with an "Apply" button). SVG conversion is on by default. **Prompt Pre-Check** is on by default — pre-screens prompts before generation to save time and API costs on blocked prompts.
-7. Optionally use the **IP Declaration** section in the sidebar to assert intellectual property ownership or licensing. When declared with a strict model (Nova Canvas/Titan), the system recommends switching to SD 3.5 Large. IP declarations are stored in metadata for audit trail.
-8. Click **Generate**. If you skip the Compose step, the backend auto-refines and shows the result in the composed area via SSE.
-9. Browse the **options row** (different concepts, or different models in "All Models" mode) and **variations row** (seed variants of the selected concept). Clicking an option shows its specific **"Generated prompt — Option N"** with the exact prompt and negative prompt used. In "All Models" mode, option cards show the model name and blocked/failed status if applicable.
-10. Click any image to preview full-size, then download PNG or SVG.
-11. Use the **reset button** (amber circular arrow) to clear generated results and start fresh.
-12. Use **"Model Settings"** in the sidebar to view/edit model configuration and discover available Bedrock models.
+The 2D Image Studio uses a guided 3-step workflow:
+
+**Step 1 — Describe your idea**: Type a prompt in the textarea. The placeholder shows a realistic example that changes based on your selected Asset Type (e.g., "A young female warrior in ornate silver armor..." for Character, or "A misty Japanese garden at dawn..." for Environment). Use voice input (mic button) to dictate instead of typing.
+
+**Step 2 — Prompt Designer** *(optional)*: Click **🎨 Prompt Designer** to decompose your prompt into structured visual components. The AI analyzes your prompt and breaks it into editable sections:
+
+- **Subject** — character description, clothing, accessories, pose, expression
+- **Scene** — setting, background, props, time of day
+- **Composition** — camera angle, framing, depth of field
+- **Lighting** — key light, fill/rim light, mood
+- **Style & Colors** — art style, quality level, and a named color palette with hex swatches
+
+Each field can be individually edited. Lock fields (🔒) to keep them fixed when regenerating. **Save & Continue** stores your edits and automatically generates the enhanced prompt for Step 3.
+
+Before the Prompt Designer opens, an **AI asset type classification** runs — if your prompt describes a scene but you selected "Game Asset", a dialog suggests switching to "Environment" or "Character". This ensures the Prompt Designer decomposes with the correct context.
+
+**Step 3 — Enhanced prompt preview** *(optional)*: Click **Generate Enhanced Prompt** to see the model-optimized prompt before generating. The AI enhances your prompt with structural accuracy (anatomy, materials, lighting) and model-specific formatting. You can edit the enhanced prompt before generating. If you used the Prompt Designer in Step 2, this is auto-populated.
+
+**Generate**: Click Generate at any point — Steps 2 and 3 are optional. If you skip them, Generate auto-enhances your prompt and proceeds. **Prompt Pre-Check** (on by default) screens the prompt for moderation issues before generation.
+
+**Additional controls:**
+- **Asset Type** — select in the sidebar. Changes the prompt placeholder and affects how the AI interprets your prompt. The system suggests switching if it detects a mismatch.
+- **Art Style** — select a style profile to guide generation with your visual identity.
+- **Dimensions, Options, Variations** — configure output size and how many creative concepts to generate.
+- **Post-Processing** — Remove Background, Upscale, SVG conversion (applied after generation).
+- **IP Declaration** — assert ownership or licensing for strict model compatibility.
+- **Model Settings** — view/edit model configuration, discover available Amazon Bedrock models.
 
 Generation progress is streamed in real time via SSE — the UI shows which image is being generated (e.g. "Generating images... 12/25"), elapsed time, and current pipeline stage. If the API is throttled, you'll see "API throttled — waiting to retry..." with the delay, then "Retrying... (attempt 2/3)" — each image retries up to 3 times with exponential backoff so large batches don't lose variants to transient throttling.
 

@@ -999,13 +999,49 @@ Fields:
 - `ip_owned` (default false): User asserts IP ownership over the content.
 - `ip_licensed` (default false): User asserts licensing rights. Both IP fields are stored in per-variant metadata for audit trail.
 
-### 5.3 Prompt Refinement
+### 5.3 Prompt Refinement & Prompt Designer
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/refine-prompt/` | Preview a refined prompt without generating images. |
+| POST | `/api/refine-prompt/` | Quick Enhance — auto-refine a prompt into a detailed image caption. |
+| POST | `/api/refine-prompt/decompose` | Prompt Designer — decompose a prompt into structured visual components (subject, scene, composition, lighting, style with color palette). |
+| POST | `/api/refine-prompt/recompose` | Reassemble structured components into a flat model-optimized prompt. |
+| POST | `/api/refine-prompt/classify-asset-type` | LLM-powered asset type classification — detects if the selected asset type matches the prompt (e.g., scene described as Game Asset → suggests Environment). |
+| POST | `/api/refine-prompt/translate-preview` | Lightweight language detection + translation preview. |
 
-**Request body** (`PromptRefineRequest`):
+**Prompt Designer flow:**
+
+The 2D Image Studio uses a guided 3-step workflow:
+
+1. **Step 1 — Describe**: User types a prompt. The textarea placeholder adapts to the selected asset type (e.g., "A young female warrior..." for Character, "A misty Japanese garden..." for Environment).
+
+2. **Step 2 — Prompt Designer** *(optional)*: Clicking the Prompt Designer button:
+   - Runs LLM asset type classification first — if mismatch detected (e.g., scene prompt + Game Asset), a dialog suggests switching
+   - Sends prompt to `/api/refine-prompt/decompose` — LLM decomposes into structured JSON:
+     ```json
+     {
+       "subject": { "description": "...", "clothing": "...", "accessories": "...", "expression_pose": "...", "details": "..." },
+       "scene": { "setting": "...", "background": "...", "props": "...", "time_of_day": "..." },
+       "composition": { "camera_angle": "...", "framing": "...", "depth_of_field": "..." },
+       "lighting": { "key_light": "...", "fill_rim": "...", "mood": "..." },
+       "style": { "art_style": "...", "quality": "...", "color_palette": [{"name": "Admiral Navy", "hex": "#1B2A4A", "usage": "jacket and cap"}] }
+     }
+     ```
+   - Displayed in a tabbed modal (Subject | Scene | Composition | Lighting | Style & Colors)
+   - Each field is editable with lock/unlock toggles (locked fields stay fixed on regenerate)
+   - Color palette shown as named swatches with hex values and usage descriptions
+   - Style Library hints are incorporated if a style is selected
+   - "Save & Continue" → sends to `/api/refine-prompt/recompose` → result appears in Step 3
+
+3. **Step 3 — Enhanced Prompt Preview** *(optional)*: Shows the model-optimized prompt that the image model will receive. Editable before generating.
+
+**Generate** works at any point — Steps 2 and 3 are optional. If skipped, Generate auto-enhances the prompt server-side.
+
+**Asset type classification** (`/api/refine-prompt/classify-asset-type`):
+
+Uses an LLM to determine the best asset type for a prompt. Key distinction: a person mentioned IN a scene (e.g., "woman piloting a train shown from outside with a village backdrop") is classified as Environment (scene is the subject), not Character. Only prompts where the person IS the primary focal point are classified as Character.
+
+**Refine request body** (`PromptRefineRequest`):
 ```json
 {
   "prompt": "hospital building",
@@ -1015,9 +1051,7 @@ Fields:
 }
 ```
 
-- `image_model` (optional): Target image model for model-optimized prompt engineering. When provided, the refinement produces prompts structured for the specific model (e.g. caption-style for Nova Canvas, quality-boosted for SD 3.5 Large). The PromptEditor passes the currently selected model automatically.
-
-**Response**:
+**Refine response**:
 ```json
 {
   "original": "hospital building",
@@ -1159,7 +1193,7 @@ A full-featured LLM chat interface running on the user's own AWS account. 80+ mo
 
 ## 6. LLM Directive Prompts (Prompt Templates)
 
-ArtSmoker uses 14 directive prompts to guide LLM behavior across different features. All prompts are stored in `backend/prompt_templates.json` and are fully editable via the Model Settings UI (Prompt Templates tab) or the raw JSON editor.
+ArtSmoker uses 19 directive prompts to guide LLM behavior across different features. All prompts are stored in `backend/prompt_templates.json` and are fully editable via the Model Settings UI (Prompt Templates tab) or the raw JSON editor.
 
 ### 7.1 How Templates Work
 
@@ -1218,7 +1252,22 @@ Templates are organized by the feature they serve:
 | `translate_detect_language` | `prompt_translator.py` | Detect language when Unicode heuristics are ambiguous (French vs Spanish). Returns 2-letter code. | `{text}` | Sonnet |
 | `translate_to_english` | `prompt_translator.py` | Translate non-English text to English, preserving meaning and technical terms. | `{text}`, `{lang_name}` | Sonnet |
 
-### 7.9 Editing Templates
+### 7.9 Prompt Designer Templates
+
+| Template | File | Purpose | Variables | Model Used |
+|----------|------|---------|-----------|------------|
+| `prompt_decompose` | `refine.py` | Decompose a user prompt into structured visual components (subject, scene, composition, lighting, style with color palette). | `{user_prompt}`, `{style_section}`, `{asset_context}` | Sonnet |
+| `prompt_recompose` | `refine.py` | Reassemble structured components into a flat model-optimized prompt. | `{structured_json}`, `{model_name}`, `{max_chars}` | Sonnet |
+| `asset_type_classify` | `refine.py` | Classify a prompt into the best asset type. Distinguishes character-focused vs scene-focused prompts even when both mention people. | `{user_prompt}` | Sonnet |
+
+### 7.10 Admin Templates
+
+| Template | File | Purpose | Variables | Model Used |
+|----------|------|---------|-----------|------------|
+| `admin_template_enhance` | `admin.py` | Improve a prompt template via AI. | `{template_label}`, `{template_description}`, `{template_used_by}`, `{variable_list}`, `{user_instructions}`, `{current_text}` | User-selected |
+| `admin_template_fix_variables` | `admin.py` | Auto-insert missing variables into a user-edited template. | `{missing_variables}`, `{template_text}` | Sonnet |
+
+### 7.11 Editing Templates
 
 Users can edit any template via **Model Settings → Prompt Templates** tab.
 

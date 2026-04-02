@@ -85,7 +85,8 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 ### 📝 1.1 功能一览
 
 - 🎨 **Style Library** —— 上传美术作品，AI 学习您的视觉标识
-- 🖼️ **2D Image Studio** —— 以选项 × 变体生成图像，双区域提示词编辑器
+- 🖼️ **2D Image Studio** —— 引导式3步工作流生成图像
+- 🎨 **Prompt Designer** —— AI将提示词分解为可编辑的视觉组件（主体、场景、光照、颜色），智能资产类型分类
 - 🎬 **Video Studio** —— Nova Reel 和 Luma Ray 文生视频、多镜头、图生视频
 - ✍️ **Type Studio** —— 带字体选择器的 AI 设计文字叠加
 - 💬 **Chat Studio** —— 支持流式输出、Markdown、代码高亮、视觉、会话、上下文压缩的多模型 LLM 聊天
