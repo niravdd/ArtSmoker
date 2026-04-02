@@ -2,20 +2,18 @@
  * ArtSmoker — Prompt Designer Modal
  *
  * Decomposes a user prompt into structured visual components using an LLM,
- * displays them in an editable panel with color swatches, lock/unlock per field,
- * and recomposes into a flat generation prompt.
- *
- * Opened via "Prompt Designer" button in Image Studio.
+ * displays them in a tabbed interface with color swatches and lock/unlock per field.
+ * "Save & Continue" stores the data and triggers enhanced prompt composition.
  */
 (function () {
     'use strict';
 
-    const SECTIONS = [
+    const TABS = [
         { key: 'subject', label: 'Subject', icon: '👤', fields: ['description', 'clothing', 'accessories', 'expression_pose', 'details'] },
         { key: 'scene', label: 'Scene', icon: '🏔', fields: ['setting', 'background', 'props', 'time_of_day'] },
         { key: 'composition', label: 'Composition', icon: '📐', fields: ['camera_angle', 'framing', 'depth_of_field'] },
         { key: 'lighting', label: 'Lighting', icon: '💡', fields: ['key_light', 'fill_rim', 'mood'] },
-        { key: 'style', label: 'Style', icon: '🎨', fields: ['art_style', 'quality'] },
+        { key: 'style', label: 'Style & Colors', icon: '🎨', fields: ['art_style', 'quality'] },
     ];
 
     function _fieldLabel(key) {
@@ -27,11 +25,12 @@
         _data: null,
         _locks: {},
         _onApply: null,
+        _activeTab: 'subject',
 
         /**
          * Open the Prompt Designer modal.
          * @param {string} prompt - User's original prompt
-         * @param {object} opts - { styleId, assetType, imageModel, onApply(composedPrompt, negativePrompt) }
+         * @param {object} opts - { styleId, assetType, imageModel, onApply(designerData) }
          */
         async open(prompt, opts = {}) {
             if (!prompt?.trim()) {
@@ -40,9 +39,15 @@
             }
             this._onApply = opts.onApply || null;
             this._locks = {};
+            this._activeTab = 'subject';
 
-            // Show loading
-            this._showModal('<div class="text-center py-12"><div class="loading-spinner mx-auto mb-3"></div><p class="text-sm text-brand-text-muted">Analyzing your prompt...</p></div>');
+            this._showModal(`
+                <div class="text-center py-12">
+                    <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
+                    <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
+                    <p class="text-sm text-brand-text-muted">Analyzing your prompt...</p>
+                    <p class="text-[10px] text-brand-text-muted/50 mt-1">Breaking down into visual components</p>
+                </div>`);
 
             try {
                 const resp = await fetch('/api/refine-prompt/decompose', {
@@ -56,10 +61,14 @@
                 });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 this._data = await resp.json();
-                this._imageModel = opts.imageModel || 'nova_canvas';
                 this._renderDesigner();
             } catch (err) {
-                this._showModal(`<div class="text-center py-8"><p class="text-red-400 text-sm">Failed to decompose prompt: ${err.message}</p><button class="btn btn-sm mt-4 px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted" onclick="PromptDesigner.close()">Close</button></div>`);
+                const body = this._modal?.querySelector('.pd-body');
+                if (body) body.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-red-400 text-sm">Failed to decompose prompt: ${err.message}</p>
+                        <button class="btn btn-sm mt-4 px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted" onclick="PromptDesigner.close()">Close</button>
+                    </div>`;
             }
         },
 
@@ -73,16 +82,16 @@
         _showModal(innerHtml) {
             if (this._modal) this._modal.remove();
             this._modal = document.createElement('div');
-            this._modal.className = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 pt-8 overflow-y-auto';
+            this._modal.className = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 pt-6 overflow-y-auto';
             this._modal.innerHTML = `
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-w-3xl">
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
                         <h2 class="text-sm font-semibold text-brand-text flex items-center gap-2">
                             <span class="text-lg">🎨</span> Prompt Designer
                         </h2>
-                        <button class="pd-close text-brand-text-muted hover:text-brand-text text-lg">&times;</button>
+                        <button class="pd-close text-brand-text-muted hover:text-brand-text text-lg leading-none">&times;</button>
                     </div>
-                    <div class="pd-body p-5">${innerHtml}</div>
+                    <div class="pd-body">${innerHtml}</div>
                 </div>`;
             this._modal.querySelector('.pd-close')?.addEventListener('click', () => this.close());
             this._modal.addEventListener('click', (e) => { if (e.target === this._modal) this.close(); });
@@ -93,84 +102,140 @@
             const d = this._data;
             if (!d) return;
 
-            let html = '';
+            // Tab bar
+            let tabBar = '<div class="flex border-b border-brand-border">';
+            for (const tab of TABS) {
+                const active = tab.key === this._activeTab;
+                const count = (d[tab.key] ? Object.values(d[tab.key]).filter(v => v && typeof v === 'string' && v.length > 0).length : 0);
+                tabBar += `<button class="pd-tab flex-1 py-2.5 text-[11px] font-medium transition-all border-b-2 ${
+                    active
+                        ? 'text-brand-accent border-brand-accent bg-brand-accent/5'
+                        : 'text-brand-text-muted border-transparent hover:text-brand-text hover:bg-white/3'
+                }" data-tab="${tab.key}">
+                    <span class="block">${tab.icon}</span>
+                    <span class="block mt-0.5">${tab.label}</span>
+                    ${count ? `<span class="text-[9px] opacity-50">(${count})</span>` : ''}
+                </button>`;
+            }
+            tabBar += '</div>';
 
-            // Sections
-            for (const section of SECTIONS) {
-                const sectionData = d[section.key] || {};
-                html += `<details class="pd-section mb-3" open>
-                    <summary class="flex items-center gap-2 cursor-pointer py-2 px-3 rounded-lg bg-black/20 hover:bg-black/30 text-sm font-medium text-brand-text">
-                        <span>${section.icon}</span>
-                        <span>${section.label}</span>
-                        <span class="text-[10px] text-brand-text-muted ml-1">(${section.fields.filter(f => sectionData[f]).length})</span>
-                    </summary>
-                    <div class="pl-3 pr-1 pt-2 space-y-2">`;
+            // Tab content
+            let tabContent = '';
+            for (const tab of TABS) {
+                const sectionData = d[tab.key] || {};
+                const isActive = tab.key === this._activeTab;
+                let fields = '';
 
-                for (const field of section.fields) {
+                for (const field of tab.fields) {
                     const value = sectionData[field] || '';
                     if (!value) continue;
-                    const lockKey = `${section.key}.${field}`;
+                    const lockKey = `${tab.key}.${field}`;
                     const isLocked = this._locks[lockKey];
-                    html += `
-                        <div class="pd-field flex items-start gap-2 group" data-key="${lockKey}">
-                            <button class="pd-lock mt-1 text-xs opacity-50 hover:opacity-100 transition-opacity flex-shrink-0"
-                                    title="${isLocked ? 'Locked — will stay fixed on regenerate' : 'Unlocked — may change on regenerate'}"
-                                    data-lock="${lockKey}">
-                                ${isLocked ? '🔒' : '🔓'}
-                            </button>
-                            <div class="flex-1 min-w-0">
-                                <label class="text-[10px] text-brand-text-muted uppercase tracking-wide">${_fieldLabel(field)}</label>
-                                <textarea class="pd-input w-full bg-black/20 border border-brand-border/50 rounded-md px-2 py-1.5 text-xs text-brand-text resize-none focus:border-brand-accent/50 focus:outline-none"
-                                          rows="${value.length > 120 ? 3 : 2}"
-                                          data-section="${section.key}" data-field="${field}">${value}</textarea>
+                    fields += `
+                        <div class="pd-field group" data-key="${lockKey}">
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium">${_fieldLabel(field)}</label>
+                                <button class="pd-lock text-[10px] px-2 py-0.5 rounded-full transition-all ${
+                                    isLocked
+                                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                                        : 'bg-white/5 text-brand-text-muted/50 border border-transparent hover:border-brand-border'
+                                }" data-lock="${lockKey}" title="${isLocked ? 'Locked — click to unlock' : 'Unlocked — click to lock'}">
+                                    ${isLocked ? '🔒 Locked' : '🔓 Editable'}
+                                </button>
                             </div>
+                            <textarea class="pd-input w-full rounded-md px-3 py-2 text-xs resize-none focus:outline-none transition-all ${
+                                isLocked
+                                    ? 'bg-amber-950/10 border border-amber-500/20 text-brand-text/50 cursor-not-allowed'
+                                    : 'bg-black/20 border border-brand-border/50 text-brand-text focus:border-brand-accent/50'
+                            }" rows="${value.length > 150 ? 3 : 2}"
+                                data-section="${tab.key}" data-field="${field}"
+                                ${isLocked ? 'readonly' : ''}>${value}</textarea>
                         </div>`;
                 }
-                html += '</div></details>';
-            }
 
-            // Color palette
-            const palette = d.style?.color_palette || [];
-            if (palette.length) {
-                html += `<details class="pd-section mb-3" open>
-                    <summary class="flex items-center gap-2 cursor-pointer py-2 px-3 rounded-lg bg-black/20 hover:bg-black/30 text-sm font-medium text-brand-text">
-                        <span>🎨</span> Color Palette <span class="text-[10px] text-brand-text-muted ml-1">(${palette.length})</span>
-                    </summary>
-                    <div class="pl-3 pr-1 pt-2 flex flex-wrap gap-3">`;
-                for (const color of palette) {
-                    html += `
-                        <div class="flex items-center gap-2 bg-black/20 rounded-lg px-3 py-2">
-                            <div class="w-8 h-8 rounded-md border border-white/20 flex-shrink-0" style="background-color: ${color.hex}"></div>
-                            <div>
-                                <div class="text-xs font-medium text-brand-text">${color.name}</div>
-                                <div class="text-[10px] text-brand-text-muted">${color.hex} — ${color.usage || ''}</div>
-                            </div>
-                        </div>`;
+                // Color palette (in Style tab)
+                let colorHtml = '';
+                if (tab.key === 'style') {
+                    const palette = d.style?.color_palette || [];
+                    if (palette.length) {
+                        colorHtml = `
+                            <div class="mt-3">
+                                <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium block mb-2">Color Palette</label>
+                                <div class="grid grid-cols-2 gap-2">`;
+                        for (const color of palette) {
+                            colorHtml += `
+                                <div class="flex items-center gap-2.5 bg-black/20 rounded-lg px-3 py-2.5 border border-brand-border/30">
+                                    <div class="w-10 h-10 rounded-lg border-2 border-white/10 flex-shrink-0 shadow-inner" style="background-color: ${color.hex}"></div>
+                                    <div class="min-w-0">
+                                        <div class="text-xs font-medium text-brand-text">${color.name}</div>
+                                        <div class="text-[10px] text-brand-text-muted font-mono">${color.hex}</div>
+                                        <div class="text-[9px] text-brand-text-muted/60 truncate">${color.usage || ''}</div>
+                                    </div>
+                                </div>`;
+                        }
+                        colorHtml += '</div></div>';
+                    }
                 }
-                html += '</div></details>';
+
+                tabContent += `<div class="pd-tab-content p-4 space-y-3 ${isActive ? '' : 'hidden'}" data-tab-content="${tab.key}">
+                    ${fields}${colorHtml}
+                </div>`;
             }
 
-            // Action buttons
-            html += `
-                <div class="flex gap-2 justify-end pt-4 border-t border-brand-border mt-4">
-                    <button class="pd-regenerate btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">
-                        🔄 Regenerate Unlocked Fields
-                    </button>
-                    <button class="pd-apply btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">
-                        Use This Prompt →
-                    </button>
+            // Action bar
+            const actionBar = `
+                <div class="flex items-center justify-between px-5 py-3 border-t border-brand-border bg-black/10">
+                    <p class="text-[10px] text-brand-text-muted/50">Lock fields to keep them fixed when regenerating</p>
+                    <div class="flex gap-2">
+                        <button class="pd-cancel text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
+                        <button class="pd-save text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Save &amp; Continue</button>
+                    </div>
                 </div>`;
 
             const body = this._modal?.querySelector('.pd-body');
-            if (body) body.innerHTML = html;
+            if (body) body.innerHTML = tabBar + tabContent + actionBar;
 
             // Attach events
+            this._modal?.querySelectorAll('.pd-tab').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    this._activeTab = btn.dataset.tab;
+                    // Toggle tabs
+                    this._modal.querySelectorAll('.pd-tab').forEach(t => {
+                        const active = t.dataset.tab === this._activeTab;
+                        t.classList.toggle('text-brand-accent', active);
+                        t.classList.toggle('border-brand-accent', active);
+                        t.classList.toggle('bg-brand-accent/5', active);
+                        t.classList.toggle('text-brand-text-muted', !active);
+                        t.classList.toggle('border-transparent', !active);
+                    });
+                    this._modal.querySelectorAll('.pd-tab-content').forEach(c => {
+                        c.classList.toggle('hidden', c.dataset.tabContent !== this._activeTab);
+                    });
+                });
+            });
+
             this._modal?.querySelectorAll('.pd-lock').forEach(btn => {
                 btn.addEventListener('click', () => {
                     const key = btn.dataset.lock;
                     this._locks[key] = !this._locks[key];
-                    btn.textContent = this._locks[key] ? '🔒' : '🔓';
-                    btn.title = this._locks[key] ? 'Locked — will stay fixed on regenerate' : 'Unlocked — may change on regenerate';
+                    const locked = this._locks[key];
+                    btn.innerHTML = locked ? '🔒 Locked' : '🔓 Editable';
+                    btn.title = locked ? 'Locked — click to unlock' : 'Unlocked — click to lock';
+                    btn.className = `pd-lock text-[10px] px-2 py-0.5 rounded-full transition-all ${
+                        locked
+                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+                            : 'bg-white/5 text-brand-text-muted/50 border border-transparent hover:border-brand-border'
+                    }`;
+                    // Update textarea
+                    const field = this._modal.querySelector(`.pd-field[data-key="${key}"] .pd-input`);
+                    if (field) {
+                        field.readOnly = locked;
+                        field.className = `pd-input w-full rounded-md px-3 py-2 text-xs resize-none focus:outline-none transition-all ${
+                            locked
+                                ? 'bg-amber-950/10 border border-amber-500/20 text-brand-text/50 cursor-not-allowed'
+                                : 'bg-black/20 border border-brand-border/50 text-brand-text focus:border-brand-accent/50'
+                        }`;
+                    }
                 });
             });
 
@@ -182,40 +247,16 @@
                 });
             });
 
-            this._modal?.querySelector('.pd-apply')?.addEventListener('click', () => this._applyPrompt());
-            this._modal?.querySelector('.pd-regenerate')?.addEventListener('click', () => this._regenerateUnlocked());
+            this._modal?.querySelector('.pd-save')?.addEventListener('click', () => this._save());
+            this._modal?.querySelector('.pd-cancel')?.addEventListener('click', () => this.close());
         },
 
-        async _applyPrompt() {
-            const btn = this._modal?.querySelector('.pd-apply');
-            if (btn) { btn.disabled = true; btn.textContent = 'Composing...'; }
-
-            try {
-                const resp = await fetch('/api/refine-prompt/recompose', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        structured: this._data,
-                        image_model: this._imageModel,
-                    }),
-                });
-                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                const result = await resp.json();
-
-                if (this._onApply) {
-                    this._onApply(result.prompt, result.negative_prompt);
-                }
-                this.close();
-                window.showToast?.('Prompt composed from designer', 'success');
-            } catch (err) {
-                window.showToast?.('Failed to compose prompt', 'error');
-                if (btn) { btn.disabled = false; btn.textContent = 'Use This Prompt →'; }
+        _save() {
+            if (this._onApply) {
+                this._onApply(this._data);
             }
-        },
-
-        async _regenerateUnlocked() {
-            // TODO: Re-call decompose with locked fields preserved
-            window.showToast?.('Regenerate coming soon', 'info');
+            this.close();
+            window.showToast?.('Designer saved — composing enhanced prompt...', 'success');
         },
     };
 })();

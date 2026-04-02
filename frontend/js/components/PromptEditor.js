@@ -245,20 +245,53 @@
                 this._textareaEl.classList.add('hidden');
             });
 
-            // Prompt Designer button
-            this._btnDesigner?.addEventListener('click', () => {
+            // Prompt Designer button — runs asset type check first
+            this._btnDesigner?.addEventListener('click', async () => {
                 const text = this._textareaEl.value.trim();
                 if (!text) { window.showToast?.('Enter a prompt first', 'warning'); return; }
+
+                // Run asset type classification before opening Designer
+                let assetType = this.opts.assetType || 'game_asset';
+                if (window.showConfirm) {
+                    try {
+                        const resp = await fetch('/api/refine-prompt/classify-asset-type', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: text, asset_type: assetType }),
+                        });
+                        if (resp.ok) {
+                            const check = await resp.json();
+                            if (check.mismatch) {
+                                const sugLabel = (check.suggested || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                const curLabel = (check.current || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                const shouldSwitch = await window.showConfirm(
+                                    check.reason,
+                                    {
+                                        title: `Switch to "${sugLabel}"?`,
+                                        detail: `Your current asset type is "${curLabel}". Switching will produce better results in the Prompt Designer.`,
+                                        confirmLabel: `Switch to ${sugLabel}`,
+                                        cancelLabel: `Keep ${curLabel}`,
+                                    }
+                                );
+                                if (shouldSwitch) {
+                                    assetType = check.suggested;
+                                    if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(assetType);
+                                    this.opts.assetType = assetType;
+                                }
+                            }
+                        }
+                    } catch {}
+                }
+
                 window.PromptDesigner?.open(text, {
                     styleId: this.opts.styleId,
-                    assetType: this.opts.assetType,
+                    assetType: assetType,
                     imageModel: this.opts.imageModel,
-                    onApply: (composedPrompt, negativePrompt) => {
+                    onApply: (designerData) => {
                         this._originalText = text;
-                        this._composedText = composedPrompt;
-                        this._negativePrompt = negativePrompt || '';
-                        this._userComposed = true;
-                        this._showComposed(composedPrompt);
+                        this._designerData = designerData;
+                        // Auto-compose the enhanced prompt from designer data
+                        this._composeFromDesigner(designerData);
                     },
                 });
             });
@@ -278,6 +311,29 @@
         _updateCharCount() {
             if (this._charCountEl) {
                 this._charCountEl.textContent = this._textareaEl.value.length;
+            }
+        }
+
+        async _composeFromDesigner(designerData) {
+            // Auto-recompose the designer's structured data into an enhanced prompt
+            try {
+                const resp = await fetch('/api/refine-prompt/recompose', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        structured: designerData,
+                        image_model: this.opts.imageModel || 'nova_canvas',
+                    }),
+                });
+                if (resp.ok) {
+                    const result = await resp.json();
+                    this._composedText = result.prompt;
+                    this._negativePrompt = result.negative_prompt || '';
+                    this._userComposed = true;
+                    this._showComposed(result.prompt);
+                }
+            } catch (err) {
+                console.error('Failed to compose from designer data:', err);
             }
         }
 
