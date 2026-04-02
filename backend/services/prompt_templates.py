@@ -343,6 +343,80 @@ Make sure text does not overflow the canvas boundaries. Account for font size wh
         "text": "Translate the following {lang_name} text to English. Preserve the meaning, tone, and any technical terms. Output ONLY the English translation, nothing else.\n\nText: {text}",
     },
 
+    # ── Prompt Designer ─────────────────────────────────────────────
+
+    "prompt_decompose": {
+        "label": "Prompt Decomposition",
+        "description": "Decomposes a user prompt into structured visual components for the Prompt Designer.",
+        "used_by": "Image Studio — Prompt Designer modal",
+        "variables": ["{user_prompt}", "{style_section}", "{asset_context}"],
+        "model": "fast LLM (Sonnet)",
+        "system_prompt": "You decompose image generation prompts into structured visual components. Reply with ONLY a JSON object, no explanation or markdown fences.",
+        "text": """Decompose this image generation prompt into structured visual components that an artist can individually edit.
+
+Prompt: "{user_prompt}"
+
+{style_section}
+
+{asset_context}
+
+Analyze the prompt and return a JSON object with these sections. Fill in details the user implied but didn't state explicitly — use your knowledge of the subject to add accurate, specific visual information.
+
+{{
+  "subject": {{
+    "description": "What/who is the main subject — be specific about type, age, build",
+    "clothing": "Detailed clothing/covering/surface description",
+    "accessories": "Items held, worn, or carried",
+    "expression_pose": "Facial expression and body pose/stance",
+    "details": "Any other distinctive features (scars, tattoos, markings, etc.)"
+  }},
+  "scene": {{
+    "setting": "Where the scene takes place — specific location",
+    "background": "What's visible behind/around the subject",
+    "props": "Objects in the scene (not on the subject)",
+    "time_of_day": "Time and atmospheric conditions"
+  }},
+  "composition": {{
+    "camera_angle": "Camera position relative to subject (eye-level, low angle, overhead, etc.)",
+    "framing": "How much of the subject is visible (full body, 3/4, close-up, wide shot)",
+    "depth_of_field": "Focus behavior (sharp throughout, soft background, etc.)"
+  }},
+  "lighting": {{
+    "key_light": "Main light source — direction, warmth, intensity",
+    "fill_rim": "Secondary lights for separation and shadow fill",
+    "mood": "Overall emotional quality of the light"
+  }},
+  "style": {{
+    "art_style": "Rendering approach (digital painting, photorealistic, concept art, etc.)",
+    "quality": "Detail level and production quality markers",
+    "color_palette": [
+      {{"name": "Color Name", "hex": "#HEXVAL", "usage": "where this color appears"}}
+    ]
+  }}
+}}
+
+Be SPECIFIC and VISUAL. Not 'nice outfit' — describe the actual garments. Not 'good lighting' — describe the light direction and color temperature. Generate 4-6 colors in the palette that define the image's look. If the user's prompt is simple (e.g. 'a cat'), fill in rich professional defaults.""",
+    },
+
+    "prompt_recompose": {
+        "label": "Prompt Recomposition",
+        "description": "Assembles structured visual components back into a flat image generation prompt.",
+        "used_by": "Image Studio — Prompt Designer modal — Generate button",
+        "variables": ["{structured_json}", "{model_name}", "{max_chars}"],
+        "model": "fast LLM (Sonnet)",
+        "system_prompt": "You write image generation prompts from structured specifications. Output ONLY the prompt text and a NEGATIVE: line. No explanation.",
+        "text": """Convert these structured visual specifications into a single image generation prompt for {model_name}.
+
+Specifications:
+{structured_json}
+
+Write a DESCRIPTIVE CAPTION (not commands) that incorporates ALL the specifications above. Structure: subject and pose first, then scene/setting, then materials/textures, then lighting, then style/quality.
+
+Include a NEGATIVE: line with failure-prevention terms.
+
+Keep under {max_chars} characters. Every word should paint the picture.""",
+    },
+
     # ── Asset Classification ─────────────────────────────────────────
 
     "asset_type_classify": {

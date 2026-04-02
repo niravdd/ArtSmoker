@@ -208,6 +208,117 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
 from pydantic import BaseModel as _BaseModel
 
 
+# ── Prompt Designer (Decompose / Recompose) ──────────────────────────────
+
+class DecomposeRequest(_BaseModel):
+    prompt: str
+    style_id: str | None = None
+    asset_type: str = "game_asset"
+
+
+@router.post("/decompose")
+async def decompose_prompt(body: DecomposeRequest):
+    """Decompose a user prompt into structured visual components.
+
+    Returns a JSON structure with editable fields: subject, scene,
+    composition, lighting, style (including color palette with hex + swatches).
+    """
+    from backend.services.bedrock_client import invoke_llm
+    from backend.services.prompt_templates import get_template, get_system_prompt
+    from backend.services.prompt_engineer import _build_style_section, _ASSET_TYPE_CONTEXT
+    from backend.models.generation_request import AssetType
+    import json as _json, re as _re
+
+    # Build context
+    style_profile = None
+    if body.style_id:
+        data = store.load_style_profile(body.style_id)
+        if data:
+            from backend.models.style_profile import StyleProfile
+            style_profile = StyleProfile(**data)
+    style_section = _build_style_section(style_profile)
+
+    # Map string to enum for asset context
+    try:
+        asset_enum = AssetType(body.asset_type)
+    except ValueError:
+        asset_enum = AssetType.GAME_ASSET
+    asset_context = _ASSET_TYPE_CONTEXT.get(asset_enum, "")
+
+    prompt_text = get_template('prompt_decompose').format(
+        user_prompt=body.prompt,
+        style_section=style_section,
+        asset_context=asset_context,
+    )
+
+    try:
+        raw = invoke_llm(
+            prompt_text,
+            system=get_system_prompt('prompt_decompose'),
+            max_tokens=2000,
+            temperature=0.3,
+            complexity="fast",
+        ).strip()
+        cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", raw)
+        cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
+        return _json.loads(cleaned.strip())
+    except Exception as exc:
+        logger.exception("Prompt decomposition failed")
+        raise HTTPException(502, detail=f"Decomposition failed: {exc}")
+
+
+class RecomposeRequest(_BaseModel):
+    structured: dict
+    image_model: str = "nova_canvas"
+
+
+@router.post("/recompose")
+async def recompose_prompt(body: RecomposeRequest):
+    """Recompose structured visual components into a flat image generation prompt."""
+    from backend.services.bedrock_client import invoke_llm
+    from backend.services.prompt_templates import get_template, get_system_prompt
+    from backend.services.prompt_engineer import get_prompt_limit, _get_model_label
+    import json as _json, re as _re
+
+    max_chars = get_prompt_limit(body.image_model)
+    model_name = _get_model_label(body.image_model)
+
+    prompt_text = get_template('prompt_recompose').format(
+        structured_json=_json.dumps(body.structured, indent=2),
+        model_name=model_name,
+        max_chars=max_chars,
+    )
+
+    try:
+        raw = invoke_llm(
+            prompt_text,
+            system=get_system_prompt('prompt_recompose'),
+            max_tokens=1500,
+            temperature=0.3,
+            complexity="fast",
+        ).strip()
+
+        # Split out NEGATIVE line
+        main_prompt = raw
+        negative = ""
+        for marker in ["NEGATIVE:", "Negative:"]:
+            if marker in raw:
+                parts = raw.split(marker, 1)
+                main_prompt = parts[0].strip()
+                negative = parts[1].strip()
+                break
+
+        return {
+            "prompt": main_prompt,
+            "negative_prompt": negative,
+            "model": body.image_model,
+            "chars": len(main_prompt),
+        }
+    except Exception as exc:
+        logger.exception("Prompt recomposition failed")
+        raise HTTPException(502, detail=f"Recomposition failed: {exc}")
+
+
 class TranslatePreviewRequest(_BaseModel):
     text: str
     source_lang: str = ""
