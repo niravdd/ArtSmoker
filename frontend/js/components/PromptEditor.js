@@ -245,44 +245,49 @@
                 this._textareaEl.classList.add('hidden');
             });
 
-            // Prompt Designer button — runs asset type check first
+            // Prompt Designer button — runs asset type check first, THEN opens Designer
             this._btnDesigner?.addEventListener('click', async () => {
                 const text = this._textareaEl.value.trim();
                 if (!text) { window.showToast?.('Enter a prompt first', 'warning'); return; }
 
-                // Run asset type classification before opening Designer
+                // Step A: Classify asset type (with loading indicator)
                 let assetType = this.opts.assetType || 'game_asset';
-                if (window.showConfirm) {
-                    try {
-                        const resp = await fetch('/api/refine-prompt/classify-asset-type', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ prompt: text, asset_type: assetType }),
-                        });
-                        if (resp.ok) {
-                            const check = await resp.json();
-                            if (check.mismatch) {
-                                const sugLabel = (check.suggested || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                                const curLabel = (check.current || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                                const shouldSwitch = await window.showConfirm(
-                                    check.reason,
-                                    {
-                                        title: `Switch to "${sugLabel}"?`,
-                                        detail: `Your current asset type is "${curLabel}". Switching will produce better results in the Prompt Designer.`,
-                                        confirmLabel: `Switch to ${sugLabel}`,
-                                        cancelLabel: `Keep ${curLabel}`,
-                                    }
-                                );
-                                if (shouldSwitch) {
-                                    assetType = check.suggested;
-                                    if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(assetType);
-                                    this.opts.assetType = assetType;
+                try {
+                    window.showLoading?.('Checking asset type...');
+                    const resp = await fetch('/api/refine-prompt/classify-asset-type', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ prompt: text, asset_type: assetType }),
+                    });
+                    window.hideLoading?.();
+
+                    if (resp.ok && window.showConfirm) {
+                        const check = await resp.json();
+                        if (check.mismatch) {
+                            const sugLabel = (check.suggested || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                            const curLabel = (check.current || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                            // Step B: Ask user — this BLOCKS until they click
+                            const shouldSwitch = await window.showConfirm(
+                                check.reason,
+                                {
+                                    title: 'Asset Type may not be right',
+                                    detail: `You selected "${curLabel}" but your prompt looks like a "${sugLabel}". The right asset type significantly affects the quality of the generated image.`,
+                                    confirmLabel: `Switch to ${sugLabel}`,
+                                    cancelLabel: `Keep ${curLabel}`,
                                 }
+                            );
+                            if (shouldSwitch) {
+                                assetType = check.suggested;
+                                if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(assetType);
+                                this.opts.assetType = assetType;
                             }
                         }
-                    } catch {}
+                    }
+                } catch {
+                    window.hideLoading?.();
                 }
 
+                // Step C: NOW open the Designer (only after classification dialog is resolved)
                 window.PromptDesigner?.open(text, {
                     styleId: this.opts.styleId,
                     assetType: assetType,

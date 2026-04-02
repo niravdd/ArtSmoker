@@ -800,8 +800,8 @@
                             const shouldSwitch = await window.showConfirm(
                                 assetCheck.reason,
                                 {
-                                    title: `Switch to "${sugLabel}"?`,
-                                    detail: `Your current asset type is "${curLabel}". The AI recommends "${sugLabel}" for this prompt.`,
+                                    title: `Asset Type may not be right`,
+                                    detail: `You selected "${curLabel}" but your prompt looks like a "${sugLabel}". The right asset type significantly affects the quality of the generated image.`,
                                     confirmLabel: `Switch to ${sugLabel}`,
                                     cancelLabel: `Keep ${curLabel}`,
                                 }

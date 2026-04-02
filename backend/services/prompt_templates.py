@@ -431,11 +431,13 @@ Keep under {max_chars} characters. Every word should paint the picture.""",
 Prompt: "{user_prompt}"
 
 Asset types:
-- game_asset: A single isolated object, item, or prop on a transparent background. No scene, no characters. Examples: a sword, a treasure chest, a potion bottle, a tree, a crystal.
-- character: A person, humanoid, creature, or animal — with or without a scene/setting. Any prompt describing a living being with personality, pose, or action. Examples: a warrior, a female sailor on a ship, a dragon, a fox, a wizard in a tower.
-- environment: A landscape, scene, location, or architectural setting WITHOUT a central character figure. Examples: a medieval village, a dark forest, an underwater cave, a space station interior.
-- marketing_banner: A wide cinematic scene designed for promotional use, with dramatic composition and space for text overlay. Only if the user explicitly mentions banner, promotional, marketing, or advertisement.
-- icon: A simple bold symbol for use as a UI icon or app icon. Only if the user mentions icon, button, or the description is extremely simple and symbolic.
+- game_asset: A single isolated object, item, or prop on a transparent background. No scene, no people. Examples: a sword, a treasure chest, a potion bottle, a tree, a crystal.
+- character: The PERSON or CREATURE is clearly the STAR of the image — the prompt is primarily about THEM (their appearance, outfit, pose, expression). A scene may be mentioned as backdrop, but the character is the focal point. Examples: "a warrior holding a sword", "a female sailor", "a cute fox", "a wizard casting a spell".
+- environment: A scene, landscape, location, or setting. People or creatures may APPEAR in the scene, but the SCENE ITSELF is the subject — the composition is about the place, the atmosphere, the view. If the prompt describes a wide shot, a location "shown from outside", or focuses on the setting more than any individual, it's an environment. Examples: "a medieval village at sunset", "a train on tracks with mountains", "a woman piloting a train shown from outside with a village backdrop", "a busy marketplace with vendors".
+- marketing_banner: A wide cinematic scene for promotional use. Only if the user explicitly mentions banner, promotional, marketing, or advertisement.
+- icon: A simple bold symbol for UI use. Only if the user mentions icon or button.
+
+KEY DISTINCTION: If the prompt describes a PERSON but the composition is about the SCENE (wide shot, shown from outside, backdrop focus, multiple elements described equally), classify as "environment" not "character". Only classify as "character" when the person IS the primary subject the viewer should focus on.
 
 Respond with ONLY this JSON (no markdown fences):
 {{

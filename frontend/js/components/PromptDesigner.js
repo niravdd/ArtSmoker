@@ -82,7 +82,7 @@
         _showModal(innerHtml) {
             if (this._modal) this._modal.remove();
             this._modal = document.createElement('div');
-            this._modal.className = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-start justify-center p-4 pt-6 overflow-y-auto';
+            this._modal.className = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto';
             this._modal.innerHTML = `
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-w-3xl">
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
