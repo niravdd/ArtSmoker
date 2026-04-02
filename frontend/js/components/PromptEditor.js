@@ -132,7 +132,7 @@
                     <!-- Step 2: Refine -->
                     <div>
                         <div class="flex items-center gap-2 mb-1.5">
-                            <span class="text-[10px] font-bold text-brand-accent bg-brand-accent/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('prompt_editor.step') : 'STEP'} 2</span>
+                            <span class="text-[10px] font-bold text-amber-400 bg-amber-400/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('prompt_editor.step') : 'STEP'} 2</span>
                             <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('prompt_editor.step2_refine') : 'Refine your prompt'}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-2">
