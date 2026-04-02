@@ -129,32 +129,24 @@
                         <div class="translation-english-text hidden p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-xs text-brand-text/70 whitespace-pre-wrap max-h-24 overflow-auto"></div>
                     </div>
 
-                    <!-- Step 2: Refine -->
+                    <!-- Step 2: Prompt Designer (optional) -->
                     <div>
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="text-[10px] font-bold text-amber-400 bg-amber-400/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('prompt_editor.step') : 'STEP'} 2</span>
-                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('prompt_editor.step2_refine') : 'Refine your prompt'}</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('prompt_editor.step2_refine') : 'Decompose & refine'}</span>
+                            <span class="text-[9px] text-brand-text-muted/40 italic ml-1">${typeof t !== 'undefined' ? t('common.optional') : 'optional'}</span>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
-                            <button type="button" class="btn-prompt-designer btn btn-secondary text-xs py-2.5 rounded-lg flex items-center justify-center gap-2">
-                                <span>🎨</span> ${typeof t !== 'undefined' ? t('prompt_editor.prompt_designer') : 'Prompt Designer'}
-                            </button>
-                            <button type="button" class="btn-compose btn btn-secondary text-xs py-2.5 rounded-lg flex items-center justify-center gap-2">
-                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
-                                </svg>
-                                ${typeof t !== 'undefined' ? t('prompt_editor.compose') : 'Quick Enhance'}
-                            </button>
-                        </div>
-                        <p class="compose-note text-[10px] text-brand-text-muted/60 mt-1">${typeof t !== 'undefined' ? t('prompt_editor.compose_tip') : 'Prompt Designer gives you full control over every visual element. Quick Enhance auto-improves in one click. Both are optional — Generate works directly too.'}</p>
+                        <button type="button" class="btn-prompt-designer btn btn-secondary text-xs py-2.5 w-full rounded-lg flex items-center justify-center gap-2">
+                            <span>🎨</span> ${typeof t !== 'undefined' ? t('prompt_editor.prompt_designer') : 'Prompt Designer'}
+                        </button>
+                        <p class="compose-note text-[10px] text-brand-text-muted/60 mt-1">${typeof t !== 'undefined' ? t('prompt_editor.step2_tip') : 'Breaks down your prompt into editable visual components — subject, scene, lighting, colors. Skip this and go straight to Generate if you prefer.'}</p>
                     </div>
 
-                    <!-- Step 3: Enhanced prompt -->
+                    <!-- Step 3: Enhanced Prompt Preview -->
                     <div>
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="text-[10px] font-bold text-emerald-400/50 bg-emerald-400/5 rounded px-1.5 py-0.5 step3-badge">${typeof t !== 'undefined' ? t('prompt_editor.step') : 'STEP'} 3</span>
-                            <span class="text-[10px] text-brand-text-muted/50 uppercase tracking-wide step3-label">${typeof t !== 'undefined' ? t('prompt_editor.step3_review') : 'Review & edit enhanced prompt'}</span>
+                            <span class="text-[10px] text-brand-text-muted/50 uppercase tracking-wide step3-label">${typeof t !== 'undefined' ? t('prompt_editor.step3_review') : 'Enhanced prompt preview'}</span>
                             <button type="button" class="btn-clear-composed hidden text-[10px] text-brand-text-muted hover:text-red-400 transition-colors ml-auto">${typeof t !== 'undefined' ? t('prompt_editor.clear') : 'Clear'}</button>
                         </div>
                         <div class="composed-panel hidden space-y-2">
@@ -164,7 +156,16 @@
                             ></textarea>
                             <p class="text-[10px] text-brand-text-muted/50">${typeof t !== 'undefined' ? t('prompt_editor.step3_desc') : 'This is what the image model will receive. You can edit it before generating.'}</p>
                         </div>
-                        <p class="composed-placeholder text-[10px] text-brand-text-muted/30 italic">${typeof t !== 'undefined' ? t('prompt_editor.step3_placeholder') : 'Enhanced prompt will appear here after using Prompt Designer or Quick Enhance.'}</p>
+                        <div class="composed-placeholder">
+                            <button type="button" class="btn-compose btn btn-secondary text-xs py-2 w-full rounded-lg flex items-center justify-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                        d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
+                                </svg>
+                                ${typeof t !== 'undefined' ? t('prompt_editor.generate_enhanced') : 'Generate Enhanced Prompt'}
+                            </button>
+                            <p class="text-[10px] text-brand-text-muted/30 mt-1 italic">${typeof t !== 'undefined' ? t('prompt_editor.step3_hint') : 'Optional — click to preview the enhanced prompt before generating. Or just click Generate below to auto-enhance and create.'}</p>
+                        </div>
                     </div>
                 </div>
             `;
