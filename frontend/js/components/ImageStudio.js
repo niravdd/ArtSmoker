@@ -240,9 +240,6 @@
                                     ${t('common.prompt')}
                                 </h2>
                                 <div id="prompt-editor-container"></div>
-                                <button id="btn-prompt-designer" type="button" class="mt-2 w-full text-xs py-2 px-3 rounded-lg border border-brand-border/50 hover:border-brand-accent/50 hover:bg-brand-accent/5 text-brand-text-muted hover:text-brand-accent transition-all flex items-center justify-center gap-2">
-                                    <span>🎨</span> Prompt Designer — Decompose &amp; Refine
-                                </button>
                             </div>
 
                             <!-- Generate / Reset Buttons -->
@@ -434,21 +431,6 @@
             document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateModelSummary());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open('image-studio'));
-            document.getElementById('btn-prompt-designer')?.addEventListener('click', () => {
-                const userPrompt = this._promptEditor?.getUserText?.()?.trim();
-                if (!userPrompt) { window.showToast?.('Enter a prompt first', 'warning'); return; }
-                window.PromptDesigner?.open(userPrompt, {
-                    styleId: this._getStyleId(),
-                    assetType: this._getAssetType(),
-                    imageModel: document.getElementById('gen-model')?.value || 'nova_canvas',
-                    onApply: (composedPrompt, negativePrompt) => {
-                        if (this._promptEditor) {
-                            this._promptEditor.setComposedText(composedPrompt);
-                            if (negativePrompt) this._promptEditor._negativePrompt = negativePrompt;
-                        }
-                    },
-                });
-            });
 
             // IP declaration — show model recommendation + disable pre-check when claimed
             const updateIpNote = () => {

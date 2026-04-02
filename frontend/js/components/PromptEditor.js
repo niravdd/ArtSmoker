@@ -122,8 +122,12 @@
                         <div class="translation-english-text hidden p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-xs text-brand-text/70 whitespace-pre-wrap max-h-24 overflow-auto"></div>
                     </div>
 
-                    <!-- Toolbar: Compose button + Voice -->
+                    <!-- Toolbar: Prompt Designer + Compose + Voice -->
                     <div class="flex flex-wrap items-center gap-2">
+                        <button type="button" class="btn-prompt-designer btn btn-secondary btn-sm flex-1 sm:flex-none">
+                            <span class="text-sm">🎨</span>
+                            Prompt Designer
+                        </button>
                         <button type="button" class="btn-compose btn btn-secondary btn-sm flex-1 sm:flex-none">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -159,6 +163,7 @@
             this._textareaEl = this.container.querySelector('#prompt-textarea');
             this._charCountEl = this.container.querySelector('.char-count');
             this._btnCompose = this.container.querySelector('.btn-compose');
+            this._btnDesigner = this.container.querySelector('.btn-prompt-designer');
             this._composeNote = this.container.querySelector('.compose-note');
             this._composedPanel = this.container.querySelector('.composed-panel');
             this._composedTextarea = this.container.querySelector('.composed-textarea');
@@ -209,6 +214,24 @@
                 this.container.querySelector('.translation-tab-original').className = 'translation-tab-original text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent';
                 this.container.querySelector('.translation-english-text')?.classList.remove('hidden');
                 this._textareaEl.classList.add('hidden');
+            });
+
+            // Prompt Designer button
+            this._btnDesigner?.addEventListener('click', () => {
+                const text = this._textareaEl.value.trim();
+                if (!text) { window.showToast?.('Enter a prompt first', 'warning'); return; }
+                window.PromptDesigner?.open(text, {
+                    styleId: this.opts.styleId,
+                    assetType: this.opts.assetType,
+                    imageModel: this.opts.imageModel,
+                    onApply: (composedPrompt, negativePrompt) => {
+                        this._originalText = text;
+                        this._composedText = composedPrompt;
+                        this._negativePrompt = negativePrompt || '';
+                        this._userComposed = true;
+                        this._showComposed(composedPrompt);
+                    },
+                });
             });
 
             // Compose button
