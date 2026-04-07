@@ -280,9 +280,11 @@ async def lifespan(app: FastAPI):
                         else:
                             _sync_progress(f"Done {region} — no models")
 
-                    # Step 4: Prune
+                    # Step 4: Prune (skip custom-hosted models — they don't use Bedrock regions)
                     _sync_progress("Finalizing — checking model availability...")
                     for key, cfg in list(registry.get("image_models", {}).items()):
+                        if cfg.get("model_source") == "custom_hosted":
+                            continue
                         if not cfg.get("available_regions") and cfg.get("enabled"):
                             update_image_model(key, {"enabled": False})
 

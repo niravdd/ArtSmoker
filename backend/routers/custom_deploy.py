@@ -541,11 +541,15 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
 
     invoke = catalog_entry.get("invoke", {})
 
+    from backend.services.sagemaker_deployer import _get_region
+    deploy_region = _get_region()
+
     entry = {
         "label": catalog_entry["label"],
         "model_id": f"sagemaker:{deployment['endpoint_name']}",
         "provider": catalog_entry["provider"],
-        "region": boto3.Session().region_name or "us-west-2",
+        "region": deploy_region,
+        "available_regions": [deploy_region],
         "enabled": True,
         "model_source": "custom_hosted",
         "format_family": f"sagemaker_{deployment['endpoint_type']}",

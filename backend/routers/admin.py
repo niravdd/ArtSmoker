@@ -1223,12 +1223,15 @@ async def refresh_all_regions():
             except Exception as exc:
                 logger.warning("Custom model discovery failed in %s: %s", region, exc)
 
-        # Step 4: Prune — check which models in the registry are still available.
+        # Step 4: Prune — check which Bedrock models are still available.
         # After Step 3, each model's available_regions reflects what was discovered.
         # Models with empty available_regions (not found in any region) get disabled.
+        # Custom-hosted models are EXEMPT — they don't use Bedrock regions.
         registry = get_registry()
         disabled = []
         for key, cfg in list(registry.get("image_models", {}).items()):
+            if cfg.get("model_source") == "custom_hosted":
+                continue  # Custom models don't have Bedrock regions — never prune them
             regions = cfg.get("available_regions", [])
             if not regions and cfg.get("enabled"):
                 update_image_model(key, {"enabled": False})
