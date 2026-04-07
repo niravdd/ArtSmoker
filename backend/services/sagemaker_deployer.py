@@ -118,10 +118,22 @@ def _download_github_release(url: str, dest_dir: Path, progress_callback=None):
 
 def upload_to_s3(local_dir: Path, model_key: str,
                  progress_callback=None) -> str:
-    """Upload downloaded model files to S3.
+    """Upload downloaded model files to S3, including the inference handler.
+
+    Bundles the universal inference.py handler with the model weights
+    so SageMaker knows how to load and invoke the model.
 
     Returns the S3 URI (s3://bucket/prefix/model_key/).
     """
+    # Copy the universal inference handler into the model directory
+    import shutil
+    handler_src = Path(__file__).resolve().parent.parent / "sagemaker_handlers" / "inference.py"
+    code_dir = local_dir / "code"
+    code_dir.mkdir(exist_ok=True)
+    if handler_src.exists():
+        shutil.copy2(str(handler_src), str(code_dir / "inference.py"))
+    else:
+        logger.warning("Inference handler not found at %s", handler_src)
     bucket = get_deployment_s3_bucket()
     if not bucket:
         raise ValueError(
