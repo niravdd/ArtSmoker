@@ -8,12 +8,14 @@
 (function () {
     'use strict';
 
+    const _t = (key) => typeof t !== 'undefined' ? t(key) : key.split('.').pop();
+
     const TABS = [
-        { key: 'subject', label: 'Subject', icon: '👤', fields: ['description', 'clothing', 'accessories', 'expression_pose', 'details'] },
-        { key: 'scene', label: 'Scene', icon: '🏔', fields: ['setting', 'background', 'props', 'time_of_day'] },
-        { key: 'composition', label: 'Composition', icon: '📐', fields: ['camera_angle', 'framing', 'depth_of_field'] },
-        { key: 'lighting', label: 'Lighting', icon: '💡', fields: ['key_light', 'fill_rim', 'mood'] },
-        { key: 'style', label: 'Style & Colors', icon: '🎨', fields: ['art_style', 'quality'] },
+        { key: 'subject', labelKey: 'prompt_designer.tab_subject', icon: '👤', fields: ['description', 'clothing', 'accessories', 'expression_pose', 'details'] },
+        { key: 'scene', labelKey: 'prompt_designer.tab_scene', icon: '🏔', fields: ['setting', 'background', 'props', 'time_of_day'] },
+        { key: 'composition', labelKey: 'prompt_designer.tab_composition', icon: '📐', fields: ['camera_angle', 'framing', 'depth_of_field'] },
+        { key: 'lighting', labelKey: 'prompt_designer.tab_lighting', icon: '💡', fields: ['key_light', 'fill_rim', 'mood'] },
+        { key: 'style', labelKey: 'prompt_designer.tab_style', icon: '🎨', fields: ['art_style', 'quality'] },
     ];
 
     function _fieldLabel(key) {
@@ -45,8 +47,8 @@
                 <div class="text-center py-12">
                     <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
                     <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
-                    <p class="text-sm text-brand-text-muted">Analyzing your prompt...</p>
-                    <p class="text-[10px] text-brand-text-muted/50 mt-1">Breaking down into visual components</p>
+                    <p class="text-sm text-brand-text-muted">${_t('prompt_designer.analyzing')}</p>
+                    <p class="text-[10px] text-brand-text-muted/50 mt-1">${_t('prompt_designer.analyzing_sub')}</p>
                 </div>`);
 
             try {
@@ -87,7 +89,7 @@
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-w-3xl">
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
                         <h2 class="text-sm font-semibold text-brand-text flex items-center gap-2">
-                            <span class="text-lg">🎨</span> Prompt Designer
+                            <span class="text-lg">🎨</span> ${_t('prompt_designer.title')}
                         </h2>
                         <button class="pd-close text-brand-text-muted hover:text-brand-text text-lg leading-none">&times;</button>
                     </div>
@@ -113,7 +115,7 @@
                         : 'text-brand-text-muted border-transparent hover:text-brand-text hover:bg-white/3'
                 }" data-tab="${tab.key}">
                     <span class="block">${tab.icon}</span>
-                    <span class="block mt-0.5">${tab.label}</span>
+                    <span class="block mt-0.5">${_t(tab.labelKey)}</span>
                     ${count ? `<span class="text-[9px] opacity-50">(${count})</span>` : ''}
                 </button>`;
             }
@@ -139,8 +141,8 @@
                                     isLocked
                                         ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                                         : 'bg-white/5 text-brand-text-muted/50 border border-transparent hover:border-brand-border'
-                                }" data-lock="${lockKey}" title="${isLocked ? 'Locked — click to unlock' : 'Unlocked — click to lock'}">
-                                    ${isLocked ? '🔒 Locked' : '🔓 Editable'}
+                                }" data-lock="${lockKey}" title="${isLocked ? _t('prompt_designer.lock_title_locked') : _t('prompt_designer.lock_title_unlocked')}">
+                                    ${isLocked ? `🔒 ${_t('prompt_designer.locked')}` : `🔓 ${_t('prompt_designer.editable')}`}
                                 </button>
                             </div>
                             <textarea class="pd-input w-full rounded-md px-3 py-2 text-xs resize-none focus:outline-none transition-all ${
@@ -160,7 +162,7 @@
                     if (palette.length) {
                         colorHtml = `
                             <div class="mt-3">
-                                <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium block mb-2">Color Palette</label>
+                                <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium block mb-2">${_t('prompt_designer.color_palette')}</label>
                                 <div class="grid grid-cols-2 gap-2">`;
                         for (const color of palette) {
                             colorHtml += `
@@ -185,10 +187,10 @@
             // Action bar
             const actionBar = `
                 <div class="flex items-center justify-between px-5 py-3 border-t border-brand-border bg-black/10">
-                    <p class="text-[10px] text-brand-text-muted/50">Lock fields to keep them fixed when regenerating</p>
+                    <p class="text-[10px] text-brand-text-muted/50">${_t('prompt_designer.lock_hint')}</p>
                     <div class="flex gap-2">
-                        <button class="pd-cancel text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
-                        <button class="pd-save text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Save &amp; Continue</button>
+                        <button class="pd-cancel text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${_t('prompt_designer.cancel')}</button>
+                        <button class="pd-save text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${_t('prompt_designer.save_continue')}</button>
                     </div>
                 </div>`;
 
@@ -219,8 +221,8 @@
                     const key = btn.dataset.lock;
                     this._locks[key] = !this._locks[key];
                     const locked = this._locks[key];
-                    btn.innerHTML = locked ? '🔒 Locked' : '🔓 Editable';
-                    btn.title = locked ? 'Locked — click to unlock' : 'Unlocked — click to lock';
+                    btn.innerHTML = locked ? `🔒 ${_t('prompt_designer.locked')}` : `🔓 ${_t('prompt_designer.editable')}`;
+                    btn.title = locked ? _t('prompt_designer.lock_title_locked') : _t('prompt_designer.lock_title_unlocked');
                     btn.className = `pd-lock text-[10px] px-2 py-0.5 rounded-full transition-all ${
                         locked
                             ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
@@ -256,7 +258,7 @@
                 this._onApply(this._data);
             }
             this.close();
-            window.showToast?.('Designer saved — composing enhanced prompt...', 'success');
+            window.showToast?.(_t('prompt_designer.saved'), 'success');
         },
     };
 })();

@@ -253,7 +253,7 @@
                 // Step A: Classify asset type (with loading indicator)
                 let assetType = this.opts.assetType || 'game_asset';
                 try {
-                    window.showLoading?.('Checking asset type...');
+                    window.showLoading?.(typeof t !== 'undefined' ? t('prompt_designer.asset_check') : 'Checking asset type...');
                     const resp = await fetch('/api/refine-prompt/classify-asset-type', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -270,7 +270,7 @@
                             const shouldSwitch = await window.showConfirm(
                                 check.reason,
                                 {
-                                    title: 'Asset Type may not be right',
+                                    title: typeof t !== 'undefined' ? t('prompt_designer.asset_mismatch_title') : 'Asset Type may not be right',
                                     detail: `You selected "${curLabel}" but your prompt looks like a "${sugLabel}". The right asset type significantly affects the quality of the generated image.`,
                                     confirmLabel: `Switch to ${sugLabel}`,
                                     cancelLabel: `Keep ${curLabel}`,

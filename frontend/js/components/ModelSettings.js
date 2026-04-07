@@ -90,7 +90,7 @@
                             <span class="text-[9px] opacity-60 ml-1">(${llmCount})</span>
                         </button>
                         <button class="tab" data-ms-tab="custom-models">
-                            Custom Models
+                            ${t('custom_models.tab_title')}
                             <span class="text-[9px] opacity-60 ml-1">🔧</span>
                         </button>
                         <button class="tab" data-ms-tab="prompt-templates">${t('model_settings.tab_templates')}</button>
@@ -197,9 +197,9 @@
                         <!-- Tab: Custom Models -->
                         <div class="ms-tab-panel hidden" data-ms-panel="custom-models">
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-xs text-brand-text-muted">Self-hosted models on SageMaker in your AWS account.</p>
+                                <p class="text-xs text-brand-text-muted">${t('custom_models.subtitle')}</p>
                                 <button id="ms-cm-refresh" class="btn btn-secondary btn-sm text-xs flex items-center gap-1">
-                                    🔄 Refresh All
+                                    🔄 ${t('custom_models.refresh_all')}
                                 </button>
                             </div>
                             <div id="ms-custom-models-content">
@@ -1240,17 +1240,17 @@
                 backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
                 backdrop.innerHTML = `
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
-                        <h3 class="text-sm font-semibold text-brand-text">HuggingFace Authentication Required</h3>
+                        <h3 class="text-sm font-semibold text-brand-text">${t('custom_models.hf_title')}</h3>
                         <div class="text-xs text-brand-text-muted space-y-2">
-                            <p>This model is gated on HuggingFace. To download it:</p>
+                            <p>${t('custom_models.hf_desc')}</p>
                             <ol class="list-decimal ml-4 space-y-1">
-                                <li>Visit the model page and <strong>accept the license</strong></li>
-                                <li>Go to <strong>huggingface.co/settings/tokens</strong> and copy your token</li>
-                                <li>Paste it below</li>
+                                <li>${t('custom_models.hf_step1')}</li>
+                                <li>${t('custom_models.hf_step2')}</li>
+                                <li>${t('custom_models.hf_step3')}</li>
                             </ol>
-                            <p class="text-[10px] text-amber-400/80 mt-2">Your token is used once for this download and is <strong>never stored</strong>.</p>
+                            <p class="text-[10px] text-amber-400/80 mt-2">${t('custom_models.hf_warning')}</p>
                         </div>
-                        <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+                        <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="${t('custom_models.hf_placeholder')}" autocomplete="off" />
                         <div class="flex gap-2 justify-end">
                             <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
                             <button class="hf-submit btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Continue</button>
@@ -1287,7 +1287,7 @@
                 this._customModelsLoaded = true;
 
                 if (models.length === 0) {
-                    container.innerHTML = '<p class="text-xs text-brand-text-muted">No custom models available in the catalog.</p>';
+                    container.innerHTML = `<p class="text-xs text-brand-text-muted">${t('custom_models.no_models')}</p>`;
                     return;
                 }
 
@@ -1299,7 +1299,11 @@
                     groups[studio].push(m);
                 });
 
-                const studioLabels = { image: 'Image Studio', video: 'Video Studio', other: 'Other' };
+                const studioLabels = {
+                    image: t('custom_models.image_studio'),
+                    video: t('custom_models.video_studio'),
+                    other: t('custom_models.other'),
+                };
 
                 let html = '<div class="space-y-4">';
                 html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
@@ -1311,10 +1315,10 @@
 
                     for (const m of studioModels) {
                         const deployed = m.deployment_status === 'InService';
-                        const deploying = m.deployment_status === 'Creating' || m.deployment_status === 'Updating';
-                        const statusColor = deployed ? 'text-emerald-400' : deploying ? 'text-amber-400' : 'text-brand-text-muted/50';
-                        const statusText = deployed ? 'Active' : deploying ? 'Deploying...' : m.deployment_status === 'Failed' ? 'Failed' : 'Not deployed';
-                        const authBadge = m.requires_hf_auth ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 ml-1">HF Auth</span>' : '';
+                        const deploying = m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying';
+                        const statusColor = deployed ? 'text-emerald-400' : deploying ? 'text-amber-400' : m.deployment_status === 'Failed' || m.deploy_stage === 'failed' ? 'text-red-400' : 'text-brand-text-muted/50';
+                        const statusText = deployed ? t('custom_models.active') : deploying ? (m.deploy_progress || t('custom_models.deploying')) : m.deployment_status === 'Failed' || m.deploy_stage === 'failed' ? t('custom_models.failed') : t('custom_models.not_deployed');
+                        const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 ml-1">${t('custom_models.hf_auth')}</span>` : '';
                         const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted ml-1">${m.license?.split(' ')[0] || '?'}</span>`;
 
                         html += `
@@ -1324,21 +1328,21 @@
                                         <h4 class="text-xs font-semibold text-brand-text">${m.label} ${authBadge}${licenseBadge}</h4>
                                         <p class="text-[10px] text-brand-text-muted mt-0.5">${m.description}</p>
                                         <div class="flex gap-3 mt-1.5 text-[10px] text-brand-text-muted/60">
-                                            <span>Provider: ${m.provider}</span>
-                                            <span>Instance: ${m.requirements?.recommended_instance || '?'}</span>
-                                            <span>Est. ~$${m.pricing?.estimated_cost_per_image?.toFixed(2) || '?'}/image</span>
-                                            <span>VRAM: ${m.requirements?.min_vram_gb || '?'}GB+</span>
+                                            <span>${t('custom_models.provider')}: ${m.provider}</span>
+                                            <span>${t('custom_models.instance')}: ${m.requirements?.recommended_instance || '?'}</span>
+                                            <span>${t('custom_models.est_cost')} ~$${m.pricing?.estimated_cost_per_image?.toFixed(2) || m.pricing?.estimated_cost_per_video?.toFixed(2) || '?'}/unit</span>
+                                            <span>${t('custom_models.vram')}: ${m.requirements?.min_vram_gb || '?'}GB+</span>
                                         </div>
                                     </div>
                                     <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
                                         <span class="text-[10px] font-medium ${statusColor}">${statusText}</span>
                                         ${deployed
-                                            ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">Remove</button>`
+                                            ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>`
                                             : deploying
-                                            ? '<span class="text-[10px] text-amber-400">Please wait...</span>'
-                                            : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">Deploy</button>`
+                                            ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
+                                            : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.deploy')}</button>`
                                         }
-                                        ${deployed ? `<button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">Redeploy (Update)</button>` : ''}
+                                        ${deployed ? `<button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
                                     </div>
                                 </div>
                             </div>`;
@@ -1384,11 +1388,11 @@
 
             // Ask endpoint type
             const useAsync = await window.showConfirm(
-                'Async (recommended): Scales to zero when idle — pay only when generating. Cold start ~5-10 min.\n\nAlways-On: Instant responses but costs ~$1.41/hr continuously.',
+                t('custom_models.deploy_type_desc'),
                 {
-                    title: 'Choose Deployment Type',
-                    confirmLabel: 'Async (scale-to-zero)',
-                    cancelLabel: 'Always-On',
+                    title: t('custom_models.deploy_type_title'),
+                    confirmLabel: t('custom_models.deploy_async'),
+                    cancelLabel: t('custom_models.deploy_always_on'),
                 }
             );
 
@@ -1410,7 +1414,7 @@
 
                 if (resp.ok) {
                     const result = await resp.json();
-                    window.showToast?.(result.message || 'Deployment started', 'success');
+                    window.showToast?.(result.message || t('custom_models.deploy_started'), 'success');
                     // Start polling deployment progress
                     this._pollDeployProgress(modelKey, modal);
                     this._customModelsLoaded = false;
@@ -1433,7 +1437,7 @@
                     if (resp.ok) {
                         const status = await resp.json();
                         if (status.stage === 'complete') {
-                            window.showToast?.('Model deployment complete — endpoint initializing', 'success');
+                            window.showToast?.(t('custom_models.deploy_complete'), 'success');
                             this._customModelsLoaded = false;
                             this._loadCustomModels(modal);
                             return;
@@ -1456,12 +1460,12 @@
         },
 
         async _teardownCustomModel(modelKey, modal) {
-            if (!await window.showConfirm('This will delete the SageMaker endpoint. Model weights in S3 will be preserved for redeployment.', { title: 'Remove Custom Model', confirmLabel: 'Remove', danger: true })) return;
+            if (!await window.showConfirm(t('custom_models.remove_confirm'), { title: t('custom_models.remove_title'), confirmLabel: t('custom_models.remove'), danger: true })) return;
 
             try {
                 const resp = await fetch(`/api/custom-models/teardown/${modelKey}`, { method: 'DELETE' });
                 if (resp.ok) {
-                    window.showToast?.('Model endpoint removed', 'success');
+                    window.showToast?.(t('custom_models.remove_done'), 'success');
                     this._customModelsLoaded = false;
                     this._loadCustomModels(modal);
                 }

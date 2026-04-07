@@ -17,16 +17,42 @@ router = APIRouter(prefix="/api/custom-models", tags=["custom-models"])
 
 @router.get("/catalog")
 async def list_catalog():
-    """List all available custom models with deployment status."""
+    """List all available custom models with deployment status.
+
+    Only checks SageMaker status for models that are registered in the
+    model registry (i.e., previously deployed). Undeployed models skip
+    the status check — much faster.
+    """
     from backend.services.custom_models import get_catalog
+    from backend.services.model_registry import get_registry
     from backend.services.sagemaker_deployer import check_endpoint_status
 
     catalog = get_catalog()
+    registry = get_registry()
     result = []
+
+    # Build set of deployed custom model keys from registry
+    deployed_keys = set()
+    for section in ("image_models", "video_models", "post_processing", "utility_models"):
+        for key, cfg in registry.get(section, {}).items():
+            if cfg.get("model_source") == "custom_hosted":
+                deployed_keys.add(key)
+
+    # Also check in-progress deployments
+    for key in _deploy_status:
+        if _deploy_status[key].get("stage") in ("downloading", "uploading", "deploying"):
+            deployed_keys.add(key)
 
     for key, model in catalog.items():
         endpoint_name = f"artsmoker-{key.replace('_', '-')}"
-        status = check_endpoint_status(endpoint_name)
+
+        # Only check SageMaker for models we know are deployed
+        if key in deployed_keys:
+            status = check_endpoint_status(endpoint_name)
+            deploy_progress = _deploy_status.get(key, {})
+        else:
+            status = {"status": "NotFound"}
+            deploy_progress = _deploy_status.get(key, {})
 
         result.append({
             "key": key,
@@ -43,6 +69,8 @@ async def list_catalog():
             "requirements": model["requirements"],
             "pricing": model["pricing"],
             "deployment_status": status.get("status", "NotFound"),
+            "deploy_progress": deploy_progress.get("progress", ""),
+            "deploy_stage": deploy_progress.get("stage", ""),
             "endpoint_name": endpoint_name if status.get("status") != "NotFound" else None,
         })
 
