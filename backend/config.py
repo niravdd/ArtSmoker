@@ -12,13 +12,8 @@ class Settings(BaseSettings):
     aws_region_images: str = "us-east-1"
     aws_profile: str | None = None
 
-    # ── LLM fallbacks (used only if registry categories are empty) ────────
-    claude_sonnet_model_id: str = "us.anthropic.claude-sonnet-4-6"
-    claude_opus_model_id: str = "us.anthropic.claude-opus-4-6-v1"
-    claude_fallback_model_id: str = "anthropic.claude-3-5-sonnet-20241022-v2:0"
-
-    # ── Voice ─────────────────────────────────────────────────────────────
-    nova_sonic_model_id: str = "amazon.nova-2-sonic-v1:0"
+    # Note: LLM model IDs are configured in model_registry.json (categories section).
+    # No hardcoded model IDs here — everything comes from the registry.
 
     # ── Paths ─────────────────────────────────────────────────────────────
     data_dir: Path = Path(__file__).resolve().parent.parent / "data"

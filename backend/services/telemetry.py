@@ -157,3 +157,19 @@ def track_auto_update(updated: bool = False, from_version: str = "", to_version:
                       commits: int = 0, skipped_reason: str = ""):
     _track("system.auto_update", updated=updated, from_version=from_version,
            to_version=to_version, commits=commits, skipped_reason=skipped_reason)
+
+
+# ── Custom Model Events ───────────────────────────────────────────
+
+def track_custom_model_deploy(model: str = "", endpoint_type: str = "", instance: str = ""):
+    _track("custom_models.deploy", model=model, endpoint_type=endpoint_type, instance=instance)
+
+
+def track_custom_model_invoke(model: str = "", cost_usd: float = 0, latency_ms: float = 0,
+                              predictor_type: str = ""):
+    _track("custom_models.invoke", model=model, cost_usd=cost_usd,
+           latency_ms=latency_ms, predictor_type=predictor_type)
+
+
+def track_custom_model_teardown(model: str = ""):
+    _track("custom_models.teardown", model=model)

@@ -172,7 +172,7 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
 
     Returns deployment info: endpoint_name, status, arn, etc.
     """
-    from backend.services.custom_models import get_catalog_model
+    from backend.services.custom_models import get_catalog_model, get_bundle_for_model, get_bundle
 
     model = get_catalog_model(model_key)
     if not model:
@@ -182,8 +182,16 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     if not bucket:
         raise ValueError("No S3 bucket configured.")
 
-    instance = instance_type or model["requirements"]["recommended_instance"]
-    endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
+    # Check if this model belongs to a bundle (shared instance)
+    bundle_key = get_bundle_for_model(model_key)
+    if bundle_key:
+        bundle = get_bundle(bundle_key)
+        endpoint_name = f"artsmoker-bundle-{bundle_key}"
+        instance = instance_type or bundle["recommended_instance"]
+        logger.info("Model %s belongs to bundle '%s' (endpoint: %s)", model_key, bundle_key, endpoint_name)
+    else:
+        endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
+        instance = instance_type or model["requirements"]["recommended_instance"]
 
     if progress_callback:
         progress_callback(f"Creating SageMaker {endpoint_type} endpoint: {endpoint_name}...")

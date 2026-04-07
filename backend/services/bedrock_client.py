@@ -147,9 +147,15 @@ def _pick_llm_model(complexity: str) -> tuple[str, str]:
     model_id = cat.get("current", "")
     region = cat.get("region", settings.aws_region_models)
     if not model_id:
-        logger.warning("No %s model configured in registry, using config.py fallback",
-                        "complex_llm" if complexity == "complex" else "fast_llm")
-        model_id = settings.claude_opus_model_id if complexity == "complex" else settings.claude_sonnet_model_id
+        # No model configured — check code defaults in registry before giving up
+        from backend.services.model_registry import get_registry
+        reg = get_registry()
+        cat_name = "complex_llm" if complexity == "complex" else "fast_llm"
+        default_cat = reg.get("categories", {}).get(cat_name, {})
+        model_id = default_cat.get("current", "")
+        region = default_cat.get("region", settings.aws_region_models)
+        if not model_id:
+            logger.warning("No %s model configured — run Sync from AWS in Model Settings", cat_name)
     return (model_id, region)
 
 
@@ -160,7 +166,10 @@ def _get_fallback_llm() -> tuple[str, str]:
     model_id = cat.get("current", "")
     region = cat.get("region", settings.aws_region_models)
     if not model_id:
-        model_id = settings.claude_fallback_model_id
+        # Try fast_llm as fallback-of-fallback
+        fast = get_category("fast_llm")
+        model_id = fast.get("current", "")
+        region = fast.get("region", settings.aws_region_models)
     return (model_id, region)
 
 

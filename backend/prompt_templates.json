@@ -247,5 +247,5 @@
     "text": "This prompt template is missing required variables that must be present for the system to work.\n\nMissing variables: {missing_variables}\n\nEach variable uses {{curly_brace}} syntax and gets replaced at runtime with actual values.\nFor example, {{user_prompt}} gets replaced with the user's actual text input.\n\nInsert the missing variables in the most logical positions within this template.\nDo NOT remove any existing content — only ADD the missing variables where they make sense.\n\nTemplate:\n---\n{template_text}\n---\n\nOutput ONLY the fixed template text with all variables inserted. No explanations.",
     "modified": false
   },
-  "_last_updated": "2026-04-07T06:19:03.166411"
+  "_last_updated": "2026-04-07T08:35:55.855107"
 }

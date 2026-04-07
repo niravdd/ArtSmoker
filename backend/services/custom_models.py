@@ -16,6 +16,34 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 
+# ── Deployment Bundles ────────────────────────────────────────────────────
+#
+# Lightweight models can share a single SageMaker instance to save costs.
+# Heavy models (>12GB VRAM) get their own dedicated instance.
+#
+# Bundle key → list of model keys that can share one endpoint.
+
+BUNDLES = {
+    "enhancement": {
+        "label": "Enhancement Bundle",
+        "description": "Lightweight post-processing models sharing one GPU instance. Includes upscaling, background removal, and face restoration.",
+        "models": ["real_esrgan", "rmbg_2", "codeformer"],
+        "recommended_instance": "ml.g5.xlarge",
+        "total_vram_gb": 6,  # Combined VRAM of all models
+    },
+    "utility": {
+        "label": "Utility Bundle",
+        "description": "Depth estimation and segmentation models sharing one GPU instance.",
+        "models": ["depth_anything_v2", "sam2"],
+        "recommended_instance": "ml.g5.xlarge",
+        "total_vram_gb": 10,
+    },
+}
+
+# Models that need their own dedicated instance (>12GB VRAM)
+DEDICATED_MODELS = {"flux1_schnell", "flux1_dev", "sdxl_turbo", "stable_video_diffusion"}
+
+
 # ── Catalog: Data-driven model definitions ────────────────────────────────
 #
 # Each entry contains EVERYTHING needed to:
@@ -425,3 +453,26 @@ def get_catalog_by_category(category: str) -> dict:
 def get_catalog_by_studio(studio: str) -> dict:
     """Return models filtered by studio (image, video)."""
     return {k: v for k, v in MODEL_CATALOG.items() if v.get("studio") == studio}
+
+
+def get_bundle_for_model(model_key: str) -> str | None:
+    """Return the bundle key for a model, or None if it needs a dedicated instance."""
+    for bundle_key, bundle in BUNDLES.items():
+        if model_key in bundle["models"]:
+            return bundle_key
+    return None
+
+
+def get_bundle(bundle_key: str) -> dict | None:
+    """Return a bundle definition."""
+    return BUNDLES.get(bundle_key)
+
+
+def get_all_bundles() -> dict:
+    """Return all bundle definitions."""
+    return BUNDLES
+
+
+def is_dedicated(model_key: str) -> bool:
+    """Check if a model needs its own dedicated instance."""
+    return model_key in DEDICATED_MODELS

@@ -78,9 +78,42 @@ async def list_catalog():
             "deploy_stage": deploy_progress.get("stage", ""),
             "endpoint_name": endpoint_name if status.get("status") != "NotFound" else None,
             "user_added": model.get("_user_added", False),
+            "bundle": _get_bundle_info(key),
+            "warm_up_info": {
+                "cold_start_minutes": "5-10" if model.get("requirements", {}).get("min_vram_gb", 0) > 12 else "3-5",
+                "inference_seconds": model.get("invoke", {}).get("typical_latency_seconds", "?"),
+                "idle_timeout": "~15 min before scaling to zero (async)",
+            },
         })
 
-    return {"models": result}
+    return {"models": result, "bundles": _get_all_bundles_info()}
+
+
+def _get_bundle_info(model_key: str) -> dict | None:
+    from backend.services.custom_models import get_bundle_for_model, get_bundle
+    bundle_key = get_bundle_for_model(model_key)
+    if not bundle_key:
+        return None
+    bundle = get_bundle(bundle_key)
+    return {
+        "key": bundle_key,
+        "label": bundle["label"],
+        "shared_with": [m for m in bundle["models"] if m != model_key],
+    }
+
+
+def _get_all_bundles_info() -> list:
+    from backend.services.custom_models import get_all_bundles
+    result = []
+    for key, bundle in get_all_bundles().items():
+        result.append({
+            "key": key,
+            "label": bundle["label"],
+            "description": bundle["description"],
+            "models": bundle["models"],
+            "instance": bundle["recommended_instance"],
+        })
+    return result
 
 
 @router.get("/catalog/{model_key}")

@@ -72,7 +72,7 @@ def _attempt_streaming_transcription(
     try:
         from backend.services.model_registry import get_category
         voice_cat = get_category("voice")
-        model_id = voice_cat.get("current") or settings.nova_sonic_model_id
+        model_id = voice_cat.get("current", "amazon.nova-sonic-v1:0")  # From registry, code default as last resort
         region = voice_cat.get("region") or settings.aws_region_images
         client = _get_client(region)
         session_id = str(uuid.uuid4())
@@ -147,8 +147,8 @@ def _attempt_streaming_transcription(
             logger.warning(
                 "Access denied for Nova Sonic model '%s'. "
                 "Ensure the model is enabled in the %s region.",
-                settings.nova_sonic_model_id,
-                settings.aws_region_images,
+                model_id,
+                region,
             )
             return None
         logger.exception(
