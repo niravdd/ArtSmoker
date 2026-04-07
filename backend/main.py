@@ -126,14 +126,17 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler — runs on startup and shutdown."""
     global _aws_status
 
-    # Auto-update: check GitHub for new version and pull if available
+    # Auto-update: check GitHub for new version and pull if available.
+    # If code was updated, the process restarts here (os.execv) and this
+    # function runs again with the new code — the second pass finds
+    # "Already up to date" and continues normally.
     update_result = {}
     try:
         from backend.services.auto_update import check_and_update
         update_result = check_and_update()
-        if update_result.get("updated"):
-            logger.info("Auto-update: %s → %s", update_result["from_version"], update_result["to_version"])
-        elif update_result.get("skipped_reason"):
+        # If updated, check_and_update() calls os.execv — we never reach here.
+        # If we're here, either no update or update was skipped.
+        if update_result.get("skipped_reason"):
             logger.info("Auto-update: %s", update_result["skipped_reason"])
         elif update_result.get("error"):
             logger.info("Auto-update: check failed (%s)", update_result["error"])
@@ -338,6 +341,10 @@ async def lifespan(app: FastAPI):
 
     track_server_start()
 
+    # Start periodic auto-update scheduler (checks every 24h, restarts if idle)
+    from backend.services.auto_update import start_periodic_checker, stop_periodic_checker
+    start_periodic_checker()
+
     # Mark ready only if Sync is not running in background
     # (background Sync thread will set ready=True when it completes)
     if not _server_state["sync_in_progress"]:
@@ -345,6 +352,7 @@ async def lifespan(app: FastAPI):
         logger.info("ArtSmoker ready.")
     yield
     # Shutdown
+    stop_periodic_checker()
     track_server_stop()
     logger.info("ArtSmoker backend shutting down.")
 
@@ -361,6 +369,12 @@ app = FastAPI(
 
 class NoCacheStaticMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Track request activity for auto-update idle detection
+        # Exclude health/status polls — they don't indicate real user activity
+        if not request.url.path.startswith("/api/update-status"):
+            from backend.services.auto_update import record_request
+            record_request()
+
         response: Response = await call_next(request)
         if not request.url.path.startswith("/api/"):
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
@@ -394,6 +408,13 @@ app.include_router(custom_deploy.router)
 
 
 # ── Frontend load tracking ─────────────────────────────────────────────────
+
+@app.get("/api/update-status", tags=["health"])
+async def get_update_status():
+    """Check auto-update status — frontend polls this to detect pending restarts."""
+    from backend.services.auto_update import get_update_status
+    return get_update_status()
+
 
 @app.post("/api/ping", tags=["telemetry"])
 async def frontend_ping(request: Request):

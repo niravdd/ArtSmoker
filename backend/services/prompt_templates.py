@@ -508,17 +508,18 @@ Output ONLY the fixed template text with all variables inserted. No explanations
 }
 
 
-# ── Load / Save (Layered: defaults + user overrides) ─────────────────────
+# ── Load / Save (Layered: code defaults + user overrides) ────────────────
+#
+# Source of truth: the _DEFAULTS dict in this Python file (above).
 #
 # Two files:
-#   prompt_templates.json      — defaults from code _DEFAULTS, always regenerated
-#                                on startup to stay current. Git-tracked.
+#   prompt_templates.json      — git-tracked reference copy. NEVER written at
+#                                runtime. Updated only by git pull from the repo.
 #   prompt_templates.user.json — user overrides only (edited templates).
 #                                Gitignored. Survives git pulls and code updates.
 #
 # Load order: code _DEFAULTS → overlay user overrides. User edits always win.
-# Defaults file is written on every startup so it always reflects current code.
-# User edits only write to .user.json — defaults file is never modified at runtime.
+# User edits only write to .user.json — the git-tracked file is read-only.
 
 _user_overrides: dict = {}  # Raw user overrides (only modified templates)
 
@@ -555,8 +556,9 @@ def _load():
         # First deployment — stamp the user file so we know defaults have been initialized
         _stamp_deployment()
 
-    # 3. Always regenerate defaults file from code (so it stays current after code updates)
-    _write_defaults_file()
+    # Note: prompt_templates.json (git-tracked) is NEVER written at runtime.
+    # Templates are loaded from the _DEFAULTS dict in code — the file is a
+    # git-delivered reference only. This keeps the file clean for auto-updates.
 
 
 def _stamp_deployment():
@@ -568,19 +570,6 @@ def _stamp_deployment():
     global _user_overrides
     _user_overrides["_deployment_initialized"] = datetime.utcnow().isoformat()
     _save_user()
-
-
-def _write_defaults_file():
-    """Write code _DEFAULTS to the defaults file (git-tracked).
-
-    Called on every startup so the file always reflects current code.
-    This is what gets committed to git and updated by git pulls.
-    """
-    defaults_out = {}
-    for name, default in _DEFAULTS.items():
-        defaults_out[name] = {**default, "modified": False}
-    defaults_out["_last_updated"] = datetime.utcnow().isoformat()
-    _DEFAULTS_PATH.write_text(json.dumps(defaults_out, indent=2, ensure_ascii=False, default=str))
 
 
 def _save_user():

@@ -14,147 +14,113 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-_REGISTRY_PATH = Path(__file__).resolve().parent.parent / "model_registry.json"       # Main registry (source of truth)
-_USER_PREFS_PATH = Path(__file__).resolve().parent.parent / "model_registry.user.json"  # User preference overrides (gitignored)
+_REGISTRY_PATH = Path(__file__).resolve().parent.parent / "model_registry.json"       # Git-tracked defaults (READ-ONLY at runtime)
+_USER_PREFS_PATH = Path(__file__).resolve().parent.parent / "model_registry.user.json"  # ALL runtime state (gitignored)
 _registry: dict = {}
-
-# Fields in model entries that are USER PREFERENCES (not structural data).
-# These are the only fields that go into .user.json — everything else
-# (discovered models, pricing, regions, format families) stays in the main file.
-_USER_PREF_FIELDS = {"enabled"}
-# Top-level sections that are user preferences
-_USER_PREF_SECTIONS = {"categories"}
 
 
 def _load():
-    """Load the registry: main file + user preference overrides.
+    """Load the registry: git-tracked defaults + runtime state overlay.
 
-    model_registry.json is the single source of truth — contains everything:
-    format families, discovered models, pricing, regions. Updated by Sync from
-    AWS and by code (format family defaults).
+    model_registry.json is the git-tracked base — contains code defaults,
+    format families, and any models shipped with the repo. Updated ONLY by
+    git pull (never written at runtime).
 
-    model_registry.user.json contains ONLY user preference overrides:
-    enabled/disabled flags, category model selections. These survive Sync
-    refreshes and git pulls.
+    model_registry.user.json contains ALL runtime modifications: Sync
+    discoveries (models, regions, pricing), user preferences (enabled/disabled,
+    category selections), custom model registrations, video settings. This file
+    is gitignored and survives git pulls.
+
+    Load order: main file → deep-merge user.json on top.
+    New models added to main file via git pull appear automatically.
     """
     global _registry
-    # 1. Load main registry (the full source of truth)
+    # 1. Load git-tracked defaults (read-only base)
     try:
         _registry = json.loads(_REGISTRY_PATH.read_text())
     except Exception as exc:
         logger.error("Failed to load model registry: %s", exc)
         _registry = {"categories": {}, "image_models": {}, "post_processing": {}}
 
-    # 2. Overlay user preference overrides
+    # 2. Deep-merge runtime state from user.json on top
     if _USER_PREFS_PATH.exists():
         try:
-            prefs = json.loads(_USER_PREFS_PATH.read_text())
-            overrides_applied = _apply_user_prefs(_registry, prefs)
-            if overrides_applied:
-                logger.info("Model registry loaded: %d image models, %d categories (+%d user prefs)",
-                            len(_registry.get("image_models", {})),
-                            len(_registry.get("categories", {})),
-                            overrides_applied)
-            else:
-                logger.info("Model registry loaded: %d image models, %d categories",
-                            len(_registry.get("image_models", {})),
-                            len(_registry.get("categories", {})))
+            runtime = json.loads(_USER_PREFS_PATH.read_text())
+            merged = _deep_merge_runtime(runtime)
+            logger.info("Model registry loaded: %d image models, %d chat models, %d categories (+%d runtime overrides)",
+                        len(_registry.get("image_models", {})),
+                        len(_registry.get("chat_models", {})),
+                        len(_registry.get("categories", {})),
+                        merged)
         except Exception as exc:
-            logger.warning("Failed to load user prefs: %s", exc)
+            logger.warning("Failed to load runtime state: %s", exc)
     else:
         logger.info("Model registry loaded: %d image models, %d categories",
                      len(_registry.get("image_models", {})),
                      len(_registry.get("categories", {})))
 
 
-def _apply_user_prefs(registry: dict, prefs: dict) -> int:
-    """Apply user preference overrides to the loaded registry. Returns count applied."""
+def _deep_merge_runtime(runtime: dict) -> int:
+    """Deep-merge runtime state (user.json) into the loaded registry.
+
+    For dict-of-models sections (image_models, chat_models, etc.):
+      - Models in both files: runtime fields override main file fields
+      - Models only in runtime: added (Sync discoveries, custom deploys)
+      - Models only in main file: preserved (new models from git pull)
+
+    For other sections (bedrock_regions, image_pricing, video_settings, etc.):
+      - Runtime value replaces main file value entirely
+
+    Returns count of entries merged.
+    """
+    # Sections that contain dict-of-models (merge at model level)
+    MODEL_SECTIONS = {"image_models", "video_models", "chat_models", "post_processing",
+                      "utility_models", "categories"}
     count = 0
-    for section, overrides in prefs.items():
-        if section.startswith("_") or not isinstance(overrides, dict):
-            continue
-        if section in _USER_PREF_SECTIONS:
-            # Category selections — deep merge
-            if section in registry and isinstance(registry[section], dict):
-                for key, val in overrides.items():
-                    if key in registry[section] and isinstance(val, dict):
-                        registry[section][key].update(val)
+
+    for key, value in runtime.items():
+        if key.startswith("_"):
+            continue  # Skip metadata keys
+
+        if key in MODEL_SECTIONS and isinstance(value, dict) and isinstance(_registry.get(key), dict):
+            # Deep merge: model-by-model
+            for model_key, model_data in value.items():
+                if isinstance(model_data, dict):
+                    if model_key in _registry[key] and isinstance(_registry[key][model_key], dict):
+                        # Both have this model — runtime fields override
+                        _registry[key][model_key].update(model_data)
                     else:
-                        registry[section][key] = val
+                        # Model only in runtime (Sync discovery or custom deploy)
+                        _registry[key][model_key] = model_data
                     count += 1
-        elif section in registry and isinstance(registry[section], dict):
-            # Model sections (image_models, video_models, chat_models, post_processing)
-            # Only apply _USER_PREF_FIELDS
-            for model_key, model_prefs in overrides.items():
-                if model_key in registry[section] and isinstance(model_prefs, dict):
-                    for field in _USER_PREF_FIELDS:
-                        if field in model_prefs:
-                            registry[section][model_key][field] = model_prefs[field]
-                            count += 1
+                else:
+                    # Non-dict value (unlikely but handle gracefully)
+                    _registry[key][model_key] = model_data
+                    count += 1
+        else:
+            # Non-model section — runtime replaces entirely
+            _registry[key] = value
+            count += 1
+
     return count
 
 
 def _save():
-    """Save the registry to the main file (source of truth for structural data).
+    """Save the full registry to the runtime state file (user.json).
 
-    Called after Sync from AWS and system operations. Before writing, strips
-    user preference overrides from the output so the main file always reflects
-    the system/default state. User preferences live only in .user.json.
+    NEVER writes to the git-tracked main file. All runtime changes —
+    Sync discoveries, user preferences, custom model registrations,
+    video settings — go to model_registry.user.json (gitignored).
+
+    This keeps model_registry.json clean for git pull auto-updates.
     """
-    import copy
-    # Deep copy to avoid mutating in-memory registry
-    output = copy.deepcopy(_registry)
-
-    # Strip user preference fields — restore them to defaults so the main file
-    # stays clean. User prefs are reapplied from .user.json on next load.
-    if _USER_PREFS_PATH.exists():
-        try:
-            prefs = json.loads(_USER_PREFS_PATH.read_text())
-            _strip_user_prefs_from_output(output, prefs)
-        except Exception:
-            pass
-
-    output["last_updated"] = datetime.utcnow().isoformat()
-    _REGISTRY_PATH.write_text(json.dumps(output, indent=2, default=str))
+    output = dict(_registry)
+    output["_last_updated"] = datetime.utcnow().isoformat()
+    _USER_PREFS_PATH.write_text(json.dumps(output, indent=2, default=str))
     if not _save._silent:
         logger.info("Model registry saved.")
 
 _save._silent = False
-
-
-def _strip_user_prefs_from_output(output: dict, prefs: dict):
-    """Remove user preference overrides from the output before writing to main file.
-
-    For each user pref (e.g., image_models.titan_image.enabled=False), look up
-    what the value was BEFORE user changed it and restore it in the output.
-    This way the main file always has the 'system default' for preference fields.
-    """
-    # Load the previous main file to get pre-user-pref values
-    try:
-        original = json.loads(_REGISTRY_PATH.read_text())
-    except Exception:
-        return  # Can't diff, skip stripping
-
-    for section, overrides in prefs.items():
-        if section.startswith("_") or not isinstance(overrides, dict):
-            continue
-        if section in _USER_PREF_SECTIONS:
-            # Categories — restore original values
-            if section in output and section in original:
-                for key, fields in overrides.items():
-                    if isinstance(fields, dict) and key in output[section] and key in original.get(section, {}):
-                        for field in fields:
-                            if field in original[section].get(key, {}):
-                                output[section][key][field] = original[section][key][field]
-        elif section in output and isinstance(output[section], dict):
-            # Model sections — restore user pref fields to original
-            for model_key, model_prefs in overrides.items():
-                if isinstance(model_prefs, dict) and model_key in output[section]:
-                    for field in _USER_PREF_FIELDS:
-                        if field in model_prefs and model_key in original.get(section, {}):
-                            orig_val = original[section][model_key].get(field)
-                            if orig_val is not None:
-                                output[section][model_key][field] = orig_val
 
 
 def _save_user_pref(section: str, key: str, field: str, value):

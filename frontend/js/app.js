@@ -507,4 +507,96 @@
         }
     });
 
+    // ============================================================
+    //  Auto-update monitor — detects server restart and reconnects
+    // ============================================================
+
+    // Auto-update monitor: lightweight check every 5 minutes (not 30s — restarts
+    // happen at most once per 24 hours). If server goes down during a restart,
+    // the page stays alive (all content is already rendered in the browser) and
+    // we poll until the server comes back, then reload for fresh frontend code.
+    (function initUpdateMonitor() {
+        let restartBanner = null;
+        let waitingForRestart = false;
+
+        async function checkUpdateStatus() {
+            if (waitingForRestart) return;
+            try {
+                const resp = await fetch('/api/update-status');
+                if (!resp.ok) return;
+                const status = await resp.json();
+
+                if (status.restarting) {
+                    showRestartBanner();
+                    waitForServerRestart();
+                }
+            } catch {
+                // Server unreachable but we weren't expecting a restart —
+                // this is a crash or network issue, not an auto-update.
+                // Don't show any banner — the user's next action will fail
+                // naturally and they can refresh.
+            }
+        }
+
+        function showRestartBanner() {
+            if (restartBanner) return;
+            restartBanner = document.createElement('div');
+            restartBanner.className = 'fixed top-0 inset-x-0 z-[200] bg-amber-600 text-white text-center py-2 text-sm font-medium shadow-lg';
+            restartBanner.innerHTML = `
+                <span class="animate-pulse mr-2">⟳</span>
+                Server updating — restarting with new code. Please wait... <span class="elapsed-time text-white/70 ml-1"></span>
+            `;
+            document.body.appendChild(restartBanner);
+        }
+
+        function waitForServerRestart() {
+            if (waitingForRestart) return;
+            waitingForRestart = true;
+            let elapsed = 0;
+            const timeout = 8 * 60 * 1000;  // 8 minutes max wait
+            const interval = 10000;          // Poll every 10 seconds
+
+            const poll = setInterval(async () => {
+                elapsed += interval;
+                // Update banner with elapsed time
+                if (restartBanner) {
+                    const mins = Math.floor(elapsed / 60000);
+                    const secs = Math.floor((elapsed % 60000) / 1000);
+                    const timeStr = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
+                    restartBanner.querySelector('.elapsed-time').textContent = timeStr;
+                }
+                try {
+                    const resp = await fetch('/api/update-status');
+                    if (resp.ok) {
+                        const status = await resp.json();
+                        if (!status.restarting) {
+                            // Server is back with new code — reload page for fresh frontend
+                            clearInterval(poll);
+                            if (restartBanner) {
+                                restartBanner.innerHTML = '<span class="mr-2">✓</span> Server updated — reloading...';
+                                restartBanner.className = restartBanner.className.replace('bg-amber-600', 'bg-emerald-600');
+                            }
+                            setTimeout(() => location.reload(), 1000);
+                            return;
+                        }
+                    }
+                } catch {
+                    // Server still down — keep polling (page stays alive, all
+                    // rendered content preserved in the browser)
+                }
+                if (elapsed >= timeout) {
+                    clearInterval(poll);
+                    waitingForRestart = false;
+                    if (restartBanner) {
+                        restartBanner.innerHTML = '<span class="mr-2">⚠</span> Server has not responded after 8 minutes. Please check if the server is running. <button onclick="location.reload()" class="underline ml-2 font-semibold">Refresh</button>';
+                        restartBanner.className = restartBanner.className.replace('bg-amber-600', 'bg-red-600');
+                    }
+                }
+            }, interval);
+        }
+
+        // Check every 5 minutes — restarts are rare (at most once per 24h)
+        setInterval(checkUpdateStatus, 5 * 60 * 1000);
+    })();
+
 })();
