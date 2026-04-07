@@ -73,15 +73,17 @@ def is_hf_source(model_key: str) -> bool:
 
 
 def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
-    """Upload ONLY the inference handler code to S3 (no model weights).
+    """Upload ONLY the inference handler code to S3 as a model.tar.gz.
 
     For HuggingFace models, the Amazon SageMaker container pulls weights
     directly from HuggingFace at startup via HF_MODEL_ID. We only need
-    to provide the inference handler (inference.py + requirements.txt).
+    to provide the inference handler (inference.py + requirements.txt)
+    packaged as model.tar.gz (required by Amazon SageMaker's ModelDataUrl).
 
-    Returns the S3 URI for the handler code directory.
+    Returns the S3 URI for the model.tar.gz file.
     """
     import shutil
+    import tarfile
 
     bucket = get_deployment_s3_bucket()
     if not bucket:
@@ -92,9 +94,9 @@ def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
 
     handlers_dir = Path(__file__).resolve().parent.parent / "sagemaker_handlers"
 
-    # Create temp directory with just the handler code
     temp_dir = Path(tempfile.mkdtemp(prefix=f"artsmoker_handler_{model_key}_"))
     try:
+        # Build the directory structure for the tar.gz
         code_dir = temp_dir / "code"
         code_dir.mkdir(exist_ok=True)
         for fname in ("inference.py", "requirements.txt"):
@@ -104,23 +106,23 @@ def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
             else:
                 logger.warning("Handler file not found: %s", src)
 
+        # Create model.tar.gz — Amazon SageMaker requires this format
+        tar_path = temp_dir / "model.tar.gz"
+        with tarfile.open(str(tar_path), "w:gz") as tar:
+            tar.add(str(code_dir), arcname="code")
+
+        # Upload tar.gz to S3
         s3 = boto3.client("s3", region_name=_get_region())
-        prefix = f"{S3_MODEL_PREFIX}/{model_key}"
+        s3_key = f"{S3_MODEL_PREFIX}/{model_key}/model.tar.gz"
 
         if progress_callback:
             progress_callback("Uploading inference handler to S3...")
 
-        file_count = 0
-        for root, dirs, files in os.walk(temp_dir):
-            for file in files:
-                local_path = Path(root) / file
-                relative_path = local_path.relative_to(temp_dir)
-                s3_key = f"{prefix}/{relative_path}"
-                s3.upload_file(str(local_path), bucket, s3_key)
-                file_count += 1
+        s3.upload_file(str(tar_path), bucket, s3_key)
 
-        logger.info("Uploaded %d handler files to s3://%s/%s/", file_count, bucket, prefix)
-        return f"s3://{bucket}/{prefix}/"
+        s3_uri = f"s3://{bucket}/{s3_key}"
+        logger.info("Uploaded handler model.tar.gz to %s", s3_uri)
+        return s3_uri
 
     finally:
         shutil.rmtree(temp_dir, ignore_errors=True)
@@ -179,15 +181,17 @@ def _download_github_release(url: str, dest_dir: Path, progress_callback=None):
 
 def upload_to_s3(local_dir: Path, model_key: str,
                  progress_callback=None) -> str:
-    """Upload downloaded model files to S3, including the inference handler.
+    """Upload downloaded model files to S3 as model.tar.gz.
 
     Bundles the universal inference.py handler with the model weights
-    so Amazon SageMaker knows how to load and invoke the model.
+    into a model.tar.gz (required by Amazon SageMaker's ModelDataUrl).
 
-    Returns the S3 URI (s3://bucket/prefix/model_key/).
+    Returns the S3 URI for the model.tar.gz file.
     """
-    # Bundle inference handler + requirements into the model directory
     import shutil
+    import tarfile
+
+    # Bundle inference handler + requirements into the model directory
     handlers_dir = Path(__file__).resolve().parent.parent / "sagemaker_handlers"
     code_dir = local_dir / "code"
     code_dir.mkdir(exist_ok=True)
@@ -197,6 +201,7 @@ def upload_to_s3(local_dir: Path, model_key: str,
             shutil.copy2(str(src), str(code_dir / fname))
         else:
             logger.warning("Handler file not found: %s", src)
+
     bucket = get_deployment_s3_bucket()
     if not bucket:
         raise ValueError(
@@ -204,28 +209,37 @@ def upload_to_s3(local_dir: Path, model_key: str,
             "or set ARTSMOKER_CUSTOM_MODELS_BUCKET environment variable."
         )
 
-    s3 = boto3.client("s3", region_name=_get_region())
-    prefix = f"{S3_MODEL_PREFIX}/{model_key}"
-
-    # Count total files first for progress reporting
+    # Create model.tar.gz — Amazon SageMaker requires this format
     total_files = sum(len(files) for _, _, files in os.walk(local_dir))
+    if progress_callback:
+        progress_callback(f"Creating model.tar.gz ({total_files} files)...")
+
+    tar_path = local_dir.parent / f"{model_key}_model.tar.gz"
+    file_count = 0
+    with tarfile.open(str(tar_path), "w:gz") as tar:
+        for root, dirs, files in os.walk(local_dir):
+            for file in files:
+                local_path = Path(root) / file
+                arcname = str(local_path.relative_to(local_dir))
+                tar.add(str(local_path), arcname=arcname)
+                file_count += 1
+                if progress_callback:
+                    progress_callback(f"Packaging ({file_count} of {total_files}): {file}")
+
+    # Upload the tar.gz to S3
+    s3 = boto3.client("s3", region_name=_get_region())
+    s3_key = f"{S3_MODEL_PREFIX}/{model_key}/model.tar.gz"
 
     if progress_callback:
-        progress_callback(f"Uploading to S3 (0 of {total_files} files)...")
+        tar_size_mb = tar_path.stat().st_size / (1024 * 1024)
+        progress_callback(f"Uploading model.tar.gz ({tar_size_mb:.0f} MB) to S3...")
 
-    file_count = 0
-    for root, dirs, files in os.walk(local_dir):
-        for file in files:
-            local_path = Path(root) / file
-            relative_path = local_path.relative_to(local_dir)
-            s3_key = f"{prefix}/{relative_path}"
-            s3.upload_file(str(local_path), bucket, s3_key)
-            file_count += 1
-            if progress_callback:
-                progress_callback(f"Uploading to S3 ({file_count} of {total_files} files): {file}")
+    s3.upload_file(str(tar_path), bucket, s3_key)
+    tar_path.unlink(missing_ok=True)  # Clean up local tar.gz
 
-    logger.info("Uploaded %d files to s3://%s/%s/", file_count, bucket, prefix)
-    return f"s3://{bucket}/{prefix}/"
+    s3_uri = f"s3://{bucket}/{s3_key}"
+    logger.info("Uploaded model.tar.gz (%d files) to %s", file_count, s3_uri)
+    return s3_uri
 
 
 # ── Endpoint Deployment ──────────────────────────────────────────────────
@@ -272,7 +286,7 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
 
     sm = boto3.client("sagemaker", region_name=_get_region())
 
-    model_data_url = f"s3://{bucket}/{S3_MODEL_PREFIX}/{model_key}/"
+    model_data_url = f"s3://{bucket}/{S3_MODEL_PREFIX}/{model_key}/model.tar.gz"
 
     # For gated HuggingFace models: store/reuse shared token in Secrets Manager
     hf_token_secret_arn = None
