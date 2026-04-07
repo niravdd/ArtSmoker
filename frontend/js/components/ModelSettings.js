@@ -198,9 +198,14 @@
                         <div class="ms-tab-panel hidden" data-ms-panel="custom-models">
                             <div class="flex items-center justify-between mb-3">
                                 <p class="text-xs text-brand-text-muted">${t('custom_models.subtitle')}</p>
-                                <button id="ms-cm-refresh" class="btn btn-secondary btn-sm text-xs flex items-center gap-1">
-                                    🔄 ${t('custom_models.refresh_all')}
-                                </button>
+                                <div class="flex gap-2">
+                                    <button id="ms-cm-add" class="btn btn-sm text-xs flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5">
+                                        + ${t('custom_models.add_model') || 'Add Model'}
+                                    </button>
+                                    <button id="ms-cm-refresh" class="btn btn-secondary btn-sm text-xs flex items-center gap-1">
+                                        🔄 ${t('custom_models.refresh_all')}
+                                    </button>
+                                </div>
                             </div>
                             <div id="ms-custom-models-content">
                                 <p class="text-xs text-brand-text-muted">Loading custom models catalog...</p>
@@ -640,7 +645,7 @@
                     if (tab.dataset.msTab === 'custom-models' && !this._customModelsLoaded) {
                         this._loadCustomModels(modal);
                     }
-                    // Wire refresh button (once)
+                    // Wire custom models buttons (once)
                     if (tab.dataset.msTab === 'custom-models') {
                         const refreshBtn = modal.querySelector('#ms-cm-refresh');
                         if (refreshBtn && !refreshBtn._wired) {
@@ -649,6 +654,11 @@
                                 this._customModelsLoaded = false;
                                 this._loadCustomModels(modal);
                             });
+                        }
+                        const addBtn = modal.querySelector('#ms-cm-add');
+                        if (addBtn && !addBtn._wired) {
+                            addBtn._wired = true;
+                            addBtn.addEventListener('click', () => this._addCustomModelWizard(modal));
                         }
                     }
                 });
@@ -1428,6 +1438,123 @@
                 window.hideLoading?.();
                 window.showToast?.(`Deployment failed: ${err.message}`, 'error');
             }
+        },
+
+        async _addCustomModelWizard(modal) {
+            // Step 1: Ask for HuggingFace repo URL
+            const backdrop = document.createElement('div');
+            backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+            backdrop.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
+                    <h3 class="text-sm font-semibold text-brand-text flex items-center gap-2">
+                        <span>+</span> ${t('custom_models.add_model_title') || 'Add Custom Model'}
+                    </h3>
+                    <p class="text-xs text-brand-text-muted">${t('custom_models.add_model_desc') || 'Enter a HuggingFace model URL or repo ID. The system will auto-detect the model type, library, and requirements.'}</p>
+                    <input type="text" class="cm-repo-input input w-full text-xs" placeholder="e.g. runwayml/stable-diffusion-v1-5 or https://huggingface.co/..." autocomplete="off" />
+                    <div class="cm-token-row hidden space-y-2">
+                        <p class="text-[10px] text-amber-400">${t('custom_models.add_model_gated') || 'This repo may be gated. Provide a token if needed (used once, not stored):'}</p>
+                        <input type="password" class="cm-token-input input w-full text-xs font-mono" placeholder="${t('custom_models.hf_placeholder')}" autocomplete="off" />
+                    </div>
+                    <div class="cm-result hidden"></div>
+                    <div class="flex gap-2 justify-end">
+                        <button class="cm-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('prompt_designer.cancel')}</button>
+                        <button class="cm-detect btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('custom_models.detect') || 'Detect Model'}</button>
+                        <button class="cm-add hidden btn btn-sm text-xs px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium">${t('custom_models.add_to_catalog') || 'Add to Catalog'}</button>
+                    </div>
+                </div>`;
+
+            let detectedEntry = null;
+
+            backdrop.querySelector('.cm-cancel').addEventListener('click', () => backdrop.remove());
+            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+
+            backdrop.querySelector('.cm-detect').addEventListener('click', async () => {
+                const repoUrl = backdrop.querySelector('.cm-repo-input').value.trim();
+                if (!repoUrl) return;
+
+                const detectBtn = backdrop.querySelector('.cm-detect');
+                detectBtn.textContent = 'Detecting...';
+                detectBtn.disabled = true;
+
+                try {
+                    const token = backdrop.querySelector('.cm-token-input').value.trim() || null;
+                    const resp = await fetch('/api/custom-models/detect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ repo_url: repoUrl, hf_token: token }),
+                    });
+
+                    if (!resp.ok) {
+                        const err = await resp.json();
+                        const detail = typeof err.detail === 'string' ? err.detail : 'Detection failed';
+                        if (detail.includes('authentication') || detail.includes('401') || detail.includes('403')) {
+                            backdrop.querySelector('.cm-token-row').classList.remove('hidden');
+                        }
+                        backdrop.querySelector('.cm-result').innerHTML = `<p class="text-xs text-red-400">${detail}</p>`;
+                        backdrop.querySelector('.cm-result').classList.remove('hidden');
+                        return;
+                    }
+
+                    const data = await resp.json();
+                    detectedEntry = data.entry;
+
+                    // Show detected info
+                    const e = detectedEntry;
+                    const warning = e.invoke?._warning ? `<p class="text-[10px] text-amber-400 mt-2">⚠ ${e.invoke._warning}</p>` : '';
+                    backdrop.querySelector('.cm-result').innerHTML = `
+                        <div class="p-3 rounded-lg bg-black/20 border border-brand-border/30 space-y-2">
+                            <h4 class="text-xs font-semibold text-emerald-400">✓ Model Detected</h4>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted">
+                                <span>Label:</span><span class="text-brand-text">${e.label}</span>
+                                <span>Library:</span><span class="text-brand-text">${e.invoke?.library || '?'}</span>
+                                <span>Type:</span><span class="text-brand-text">${e.invoke?.predictor_type || '?'}</span>
+                                <span>Category:</span><span class="text-brand-text">${e.category}</span>
+                                <span>License:</span><span class="text-brand-text">${e.license}</span>
+                                <span>VRAM:</span><span class="text-brand-text">${e.requirements?.min_vram_gb || '?'} GB</span>
+                                <span>Auth:</span><span class="text-brand-text">${e.requires_hf_auth ? 'Yes (gated)' : 'No'}</span>
+                            </div>
+                            ${warning}
+                        </div>`;
+                    backdrop.querySelector('.cm-result').classList.remove('hidden');
+                    backdrop.querySelector('.cm-add').classList.remove('hidden');
+
+                } catch (err) {
+                    backdrop.querySelector('.cm-result').innerHTML = `<p class="text-xs text-red-400">${err.message}</p>`;
+                    backdrop.querySelector('.cm-result').classList.remove('hidden');
+                } finally {
+                    detectBtn.textContent = t('custom_models.detect') || 'Detect Model';
+                    detectBtn.disabled = false;
+                }
+            });
+
+            backdrop.querySelector('.cm-add').addEventListener('click', async () => {
+                if (!detectedEntry) return;
+                // Generate a key from the repo ID
+                const repoUrl = backdrop.querySelector('.cm-repo-input').value.trim();
+                let key = repoUrl.split('/').pop().replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+
+                try {
+                    const resp = await fetch('/api/custom-models/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key, entry: detectedEntry }),
+                    });
+                    if (resp.ok) {
+                        window.showToast?.(`Model "${detectedEntry.label}" added to catalog`, 'success');
+                        backdrop.remove();
+                        this._customModelsLoaded = false;
+                        this._loadCustomModels(modal);
+                    } else {
+                        const err = await resp.json();
+                        window.showToast?.(err.detail || 'Failed to add model', 'error');
+                    }
+                } catch (err) {
+                    window.showToast?.(`Failed: ${err.message}`, 'error');
+                }
+            });
+
+            document.body.appendChild(backdrop);
+            backdrop.querySelector('.cm-repo-input').focus();
         },
 
         _pollDeployProgress(modelKey, modal) {

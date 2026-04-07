@@ -27,7 +27,12 @@ async def list_catalog():
     from backend.services.model_registry import get_registry
     from backend.services.sagemaker_deployer import check_endpoint_status
 
-    catalog = get_catalog()
+    catalog = dict(get_catalog())  # Copy built-in catalog
+    # Merge user-added models
+    user_catalog = _load_user_catalog()
+    for key, entry in user_catalog.items():
+        if not key.startswith("_"):
+            catalog[key] = {**entry, "_user_added": True}
     registry = get_registry()
     result = []
 
@@ -72,6 +77,7 @@ async def list_catalog():
             "deploy_progress": deploy_progress.get("progress", ""),
             "deploy_stage": deploy_progress.get("stage", ""),
             "endpoint_name": endpoint_name if status.get("status") != "NotFound" else None,
+            "user_added": model.get("_user_added", False),
         })
 
     return {"models": result}
@@ -224,6 +230,127 @@ async def redeploy_model(model_key: str, body: RedeployRequest):
         hf_token=body.hf_token,
     )
     return await deploy_model(deploy_body)
+
+
+# ── User-Added Models (Extensibility) ─────────────────────────────────────
+
+class DetectRequest(BaseModel):
+    repo_url: str           # HuggingFace URL or repo ID
+    hf_token: str | None = None  # For gated repos (transient)
+
+
+@router.post("/detect")
+async def detect_model(body: DetectRequest):
+    """Auto-detect model configuration from a HuggingFace repo.
+
+    Inspects repo metadata (config.json, model_index.json, README)
+    without downloading weights. Returns a pre-filled catalog entry
+    for the user to review before adding.
+
+    hf_token is used for this API call only and NOT stored.
+    """
+    from backend.services.model_detector import detect_from_hf_repo
+
+    # Normalize URL to repo ID
+    repo_id = body.repo_url.strip()
+    repo_id = repo_id.rstrip("/")
+    if "huggingface.co/" in repo_id:
+        repo_id = repo_id.split("huggingface.co/")[-1]
+    if repo_id.startswith("https://"):
+        repo_id = repo_id.replace("https://", "")
+
+    try:
+        entry = detect_from_hf_repo(repo_id, hf_token=body.hf_token)
+        return {"status": "detected", "repo_id": repo_id, "entry": entry}
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e))
+    except Exception as e:
+        logger.exception("Model detection failed for %s", repo_id)
+        raise HTTPException(502, detail=f"Detection failed: {e}")
+
+
+class AddModelRequest(BaseModel):
+    key: str                # Unique catalog key (e.g., "my_custom_sdxl")
+    entry: dict             # Full catalog entry (from detect + user edits)
+
+
+@router.post("/add")
+async def add_user_model(body: AddModelRequest):
+    """Add a user-defined model to the custom catalog.
+
+    Saves to custom_models.user.json (gitignored) — survives code updates.
+    The model then appears in the Custom Models tab and can be deployed.
+    """
+    key = body.key.strip().lower().replace(" ", "_").replace("-", "_")
+    if not key:
+        raise HTTPException(400, detail="Model key is required")
+
+    # Validate required fields
+    entry = body.entry
+    required = ["label", "category", "source", "invoke"]
+    missing = [f for f in required if f not in entry]
+    if missing:
+        raise HTTPException(400, detail=f"Missing required fields: {missing}")
+
+    # Save to user catalog file
+    _save_user_model(key, entry)
+
+    return {"status": "added", "key": key, "label": entry.get("label", key)}
+
+
+@router.delete("/remove-user-model/{model_key}")
+async def remove_user_model(model_key: str):
+    """Remove a user-added model from the catalog.
+
+    Only removes from the user catalog (custom_models.user.json).
+    Built-in catalog models cannot be removed.
+    """
+    from backend.services.custom_models import MODEL_CATALOG
+    if model_key in MODEL_CATALOG:
+        raise HTTPException(400, detail="Cannot remove built-in catalog models. Use teardown to remove the deployment.")
+
+    removed = _remove_user_model(model_key)
+    if not removed:
+        raise HTTPException(404, detail=f"User model '{model_key}' not found")
+    return {"status": "removed", "key": model_key}
+
+
+def _get_user_catalog_path():
+    from pathlib import Path
+    return Path(__file__).resolve().parent.parent / "custom_models.user.json"
+
+
+def _load_user_catalog() -> dict:
+    import json
+    path = _get_user_catalog_path()
+    if path.exists():
+        try:
+            return json.loads(path.read_text())
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_user_model(key: str, entry: dict):
+    import json
+    from datetime import datetime, timezone
+    catalog = _load_user_catalog()
+    catalog[key] = entry
+    catalog["_last_updated"] = datetime.now(timezone.utc).isoformat()
+    path = _get_user_catalog_path()
+    path.write_text(json.dumps(catalog, indent=2, default=str))
+    logger.info("Saved user model '%s' to %s", key, path)
+
+
+def _remove_user_model(key: str) -> bool:
+    import json
+    catalog = _load_user_catalog()
+    if key in catalog:
+        del catalog[key]
+        path = _get_user_catalog_path()
+        path.write_text(json.dumps(catalog, indent=2, default=str))
+        return True
+    return False
 
 
 # ── Registry Integration ──────────────────────────────────────────────────
