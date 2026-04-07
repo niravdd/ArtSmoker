@@ -125,9 +125,9 @@ async def deploy_model(body: DeployRequest):
             "license_url": model.get("hf_license_url", ""),
             "instructions": (
                 "1. Visit the license URL and accept the terms\n"
-                "2. Get your HuggingFace token from https://huggingface.co/settings/tokens\n"
+                "2. Go to huggingface.co/settings/tokens → create a Read-only token\n"
                 "3. Provide the token in the deployment dialog\n"
-                "Your token is used once for download and NOT stored."
+                "A Read-only token is sufficient. Your token is used once for download and NOT stored."
             ),
         })
 
