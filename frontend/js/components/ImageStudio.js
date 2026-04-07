@@ -843,6 +843,13 @@
             this._moderationErrors = [];
             document.getElementById('gen-rewrite-disclaimer')?.classList.add('hidden');
             document.getElementById('gen-cost-breakdown')?.classList.add('hidden');
+
+            // Show cold-start warning for self-hosted async models
+            const selectedModelInfo = MODELS.find(m => m.value === payload.image_model);
+            if (selectedModelInfo?.model_source === 'custom_hosted') {
+                const sub = document.getElementById('gen-loading-sub');
+                if (sub) sub.textContent = 'Self-hosted model — first request may take 5-15 min if the endpoint is waking up from idle (cold start). Subsequent requests are fast.';
+            }
             // Unlock upscale toggle for new generation
             const upscaleToggle = document.getElementById('gen-upscale');
             if (upscaleToggle) { upscaleToggle.disabled = false; upscaleToggle.closest('label')?.removeAttribute('title'); }
