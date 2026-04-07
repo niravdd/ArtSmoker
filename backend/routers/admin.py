@@ -572,15 +572,22 @@ def _model_family_key(model_id: str) -> str:
 def _deduplicate_models(models: list[dict]) -> list[dict]:
     """Keep only the latest version per model family per provider.
 
-    Groups by provider + family key, keeps the one with the longest
-    model_id (which typically has the most specific version).
+    Groups by provider + family key, keeps the newest (ACTIVE > LEGACY,
+    then by model name alphabetically for tie-breaking).
     """
     families: dict[str, dict] = {}
     for m in models:
         key = f"{m['provider']}::{_model_family_key(m['model_id'])}"
         existing = families.get(key)
-        if not existing or len(m['model_id']) >= len(existing['model_id']):
+        if not existing:
             families[key] = m
+        else:
+            # Keep newest: ACTIVE > LEGACY, then by name (newer versions sort higher)
+            new_lifecycle = m.get('lifecycle', 'ACTIVE')
+            old_lifecycle = existing.get('lifecycle', 'ACTIVE')
+            if (new_lifecycle == 'ACTIVE' and old_lifecycle == 'LEGACY') or \
+               (new_lifecycle == old_lifecycle and m.get('label', '') > existing.get('label', '')):
+                families[key] = m
     return sorted(families.values(), key=lambda m: (m['provider'], m['model_id']))
 
 
@@ -711,10 +718,28 @@ async def auto_register_image_models(region: str):
                 regions.append(region)
                 regions.sort()
                 existing["available_regions"] = regions
-            # Keep the longer model_id (more specific version)
-            if len(effective_id) > len(existing.get("model_id", "")):
+
+            # Keep the NEWEST model version in the family.
+            # Compare by lifecycle (ACTIVE > LEGACY) then by model name/id.
+            existing_lifecycle = existing.get("lifecycle", "ACTIVE")
+            new_lifecycle = m.get("modelLifecycle", {}).get("status", "ACTIVE")
+            new_name = m.get("modelName", "")
+            existing_name = existing.get("label", "")
+
+            is_newer = (
+                (new_lifecycle == "ACTIVE" and existing_lifecycle == "LEGACY") or
+                (new_lifecycle == existing_lifecycle and new_name > existing_name)
+            )
+            if is_newer:
                 existing["model_id"] = effective_id
                 existing["model_arn"] = m.get("modelArn", "")
+                existing["label"] = new_name
+                existing["lifecycle"] = new_lifecycle
+                existing["inference_types"] = inference_types
+                # Update the key to reflect the new model
+                new_key = model_id.split(".")[-1].split(":")[0].replace("-", "_")
+                if new_key != existing_key:
+                    chat_models[new_key] = chat_models.pop(existing_key)
             return
 
         has_vision = "IMAGE" in inp
@@ -734,6 +759,7 @@ async def auto_register_image_models(region: str):
             "max_context_tokens": 128000,  # Default — admin can override per model
             "customizations_supported": m.get("customizationsSupported", []),
             "inference_types": inference_types,
+            "lifecycle": m.get("modelLifecycle", {}).get("status", "ACTIVE"),
         }
         registered.append({"key": key, "model_id": model_id, "label": chat_models[key]["label"],
                           "region": region, "purpose": "chat", "media": "text"})
