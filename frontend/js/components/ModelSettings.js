@@ -196,6 +196,12 @@
 
                         <!-- Tab: Custom Models -->
                         <div class="ms-tab-panel hidden" data-ms-panel="custom-models">
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-xs text-brand-text-muted">Self-hosted models on SageMaker in your AWS account.</p>
+                                <button id="ms-cm-refresh" class="btn btn-secondary btn-sm text-xs flex items-center gap-1">
+                                    🔄 Refresh All
+                                </button>
+                            </div>
                             <div id="ms-custom-models-content">
                                 <p class="text-xs text-brand-text-muted">Loading custom models catalog...</p>
                             </div>
@@ -633,6 +639,17 @@
                     // Load custom models catalog on first click
                     if (tab.dataset.msTab === 'custom-models' && !this._customModelsLoaded) {
                         this._loadCustomModels(modal);
+                    }
+                    // Wire refresh button (once)
+                    if (tab.dataset.msTab === 'custom-models') {
+                        const refreshBtn = modal.querySelector('#ms-cm-refresh');
+                        if (refreshBtn && !refreshBtn._wired) {
+                            refreshBtn._wired = true;
+                            refreshBtn.addEventListener('click', () => {
+                                this._customModelsLoaded = false;
+                                this._loadCustomModels(modal);
+                            });
+                        }
                     }
                 });
             });
@@ -1291,6 +1308,16 @@
                 }
                 html += '</div>';
                 container.innerHTML = html;
+
+                // Auto-refresh if any models are deploying
+                const hasDeploying = models.some(m => m.deployment_status === 'Creating' || m.deployment_status === 'Updating');
+                if (hasDeploying) {
+                    clearTimeout(this._cmPollTimer);
+                    this._cmPollTimer = setTimeout(() => {
+                        this._customModelsLoaded = false;
+                        this._loadCustomModels(modal);
+                    }, 15000);
+                }
 
                 // Attach deploy/teardown handlers
                 container.querySelectorAll('.ms-cm-deploy').forEach(btn => {
