@@ -1244,8 +1244,11 @@
             });
         },
 
-        _askHfToken() {
+        _askHfToken(licenseUrl) {
             return new Promise((resolve) => {
+                const licenseLink = licenseUrl
+                    ? `<a href="${licenseUrl}" target="_blank" rel="noopener" class="text-brand-accent hover:underline">Open model page ↗</a>`
+                    : '';
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
                 backdrop.innerHTML = `
@@ -1253,8 +1256,8 @@
                         <h3 class="text-sm font-semibold text-brand-text">${t('custom_models.hf_title')}</h3>
                         <div class="text-xs text-brand-text-muted space-y-2">
                             <p>${t('custom_models.hf_desc')}</p>
-                            <ol class="list-decimal ml-4 space-y-1">
-                                <li>${t('custom_models.hf_step1')}</li>
+                            <ol class="list-decimal ml-4 space-y-1.5">
+                                <li>${t('custom_models.hf_step1')} ${licenseLink}</li>
                                 <li>${t('custom_models.hf_step2')}</li>
                                 <li>${t('custom_models.hf_step3')}</li>
                             </ol>
@@ -1350,7 +1353,7 @@
                                             ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>`
                                             : deploying
                                             ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
-                                            : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.deploy')}</button>`
+                                            : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
                                         }
                                         ${deployed ? `<button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
                                     </div>
@@ -1374,7 +1377,7 @@
 
                 // Attach deploy/teardown handlers
                 container.querySelectorAll('.ms-cm-deploy').forEach(btn => {
-                    btn.addEventListener('click', () => this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal));
+                    btn.addEventListener('click', () => this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal, false, btn.dataset.license));
                 });
                 container.querySelectorAll('.ms-cm-teardown').forEach(btn => {
                     btn.addEventListener('click', () => this._teardownCustomModel(btn.dataset.model, modal));
@@ -1388,11 +1391,10 @@
             }
         },
 
-        async _deployCustomModel(modelKey, needsAuth, modal, isRedeploy = false) {
+        async _deployCustomModel(modelKey, needsAuth, modal, isRedeploy = false, licenseUrl = '') {
             let hfToken = null;
             if (needsAuth) {
-                // Show styled dialog for HuggingFace token
-                hfToken = await this._askHfToken();
+                hfToken = await this._askHfToken(licenseUrl);
                 if (!hfToken) return;
             }
 
