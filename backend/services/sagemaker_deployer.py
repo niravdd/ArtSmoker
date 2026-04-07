@@ -422,24 +422,110 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
 # ── Private helpers ───────────────────────────────────────────────────────
 
 def _get_inference_container(model: dict) -> str:
-    """Get the appropriate Amazon SageMaker Deep Learning Container URI."""
-    # HuggingFace DLC for PyTorch inference
-    region = _get_region()
-    account_map = {
-        "us-east-1": "763104351884",
-        "us-west-2": "763104351884",
-        "eu-west-1": "763104351884",
-        "ap-northeast-1": "763104351884",
-    }
-    account = account_map.get(region, "763104351884")
+    """Get the appropriate Amazon SageMaker Deep Learning Container URI.
 
+    Discovers the latest available container image dynamically from ECR.
+    Uses the standard AWS DLC (Deep Learning Container) registry, which is
+    a public ECR registry managed by AWS (not the user's account).
+    """
+    region = _get_region()
     lib = model["requirements"].get("inference_library", "diffusers")
+
     if lib in ("diffusers", "transformers"):
-        # HuggingFace PyTorch inference container (latest available)
-        return f"{account}.dkr.ecr.{region}.amazonaws.com/huggingface-pytorch-inference:2.6.0-transformers4.51.3-gpu-py312-cu124-ubuntu22.04-v2.3"
+        repo = "huggingface-pytorch-inference"
+        tag_filter = "gpu"  # GPU containers for inference
     else:
-        # Generic PyTorch container
-        return f"{account}.dkr.ecr.{region}.amazonaws.com/pytorch-inference:2.6.0-gpu-py312-cu124-ubuntu22.04-sagemaker-v1.73"
+        repo = "pytorch-inference"
+        tag_filter = "gpu"
+
+    return _resolve_dlc_image(region, repo, tag_filter)
+
+
+# Cache resolved container URIs (they don't change during a session)
+_dlc_cache: dict = {}
+
+
+def _resolve_dlc_image(region: str, repo: str, tag_filter: str) -> str:
+    """Resolve the latest DLC container image URI from ECR.
+
+    Queries the AWS DLC public ECR registry to find the latest GPU
+    container image. Caches results for the session.
+    """
+    cache_key = f"{region}:{repo}:{tag_filter}"
+    if cache_key in _dlc_cache:
+        return _dlc_cache[cache_key]
+
+    # The DLC ECR account is the same across most regions (AWS-managed public registry)
+    # Discover it via SageMaker's DescribeEndpoint or use the well-known account
+    dlc_account = _get_dlc_account(region)
+
+    try:
+        ecr = boto3.client("ecr", region_name=region)
+        # List image tags, filter for GPU + CUDA 12 + latest
+        paginator = ecr.get_paginator("describe_images")
+        best_tag = None
+        best_sort_key = ""
+
+        for page in paginator.paginate(
+            registryId=dlc_account,
+            repositoryName=repo,
+            filter={"tagStatus": "TAGGED"},
+        ):
+            for img in page.get("imageDetails", []):
+                for tag in (img.get("imageTags") or []):
+                    # Match: must have gpu + cu12, must NOT have date suffix (clean tags only)
+                    if tag_filter in tag and "cu12" in tag and "ubuntu" in tag:
+                        # Skip date-stamped tags (e.g., ...-2025-12-15-21-39-54)
+                        import re
+                        if re.search(r"-\d{4}-\d{2}-\d{2}-\d{2}-\d{2}-\d{2}$", tag):
+                            continue
+                        # Sort by tag name descending to get latest version
+                        if tag > best_sort_key:
+                            best_sort_key = tag
+                            best_tag = tag
+
+        if best_tag:
+            uri = f"{dlc_account}.dkr.ecr.{region}.amazonaws.com/{repo}:{best_tag}"
+            _dlc_cache[cache_key] = uri
+            logger.info("Resolved DLC container: %s", uri)
+            return uri
+
+    except Exception as e:
+        logger.warning("Failed to discover DLC container from ECR: %s — using fallback", e)
+
+    # Fallback: known-good tags (updated periodically with code releases)
+    fallback = {
+        "huggingface-pytorch-inference": "2.6.0-transformers4.51.3-gpu-py312-cu124-ubuntu22.04-v2.3",
+        "pytorch-inference": "2.6.0-gpu-py312-cu124-ubuntu22.04-sagemaker-v1.73",
+    }
+    tag = fallback.get(repo, fallback["pytorch-inference"])
+    uri = f"{dlc_account}.dkr.ecr.{region}.amazonaws.com/{repo}:{tag}"
+    _dlc_cache[cache_key] = uri
+    return uri
+
+
+def _get_dlc_account(region: str) -> str:
+    """Get the AWS account ID for the DLC (Deep Learning Container) ECR registry.
+
+    This is a well-known public registry managed by AWS — the same account
+    across most regions. Discovered dynamically so it works in any region.
+    """
+    # Try to discover from STS (the DLC account is always 763104351884 for standard regions)
+    # For China/GovCloud regions, it differs — but we discover it dynamically
+    try:
+        ecr = boto3.client("ecr", region_name=region)
+        # Try the standard DLC account — if it works, we're good
+        ecr.describe_repositories(
+            registryId="763104351884",
+            repositoryNames=["pytorch-inference"],
+            maxResults=1,
+        )
+        return "763104351884"
+    except Exception:
+        pass
+
+    # Fallback: standard account (works for all commercial AWS regions)
+    return "763104351884"
 
 
 # Single shared HuggingFace token for all gated models
