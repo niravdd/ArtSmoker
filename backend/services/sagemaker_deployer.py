@@ -289,17 +289,21 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     model_data_url = f"s3://{bucket}/{S3_MODEL_PREFIX}/{model_key}/model.tar.gz"
 
     # For gated HuggingFace models: store/reuse shared token in Secrets Manager
-    hf_token_secret_arn = None
+    resolved_hf_token = hf_token
     if hf_token:
         if progress_callback:
             progress_callback("Storing HuggingFace token securely in AWS Secrets Manager...")
-        hf_token_secret_arn = store_hf_token(hf_token)
-    else:
+        store_hf_token(hf_token)
+    elif not resolved_hf_token:
         # Check if a token is already stored from a previous deployment
-        hf_token_secret_arn = get_hf_token_arn()
+        resolved_hf_token = _retrieve_hf_token()
 
-    # Build container environment — includes HF_MODEL_ID and secret ARN (not raw token)
-    container_env = _get_model_environment(model_key, model, hf_token_secret_arn=hf_token_secret_arn)
+    # Build container environment — includes HF_MODEL_ID and HF token.
+    # The HF DLC container reads HF_MODEL_ID + HUGGING_FACE_HUB_TOKEN at
+    # startup BEFORE our custom handler runs, so we must pass the actual
+    # token (not a Secrets Manager ARN). The token is a read-only token
+    # visible only in the user's own AWS account via sagemaker:DescribeModel.
+    container_env = _get_model_environment(model_key, model, hf_token=resolved_hf_token)
 
     # Create Amazon SageMaker model
     sm_model_name = f"artsmoker-{model_key.replace('_', '-')}-model"
@@ -596,6 +600,16 @@ def has_hf_token() -> bool:
     return get_hf_token_arn() is not None
 
 
+def _retrieve_hf_token() -> str | None:
+    """Retrieve the actual HuggingFace token value from Secrets Manager."""
+    sm_secrets = boto3.client("secretsmanager", region_name=_get_region())
+    try:
+        resp = sm_secrets.get_secret_value(SecretId=_HF_TOKEN_SECRET_NAME)
+        return resp["SecretString"]
+    except Exception:
+        return None
+
+
 def delete_hf_token():
     """Delete the shared HuggingFace token from Secrets Manager.
 
@@ -616,16 +630,18 @@ def delete_hf_token():
 
 
 def _get_model_environment(model_key: str, model: dict,
-                           hf_token_secret_arn: str | None = None) -> dict:
+                           hf_token: str | None = None) -> dict:
     """Get environment variables for the Amazon SageMaker container.
 
     These env vars tell the universal inference handler (inference.py)
     how to load and invoke this specific model. ALL configuration comes
     from the catalog — the handler reads env vars, not model-specific code.
 
-    For HuggingFace models: HF_MODEL_ID tells the handler to pull from HF.
-    For gated models: HF_TOKEN_SECRET_ARN points to the encrypted token
-    in AWS Secrets Manager (handler fetches it at startup).
+    For HuggingFace models: HF_MODEL_ID tells the container's built-in
+    loader to pull from HuggingFace at startup. HUGGING_FACE_HUB_TOKEN
+    provides auth for gated models. The token is also stored encrypted
+    in Secrets Manager for management — but the container needs the actual
+    value in the env var because the DLC entry point runs before our handler.
     """
     invoke = model.get("invoke", {})
     source = model.get("source", {})
@@ -641,9 +657,10 @@ def _get_model_environment(model_key: str, model: dict,
         "INVOKE_CONFIG": json.dumps(invoke, default=str),
     }
 
-    # Pointer to encrypted HF token in Secrets Manager (not the token itself)
-    if hf_token_secret_arn:
-        env["HF_TOKEN_SECRET_ARN"] = hf_token_secret_arn
+    # HuggingFace token for gated models — the DLC container reads this
+    # at startup before our handler runs, so it must be the actual token
+    if hf_token:
+        env["HUGGING_FACE_HUB_TOKEN"] = hf_token
 
     # Map catalog invoke fields to handler env vars
     if invoke.get("loader_class"):

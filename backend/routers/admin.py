@@ -1138,80 +1138,89 @@ async def refresh_all_regions():
 
     from backend.services.model_registry import get_registry, _save
 
-    # Step 1: Discover regions from AWS
-    all_regions = _get_bedrock_regions()
+    # Silence per-model save logs during bulk Sync (save once at the end)
+    _save._silent = True
 
-    # Step 2: Persist regions + fetch pricing data
-    registry = get_registry()
-    registry["bedrock_regions"] = all_regions
+    try:
+        # Step 1: Discover regions from AWS
+        all_regions = _get_bedrock_regions()
+
+        # Step 2: Persist regions + fetch pricing data
+        registry = get_registry()
+        registry["bedrock_regions"] = all_regions
+        logger.debug("Stored %d Bedrock regions in registry", len(all_regions))
+
+        # Step 2b: Fetch per-image pricing from AWS Pricing API
+        pricing_data = _fetch_image_pricing()
+        if pricing_data:
+            registry["image_pricing"] = pricing_data
+            logger.debug("Stored pricing for %d model-region combos", len(pricing_data))
+
+        # Step 2c: Reset all available_regions before scanning — so stale regions
+        # are pruned automatically. Each region scan in Step 3 re-adds itself.
+        from backend.services.model_registry import update_image_model
+        for key in list(registry.get("image_models", {}).keys()):
+            update_image_model(key, {"available_regions": []})
+        # Also reset chat_models regions
+        for key in list(registry.get("chat_models", {}).keys()):
+            registry["chat_models"][key]["available_regions"] = []
+
+        # Step 3: Scan each region for foundation + custom + imported models
+
+        results = {}
+        total_new = 0
+        total_updated = 0
+        total_custom = 0
+        errors = 0
+
+        for region in all_regions:
+            try:
+                result = await auto_register_image_models(region)
+                results[region] = {
+                    "new": result["new_count"],
+                    "updated": result["updated_count"],
+                }
+                total_new += result["new_count"]
+                total_updated += result["updated_count"]
+            except Exception as exc:
+                results[region] = {"error": str(exc)[:100]}
+                errors += 1
+
+            # Discover custom + imported models in this region
+            try:
+                custom_result = _discover_custom_models(region)
+                custom_count = custom_result.get("registered_count", 0) + custom_result.get("updated_count", 0)
+                if custom_count > 0:
+                    results[region] = results.get(region, {})
+                    results[region]["custom"] = custom_count
+                    total_custom += custom_count
+            except Exception as exc:
+                logger.warning("Custom model discovery failed in %s: %s", region, exc)
+
+        # Step 4: Prune — check which models in the registry are still available.
+        # After Step 3, each model's available_regions reflects what was discovered.
+        # Models with empty available_regions (not found in any region) get disabled.
+        registry = get_registry()
+        disabled = []
+        for key, cfg in list(registry.get("image_models", {}).items()):
+            regions = cfg.get("available_regions", [])
+            if not regions and cfg.get("enabled"):
+                update_image_model(key, {"enabled": False})
+                disabled.append(key)
+                logger.debug("Disabled model %s — no longer found in any region", key)
+
+        # Stamp as discovered — written to .user.json (gitignored) so fresh clones still trigger auto-Sync
+        from datetime import datetime, timezone
+        from backend.services.model_registry import _save_user_pref
+        _save_user_pref("_meta", "aws_account_discovered", "timestamp", datetime.now(timezone.utc).isoformat())
+
+    finally:
+        _save._silent = False
+
+    # Single save at the end — all changes accumulated in memory during Sync
     _save()
-    logger.debug("Stored %d Bedrock regions in registry", len(all_regions))
-
-    # Step 2b: Fetch per-image pricing from AWS Pricing API
-    pricing_data = _fetch_image_pricing()
-    if pricing_data:
-        registry["image_pricing"] = pricing_data
-        _save()
-        logger.debug("Stored pricing for %d model-region combos", len(pricing_data))
-
-    # Step 2c: Reset all available_regions before scanning — so stale regions
-    # are pruned automatically. Each region scan in Step 3 re-adds itself.
-    from backend.services.model_registry import update_image_model
-    for key in list(registry.get("image_models", {}).keys()):
-        update_image_model(key, {"available_regions": []})
-    # Also reset chat_models regions
-    for key in list(registry.get("chat_models", {}).keys()):
-        registry["chat_models"][key]["available_regions"] = []
-
-    # Step 3: Scan each region for foundation + custom + imported models
-
-    results = {}
-    total_new = 0
-    total_updated = 0
-    total_custom = 0
-    errors = 0
-
-    for region in all_regions:
-        try:
-            result = await auto_register_image_models(region)
-            results[region] = {
-                "new": result["new_count"],
-                "updated": result["updated_count"],
-            }
-            total_new += result["new_count"]
-            total_updated += result["updated_count"]
-        except Exception as exc:
-            results[region] = {"error": str(exc)[:100]}
-            errors += 1
-
-        # Discover custom + imported models in this region
-        try:
-            custom_result = _discover_custom_models(region)
-            custom_count = custom_result.get("registered_count", 0) + custom_result.get("updated_count", 0)
-            if custom_count > 0:
-                results[region] = results.get(region, {})
-                results[region]["custom"] = custom_count
-                total_custom += custom_count
-        except Exception as exc:
-            logger.warning("Custom model discovery failed in %s: %s", region, exc)
-
-    # Step 4: Prune — check which models in the registry are still available.
-    # After Step 3, each model's available_regions reflects what was discovered.
-    # Models with empty available_regions (not found in any region) get disabled.
-    registry = get_registry()
-    disabled = []
-    for key, cfg in list(registry.get("image_models", {}).items()):
-        regions = cfg.get("available_regions", [])
-        if not regions and cfg.get("enabled"):
-            update_image_model(key, {"enabled": False})
-            disabled.append(key)
-            logger.debug("Disabled model %s — no longer found in any region", key)
-
-    # Stamp as discovered — written to .user.json (gitignored) so fresh clones still trigger auto-Sync
-    from datetime import datetime, timezone
-    from backend.services.model_registry import _save_user_pref
-    _save_user_pref("_meta", "aws_account_discovered", "timestamp", datetime.now(timezone.utc).isoformat())
-    _save()
+    logger.info("Sync complete: %d new, %d updated across %d regions (%d errors)",
+                total_new, total_updated, len(all_regions), errors)
 
     return {
         "regions_scanned": len(all_regions),
