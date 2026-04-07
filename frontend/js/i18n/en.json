@@ -870,7 +870,10 @@
     "saved": "Designer saved — composing enhanced prompt...",
     "failed": "Failed to decompose prompt",
     "asset_check": "Checking asset type...",
-    "asset_mismatch_title": "Asset Type may not be right"
+    "asset_mismatch_title": "Asset Type may not be right",
+    "translated_notice": "Your prompt was translated to English for the designer. All fields are in English.",
+    "original_prompt": "Original prompt",
+    "english_prompt": "English (used for design)"
   },
   "custom_models": {
     "tab_title": "Custom Models",

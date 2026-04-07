@@ -104,6 +104,23 @@
             const d = this._data;
             if (!d) return;
 
+            // Translation banner (if prompt was non-English)
+            let translationBanner = '';
+            const meta = d._meta || {};
+            if (meta.was_translated) {
+                const langNames = { ja: '日本語', zh: '中文', ko: '한국어', fr: 'Français', es: 'Español' };
+                const langName = langNames[meta.original_language] || meta.original_language;
+                translationBanner = `
+                    <div class="mx-5 mt-4 p-3 rounded-lg bg-brand-accent/5 border border-brand-accent/20 space-y-1.5">
+                        <div class="flex items-center gap-2">
+                            <span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent font-medium">${langName} → English</span>
+                            <span class="text-[10px] text-brand-text-muted">${_t('prompt_designer.translated_notice') || 'Your prompt was translated to English for the designer.'}</span>
+                        </div>
+                        <p class="text-[10px] text-brand-text-muted/70 italic">${meta.original_prompt}</p>
+                        <p class="text-[10px] text-brand-text/80">${meta.english_prompt}</p>
+                    </div>`;
+            }
+
             // Tab bar
             let tabBar = '<div class="flex border-b border-brand-border">';
             for (const tab of TABS) {
@@ -195,7 +212,7 @@
                 </div>`;
 
             const body = this._modal?.querySelector('.pd-body');
-            if (body) body.innerHTML = tabBar + tabContent + actionBar;
+            if (body) body.innerHTML = translationBanner + tabBar + tabContent + actionBar;
 
             // Attach events
             this._modal?.querySelectorAll('.pd-tab').forEach(btn => {
