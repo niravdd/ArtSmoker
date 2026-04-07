@@ -79,8 +79,8 @@ def _deep_merge_runtime(runtime: dict) -> int:
     count = 0
 
     for key, value in runtime.items():
-        if key.startswith("_"):
-            continue  # Skip metadata keys
+        if key == "_last_updated":
+            continue  # Skip the save timestamp (stale), but keep _meta and others
 
         if key in MODEL_SECTIONS and isinstance(value, dict) and isinstance(_registry.get(key), dict):
             # Deep merge: model-by-model
