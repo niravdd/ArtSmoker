@@ -7,6 +7,9 @@ torch>=2.1.0
 Pillow>=10.0
 numpy>=1.24
 
+# Faster HuggingFace downloads (Xet parallel chunked transfer)
+hf_xet>=1.0
+
 # For diffusers-based models (FLUX, SDXL, SVD, ControlNet)
 diffusers>=0.28.0
 transformers>=4.40.0

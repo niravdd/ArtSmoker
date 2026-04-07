@@ -656,6 +656,8 @@ def _get_model_environment(model_key: str, model: dict,
         "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",
         # Full invoke config as JSON for advanced use
         "INVOKE_CONFIG": json.dumps(invoke, default=str),
+        # Install hf_xet for faster HuggingFace downloads (Xet parallel chunked transfer)
+        "SAGEMAKER_REQUIREMENTS": "/opt/ml/model/code/requirements.txt",
     }
 
     # HuggingFace token for gated models — the DLC container reads this
