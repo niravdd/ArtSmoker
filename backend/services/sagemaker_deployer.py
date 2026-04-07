@@ -675,6 +675,8 @@ def _get_model_environment(model_key: str, model: dict,
         "INVOKE_CONFIG": json.dumps(invoke, default=str),
         # Note: requirements.txt in code/ is auto-installed by the HF DLC container.
         # No need for SAGEMAKER_REQUIREMENTS — the container handles it natively.
+        # CUDA memory management — helps large models that fill the GPU
+        "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
     }
 
     # HuggingFace token for gated models — the DLC container reads this
