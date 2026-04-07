@@ -362,6 +362,18 @@ async def get_image_model_options(region: str | None = Query(default=None)):
         if cfg.get("model_purpose") != "text_to_image":
             continue  # Only text-to-image models for the generation dropdown
 
+        # Custom-hosted models: only show if the endpoint is InService (fully ready)
+        if cfg.get("model_source") == "custom_hosted":
+            try:
+                from backend.services.sagemaker_deployer import check_endpoint_status
+                ep_name = cfg.get("deployment", {}).get("endpoint_name", "")
+                if ep_name:
+                    ep_status = check_endpoint_status(ep_name)
+                    if ep_status.get("status") != "InService":
+                        continue  # Still creating/updating/failed — don't list yet
+            except Exception:
+                continue  # Can't check — safer to hide
+
         available_regions = cfg.get("available_regions", [cfg.get("region", "")])
 
         # Region filter: check if model is available in the requested region
@@ -449,6 +461,16 @@ async def get_video_model_options():
 
     models = []
     for key, cfg in sorted(enabled.items(), key=lambda x: (x[1].get("provider", ""), x[1].get("label", x[0]))):
+        # Custom-hosted models: only show if endpoint is InService
+        if cfg.get("model_source") == "custom_hosted":
+            try:
+                from backend.services.sagemaker_deployer import check_endpoint_status
+                ep_name = cfg.get("deployment", {}).get("endpoint_name", "")
+                if ep_name and check_endpoint_status(ep_name).get("status") != "InService":
+                    continue
+            except Exception:
+                continue
+
         family_name = cfg.get("format_family", "")
         family = registry.get("format_families", {}).get(family_name, {})
         models.append({
