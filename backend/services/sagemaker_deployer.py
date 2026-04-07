@@ -305,25 +305,26 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     # visible only in the user's own AWS account via sagemaker:DescribeModel.
     container_env = _get_model_environment(model_key, model, hf_token=resolved_hf_token)
 
-    # Create Amazon SageMaker model
+    # Create Amazon SageMaker model — delete and recreate if it already exists
+    # (ensures env vars and container image are always up to date)
     sm_model_name = f"artsmoker-{model_key.replace('_', '-')}-model"
     try:
-        sm.create_model(
-            ModelName=sm_model_name,
-            PrimaryContainer={
-                "Image": _get_inference_container(model),
-                "ModelDataUrl": model_data_url,
-                "Environment": container_env,
-            },
-            ExecutionRoleArn=_get_sagemaker_role(),
-        )
-    except sm.exceptions.ClientError as e:
-        if "Cannot create already existing model" in str(e):
-            logger.info("Amazon SageMaker model %s already exists, reusing", sm_model_name)
-        else:
-            raise
+        sm.delete_model(ModelName=sm_model_name)
+        logger.info("Deleted existing Amazon SageMaker model %s (will recreate with latest config)", sm_model_name)
+    except Exception:
+        pass  # Doesn't exist yet — fine
 
-    # Create endpoint config
+    sm.create_model(
+        ModelName=sm_model_name,
+        PrimaryContainer={
+            "Image": _get_inference_container(model),
+            "ModelDataUrl": model_data_url,
+            "Environment": container_env,
+        },
+        ExecutionRoleArn=_get_sagemaker_role(),
+    )
+
+    # Create endpoint config — same pattern: delete old, create fresh
     config_name = f"{endpoint_name}-config"
     config_params = {
         "EndpointConfigName": config_name,
@@ -346,12 +347,12 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         }
 
     try:
-        sm.create_endpoint_config(**config_params)
-    except sm.exceptions.ClientError as e:
-        if "Cannot create already existing" in str(e):
-            logger.info("Endpoint config %s already exists, reusing", config_name)
-        else:
-            raise
+        sm.delete_endpoint_config(EndpointConfigName=config_name)
+        logger.info("Deleted existing endpoint config %s (will recreate)", config_name)
+    except Exception:
+        pass
+
+    sm.create_endpoint_config(**config_params)
 
     # Create endpoint
     try:
