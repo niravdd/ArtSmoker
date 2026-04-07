@@ -1,14 +1,24 @@
-"""SageMaker Deployer — handles model download, S3 upload, and endpoint creation.
+"""Amazon SageMaker Deployer — handles endpoint creation for custom models.
 
 Lifecycle:
-  1. download_model()  — pulls weights from source (GitHub/HuggingFace) to local temp
-  2. upload_to_s3()    — uploads weights to user's S3 bucket
-  3. deploy_endpoint() — creates SageMaker endpoint (async or real-time)
-  4. check_status()    — polls endpoint status
-  5. teardown()        — deletes endpoint and optionally S3 artifacts
+  For HuggingFace models (direct pull — no local download):
+    1. upload_handler_to_s3() — uploads only inference.py handler code to S3
+    2. deploy_endpoint()      — creates Amazon SageMaker endpoint with HF_MODEL_ID
+       (container pulls weights directly from HuggingFace at startup)
 
-HuggingFace tokens are accepted as a parameter for gated models,
-used once during download, and immediately discarded — never stored.
+  For non-HuggingFace models (GitHub releases, etc.):
+    1. download_model()  — pulls weights from source to local temp
+    2. upload_to_s3()    — uploads weights + handler to S3
+    3. deploy_endpoint() — creates Amazon SageMaker endpoint
+
+  Common:
+    4. check_status()    — polls endpoint status
+    5. teardown()        — deletes endpoint and optionally S3 artifacts
+
+HuggingFace tokens for gated models are passed as an environment variable
+to the Amazon SageMaker container (HUGGING_FACE_HUB_TOKEN). This is a
+read-only token stored only in your own AWS account's Amazon SageMaker
+model configuration.
 """
 
 import json
@@ -22,8 +32,17 @@ import boto3
 
 logger = logging.getLogger(__name__)
 
-# S3 prefix for model weights
+# S3 prefix for model weights and handler code
 S3_MODEL_PREFIX = "artsmoker/custom-models"
+
+
+def _get_region() -> str:
+    """Get the AWS region — from session, env, or config default (us-west-2)."""
+    region = boto3.Session().region_name
+    if region:
+        return region
+    from backend.config import settings
+    return settings.aws_region_models
 
 
 def get_deployment_s3_bucket() -> str:
@@ -41,14 +60,81 @@ def get_deployment_s3_bucket() -> str:
     return os.environ.get("ARTSMOKER_CUSTOM_MODELS_BUCKET", "")
 
 
+def is_hf_source(model_key: str) -> bool:
+    """Check if a model uses HuggingFace as its source (eligible for direct pull)."""
+    from backend.services.custom_models import get_catalog_model
+    model = get_catalog_model(model_key)
+    if not model:
+        return False
+    return model.get("source", {}).get("type") == "huggingface"
+
+
+# ── HuggingFace Direct Pull (no local download) ─────────────────────────
+
+
+def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
+    """Upload ONLY the inference handler code to S3 (no model weights).
+
+    For HuggingFace models, the Amazon SageMaker container pulls weights
+    directly from HuggingFace at startup via HF_MODEL_ID. We only need
+    to provide the inference handler (inference.py + requirements.txt).
+
+    Returns the S3 URI for the handler code directory.
+    """
+    import shutil
+
+    bucket = get_deployment_s3_bucket()
+    if not bucket:
+        raise ValueError(
+            "No S3 bucket configured. Set up an S3 bucket in Video Settings "
+            "or set ARTSMOKER_CUSTOM_MODELS_BUCKET environment variable."
+        )
+
+    handlers_dir = Path(__file__).resolve().parent.parent / "sagemaker_handlers"
+
+    # Create temp directory with just the handler code
+    temp_dir = Path(tempfile.mkdtemp(prefix=f"artsmoker_handler_{model_key}_"))
+    try:
+        code_dir = temp_dir / "code"
+        code_dir.mkdir(exist_ok=True)
+        for fname in ("inference.py", "requirements.txt"):
+            src = handlers_dir / fname
+            if src.exists():
+                shutil.copy2(str(src), str(code_dir / fname))
+            else:
+                logger.warning("Handler file not found: %s", src)
+
+        s3 = boto3.client("s3", region_name=_get_region())
+        prefix = f"{S3_MODEL_PREFIX}/{model_key}"
+
+        if progress_callback:
+            progress_callback("Uploading inference handler to S3...")
+
+        file_count = 0
+        for root, dirs, files in os.walk(temp_dir):
+            for file in files:
+                local_path = Path(root) / file
+                relative_path = local_path.relative_to(temp_dir)
+                s3_key = f"{prefix}/{relative_path}"
+                s3.upload_file(str(local_path), bucket, s3_key)
+                file_count += 1
+
+        logger.info("Uploaded %d handler files to s3://%s/%s/", file_count, bucket, prefix)
+        return f"s3://{bucket}/{prefix}/"
+
+    finally:
+        shutil.rmtree(temp_dir, ignore_errors=True)
+
+
+# ── Non-HuggingFace: Local Download + S3 Upload ─────────────────────────
+
+
 def download_model(model_key: str, hf_token: str | None = None,
                    progress_callback=None) -> Path:
-    """Download model weights from the original source to a local temp directory.
+    """Download model weights from a non-HuggingFace source to local temp.
 
-    For HuggingFace repos: uses huggingface_hub to download.
     For GitHub releases: uses direct URL download.
-
-    hf_token is used ONLY for this download and not stored anywhere.
+    NOT used for HuggingFace models (those use direct pull via HF_MODEL_ID).
 
     Returns the local directory containing the downloaded files.
     """
@@ -61,46 +147,21 @@ def download_model(model_key: str, hf_token: str | None = None,
     source = model["source"]
     source_type = source["type"]
 
-    if model.get("requires_hf_auth") and not hf_token:
+    if source_type == "huggingface":
         raise ValueError(
-            f"Model '{model['label']}' requires HuggingFace authentication. "
-            f"Please accept the license at {model.get('hf_license_url', 'HuggingFace')} "
-            f"and provide your HuggingFace token."
+            f"Model '{model_key}' is a HuggingFace model — use direct pull "
+            f"(upload_handler_to_s3 + deploy_endpoint with hf_token) instead."
         )
 
     temp_dir = Path(tempfile.mkdtemp(prefix=f"artsmoker_{model_key}_"))
 
-    if source_type == "huggingface":
-        _download_hf_model(source["repo_id"], temp_dir, hf_token, progress_callback)
-    elif source_type == "github_release":
+    if source_type == "github_release":
         _download_github_release(source["url"], temp_dir, progress_callback)
     else:
         raise ValueError(f"Unknown source type: {source_type}")
 
     logger.info("Downloaded %s to %s", model["label"], temp_dir)
     return temp_dir
-
-
-def _download_hf_model(repo_id: str, dest_dir: Path, token: str | None = None,
-                       progress_callback=None):
-    """Download a HuggingFace model repo."""
-    try:
-        from huggingface_hub import snapshot_download
-    except ImportError:
-        raise RuntimeError(
-            "huggingface_hub is required for downloading HuggingFace models. "
-            "Install with: pip install huggingface_hub"
-        )
-
-    if progress_callback:
-        progress_callback(f"Downloading {repo_id} from HuggingFace...")
-
-    snapshot_download(
-        repo_id=repo_id,
-        local_dir=str(dest_dir),
-        token=token,  # Used for this download only, not stored
-        ignore_patterns=["*.md", "*.txt", ".gitattributes"],
-    )
 
 
 def _download_github_release(url: str, dest_dir: Path, progress_callback=None):
@@ -121,7 +182,7 @@ def upload_to_s3(local_dir: Path, model_key: str,
     """Upload downloaded model files to S3, including the inference handler.
 
     Bundles the universal inference.py handler with the model weights
-    so SageMaker knows how to load and invoke the model.
+    so Amazon SageMaker knows how to load and invoke the model.
 
     Returns the S3 URI (s3://bucket/prefix/model_key/).
     """
@@ -143,11 +204,14 @@ def upload_to_s3(local_dir: Path, model_key: str,
             "or set ARTSMOKER_CUSTOM_MODELS_BUCKET environment variable."
         )
 
-    s3 = boto3.client("s3")
+    s3 = boto3.client("s3", region_name=_get_region())
     prefix = f"{S3_MODEL_PREFIX}/{model_key}"
 
+    # Count total files first for progress reporting
+    total_files = sum(len(files) for _, _, files in os.walk(local_dir))
+
     if progress_callback:
-        progress_callback(f"Uploading to s3://{bucket}/{prefix}/...")
+        progress_callback(f"Uploading to S3 (0 of {total_files} files)...")
 
     file_count = 0
     for root, dirs, files in os.walk(local_dir):
@@ -157,18 +221,28 @@ def upload_to_s3(local_dir: Path, model_key: str,
             s3_key = f"{prefix}/{relative_path}"
             s3.upload_file(str(local_path), bucket, s3_key)
             file_count += 1
+            if progress_callback:
+                progress_callback(f"Uploading to S3 ({file_count} of {total_files} files): {file}")
 
     logger.info("Uploaded %d files to s3://%s/%s/", file_count, bucket, prefix)
     return f"s3://{bucket}/{prefix}/"
 
 
+# ── Endpoint Deployment ──────────────────────────────────────────────────
+
+
 def deploy_endpoint(model_key: str, endpoint_type: str = "async",
                     instance_type: str | None = None,
+                    hf_token: str | None = None,
                     progress_callback=None) -> dict:
-    """Create a SageMaker endpoint for the model.
+    """Create an Amazon SageMaker endpoint for the model.
 
     endpoint_type: "async" (scale-to-zero, cheaper) or "realtime" (always-on, faster)
     instance_type: override the default instance type from the catalog
+    hf_token: HuggingFace token for gated models — stored as container env var
+
+    For HuggingFace models: container pulls weights via HF_MODEL_ID at startup.
+    For other models: weights must already be in S3 (via upload_to_s3).
 
     Returns deployment info: endpoint_name, status, arn, etc.
     """
@@ -194,14 +268,26 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         instance = instance_type or model["requirements"]["recommended_instance"]
 
     if progress_callback:
-        progress_callback(f"Creating SageMaker {endpoint_type} endpoint: {endpoint_name}...")
+        progress_callback(f"Creating Amazon SageMaker {endpoint_type} endpoint: {endpoint_name}...")
 
-    # Use SageMaker SDK to create the endpoint
-    sm = boto3.client("sagemaker")
+    sm = boto3.client("sagemaker", region_name=_get_region())
 
     model_data_url = f"s3://{bucket}/{S3_MODEL_PREFIX}/{model_key}/"
 
-    # Create SageMaker model
+    # For gated HuggingFace models: store/reuse shared token in Secrets Manager
+    hf_token_secret_arn = None
+    if hf_token:
+        if progress_callback:
+            progress_callback("Storing HuggingFace token securely in AWS Secrets Manager...")
+        hf_token_secret_arn = store_hf_token(hf_token)
+    else:
+        # Check if a token is already stored from a previous deployment
+        hf_token_secret_arn = get_hf_token_arn()
+
+    # Build container environment — includes HF_MODEL_ID and secret ARN (not raw token)
+    container_env = _get_model_environment(model_key, model, hf_token_secret_arn=hf_token_secret_arn)
+
+    # Create Amazon SageMaker model
     sm_model_name = f"artsmoker-{model_key.replace('_', '-')}-model"
     try:
         sm.create_model(
@@ -209,13 +295,13 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
             PrimaryContainer={
                 "Image": _get_inference_container(model),
                 "ModelDataUrl": model_data_url,
-                "Environment": _get_model_environment(model_key, model),
+                "Environment": container_env,
             },
             ExecutionRoleArn=_get_sagemaker_role(),
         )
     except sm.exceptions.ClientError as e:
         if "Cannot create already existing model" in str(e):
-            logger.info("SageMaker model %s already exists, reusing", sm_model_name)
+            logger.info("Amazon SageMaker model %s already exists, reusing", sm_model_name)
         else:
             raise
 
@@ -255,7 +341,7 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
             EndpointName=endpoint_name,
             EndpointConfigName=config_name,
         )
-        logger.info("Creating SageMaker endpoint: %s (type=%s, instance=%s)",
+        logger.info("Creating Amazon SageMaker endpoint: %s (type=%s, instance=%s)",
                      endpoint_name, endpoint_type, instance)
     except sm.exceptions.ClientError as e:
         if "Cannot create already existing" in str(e):
@@ -275,9 +361,9 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
 
 
 def check_endpoint_status(endpoint_name: str) -> dict:
-    """Check the status of a SageMaker endpoint."""
+    """Check the status of an Amazon SageMaker endpoint."""
     try:
-        sm = boto3.client("sagemaker")
+        sm = boto3.client("sagemaker", region_name=_get_region())
         resp = sm.describe_endpoint(EndpointName=endpoint_name)
         return {
             "endpoint_name": endpoint_name,
@@ -290,12 +376,12 @@ def check_endpoint_status(endpoint_name: str) -> dict:
 
 
 def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
-    """Delete a SageMaker endpoint and optionally its S3 artifacts."""
+    """Delete an Amazon SageMaker endpoint, S3 artifacts, and HF token secret."""
     endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
     sm_model_name = f"artsmoker-{model_key.replace('_', '-')}-model"
     config_name = f"{endpoint_name}-config"
 
-    sm = boto3.client("sagemaker")
+    sm = boto3.client("sagemaker", region_name=_get_region())
     deleted = []
 
     try:
@@ -316,10 +402,13 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
     except Exception:
         pass
 
+    # Note: shared HF token is NOT deleted on teardown — other gated models may need it.
+    # Use delete_hf_token() explicitly to remove it.
+
     if delete_s3:
         try:
             bucket = get_deployment_s3_bucket()
-            s3 = boto3.resource("s3")
+            s3 = boto3.resource("s3", region_name=_get_region())
             prefix = f"{S3_MODEL_PREFIX}/{model_key}/"
             bucket_obj = s3.Bucket(bucket)
             bucket_obj.objects.filter(Prefix=prefix).delete()
@@ -333,9 +422,9 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
 # ── Private helpers ───────────────────────────────────────────────────────
 
 def _get_inference_container(model: dict) -> str:
-    """Get the appropriate SageMaker Deep Learning Container URI."""
+    """Get the appropriate Amazon SageMaker Deep Learning Container URI."""
     # HuggingFace DLC for PyTorch inference
-    region = boto3.Session().region_name or "us-west-2"
+    region = _get_region()
     account_map = {
         "us-east-1": "763104351884",
         "us-west-2": "763104351884",
@@ -353,25 +442,103 @@ def _get_inference_container(model: dict) -> str:
         return f"{account}.dkr.ecr.{region}.amazonaws.com/pytorch-inference:2.1.0-gpu-py310-cu121-ubuntu22.04"
 
 
-def _get_model_environment(model_key: str, model: dict) -> dict:
-    """Get environment variables for the SageMaker container.
+# Single shared HuggingFace token for all gated models
+_HF_TOKEN_SECRET_NAME = "artsmoker/hf-token"
+
+
+def store_hf_token(hf_token: str) -> str:
+    """Store a HuggingFace token in AWS Secrets Manager (encrypted).
+
+    Uses a SINGLE shared secret for all models — not one per model.
+    Returns the secret ARN. The token is encrypted at rest and only accessible
+    by the Amazon SageMaker execution role.
+    """
+    sm_secrets = boto3.client("secretsmanager", region_name=_get_region())
+
+    try:
+        # Update existing secret
+        resp = sm_secrets.update_secret(
+            SecretId=_HF_TOKEN_SECRET_NAME,
+            SecretString=hf_token,
+        )
+        logger.info("Updated shared HF token in Secrets Manager")
+        return resp["ARN"]
+    except sm_secrets.exceptions.ResourceNotFoundException:
+        pass
+
+    # Create new secret
+    resp = sm_secrets.create_secret(
+        Name=_HF_TOKEN_SECRET_NAME,
+        Description="Shared HuggingFace token for ArtSmoker gated models (read-only, auto-managed)",
+        SecretString=hf_token,
+    )
+    logger.info("Stored shared HF token in Secrets Manager: %s", _HF_TOKEN_SECRET_NAME)
+    return resp["ARN"]
+
+
+def get_hf_token_arn() -> str | None:
+    """Get the ARN of the stored HuggingFace token, or None if not stored yet."""
+    sm_secrets = boto3.client("secretsmanager", region_name=_get_region())
+    try:
+        resp = sm_secrets.describe_secret(SecretId=_HF_TOKEN_SECRET_NAME)
+        return resp["ARN"]
+    except Exception:
+        return None
+
+
+def has_hf_token() -> bool:
+    """Check if a HuggingFace token is already stored in Secrets Manager."""
+    return get_hf_token_arn() is not None
+
+
+def delete_hf_token():
+    """Delete the shared HuggingFace token from Secrets Manager.
+
+    Called explicitly by the user (not automatically on teardown,
+    since other gated models may still need it).
+    """
+    sm_secrets = boto3.client("secretsmanager", region_name=_get_region())
+    try:
+        sm_secrets.delete_secret(
+            SecretId=_HF_TOKEN_SECRET_NAME,
+            ForceDeleteWithoutRecovery=True,
+        )
+        logger.info("Deleted shared HF token from Secrets Manager")
+        return True
+    except Exception as e:
+        logger.debug("No HF token to delete: %s", e)
+        return False
+
+
+def _get_model_environment(model_key: str, model: dict,
+                           hf_token_secret_arn: str | None = None) -> dict:
+    """Get environment variables for the Amazon SageMaker container.
 
     These env vars tell the universal inference handler (inference.py)
     how to load and invoke this specific model. ALL configuration comes
     from the catalog — the handler reads env vars, not model-specific code.
+
+    For HuggingFace models: HF_MODEL_ID tells the handler to pull from HF.
+    For gated models: HF_TOKEN_SECRET_ARN points to the encrypted token
+    in AWS Secrets Manager (handler fetches it at startup).
     """
     invoke = model.get("invoke", {})
+    source = model.get("source", {})
 
     env = {
         "MODEL_KEY": model_key,
         "INFERENCE_LIBRARY": invoke.get("library", "diffusers"),
         "PREDICTOR_TYPE": invoke.get("predictor_type", "text_to_image"),
-        "HF_MODEL_ID": model["source"].get("repo_id", ""),
+        "HF_MODEL_ID": source.get("repo_id", ""),
         "SAGEMAKER_PROGRAM": "inference.py",
         "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",
         # Full invoke config as JSON for advanced use
         "INVOKE_CONFIG": json.dumps(invoke, default=str),
     }
+
+    # Pointer to encrypted HF token in Secrets Manager (not the token itself)
+    if hf_token_secret_arn:
+        env["HF_TOKEN_SECRET_ARN"] = hf_token_secret_arn
 
     # Map catalog invoke fields to handler env vars
     if invoke.get("loader_class"):
@@ -393,20 +560,20 @@ def _get_model_environment(model_key: str, model: dict) -> dict:
 
 
 def _get_sagemaker_role() -> str:
-    """Get the SageMaker execution role ARN.
+    """Get the Amazon SageMaker execution role ARN.
 
-    SageMaker's CreateModel API requires an ExecutionRoleArn — a role that
-    the SageMaker service assumes to pull model data from S3 and run the
-    inference container. This is NOT a separate role — it's the SAME role
-    the user already has for ArtSmoker (Bedrock + S3), just with
+    Amazon SageMaker's CreateModel API requires an ExecutionRoleArn — a role
+    that the Amazon SageMaker service assumes to pull model data from S3 and
+    run the inference container. This is NOT a separate role — it's the SAME
+    role the user already has for ArtSmoker (Bedrock + S3), just with
     sagemaker.amazonaws.com added to its trust policy.
 
     Discovery (fully automatic):
-    1. Running on EC2/ECS → use the current instance role (add SageMaker trust if missing)
+    1. Running on EC2/ECS → use the current instance role (add Amazon SageMaker trust if missing)
     2. Find existing ArtSmoker role in the account → use it
     3. Auto-create one if nothing found (local dev scenario)
     """
-    sts = boto3.client("sts")
+    sts = boto3.client("sts", region_name=_get_region())
     try:
         identity = sts.get_caller_identity()
         arn = identity.get("Arn", "")
@@ -420,8 +587,8 @@ def _get_sagemaker_role() -> str:
             _ensure_sagemaker_trust(role_name)
             return role_arn
 
-        # 2. Look for existing ArtSmoker or SageMaker roles
-        iam = boto3.client("iam")
+        # 2. Look for existing ArtSmoker or Amazon SageMaker roles
+        iam = boto3.client("iam", region_name=_get_region())
         try:
             for name in ["ArtSmokerSageMakerRole", "ArtSmokerEC2Role"]:
                 try:
@@ -436,9 +603,9 @@ def _get_sagemaker_role() -> str:
         return _create_sagemaker_role(account)
 
     except Exception as e:
-        logger.warning("SageMaker role discovery failed: %s", e)
+        logger.warning("Amazon SageMaker role discovery failed: %s", e)
         raise ValueError(
-            "Could not find or create a SageMaker execution role. "
+            "Could not find or create an Amazon SageMaker execution role. "
             "Ensure your IAM permissions include iam:CreateRole and iam:AttachRolePolicy, "
             "or deploy on EC2 with an IAM instance role."
         )
@@ -446,7 +613,7 @@ def _get_sagemaker_role() -> str:
 
 def _ensure_sagemaker_trust(role_name: str):
     """Ensure a role has sagemaker.amazonaws.com in its trust policy."""
-    iam = boto3.client("iam")
+    iam = boto3.client("iam", region_name=_get_region())
     try:
         resp = iam.get_role(RoleName=role_name)
         trust = resp["Role"].get("AssumeRolePolicyDocument", {})
@@ -474,7 +641,7 @@ def _ensure_sagemaker_trust(role_name: str):
 
 def _create_sagemaker_role(account: str) -> str:
     """Auto-create an ArtSmokerSageMakerRole with required permissions."""
-    iam = boto3.client("iam")
+    iam = boto3.client("iam", region_name=_get_region())
     role_name = "ArtSmokerSageMakerRole"
 
     trust_policy = {
@@ -492,21 +659,35 @@ def _create_sagemaker_role(account: str) -> str:
         resp = iam.create_role(
             RoleName=role_name,
             AssumeRolePolicyDocument=json.dumps(trust_policy),
-            Description="ArtSmoker SageMaker execution role (auto-created)",
+            Description="ArtSmoker Amazon SageMaker execution role (auto-created)",
         )
         role_arn = resp["Role"]["Arn"]
 
-        # Attach SageMaker and S3 permissions
+        # Attach Amazon SageMaker and S3 permissions
         for policy_arn in [
             "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess",
             "arn:aws:iam::aws:policy/AmazonS3FullAccess",
         ]:
             iam.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
 
-        logger.info("Auto-created SageMaker role: %s (propagation may take ~10s)", role_arn)
+        # Add Secrets Manager read access so containers can fetch HF tokens
+        iam.put_role_policy(
+            RoleName=role_name,
+            PolicyName="ArtSmokerSecretsAccess",
+            PolicyDocument=json.dumps({
+                "Version": "2012-10-17",
+                "Statement": [{
+                    "Effect": "Allow",
+                    "Action": ["secretsmanager:GetSecretValue"],
+                    "Resource": f"arn:aws:secretsmanager:*:{account}:secret:artsmoker/*",
+                }],
+            }),
+        )
+
+        logger.info("Auto-created Amazon SageMaker role: %s (propagation may take ~10s)", role_arn)
         return role_arn
 
     except iam.exceptions.EntityAlreadyExistsException:
         return f"arn:aws:iam::{account}:role/{role_name}"
     except Exception as e:
-        raise ValueError(f"Failed to create SageMaker role: {e}. Ensure your IAM has iam:CreateRole permission.")
+        raise ValueError(f"Failed to create Amazon SageMaker role: {e}. Ensure your IAM has iam:CreateRole permission.")

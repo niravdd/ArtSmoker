@@ -304,9 +304,9 @@ def invoke_image_model(
     mask_prompt: str | None = None,
     extra_params: dict | None = None,
 ) -> bytes:
-    """Generic image model invoker — handles Bedrock and custom SageMaker models.
+    """Generic image model invoker — handles Bedrock and custom Amazon SageMaker models.
 
-    For custom models (model_source=custom_hosted), routes to SageMaker.
+    For custom models (model_source=custom_hosted), routes to Amazon SageMaker.
     For Bedrock models, uses the format family to construct the request.
 
     Works for text-to-image, inpainting, outpainting, erase, style transfer,
@@ -335,7 +335,7 @@ def invoke_image_model(
     if not model_config:
         raise ValueError(f"Unknown image model: {model_key}")
 
-    # Route custom SageMaker models to the SageMaker invoker
+    # Route custom Amazon SageMaker models to the invoker
     if model_config.get("model_source") == "custom_hosted":
         from backend.services.sagemaker_invoker import invoke_custom_image_model
         return invoke_custom_image_model(

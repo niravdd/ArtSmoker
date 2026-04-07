@@ -100,7 +100,7 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 - 💰 **Seguimiento de costos** — Gasto estimado de AWS por solicitud, por sesión, por recurso — enviado a telemetría PulseBoard
 - 🌐 **i18n en 6 idiomas** — Traducción completa de la UI (EN, JA, ZH, KO, FR, ES), detección automática de prompts no ingleses, vista previa bilingüe
 - 🔍 **Soporte de modelos personalizados** — Descubra automáticamente modelos Bedrock personalizados afinados, importados y desplegados
-- 🔧 **Self-Hosted Models** — Despliegue modelos de codigo abierto (FLUX.1, Real-ESRGAN, RMBG, SAM 2 y mas) en SageMaker en su propia cuenta de AWS. Despliegue con un clic, scale-to-zero asincrono o siempre activo, totalmente integrado con todos los estudios
+- 🔧 **Self-Hosted Models** — Despliegue modelos de codigo abierto (FLUX.1, Real-ESRGAN, RMBG, SAM 2 y mas) en Amazon SageMaker en su propia cuenta de AWS. Despliegue con un clic, scale-to-zero asincrono o siempre activo, totalmente integrado con todos los estudios
 
 ### 📝 1.2 Capturas de pantalla
 

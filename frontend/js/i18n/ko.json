@@ -859,7 +859,7 @@
   },
   "custom_models": {
     "tab_title": "커스텀 모델",
-    "subtitle": "AWS 계정의 SageMaker에서 실행되는 셀프 호스팅 모델.",
+    "subtitle": "AWS 계정의 Amazon SageMaker에서 실행되는 셀프 호스팅 모델.",
     "refresh_all": "전체 새로고침",
     "deploy": "배포",
     "remove": "제거",
@@ -881,7 +881,7 @@
     "deploy_started": "백그라운드에서 배포를 시작했습니다.",
     "deploy_complete": "모델 배포 완료 — 엔드포인트 초기화 중",
     "deploy_failed": "배포 실패",
-    "remove_confirm": "SageMaker 엔드포인트를 삭제합니다. S3의 모델 가중치는 재배포를 위해 보존됩니다.",
+    "remove_confirm": "Amazon SageMaker 엔드포인트와 저장된 HuggingFace 토큰을 삭제합니다. 모델은 나중에 재배포할 수 있습니다.",
     "remove_title": "커스텀 모델 제거",
     "remove_done": "모델 엔드포인트가 제거되었습니다",
     "hf_title": "HuggingFace 인증 필요",

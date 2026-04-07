@@ -859,7 +859,7 @@
   },
   "custom_models": {
     "tab_title": "カスタムモデル",
-    "subtitle": "AWSアカウントのSageMaker上のセルフホストモデル。",
+    "subtitle": "AWSアカウントのAmazon SageMaker上のセルフホストモデル。",
     "refresh_all": "すべて更新",
     "deploy": "デプロイ",
     "remove": "削除",
@@ -881,7 +881,7 @@
     "deploy_started": "バックグラウンドでデプロイを開始しました。",
     "deploy_complete": "モデルデプロイ完了 — エンドポイント初期化中",
     "deploy_failed": "デプロイ失敗",
-    "remove_confirm": "SageMakerエンドポイントを削除します。S3のモデルウェイトは再デプロイ用に保持されます。",
+    "remove_confirm": "Amazon SageMakerエンドポイントと保存されたHuggingFaceトークンを削除します。モデルは後で再デプロイできます。",
     "remove_title": "カスタムモデルを削除",
     "remove_done": "モデルエンドポイントを削除しました",
     "hf_title": "HuggingFace認証が必要です",

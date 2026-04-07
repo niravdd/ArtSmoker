@@ -100,7 +100,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 - 💰 **成本追踪** —— 每请求、每会话、每资产的预估 AWS 支出 —— 发送至 PulseBoard 遥测
 - 🌐 **6 语言 i18n** —— 完整 UI 翻译（EN、JA、ZH、KO、FR、ES），自动检测非英语提示词，双语预览
 - 🔍 **自定义模型支持** —— 自动发现微调、导入和已部署的自定义 Bedrock 模型
-- 🔧 **Self-Hosted Models** —— 在您自己的 AWS 账户中将开源模型（FLUX.1、Real-ESRGAN、RMBG、SAM 2 等）部署到 SageMaker。一键部署、异步缩容至零或常驻运行，与所有工作室完全集成
+- 🔧 **Self-Hosted Models** —— 在您自己的 AWS 账户中将开源模型（FLUX.1、Real-ESRGAN、RMBG、SAM 2 等）部署到 Amazon SageMaker。一键部署、异步缩容至零或常驻运行，与所有工作室完全集成
 
 ### 📝 1.2 屏幕截图
 

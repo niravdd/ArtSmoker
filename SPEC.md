@@ -1156,16 +1156,16 @@ A full-featured LLM chat interface running on the user's own AWS account. 80+ mo
 | GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. |
 | POST | `/api/browse/s3/create-bucket` | Create a new S3 bucket. Payload: `name`, `region`. Validates bucket name format. Returns created bucket info. |
 
-### 5.10 Custom Models (Self-Hosted on SageMaker)
+### 5.10 Custom Models (Self-Hosted on Amazon SageMaker)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| GET | `/api/custom-models/catalog` | List all available custom models with deployment status. Checks SageMaker endpoint status for each. |
+| GET | `/api/custom-models/catalog` | List all available custom models with deployment status. Checks Amazon SageMaker endpoint status for each. |
 | GET | `/api/custom-models/catalog/{key}` | Get detailed info for a specific model from the catalog. |
-| POST | `/api/custom-models/deploy` | Deploy a model: download weights → S3 → create SageMaker endpoint → register in model_registry. Body: `{model_key, endpoint_type ("async"/"realtime"), instance_type (optional), hf_token (optional, transient)}`. |
-| GET | `/api/custom-models/status/{key}` | Check SageMaker endpoint deployment status (Creating, InService, Failed, etc.). |
-| DELETE | `/api/custom-models/teardown/{key}` | Delete SageMaker endpoint. Optional `?delete_s3=true` to also remove weights. |
-| POST | `/api/custom-models/redeploy/{key}` | Re-download latest weights and redeploy. For updates/patches. |
+| POST | `/api/custom-models/deploy` | Deploy a model. For HuggingFace: uploads handler to S3 → creates Amazon SageMaker endpoint (container pulls from HF). For others: download → S3 → endpoint. Body: `{model_key, endpoint_type ("async"/"realtime"), instance_type (optional), hf_token (optional, stored encrypted in Secrets Manager)}`. |
+| GET | `/api/custom-models/status/{key}` | Check Amazon SageMaker endpoint deployment status (Creating, InService, Failed, etc.). |
+| DELETE | `/api/custom-models/teardown/{key}` | Delete Amazon SageMaker endpoint + Secrets Manager token. Optional `?delete_s3=true` to also remove S3 artifacts. |
+| POST | `/api/custom-models/redeploy/{key}` | Tear down and redeploy. For updates/patches. |
 
 **Architecture:**
 
@@ -1173,11 +1173,12 @@ A full-featured LLM chat interface running on the user's own AWS account. 80+ mo
 Catalog (custom_models.py)
   ↓ (source URLs, invoke config)
 Deployer (sagemaker_deployer.py)
-  ↓ (download → S3 → endpoint)
+  ↓ HuggingFace models: handler to S3 → endpoint (container pulls from HF)
+  ↓ Other models:       download → S3 → endpoint
 Registry (model_registry.json)
   ↓ (model_source=custom_hosted, invoke config, endpoint info)
 Invoker (sagemaker_invoker.py)
-  ↓ (routes to SageMaker instead of Bedrock)
+  ↓ (routes to Amazon SageMaker instead of Bedrock)
 Studios (Image, Video, Post-processing)
 ```
 
@@ -1205,24 +1206,27 @@ Studios (Image, Video, Post-processing)
 }
 ```
 
-**HuggingFace authentication:** For gated models, the user provides a HuggingFace token in the deploy dialog. The token is used ONCE to download weights and is immediately discarded — never stored in config, registry, env vars, or logs.
+**HuggingFace model loading:** For HuggingFace models, the Amazon SageMaker container pulls weights directly from HuggingFace at startup using `HF_MODEL_ID` — no multi-GB local download required. For gated models, the HF token is stored encrypted in **AWS Secrets Manager** (`artsmoker/hf-token/{model_key}`), fetched by the inference handler at container startup, and automatically deleted when the model is torn down. The token is never stored as a plain-text environment variable.
+
+**Non-HuggingFace models** (GitHub releases like Real-ESRGAN, CodeFormer): downloaded to the server, uploaded to S3 with the inference handler, then the endpoint loads from S3.
 
 **Deployment types:**
-- **Async** (scale-to-zero): `AsyncInferenceConfig` with S3 output. Scales to zero instances when idle ($0 cost). Cold start from zero: 5-10 minutes. Input uploaded to S3, output polled from S3.
+- **Async** (scale-to-zero): `AsyncInferenceConfig` with S3 output. Scales to zero instances when idle ($0 cost). Cold start from zero: 5-15 minutes (includes HF model download on first start). Input uploaded to S3, output polled from S3.
 - **Realtime** (always-on): Standard endpoint with `InitialInstanceCount=1`. Instant inference. Costs ~$1.41/hr continuously (ml.g5.xlarge).
 
-**SageMaker IAM requirements:**
+**Amazon SageMaker IAM requirements:**
 ```
 sagemaker:CreateModel, sagemaker:CreateEndpointConfig, sagemaker:CreateEndpoint
 sagemaker:DeleteModel, sagemaker:DeleteEndpointConfig, sagemaker:DeleteEndpoint
 sagemaker:DescribeEndpoint, sagemaker:InvokeEndpoint, sagemaker:InvokeEndpointAsync
-iam:PassRole (to pass SageMaker execution role)
+iam:PassRole (to pass Amazon SageMaker execution role)
+secretsmanager:CreateSecret, secretsmanager:UpdateSecret, secretsmanager:GetSecretValue, secretsmanager:DeleteSecret
 ```
 
 **Role discovery** (fully automatic — no environment variable needed):
 1. Running on EC2/ECS → auto-discovers the instance role, adds sagemaker.amazonaws.com trust if missing
 2. Finds existing `ArtSmokerSageMakerRole` or `ArtSmokerEC2Role` in the account
-3. Auto-creates `ArtSmokerSageMakerRole` with SageMaker + S3 permissions if none found
+3. Auto-creates `ArtSmokerSageMakerRole` with Amazon SageMaker + S3 permissions if none found
 
 For EC2 deployments: add `AmazonSageMakerFullAccess` to the same `ArtSmokerEC2Role` used for Bedrock. ArtSmoker auto-discovers it. For local development: ArtSmoker auto-creates `ArtSmokerSageMakerRole` on first deploy (requires `iam:CreateRole` permission).
 
@@ -1230,7 +1234,7 @@ For EC2 deployments: add `AmazonSageMakerFullAccess` to the same `ArtSmokerEC2Ro
 ```
 s3://your-bucket/
 ├── artsmoker/video/{job_id}/         ← Video generation output (MP4, thumbnails)
-├── artsmoker/custom-models/{key}/    ← Model weights (downloaded from source)
+├── artsmoker/custom-models/{key}/    ← Handler code (HF models) or weights + handler (non-HF)
 │   └── code/inference.py             ← Universal inference handler (bundled)
 └── artsmoker/custom-models/
     ├── inference-input/{endpoint}/    ← Async inference input payloads

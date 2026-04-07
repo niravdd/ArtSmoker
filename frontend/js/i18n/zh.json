@@ -859,7 +859,7 @@
   },
   "custom_models": {
     "tab_title": "自定义模型",
-    "subtitle": "在您的 AWS 账户中的 SageMaker 上运行的自托管模型。",
+    "subtitle": "在您的 AWS 账户中的 Amazon SageMaker 上运行的自托管模型。",
     "refresh_all": "全部刷新",
     "deploy": "部署",
     "remove": "移除",
@@ -881,7 +881,7 @@
     "deploy_started": "已在后台启动部署。",
     "deploy_complete": "模型部署完成——端点初始化中",
     "deploy_failed": "部署失败",
-    "remove_confirm": "这将删除 SageMaker 端点。S3 中的模型权重将保留以供重新部署。",
+    "remove_confirm": "这将删除 Amazon SageMaker 端点和已存储的 HuggingFace 令牌。模型可以稍后重新部署。",
     "remove_title": "移除自定义模型",
     "remove_done": "模型端点已移除",
     "hf_title": "需要 HuggingFace 认证",

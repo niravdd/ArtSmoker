@@ -859,7 +859,7 @@
   },
   "custom_models": {
     "tab_title": "Modelos Personalizados",
-    "subtitle": "Modelos auto-alojados en SageMaker en su cuenta AWS.",
+    "subtitle": "Modelos auto-alojados en Amazon SageMaker en su cuenta AWS.",
     "refresh_all": "Actualizar Todo",
     "deploy": "Desplegar",
     "remove": "Eliminar",
@@ -881,7 +881,7 @@
     "deploy_started": "Despliegue iniciado en segundo plano.",
     "deploy_complete": "Despliegue del modelo completo — inicializando endpoint",
     "deploy_failed": "Despliegue fallido",
-    "remove_confirm": "Esto eliminará el endpoint de SageMaker. Los pesos del modelo en S3 se conservarán para redespliegue.",
+    "remove_confirm": "Esto eliminará el endpoint de Amazon SageMaker y los tokens de HuggingFace almacenados. El modelo se puede redesplegar más tarde.",
     "remove_title": "Eliminar Modelo Personalizado",
     "remove_done": "Endpoint del modelo eliminado",
     "hf_title": "Se Requiere Autenticación de HuggingFace",

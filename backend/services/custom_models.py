@@ -18,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 # ── Deployment Bundles ────────────────────────────────────────────────────
 #
-# Lightweight models can share a single SageMaker instance to save costs.
+# Lightweight models can share a single Amazon SageMaker instance to save costs.
 # Heavy models (>12GB VRAM) get their own dedicated instance.
 #
 # Bundle key → list of model keys that can share one endpoint.
@@ -52,7 +52,7 @@ DEDICATED_MODELS = {"flux1_schnell", "flux1_dev", "sdxl_turbo", "stable_video_di
 #   - Invoke it (input/output format, library, loader class, predictor type)
 #   - Display it (label, description, pricing, studio assignment)
 #
-# The 'invoke' section is passed as environment variables to the SageMaker
+# The 'invoke' section is passed as environment variables to the Amazon SageMaker
 # container, so the universal inference handler knows how to load and run
 # the model WITHOUT any model-specific code.
 

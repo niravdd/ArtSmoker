@@ -1,7 +1,12 @@
 """Custom Model Deployment API — manage self-hosted 3rd-party models.
 
 Endpoints for browsing the catalog, downloading, deploying, and managing
-custom models on SageMaker in the user's AWS account.
+custom models on Amazon SageMaker in the user's AWS account.
+
+HuggingFace models: the Amazon SageMaker container pulls weights directly
+from HuggingFace at startup (no local download or S3 upload of weights).
+For gated models, the HF token is stored encrypted in AWS Secrets Manager
+and automatically cleaned up when the model is torn down.
 """
 
 import logging
@@ -19,7 +24,7 @@ router = APIRouter(prefix="/api/custom-models", tags=["custom-models"])
 async def list_catalog():
     """List all available custom models with deployment status.
 
-    Only checks SageMaker status for models that are registered in the
+    Only checks Amazon SageMaker status for models that are registered in the
     model registry (i.e., previously deployed). Undeployed models skip
     the status check — much faster.
     """
@@ -45,13 +50,13 @@ async def list_catalog():
 
     # Also check in-progress deployments
     for key in _deploy_status:
-        if _deploy_status[key].get("stage") in ("downloading", "uploading", "deploying"):
+        if _deploy_status[key].get("stage") in ("preparing", "downloading", "uploading", "deploying"):
             deployed_keys.add(key)
 
     for key, model in catalog.items():
         endpoint_name = f"artsmoker-{key.replace('_', '-')}"
 
-        # Only check SageMaker for models we know are deployed
+        # Only check Amazon SageMaker for models we know are deployed
         if key in deployed_keys:
             status = check_endpoint_status(endpoint_name)
             deploy_progress = _deploy_status.get(key, {})
@@ -132,7 +137,7 @@ class DeployRequest(BaseModel):
     model_key: str
     endpoint_type: str = "async"  # "async" or "realtime"
     instance_type: str | None = None
-    hf_token: str | None = None  # Used once for download, NOT stored
+    hf_token: str | None = None  # For gated models — stored encrypted in Secrets Manager
 
 
 _deploy_status: dict = {}  # model_key → {"stage": str, "progress": str, "error": str}
@@ -142,16 +147,29 @@ _deploy_status: dict = {}  # model_key → {"stage": str, "progress": str, "erro
 async def deploy_model(body: DeployRequest):
     """Start deploying a model in a background thread.
 
-    Returns immediately with a status. Frontend polls /status/{key} for progress.
-    HF token is used ONCE during download and never stored.
+    Returns immediately with a status. Frontend polls /deploy-status/{key} for progress.
+
+    For HuggingFace models: uploads only the inference handler to S3, then creates
+    the Amazon SageMaker endpoint. The container pulls model weights directly from
+    HuggingFace at startup (no local download of multi-GB weights).
+
+    For gated models: a single shared HF token is stored encrypted in AWS
+    Secrets Manager (not as a plain-text env var). If a token already exists
+    from a previous deployment, it's reused automatically — no need to ask
+    the user again. If the token fails, the user is prompted for a new one.
+
+    For non-HuggingFace models: downloads weights locally, uploads to S3,
+    then creates the endpoint.
     """
     from backend.services.custom_models import get_catalog_model
+    from backend.services.sagemaker_deployer import has_hf_token
 
     model = get_catalog_model(body.model_key)
     if not model:
         raise HTTPException(404, detail=f"Unknown model: {body.model_key}")
 
-    if model.get("requires_hf_auth") and not body.hf_token:
+    # Smart token flow: only ask for token if gated AND no token stored yet
+    if model.get("requires_hf_auth") and not body.hf_token and not has_hf_token():
         raise HTTPException(400, detail={
             "error": "hf_auth_required",
             "message": "This model requires HuggingFace authentication.",
@@ -160,7 +178,8 @@ async def deploy_model(body: DeployRequest):
                 "1. Visit the license URL and accept the terms\n"
                 "2. Go to huggingface.co/settings/tokens → create a Read-only token\n"
                 "3. Provide the token in the deployment dialog\n"
-                "A Read-only token is sufficient. Your token is used once for download and NOT stored."
+                "A Read-only token is sufficient. Your token is stored encrypted in AWS Secrets Manager\n"
+                "in your account and reused for all gated models. You can remove it anytime."
             ),
         })
 
@@ -168,42 +187,107 @@ async def deploy_model(body: DeployRequest):
     import threading
 
     def _run_deploy():
-        from backend.services.sagemaker_deployer import download_model, upload_to_s3, deploy_endpoint
-        import shutil
-
         key = body.model_key
-        _deploy_status[key] = {"stage": "downloading", "progress": f"Downloading {model['label']} weights...", "error": ""}
+        source_type = model.get("source", {}).get("type", "")
 
         try:
-            local_dir = download_model(key, hf_token=body.hf_token)
-            try:
-                _deploy_status[key] = {"stage": "uploading", "progress": "Uploading to S3...", "error": ""}
-                s3_uri = upload_to_s3(local_dir, key)
+            if source_type == "huggingface":
+                # ── HuggingFace direct pull: no local download ──────────────
+                # Upload only the inference handler to S3 (a few KB).
+                # The Amazon SageMaker container will pull model weights
+                # directly from HuggingFace at startup via HF_MODEL_ID.
+                from backend.services.sagemaker_deployer import upload_handler_to_s3, deploy_endpoint
 
-                _deploy_status[key] = {"stage": "deploying", "progress": "Creating SageMaker endpoint...", "error": ""}
-                deployment = deploy_endpoint(key, endpoint_type=body.endpoint_type, instance_type=body.instance_type)
+                _deploy_status[key] = {
+                    "stage": "preparing",
+                    "progress": "Uploading inference handler to S3...",
+                    "error": "",
+                }
+                upload_handler_to_s3(key)
+
+                _deploy_status[key] = {
+                    "stage": "deploying",
+                    "progress": "Creating Amazon SageMaker endpoint (container will pull model from HuggingFace)...",
+                    "error": "",
+                }
+                deployment = deploy_endpoint(
+                    key,
+                    endpoint_type=body.endpoint_type,
+                    instance_type=body.instance_type,
+                    hf_token=body.hf_token,  # Stored in Secrets Manager, not plain-text env var
+                )
 
                 _register_custom_model(key, model, deployment)
-                _deploy_status[key] = {"stage": "complete", "progress": "Endpoint created — waiting for it to become active (5-10 min).", "error": ""}
-            finally:
-                shutil.rmtree(local_dir, ignore_errors=True)
+                _deploy_status[key] = {
+                    "stage": "complete",
+                    "progress": (
+                        "Endpoint created — container is pulling model from HuggingFace and starting up. "
+                        "This typically takes 5-15 min depending on model size."
+                    ),
+                    "error": "",
+                }
+
+            else:
+                # ── Non-HuggingFace: download locally → upload to S3 ────────
+                from backend.services.sagemaker_deployer import download_model, upload_to_s3, deploy_endpoint
+                import shutil
+
+                _deploy_status[key] = {
+                    "stage": "downloading",
+                    "progress": f"Downloading {model['label']} weights...",
+                    "error": "",
+                }
+
+                def _update_progress(msg):
+                    _deploy_status[key]["progress"] = msg
+
+                local_dir = download_model(key, progress_callback=_update_progress)
+                try:
+                    _deploy_status[key] = {"stage": "uploading", "progress": "Uploading to S3...", "error": ""}
+                    upload_to_s3(local_dir, key, progress_callback=_update_progress)
+
+                    _deploy_status[key] = {
+                        "stage": "deploying",
+                        "progress": "Creating Amazon SageMaker endpoint...",
+                        "error": "",
+                    }
+                    deployment = deploy_endpoint(key, endpoint_type=body.endpoint_type, instance_type=body.instance_type)
+
+                    _register_custom_model(key, model, deployment)
+                    _deploy_status[key] = {
+                        "stage": "complete",
+                        "progress": "Endpoint created — waiting for it to become active (5-10 min).",
+                        "error": "",
+                    }
+                finally:
+                    shutil.rmtree(local_dir, ignore_errors=True)
 
         except Exception as exc:
             logger.exception("Custom model deployment failed: %s", key)
             error_msg = str(exc)
-            # Provide user-friendly guidance for common HuggingFace errors
+            # Provide user-friendly guidance for common errors
             if "403" in error_msg or "not in the authorized list" in error_msg:
                 license_url = model.get("hf_license_url", f"https://huggingface.co/{model.get('source', {}).get('repo_id', '')}")
                 error_msg = (
                     f"Access denied. You need to accept the model's license on HuggingFace first.\n\n"
                     f"1. Visit {license_url}\n"
                     f"2. Click 'Accept' on the license agreement\n"
-                    f"3. Come back and try deploying again with your token."
+                    f"3. Come back and try deploying again\n\n"
+                    f"If you already accepted the license, your stored token may be invalid or expired. "
+                    f"Try deploying again with a fresh token."
                 )
             elif "401" in error_msg or "Unauthorized" in error_msg:
-                error_msg = "Invalid HuggingFace token. Please check your token at huggingface.co/settings/tokens and try again."
+                error_msg = (
+                    "Invalid or expired HuggingFace token. "
+                    "Please deploy again with a fresh token from huggingface.co/settings/tokens."
+                )
             elif "404" in error_msg:
-                error_msg = f"Model repository not found. Please verify the model URL is correct."
+                error_msg = "Model repository not found. Please verify the model URL is correct."
+            elif "secretsmanager" in error_msg.lower() or "AccessDeniedException" in error_msg:
+                error_msg = (
+                    "Could not store HuggingFace token in AWS Secrets Manager. "
+                    "Ensure your IAM role has secretsmanager:CreateSecret and secretsmanager:PutSecretValue permissions."
+                )
             _deploy_status[key] = {"stage": "failed", "progress": "", "error": error_msg}
 
     thread = threading.Thread(target=_run_deploy, daemon=True)
@@ -228,18 +312,58 @@ async def get_deploy_progress(model_key: str):
 
 @router.get("/status/{model_key}")
 async def check_deployment_status(model_key: str):
-    """Check the deployment status of a custom model."""
+    """Check the deployment status of a custom model on Amazon SageMaker."""
     from backend.services.sagemaker_deployer import check_endpoint_status
     endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
     return check_endpoint_status(endpoint_name)
+
+
+# ── HuggingFace Token Management ─────────────────────────────────────────
+
+@router.get("/hf-token-status")
+async def check_hf_token_status():
+    """Check if a HuggingFace token is stored in Secrets Manager."""
+    from backend.services.sagemaker_deployer import has_hf_token, get_hf_token_arn
+    stored = has_hf_token()
+    return {"stored": stored, "arn": get_hf_token_arn() if stored else None}
+
+
+class UpdateHfTokenRequest(BaseModel):
+    hf_token: str
+
+
+@router.post("/hf-token")
+async def update_hf_token(body: UpdateHfTokenRequest):
+    """Store or update the shared HuggingFace token.
+
+    One token is shared across all gated models. Stored encrypted in
+    AWS Secrets Manager. Existing deployed models will use the new token
+    on their next cold start.
+    """
+    from backend.services.sagemaker_deployer import store_hf_token
+    if not body.hf_token.strip():
+        raise HTTPException(400, detail="Token cannot be empty")
+    arn = store_hf_token(body.hf_token.strip())
+    return {"status": "stored", "arn": arn}
+
+
+@router.delete("/hf-token")
+async def remove_hf_token():
+    """Delete the shared HuggingFace token from Secrets Manager.
+
+    Warning: gated models will fail on next cold start without a token.
+    """
+    from backend.services.sagemaker_deployer import delete_hf_token
+    deleted = delete_hf_token()
+    return {"status": "deleted" if deleted else "not_found"}
 
 
 @router.delete("/teardown/{model_key}")
 async def teardown_model(model_key: str, delete_s3: bool = False):
     """Delete a deployed custom model endpoint.
 
-    Optionally deletes S3 artifacts (model weights). The model can be
-    redeployed later by downloading weights again.
+    Optionally deletes S3 artifacts (handler code). The model can be
+    redeployed later. The shared HF token is NOT deleted (other models may need it).
     """
     from backend.services.sagemaker_deployer import teardown_endpoint
 
@@ -254,15 +378,15 @@ async def teardown_model(model_key: str, delete_s3: bool = False):
 class RedeployRequest(BaseModel):
     endpoint_type: str = "async"
     instance_type: str | None = None
-    hf_token: str | None = None  # For re-downloading gated models
+    hf_token: str | None = None  # For gated models
 
 
 @router.post("/redeploy/{model_key}")
 async def redeploy_model(model_key: str, body: RedeployRequest):
-    """Re-download and redeploy a custom model.
+    """Tear down and redeploy a custom model.
 
-    Tears down existing endpoint, re-downloads latest weights,
-    and creates a fresh endpoint. Use for updates/patches.
+    Tears down existing endpoint (including Secrets Manager token),
+    then creates a fresh deployment.
     """
     from backend.services.sagemaker_deployer import teardown_endpoint
 

@@ -202,6 +202,9 @@
                             <div class="flex items-center justify-between mb-3">
                                 <p class="text-xs text-brand-text-muted">${t('custom_models.subtitle')}</p>
                                 <div class="flex gap-2">
+                                    <button id="ms-cm-hf-token" class="btn btn-sm text-xs flex items-center gap-1 border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 rounded-lg px-3 py-1.5" title="Manage your shared HuggingFace token for gated models">
+                                        🔑 HF Token
+                                    </button>
                                     <button id="ms-cm-add" class="btn btn-sm text-xs flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5">
                                         + ${t('custom_models.add_model') || 'Add Model'}
                                     </button>
@@ -667,6 +670,11 @@
                         if (addBtn && !addBtn._wired) {
                             addBtn._wired = true;
                             addBtn.addEventListener('click', () => this._addCustomModelWizard(modal));
+                        }
+                        const hfTokenBtn = modal.querySelector('#ms-cm-hf-token');
+                        if (hfTokenBtn && !hfTokenBtn._wired) {
+                            hfTokenBtn._wired = true;
+                            hfTokenBtn.addEventListener('click', () => this._manageHfToken(modal));
                         }
                     }
                 });
@@ -1327,7 +1335,7 @@
                 };
 
                 let html = '<div class="space-y-4">';
-                html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
+                html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on Amazon SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
 
                 for (const [studio, studioModels] of Object.entries(groups)) {
                     html += `<details class="ms-collapsible">
@@ -1336,7 +1344,7 @@
 
                     for (const m of studioModels) {
                         const deployed = m.deployment_status === 'InService';
-                        const deploying = m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying';
+                        const deploying = m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying';
                         const statusColor = deployed ? 'text-emerald-400' : deploying ? 'text-amber-400' : m.deployment_status === 'Failed' || m.deploy_stage === 'failed' ? 'text-red-400' : 'text-brand-text-muted/50';
                         const statusText = deployed ? t('custom_models.active') : deploying ? (m.deploy_progress || t('custom_models.deploying')) : m.deployment_status === 'Failed' || m.deploy_stage === 'failed' ? t('custom_models.failed') : t('custom_models.not_deployed');
                         const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 ml-1">${t('custom_models.hf_auth')}</span>` : '';
@@ -1401,9 +1409,25 @@
 
         async _deployCustomModel(modelKey, needsAuth, modal, isRedeploy = false, licenseUrl = '') {
             let hfToken = null;
+
             if (needsAuth) {
-                hfToken = await this._askHfToken(licenseUrl);
-                if (!hfToken) return;
+                // Check if a shared HF token is already stored in Secrets Manager
+                try {
+                    const tokenResp = await fetch('/api/custom-models/hf-token-status');
+                    const tokenStatus = tokenResp.ok ? await tokenResp.json() : {};
+                    if (tokenStatus.stored) {
+                        // Token already stored — no need to ask again
+                        hfToken = null;  // Backend will reuse the stored one
+                    } else {
+                        // No token stored yet — ask the user
+                        hfToken = await this._askHfToken(licenseUrl);
+                        if (!hfToken) return;
+                    }
+                } catch {
+                    // Can't check token status — ask the user just in case
+                    hfToken = await this._askHfToken(licenseUrl);
+                    if (!hfToken) return;
+                }
             }
 
             // Ask endpoint type
@@ -1416,7 +1440,7 @@
                 }
             );
 
-            window.showLoading?.(`${isRedeploy ? 'Redeploying' : 'Deploying'} model... This may take several minutes.`);
+            window.showLoading?.(`${isRedeploy ? 'Redeploying' : 'Deploying'} model...`);
 
             try {
                 const url = isRedeploy ? `/api/custom-models/redeploy/${modelKey}` : '/api/custom-models/deploy';
@@ -1442,6 +1466,21 @@
                 } else {
                     const err = await resp.json();
                     const detail = typeof err.detail === 'string' ? err.detail : err.detail?.message || 'Deployment failed';
+
+                    // If auth failed (stored token was invalid), prompt for a new one
+                    if (err.detail?.error === 'hf_auth_required') {
+                        window.hideLoading?.();
+                        const newToken = await this._askHfToken(licenseUrl);
+                        if (newToken) {
+                            // Store the new token and retry deployment
+                            await fetch('/api/custom-models/hf-token', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ hf_token: newToken }),
+                            });
+                            return this._deployCustomModel(modelKey, needsAuth, modal, isRedeploy, licenseUrl);
+                        }
+                    }
                     window.showToast?.(detail, 'error');
                 }
             } catch (err) {
@@ -1608,6 +1647,85 @@
             } catch (err) {
                 window.showToast?.(`Teardown failed: ${err.message}`, 'error');
             }
+        },
+
+        async _manageHfToken(modal) {
+            // Check current status
+            let stored = false;
+            try {
+                const resp = await fetch('/api/custom-models/hf-token-status');
+                if (resp.ok) {
+                    const data = await resp.json();
+                    stored = data.stored;
+                }
+            } catch {}
+
+            const backdrop = document.createElement('div');
+            backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+            backdrop.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
+                    <h3 class="text-sm font-semibold text-brand-text">🔑 HuggingFace Token</h3>
+                    <div class="text-xs text-brand-text-muted space-y-2">
+                        <p>Status: ${stored
+                            ? '<span class="text-emerald-400 font-medium">Token stored</span> (encrypted in AWS Secrets Manager)'
+                            : '<span class="text-amber-400 font-medium">No token stored</span>'
+                        }</p>
+                        <p>A single Read-only token is shared across all gated HuggingFace models. It's stored encrypted in your AWS account and used by Amazon SageMaker containers at startup.</p>
+                    </div>
+                    <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="hf_xxxxxxxxx (paste to ${stored ? 'update' : 'store'} token)" autocomplete="off" />
+                    <div class="flex gap-2 justify-end">
+                        ${stored ? '<button class="hf-delete btn btn-sm text-xs px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10">Delete Token</button>' : ''}
+                        <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Close</button>
+                        <button class="hf-save btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Save Token</button>
+                    </div>
+                </div>`;
+
+            const cleanup = () => backdrop.remove();
+            backdrop.querySelector('.hf-cancel').addEventListener('click', cleanup);
+            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cleanup(); });
+
+            backdrop.querySelector('.hf-save').addEventListener('click', async () => {
+                const token = backdrop.querySelector('.hf-token-input').value.trim();
+                if (!token) { window.showToast?.('Please enter a token', 'error'); return; }
+                try {
+                    const resp = await fetch('/api/custom-models/hf-token', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ hf_token: token }),
+                    });
+                    if (resp.ok) {
+                        window.showToast?.('HuggingFace token saved', 'success');
+                        cleanup();
+                    } else {
+                        const err = await resp.json();
+                        window.showToast?.(err.detail || 'Failed to save token', 'error');
+                    }
+                } catch (err) {
+                    window.showToast?.(`Failed: ${err.message}`, 'error');
+                }
+            });
+
+            const deleteBtn = backdrop.querySelector('.hf-delete');
+            if (deleteBtn) {
+                deleteBtn.addEventListener('click', async () => {
+                    if (!await window.showConfirm('Delete the shared HuggingFace token? Gated models will fail on next cold start without it.', { title: 'Delete HF Token', confirmLabel: 'Delete', danger: true })) return;
+                    try {
+                        await fetch('/api/custom-models/hf-token', { method: 'DELETE' });
+                        window.showToast?.('HuggingFace token deleted', 'success');
+                        cleanup();
+                    } catch (err) {
+                        window.showToast?.(`Failed: ${err.message}`, 'error');
+                    }
+                });
+            }
+
+            backdrop.querySelector('.hf-token-input').addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') backdrop.querySelector('.hf-save').click();
+                if (e.key === 'Escape') cleanup();
+            });
+
+            document.body.appendChild(backdrop);
+            backdrop.querySelector('.hf-token-input').focus();
         },
 
         _esc(str) {

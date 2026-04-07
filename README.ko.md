@@ -100,7 +100,7 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 - 💰 **비용 추적** — 요청, 세션, 에셋별 추정 AWS 비용 — PulseBoard 텔레메트리에 전송
 - 🌐 **6개 언어 i18n** — 완전한 UI 번역(EN, JA, ZH, KO, FR, ES), 비영어 프롬프트 자동 감지, 이중 언어 미리보기
 - 🔍 **커스텀 모델 지원** — 파인튜닝, 임포트, 배포된 커스텀 Bedrock 모델 자동 검색
-- 🔧 **Self-Hosted Models** — 오픈소스 모델(FLUX.1, Real-ESRGAN, RMBG, SAM 2 등)을 자체 AWS 계정의 SageMaker에 배포. 원클릭 배포, 비동기 스케일 투 제로 또는 상시 가동, 모든 스튜디오와 완전 통합
+- 🔧 **Self-Hosted Models** — 오픈소스 모델(FLUX.1, Real-ESRGAN, RMBG, SAM 2 등)을 자체 AWS 계정의 Amazon SageMaker에 배포. 원클릭 배포, 비동기 스케일 투 제로 또는 상시 가동, 모든 스튜디오와 완전 통합
 
 ### 📝 1.2 스크린샷
 

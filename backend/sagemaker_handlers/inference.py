@@ -1,9 +1,16 @@
-"""Universal SageMaker inference handler — fully data-driven from registry.
+"""Universal Amazon SageMaker inference handler — fully data-driven from registry.
 
-This SINGLE handler runs inside ALL SageMaker containers for ArtSmoker.
+This SINGLE handler runs inside ALL Amazon SageMaker containers for ArtSmoker.
 It reads configuration entirely from environment variables (set by the
 deployer from the model catalog). ZERO model-specific code — adding a
 new model requires only a catalog entry.
+
+Supports two model loading modes:
+  1. Direct HuggingFace pull: HF_MODEL_ID is set, model_dir has no weights.
+     The handler loads directly from HuggingFace using from_pretrained(repo_id).
+     HUGGING_FACE_HUB_TOKEN env var provides auth for gated models.
+  2. Pre-uploaded weights: Model weights are in model_dir (uploaded to S3).
+     The handler loads from the local path.
 
 Environment variables (set by deployer from catalog['invoke']):
   INVOKE_CONFIG:     JSON-serialized invoke config from catalog
@@ -17,6 +24,8 @@ Environment variables (set by deployer from catalog['invoke']):
   ENABLE_CPU_OFFLOAD: Enable model CPU offload for memory optimization (true/false)
   PROCESSOR_CLASS:   Processor class for models that need one (Sam2Processor, etc.)
   LOADER_VARIANT:    Model variant (fp16, etc.)
+  HF_MODEL_ID:       HuggingFace repo ID for direct pull (e.g., "black-forest-labs/FLUX.1-schnell")
+  HUGGING_FACE_HUB_TOKEN: Auth token for gated HuggingFace models (read-only)
 """
 
 import base64
@@ -70,23 +79,102 @@ def _import_class(module_path, class_name):
 # ── Loaders (by INFERENCE_LIBRARY) ────────────────────────────────────────
 # Each loader reads its configuration from environment variables.
 # No model-specific branching — everything is parameterized.
+#
+# Model source resolution:
+#   - If model_dir contains actual model files → load from local path
+#   - If model_dir only has handler code → load from HF_MODEL_ID (direct pull)
+# The HuggingFace libraries' from_pretrained() accept both local paths
+# and HuggingFace repo IDs, so the same code handles both cases.
+
+def _fetch_hf_token():
+    """Fetch HuggingFace token from AWS Secrets Manager if configured.
+
+    The deployer stores gated model tokens in Secrets Manager (encrypted)
+    and passes the secret ARN via HF_TOKEN_SECRET_ARN env var.
+    The token is fetched at container startup and set in the process
+    environment so the HuggingFace libraries can use it automatically.
+    """
+    secret_arn = _get_env("HF_TOKEN_SECRET_ARN")
+    if not secret_arn:
+        return None
+
+    try:
+        import boto3
+        client = boto3.client("secretsmanager")
+        resp = client.get_secret_value(SecretId=secret_arn)
+        token = resp["SecretString"]
+        # Set in process environment so HF libraries find it automatically
+        os.environ["HUGGING_FACE_HUB_TOKEN"] = token
+        logger.info("Retrieved HuggingFace token from Secrets Manager")
+        return token
+    except Exception as e:
+        logger.warning("Failed to fetch HF token from Secrets Manager (%s): %s", secret_arn, e)
+        return None
+
+
+def _resolve_model_source(model_dir):
+    """Determine whether to load from local path or HuggingFace repo.
+
+    Returns the model identifier to pass to from_pretrained():
+    either a local directory path or a HuggingFace repo ID.
+    """
+    hf_model_id = _get_env("HF_MODEL_ID")
+
+    # Check if model_dir has actual model files (not just the handler code dir)
+    has_weights = False
+    if os.path.isdir(model_dir):
+        for item in os.listdir(model_dir):
+            if item == "code":
+                continue  # Skip handler code directory
+            # Model weight files: .bin, .safetensors, .pth, .pt, config.json, etc.
+            if item.endswith((".bin", ".safetensors", ".pth", ".pt", ".onnx")) or \
+               item in ("config.json", "model_index.json", "tokenizer.json"):
+                has_weights = True
+                break
+
+    if has_weights:
+        logger.info("Loading model from local path: %s", model_dir)
+        return model_dir
+    elif hf_model_id:
+        logger.info("No model weights in %s — loading from HuggingFace: %s", model_dir, hf_model_id)
+        return hf_model_id
+    else:
+        # Fallback: try local path anyway (might work for some model types)
+        logger.warning("No model weights found and no HF_MODEL_ID set — attempting local load from %s", model_dir)
+        return model_dir
+
 
 def _load_diffusers(model_dir):
-    """Load any diffusers pipeline — the specific class comes from LOADER_CLASS env."""
+    """Load any diffusers pipeline — the specific class comes from LOADER_CLASS env.
+
+    If model_dir has no weights, loads from HuggingFace via HF_MODEL_ID.
+    Auth token (if any) is already in process env via _fetch_hf_token().
+    """
     loader_class_name = _get_env("LOADER_CLASS", "AutoPipelineForText2Image")
     variant = _get_env("LOADER_VARIANT") or None
 
     PipelineClass = _import_class("diffusers", loader_class_name)
 
+    model_source = _resolve_model_source(model_dir)
+
+    # HF token is in process env (set by _fetch_hf_token) — HF libraries read it automatically.
+    # We also pass it explicitly as a safety net for libraries that don't check the env.
+    hf_token = _get_env("HUGGING_FACE_HUB_TOKEN") or None
+
     kwargs = {"torch_dtype": _get_torch_dtype()}
     if variant:
         kwargs["variant"] = variant
+    if hf_token:
+        kwargs["token"] = hf_token
 
     try:
-        pipe = PipelineClass.from_pretrained(model_dir, **kwargs)
+        pipe = PipelineClass.from_pretrained(model_source, **kwargs)
     except Exception:
-        # Fallback: try without variant
-        pipe = PipelineClass.from_pretrained(model_dir, torch_dtype=_get_torch_dtype())
+        # Fallback: try without variant (some models don't have fp16 variants)
+        fallback_kwargs = {"torch_dtype": _get_torch_dtype()}
+        if hf_token:
+            fallback_kwargs["token"] = hf_token
+        pipe = PipelineClass.from_pretrained(model_source, **fallback_kwargs)
 
     pipe.to("cuda")
 
@@ -100,17 +188,26 @@ def _load_diffusers(model_dir):
 
 
 def _load_transformers(model_dir):
-    """Load any transformers model — class/task from env vars."""
+    """Load any transformers model — class/task from env vars.
+
+    If model_dir has no weights, loads from HuggingFace via HF_MODEL_ID.
+    Auth token (if any) is already in process env via _fetch_hf_token().
+    """
     loader_class = _get_env("LOADER_CLASS", "pipeline")
     loader_task = _get_env("LOADER_TASK", "")
     trust_remote = _get_env_bool("TRUST_REMOTE_CODE")
     processor_class = _get_env("PROCESSOR_CLASS", "")
 
+    model_source = _resolve_model_source(model_dir)
+    hf_token = _get_env("HUGGING_FACE_HUB_TOKEN") or None
+
     if loader_class == "pipeline":
         from transformers import pipeline
-        kwargs = {"model": model_dir, "device": "cuda"}
+        kwargs = {"model": model_source, "device": "cuda"}
         if loader_task:
             kwargs["task"] = loader_task
+        if hf_token:
+            kwargs["token"] = hf_token
         pipe = pipeline(**kwargs)
         return {"library": "transformers", "predictor": "pipeline", "pipe": pipe}
 
@@ -120,7 +217,9 @@ def _load_transformers(model_dir):
         kwargs = {}
         if trust_remote:
             kwargs["trust_remote_code"] = True
-        model = ModelClass.from_pretrained(model_dir, **kwargs)
+        if hf_token:
+            kwargs["token"] = hf_token
+        model = ModelClass.from_pretrained(model_source, **kwargs)
         model.to("cuda").eval()
 
         result = {"library": "transformers", "predictor": "model", "model": model}
@@ -128,7 +227,10 @@ def _load_transformers(model_dir):
         # Load processor if specified
         if processor_class:
             ProcessorClass = _import_class("transformers", processor_class)
-            processor = ProcessorClass.from_pretrained(model_dir)
+            proc_kwargs = {}
+            if hf_token:
+                proc_kwargs["token"] = hf_token
+            processor = ProcessorClass.from_pretrained(model_source, **proc_kwargs)
             result["processor"] = processor
 
         return result
@@ -290,13 +392,16 @@ _PREDICTORS = {
 }
 
 
-# ── SageMaker Entry Points ────────────────────────────────────────────────
+# ── Amazon SageMaker Entry Points ─────────────────────────────────────────
 
 def model_fn(model_dir):
     """Load model — called once when endpoint starts.
 
     Reads INFERENCE_LIBRARY from env to pick the right loader.
     The loader reads its specific params (LOADER_CLASS, TORCH_DTYPE, etc.) from env.
+
+    For HuggingFace direct pull: fetches auth token from Secrets Manager first,
+    then the loader downloads weights from HuggingFace using from_pretrained().
     """
     global _model, _config
     library = _get_env("INFERENCE_LIBRARY", "diffusers")
@@ -309,6 +414,9 @@ def model_fn(model_dir):
             _config = json.loads(config_json)
         except Exception:
             _config = {}
+
+    # Fetch HuggingFace token from Secrets Manager if this is a gated model
+    _fetch_hf_token()
 
     loader = _LOADERS.get(library)
     if not loader:

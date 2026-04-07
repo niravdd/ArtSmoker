@@ -98,7 +98,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 - 🌐 **6-Language i18n** — Full UI translation (EN, JA, ZH, KO, FR, ES), auto-detect non-English prompts, bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
-- 🔧 **Self-Hosted Models** — Deploy open-source models (FLUX.1, Real-ESRGAN, RMBG, SAM 2, and more) on SageMaker in your own AWS account. One-click deploy, async scale-to-zero or always-on, fully integrated with all studios
+- 🔧 **Self-Hosted Models** — Deploy open-source models (FLUX.1, Real-ESRGAN, RMBG, SAM 2, and more) on Amazon SageMaker in your own AWS account. One-click deploy, async scale-to-zero or always-on, fully integrated with all studios. HuggingFace models pull directly from HuggingFace at startup — no multi-GB local downloads
 
 ### 📝 1.2 Screenshots
 
@@ -312,10 +312,11 @@ Your IAM user, role, or instance profile needs these permissions:
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
 | `sts:GetCallerIdentity` | Startup credential validation |
 | `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
-| `sagemaker:*` | Self-hosted custom models on SageMaker (optional — only if using Custom Models) |
-| `iam:PassRole` | Allow SageMaker to use your role (optional — only for Custom Models) |
-| `iam:CreateRole` / `iam:AttachRolePolicy` | Auto-create SageMaker execution role on first deploy (optional — only for Custom Models) |
-| `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Auto-configure existing role for SageMaker trust (optional) |
+| `sagemaker:*` | Self-hosted custom models on Amazon SageMaker (optional — only if using Custom Models) |
+| `iam:PassRole` | Allow Amazon SageMaker to use your role (optional — only for Custom Models) |
+| `iam:CreateRole` / `iam:AttachRolePolicy` | Auto-create Amazon SageMaker execution role on first deploy (optional — only for Custom Models) |
+| `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Auto-configure existing role for Amazon SageMaker trust (optional) |
+| `secretsmanager:CreateSecret` / `secretsmanager:GetSecretValue` / `secretsmanager:DeleteSecret` | Encrypted storage for HuggingFace tokens on gated models (optional — auto-cleaned on teardown) |
 
 **Quickest setup** (managed policies — broadest access):
 
@@ -389,6 +390,12 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
       "Effect": "Allow",
       "Action": ["iam:CreateRole", "iam:AttachRolePolicy", "iam:GetRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole"],
       "Resource": ["arn:aws:iam::*:role/ArtSmoker*"]
+    },
+    {
+      "Sid": "SecretsManagerHFTokens",
+      "Effect": "Allow",
+      "Action": ["secretsmanager:CreateSecret", "secretsmanager:UpdateSecret", "secretsmanager:GetSecretValue", "secretsmanager:DeleteSecret"],
+      "Resource": "arn:aws:secretsmanager:*:*:secret:artsmoker/*"
     }
   ]
 }'
@@ -1055,7 +1062,7 @@ All AI model configuration is centralized in `backend/model_registry.json` — t
 - Changes are persisted immediately to `model_registry.json` via the Admin API.
 - The registry is backward compatible — existing assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs.
 
-### 📝 6.12 Self-Hosted Models (Custom Models on SageMaker)
+### 📝 6.12 Self-Hosted Models (Custom Models on Amazon SageMaker)
 
 ArtSmoker can deploy open-source AI models on **Amazon SageMaker** in your own AWS account, extending your capabilities beyond what Amazon Bedrock offers. These run alongside Bedrock models and appear in the same studio dropdowns.
 
@@ -1076,12 +1083,12 @@ ArtSmoker can deploy open-source AI models on **Amazon SageMaker** in your own A
 - **Async (scale-to-zero)** — pay only when generating. $0 when idle. Cold start ~5-10 min.
 - **Always-On** — instant responses, ~$1.41/hr (ml.g5.xlarge)
 
-**How to deploy:** Model Settings → Custom Models tab → click Deploy. For gated HuggingFace models, provide your token once during download (never stored). Models download from their original sources — weights are not re-hosted.
+**How to deploy:** Model Settings → Custom Models tab → click Deploy. HuggingFace models are pulled directly by the Amazon SageMaker container at startup — no multi-GB local download required. For gated models, provide a Read-only HuggingFace token — it's stored encrypted in AWS Secrets Manager in your account and automatically deleted when you remove the model.
 
-**Setup:** Add SageMaker permissions to the **same IAM role** you already use for Bedrock — no separate role or environment variable needed. ArtSmoker auto-discovers your role on EC2/ECS, or auto-creates an `ArtSmokerSageMakerRole` if needed.
+**Setup:** Add Amazon SageMaker permissions to the **same IAM role** you already use for Bedrock — no separate role or environment variable needed. ArtSmoker auto-discovers your role on EC2/ECS, or auto-creates an `ArtSmokerSageMakerRole` if needed.
 
 ```bash
-# Add SageMaker permissions to your existing ArtSmoker role (one command)
+# Add Amazon SageMaker permissions to your existing ArtSmoker role (one command)
 aws iam attach-role-policy --role-name ArtSmokerEC2Role \
   --policy-arn arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
 ```
@@ -1251,8 +1258,8 @@ ArtSmoker/
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
 │   │   ├── telemetry.py         # PulseBoard SDK wrapper: tracks server events
 │   │   ├── custom_models.py    # Self-hosted model catalog (FLUX, ESRGAN, etc.)
-│   │   ├── sagemaker_deployer.py # Download, S3 upload, SageMaker endpoint management
-│   │   └── sagemaker_invoker.py  # Routes inference to SageMaker endpoints
+│   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)
+│   │   └── sagemaker_invoker.py  # Routes inference to Amazon SageMaker endpoints
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update
 │   │   ├── generation_request.py  # GenerationRequest, AssetType, ImageModel enums

@@ -1,6 +1,6 @@
-"""SageMaker Invoker — routes inference requests to custom model endpoints.
+"""Amazon SageMaker Invoker — routes inference requests to custom model endpoints.
 
-Handles both async (scale-to-zero) and real-time SageMaker endpoints.
+Handles both async (scale-to-zero) and real-time Amazon SageMaker endpoints.
 Integrates with ArtSmoker's cost tracking and error handling.
 
 For async endpoints:
@@ -22,7 +22,7 @@ from botocore.config import Config as BotoConfig
 
 logger = logging.getLogger(__name__)
 
-# Timeout config for SageMaker calls
+# Timeout config for Amazon SageMaker calls
 _SM_CONFIG = BotoConfig(
     connect_timeout=10,
     read_timeout=120,  # Image generation can take up to 60s
@@ -35,7 +35,7 @@ def invoke_custom_model(
     payload: dict,
     timeout_seconds: int = 120,
 ) -> dict:
-    """Invoke a custom model deployed on SageMaker.
+    """Invoke a custom model deployed on Amazon SageMaker.
 
     Detects whether the endpoint is async or real-time from the model registry
     and routes accordingly.
@@ -67,7 +67,7 @@ def invoke_custom_model(
     endpoint_type = deployment.get("endpoint_type", "realtime")
 
     if not endpoint_name:
-        raise ValueError(f"Model '{model_key}' has no SageMaker endpoint configured.")
+        raise ValueError(f"Model '{model_key}' has no Amazon SageMaker endpoint configured.")
 
     # Track cost
     from backend.services.cost_tracker import add_cost
@@ -101,7 +101,7 @@ def invoke_custom_model(
 
 
 def _invoke_realtime(endpoint_name: str, payload: dict) -> dict:
-    """Invoke a real-time SageMaker endpoint."""
+    """Invoke a real-time Amazon SageMaker endpoint."""
     sm_runtime = boto3.client("sagemaker-runtime", config=_SM_CONFIG)
 
     response = sm_runtime.invoke_endpoint(
@@ -116,7 +116,7 @@ def _invoke_realtime(endpoint_name: str, payload: dict) -> dict:
 
 def _invoke_async(endpoint_name: str, payload: dict,
                   timeout_seconds: int = 120) -> dict:
-    """Invoke an async SageMaker endpoint and poll for results."""
+    """Invoke an async Amazon SageMaker endpoint and poll for results."""
     sm_runtime = boto3.client("sagemaker-runtime", config=_SM_CONFIG)
 
     response = sm_runtime.invoke_endpoint_async(
@@ -182,7 +182,7 @@ def _parse_s3_uri(uri: str) -> tuple[str, str]:
 # ── Integration with ArtSmoker's image generation ────────────────────────
 
 def is_custom_model(model_key: str) -> bool:
-    """Check if a model key refers to a custom SageMaker model."""
+    """Check if a model key refers to a custom Amazon SageMaker model."""
     from backend.services.model_registry import get_registry
     registry = get_registry()
     for section in ("image_models", "video_models", "post_processing", "utility_models"):
