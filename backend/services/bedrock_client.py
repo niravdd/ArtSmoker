@@ -295,7 +295,10 @@ def invoke_image_model(
     mask_prompt: str | None = None,
     extra_params: dict | None = None,
 ) -> bytes:
-    """Generic image model invoker — handles all Bedrock image services.
+    """Generic image model invoker — handles Bedrock and custom SageMaker models.
+
+    For custom models (model_source=custom_hosted), routes to SageMaker.
+    For Bedrock models, uses the format family to construct the request.
 
     Works for text-to-image, inpainting, outpainting, erase, style transfer,
     and all other image services defined in the registry. The format family
@@ -322,6 +325,14 @@ def invoke_image_model(
     model_config = get_image_model(model_key)
     if not model_config:
         raise ValueError(f"Unknown image model: {model_key}")
+
+    # Route custom SageMaker models to the SageMaker invoker
+    if model_config.get("model_source") == "custom_hosted":
+        from backend.services.sagemaker_invoker import invoke_custom_image_model
+        return invoke_custom_image_model(
+            model_key, prompt, width=width, height=height, seed=seed,
+            negative_prompt=negative_prompt,
+        )
 
     model_id = model_config["model_id"]
     region = region_override or model_config["region"]

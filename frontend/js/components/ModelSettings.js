@@ -89,6 +89,10 @@
                             ${t('model_settings.tab_shared')}
                             <span class="text-[9px] opacity-60 ml-1">(${llmCount})</span>
                         </button>
+                        <button class="tab" data-ms-tab="custom-models">
+                            Custom Models
+                            <span class="text-[9px] opacity-60 ml-1">🔧</span>
+                        </button>
                         <button class="tab" data-ms-tab="prompt-templates">${t('model_settings.tab_templates')}</button>
                         <button class="tab" data-ms-tab="registry-json">${t('model_settings.tab_json')}</button>
                     </div>
@@ -187,6 +191,13 @@
                             </div>
                             <div id="ms-templates-list" class="space-y-3">
                                 <p class="text-xs text-brand-text-muted text-center py-4">Loading templates...</p>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Custom Models -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="custom-models">
+                            <div id="ms-custom-models-content">
+                                <p class="text-xs text-brand-text-muted">Loading custom models catalog...</p>
                             </div>
                         </div>
 
@@ -618,6 +629,10 @@
                     // Load templates on first click
                     if (tab.dataset.msTab === 'prompt-templates' && !this._templatesLoaded) {
                         this._loadTemplates(modal);
+                    }
+                    // Load custom models catalog on first click
+                    if (tab.dataset.msTab === 'custom-models' && !this._customModelsLoaded) {
+                        this._loadCustomModels(modal);
                     }
                 });
             });
@@ -1200,6 +1215,168 @@
                     }
                 });
             });
+        },
+
+        _customModelsLoaded: false,
+
+        async _loadCustomModels(modal) {
+            const container = modal.querySelector('#ms-custom-models-content');
+            if (!container) return;
+
+            try {
+                const resp = await fetch('/api/custom-models/catalog');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                const models = data.models || [];
+                this._customModelsLoaded = true;
+
+                if (models.length === 0) {
+                    container.innerHTML = '<p class="text-xs text-brand-text-muted">No custom models available in the catalog.</p>';
+                    return;
+                }
+
+                // Group by studio
+                const groups = {};
+                models.forEach(m => {
+                    const studio = m.studio || 'other';
+                    if (!groups[studio]) groups[studio] = [];
+                    groups[studio].push(m);
+                });
+
+                const studioLabels = { image: 'Image Studio', video: 'Video Studio', other: 'Other' };
+
+                let html = '<div class="space-y-4">';
+                html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
+
+                for (const [studio, studioModels] of Object.entries(groups)) {
+                    html += `<details class="ms-collapsible" open>
+                        <summary class="text-sm font-medium text-brand-text cursor-pointer py-1">${studioLabels[studio] || studio} (${studioModels.length})</summary>
+                        <div class="space-y-2 mt-2">`;
+
+                    for (const m of studioModels) {
+                        const deployed = m.deployment_status === 'InService';
+                        const deploying = m.deployment_status === 'Creating' || m.deployment_status === 'Updating';
+                        const statusColor = deployed ? 'text-emerald-400' : deploying ? 'text-amber-400' : 'text-brand-text-muted/50';
+                        const statusText = deployed ? 'Active' : deploying ? 'Deploying...' : m.deployment_status === 'Failed' ? 'Failed' : 'Not deployed';
+                        const authBadge = m.requires_hf_auth ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 ml-1">HF Auth</span>' : '';
+                        const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted ml-1">${m.license?.split(' ')[0] || '?'}</span>`;
+
+                        html += `
+                            <div class="p-3 rounded-lg bg-black/20 border border-brand-border/30">
+                                <div class="flex items-start justify-between">
+                                    <div>
+                                        <h4 class="text-xs font-semibold text-brand-text">${m.label} ${authBadge}${licenseBadge}</h4>
+                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${m.description}</p>
+                                        <div class="flex gap-3 mt-1.5 text-[10px] text-brand-text-muted/60">
+                                            <span>Provider: ${m.provider}</span>
+                                            <span>Instance: ${m.requirements?.recommended_instance || '?'}</span>
+                                            <span>Est. ~$${m.pricing?.estimated_cost_per_image?.toFixed(2) || '?'}/image</span>
+                                            <span>VRAM: ${m.requirements?.min_vram_gb || '?'}GB+</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                        <span class="text-[10px] font-medium ${statusColor}">${statusText}</span>
+                                        ${deployed
+                                            ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">Remove</button>`
+                                            : deploying
+                                            ? '<span class="text-[10px] text-amber-400">Please wait...</span>'
+                                            : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">Deploy</button>`
+                                        }
+                                        ${deployed ? `<button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">Redeploy (Update)</button>` : ''}
+                                    </div>
+                                </div>
+                            </div>`;
+                    }
+                    html += '</div></details>';
+                }
+                html += '</div>';
+                container.innerHTML = html;
+
+                // Attach deploy/teardown handlers
+                container.querySelectorAll('.ms-cm-deploy').forEach(btn => {
+                    btn.addEventListener('click', () => this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal));
+                });
+                container.querySelectorAll('.ms-cm-teardown').forEach(btn => {
+                    btn.addEventListener('click', () => this._teardownCustomModel(btn.dataset.model, modal));
+                });
+                container.querySelectorAll('.ms-cm-redeploy').forEach(btn => {
+                    btn.addEventListener('click', () => this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal, true));
+                });
+
+            } catch (err) {
+                container.innerHTML = `<p class="text-xs text-red-400">Failed to load custom models: ${err.message}</p>`;
+            }
+        },
+
+        async _deployCustomModel(modelKey, needsAuth, modal, isRedeploy = false) {
+            let hfToken = null;
+            if (needsAuth) {
+                // Show a dialog asking for HuggingFace token
+                const tokenInput = prompt(
+                    'This model requires HuggingFace authentication.\n\n' +
+                    '1. Accept the license on the model page (link in description)\n' +
+                    '2. Get your token from https://huggingface.co/settings/tokens\n\n' +
+                    'Enter your HuggingFace token (used once, NOT stored):'
+                );
+                if (!tokenInput) return;
+                hfToken = tokenInput.trim();
+            }
+
+            // Ask endpoint type
+            const useAsync = await window.showConfirm(
+                'Choose deployment type:',
+                {
+                    title: 'Deployment Options',
+                    detail: 'Async (recommended): Scales to zero when idle — pay only when generating. Cold start ~5-10 min.\n\nAlways-On: Instant responses but costs ~$1.41/hr continuously.',
+                    confirmLabel: 'Async (scale-to-zero)',
+                    cancelLabel: 'Always-On',
+                }
+            );
+
+            window.showLoading?.(`${isRedeploy ? 'Redeploying' : 'Deploying'} model... This may take several minutes.`);
+
+            try {
+                const url = isRedeploy ? `/api/custom-models/redeploy/${modelKey}` : '/api/custom-models/deploy';
+                const body = isRedeploy
+                    ? { endpoint_type: useAsync ? 'async' : 'realtime', hf_token: hfToken }
+                    : { model_key: modelKey, endpoint_type: useAsync ? 'async' : 'realtime', hf_token: hfToken };
+
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                window.hideLoading?.();
+
+                if (resp.ok) {
+                    const result = await resp.json();
+                    window.showToast?.(result.message || 'Deployment started', 'success');
+                    this._customModelsLoaded = false;
+                    this._loadCustomModels(modal);
+                } else {
+                    const err = await resp.json();
+                    window.showToast?.(err.detail || 'Deployment failed', 'error');
+                }
+            } catch (err) {
+                window.hideLoading?.();
+                window.showToast?.(`Deployment failed: ${err.message}`, 'error');
+            }
+        },
+
+        async _teardownCustomModel(modelKey, modal) {
+            if (!await window.showConfirm('This will delete the SageMaker endpoint. Model weights in S3 will be preserved for redeployment.', { title: 'Remove Custom Model', confirmLabel: 'Remove', danger: true })) return;
+
+            try {
+                const resp = await fetch(`/api/custom-models/teardown/${modelKey}`, { method: 'DELETE' });
+                if (resp.ok) {
+                    window.showToast?.('Model endpoint removed', 'success');
+                    this._customModelsLoaded = false;
+                    this._loadCustomModels(modal);
+                }
+            } catch (err) {
+                window.showToast?.(`Teardown failed: ${err.message}`, 'error');
+            }
         },
 
         _esc(str) {

@@ -332,9 +332,15 @@ def _get_inference_container(model: dict) -> str:
 
 
 def _get_model_environment(model_key: str, model: dict) -> dict:
-    """Get environment variables for the SageMaker container."""
+    """Get environment variables for the SageMaker container.
+
+    These env vars tell the universal inference handler (inference.py)
+    how to load and invoke this specific model — no model-specific code needed.
+    """
     return {
         "MODEL_KEY": model_key,
+        "INFERENCE_LIBRARY": model["requirements"].get("inference_library", "diffusers"),
+        "MODEL_CATEGORY": model.get("category", ""),
         "HF_MODEL_ID": model["source"].get("repo_id", ""),
         "SAGEMAKER_PROGRAM": "inference.py",
         "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",

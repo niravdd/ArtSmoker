@@ -6,3 +6,4 @@ pydantic>=2.10
 pydantic-settings>=2.7
 Pillow>=11.1
 aiofiles>=24.1
+huggingface_hub>=0.23  # For downloading custom model weights from HuggingFace

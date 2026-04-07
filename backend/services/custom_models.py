@@ -33,12 +33,13 @@ MODEL_CATALOG = {
 
     "flux1_schnell": {
         "label": "FLUX.1 [schnell]",
-        "description": "Fast text-to-image by Black Forest Labs. High quality, Apache 2.0 licensed.",
+        "description": "Fast text-to-image by Black Forest Labs. High quality, Apache 2.0 licensed. 1-4 step generation.",
         "category": "image_generation",
         "studio": "image",
         "provider": "Black Forest Labs",
         "license": "Apache 2.0",
-        "requires_hf_auth": False,
+        "requires_hf_auth": True,  # Gated on HuggingFace despite Apache license
+        "hf_license_url": "https://huggingface.co/black-forest-labs/FLUX.1-schnell",
         "source": {
             "type": "huggingface",
             "repo_id": "black-forest-labs/FLUX.1-schnell",
@@ -197,12 +198,13 @@ MODEL_CATALOG = {
 
     "rmbg_2": {
         "label": "RMBG-2.0 (Background Removal)",
-        "description": "AI background removal by BRIA. Free alternative to Stability AI Remove Background.",
+        "description": "AI background removal by BRIA. Gated on HuggingFace, CC-BY-NC-4.0 license.",
         "category": "post_processing",
         "studio": "image",
         "provider": "BRIA AI",
-        "license": "Apache 2.0",
-        "requires_hf_auth": False,
+        "license": "CC-BY-NC-4.0 (non-commercial free; commercial requires BRIA agreement)",
+        "requires_hf_auth": True,
+        "hf_license_url": "https://huggingface.co/briaai/RMBG-2.0",
         "source": {
             "type": "huggingface",
             "repo_id": "briaai/RMBG-2.0",
