@@ -1309,7 +1309,10 @@
             if (!container) return;
 
             try {
-                const resp = await fetch('/api/custom-models/catalog');
+                const controller = new AbortController();
+                const timeout = setTimeout(() => controller.abort(), 20000);
+                const resp = await fetch('/api/custom-models/catalog', { signal: controller.signal });
+                clearTimeout(timeout);
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
                 const models = data.models || [];
@@ -1408,7 +1411,8 @@
                 });
 
             } catch (err) {
-                container.innerHTML = `<p class="text-xs text-red-400">Failed to load custom models: ${err.message}</p>`;
+                const msg = err.name === 'AbortError' ? 'Request timed out — Amazon SageMaker status check may be slow. Try Refresh Status.' : err.message;
+                container.innerHTML = `<p class="text-xs text-red-400">Failed to load custom models: ${msg}</p>`;
             }
         },
 

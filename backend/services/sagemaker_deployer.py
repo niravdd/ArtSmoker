@@ -379,24 +379,41 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     }
 
 
+# Cache endpoint status to avoid repeated slow SageMaker API calls
+_endpoint_status_cache: dict = {}  # endpoint_name → {"result": dict, "time": float}
+_ENDPOINT_CACHE_TTL = 30  # seconds
+
+
 def check_endpoint_status(endpoint_name: str) -> dict:
     """Check the status of an Amazon SageMaker endpoint.
 
-    Uses a short timeout to avoid blocking the catalog endpoint.
+    Caches results for 30 seconds to avoid slow repeated API calls
+    (the catalog endpoint calls this for each deployed model).
     """
+    import time as _time
+
+    # Return cached result if fresh
+    cached = _endpoint_status_cache.get(endpoint_name)
+    if cached and (_time.time() - cached["time"]) < _ENDPOINT_CACHE_TTL:
+        return cached["result"]
+
     try:
         from botocore.config import Config as BotoConfig
         sm = boto3.client("sagemaker", region_name=_get_region(),
                           config=BotoConfig(connect_timeout=5, read_timeout=10, retries={"max_attempts": 1}))
         resp = sm.describe_endpoint(EndpointName=endpoint_name)
-        return {
+        result = {
             "endpoint_name": endpoint_name,
             "status": resp["EndpointStatus"],
             "creation_time": resp.get("CreationTime", "").isoformat() if resp.get("CreationTime") else "",
             "last_modified": resp.get("LastModifiedTime", "").isoformat() if resp.get("LastModifiedTime") else "",
         }
+        _endpoint_status_cache[endpoint_name] = {"result": result, "time": _time.time()}
+        return result
     except Exception as e:
-        return {"endpoint_name": endpoint_name, "status": "NotFound", "error": str(e)}
+        result = {"endpoint_name": endpoint_name, "status": "NotFound", "error": str(e)}
+        _endpoint_status_cache[endpoint_name] = {"result": result, "time": _time.time()}
+        return result
 
 
 def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
