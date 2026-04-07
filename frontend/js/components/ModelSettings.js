@@ -44,7 +44,7 @@
             modal.id = 'model-settings-modal';
             modal.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
             modal.innerHTML = `
-                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-6xl w-full max-h-[90vh] flex flex-col overflow-hidden" style="max-width: 72rem;">
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-h-[90vh] flex flex-col overflow-hidden" style="max-width: 80rem;">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
                         <div class="flex items-center gap-3">
@@ -68,37 +68,40 @@
                         </div>
                     </div>
 
-                    <!-- Tabs — aligned with app studios -->
-                    <div class="tab-bar px-6 pt-3">
-                        <button class="tab active" data-ms-tab="image-studio">
-                            ${t('model_settings.tab_image')}
-                            <span class="text-[9px] opacity-60 ml-1">(${imgCount})</span>
-                        </button>
-                        <button class="tab" data-ms-tab="video-studio">
-                            ${t('model_settings.tab_video')}
-                            <span class="text-[9px] opacity-60 ml-1">(${vidCount})</span>
-                        </button>
-                        <button class="tab" data-ms-tab="chat-studio">
-                            ${t('model_settings.tab_chat')}
-                            <span class="text-[9px] opacity-60 ml-1">(${Object.keys(reg.chat_models || {}).length})</span>
-                        </button>
-                        <button class="tab" data-ms-tab="type-studio">
-                            ${t('model_settings.tab_type')}
-                        </button>
-                        <button class="tab" data-ms-tab="shared-ai">
-                            ${t('model_settings.tab_shared')}
-                            <span class="text-[9px] opacity-60 ml-1">(${llmCount})</span>
-                        </button>
-                        <button class="tab" data-ms-tab="custom-models">
-                            ${t('custom_models.tab_title')}
-                            <span class="text-[9px] opacity-60 ml-1">🔧</span>
-                        </button>
-                        <button class="tab" data-ms-tab="prompt-templates">${t('model_settings.tab_templates')}</button>
-                        <button class="tab" data-ms-tab="registry-json">${t('model_settings.tab_json')}</button>
-                    </div>
+                    <!-- Vertical tabs + content -->
+                    <div class="flex flex-1 min-h-0">
+                        <!-- Sidebar tabs -->
+                        <div class="w-48 flex-shrink-0 border-r border-brand-border bg-black/10 py-2 overflow-y-auto">
+                            <button class="ms-vtab active w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors bg-brand-accent/10 text-brand-accent border-l-2 border-brand-accent" data-ms-tab="image-studio">
+                                🖼️ ${t('model_settings.tab_image')} <span class="text-[9px] opacity-50 ml-1">(${imgCount})</span>
+                            </button>
+                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="video-studio">
+                                🎬 ${t('model_settings.tab_video')} <span class="text-[9px] opacity-50 ml-1">(${vidCount})</span>
+                            </button>
+                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="chat-studio">
+                                💬 ${t('model_settings.tab_chat')} <span class="text-[9px] opacity-50 ml-1">(${Object.keys(reg.chat_models || {}).length})</span>
+                            </button>
+                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="type-studio">
+                                ✍️ ${t('model_settings.tab_type')}
+                            </button>
+                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="shared-ai">
+                                ⚙️ ${t('model_settings.tab_shared')} <span class="text-[9px] opacity-50 ml-1">(${llmCount})</span>
+                            </button>
+                            <div class="border-t border-brand-border my-1"></div>
+                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="custom-models">
+                                🔧 ${t('custom_models.tab_title')}
+                            </button>
+                            <div class="border-t border-brand-border my-1"></div>
+                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="prompt-templates">
+                                📝 ${t('model_settings.tab_templates')}
+                            </button>
+                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="registry-json">
+                                { } ${t('model_settings.tab_json')}
+                            </button>
+                        </div>
 
-                    <!-- Tab content -->
-                    <div class="flex-1 overflow-auto p-6">
+                        <!-- Tab content -->
+                        <div class="flex-1 overflow-auto p-6">
 
                         <!-- Tab: Image Studio -->
                         <div class="ms-tab-panel" data-ms-panel="image-studio">
@@ -203,7 +206,7 @@
                                         + ${t('custom_models.add_model') || 'Add Model'}
                                     </button>
                                     <button id="ms-cm-refresh" class="btn btn-secondary btn-sm text-xs flex items-center gap-1">
-                                        🔄 ${t('custom_models.refresh_all')}
+                                        🔄 ${t('custom_models.refresh_status') || 'Refresh Status'}
                                     </button>
                                 </div>
                             </div>
@@ -222,7 +225,8 @@
                                 <span id="ms-json-status" class="text-[10px] text-brand-text-muted"></span>
                             </div>
                         </div>
-                    </div>
+                    </div>  <!-- end tab content -->
+                    </div>  <!-- end flex (sidebar + content) -->
                 </div>
             `;
 
@@ -632,8 +636,12 @@
             // Tab switching
             modal.querySelectorAll('[data-ms-tab]').forEach(tab => {
                 tab.addEventListener('click', () => {
-                    modal.querySelectorAll('[data-ms-tab]').forEach(t2 => t2.classList.remove('active'));
-                    tab.classList.add('active');
+                    modal.querySelectorAll('[data-ms-tab]').forEach(t2 => {
+                        t2.classList.remove('active', 'bg-brand-accent/10', 'text-brand-accent', 'border-l-2', 'border-brand-accent');
+                        t2.classList.add('text-brand-text-muted');
+                    });
+                    tab.classList.add('active', 'bg-brand-accent/10', 'text-brand-accent', 'border-l-2', 'border-brand-accent');
+                    tab.classList.remove('text-brand-text-muted');
                     modal.querySelectorAll('.ms-tab-panel').forEach(p => {
                         p.classList.toggle('hidden', p.dataset.msPanel !== tab.dataset.msTab);
                     });
@@ -1322,7 +1330,7 @@
                 html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
 
                 for (const [studio, studioModels] of Object.entries(groups)) {
-                    html += `<details class="ms-collapsible" open>
+                    html += `<details class="ms-collapsible">
                         <summary class="text-sm font-medium text-brand-text cursor-pointer py-1">${studioLabels[studio] || studio} (${studioModels.length})</summary>
                         <div class="space-y-2 mt-2">`;
 
@@ -1577,10 +1585,9 @@
                             this._loadCustomModels(modal);
                             return;
                         }
-                        // Still in progress — show toast and poll again
-                        if (status.progress) {
-                            window.showToast?.(status.progress, 'info', 3000);
-                        }
+                        // Still in progress — refresh the tab to show inline progress
+                        this._customModelsLoaded = false;
+                        this._loadCustomModels(modal);
                         setTimeout(poll, 5000);
                     }
                 } catch { setTimeout(poll, 5000); }

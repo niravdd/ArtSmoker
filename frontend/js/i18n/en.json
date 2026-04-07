@@ -879,6 +879,7 @@
     "tab_title": "Custom Models",
     "subtitle": "Self-hosted models on SageMaker in your AWS account.",
     "refresh_all": "Refresh All",
+    "refresh_status": "Refresh Status",
     "deploy": "Deploy",
     "remove": "Remove",
     "redeploy": "Redeploy (Update)",
