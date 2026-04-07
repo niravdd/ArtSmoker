@@ -1234,6 +1234,45 @@
             });
         },
 
+        _askHfToken() {
+            return new Promise((resolve) => {
+                const backdrop = document.createElement('div');
+                backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+                backdrop.innerHTML = `
+                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
+                        <h3 class="text-sm font-semibold text-brand-text">HuggingFace Authentication Required</h3>
+                        <div class="text-xs text-brand-text-muted space-y-2">
+                            <p>This model is gated on HuggingFace. To download it:</p>
+                            <ol class="list-decimal ml-4 space-y-1">
+                                <li>Visit the model page and <strong>accept the license</strong></li>
+                                <li>Go to <strong>huggingface.co/settings/tokens</strong> and copy your token</li>
+                                <li>Paste it below</li>
+                            </ol>
+                            <p class="text-[10px] text-amber-400/80 mt-2">Your token is used once for this download and is <strong>never stored</strong>.</p>
+                        </div>
+                        <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="hf_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" autocomplete="off" />
+                        <div class="flex gap-2 justify-end">
+                            <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
+                            <button class="hf-submit btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Continue</button>
+                        </div>
+                    </div>`;
+
+                const cleanup = (result) => { backdrop.remove(); resolve(result); };
+                backdrop.querySelector('.hf-cancel').addEventListener('click', () => cleanup(null));
+                backdrop.querySelector('.hf-submit').addEventListener('click', () => {
+                    const token = backdrop.querySelector('.hf-token-input').value.trim();
+                    cleanup(token || null);
+                });
+                backdrop.querySelector('.hf-token-input').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') backdrop.querySelector('.hf-submit').click();
+                    if (e.key === 'Escape') cleanup(null);
+                });
+
+                document.body.appendChild(backdrop);
+                backdrop.querySelector('.hf-token-input').focus();
+            });
+        },
+
         _customModelsLoaded: false,
 
         async _loadCustomModels(modal) {
@@ -1338,23 +1377,16 @@
         async _deployCustomModel(modelKey, needsAuth, modal, isRedeploy = false) {
             let hfToken = null;
             if (needsAuth) {
-                // Show a dialog asking for HuggingFace token
-                const tokenInput = prompt(
-                    'This model requires HuggingFace authentication.\n\n' +
-                    '1. Accept the license on the model page (link in description)\n' +
-                    '2. Get your token from https://huggingface.co/settings/tokens\n\n' +
-                    'Enter your HuggingFace token (used once, NOT stored):'
-                );
-                if (!tokenInput) return;
-                hfToken = tokenInput.trim();
+                // Show styled dialog for HuggingFace token
+                hfToken = await this._askHfToken();
+                if (!hfToken) return;
             }
 
             // Ask endpoint type
             const useAsync = await window.showConfirm(
-                'Choose deployment type:',
+                'Async (recommended): Scales to zero when idle — pay only when generating. Cold start ~5-10 min.\n\nAlways-On: Instant responses but costs ~$1.41/hr continuously.',
                 {
-                    title: 'Deployment Options',
-                    detail: 'Async (recommended): Scales to zero when idle — pay only when generating. Cold start ~5-10 min.\n\nAlways-On: Instant responses but costs ~$1.41/hr continuously.',
+                    title: 'Choose Deployment Type',
                     confirmLabel: 'Async (scale-to-zero)',
                     cancelLabel: 'Always-On',
                 }
@@ -1379,16 +1411,48 @@
                 if (resp.ok) {
                     const result = await resp.json();
                     window.showToast?.(result.message || 'Deployment started', 'success');
+                    // Start polling deployment progress
+                    this._pollDeployProgress(modelKey, modal);
                     this._customModelsLoaded = false;
                     this._loadCustomModels(modal);
                 } else {
                     const err = await resp.json();
-                    window.showToast?.(err.detail || 'Deployment failed', 'error');
+                    const detail = typeof err.detail === 'string' ? err.detail : err.detail?.message || 'Deployment failed';
+                    window.showToast?.(detail, 'error');
                 }
             } catch (err) {
                 window.hideLoading?.();
                 window.showToast?.(`Deployment failed: ${err.message}`, 'error');
             }
+        },
+
+        _pollDeployProgress(modelKey, modal) {
+            const poll = async () => {
+                try {
+                    const resp = await fetch(`/api/custom-models/deploy-status/${modelKey}`);
+                    if (resp.ok) {
+                        const status = await resp.json();
+                        if (status.stage === 'complete') {
+                            window.showToast?.('Model deployment complete — endpoint initializing', 'success');
+                            this._customModelsLoaded = false;
+                            this._loadCustomModels(modal);
+                            return;
+                        }
+                        if (status.stage === 'failed') {
+                            window.showToast?.(`Deployment failed: ${status.error}`, 'error');
+                            this._customModelsLoaded = false;
+                            this._loadCustomModels(modal);
+                            return;
+                        }
+                        // Still in progress — show toast and poll again
+                        if (status.progress) {
+                            window.showToast?.(status.progress, 'info', 3000);
+                        }
+                        setTimeout(poll, 5000);
+                    }
+                } catch { setTimeout(poll, 5000); }
+            };
+            setTimeout(poll, 3000);
         },
 
         async _teardownCustomModel(modelKey, modal) {

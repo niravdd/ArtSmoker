@@ -429,6 +429,7 @@ async def get_image_model_options(region: str | None = Query(default=None)):
             "quality_options": cfg.get("quality_options", []),
             "default_quality": cfg.get("default_quality"),
             "base_price_usd": cfg.get("base_price_usd"),
+            "model_source": cfg.get("model_source", "foundation"),
         })
 
     # Collect all regions that have at least one model

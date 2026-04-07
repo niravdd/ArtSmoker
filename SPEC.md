@@ -1219,7 +1219,23 @@ sagemaker:DescribeEndpoint, sagemaker:InvokeEndpoint, sagemaker:InvokeEndpointAs
 iam:PassRole (to pass SageMaker execution role)
 ```
 
-Set `ARTSMOKER_SAGEMAKER_ROLE=arn:aws:iam::ACCOUNT:role/ROLE` environment variable with a SageMaker execution role that has `AmazonSageMakerFullAccess` + S3 read access to the model weights bucket.
+**Role discovery** (fully automatic — no environment variable needed):
+1. Running on EC2/ECS → auto-discovers the instance role, adds sagemaker.amazonaws.com trust if missing
+2. Finds existing `ArtSmokerSageMakerRole` or `ArtSmokerEC2Role` in the account
+3. Auto-creates `ArtSmokerSageMakerRole` with SageMaker + S3 permissions if none found
+
+For EC2 deployments: add `AmazonSageMakerFullAccess` to the same `ArtSmokerEC2Role` used for Bedrock. ArtSmoker auto-discovers it. For local development: ArtSmoker auto-creates `ArtSmokerSageMakerRole` on first deploy (requires `iam:CreateRole` permission).
+
+**S3 storage layout** (all under the same bucket configured in Video Settings):
+```
+s3://your-bucket/
+├── artsmoker/video/{job_id}/         ← Video generation output (MP4, thumbnails)
+├── artsmoker/custom-models/{key}/    ← Model weights (downloaded from source)
+│   └── code/inference.py             ← Universal inference handler (bundled)
+└── artsmoker/custom-models/
+    ├── inference-input/{endpoint}/    ← Async inference input payloads
+    └── inference-output/{key}/        ← Async inference results
+```
 
 ### 5.11 Admin (Model Management)
 

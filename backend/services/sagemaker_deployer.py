@@ -125,15 +125,17 @@ def upload_to_s3(local_dir: Path, model_key: str,
 
     Returns the S3 URI (s3://bucket/prefix/model_key/).
     """
-    # Copy the universal inference handler into the model directory
+    # Bundle inference handler + requirements into the model directory
     import shutil
-    handler_src = Path(__file__).resolve().parent.parent / "sagemaker_handlers" / "inference.py"
+    handlers_dir = Path(__file__).resolve().parent.parent / "sagemaker_handlers"
     code_dir = local_dir / "code"
     code_dir.mkdir(exist_ok=True)
-    if handler_src.exists():
-        shutil.copy2(str(handler_src), str(code_dir / "inference.py"))
-    else:
-        logger.warning("Inference handler not found at %s", handler_src)
+    for fname in ("inference.py", "requirements.txt"):
+        src = handlers_dir / fname
+        if src.exists():
+            shutil.copy2(str(src), str(code_dir / fname))
+        else:
+            logger.warning("Handler file not found: %s", src)
     bucket = get_deployment_s3_bucket()
     if not bucket:
         raise ValueError(
@@ -385,23 +387,118 @@ def _get_model_environment(model_key: str, model: dict) -> dict:
 def _get_sagemaker_role() -> str:
     """Get the SageMaker execution role ARN.
 
-    Tries: ARTSMOKER_SAGEMAKER_ROLE env var → default name pattern → error.
+    SageMaker's CreateModel API requires an ExecutionRoleArn — a role that
+    the SageMaker service assumes to pull model data from S3 and run the
+    inference container. This is NOT a separate role — it's the SAME role
+    the user already has for ArtSmoker (Bedrock + S3), just with
+    sagemaker.amazonaws.com added to its trust policy.
+
+    Discovery (fully automatic):
+    1. Running on EC2/ECS → use the current instance role (add SageMaker trust if missing)
+    2. Find existing ArtSmoker role in the account → use it
+    3. Auto-create one if nothing found (local dev scenario)
     """
-    role = os.environ.get("ARTSMOKER_SAGEMAKER_ROLE")
-    if role:
-        return role
-
-    # Try to find an existing SageMaker role
+    sts = boto3.client("sts")
     try:
-        iam = boto3.client("iam")
-        roles = iam.list_roles(PathPrefix="/service-role/")
-        for r in roles.get("Roles", []):
-            if "SageMaker" in r["RoleName"] or "sagemaker" in r["RoleName"]:
-                return r["Arn"]
-    except Exception:
-        pass
+        identity = sts.get_caller_identity()
+        arn = identity.get("Arn", "")
+        account = identity.get("Account", "")
 
-    raise ValueError(
-        "No SageMaker execution role found. Create one with AmazonSageMakerFullAccess "
-        "and set ARTSMOKER_SAGEMAKER_ROLE=arn:aws:iam::ACCOUNT:role/ROLE_NAME"
-    )
+        # 1. Running as an IAM role (EC2/ECS) → use it directly
+        if ":assumed-role/" in arn:
+            role_name = arn.split(":assumed-role/")[1].split("/")[0]
+            role_arn = f"arn:aws:iam::{account}:role/{role_name}"
+            # Ensure the role has sagemaker trust policy
+            _ensure_sagemaker_trust(role_name)
+            return role_arn
+
+        # 2. Look for existing ArtSmoker or SageMaker roles
+        iam = boto3.client("iam")
+        try:
+            for name in ["ArtSmokerSageMakerRole", "ArtSmokerEC2Role"]:
+                try:
+                    resp = iam.get_role(RoleName=name)
+                    return resp["Role"]["Arn"]
+                except iam.exceptions.NoSuchEntityException:
+                    continue
+        except Exception:
+            pass
+
+        # 3. Auto-create the role
+        return _create_sagemaker_role(account)
+
+    except Exception as e:
+        logger.warning("SageMaker role discovery failed: %s", e)
+        raise ValueError(
+            "Could not find or create a SageMaker execution role. "
+            "Ensure your IAM permissions include iam:CreateRole and iam:AttachRolePolicy, "
+            "or deploy on EC2 with an IAM instance role."
+        )
+
+
+def _ensure_sagemaker_trust(role_name: str):
+    """Ensure a role has sagemaker.amazonaws.com in its trust policy."""
+    iam = boto3.client("iam")
+    try:
+        resp = iam.get_role(RoleName=role_name)
+        trust = resp["Role"].get("AssumeRolePolicyDocument", {})
+        statements = trust.get("Statement", [])
+        has_sagemaker = any(
+            "sagemaker.amazonaws.com" in str(s.get("Principal", {}))
+            for s in statements
+        )
+        if not has_sagemaker:
+            # Add sagemaker to the trust policy
+            statements.append({
+                "Effect": "Allow",
+                "Principal": {"Service": "sagemaker.amazonaws.com"},
+                "Action": "sts:AssumeRole",
+            })
+            trust["Statement"] = statements
+            iam.update_assume_role_policy(
+                RoleName=role_name,
+                PolicyDocument=json.dumps(trust),
+            )
+            logger.info("Added sagemaker.amazonaws.com trust to role %s", role_name)
+    except Exception as e:
+        logger.debug("Could not update trust policy for %s: %s", role_name, e)
+
+
+def _create_sagemaker_role(account: str) -> str:
+    """Auto-create an ArtSmokerSageMakerRole with required permissions."""
+    iam = boto3.client("iam")
+    role_name = "ArtSmokerSageMakerRole"
+
+    trust_policy = {
+        "Version": "2012-10-17",
+        "Statement": [
+            {
+                "Effect": "Allow",
+                "Principal": {"Service": ["sagemaker.amazonaws.com", "ec2.amazonaws.com"]},
+                "Action": "sts:AssumeRole",
+            }
+        ],
+    }
+
+    try:
+        resp = iam.create_role(
+            RoleName=role_name,
+            AssumeRolePolicyDocument=json.dumps(trust_policy),
+            Description="ArtSmoker SageMaker execution role (auto-created)",
+        )
+        role_arn = resp["Role"]["Arn"]
+
+        # Attach SageMaker and S3 permissions
+        for policy_arn in [
+            "arn:aws:iam::aws:policy/AmazonSageMakerFullAccess",
+            "arn:aws:iam::aws:policy/AmazonS3FullAccess",
+        ]:
+            iam.attach_role_policy(RoleName=role_name, PolicyArn=policy_arn)
+
+        logger.info("Auto-created SageMaker role: %s (propagation may take ~10s)", role_arn)
+        return role_arn
+
+    except iam.exceptions.EntityAlreadyExistsException:
+        return f"arn:aws:iam::{account}:role/{role_name}"
+    except Exception as e:
+        raise ValueError(f"Failed to create SageMaker role: {e}. Ensure your IAM has iam:CreateRole permission.")

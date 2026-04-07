@@ -312,8 +312,8 @@ Your IAM user, role, or instance profile needs these permissions:
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
 | `sts:GetCallerIdentity` | Startup credential validation |
 | `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
-| `sagemaker:*` | Self-hosted custom models on SageMaker (optional — only if using Custom Models) |
-| `iam:PassRole` | Pass SageMaker execution role during model deployment (optional) |
+| `sagemaker:*` | Self-hosted custom models on SageMaker (optional — only needed if using Custom Models feature) |
+| `iam:PassRole` | Allow SageMaker to use your role (optional — only for Custom Models) |
 
 **Quickest setup** (managed policies — broadest access):
 
@@ -1060,19 +1060,15 @@ ArtSmoker can deploy open-source AI models on **Amazon SageMaker** in your own A
 
 **How to deploy:** Model Settings → Custom Models tab → click Deploy. For gated HuggingFace models, provide your token once during download (never stored). Models download from their original sources — weights are not re-hosted.
 
-**Additional IAM permissions required** for self-hosted models (beyond the base Bedrock permissions):
+**Setup:** Add SageMaker permissions to the **same IAM role** you already use for Bedrock — no separate role or environment variable needed. ArtSmoker auto-discovers your role on EC2/ECS, or auto-creates an `ArtSmokerSageMakerRole` if needed.
 
-| Permission | Used for |
-|------------|----------|
-| `sagemaker:CreateModel` | Create SageMaker model definition |
-| `sagemaker:CreateEndpointConfig` | Configure endpoint (async/realtime) |
-| `sagemaker:CreateEndpoint` | Deploy endpoint |
-| `sagemaker:DeleteEndpoint` / `DeleteEndpointConfig` / `DeleteModel` | Teardown |
-| `sagemaker:DescribeEndpoint` | Check deployment status |
-| `sagemaker:InvokeEndpoint` / `InvokeEndpointAsync` | Run inference |
-| `iam:PassRole` | Pass SageMaker execution role |
+```bash
+# Add SageMaker permissions to your existing ArtSmoker role (one command)
+aws iam attach-role-policy --role-name ArtSmokerEC2Role \
+  --policy-arn arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+```
 
-**Python dependency:** `huggingface_hub>=0.23` (added to requirements.txt)
+**Python dependency:** `huggingface_hub>=0.23` (install with `pip install huggingface_hub`)
 
 ### 📝 6.13 Image & Video Generation Models
 

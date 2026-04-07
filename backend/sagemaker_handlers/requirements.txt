@@ -1,0 +1,22 @@
+# Requirements for the SageMaker inference container.
+# These are installed INSIDE the container alongside the model weights.
+# The universal inference handler (inference.py) imports from these.
+
+# Core (always needed)
+torch>=2.1.0
+Pillow>=10.0
+numpy>=1.24
+
+# For diffusers-based models (FLUX, SDXL, SVD, ControlNet)
+diffusers>=0.28.0
+transformers>=4.40.0
+accelerate>=0.28.0
+safetensors>=0.4.0
+
+# For Real-ESRGAN upscaling
+realesrgan>=0.3.0
+basicsr>=1.4.2
+
+# For image processing
+opencv-python-headless>=4.8.0
+torchvision>=0.16.0

@@ -68,26 +68,17 @@ class DeployRequest(BaseModel):
     hf_token: str | None = None  # Used once for download, NOT stored
 
 
+_deploy_status: dict = {}  # model_key → {"stage": str, "progress": str, "error": str}
+
+
 @router.post("/deploy")
 async def deploy_model(body: DeployRequest):
-    """Download model weights and deploy a SageMaker endpoint.
+    """Start deploying a model in a background thread.
 
-    For gated models, hf_token is used ONCE to download weights and
-    then immediately discarded. It is NEVER stored.
-
-    Steps:
-      1. Download weights from source → local temp
-      2. Upload to user's S3 bucket
-      3. Create SageMaker endpoint (async or realtime)
-      4. Register in model registry
-
-    Returns deployment status and endpoint name.
+    Returns immediately with a status. Frontend polls /status/{key} for progress.
+    HF token is used ONCE during download and never stored.
     """
     from backend.services.custom_models import get_catalog_model
-    from backend.services.sagemaker_deployer import (
-        download_model, upload_to_s3, deploy_endpoint,
-    )
-    import shutil
 
     model = get_catalog_model(body.model_key)
     if not model:
@@ -96,7 +87,7 @@ async def deploy_model(body: DeployRequest):
     if model.get("requires_hf_auth") and not body.hf_token:
         raise HTTPException(400, detail={
             "error": "hf_auth_required",
-            "message": f"This model requires HuggingFace authentication.",
+            "message": "This model requires HuggingFace authentication.",
             "license_url": model.get("hf_license_url", ""),
             "instructions": (
                 "1. Visit the license URL and accept the terms\n"
@@ -106,49 +97,50 @@ async def deploy_model(body: DeployRequest):
             ),
         })
 
-    try:
-        # Step 1: Download
-        logger.info("Deploying %s: downloading weights...", model["label"])
-        local_dir = download_model(body.model_key, hf_token=body.hf_token)
+    # Run deployment in background thread — return immediately
+    import threading
+
+    def _run_deploy():
+        from backend.services.sagemaker_deployer import download_model, upload_to_s3, deploy_endpoint
+        import shutil
+
+        key = body.model_key
+        _deploy_status[key] = {"stage": "downloading", "progress": f"Downloading {model['label']} weights...", "error": ""}
 
         try:
-            # Step 2: Upload to S3
-            logger.info("Deploying %s: uploading to S3...", model["label"])
-            s3_uri = upload_to_s3(local_dir, body.model_key)
+            local_dir = download_model(key, hf_token=body.hf_token)
+            try:
+                _deploy_status[key] = {"stage": "uploading", "progress": "Uploading to S3...", "error": ""}
+                s3_uri = upload_to_s3(local_dir, key)
 
-            # Step 3: Deploy endpoint
-            logger.info("Deploying %s: creating SageMaker endpoint...", model["label"])
-            deployment = deploy_endpoint(
-                body.model_key,
-                endpoint_type=body.endpoint_type,
-                instance_type=body.instance_type,
-            )
+                _deploy_status[key] = {"stage": "deploying", "progress": "Creating SageMaker endpoint...", "error": ""}
+                deployment = deploy_endpoint(key, endpoint_type=body.endpoint_type, instance_type=body.instance_type)
 
-            # Step 4: Register in model registry
-            _register_custom_model(body.model_key, model, deployment)
+                _register_custom_model(key, model, deployment)
+                _deploy_status[key] = {"stage": "complete", "progress": "Endpoint created — waiting for it to become active (5-10 min).", "error": ""}
+            finally:
+                shutil.rmtree(local_dir, ignore_errors=True)
 
-            return {
-                "status": "deploying",
-                "model_key": body.model_key,
-                "label": model["label"],
-                "endpoint_name": deployment["endpoint_name"],
-                "endpoint_type": body.endpoint_type,
-                "instance_type": deployment["instance_type"],
-                "s3_uri": s3_uri,
-                "message": (
-                    f"Deployment started. The endpoint will take 5-10 minutes to become active. "
-                    f"Check status in Model Settings → Custom Models."
-                ),
-            }
-        finally:
-            # Clean up temp directory (weights are in S3 now)
-            shutil.rmtree(local_dir, ignore_errors=True)
+        except Exception as exc:
+            logger.exception("Custom model deployment failed: %s", key)
+            _deploy_status[key] = {"stage": "failed", "progress": "", "error": str(exc)}
 
-    except ValueError as e:
-        raise HTTPException(400, detail=str(e))
-    except Exception as e:
-        logger.exception("Custom model deployment failed: %s", body.model_key)
-        raise HTTPException(502, detail=f"Deployment failed: {e}")
+    thread = threading.Thread(target=_run_deploy, daemon=True)
+    thread.start()
+
+    return {
+        "status": "started",
+        "model_key": body.model_key,
+        "label": model["label"],
+        "message": "Deployment started in background. Check status in Custom Models tab.",
+    }
+
+
+@router.get("/deploy-status/{model_key}")
+async def get_deploy_progress(model_key: str):
+    """Get the current deployment progress for a model being deployed."""
+    status = _deploy_status.get(model_key, {"stage": "unknown", "progress": "", "error": ""})
+    return status
 
 
 # ── Status & Management ───────────────────────────────────────────────────
