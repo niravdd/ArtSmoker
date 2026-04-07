@@ -6,10 +6,10 @@ deployer from the model catalog). ZERO model-specific code — adding a
 new model requires only a catalog entry.
 
 Supports two model loading modes:
-  1. Direct HuggingFace pull: HF_MODEL_ID is set, model_dir has no weights.
-     The handler loads directly from HuggingFace using from_pretrained(repo_id).
-     HUGGING_FACE_HUB_TOKEN env var provides auth for gated models.
-  2. Pre-uploaded weights: Model weights are in model_dir (uploaded to S3).
+  1. HuggingFace models: The HF DLC container downloads the model at startup
+     using HF_MODEL_ID + HUGGING_FACE_HUB_TOKEN env vars (handled natively
+     by the container before this handler runs). Model weights arrive in model_dir.
+  2. Pre-uploaded weights: Model weights are in model_dir (uploaded to S3 as tar.gz).
      The handler loads from the local path.
 
 Environment variables (set by deployer from catalog['invoke']):
@@ -24,7 +24,7 @@ Environment variables (set by deployer from catalog['invoke']):
   ENABLE_CPU_OFFLOAD: Enable model CPU offload for memory optimization (true/false)
   PROCESSOR_CLASS:   Processor class for models that need one (Sam2Processor, etc.)
   LOADER_VARIANT:    Model variant (fp16, etc.)
-  HF_MODEL_ID:       HuggingFace repo ID for direct pull (e.g., "black-forest-labs/FLUX.1-schnell")
+  HF_MODEL_ID:       HuggingFace repo ID (container downloads at startup)
   HUGGING_FACE_HUB_TOKEN: Auth token for gated HuggingFace models (read-only)
 """
 
@@ -85,32 +85,6 @@ def _import_class(module_path, class_name):
 #   - If model_dir only has handler code → load from HF_MODEL_ID (direct pull)
 # The HuggingFace libraries' from_pretrained() accept both local paths
 # and HuggingFace repo IDs, so the same code handles both cases.
-
-def _fetch_hf_token():
-    """Fetch HuggingFace token from AWS Secrets Manager if configured.
-
-    The deployer stores gated model tokens in Secrets Manager (encrypted)
-    and passes the secret ARN via HF_TOKEN_SECRET_ARN env var.
-    The token is fetched at container startup and set in the process
-    environment so the HuggingFace libraries can use it automatically.
-    """
-    secret_arn = _get_env("HF_TOKEN_SECRET_ARN")
-    if not secret_arn:
-        return None
-
-    try:
-        import boto3
-        client = boto3.client("secretsmanager")
-        resp = client.get_secret_value(SecretId=secret_arn)
-        token = resp["SecretString"]
-        # Set in process environment so HF libraries find it automatically
-        os.environ["HUGGING_FACE_HUB_TOKEN"] = token
-        logger.info("Retrieved HuggingFace token from Secrets Manager")
-        return token
-    except Exception as e:
-        logger.warning("Failed to fetch HF token from Secrets Manager (%s): %s", secret_arn, e)
-        return None
-
 
 def _resolve_model_source(model_dir):
     """Determine whether to load from local path or HuggingFace repo.
@@ -415,8 +389,9 @@ def model_fn(model_dir):
         except Exception:
             _config = {}
 
-    # Fetch HuggingFace token from Secrets Manager if this is a gated model
-    _fetch_hf_token()
+    # Note: HuggingFace token (HUGGING_FACE_HUB_TOKEN) is passed as an env var
+    # by the deployer. The HF DLC container reads it natively at startup —
+    # no need to fetch from Secrets Manager here.
 
     loader = _LOADERS.get(library)
     if not loader:
