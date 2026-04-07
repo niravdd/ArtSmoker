@@ -505,8 +505,9 @@
                 if (data?.models?.length) {
                     MODELS = data.models.map(m => ({
                         value: m.key,
-                        label: m.label,
+                        label: m.model_source === 'custom_hosted' ? `⚡ ${m.label} (self-hosted)` : m.label,
                         provider: m.provider,
+                        model_source: m.model_source,
                         region: m.region,
                         available_regions: m.available_regions || [m.region],
                         region_pricing: m.region_pricing || [],

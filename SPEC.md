@@ -1156,7 +1156,88 @@ A full-featured LLM chat interface running on the user's own AWS account. 80+ mo
 | GET | `/api/browse/s3?bucket=name&prefix=path` | Browse objects in an S3 bucket at the given prefix. |
 | POST | `/api/browse/s3/create-bucket` | Create a new S3 bucket. Payload: `name`, `region`. Validates bucket name format. Returns created bucket info. |
 
-### 5.10 Admin (Model Management)
+### 5.10 Custom Models (Self-Hosted on SageMaker)
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/custom-models/catalog` | List all available custom models with deployment status. Checks SageMaker endpoint status for each. |
+| GET | `/api/custom-models/catalog/{key}` | Get detailed info for a specific model from the catalog. |
+| POST | `/api/custom-models/deploy` | Deploy a model: download weights → S3 → create SageMaker endpoint → register in model_registry. Body: `{model_key, endpoint_type ("async"/"realtime"), instance_type (optional), hf_token (optional, transient)}`. |
+| GET | `/api/custom-models/status/{key}` | Check SageMaker endpoint deployment status (Creating, InService, Failed, etc.). |
+| DELETE | `/api/custom-models/teardown/{key}` | Delete SageMaker endpoint. Optional `?delete_s3=true` to also remove weights. |
+| POST | `/api/custom-models/redeploy/{key}` | Re-download latest weights and redeploy. For updates/patches. |
+
+**Architecture:**
+
+```
+Catalog (custom_models.py)
+  ↓ (source URLs, invoke config)
+Deployer (sagemaker_deployer.py)
+  ↓ (download → S3 → endpoint)
+Registry (model_registry.json)
+  ↓ (model_source=custom_hosted, invoke config, endpoint info)
+Invoker (sagemaker_invoker.py)
+  ↓ (routes to SageMaker instead of Bedrock)
+Studios (Image, Video, Post-processing)
+```
+
+**Registry-driven design:** All model behavior is defined by data in the catalog `invoke` section — no model-specific code paths anywhere. Adding a new model = adding a catalog entry. The universal inference handler (`sagemaker_handlers/inference.py`) reads configuration from environment variables set by the deployer from the catalog.
+
+**Catalog invoke config** (drives everything):
+```json
+{
+  "invoke": {
+    "library": "diffusers",
+    "loader_class": "AutoPipelineForText2Image",
+    "torch_dtype": "bfloat16",
+    "enable_cpu_offload": true,
+    "predictor_type": "text_to_image",
+    "input_fields": {
+      "prompt": {"type": "string", "required": true},
+      "width": {"type": "int", "default": 1024},
+      "num_inference_steps": {"type": "int", "default": 4},
+      "guidance_scale": {"type": "float", "default": 0.0},
+      "seed": {"type": "int", "required": false}
+    },
+    "output_type": "base64_png",
+    "max_prompt_length": 2048
+  }
+}
+```
+
+**HuggingFace authentication:** For gated models, the user provides a HuggingFace token in the deploy dialog. The token is used ONCE to download weights and is immediately discarded — never stored in config, registry, env vars, or logs.
+
+**Deployment types:**
+- **Async** (scale-to-zero): `AsyncInferenceConfig` with S3 output. Scales to zero instances when idle ($0 cost). Cold start from zero: 5-10 minutes. Input uploaded to S3, output polled from S3.
+- **Realtime** (always-on): Standard endpoint with `InitialInstanceCount=1`. Instant inference. Costs ~$1.41/hr continuously (ml.g5.xlarge).
+
+**SageMaker IAM requirements:**
+```
+sagemaker:CreateModel, sagemaker:CreateEndpointConfig, sagemaker:CreateEndpoint
+sagemaker:DeleteModel, sagemaker:DeleteEndpointConfig, sagemaker:DeleteEndpoint
+sagemaker:DescribeEndpoint, sagemaker:InvokeEndpoint, sagemaker:InvokeEndpointAsync
+iam:PassRole (to pass SageMaker execution role)
+```
+
+**Role discovery** (fully automatic — no environment variable needed):
+1. Running on EC2/ECS → auto-discovers the instance role, adds sagemaker.amazonaws.com trust if missing
+2. Finds existing `ArtSmokerSageMakerRole` or `ArtSmokerEC2Role` in the account
+3. Auto-creates `ArtSmokerSageMakerRole` with SageMaker + S3 permissions if none found
+
+For EC2 deployments: add `AmazonSageMakerFullAccess` to the same `ArtSmokerEC2Role` used for Bedrock. ArtSmoker auto-discovers it. For local development: ArtSmoker auto-creates `ArtSmokerSageMakerRole` on first deploy (requires `iam:CreateRole` permission).
+
+**S3 storage layout** (all under the same bucket configured in Video Settings):
+```
+s3://your-bucket/
+├── artsmoker/video/{job_id}/         ← Video generation output (MP4, thumbnails)
+├── artsmoker/custom-models/{key}/    ← Model weights (downloaded from source)
+│   └── code/inference.py             ← Universal inference handler (bundled)
+└── artsmoker/custom-models/
+    ├── inference-input/{endpoint}/    ← Async inference input payloads
+    └── inference-output/{key}/        ← Async inference results
+```
+
+### 5.11 Admin (Model Management)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|

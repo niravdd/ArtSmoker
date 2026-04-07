@@ -98,6 +98,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 - 🌐 **6-Language i18n** — Full UI translation (EN, JA, ZH, KO, FR, ES), auto-detect non-English prompts, bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
+- 🔧 **Self-Hosted Models** — Deploy open-source models (FLUX.1, Real-ESRGAN, RMBG, SAM 2, and more) on SageMaker in your own AWS account. One-click deploy, async scale-to-zero or always-on, fully integrated with all studios
 
 ### 📝 1.2 Screenshots
 
@@ -311,6 +312,10 @@ Your IAM user, role, or instance profile needs these permissions:
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
 | `sts:GetCallerIdentity` | Startup credential validation |
 | `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
+| `sagemaker:*` | Self-hosted custom models on SageMaker (optional — only if using Custom Models) |
+| `iam:PassRole` | Allow SageMaker to use your role (optional — only for Custom Models) |
+| `iam:CreateRole` / `iam:AttachRolePolicy` | Auto-create SageMaker execution role on first deploy (optional — only for Custom Models) |
+| `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Auto-configure existing role for SageMaker trust (optional) |
 
 **Quickest setup** (managed policies — broadest access):
 
@@ -368,6 +373,22 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
       "Effect": "Allow",
       "Action": ["sts:GetCallerIdentity", "pricing:GetProducts"],
       "Resource": "*"
+    },
+    {
+      "Sid": "SageMakerCustomModels",
+      "Effect": "Allow",
+      "Action": [
+        "sagemaker:CreateModel", "sagemaker:CreateEndpointConfig", "sagemaker:CreateEndpoint",
+        "sagemaker:DeleteModel", "sagemaker:DeleteEndpointConfig", "sagemaker:DeleteEndpoint",
+        "sagemaker:DescribeEndpoint", "sagemaker:InvokeEndpoint", "sagemaker:InvokeEndpointAsync"
+      ],
+      "Resource": "arn:aws:sagemaker:*:*:*artsmoker*"
+    },
+    {
+      "Sid": "SageMakerRoleManagement",
+      "Effect": "Allow",
+      "Action": ["iam:CreateRole", "iam:AttachRolePolicy", "iam:GetRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole"],
+      "Resource": ["arn:aws:iam::*:role/ArtSmoker*"]
     }
   ]
 }'
@@ -1034,7 +1055,40 @@ All AI model configuration is centralized in `backend/model_registry.json` — t
 - Changes are persisted immediately to `model_registry.json` via the Admin API.
 - The registry is backward compatible — existing assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs.
 
-### 📝 6.12 Image & Video Generation Models
+### 📝 6.12 Self-Hosted Models (Custom Models on SageMaker)
+
+ArtSmoker can deploy open-source AI models on **Amazon SageMaker** in your own AWS account, extending your capabilities beyond what Amazon Bedrock offers. These run alongside Bedrock models and appear in the same studio dropdowns.
+
+**Available models** (extensible catalog — adding a new model requires only a catalog entry, no code changes):
+
+| Model | Category | What it does | License |
+|-------|----------|-------------|---------|
+| **FLUX.1 [schnell]** | Image Generation | Fast, high-quality text-to-image (1-4 steps) | Apache 2.0 |
+| **FLUX.1 [dev]** | Image Generation | Higher quality text-to-image (28 steps) | Non-commercial |
+| **SDXL Turbo** | Image Generation | Ultra-fast 1-step generation | Non-commercial |
+| **Real-ESRGAN** | Upscaling | Free 4x super-resolution (replaces $0.60/img Bedrock upscale) | BSD-3 |
+| **RMBG-2.0** | Background Removal | Free AI bg removal (replaces $0.07/img Bedrock) | CC-BY-NC-4.0 |
+| **Depth Anything v2** | Utility | Monocular depth map estimation | CC-BY-NC-4.0 |
+| **SAM 2** | Utility | Smart object segmentation by Meta | Apache 2.0 |
+| **Stable Video Diffusion** | Video | Image-to-video (25 frames) | Community |
+
+**Deployment options:**
+- **Async (scale-to-zero)** — pay only when generating. $0 when idle. Cold start ~5-10 min.
+- **Always-On** — instant responses, ~$1.41/hr (ml.g5.xlarge)
+
+**How to deploy:** Model Settings → Custom Models tab → click Deploy. For gated HuggingFace models, provide your token once during download (never stored). Models download from their original sources — weights are not re-hosted.
+
+**Setup:** Add SageMaker permissions to the **same IAM role** you already use for Bedrock — no separate role or environment variable needed. ArtSmoker auto-discovers your role on EC2/ECS, or auto-creates an `ArtSmokerSageMakerRole` if needed.
+
+```bash
+# Add SageMaker permissions to your existing ArtSmoker role (one command)
+aws iam attach-role-policy --role-name ArtSmokerEC2Role \
+  --policy-arn arn:aws:iam::aws:policy/AmazonSageMakerFullAccess
+```
+
+**Python dependency:** `huggingface_hub>=0.23` (install with `pip install huggingface_hub`)
+
+### 📝 6.13 Image & Video Generation Models
 
 All models are **discovered dynamically** from the registry — not hardcoded. The Image Studio dropdown is populated from `GET /api/admin/models/image-options` and the Video Studio dropdown from `GET /api/admin/models/video-options` on page load. Any model registered and enabled in the registry appears automatically.
 
@@ -1195,7 +1249,10 @@ ArtSmoker/
 │   │   ├── prompt_templates.py   # Editable LLM directive prompts (load/save/validate)
 │   │   ├── video_generator.py   # Video: async Bedrock invoke, S3 download, ffmpeg thumbnails
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
-│   │   └── telemetry.py         # PulseBoard SDK wrapper: tracks server events
+│   │   ├── telemetry.py         # PulseBoard SDK wrapper: tracks server events
+│   │   ├── custom_models.py    # Self-hosted model catalog (FLUX, ESRGAN, etc.)
+│   │   ├── sagemaker_deployer.py # Download, S3 upload, SageMaker endpoint management
+│   │   └── sagemaker_invoker.py  # Routes inference to SageMaker endpoints
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update
 │   │   ├── generation_request.py  # GenerationRequest, AssetType, ImageModel enums

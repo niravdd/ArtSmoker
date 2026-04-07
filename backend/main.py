@@ -67,7 +67,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
 from backend.config import settings
-from backend.routers import admin, browse, chat, gallery, generate, refine, styles, transcribe, typestudio, video
+from backend.routers import admin, browse, chat, custom_deploy, gallery, generate, refine, styles, transcribe, typestudio, video
 from backend.services.bedrock_client import validate_aws_credentials
 
 logger = logging.getLogger(__name__)
@@ -390,6 +390,7 @@ app.include_router(typestudio.router)
 app.include_router(video.router)
 app.include_router(chat.router)
 app.include_router(admin.router)
+app.include_router(custom_deploy.router)
 
 
 # ── Frontend load tracking ─────────────────────────────────────────────────

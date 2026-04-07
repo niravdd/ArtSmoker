@@ -89,6 +89,10 @@
                             ${t('model_settings.tab_shared')}
                             <span class="text-[9px] opacity-60 ml-1">(${llmCount})</span>
                         </button>
+                        <button class="tab" data-ms-tab="custom-models">
+                            ${t('custom_models.tab_title')}
+                            <span class="text-[9px] opacity-60 ml-1">🔧</span>
+                        </button>
                         <button class="tab" data-ms-tab="prompt-templates">${t('model_settings.tab_templates')}</button>
                         <button class="tab" data-ms-tab="registry-json">${t('model_settings.tab_json')}</button>
                     </div>
@@ -187,6 +191,24 @@
                             </div>
                             <div id="ms-templates-list" class="space-y-3">
                                 <p class="text-xs text-brand-text-muted text-center py-4">Loading templates...</p>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Custom Models -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="custom-models">
+                            <div class="flex items-center justify-between mb-3">
+                                <p class="text-xs text-brand-text-muted">${t('custom_models.subtitle')}</p>
+                                <div class="flex gap-2">
+                                    <button id="ms-cm-add" class="btn btn-sm text-xs flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5">
+                                        + ${t('custom_models.add_model') || 'Add Model'}
+                                    </button>
+                                    <button id="ms-cm-refresh" class="btn btn-secondary btn-sm text-xs flex items-center gap-1">
+                                        🔄 ${t('custom_models.refresh_all')}
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="ms-custom-models-content">
+                                <p class="text-xs text-brand-text-muted">Loading custom models catalog...</p>
                             </div>
                         </div>
 
@@ -618,6 +640,26 @@
                     // Load templates on first click
                     if (tab.dataset.msTab === 'prompt-templates' && !this._templatesLoaded) {
                         this._loadTemplates(modal);
+                    }
+                    // Load custom models catalog on first click
+                    if (tab.dataset.msTab === 'custom-models' && !this._customModelsLoaded) {
+                        this._loadCustomModels(modal);
+                    }
+                    // Wire custom models buttons (once)
+                    if (tab.dataset.msTab === 'custom-models') {
+                        const refreshBtn = modal.querySelector('#ms-cm-refresh');
+                        if (refreshBtn && !refreshBtn._wired) {
+                            refreshBtn._wired = true;
+                            refreshBtn.addEventListener('click', () => {
+                                this._customModelsLoaded = false;
+                                this._loadCustomModels(modal);
+                            });
+                        }
+                        const addBtn = modal.querySelector('#ms-cm-add');
+                        if (addBtn && !addBtn._wired) {
+                            addBtn._wired = true;
+                            addBtn.addEventListener('click', () => this._addCustomModelWizard(modal));
+                        }
                     }
                 });
             });
@@ -1200,6 +1242,363 @@
                     }
                 });
             });
+        },
+
+        _askHfToken() {
+            return new Promise((resolve) => {
+                const backdrop = document.createElement('div');
+                backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+                backdrop.innerHTML = `
+                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
+                        <h3 class="text-sm font-semibold text-brand-text">${t('custom_models.hf_title')}</h3>
+                        <div class="text-xs text-brand-text-muted space-y-2">
+                            <p>${t('custom_models.hf_desc')}</p>
+                            <ol class="list-decimal ml-4 space-y-1">
+                                <li>${t('custom_models.hf_step1')}</li>
+                                <li>${t('custom_models.hf_step2')}</li>
+                                <li>${t('custom_models.hf_step3')}</li>
+                            </ol>
+                            <p class="text-[10px] text-amber-400/80 mt-2">${t('custom_models.hf_warning')}</p>
+                        </div>
+                        <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="${t('custom_models.hf_placeholder')}" autocomplete="off" />
+                        <div class="flex gap-2 justify-end">
+                            <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
+                            <button class="hf-submit btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Continue</button>
+                        </div>
+                    </div>`;
+
+                const cleanup = (result) => { backdrop.remove(); resolve(result); };
+                backdrop.querySelector('.hf-cancel').addEventListener('click', () => cleanup(null));
+                backdrop.querySelector('.hf-submit').addEventListener('click', () => {
+                    const token = backdrop.querySelector('.hf-token-input').value.trim();
+                    cleanup(token || null);
+                });
+                backdrop.querySelector('.hf-token-input').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') backdrop.querySelector('.hf-submit').click();
+                    if (e.key === 'Escape') cleanup(null);
+                });
+
+                document.body.appendChild(backdrop);
+                backdrop.querySelector('.hf-token-input').focus();
+            });
+        },
+
+        _customModelsLoaded: false,
+
+        async _loadCustomModels(modal) {
+            const container = modal.querySelector('#ms-custom-models-content');
+            if (!container) return;
+
+            try {
+                const resp = await fetch('/api/custom-models/catalog');
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const data = await resp.json();
+                const models = data.models || [];
+                this._customModelsLoaded = true;
+
+                if (models.length === 0) {
+                    container.innerHTML = `<p class="text-xs text-brand-text-muted">${t('custom_models.no_models')}</p>`;
+                    return;
+                }
+
+                // Group by studio
+                const groups = {};
+                models.forEach(m => {
+                    const studio = m.studio || 'other';
+                    if (!groups[studio]) groups[studio] = [];
+                    groups[studio].push(m);
+                });
+
+                const studioLabels = {
+                    image: t('custom_models.image_studio'),
+                    video: t('custom_models.video_studio'),
+                    other: t('custom_models.other'),
+                };
+
+                let html = '<div class="space-y-4">';
+                html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
+
+                for (const [studio, studioModels] of Object.entries(groups)) {
+                    html += `<details class="ms-collapsible" open>
+                        <summary class="text-sm font-medium text-brand-text cursor-pointer py-1">${studioLabels[studio] || studio} (${studioModels.length})</summary>
+                        <div class="space-y-2 mt-2">`;
+
+                    for (const m of studioModels) {
+                        const deployed = m.deployment_status === 'InService';
+                        const deploying = m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying';
+                        const statusColor = deployed ? 'text-emerald-400' : deploying ? 'text-amber-400' : m.deployment_status === 'Failed' || m.deploy_stage === 'failed' ? 'text-red-400' : 'text-brand-text-muted/50';
+                        const statusText = deployed ? t('custom_models.active') : deploying ? (m.deploy_progress || t('custom_models.deploying')) : m.deployment_status === 'Failed' || m.deploy_stage === 'failed' ? t('custom_models.failed') : t('custom_models.not_deployed');
+                        const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 ml-1">${t('custom_models.hf_auth')}</span>` : '';
+                        const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted ml-1">${m.license?.split(' ')[0] || '?'}</span>`;
+
+                        html += `
+                            <div class="p-3 rounded-lg bg-black/20 border border-brand-border/30">
+                                <div class="flex items-start justify-between">
+                                    <div>
+                                        <h4 class="text-xs font-semibold text-brand-text">${m.label} ${authBadge}${licenseBadge}</h4>
+                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${m.description}</p>
+                                        <div class="flex gap-3 mt-1.5 text-[10px] text-brand-text-muted/60">
+                                            <span>${t('custom_models.provider')}: ${m.provider}</span>
+                                            <span>${t('custom_models.instance')}: ${m.requirements?.recommended_instance || '?'}</span>
+                                            <span>${t('custom_models.est_cost')} ~$${m.pricing?.estimated_cost_per_image?.toFixed(2) || m.pricing?.estimated_cost_per_video?.toFixed(2) || '?'}/unit</span>
+                                            <span>${t('custom_models.vram')}: ${m.requirements?.min_vram_gb || '?'}GB+</span>
+                                        </div>
+                                    </div>
+                                    <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
+                                        <span class="text-[10px] font-medium ${statusColor}">${statusText}</span>
+                                        ${deployed
+                                            ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>`
+                                            : deploying
+                                            ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
+                                            : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.deploy')}</button>`
+                                        }
+                                        ${deployed ? `<button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
+                                    </div>
+                                </div>
+                            </div>`;
+                    }
+                    html += '</div></details>';
+                }
+                html += '</div>';
+                container.innerHTML = html;
+
+                // Auto-refresh if any models are deploying
+                const hasDeploying = models.some(m => m.deployment_status === 'Creating' || m.deployment_status === 'Updating');
+                if (hasDeploying) {
+                    clearTimeout(this._cmPollTimer);
+                    this._cmPollTimer = setTimeout(() => {
+                        this._customModelsLoaded = false;
+                        this._loadCustomModels(modal);
+                    }, 15000);
+                }
+
+                // Attach deploy/teardown handlers
+                container.querySelectorAll('.ms-cm-deploy').forEach(btn => {
+                    btn.addEventListener('click', () => this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal));
+                });
+                container.querySelectorAll('.ms-cm-teardown').forEach(btn => {
+                    btn.addEventListener('click', () => this._teardownCustomModel(btn.dataset.model, modal));
+                });
+                container.querySelectorAll('.ms-cm-redeploy').forEach(btn => {
+                    btn.addEventListener('click', () => this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal, true));
+                });
+
+            } catch (err) {
+                container.innerHTML = `<p class="text-xs text-red-400">Failed to load custom models: ${err.message}</p>`;
+            }
+        },
+
+        async _deployCustomModel(modelKey, needsAuth, modal, isRedeploy = false) {
+            let hfToken = null;
+            if (needsAuth) {
+                // Show styled dialog for HuggingFace token
+                hfToken = await this._askHfToken();
+                if (!hfToken) return;
+            }
+
+            // Ask endpoint type
+            const useAsync = await window.showConfirm(
+                t('custom_models.deploy_type_desc'),
+                {
+                    title: t('custom_models.deploy_type_title'),
+                    confirmLabel: t('custom_models.deploy_async'),
+                    cancelLabel: t('custom_models.deploy_always_on'),
+                }
+            );
+
+            window.showLoading?.(`${isRedeploy ? 'Redeploying' : 'Deploying'} model... This may take several minutes.`);
+
+            try {
+                const url = isRedeploy ? `/api/custom-models/redeploy/${modelKey}` : '/api/custom-models/deploy';
+                const body = isRedeploy
+                    ? { endpoint_type: useAsync ? 'async' : 'realtime', hf_token: hfToken }
+                    : { model_key: modelKey, endpoint_type: useAsync ? 'async' : 'realtime', hf_token: hfToken };
+
+                const resp = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body),
+                });
+
+                window.hideLoading?.();
+
+                if (resp.ok) {
+                    const result = await resp.json();
+                    window.showToast?.(result.message || t('custom_models.deploy_started'), 'success');
+                    // Start polling deployment progress
+                    this._pollDeployProgress(modelKey, modal);
+                    this._customModelsLoaded = false;
+                    this._loadCustomModels(modal);
+                } else {
+                    const err = await resp.json();
+                    const detail = typeof err.detail === 'string' ? err.detail : err.detail?.message || 'Deployment failed';
+                    window.showToast?.(detail, 'error');
+                }
+            } catch (err) {
+                window.hideLoading?.();
+                window.showToast?.(`Deployment failed: ${err.message}`, 'error');
+            }
+        },
+
+        async _addCustomModelWizard(modal) {
+            // Step 1: Ask for HuggingFace repo URL
+            const backdrop = document.createElement('div');
+            backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+            backdrop.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
+                    <h3 class="text-sm font-semibold text-brand-text flex items-center gap-2">
+                        <span>+</span> ${t('custom_models.add_model_title') || 'Add Custom Model'}
+                    </h3>
+                    <p class="text-xs text-brand-text-muted">${t('custom_models.add_model_desc') || 'Enter a HuggingFace model URL or repo ID. The system will auto-detect the model type, library, and requirements.'}</p>
+                    <input type="text" class="cm-repo-input input w-full text-xs" placeholder="e.g. runwayml/stable-diffusion-v1-5 or https://huggingface.co/..." autocomplete="off" />
+                    <div class="cm-token-row hidden space-y-2">
+                        <p class="text-[10px] text-amber-400">${t('custom_models.add_model_gated') || 'This repo may be gated. Provide a token if needed (used once, not stored):'}</p>
+                        <input type="password" class="cm-token-input input w-full text-xs font-mono" placeholder="${t('custom_models.hf_placeholder')}" autocomplete="off" />
+                    </div>
+                    <div class="cm-result hidden"></div>
+                    <div class="flex gap-2 justify-end">
+                        <button class="cm-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('prompt_designer.cancel')}</button>
+                        <button class="cm-detect btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('custom_models.detect') || 'Detect Model'}</button>
+                        <button class="cm-add hidden btn btn-sm text-xs px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium">${t('custom_models.add_to_catalog') || 'Add to Catalog'}</button>
+                    </div>
+                </div>`;
+
+            let detectedEntry = null;
+
+            backdrop.querySelector('.cm-cancel').addEventListener('click', () => backdrop.remove());
+            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+
+            backdrop.querySelector('.cm-detect').addEventListener('click', async () => {
+                const repoUrl = backdrop.querySelector('.cm-repo-input').value.trim();
+                if (!repoUrl) return;
+
+                const detectBtn = backdrop.querySelector('.cm-detect');
+                detectBtn.textContent = 'Detecting...';
+                detectBtn.disabled = true;
+
+                try {
+                    const token = backdrop.querySelector('.cm-token-input').value.trim() || null;
+                    const resp = await fetch('/api/custom-models/detect', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ repo_url: repoUrl, hf_token: token }),
+                    });
+
+                    if (!resp.ok) {
+                        const err = await resp.json();
+                        const detail = typeof err.detail === 'string' ? err.detail : 'Detection failed';
+                        if (detail.includes('authentication') || detail.includes('401') || detail.includes('403')) {
+                            backdrop.querySelector('.cm-token-row').classList.remove('hidden');
+                        }
+                        backdrop.querySelector('.cm-result').innerHTML = `<p class="text-xs text-red-400">${detail}</p>`;
+                        backdrop.querySelector('.cm-result').classList.remove('hidden');
+                        return;
+                    }
+
+                    const data = await resp.json();
+                    detectedEntry = data.entry;
+
+                    // Show detected info
+                    const e = detectedEntry;
+                    const warning = e.invoke?._warning ? `<p class="text-[10px] text-amber-400 mt-2">⚠ ${e.invoke._warning}</p>` : '';
+                    backdrop.querySelector('.cm-result').innerHTML = `
+                        <div class="p-3 rounded-lg bg-black/20 border border-brand-border/30 space-y-2">
+                            <h4 class="text-xs font-semibold text-emerald-400">✓ Model Detected</h4>
+                            <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted">
+                                <span>Label:</span><span class="text-brand-text">${e.label}</span>
+                                <span>Library:</span><span class="text-brand-text">${e.invoke?.library || '?'}</span>
+                                <span>Type:</span><span class="text-brand-text">${e.invoke?.predictor_type || '?'}</span>
+                                <span>Category:</span><span class="text-brand-text">${e.category}</span>
+                                <span>License:</span><span class="text-brand-text">${e.license}</span>
+                                <span>VRAM:</span><span class="text-brand-text">${e.requirements?.min_vram_gb || '?'} GB</span>
+                                <span>Auth:</span><span class="text-brand-text">${e.requires_hf_auth ? 'Yes (gated)' : 'No'}</span>
+                            </div>
+                            ${warning}
+                        </div>`;
+                    backdrop.querySelector('.cm-result').classList.remove('hidden');
+                    backdrop.querySelector('.cm-add').classList.remove('hidden');
+
+                } catch (err) {
+                    backdrop.querySelector('.cm-result').innerHTML = `<p class="text-xs text-red-400">${err.message}</p>`;
+                    backdrop.querySelector('.cm-result').classList.remove('hidden');
+                } finally {
+                    detectBtn.textContent = t('custom_models.detect') || 'Detect Model';
+                    detectBtn.disabled = false;
+                }
+            });
+
+            backdrop.querySelector('.cm-add').addEventListener('click', async () => {
+                if (!detectedEntry) return;
+                // Generate a key from the repo ID
+                const repoUrl = backdrop.querySelector('.cm-repo-input').value.trim();
+                let key = repoUrl.split('/').pop().replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
+
+                try {
+                    const resp = await fetch('/api/custom-models/add', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ key, entry: detectedEntry }),
+                    });
+                    if (resp.ok) {
+                        window.showToast?.(`Model "${detectedEntry.label}" added to catalog`, 'success');
+                        backdrop.remove();
+                        this._customModelsLoaded = false;
+                        this._loadCustomModels(modal);
+                    } else {
+                        const err = await resp.json();
+                        window.showToast?.(err.detail || 'Failed to add model', 'error');
+                    }
+                } catch (err) {
+                    window.showToast?.(`Failed: ${err.message}`, 'error');
+                }
+            });
+
+            document.body.appendChild(backdrop);
+            backdrop.querySelector('.cm-repo-input').focus();
+        },
+
+        _pollDeployProgress(modelKey, modal) {
+            const poll = async () => {
+                try {
+                    const resp = await fetch(`/api/custom-models/deploy-status/${modelKey}`);
+                    if (resp.ok) {
+                        const status = await resp.json();
+                        if (status.stage === 'complete') {
+                            window.showToast?.(t('custom_models.deploy_complete'), 'success');
+                            this._customModelsLoaded = false;
+                            this._loadCustomModels(modal);
+                            return;
+                        }
+                        if (status.stage === 'failed') {
+                            window.showToast?.(`Deployment failed: ${status.error}`, 'error');
+                            this._customModelsLoaded = false;
+                            this._loadCustomModels(modal);
+                            return;
+                        }
+                        // Still in progress — show toast and poll again
+                        if (status.progress) {
+                            window.showToast?.(status.progress, 'info', 3000);
+                        }
+                        setTimeout(poll, 5000);
+                    }
+                } catch { setTimeout(poll, 5000); }
+            };
+            setTimeout(poll, 3000);
+        },
+
+        async _teardownCustomModel(modelKey, modal) {
+            if (!await window.showConfirm(t('custom_models.remove_confirm'), { title: t('custom_models.remove_title'), confirmLabel: t('custom_models.remove'), danger: true })) return;
+
+            try {
+                const resp = await fetch(`/api/custom-models/teardown/${modelKey}`, { method: 'DELETE' });
+                if (resp.ok) {
+                    window.showToast?.(t('custom_models.remove_done'), 'success');
+                    this._customModelsLoaded = false;
+                    this._loadCustomModels(modal);
+                }
+            } catch (err) {
+                window.showToast?.(`Teardown failed: ${err.message}`, 'error');
+            }
         },
 
         _esc(str) {

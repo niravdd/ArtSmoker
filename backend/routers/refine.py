@@ -220,6 +220,10 @@ class DecomposeRequest(_BaseModel):
 async def decompose_prompt(body: DecomposeRequest):
     """Decompose a user prompt into structured visual components.
 
+    If the prompt is non-English, translates it first and includes both
+    the original and English versions in the response. The decomposition
+    always works on the English version for consistent, high-quality results.
+
     Returns a JSON structure with editable fields: subject, scene,
     composition, lighting, style (including color palette with hex + swatches).
     """
@@ -228,6 +232,21 @@ async def decompose_prompt(body: DecomposeRequest):
     from backend.services.prompt_engineer import _build_style_section, _ASSET_TYPE_CONTEXT
     from backend.models.generation_request import AssetType
     import json as _json, re as _re
+
+    # Translate non-English prompts to English for consistent decomposition
+    prompt_for_decompose = body.prompt
+    original_language = "en"
+    original_prompt = None
+    try:
+        from backend.services.prompt_translator import translate_to_english
+        tr = translate_to_english(body.prompt)
+        if tr["was_translated"]:
+            original_language = tr["source_lang"]
+            original_prompt = body.prompt  # Keep the original non-English text
+            prompt_for_decompose = tr["translated"]
+            logger.info("Prompt Designer: translated %s → English for decomposition", original_language)
+    except Exception:
+        pass
 
     # Build context
     style_profile = None
@@ -238,7 +257,6 @@ async def decompose_prompt(body: DecomposeRequest):
             style_profile = StyleProfile(**data)
     style_section = _build_style_section(style_profile)
 
-    # Map string to enum for asset context
     try:
         asset_enum = AssetType(body.asset_type)
     except ValueError:
@@ -246,7 +264,7 @@ async def decompose_prompt(body: DecomposeRequest):
     asset_context = _ASSET_TYPE_CONTEXT.get(asset_enum, "")
 
     prompt_text = get_template('prompt_decompose').format(
-        user_prompt=body.prompt,
+        user_prompt=prompt_for_decompose,  # Always English
         style_section=style_section,
         asset_context=asset_context,
     )
@@ -261,7 +279,17 @@ async def decompose_prompt(body: DecomposeRequest):
         ).strip()
         cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", raw)
         cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
-        return _json.loads(cleaned.strip())
+        result = _json.loads(cleaned.strip())
+
+        # Include translation metadata so frontend can show both versions
+        result["_meta"] = {
+            "original_prompt": original_prompt,  # None if already English
+            "english_prompt": prompt_for_decompose,
+            "original_language": original_language,
+            "was_translated": original_prompt is not None,
+        }
+
+        return result
     except Exception as exc:
         logger.exception("Prompt decomposition failed")
         raise HTTPException(502, detail=f"Decomposition failed: {exc}")
