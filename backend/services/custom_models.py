@@ -107,7 +107,7 @@ MODEL_CATALOG = {
 
     "flux1_dev": {
         "label": "FLUX.1 [dev]",
-        "description": "High-quality text-to-image by Black Forest Labs. Non-commercial license.",
+        "description": "High-quality text-to-image by Black Forest Labs. Non-commercial license. Requires 48GB+ GPU (L40S).",
         "category": "image_generation",
         "studio": "image",
         "provider": "Black Forest Labs",
@@ -119,9 +119,9 @@ MODEL_CATALOG = {
             "repo_id": "black-forest-labs/FLUX.1-dev",
         },
         "requirements": {
-            "min_vram_gb": 24,
-            "recommended_instance": "ml.g5.2xlarge",
-            "min_instance": "ml.g5.xlarge",
+            "min_vram_gb": 48,
+            "recommended_instance": "ml.g6e.xlarge",
+            "min_instance": "ml.g6e.xlarge",
             "disk_gb": 35,
         },
         "invoke": {
@@ -145,7 +145,7 @@ MODEL_CATALOG = {
         },
         "pricing": {
             "estimated_cost_per_image": 0.06,
-            "instance_cost_per_hour": {"ml.g5.xlarge": 1.41, "ml.g5.2xlarge": 2.82},
+            "instance_cost_per_hour": {"ml.g6e.xlarge": 2.61},
         },
         "version": "1.0",
         "last_updated": "2024-08-01",
