@@ -44,7 +44,7 @@
             modal.id = 'model-settings-modal';
             modal.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
             modal.innerHTML = `
-                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-h-[90vh] flex flex-col overflow-hidden" style="max-width: 80rem;">
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full h-[90vh] flex flex-col overflow-hidden" style="max-width: 80rem;">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
                         <div class="flex items-center gap-3">
@@ -1334,11 +1334,16 @@
                     other: t('custom_models.other'),
                 };
 
+                // Preserve which sections are expanded before re-rendering
+                const openSections = new Set();
+                container.querySelectorAll('details[data-cm-studio][open]').forEach(d => openSections.add(d.dataset.cmStudio));
+
                 let html = '<div class="space-y-4">';
                 html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on Amazon SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
 
                 for (const [studio, studioModels] of Object.entries(groups)) {
-                    html += `<details class="ms-collapsible">
+                    const wasOpen = openSections.has(studio);
+                    html += `<details class="ms-collapsible" data-cm-studio="${studio}" ${wasOpen ? 'open' : ''}>
                         <summary class="text-sm font-medium text-brand-text cursor-pointer py-1">${studioLabels[studio] || studio} (${studioModels.length})</summary>
                         <div class="space-y-2 mt-2">`;
 

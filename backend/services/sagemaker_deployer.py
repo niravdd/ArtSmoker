@@ -435,11 +435,11 @@ def _get_inference_container(model: dict) -> str:
 
     lib = model["requirements"].get("inference_library", "diffusers")
     if lib in ("diffusers", "transformers"):
-        # HuggingFace PyTorch inference container
-        return f"{account}.dkr.ecr.{region}.amazonaws.com/huggingface-pytorch-inference:2.1.0-transformers4.37.0-gpu-py310-cu121-ubuntu22.04"
+        # HuggingFace PyTorch inference container (latest available)
+        return f"{account}.dkr.ecr.{region}.amazonaws.com/huggingface-pytorch-inference:2.6.0-transformers4.51.3-gpu-py312-cu124-ubuntu22.04-v2.3"
     else:
         # Generic PyTorch container
-        return f"{account}.dkr.ecr.{region}.amazonaws.com/pytorch-inference:2.1.0-gpu-py310-cu121-ubuntu22.04"
+        return f"{account}.dkr.ecr.{region}.amazonaws.com/pytorch-inference:2.6.0-gpu-py312-cu124-ubuntu22.04-sagemaker-v1.73"
 
 
 # Single shared HuggingFace token for all gated models
