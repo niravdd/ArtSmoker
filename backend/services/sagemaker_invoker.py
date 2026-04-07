@@ -30,6 +30,15 @@ _SM_CONFIG = BotoConfig(
 )
 
 
+def _get_region() -> str:
+    """Get the AWS region from session or config default."""
+    region = boto3.Session().region_name
+    if region:
+        return region
+    from backend.config import settings
+    return settings.aws_region_models
+
+
 def invoke_custom_model(
     model_key: str,
     payload: dict,
@@ -102,7 +111,7 @@ def invoke_custom_model(
 
 def _invoke_realtime(endpoint_name: str, payload: dict) -> dict:
     """Invoke a real-time Amazon SageMaker endpoint."""
-    sm_runtime = boto3.client("sagemaker-runtime", config=_SM_CONFIG)
+    sm_runtime = boto3.client("sagemaker-runtime", region_name=_get_region(), config=_SM_CONFIG)
 
     response = sm_runtime.invoke_endpoint(
         EndpointName=endpoint_name,
@@ -117,7 +126,7 @@ def _invoke_realtime(endpoint_name: str, payload: dict) -> dict:
 def _invoke_async(endpoint_name: str, payload: dict,
                   timeout_seconds: int = 120) -> dict:
     """Invoke an async Amazon SageMaker endpoint and poll for results."""
-    sm_runtime = boto3.client("sagemaker-runtime", config=_SM_CONFIG)
+    sm_runtime = boto3.client("sagemaker-runtime", region_name=_get_region(), config=_SM_CONFIG)
 
     response = sm_runtime.invoke_endpoint_async(
         EndpointName=endpoint_name,
@@ -130,7 +139,7 @@ def _invoke_async(endpoint_name: str, payload: dict,
         raise RuntimeError("Async invocation returned no output location")
 
     # Poll for result
-    s3 = boto3.client("s3")
+    s3 = boto3.client("s3", region_name=_get_region())
     start_time = time.time()
 
     while time.time() - start_time < timeout_seconds:
@@ -162,7 +171,7 @@ def _upload_async_input(endpoint_name: str, payload: dict) -> str:
     bucket = get_deployment_s3_bucket()
     key = f"{S3_MODEL_PREFIX}/inference-input/{endpoint_name}/{int(time.time() * 1000)}.json"
 
-    s3 = boto3.client("s3")
+    s3 = boto3.client("s3", region_name=_get_region())
     s3.put_object(
         Bucket=bucket,
         Key=key,
