@@ -192,42 +192,50 @@ def invoke_custom_image_model(
 ) -> bytes:
     """Invoke a custom image generation model and return PNG bytes.
 
-    This is the entry point called by ArtSmoker's image generation pipeline
-    when the selected model is a custom SageMaker model.
+    Reads invocation config from the model registry (not hardcoded).
+    The config defines input_fields with types and defaults — we build
+    the payload dynamically from those.
     """
-    from backend.services.custom_models import get_catalog_model
+    from backend.services.model_registry import get_registry
 
-    catalog = get_catalog_model(model_key)
-    if not catalog:
-        raise ValueError(f"Unknown custom model: {model_key}")
+    # Find model config in registry
+    registry = get_registry()
+    model_config = None
+    for section in ("image_models", "video_models"):
+        if model_key in registry.get(section, {}):
+            model_config = registry[section][model_key]
+            break
+    if not model_config:
+        raise ValueError(f"Custom model '{model_key}' not found in registry.")
 
-    # Build model-specific payload
-    invocation = catalog.get("invocation", {})
-    payload = {"prompt": prompt, "width": width, "height": height}
+    invoke = model_config.get("invoke", {})
+    input_fields = invoke.get("input_fields", {})
 
-    if seed is not None:
-        payload["seed"] = seed
-
-    # Model-specific params
-    if "num_inference_steps" in invocation.get("input_format", {}):
-        payload["num_inference_steps"] = kwargs.get(
-            "num_inference_steps",
-            int(invocation["input_format"]["num_inference_steps"].split("default ")[1].rstrip(")"))
-            if "default" in str(invocation["input_format"]["num_inference_steps"]) else 4
-        )
-    if "guidance_scale" in invocation.get("input_format", {}):
-        payload["guidance_scale"] = kwargs.get(
-            "guidance_scale",
-            float(invocation["input_format"]["guidance_scale"].split("default ")[1].rstrip(")"))
-            if "default" in str(invocation["input_format"]["guidance_scale"]) else 0.0
-        )
+    # Build payload from input_fields spec — apply defaults from registry
+    payload = {}
+    for field_name, field_spec in input_fields.items():
+        if field_name == "prompt":
+            payload["prompt"] = prompt
+        elif field_name == "width":
+            payload["width"] = width
+        elif field_name == "height":
+            payload["height"] = height
+        elif field_name == "seed":
+            if seed is not None:
+                payload["seed"] = seed
+        elif field_name == "negative_prompt":
+            if negative_prompt:
+                payload["negative_prompt"] = negative_prompt
+        elif field_name in kwargs:
+            payload[field_name] = kwargs[field_name]
+        elif "default" in field_spec:
+            payload[field_name] = field_spec["default"]
 
     result = invoke_custom_model(model_key, payload)
 
-    # Decode base64 image to bytes
     image_b64 = result.get("image", "")
     if not image_b64:
-        raise RuntimeError(f"Custom model returned no image data")
+        raise RuntimeError("Custom model returned no image data")
 
     return base64.b64decode(image_b64)
 

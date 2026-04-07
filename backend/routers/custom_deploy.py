@@ -218,6 +218,8 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
     registry = get_registry()
     category = catalog_entry["category"]
 
+    invoke = catalog_entry.get("invoke", {})
+
     entry = {
         "label": catalog_entry["label"],
         "model_id": f"sagemaker:{deployment['endpoint_name']}",
@@ -232,15 +234,16 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
             "instance_type": deployment["instance_type"],
             "created_at": deployment.get("created_at"),
         },
-        "base_price_usd": catalog_entry["pricing"].get("estimated_cost_per_image", 0),
-        "invocation": catalog_entry["invocation"],
+        "base_price_usd": catalog_entry["pricing"].get("estimated_cost_per_image",
+                          catalog_entry["pricing"].get("estimated_cost_per_video", 0)),
+        "invoke": invoke,  # Full invocation config from catalog
     }
 
     if category == "image_generation":
         registry.setdefault("image_models", {})[model_key] = {
             **entry,
             "model_purpose": "text_to_image",
-            "prompt_limit": catalog_entry["invocation"].get("max_prompt_length", 2048),
+            "prompt_limit": invoke.get("max_prompt_length", 2048),
             "moderation_strictness": "none",
         }
     elif category == "post_processing":

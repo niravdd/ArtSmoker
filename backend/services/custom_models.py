@@ -1,73 +1,76 @@
-"""Custom Model Deployment — manages self-hosted 3rd-party models on SageMaker.
+"""Custom Model Catalog — registry of self-hosted 3rd-party models.
 
-Handles the full lifecycle: catalog → download → deploy → invoke → manage.
-Models run on SageMaker Async or Real-time endpoints in the user's AWS account.
+The catalog defines everything needed to download, deploy, and invoke
+each model. It follows the same pattern as the Bedrock model registry:
+all behavior is driven by data/parameters, not by model-specific code.
 
-Architecture:
-  1. Model Catalog: known models with source URLs, requirements, invocation specs
-  2. Download: pulls weights from original sources (GitHub/HuggingFace) to user's S3
-  3. Deploy: creates SageMaker endpoint from CloudFormation template
-  4. Invoke: sends inference requests, polls for async results
-  5. Manage: status, redeploy, update, teardown
+Adding a new model = adding a catalog entry here. Zero code changes elsewhere.
 
-HuggingFace tokens (for gated models) are used transiently during download
-and NEVER stored — passed once to pull weights, then discarded.
+The catalog is stored as code defaults (like prompt_templates._DEFAULTS),
+with the deployed state tracked in model_registry.json under 'custom_models'.
 """
 
-import json
 import logging
-from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 
-# ── Model Catalog ─────────────────────────────────────────────────────────
+# ── Catalog: Data-driven model definitions ────────────────────────────────
 #
-# Each entry defines everything ArtSmoker needs to download, deploy, and
-# invoke a model. Source URLs point to the ORIGINAL hosting location
-# (GitHub releases, HuggingFace repos) — we never re-host weights.
+# Each entry contains EVERYTHING needed to:
+#   - Download the model (source URLs, auth requirements)
+#   - Deploy it (instance type, container, env vars)
+#   - Invoke it (input/output format, library, loader class, predictor type)
+#   - Display it (label, description, pricing, studio assignment)
+#
+# The 'invoke' section is passed as environment variables to the SageMaker
+# container, so the universal inference handler knows how to load and run
+# the model WITHOUT any model-specific code.
 
 MODEL_CATALOG = {
     # ── Image Generation ──────────────────────────────────────────────
 
     "flux1_schnell": {
         "label": "FLUX.1 [schnell]",
-        "description": "Fast text-to-image by Black Forest Labs. High quality, Apache 2.0 licensed. 1-4 step generation.",
+        "description": "Fast text-to-image by Black Forest Labs. 1-4 step generation, Apache 2.0 licensed.",
         "category": "image_generation",
         "studio": "image",
         "provider": "Black Forest Labs",
         "license": "Apache 2.0",
-        "requires_hf_auth": True,  # Gated on HuggingFace despite Apache license
+        "requires_hf_auth": True,
         "hf_license_url": "https://huggingface.co/black-forest-labs/FLUX.1-schnell",
         "source": {
             "type": "huggingface",
             "repo_id": "black-forest-labs/FLUX.1-schnell",
-            "files": ["flux1-schnell.safetensors"],  # or full repo clone
         },
         "requirements": {
             "min_vram_gb": 12,
             "recommended_instance": "ml.g5.2xlarge",
             "min_instance": "ml.g5.xlarge",
             "disk_gb": 25,
-            "inference_library": "diffusers",
         },
-        "invocation": {
-            "input_format": {
-                "prompt": "string",
-                "width": "int (default 1024)",
-                "height": "int (default 1024)",
-                "num_inference_steps": "int (default 4)",
-                "guidance_scale": "float (default 0.0)",
-                "seed": "int (optional)",
+        "invoke": {
+            "library": "diffusers",
+            "loader_class": "AutoPipelineForText2Image",
+            "torch_dtype": "bfloat16",
+            "enable_cpu_offload": True,
+            "predictor_type": "text_to_image",
+            "input_fields": {
+                "prompt": {"type": "string", "required": True},
+                "width": {"type": "int", "default": 1024},
+                "height": {"type": "int", "default": 1024},
+                "num_inference_steps": {"type": "int", "default": 4},
+                "guidance_scale": {"type": "float", "default": 0.0},
+                "seed": {"type": "int", "required": False},
             },
-            "output_format": "base64 PNG image",
-            "typical_latency_seconds": 5,
+            "output_type": "base64_png",
             "supports_negative_prompt": False,
             "max_prompt_length": 2048,
+            "typical_latency_seconds": 5,
         },
         "pricing": {
-            "estimated_cost_per_image": 0.02,  # Based on ~5s on g5.xlarge at $1.41/hr
+            "estimated_cost_per_image": 0.02,
             "instance_cost_per_hour": {"ml.g5.xlarge": 1.41, "ml.g5.2xlarge": 2.82},
         },
         "version": "1.0",
@@ -76,7 +79,7 @@ MODEL_CATALOG = {
 
     "flux1_dev": {
         "label": "FLUX.1 [dev]",
-        "description": "High-quality text-to-image by Black Forest Labs. Better than schnell but non-commercial license. Requires HuggingFace license acceptance.",
+        "description": "High-quality text-to-image by Black Forest Labs. Non-commercial license.",
         "category": "image_generation",
         "studio": "image",
         "provider": "Black Forest Labs",
@@ -86,28 +89,31 @@ MODEL_CATALOG = {
         "source": {
             "type": "huggingface",
             "repo_id": "black-forest-labs/FLUX.1-dev",
-            "files": ["flux1-dev.safetensors"],
         },
         "requirements": {
             "min_vram_gb": 24,
             "recommended_instance": "ml.g5.2xlarge",
             "min_instance": "ml.g5.xlarge",
             "disk_gb": 35,
-            "inference_library": "diffusers",
         },
-        "invocation": {
-            "input_format": {
-                "prompt": "string",
-                "width": "int (default 1024)",
-                "height": "int (default 1024)",
-                "num_inference_steps": "int (default 28)",
-                "guidance_scale": "float (default 3.5)",
-                "seed": "int (optional)",
+        "invoke": {
+            "library": "diffusers",
+            "loader_class": "AutoPipelineForText2Image",
+            "torch_dtype": "bfloat16",
+            "enable_cpu_offload": True,
+            "predictor_type": "text_to_image",
+            "input_fields": {
+                "prompt": {"type": "string", "required": True},
+                "width": {"type": "int", "default": 1024},
+                "height": {"type": "int", "default": 1024},
+                "num_inference_steps": {"type": "int", "default": 28},
+                "guidance_scale": {"type": "float", "default": 3.5},
+                "seed": {"type": "int", "required": False},
             },
-            "output_format": "base64 PNG image",
-            "typical_latency_seconds": 15,
+            "output_type": "base64_png",
             "supports_negative_prompt": False,
             "max_prompt_length": 2048,
+            "typical_latency_seconds": 15,
         },
         "pricing": {
             "estimated_cost_per_image": 0.06,
@@ -119,11 +125,11 @@ MODEL_CATALOG = {
 
     "sdxl_turbo": {
         "label": "SDXL Turbo",
-        "description": "Ultra-fast image generation by Stability AI. 1-4 step generation.",
+        "description": "Ultra-fast 1-step image generation by Stability AI.",
         "category": "image_generation",
         "studio": "image",
         "provider": "Stability AI",
-        "license": "Stability AI Community License",
+        "license": "Stability AI Non-Commercial Community License",
         "requires_hf_auth": False,
         "source": {
             "type": "huggingface",
@@ -134,20 +140,25 @@ MODEL_CATALOG = {
             "recommended_instance": "ml.g5.xlarge",
             "min_instance": "ml.g5.xlarge",
             "disk_gb": 15,
-            "inference_library": "diffusers",
         },
-        "invocation": {
-            "input_format": {
-                "prompt": "string",
-                "width": "int (default 512)",
-                "height": "int (default 512)",
-                "num_inference_steps": "int (default 1)",
-                "guidance_scale": "float (default 0.0)",
+        "invoke": {
+            "library": "diffusers",
+            "loader_class": "AutoPipelineForText2Image",
+            "torch_dtype": "float16",
+            "loader_variant": "fp16",
+            "predictor_type": "text_to_image",
+            "input_fields": {
+                "prompt": {"type": "string", "required": True},
+                "width": {"type": "int", "default": 512},
+                "height": {"type": "int", "default": 512},
+                "num_inference_steps": {"type": "int", "default": 1},
+                "guidance_scale": {"type": "float", "default": 0.0},
+                "seed": {"type": "int", "required": False},
             },
-            "output_format": "base64 PNG image",
-            "typical_latency_seconds": 2,
+            "output_type": "base64_png",
             "supports_negative_prompt": False,
             "max_prompt_length": 2048,
+            "typical_latency_seconds": 2,
         },
         "pricing": {
             "estimated_cost_per_image": 0.01,
@@ -160,8 +171,8 @@ MODEL_CATALOG = {
     # ── Image Enhancement ─────────────────────────────────────────────
 
     "real_esrgan": {
-        "label": "Real-ESRGAN",
-        "description": "AI upscaling — 2x/4x super-resolution. Free alternative to Stability AI Creative Upscale.",
+        "label": "Real-ESRGAN (4x Upscale)",
+        "description": "AI super-resolution upscaling. Free alternative to Stability AI Creative Upscale ($0.60/img).",
         "category": "post_processing",
         "studio": "image",
         "provider": "Xinntao",
@@ -170,7 +181,6 @@ MODEL_CATALOG = {
         "source": {
             "type": "github_release",
             "repo": "xinntao/Real-ESRGAN",
-            "asset_pattern": "RealESRGAN_x4plus.pth",
             "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth",
         },
         "requirements": {
@@ -178,14 +188,15 @@ MODEL_CATALOG = {
             "recommended_instance": "ml.g5.xlarge",
             "min_instance": "ml.g5.xlarge",
             "disk_gb": 1,
-            "inference_library": "realesrgan",
         },
-        "invocation": {
-            "input_format": {
-                "image": "base64 PNG",
-                "scale": "int (2 or 4, default 4)",
+        "invoke": {
+            "library": "realesrgan",
+            "predictor_type": "image_upscale",
+            "input_fields": {
+                "image": {"type": "base64_png", "required": True},
+                "scale": {"type": "int", "default": 4},
             },
-            "output_format": "base64 PNG image",
+            "output_type": "base64_png",
             "typical_latency_seconds": 3,
         },
         "pricing": {
@@ -198,11 +209,11 @@ MODEL_CATALOG = {
 
     "rmbg_2": {
         "label": "RMBG-2.0 (Background Removal)",
-        "description": "AI background removal by BRIA. Gated on HuggingFace, CC-BY-NC-4.0 license.",
+        "description": "AI background removal by BRIA. Free alternative to Stability AI Remove BG ($0.07/img).",
         "category": "post_processing",
         "studio": "image",
         "provider": "BRIA AI",
-        "license": "CC-BY-NC-4.0 (non-commercial free; commercial requires BRIA agreement)",
+        "license": "CC-BY-NC-4.0",
         "requires_hf_auth": True,
         "hf_license_url": "https://huggingface.co/briaai/RMBG-2.0",
         "source": {
@@ -214,11 +225,16 @@ MODEL_CATALOG = {
             "recommended_instance": "ml.g5.xlarge",
             "min_instance": "ml.g5.xlarge",
             "disk_gb": 2,
-            "inference_library": "transformers",
         },
-        "invocation": {
-            "input_format": {"image": "base64 PNG"},
-            "output_format": "base64 PNG image (transparent background)",
+        "invoke": {
+            "library": "transformers",
+            "loader_class": "AutoModelForImageSegmentation",
+            "trust_remote_code": True,
+            "predictor_type": "background_removal",
+            "input_fields": {
+                "image": {"type": "base64_png", "required": True},
+            },
+            "output_type": "base64_png_rgba",
             "typical_latency_seconds": 2,
         },
         "pricing": {
@@ -231,11 +247,11 @@ MODEL_CATALOG = {
 
     "codeformer": {
         "label": "CodeFormer (Face Restoration)",
-        "description": "AI face restoration and enhancement. Fixes AI-generated face artifacts.",
+        "description": "AI face restoration — fixes AI-generated face artifacts.",
         "category": "post_processing",
         "studio": "image",
         "provider": "Shangchen Zhou et al.",
-        "license": "Non-Commercial Research",
+        "license": "NTU S-Lab License 1.0 (research)",
         "requires_hf_auth": False,
         "source": {
             "type": "github_release",
@@ -247,14 +263,15 @@ MODEL_CATALOG = {
             "recommended_instance": "ml.g5.xlarge",
             "min_instance": "ml.g5.xlarge",
             "disk_gb": 1,
-            "inference_library": "codeformer",
         },
-        "invocation": {
-            "input_format": {
-                "image": "base64 PNG",
-                "fidelity": "float (0.0-1.0, default 0.7)",
+        "invoke": {
+            "library": "codeformer",
+            "predictor_type": "face_restoration",
+            "input_fields": {
+                "image": {"type": "base64_png", "required": True},
+                "fidelity": {"type": "float", "default": 0.7},
             },
-            "output_format": "base64 PNG image",
+            "output_type": "base64_png",
             "typical_latency_seconds": 3,
         },
         "pricing": {
@@ -265,15 +282,15 @@ MODEL_CATALOG = {
         "last_updated": "2022-12-15",
     },
 
-    # ── Composition / Control ─────────────────────────────────────────
+    # ── Utility / Composition ─────────────────────────────────────────
 
     "depth_anything_v2": {
         "label": "Depth Anything v2",
-        "description": "Monocular depth estimation. Generates depth maps for ControlNet or 3D effects.",
+        "description": "Monocular depth estimation — generates depth maps for 3D effects.",
         "category": "utility",
         "studio": "image",
         "provider": "DepthAnything Team",
-        "license": "Apache 2.0",
+        "license": "CC-BY-NC-4.0",
         "requires_hf_auth": False,
         "source": {
             "type": "huggingface",
@@ -284,11 +301,16 @@ MODEL_CATALOG = {
             "recommended_instance": "ml.g5.xlarge",
             "min_instance": "ml.g5.xlarge",
             "disk_gb": 3,
-            "inference_library": "transformers",
         },
-        "invocation": {
-            "input_format": {"image": "base64 PNG"},
-            "output_format": "base64 PNG depth map (grayscale)",
+        "invoke": {
+            "library": "transformers",
+            "loader_class": "pipeline",
+            "loader_task": "depth-estimation",
+            "predictor_type": "depth_estimation",
+            "input_fields": {
+                "image": {"type": "base64_png", "required": True},
+            },
+            "output_type": "base64_png_grayscale",
             "typical_latency_seconds": 2,
         },
         "pricing": {
@@ -301,7 +323,7 @@ MODEL_CATALOG = {
 
     "sam2": {
         "label": "Segment Anything 2 (SAM 2)",
-        "description": "Smart object segmentation by Meta. Click or prompt to select objects precisely.",
+        "description": "Smart object segmentation by Meta — click to select objects precisely.",
         "category": "utility",
         "studio": "image",
         "provider": "Meta AI",
@@ -312,20 +334,22 @@ MODEL_CATALOG = {
             "repo_id": "facebook/sam2-hiera-large",
         },
         "requirements": {
-            "min_vram_gb": 8,
+            "min_vram_gb": 6,
             "recommended_instance": "ml.g5.xlarge",
             "min_instance": "ml.g5.xlarge",
             "disk_gb": 5,
-            "inference_library": "transformers",
         },
-        "invocation": {
-            "input_format": {
-                "image": "base64 PNG",
-                "points": "list of [x, y] coordinates (optional)",
-                "labels": "list of 0/1 (foreground/background) per point",
-                "text_prompt": "string (optional)",
+        "invoke": {
+            "library": "transformers",
+            "loader_class": "Sam2Model",
+            "processor_class": "Sam2Processor",
+            "predictor_type": "segmentation",
+            "input_fields": {
+                "image": {"type": "base64_png", "required": True},
+                "points": {"type": "list", "required": False, "description": "[[x,y], ...] coordinates"},
+                "labels": {"type": "list", "required": False, "description": "[1,0,...] foreground/background"},
             },
-            "output_format": "base64 PNG mask",
+            "output_type": "base64_png_mask",
             "typical_latency_seconds": 2,
         },
         "pricing": {
@@ -339,14 +363,13 @@ MODEL_CATALOG = {
     # ── Video Generation ──────────────────────────────────────────────
 
     "stable_video_diffusion": {
-        "label": "Stable Video Diffusion (SVD)",
-        "description": "Image-to-video generation by Stability AI. 14-25 frames from a single image.",
+        "label": "Stable Video Diffusion (SVD-XT)",
+        "description": "Image-to-video by Stability AI — 25 frames from a single image.",
         "category": "video_generation",
         "studio": "video",
         "provider": "Stability AI",
         "license": "Stability AI Community License",
-        "requires_hf_auth": True,
-        "hf_license_url": "https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt",
+        "requires_hf_auth": False,
         "source": {
             "type": "huggingface",
             "repo_id": "stabilityai/stable-video-diffusion-img2vid-xt",
@@ -356,17 +379,20 @@ MODEL_CATALOG = {
             "recommended_instance": "ml.g5.2xlarge",
             "min_instance": "ml.g5.xlarge",
             "disk_gb": 20,
-            "inference_library": "diffusers",
         },
-        "invocation": {
-            "input_format": {
-                "image": "base64 PNG (conditioning image)",
-                "num_frames": "int (14 or 25, default 14)",
-                "fps": "int (default 7)",
-                "motion_bucket_id": "int (default 127)",
-                "noise_aug_strength": "float (default 0.02)",
+        "invoke": {
+            "library": "diffusers",
+            "loader_class": "StableVideoDiffusionPipeline",
+            "torch_dtype": "float16",
+            "predictor_type": "image_to_video",
+            "input_fields": {
+                "image": {"type": "base64_png", "required": True, "description": "Conditioning image"},
+                "num_frames": {"type": "int", "default": 14},
+                "fps": {"type": "int", "default": 7},
+                "motion_bucket_id": {"type": "int", "default": 127},
+                "noise_aug_strength": {"type": "float", "default": 0.02},
             },
-            "output_format": "base64 MP4 video or list of base64 PNG frames",
+            "output_type": "base64_mp4",
             "typical_latency_seconds": 60,
         },
         "pricing": {
@@ -379,17 +405,7 @@ MODEL_CATALOG = {
 }
 
 
-# ── Deployment Status ─────────────────────────────────────────────────────
-
-class DeploymentStatus:
-    NOT_DEPLOYED = "not_deployed"
-    DOWNLOADING = "downloading"
-    DEPLOYING = "deploying"
-    ACTIVE = "active"
-    IDLE = "idle"         # Async endpoint scaled to zero
-    STOPPING = "stopping"
-    FAILED = "failed"
-
+# ── Public API ────────────────────────────────────────────────────────────
 
 def get_catalog() -> dict:
     """Return the full model catalog."""
@@ -407,5 +423,5 @@ def get_catalog_by_category(category: str) -> dict:
 
 
 def get_catalog_by_studio(studio: str) -> dict:
-    """Return models filtered by studio (image, video, chat)."""
+    """Return models filtered by studio (image, video)."""
     return {k: v for k, v in MODEL_CATALOG.items() if v.get("studio") == studio}

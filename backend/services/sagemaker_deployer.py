@@ -335,16 +335,39 @@ def _get_model_environment(model_key: str, model: dict) -> dict:
     """Get environment variables for the SageMaker container.
 
     These env vars tell the universal inference handler (inference.py)
-    how to load and invoke this specific model — no model-specific code needed.
+    how to load and invoke this specific model. ALL configuration comes
+    from the catalog — the handler reads env vars, not model-specific code.
     """
-    return {
+    invoke = model.get("invoke", {})
+
+    env = {
         "MODEL_KEY": model_key,
-        "INFERENCE_LIBRARY": model["requirements"].get("inference_library", "diffusers"),
-        "MODEL_CATEGORY": model.get("category", ""),
+        "INFERENCE_LIBRARY": invoke.get("library", "diffusers"),
+        "PREDICTOR_TYPE": invoke.get("predictor_type", "text_to_image"),
         "HF_MODEL_ID": model["source"].get("repo_id", ""),
         "SAGEMAKER_PROGRAM": "inference.py",
         "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",
+        # Full invoke config as JSON for advanced use
+        "INVOKE_CONFIG": json.dumps(invoke, default=str),
     }
+
+    # Map catalog invoke fields to handler env vars
+    if invoke.get("loader_class"):
+        env["LOADER_CLASS"] = invoke["loader_class"]
+    if invoke.get("loader_task"):
+        env["LOADER_TASK"] = invoke["loader_task"]
+    if invoke.get("torch_dtype"):
+        env["TORCH_DTYPE"] = invoke["torch_dtype"]
+    if invoke.get("trust_remote_code"):
+        env["TRUST_REMOTE_CODE"] = "true"
+    if invoke.get("enable_cpu_offload"):
+        env["ENABLE_CPU_OFFLOAD"] = "true"
+    if invoke.get("processor_class"):
+        env["PROCESSOR_CLASS"] = invoke["processor_class"]
+    if invoke.get("loader_variant"):
+        env["LOADER_VARIANT"] = invoke["loader_variant"]
+
+    return env
 
 
 def _get_sagemaker_role() -> str:
