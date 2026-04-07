@@ -312,8 +312,10 @@ Your IAM user, role, or instance profile needs these permissions:
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
 | `sts:GetCallerIdentity` | Startup credential validation |
 | `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
-| `sagemaker:*` | Self-hosted custom models on SageMaker (optional — only needed if using Custom Models feature) |
+| `sagemaker:*` | Self-hosted custom models on SageMaker (optional — only if using Custom Models) |
 | `iam:PassRole` | Allow SageMaker to use your role (optional — only for Custom Models) |
+| `iam:CreateRole` / `iam:AttachRolePolicy` | Auto-create SageMaker execution role on first deploy (optional — only for Custom Models) |
+| `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Auto-configure existing role for SageMaker trust (optional) |
 
 **Quickest setup** (managed policies — broadest access):
 
@@ -371,6 +373,22 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
       "Effect": "Allow",
       "Action": ["sts:GetCallerIdentity", "pricing:GetProducts"],
       "Resource": "*"
+    },
+    {
+      "Sid": "SageMakerCustomModels",
+      "Effect": "Allow",
+      "Action": [
+        "sagemaker:CreateModel", "sagemaker:CreateEndpointConfig", "sagemaker:CreateEndpoint",
+        "sagemaker:DeleteModel", "sagemaker:DeleteEndpointConfig", "sagemaker:DeleteEndpoint",
+        "sagemaker:DescribeEndpoint", "sagemaker:InvokeEndpoint", "sagemaker:InvokeEndpointAsync"
+      ],
+      "Resource": "arn:aws:sagemaker:*:*:*artsmoker*"
+    },
+    {
+      "Sid": "SageMakerRoleManagement",
+      "Effect": "Allow",
+      "Action": ["iam:CreateRole", "iam:AttachRolePolicy", "iam:GetRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole"],
+      "Resource": ["arn:aws:iam::*:role/ArtSmoker*"]
     }
   ]
 }'
