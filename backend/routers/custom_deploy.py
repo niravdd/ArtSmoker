@@ -190,7 +190,21 @@ async def deploy_model(body: DeployRequest):
 
         except Exception as exc:
             logger.exception("Custom model deployment failed: %s", key)
-            _deploy_status[key] = {"stage": "failed", "progress": "", "error": str(exc)}
+            error_msg = str(exc)
+            # Provide user-friendly guidance for common HuggingFace errors
+            if "403" in error_msg or "not in the authorized list" in error_msg:
+                license_url = model.get("hf_license_url", f"https://huggingface.co/{model.get('source', {}).get('repo_id', '')}")
+                error_msg = (
+                    f"Access denied. You need to accept the model's license on HuggingFace first.\n\n"
+                    f"1. Visit {license_url}\n"
+                    f"2. Click 'Accept' on the license agreement\n"
+                    f"3. Come back and try deploying again with your token."
+                )
+            elif "401" in error_msg or "Unauthorized" in error_msg:
+                error_msg = "Invalid HuggingFace token. Please check your token at huggingface.co/settings/tokens and try again."
+            elif "404" in error_msg:
+                error_msg = f"Model repository not found. Please verify the model URL is correct."
+            _deploy_status[key] = {"stage": "failed", "progress": "", "error": error_msg}
 
     thread = threading.Thread(target=_run_deploy, daemon=True)
     thread.start()
