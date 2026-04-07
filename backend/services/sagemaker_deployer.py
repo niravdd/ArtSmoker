@@ -375,9 +375,14 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
 
 
 def check_endpoint_status(endpoint_name: str) -> dict:
-    """Check the status of an Amazon SageMaker endpoint."""
+    """Check the status of an Amazon SageMaker endpoint.
+
+    Uses a short timeout to avoid blocking the catalog endpoint.
+    """
     try:
-        sm = boto3.client("sagemaker", region_name=_get_region())
+        from botocore.config import Config as BotoConfig
+        sm = boto3.client("sagemaker", region_name=_get_region(),
+                          config=BotoConfig(connect_timeout=5, read_timeout=10, retries={"max_attempts": 1}))
         resp = sm.describe_endpoint(EndpointName=endpoint_name)
         return {
             "endpoint_name": endpoint_name,

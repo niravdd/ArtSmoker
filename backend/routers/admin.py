@@ -342,7 +342,7 @@ async def enhance_template(name: str, body: TemplateEnhanceRequest):
 
 
 @router.get("/models/image-options")
-async def get_image_model_options(region: str | None = Query(default=None)):
+def get_image_model_options(region: str | None = Query(default=None)):
     """Return enabled image models for the frontend dropdown.
 
     This is the source of truth for model selection — the frontend
@@ -453,7 +453,7 @@ async def get_image_model_options(region: str | None = Query(default=None)):
 
 
 @router.get("/models/video-options")
-async def get_video_model_options():
+def get_video_model_options():
     """Return enabled video models for the Video Studio dropdown."""
     from backend.services.model_registry import get_enabled_video_models, get_registry
     enabled = get_enabled_video_models()

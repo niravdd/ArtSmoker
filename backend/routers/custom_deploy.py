@@ -21,8 +21,11 @@ router = APIRouter(prefix="/api/custom-models", tags=["custom-models"])
 # ── Catalog ───────────────────────────────────────────────────────────────
 
 @router.get("/catalog")
-async def list_catalog():
+def list_catalog():
     """List all available custom models with deployment status.
+
+    Sync (not async) so boto3 calls don't block the event loop.
+    FastAPI runs sync endpoints in a threadpool automatically.
 
     Only checks Amazon SageMaker status for models that are registered in the
     model registry (i.e., previously deployed). Undeployed models skip
@@ -311,7 +314,7 @@ async def get_deploy_progress(model_key: str):
 # ── Status & Management ───────────────────────────────────────────────────
 
 @router.get("/status/{model_key}")
-async def check_deployment_status(model_key: str):
+def check_deployment_status(model_key: str):
     """Check the deployment status of a custom model on Amazon SageMaker."""
     from backend.services.sagemaker_deployer import check_endpoint_status
     endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
@@ -321,7 +324,7 @@ async def check_deployment_status(model_key: str):
 # ── HuggingFace Token Management ─────────────────────────────────────────
 
 @router.get("/hf-token-status")
-async def check_hf_token_status():
+def check_hf_token_status():
     """Check if a HuggingFace token is stored in Secrets Manager."""
     from backend.services.sagemaker_deployer import has_hf_token, get_hf_token_arn
     stored = has_hf_token()
