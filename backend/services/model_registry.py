@@ -112,9 +112,26 @@ def _save():
     Sync discoveries, user preferences, custom model registrations,
     video settings — go to model_registry.user.json (gitignored).
 
-    This keeps model_registry.json clean for git pull auto-updates.
+    Preserves metadata keys (like _meta.aws_account_discovered) that
+    were written by _save_user_pref() but aren't in the in-memory registry.
     """
+    # Preserve existing metadata from user.json that _registry doesn't have
+    existing_meta = {}
+    if _USER_PREFS_PATH.exists():
+        try:
+            existing = json.loads(_USER_PREFS_PATH.read_text())
+            # Preserve all underscore-prefixed keys except _last_updated
+            for k, v in existing.items():
+                if k.startswith("_") and k != "_last_updated":
+                    existing_meta[k] = v
+        except Exception:
+            pass
+
     output = dict(_registry)
+    # Merge preserved metadata back in
+    for k, v in existing_meta.items():
+        if k not in output:
+            output[k] = v
     output["_last_updated"] = datetime.utcnow().isoformat()
     _USER_PREFS_PATH.write_text(json.dumps(output, indent=2, default=str))
     if not _save._silent:
