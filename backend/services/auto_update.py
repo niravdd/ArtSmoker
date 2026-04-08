@@ -13,11 +13,6 @@ Version gating:
   - This prevents pulling incomplete/untested code — only version bumps trigger updates
   - Developers bump APP_VERSION when a release is ready
 
-Dev mode:
-  - Set ARTSMOKER_DEV_MODE=true in .env (gitignored) to disable auto-update
-  - Dev machines are never force-updated; developers control their own pulls
-  - For non-dev machines: force reset to origin/main (safe — runtime state in .user.json)
-
 Safety:
   - Runtime state is in gitignored .user.json files — never lost
   - User data is in data/ directory — never touched by git
@@ -77,7 +72,6 @@ def get_update_status() -> dict:
 
 
 def is_dev_mode() -> bool:
-    """Check if this machine is in developer mode (never auto-update)."""
     return os.environ.get("ARTSMOKER_DEV_MODE", "").lower() in ("true", "1", "yes")
 
 
@@ -179,7 +173,6 @@ def start_periodic_checker():
         return
 
     if is_dev_mode():
-        logger.debug("Auto-update scheduler: disabled (dev mode)")
         return
 
     if _scheduler_thread and _scheduler_thread.is_alive():
@@ -285,7 +278,7 @@ def _can_update() -> bool:
         return False
 
     if is_dev_mode():
-        _can_update._reason = "Dev mode — auto-update disabled"
+        _can_update._reason = "Skipped"
         return False
 
     branch = _git("rev-parse", "--abbrev-ref", "HEAD").strip()
