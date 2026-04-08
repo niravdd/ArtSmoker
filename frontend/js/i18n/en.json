@@ -931,7 +931,17 @@
     "no_search_results": "No models found",
     "cold_start_warning": "Self-hosted model — first request may take 5-15 min if the endpoint is waking up from idle (cold start). Subsequent requests are fast.",
     "delete_token_confirm": "Delete the shared HuggingFace token? Gated models will fail on next cold start without it.",
-    "delete_token_title": "Delete HF Token"
+    "delete_token_title": "Delete HF Token",
+    "warming_up": "Deployed, loading model...",
+    "pending_jobs": "Pending Jobs",
+    "pending_jobs_count": "Pending Jobs ({{count}} generating...)",
+    "pending_jobs_total": "Pending Jobs ({{count}})",
+    "async_submitted": "{{model}} — submitted (generating in background)",
+    "async_submitted_hint": "Image will appear in Pending Jobs when ready. You can continue working.",
+    "async_ready_toast": "{{model}} image ready — check Pending Jobs",
+    "async_no_jobs": "No async jobs yet. Self-hosted models generate images in the background.",
+    "async_clear_completed": "Clear completed",
+    "async_footer": "Self-hosted models generate asynchronously. Images appear in the Gallery when complete."
   },
   "voice_input": {
     "record": "Record voice input",

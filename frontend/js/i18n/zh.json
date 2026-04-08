@@ -911,7 +911,17 @@
     "no_search_results": "未找到模型",
     "cold_start_warning": "自托管模型——如果端点正在从空闲状态唤醒（冷启动），首次请求可能需要 5-15 分钟。后续请求速度很快。",
     "delete_token_confirm": "删除共享的 HuggingFace 令牌？受限模型在下次冷启动时将因缺少令牌而失败。",
-    "delete_token_title": "删除 HF 令牌"
+    "delete_token_title": "删除 HF 令牌",
+    "warming_up": "已部署，正在加载模型...",
+    "pending_jobs": "待处理任务",
+    "pending_jobs_count": "待处理任务（{{count}}个生成中...）",
+    "pending_jobs_total": "待处理任务（{{count}}个）",
+    "async_submitted": "{{model}} — 已提交（后台生成中）",
+    "async_submitted_hint": "图像完成后将出现在待处理任务中。您可以继续工作。",
+    "async_ready_toast": "{{model}} 图像已完成 — 查看待处理任务",
+    "async_no_jobs": "暂无异步任务。自托管模型在后台生成图像。",
+    "async_clear_completed": "清除已完成",
+    "async_footer": "自托管模型异步生成图像。完成后，图像将显示在图库中。"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

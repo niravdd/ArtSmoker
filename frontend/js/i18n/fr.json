@@ -911,7 +911,17 @@
     "no_search_results": "Aucun modèle trouvé",
     "cold_start_warning": "Modèle auto-hébergé — la première requête peut prendre 5 à 15 min si le point de terminaison se réveille après une période d'inactivité (démarrage à froid). Les requêtes suivantes sont rapides.",
     "delete_token_confirm": "Supprimer le jeton HuggingFace partagé ? Les modèles restreints échoueront au prochain démarrage à froid sans ce jeton.",
-    "delete_token_title": "Supprimer le jeton HF"
+    "delete_token_title": "Supprimer le jeton HF",
+    "warming_up": "Déployé, chargement du modèle...",
+    "pending_jobs": "Tâches en attente",
+    "pending_jobs_count": "Tâches en attente ({{count}} en cours de génération...)",
+    "pending_jobs_total": "Tâches en attente ({{count}})",
+    "async_submitted": "{{model}} — soumis (génération en arrière-plan)",
+    "async_submitted_hint": "L'image apparaîtra dans les tâches en attente une fois prête. Vous pouvez continuer à travailler.",
+    "async_ready_toast": "Image {{model}} prête — voir les tâches en attente",
+    "async_no_jobs": "Aucune tâche asynchrone pour le moment. Les modèles auto-hébergés génèrent les images en arrière-plan.",
+    "async_clear_completed": "Effacer les terminées",
+    "async_footer": "Les modèles auto-hébergés génèrent de manière asynchrone. Les images apparaissent dans la galerie une fois terminées."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

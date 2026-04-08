@@ -911,7 +911,17 @@
     "no_search_results": "모델을 찾을 수 없습니다",
     "cold_start_warning": "셀프 호스팅 모델 — 엔드포인트가 유휴 상태에서 깨어나는 경우(콜드 스타트) 첫 번째 요청에 5~15분이 걸릴 수 있습니다. 이후 요청은 빠릅니다.",
     "delete_token_confirm": "공유 HuggingFace 토큰을 삭제하시겠습니까? 게이트 모델은 다음 콜드 스타트 시 토큰 없이 실패합니다.",
-    "delete_token_title": "HF 토큰 삭제"
+    "delete_token_title": "HF 토큰 삭제",
+    "warming_up": "배포 완료, 모델 로딩 중...",
+    "pending_jobs": "대기 중인 작업",
+    "pending_jobs_count": "대기 중인 작업 ({{count}}개 생성 중...)",
+    "pending_jobs_total": "대기 중인 작업 ({{count}}개)",
+    "async_submitted": "{{model}} — 제출됨 (백그라운드에서 생성 중)",
+    "async_submitted_hint": "이미지가 완성되면 대기 중인 작업에 표시됩니다. 계속 작업할 수 있습니다.",
+    "async_ready_toast": "{{model}} 이미지 완성 — 대기 중인 작업 확인",
+    "async_no_jobs": "아직 비동기 작업이 없습니다. 셀프 호스팅 모델은 백그라운드에서 이미지를 생성합니다.",
+    "async_clear_completed": "완료된 항목 지우기",
+    "async_footer": "셀프 호스팅 모델은 비동기로 생성합니다. 완료되면 이미지가 갤러리에 표시됩니다."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

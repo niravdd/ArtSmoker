@@ -911,7 +911,17 @@
     "no_search_results": "No se encontraron modelos",
     "cold_start_warning": "Modelo auto-alojado — la primera solicitud puede tardar 5-15 min si el endpoint se está despertando del reposo (arranque en frío). Las solicitudes posteriores son rápidas.",
     "delete_token_confirm": "¿Eliminar el token compartido de HuggingFace? Los modelos restringidos fallarán en el próximo arranque en frío sin él.",
-    "delete_token_title": "Eliminar token HF"
+    "delete_token_title": "Eliminar token HF",
+    "warming_up": "Desplegado, cargando modelo...",
+    "pending_jobs": "Trabajos pendientes",
+    "pending_jobs_count": "Trabajos pendientes ({{count}} generando...)",
+    "pending_jobs_total": "Trabajos pendientes ({{count}})",
+    "async_submitted": "{{model}} — enviado (generando en segundo plano)",
+    "async_submitted_hint": "La imagen aparecerá en Trabajos pendientes cuando esté lista. Puede seguir trabajando.",
+    "async_ready_toast": "Imagen de {{model}} lista — ver Trabajos pendientes",
+    "async_no_jobs": "Aún no hay trabajos asíncronos. Los modelos auto-alojados generan imágenes en segundo plano.",
+    "async_clear_completed": "Limpiar completados",
+    "async_footer": "Los modelos auto-alojados generan de forma asíncrona. Las imágenes aparecen en la galería cuando se completan."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

@@ -911,7 +911,17 @@
     "no_search_results": "モデルが見つかりません",
     "cold_start_warning": "セルフホストモデル — エンドポイントがアイドル状態（コールドスタート）から起動する場合、最初のリクエストに5〜15分かかることがあります。以降のリクエストは高速です。",
     "delete_token_confirm": "共有HuggingFaceトークンを削除しますか？ゲートモデルは次回のコールドスタート時にトークンなしで失敗します。",
-    "delete_token_title": "HFトークンを削除"
+    "delete_token_title": "HFトークンを削除",
+    "warming_up": "デプロイ済み、モデル読み込み中...",
+    "pending_jobs": "保留中のジョブ",
+    "pending_jobs_count": "保留中のジョブ（{{count}}件生成中...）",
+    "pending_jobs_total": "保留中のジョブ（{{count}}件）",
+    "async_submitted": "{{model}} — 送信済み（バックグラウンドで生成中）",
+    "async_submitted_hint": "画像は完成後に保留中のジョブに表示されます。作業を続けられます。",
+    "async_ready_toast": "{{model}} の画像が完成しました — 保留中のジョブを確認",
+    "async_no_jobs": "非同期ジョブはまだありません。セルフホストモデルはバックグラウンドで画像を生成します。",
+    "async_clear_completed": "完了済みをクリア",
+    "async_footer": "セルフホストモデルは非同期で生成します。完了後、画像はギャラリーに表示されます。"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

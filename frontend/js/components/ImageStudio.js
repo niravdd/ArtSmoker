@@ -261,7 +261,7 @@
                             <!-- Pending Jobs (async custom models) -->
                             <button id="btn-pending-jobs" class="w-full text-left p-2 rounded-lg bg-cyan-700/10 border border-cyan-600/20 hover:border-cyan-500/40 hover:bg-cyan-700/20 transition-colors flex items-center gap-2 text-xs text-cyan-400 mt-2 hidden">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                <span id="pending-jobs-label">Pending Jobs</span>
+                                <span id="pending-jobs-label">${t('custom_models.pending_jobs')}</span>
                             </button>
 
                             <!-- Prompt info (original + AI-improved + negative) -->
@@ -1704,8 +1704,8 @@
                     const done = evt.completed || 0;
                     const tot = evt.total || total;
                     const pct = 20 + Math.round((done / tot) * 70);
-                    if (text) text.textContent = `${evt.model_label} — submitted (generating in background)`;
-                    if (sub) sub.textContent = 'Image will appear in Pending Jobs when ready. You can continue working.';
+                    if (text) text.textContent = t('custom_models.async_submitted').replace('{{model}}', evt.model_label);
+                    if (sub) sub.textContent = t('custom_models.async_submitted_hint');
                     if (bar) bar.style.width = Math.min(pct, 92) + '%';
                     // Show the pending jobs button
                     document.getElementById('btn-pending-jobs')?.classList.remove('hidden');
@@ -2308,13 +2308,13 @@
                         const label = document.getElementById('pending-jobs-label');
                         if (btn) {
                             btn.classList.toggle('hidden', count === 0 && (data.jobs || []).length === 0);
-                            if (label) label.textContent = count > 0 ? `Pending Jobs (${count} generating...)` : `Pending Jobs (${(data.jobs || []).length})`;
+                            if (label) label.textContent = count > 0 ? t('custom_models.pending_jobs_count').replace('{{count}}', count) : t('custom_models.pending_jobs_total').replace('{{count}}', (data.jobs || []).length);
                         }
 
                         // Toast when a job completes
                         const completed = (data.jobs || []).filter(j => j.status === 'complete' && !j._notified);
                         completed.forEach(j => {
-                            window.showToast?.(`${j.model_label} image ready — check Pending Jobs`, 'success');
+                            window.showToast?.(t('custom_models.async_ready_toast').replace('{{model}}', j.model_label), 'success');
                             j._notified = true;
                         });
                     }
@@ -2337,7 +2337,7 @@
             backdrop.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
 
             const jobsHtml = jobs.length === 0
-                ? '<p class="text-xs text-brand-text-muted py-4 text-center">No async jobs yet. Self-hosted models generate images in the background.</p>'
+                ? `<p class="text-xs text-brand-text-muted py-4 text-center">${t('custom_models.async_no_jobs')}</p>`
                 : jobs.map(j => {
                     const statusColor = j.status === 'complete' ? 'text-emerald-400' : j.status === 'failed' ? 'text-red-400' : 'text-amber-400';
                     const statusIcon = j.status === 'complete' ? '✓' : j.status === 'failed' ? '✗' : '⟳';
@@ -2370,10 +2370,10 @@
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
                         <h3 class="text-sm font-semibold text-brand-text flex items-center gap-2">
                             <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            Pending Jobs
+                            ${t('custom_models.pending_jobs')}
                         </h3>
                         <div class="flex gap-2">
-                            ${jobs.some(j => j.status === 'complete' || j.status === 'failed') ? '<button class="pj-clear text-[10px] text-brand-text-muted hover:text-red-400">Clear completed</button>' : ''}
+                            ${jobs.some(j => j.status === 'complete' || j.status === 'failed') ? `<button class="pj-clear text-[10px] text-brand-text-muted hover:text-red-400">${t('custom_models.async_clear_completed')}</button>` : ''}
                             <button class="pj-close p-1 rounded hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
@@ -2383,7 +2383,7 @@
                         ${jobsHtml}
                     </div>
                     <div class="px-5 py-3 border-t border-brand-border text-[10px] text-brand-text-muted">
-                        Self-hosted models generate asynchronously. Images appear in the Gallery when complete.
+                        ${t('custom_models.async_footer')}
                     </div>
                 </div>`;
 
