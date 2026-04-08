@@ -109,7 +109,7 @@ MODEL_CATALOG = {
 
     "flux1_dev": {
         "label": "FLUX.1 [dev]",
-        "description": "High-quality text-to-image by Black Forest Labs. Non-commercial license.",
+        "description": "High-quality text-to-image by Black Forest Labs. Non-commercial license. Slow on 24GB GPU (sequential CPU offload).",
         "category": "image_generation",
         "studio": "image",
         "provider": "Black Forest Labs",
@@ -130,7 +130,7 @@ MODEL_CATALOG = {
             "library": "diffusers",
             "loader_class": "FluxPipeline",
             "torch_dtype": "bfloat16",
-            "enable_model_cpu_offload": True,
+            "enable_sequential_cpu_offload": True,
             "enable_vae_slicing": True,
             "enable_vae_tiling": True,
             "predictor_type": "text_to_image",
