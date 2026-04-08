@@ -408,7 +408,7 @@
                 const color = _providerColors[idx % _providerColors.length];
                 return `
                     <details class="mb-3 ms-collapsible">
-                        <summary class="text-xs font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                        <summary class="text-sm font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
                             ${this._esc(provider)}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
                         </summary>
@@ -1122,7 +1122,7 @@
                 if (groupTemplates.length === 0) return '';
                 return `
                     <details class="mb-4 ms-collapsible">
-                        <summary class="text-xs font-semibold ${group.color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${this._esc(group.label)} <span class="text-[9px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></summary>
+                        <summary class="text-sm font-semibold ${group.color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${this._esc(group.label)} <span class="text-[10px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></summary>
                         <div class="mt-2">
                             <div class="flex justify-end mb-1">
                                 <button class="ms-tmpl-group-toggle text-[9px] text-brand-text-muted hover:text-brand-accent cursor-pointer" data-group="${group.key}">Expand editors</button>
@@ -1439,10 +1439,13 @@
                 let html = '<div class="space-y-4">';
                 html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on Amazon SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
 
+                const _cmColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400'];
+                let _cmIdx = 0;
                 for (const [studio, studioModels] of Object.entries(groups)) {
                     const wasOpen = openSections.has(studio);
+                    const cmColor = _cmColors[_cmIdx++ % _cmColors.length];
                     html += `<details class="ms-collapsible" data-cm-studio="${studio}" ${wasOpen ? 'open' : ''}>
-                        <summary class="text-sm font-medium text-brand-text cursor-pointer py-1">${studioLabels[studio] || studio} (${studioModels.length})</summary>
+                        <summary class="text-sm font-semibold ${cmColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none py-1">${studioLabels[studio] || studio} <span class="text-[10px] font-normal text-brand-text-muted">(${studioModels.length})</span></summary>
                         <div class="space-y-2 mt-2">`;
 
                     for (const m of studioModels) {
