@@ -96,7 +96,7 @@ MODEL_CATALOG = {
             },
             "output_type": "base64_png",
             "supports_negative_prompt": False,
-            "max_prompt_length": 2048,
+            "max_prompt_length": 300,
             "typical_latency_seconds": 5,
         },
         "pricing": {
@@ -144,7 +144,7 @@ MODEL_CATALOG = {
             },
             "output_type": "base64_png",
             "supports_negative_prompt": False,
-            "max_prompt_length": 2048,
+            "max_prompt_length": 300,
             "typical_latency_seconds": 15,
         },
         "pricing": {
@@ -189,7 +189,7 @@ MODEL_CATALOG = {
             },
             "output_type": "base64_png",
             "supports_negative_prompt": False,
-            "max_prompt_length": 2048,
+            "max_prompt_length": 300,
             "typical_latency_seconds": 2,
         },
         "pricing": {

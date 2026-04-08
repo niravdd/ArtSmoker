@@ -160,10 +160,10 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
         model_key=model_key,
         model_label=model_config.get("label", model_key),
         prompt=payload.get("prompt", ""),
+        full_payload=payload,
         output_location=output_location,
         s3_bucket=s3_bucket,
         s3_key=s3_key,
-        gallery_dir="",
     )
 
     # Return sentinel — the caller knows this is async (not a final image)
