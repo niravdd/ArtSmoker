@@ -1138,6 +1138,12 @@
                     </details>`;
             }).join('');
 
+            // Default: open the first group section on fresh load
+            const tmplSections = container.querySelectorAll('details.ms-collapsible');
+            if (tmplSections.length > 0 && !Array.from(tmplSections).some(d => d.open)) {
+                tmplSections[0].open = true;
+            }
+
             this._attachTemplateEvents(container, modal, templates);
         },
 
@@ -1537,6 +1543,15 @@
                 });
                 html += '</div>';
                 container.innerHTML = html;
+
+                // Default: open the first top-level section if none are open (fresh load)
+                const cmSections = container.querySelectorAll('details.ms-collapsible[data-cm-studio]');
+                if (cmSections.length > 0 && !Array.from(cmSections).some(d => d.open)) {
+                    cmSections[0].open = true;
+                    // Also open first sub-section within it
+                    const firstSub = cmSections[0].querySelector('details.ms-collapsible[data-cm-cat]');
+                    if (firstSub) firstSub.open = true;
+                }
 
                 // Auto-refresh if any models are deploying
                 const hasDeploying = models.some(m => m.deployment_status === 'Creating' || m.deployment_status === 'Updating');
