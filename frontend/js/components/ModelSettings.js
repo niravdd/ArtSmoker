@@ -75,31 +75,31 @@
                     <div class="flex flex-1 min-h-0">
                         <!-- Sidebar tabs -->
                         <div class="w-48 flex-shrink-0 border-r border-brand-border bg-black/10 py-2 overflow-y-auto">
-                            <button class="ms-vtab active w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors bg-brand-accent/10 text-brand-accent border-l-2 border-brand-accent" data-ms-tab="image-studio">
-                                🖼️ ${t('model_settings.tab_image')} <span class="text-[9px] opacity-50 ml-1">(${imgCount})</span>
+                            <button class="ms-vtab active w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors bg-brand-accent/10 text-brand-accent border-l-2 border-brand-accent" data-ms-tab="image-studio">
+                                🖼️  ${t('model_settings.tab_image')} <span class="text-[9px] opacity-50 ml-1">(${imgCount})</span>
                             </button>
-                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="video-studio">
-                                🎬 ${t('model_settings.tab_video')} <span class="text-[9px] opacity-50 ml-1">(${vidCount})</span>
+                            <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="video-studio">
+                                🎬  ${t('model_settings.tab_video')} <span class="text-[9px] opacity-50 ml-1">(${vidCount})</span>
                             </button>
-                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="chat-studio">
-                                💬 ${t('model_settings.tab_chat')} <span class="text-[9px] opacity-50 ml-1">(${Object.keys(reg.chat_models || {}).length})</span>
+                            <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="chat-studio">
+                                💬  ${t('model_settings.tab_chat')} <span class="text-[9px] opacity-50 ml-1">(${Object.keys(reg.chat_models || {}).length})</span>
                             </button>
-                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="type-studio">
-                                ✍️ ${t('model_settings.tab_type')}
+                            <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="type-studio">
+                                ✍️  ${t('model_settings.tab_type')}
                             </button>
-                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="shared-ai">
-                                ⚙️ ${t('model_settings.tab_shared')} <span class="text-[9px] opacity-50 ml-1">(${llmCount})</span>
-                            </button>
-                            <div class="border-t border-brand-border my-1"></div>
-                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="custom-models">
-                                🔧 ${t('custom_models.tab_title')}
+                            <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="shared-ai">
+                                ⚙️  ${t('model_settings.tab_shared')} <span class="text-[9px] opacity-50 ml-1">(${llmCount})</span>
                             </button>
                             <div class="border-t border-brand-border my-1"></div>
-                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="prompt-templates">
-                                📝 ${t('model_settings.tab_templates')}
+                            <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="custom-models">
+                                🔧  ${t('custom_models.tab_title')}
                             </button>
-                            <button class="ms-vtab w-full text-left text-xs px-4 py-2 hover:bg-white/5 transition-colors" data-ms-tab="registry-json">
-                                { } ${t('model_settings.tab_json')}
+                            <div class="border-t border-brand-border my-1"></div>
+                            <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="prompt-templates">
+                                📝  ${t('model_settings.tab_templates')}
+                            </button>
+                            <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="registry-json">
+                                { }  ${t('model_settings.tab_json')}
                             </button>
                         </div>
 
@@ -124,7 +124,7 @@
                                 <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="video-studio">Show All</button>
                             </div>
                             <details class="ms-collapsible">
-                                <summary class="text-xs font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none mb-2">${t('model_settings.tab_video')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.video_models || {}).length})</span></summary>
+                                <summary class="text-sm font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none mb-2">${t('model_settings.tab_video')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.video_models || {}).length})</span></summary>
                                 <div id="ms-video-models" class="space-y-3">
                                     ${this._renderVideoModels(reg)}
                                 </div>
@@ -300,13 +300,14 @@
                 return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
             });
 
-            return sortedPurposes.map(purpose => {
+            const _purposeColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400', 'text-amber-400', 'text-pink-400', 'text-teal-400', 'text-indigo-400'];
+            return sortedPurposes.map((purpose, idx) => {
                 const label = PURPOSE_LABELS[purpose] || purpose;
                 const entries = groups[purpose];
-                const isEditing = purpose !== 'text_to_image' && !purpose.startsWith('upscale') && purpose !== 'remove_background';
+                const color = _purposeColors[idx % _purposeColors.length];
                 return `
                     <details class="mb-3 ms-collapsible">
-                        <summary class="text-xs font-semibold ${isEditing ? 'text-emerald-400' : 'text-brand-accent'} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                        <summary class="text-sm font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
                             ${label}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
                         </summary>
@@ -490,35 +491,55 @@
 
         _renderCategory(name, cat) {
             if (!cat) return '';
-            // Build model options from chat_models in registry
             const chatModels = this._registry?.chat_models || {};
             const currentId = cat.current || '';
-            // Extract model family for fuzzy matching: "us.anthropic.claude-opus-4-6-v1" → "claude-opus"
             const familyOf = (id) => {
                 const tail = id.replace(/^us\./, '').split('.').pop() || '';
                 return tail.replace(/-\d.*/, '').toLowerCase();
             };
             const currentFamily = familyOf(currentId);
-            const modelOptions = Object.entries(chatModels)
+
+            // Build options grouped by provider
+            const groups = {};
+            Object.entries(chatModels)
                 .filter(([, m]) => m.enabled !== false)
-                .sort((a, b) => (a[1].label || '').localeCompare(b[1].label || ''))
-                .map(([, m]) => {
+                .forEach(([, m]) => {
+                    const provider = m.provider || 'Other';
+                    if (!groups[provider]) groups[provider] = [];
                     const mid = m.model_id || '';
-                    // Match by exact ID, substring, or model family
                     const isMatch = mid === currentId
                         || currentId.includes(mid.replace('us.', ''))
                         || mid.includes(currentId.replace('us.', ''))
                         || (currentFamily && familyOf(mid) === currentFamily);
-                    const selected = isMatch ? 'selected' : '';
                     const regions = (m.available_regions || []).length;
-                    return `<option value="${this._esc(currentId && isMatch ? currentId : mid)}" data-region="${this._esc(m.region || '')}" ${selected}>${this._esc(m.label || mid)} (${this._esc(m.provider || '')}${regions > 1 ? `, ${regions} regions` : ''})</option>`;
-                }).join('');
-            // Add current value as fallback if not in dropdown
+                    groups[provider].push({ mid: currentId && isMatch ? currentId : mid, label: m.label || mid, provider, regions, region: m.region || '', selected: isMatch });
+                });
+
+            let optionsHtml = '';
+            for (const [provider, models] of Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))) {
+                optionsHtml += `<optgroup label="${this._esc(provider)}">`;
+                models.sort((a, b) => a.label.localeCompare(b.label)).forEach(m => {
+                    optionsHtml += `<option value="${this._esc(m.mid)}" data-region="${this._esc(m.region)}" ${m.selected ? 'selected' : ''}>${this._esc(m.label)}${m.regions > 1 ? ` (${m.regions} regions)` : ''}</option>`;
+                });
+                optionsHtml += '</optgroup>';
+            }
+
+            // Fallback if current model not in list
             const hasMatch = Object.values(chatModels).some(m => {
                 const mid = m.model_id || '';
                 return mid === currentId || currentId.includes(mid.replace('us.', '')) || mid.includes(currentId.replace('us.', '')) || (currentFamily && familyOf(mid) === currentFamily);
             });
             const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(currentId)} (current)</option>` : '';
+
+            // Find current model label for display
+            let currentLabel = currentId;
+            for (const m of Object.values(chatModels)) {
+                const mid = m.model_id || '';
+                if (mid === currentId || currentId.includes(mid.replace('us.', '')) || mid.includes(currentId.replace('us.', '')) || (currentFamily && familyOf(mid) === currentFamily)) {
+                    currentLabel = m.label || mid;
+                    break;
+                }
+            }
 
             return `
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-category="${name}">
@@ -528,10 +549,14 @@
                     </div>
                     <p class="text-[10px] text-brand-text-muted/50 mb-2">${this._esc(cat.description || '')}</p>
                     <div class="flex gap-2">
-                        <select class="ms-cat-model input text-xs flex-1 font-mono" data-cat="${name}">
-                            ${fallbackOpt}
-                            ${modelOptions}
-                        </select>
+                        <div class="flex-1 relative ms-searchable-select">
+                            <input type="text" class="ms-cat-search input text-xs w-full" data-cat="${name}" placeholder="Search models..." value="${this._esc(currentLabel)}" autocomplete="off" />
+                            <select class="ms-cat-model hidden" data-cat="${name}">
+                                ${fallbackOpt}
+                                ${optionsHtml}
+                            </select>
+                            <div class="ms-cat-dropdown hidden absolute left-0 right-0 top-full mt-1 z-50 bg-brand-surface border border-brand-border rounded-lg shadow-xl max-h-60 overflow-y-auto"></div>
+                        </div>
                         <input type="text" class="ms-cat-region input text-xs w-28" value="${this._esc(cat.region || '')}" data-cat="${name}" placeholder="${t('common.region')}" />
                         <button class="ms-cat-save btn btn-primary btn-sm text-xs" data-cat="${name}">${t('common.save')}</button>
                     </div>
@@ -688,7 +713,15 @@
                 });
             });
 
-            // Toggle all template editors open/closed
+            // Default: open the first section in each tab on fresh load
+            modal.querySelectorAll('.ms-tab-panel').forEach(panel => {
+                const sections = panel.querySelectorAll('details.ms-collapsible');
+                if (sections.length > 0) {
+                    sections[0].open = true;  // First section open
+                    for (let i = 1; i < sections.length; i++) sections[i].open = false;  // Rest collapsed
+                }
+            });
+
             // Toggle all sections per tab (Show All / Hide All)
             modal.querySelectorAll('.ms-toggle-sections').forEach(btn => {
                 let expanded = false;
@@ -854,13 +887,67 @@
                 });
             });
 
-            // Auto-populate region when model selected from dropdown
-            modal.querySelectorAll('.ms-cat-model').forEach(sel => {
-                sel.addEventListener('change', () => {
-                    const opt = sel.selectedOptions[0];
-                    const region = opt?.dataset.region;
-                    const regionInput = sel.closest('[data-category]')?.querySelector('.ms-cat-region');
-                    if (region && regionInput) regionInput.value = region;
+            // Searchable model dropdowns for categories
+            modal.querySelectorAll('.ms-searchable-select').forEach(wrapper => {
+                const searchInput = wrapper.querySelector('.ms-cat-search');
+                const hiddenSelect = wrapper.querySelector('.ms-cat-model');
+                const dropdown = wrapper.querySelector('.ms-cat-dropdown');
+                if (!searchInput || !hiddenSelect || !dropdown) return;
+
+                // Build dropdown items from select options (grouped by optgroup)
+                const buildDropdown = (filter = '') => {
+                    const lower = filter.toLowerCase();
+                    let html = '';
+                    let hasResults = false;
+                    hiddenSelect.querySelectorAll('optgroup, option').forEach(el => {
+                        if (el.tagName === 'OPTGROUP') {
+                            const groupLabel = el.label || '';
+                            const options = Array.from(el.querySelectorAll('option'))
+                                .filter(o => !lower || o.textContent.toLowerCase().includes(lower) || groupLabel.toLowerCase().includes(lower));
+                            if (options.length > 0) {
+                                html += `<div class="px-3 py-1 text-[9px] text-brand-text-muted/50 uppercase tracking-wider font-semibold bg-black/20 sticky top-0">${wrapper.parentElement.closest('[data-category]') ? '' : ''}${groupLabel}</div>`;
+                                options.forEach(o => {
+                                    const selected = o.selected ? 'bg-brand-accent/10 text-brand-accent' : 'hover:bg-white/5';
+                                    html += `<div class="ms-dd-item px-3 py-1.5 text-xs cursor-pointer ${selected}" data-value="${o.value}" data-region="${o.dataset.region || ''}">${o.textContent}</div>`;
+                                });
+                                hasResults = true;
+                            }
+                        } else if (!el.closest('optgroup')) {
+                            if (!lower || el.textContent.toLowerCase().includes(lower)) {
+                                const selected = el.selected ? 'bg-brand-accent/10 text-brand-accent' : 'hover:bg-white/5';
+                                html += `<div class="ms-dd-item px-3 py-1.5 text-xs cursor-pointer ${selected}" data-value="${el.value}" data-region="${el.dataset.region || ''}">${el.textContent}</div>`;
+                                hasResults = true;
+                            }
+                        }
+                    });
+                    if (!hasResults) html = '<div class="px-3 py-2 text-xs text-brand-text-muted">No models found</div>';
+                    dropdown.innerHTML = html;
+
+                    // Wire click handlers
+                    dropdown.querySelectorAll('.ms-dd-item').forEach(item => {
+                        item.addEventListener('click', () => {
+                            hiddenSelect.value = item.dataset.value;
+                            searchInput.value = item.textContent.trim();
+                            dropdown.classList.add('hidden');
+                            // Auto-populate region
+                            const regionInput = wrapper.closest('[data-category]')?.querySelector('.ms-cat-region');
+                            if (item.dataset.region && regionInput) regionInput.value = item.dataset.region;
+                        });
+                    });
+                };
+
+                searchInput.addEventListener('focus', () => {
+                    buildDropdown(searchInput.value === searchInput.defaultValue ? '' : searchInput.value);
+                    dropdown.classList.remove('hidden');
+                    searchInput.select();
+                });
+                searchInput.addEventListener('input', () => {
+                    buildDropdown(searchInput.value);
+                    dropdown.classList.remove('hidden');
+                });
+                // Close on click outside
+                document.addEventListener('click', (e) => {
+                    if (!wrapper.contains(e.target)) dropdown.classList.add('hidden');
                 });
             });
 
