@@ -86,6 +86,9 @@ def submit_job(
     with _lock:
         _jobs[job_id] = job
 
+    # Persist job to S3 immediately (survives server restart)
+    _persist_job_to_s3(job)
+
     # Ensure the background poller is running
     _ensure_poller()
 
@@ -216,6 +219,10 @@ def _ensure_poller():
     global _poller_thread
     if _poller_thread and _poller_thread.is_alive():
         return
+
+    # Restore persisted jobs from S3 (if any from before last restart)
+    load_persisted_jobs()
+
     _poller_stop.clear()
     _poller_thread = threading.Thread(target=_poll_loop, daemon=True, name="async-job-poller")
     _poller_thread.start()
@@ -303,6 +310,12 @@ def _check_job(job: dict, s3):
         # Track telemetry + cost
         _track_completion(job, duration_seconds, compute_cost)
 
+        # Clean up S3 input and output files (no longer needed)
+        _cleanup_s3(job, s3)
+
+        # Persist job state to S3 (survives server restarts)
+        _persist_job_to_s3(job)
+
         logger.info("Async job complete: %s → %s (%d bytes, %.0fs, ~$%.4f)",
                      job["job_id"], image_path, len(image_bytes), duration_seconds, compute_cost)
 
@@ -320,6 +333,8 @@ def _check_job(job: dict, s3):
                     job["error"] = f"Timed out after {int(elapsed)}s"
                     job["completed_at"] = datetime.now(timezone.utc).isoformat()
                 _update_gallery_on_failure(job)
+                _cleanup_s3(job, s3)
+                _persist_job_to_s3(job)
             else:
                 logger.debug("Async job %s: S3 check error (will retry): %s", job["job_id"], e)
 
@@ -402,3 +417,147 @@ def _track_completion(job: dict, duration_seconds: float, compute_cost: float):
         )
     except Exception:
         pass
+
+
+# ── S3 Cleanup & Persistence ────────────────────────────────────────────
+
+_JOBS_S3_PREFIX = "artsmoker/async-jobs/"
+
+
+def _cleanup_s3(job: dict, s3):
+    """Delete the S3 input and output files after job completes or fails."""
+    try:
+        # Delete output file
+        output_loc = job.get("output_location", "")
+        if output_loc:
+            parts = output_loc.replace("s3://", "").split("/", 1)
+            s3.delete_object(Bucket=parts[0], Key=parts[1])
+
+        # Delete input file (find it by endpoint name + timestamp pattern)
+        # The input was uploaded to inference-input/{endpoint}/{timestamp}.json
+        # We don't store the exact input key, so we skip input cleanup for now
+        # (inputs are tiny ~1KB files, not worth the complexity)
+
+        logger.debug("Cleaned up S3 output for job %s", job["job_id"])
+    except Exception as e:
+        logger.debug("S3 cleanup failed for job %s: %s", job["job_id"], e)
+
+
+def _persist_job_to_s3(job: dict):
+    """Persist job state to S3 so it survives server restarts.
+
+    Jobs are stored as JSON files under artsmoker/async-jobs/{job_id}.json
+    in the same S3 bucket used for model storage.
+    """
+    try:
+        import boto3
+        from backend.services.sagemaker_deployer import get_deployment_s3_bucket
+        from backend.config import settings
+
+        bucket = get_deployment_s3_bucket()
+        if not bucket:
+            return
+
+        # Persist everything needed to resume polling after server restart:
+        # - S3 output location (where to poll for the result)
+        # - Gallery info (where to save the image)
+        # - Full prompt + payload (for metadata)
+        persist = {
+            "job_id": job["job_id"],
+            "asset_id": job.get("asset_id"),
+            "model_key": job["model_key"],
+            "model_label": job["model_label"],
+            "prompt": job.get("prompt", ""),
+            "full_prompt": job.get("full_prompt", ""),
+            "full_payload": job.get("full_payload", {}),
+            "output_location": job.get("output_location", ""),
+            "s3_bucket": job.get("s3_bucket", ""),
+            "s3_key": job.get("s3_key", ""),
+            "option_index": job.get("option_index", 0),
+            "variation_index": job.get("variation_index", 0),
+            "generation_id": job.get("generation_id", ""),
+            "status": job["status"],
+            "progress": job.get("progress", 0),
+            "submitted_at": job["submitted_at"],
+            "completed_at": job.get("completed_at"),
+            "image_path": job.get("image_path"),
+            "error": job.get("error"),
+            "duration_seconds": job.get("duration_seconds"),
+            "compute_cost_usd": job.get("compute_cost_usd"),
+        }
+
+        s3 = boto3.client("s3", region_name=settings.aws_region_models)
+        s3.put_object(
+            Bucket=bucket,
+            Key=f"{_JOBS_S3_PREFIX}{job['job_id']}.json",
+            Body=json.dumps(persist, indent=2, default=str),
+            ContentType="application/json",
+        )
+        logger.debug("Persisted job %s to S3", job["job_id"])
+    except Exception as e:
+        logger.debug("Failed to persist job %s to S3: %s", job["job_id"], e)
+
+
+def load_persisted_jobs():
+    """Load jobs from S3 on startup — restores jobs from before last restart.
+
+    Pending/generating jobs resume polling. Completed/failed jobs are loaded
+    for display in the Pending Jobs panel but don't need polling.
+    Cleans up completed/failed job files older than 24 hours.
+    """
+    try:
+        import boto3
+        from backend.services.sagemaker_deployer import get_deployment_s3_bucket
+        from backend.config import settings
+
+        bucket = get_deployment_s3_bucket()
+        if not bucket:
+            return 0
+
+        s3 = boto3.client("s3", region_name=settings.aws_region_models)
+        resp = s3.list_objects_v2(Bucket=bucket, Prefix=_JOBS_S3_PREFIX)
+        files = resp.get("Contents", [])
+
+        loaded = 0
+        pending = 0
+        cleanup = []
+        with _lock:
+            for f in files:
+                try:
+                    obj = s3.get_object(Bucket=bucket, Key=f["Key"])
+                    job = json.loads(obj["Body"].read().decode("utf-8"))
+                    job_id = job.get("job_id")
+                    if not job_id or job_id in _jobs:
+                        continue
+
+                    status = job.get("status", "")
+
+                    # Clean up old completed/failed jobs (>24h)
+                    submitted = job.get("submitted_at", "")
+                    if submitted and status in (COMPLETE, FAILED):
+                        age = (datetime.now(timezone.utc) - datetime.fromisoformat(submitted)).total_seconds()
+                        if age > 86400:
+                            cleanup.append(f["Key"])
+                            continue
+
+                    _jobs[job_id] = job
+                    loaded += 1
+                    if status in (PENDING, GENERATING):
+                        pending += 1
+                except Exception:
+                    pass
+
+        # Clean up old job files from S3
+        for key in cleanup:
+            try:
+                s3.delete_object(Bucket=bucket, Key=key)
+            except Exception:
+                pass
+
+        if loaded:
+            logger.info("Restored %d async jobs from S3 (%d pending, %d cleaned up)",
+                        loaded, pending, len(cleanup))
+        return loaded
+    except Exception as e:
+        logger.debug("Failed to load persisted jobs: %s", e)
+        return 0
