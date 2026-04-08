@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-04-07T15:44:02.968999+00:00",
+  "last_updated": "2026-04-08T02:45:29.208801+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -21,7 +21,7 @@
     "fallback_llm": {
       "label": "Fallback LLM",
       "description": "Used when primary Claude models return AccessDeniedException. Should be a widely available model.",
-      "current": "anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "current": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
       "region": "us-west-2",
       "provider": "Anthropic",
       "api_type": "converse"
@@ -1484,13 +1484,15 @@
       "label": "Conservative Upscale",
       "model_id": "us.stability.stable-conservative-upscale-v1:0",
       "region": "us-west-2",
-      "enabled": true
+      "enabled": true,
+      "provider": "Stability AI"
     },
     "upscale_fast": {
       "label": "Fast Upscale",
       "model_id": "us.stability.stable-fast-upscale-v1:0",
       "region": "us-west-2",
-      "enabled": true
+      "enabled": true,
+      "provider": "Stability AI"
     },
     "upscale_creative": {
       "label": "Creative Upscale",
@@ -2711,6 +2713,18 @@
           "default": "jpeg"
         }
       }
+    },
+    "sagemaker_async": {
+      "label": "Amazon SageMaker Async",
+      "description": "Custom self-hosted models on Amazon SageMaker async endpoints (scale-to-zero). Input/output via S3.",
+      "api_type": "sagemaker_async",
+      "parameters": {}
+    },
+    "sagemaker_realtime": {
+      "label": "Amazon SageMaker Realtime",
+      "description": "Custom self-hosted models on Amazon SageMaker realtime endpoints (always-on).",
+      "api_type": "sagemaker_realtime",
+      "parameters": {}
     }
   },
   "video_models": {
@@ -2808,10 +2822,10 @@
   },
   "video_settings": {
     "s3_bucket": "",
-    "s3_region": "",
-    "storage_preference": "local",
-    "video_duration": 6,
-    "video_fps": 24
+    "s3_prefix": "artsmoker/video/",
+    "store_local": true,
+    "s3_validated": false,
+    "s3_bucket_arn": ""
   },
   "chat_models": {
     "gemma_3_4b_it": {
