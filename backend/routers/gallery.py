@@ -37,41 +37,48 @@ async def list_gallery(
     from backend.services.telemetry import track_gallery_load
     if offset == 0:  # Only track the initial load, not pagination
         track_gallery_load()
-    asset_ids = store.list_generated_ids()
+    try:
+        asset_ids = store.list_generated_ids()
+    except Exception as exc:
+        logger.error("Gallery: failed to list IDs: %s", exc)
+        return []
     items: list[GalleryItem] = []
 
     for aid in asset_ids:
-        meta = _get_meta(aid)
-        if meta is None:
-            continue
-
-        if style_id and meta.get("style_id") != style_id:
-            continue
-        if asset_type and meta.get("asset_type") != asset_type:
-            continue
-
-        svg_url: str | None = None
-        svg_file = store.get_generated_file_path(aid, "asset.svg")
-        if svg_file is not None:
-            svg_url = f"/api/gallery/{aid}/svg"
-
-        created_at_str = meta.get("created_at")
         try:
-            created_at = datetime.fromisoformat(created_at_str) if created_at_str else datetime.utcnow()
-        except (ValueError, TypeError):
-            created_at = datetime.utcnow()
+            meta = _get_meta(aid)
+            if meta is None:
+                continue
 
-        items.append(
-            GalleryItem(
-                id=aid,
-                prompt=meta.get("prompt", ""),
-                style_id=meta.get("style_id"),
-                asset_type=meta.get("asset_type", ""),
-                png_url=f"/api/gallery/{aid}/png",
-                svg_url=svg_url,
-                created_at=created_at,
+            if style_id and meta.get("style_id") != style_id:
+                continue
+            if asset_type and meta.get("asset_type") != asset_type:
+                continue
+
+            svg_url: str | None = None
+            svg_file = store.get_generated_file_path(aid, "asset.svg")
+            if svg_file is not None:
+                svg_url = f"/api/gallery/{aid}/svg"
+
+            created_at_str = meta.get("created_at")
+            try:
+                created_at = datetime.fromisoformat(created_at_str) if created_at_str else datetime.utcnow()
+            except (ValueError, TypeError):
+                created_at = datetime.utcnow()
+
+            items.append(
+                GalleryItem(
+                    id=aid,
+                    prompt=meta.get("prompt", ""),
+                    style_id=meta.get("style_id"),
+                    asset_type=meta.get("asset_type", ""),
+                    png_url=f"/api/gallery/{aid}/png",
+                    svg_url=svg_url,
+                    created_at=created_at,
+                )
             )
-        )
+        except Exception as exc:
+            logger.warning("Gallery: skipping %s: %s", aid, exc)
 
     # Sort newest first
     items.sort(key=lambda x: x.created_at, reverse=True)
