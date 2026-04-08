@@ -368,6 +368,7 @@
 
         /** Called when navigating back to ImageStudio (view already cached) */
         onShow() {
+            this._loadModels();  // Refresh model list (picks up newly deployed custom models)
             this._loadStyles();
             this._ensurePromptEditor();
         },
