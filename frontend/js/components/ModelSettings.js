@@ -1499,15 +1499,16 @@
                             <div class="space-y-2 mt-2">`;
 
                     for (const m of catModels) {
-                        const deployed = m.deployment_status === 'InService';
+                        const deployed = m.deployment_status === 'InService' && !m.warming_up;
+                        const warmingUp = m.deployment_status === 'InService' && m.warming_up;
                         const deploying = m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying';
                         const failed = m.deployment_status === 'Failed' || m.deploy_stage === 'failed';
-                        const statusColor = deployed ? 'text-emerald-400' : deploying ? 'text-amber-400' : failed ? 'text-red-400' : 'text-brand-text-muted/50';
-                        const statusText = deployed ? t('custom_models.active') : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? t('custom_models.failed') : t('custom_models.not_deployed');
+                        const statusColor = deployed ? 'text-emerald-400' : warmingUp ? 'text-cyan-400' : deploying ? 'text-amber-400' : failed ? 'text-red-400' : 'text-brand-text-muted/50';
+                        const statusText = deployed ? t('custom_models.active') : warmingUp ? 'Deployed, loading model...' : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? t('custom_models.failed') : t('custom_models.not_deployed');
                         const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.hf_auth')}</span>` : '';
                         const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
                         const userBadge = m.user_added ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>` : '';
-                        const statusDot = deployed ? 'bg-emerald-400' : deploying ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
+                        const statusDot = deployed ? 'bg-emerald-400' : warmingUp ? 'bg-cyan-400 animate-pulse' : deploying ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
 
                         html += `
                             <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${deployed ? '' : failed ? 'border-red-500/20' : ''} flex items-center gap-3">

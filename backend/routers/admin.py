@@ -362,17 +362,18 @@ def get_image_model_options(region: str | None = Query(default=None)):
         if cfg.get("model_purpose") != "text_to_image":
             continue  # Only text-to-image models for the generation dropdown
 
-        # Custom-hosted models: only show if the endpoint is InService (fully ready)
+        # Custom-hosted models: only show if endpoint is InService AND warmed up
+        # (InService just means container started — model may still be downloading)
         if cfg.get("model_source") == "custom_hosted":
             try:
                 from backend.services.sagemaker_deployer import check_endpoint_status
                 ep_name = cfg.get("deployment", {}).get("endpoint_name", "")
                 if ep_name:
                     ep_status = check_endpoint_status(ep_name)
-                    if ep_status.get("status") != "InService":
-                        continue  # Still creating/updating/failed — don't list yet
+                    if ep_status.get("status") != "InService" or ep_status.get("warming_up"):
+                        continue  # Not ready — don't list
             except Exception:
-                continue  # Can't check — safer to hide
+                continue
 
         available_regions = cfg.get("available_regions", [cfg.get("region", "")])
 
@@ -466,8 +467,10 @@ def get_video_model_options():
             try:
                 from backend.services.sagemaker_deployer import check_endpoint_status
                 ep_name = cfg.get("deployment", {}).get("endpoint_name", "")
-                if ep_name and check_endpoint_status(ep_name).get("status") != "InService":
-                    continue
+                if ep_name:
+                    ep_status = check_endpoint_status(ep_name)
+                    if ep_status.get("status") != "InService" or ep_status.get("warming_up"):
+                        continue
             except Exception:
                 continue
 

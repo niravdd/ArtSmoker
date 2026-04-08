@@ -82,6 +82,7 @@ def list_catalog():
             "requirements": model["requirements"],
             "pricing": model["pricing"],
             "deployment_status": status.get("status", "NotFound"),
+            "warming_up": status.get("warming_up", False),
             "deploy_progress": deploy_progress.get("progress", ""),
             "deploy_stage": deploy_progress.get("stage", ""),
             "endpoint_name": endpoint_name if status.get("status") != "NotFound" else None,

@@ -402,16 +402,35 @@ def check_endpoint_status(endpoint_name: str) -> dict:
         sm = boto3.client("sagemaker", region_name=_get_region(),
                           config=BotoConfig(connect_timeout=5, read_timeout=10, retries={"max_attempts": 1}))
         resp = sm.describe_endpoint(EndpointName=endpoint_name)
+
+        # Detect warm-up period: InService but model may still be downloading/loading
+        # inside the container. SageMaker reports InService as soon as the container
+        # starts, but the model takes minutes to download from HuggingFace and load.
+        # We use a conservative warm-up window based on creation time.
+        status = resp["EndpointStatus"]
+        warming_up = False
+        if status == "InService":
+            creation_time = resp.get("CreationTime")
+            if creation_time:
+                from datetime import datetime, timezone
+                age_seconds = (datetime.now(timezone.utc) - creation_time.astimezone(timezone.utc)).total_seconds()
+                # Models need 5-15 min to download + load after container starts.
+                # Mark as warming up for 15 minutes after creation.
+                _WARMUP_SECONDS = 900
+                if age_seconds < _WARMUP_SECONDS:
+                    warming_up = True
+
         result = {
             "endpoint_name": endpoint_name,
-            "status": resp["EndpointStatus"],
+            "status": status,
+            "warming_up": warming_up,
             "creation_time": resp.get("CreationTime", "").isoformat() if resp.get("CreationTime") else "",
             "last_modified": resp.get("LastModifiedTime", "").isoformat() if resp.get("LastModifiedTime") else "",
         }
         _endpoint_status_cache[endpoint_name] = {"result": result, "time": _time.time()}
         return result
     except Exception as e:
-        result = {"endpoint_name": endpoint_name, "status": "NotFound", "error": str(e)}
+        result = {"endpoint_name": endpoint_name, "status": "NotFound", "warming_up": False, "error": str(e)}
         _endpoint_status_cache[endpoint_name] = {"result": result, "time": _time.time()}
         return result
 
