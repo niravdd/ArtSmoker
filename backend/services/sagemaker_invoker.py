@@ -134,7 +134,7 @@ def _invoke_async(endpoint_name: str, payload: dict,
     response = sm_runtime.invoke_endpoint_async(
         EndpointName=endpoint_name,
         ContentType="application/json",
-        InputLocation=_upload_async_input(endpoint_name, hf_payload),
+        InputLocation=_upload_async_input(endpoint_name, payload),
     )
 
     output_location = response.get("OutputLocation")
