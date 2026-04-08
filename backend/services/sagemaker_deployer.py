@@ -368,6 +368,13 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         else:
             raise
 
+    # Set up auto-scaling (scale to zero when idle) for async endpoints
+    if endpoint_type == "async":
+        try:
+            _setup_auto_scaling(endpoint_name)
+        except Exception as e:
+            logger.warning("Auto-scaling setup failed for %s (endpoint still works): %s", endpoint_name, e)
+
     return {
         "endpoint_name": endpoint_name,
         "model_name": sm_model_name,
@@ -477,6 +484,48 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
             logger.warning("Failed to delete S3 artifacts: %s", e)
 
     return {"deleted": deleted}
+
+
+def _setup_auto_scaling(endpoint_name: str):
+    """Configure auto-scaling for an async endpoint to scale to zero when idle.
+
+    Uses Application Auto Scaling with the ApproximateBacklogSizePerInstance
+    metric — when the async queue is empty for 10 minutes, scales to 0 instances
+    ($0 cost). Scales back up immediately when a new request arrives.
+    """
+    region = _get_region()
+    aas = boto3.client("application-autoscaling", region_name=region)
+    resource_id = f"endpoint/{endpoint_name}/variant/primary"
+
+    # Register scalable target: min=0 (scale to zero), max=1
+    aas.register_scalable_target(
+        ServiceNamespace="sagemaker",
+        ResourceId=resource_id,
+        ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+        MinCapacity=0,
+        MaxCapacity=1,
+    )
+
+    # Target tracking policy: scale based on async queue backlog
+    aas.put_scaling_policy(
+        ServiceNamespace="sagemaker",
+        ResourceId=resource_id,
+        ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+        PolicyName=f"{endpoint_name}-scale-to-zero",
+        PolicyType="TargetTrackingScaling",
+        TargetTrackingScalingPolicyConfiguration={
+            "TargetValue": 1.0,
+            "CustomizedMetricSpecification": {
+                "MetricName": "ApproximateBacklogSizePerInstance",
+                "Namespace": "AWS/SageMaker",
+                "Dimensions": [{"Name": "EndpointName", "Value": endpoint_name}],
+                "Statistic": "Average",
+            },
+            "ScaleInCooldown": 600,   # 10 min idle → scale to zero
+            "ScaleOutCooldown": 0,    # Instant scale-up on new request
+        },
+    )
+    logger.info("Auto-scaling configured for %s (scale to zero when idle)", endpoint_name)
 
 
 # ── Private helpers ───────────────────────────────────────────────────────
