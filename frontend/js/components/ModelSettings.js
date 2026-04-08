@@ -307,7 +307,7 @@
                 const color = _purposeColors[idx % _purposeColors.length];
                 return `
                     <details class="mb-3 ms-collapsible">
-                        <summary class="text-sm font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                        <summary class="text-sm font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">
                             ${label}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
                         </summary>
@@ -408,7 +408,7 @@
                 const color = _providerColors[idx % _providerColors.length];
                 return `
                     <details class="mb-3 ms-collapsible">
-                        <summary class="text-sm font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                        <summary class="text-sm font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">
                             ${this._esc(provider)}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
                         </summary>
@@ -1437,9 +1437,9 @@
                 });
 
                 const studioLabels = {
-                    image: '🖼️  Image Studio',
-                    video: '🎬  Video Studio',
-                    other: '⚙️  Other',
+                    image: 'Image Studio',
+                    video: 'Video Studio',
+                    other: 'Other',
                 };
                 const studioOrder = ['image', 'video', 'other'];
                 const categoryLabels = {
@@ -1474,7 +1474,7 @@
                     const studioColor = _studioColors[sIdx % _studioColors.length];
 
                     html += `<details class="mb-3 ms-collapsible" data-cm-studio="${studio}" ${studioOpen ? 'open' : ''}>
-                        <summary class="text-sm font-semibold ${studioColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                        <summary class="text-sm font-semibold ${studioColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">
                             ${studioLabels[studio] || studio}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${studioTotal})</span>
                         </summary>
@@ -1492,7 +1492,7 @@
                         const catColor = _catColors[cIdx % _catColors.length];
 
                         html += `<details class="mb-2 ms-collapsible" data-cm-cat="${cat}" ${catOpen ? 'open' : ''}>
-                            <summary class="text-xs font-semibold ${catColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                            <summary class="text-xs font-semibold ${catColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">
                                 ${categoryLabels[cat] || cat}
                                 <span class="text-[10px] font-normal text-brand-text-muted">(${catModels.length})</span>
                             </summary>
