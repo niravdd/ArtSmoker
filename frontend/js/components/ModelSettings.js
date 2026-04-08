@@ -1418,72 +1418,89 @@
                     return;
                 }
 
-                // Group by studio
+                // Group by category (like Image Studio groups by purpose)
                 const groups = {};
                 models.forEach(m => {
-                    const studio = m.studio || 'other';
-                    if (!groups[studio]) groups[studio] = [];
-                    groups[studio].push(m);
+                    const cat = m.category || 'other';
+                    if (!groups[cat]) groups[cat] = [];
+                    groups[cat].push(m);
                 });
 
-                const studioLabels = {
-                    image: t('custom_models.image_studio'),
-                    video: t('custom_models.video_studio'),
-                    other: t('custom_models.other'),
+                const categoryLabels = {
+                    image_generation: 'Image Generation',
+                    post_processing: 'Post Processing',
+                    utility: 'Utility & Composition',
+                    video_generation: 'Video Generation',
+                    other: 'Other',
                 };
+                const categoryOrder = ['image_generation', 'post_processing', 'utility', 'video_generation', 'other'];
+                const _cmColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400', 'text-amber-400'];
 
                 // Preserve which sections are expanded before re-rendering
                 const openSections = new Set();
-                container.querySelectorAll('details[data-cm-studio][open]').forEach(d => openSections.add(d.dataset.cmStudio));
+                container.querySelectorAll('details[data-cm-cat][open]').forEach(d => openSections.add(d.dataset.cmCat));
 
                 let html = '<div class="space-y-4">';
                 html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on Amazon SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
 
-                const _cmColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400'];
-                let _cmIdx = 0;
-                for (const [studio, studioModels] of Object.entries(groups)) {
-                    const wasOpen = openSections.has(studio);
-                    const cmColor = _cmColors[_cmIdx++ % _cmColors.length];
-                    html += `<details class="ms-collapsible" data-cm-studio="${studio}" ${wasOpen ? 'open' : ''}>
-                        <summary class="text-sm font-semibold ${cmColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none py-1">${studioLabels[studio] || studio} <span class="text-[10px] font-normal text-brand-text-muted">(${studioModels.length})</span></summary>
+                const sortedCats = Object.keys(groups).sort((a, b) => {
+                    const ai = categoryOrder.indexOf(a);
+                    const bi = categoryOrder.indexOf(b);
+                    return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+                });
+
+                sortedCats.forEach((cat, idx) => {
+                    const catModels = groups[cat];
+                    const wasOpen = openSections.has(cat);
+                    const cmColor = _cmColors[idx % _cmColors.length];
+                    html += `<details class="mb-3 ms-collapsible" data-cm-cat="${cat}" ${wasOpen ? 'open' : ''}>
+                        <summary class="text-sm font-semibold ${cmColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                            ${categoryLabels[cat] || cat}
+                            <span class="text-[10px] font-normal text-brand-text-muted">(${catModels.length})</span>
+                        </summary>
                         <div class="space-y-2 mt-2">`;
 
-                    for (const m of studioModels) {
+                    for (const m of catModels) {
                         const deployed = m.deployment_status === 'InService';
                         const deploying = m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying';
-                        const statusColor = deployed ? 'text-emerald-400' : deploying ? 'text-amber-400' : m.deployment_status === 'Failed' || m.deploy_stage === 'failed' ? 'text-red-400' : 'text-brand-text-muted/50';
-                        const statusText = deployed ? t('custom_models.active') : deploying ? (m.deploy_progress || t('custom_models.deploying')) : m.deployment_status === 'Failed' || m.deploy_stage === 'failed' ? t('custom_models.failed') : t('custom_models.not_deployed');
-                        const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 ml-1">${t('custom_models.hf_auth')}</span>` : '';
-                        const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted ml-1">${m.license?.split(' ')[0] || '?'}</span>`;
+                        const failed = m.deployment_status === 'Failed' || m.deploy_stage === 'failed';
+                        const statusColor = deployed ? 'text-emerald-400' : deploying ? 'text-amber-400' : failed ? 'text-red-400' : 'text-brand-text-muted/50';
+                        const statusText = deployed ? t('custom_models.active') : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? t('custom_models.failed') : t('custom_models.not_deployed');
+                        const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.hf_auth')}</span>` : '';
+                        const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
+                        const userBadge = m.user_added ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>` : '';
+                        const statusDot = deployed ? 'bg-emerald-400' : deploying ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
 
                         html += `
-                            <div class="p-3 rounded-lg bg-black/20 border border-brand-border/30">
-                                <div class="flex items-start justify-between">
-                                    <div>
-                                        <h4 class="text-xs font-semibold text-brand-text">${m.label} ${authBadge}${licenseBadge}</h4>
-                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${m.description}</p>
-                                        <div class="flex gap-3 mt-1.5 text-[10px] text-brand-text-muted/60">
-                                            <span>${t('custom_models.provider')}: ${m.provider}</span>
-                                            <span>${t('custom_models.instance')}: ${m.requirements?.recommended_instance || '?'}</span>
-                                            <span>${t('custom_models.est_cost')} ~$${m.pricing?.estimated_cost_per_image?.toFixed(2) || m.pricing?.estimated_cost_per_video?.toFixed(2) || '?'}/unit</span>
-                                            <span>${t('custom_models.vram')}: ${m.requirements?.min_vram_gb || '?'}GB+</span>
-                                        </div>
+                            <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${deployed ? '' : failed ? 'border-red-500/20' : ''} flex items-center gap-3">
+                                <div class="flex-shrink-0 w-2 h-2 rounded-full ${statusDot}" title="${statusText}"></div>
+                                <div class="flex-1 min-w-0">
+                                    <div class="flex items-center gap-2 flex-wrap">
+                                        <span class="text-xs font-semibold text-brand-text">${m.label}</span>
+                                        ${authBadge}${licenseBadge}${userBadge}
                                     </div>
-                                    <div class="flex flex-col items-end gap-1.5 flex-shrink-0">
-                                        <span class="text-[10px] font-medium ${statusColor}">${statusText}</span>
-                                        ${deployed
-                                            ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>`
-                                            : deploying
-                                            ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
-                                            : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
-                                        }
-                                        ${deployed ? `<button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
+                                    <p class="text-[10px] text-brand-text-muted mt-0.5 truncate">${m.description}</p>
+                                    <div class="flex gap-3 mt-1 text-[10px] text-brand-text-muted/60">
+                                        <span>${m.provider}</span>
+                                        <span>${m.requirements?.recommended_instance || '?'}</span>
+                                        <span>~$${m.pricing?.estimated_cost_per_image?.toFixed(2) || m.pricing?.estimated_cost_per_video?.toFixed(2) || '?'}/unit</span>
+                                        <span>${m.requirements?.min_vram_gb || '?'}GB VRAM</span>
                                     </div>
+                                </div>
+                                <div class="flex items-center gap-2 flex-shrink-0">
+                                    <span class="text-[10px] font-medium ${statusColor}">${statusText}</span>
+                                    ${deployed
+                                        ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>
+                                           <button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>`
+                                        : deploying
+                                        ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
+                                        : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
+                                    }
                                 </div>
                             </div>`;
                     }
                     html += '</div></details>';
-                }
+                });
                 html += '</div>';
                 container.innerHTML = html;
 
