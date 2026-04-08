@@ -6,9 +6,9 @@ deployer from the model catalog). ZERO model-specific code — adding a
 new model requires only a catalog entry.
 
 Supports two model loading modes:
-  1. HuggingFace models: The HF DLC container downloads the model at startup
-     using HF_MODEL_ID + HUGGING_FACE_HUB_TOKEN env vars (handled natively
-     by the container before this handler runs). Model weights arrive in model_dir.
+  1. HuggingFace models: Our handler downloads from ARTSMOKER_HF_REPO using
+     from_pretrained(repo_id). We do NOT use HF_MODEL_ID (the DLC container
+     intercepts that and bypasses our optimizations like CPU offloading).
   2. Pre-uploaded weights: Model weights are in model_dir (uploaded to S3 as tar.gz).
      The handler loads from the local path.
 
@@ -24,8 +24,12 @@ Environment variables (set by deployer from catalog['invoke']):
   ENABLE_CPU_OFFLOAD: Enable model CPU offload for memory optimization (true/false)
   PROCESSOR_CLASS:   Processor class for models that need one (Sam2Processor, etc.)
   LOADER_VARIANT:    Model variant (fp16, etc.)
-  HF_MODEL_ID:       HuggingFace repo ID (container downloads at startup)
+  ARTSMOKER_HF_REPO: HuggingFace repo ID (our handler downloads, NOT the DLC container)
   HUGGING_FACE_HUB_TOKEN: Auth token for gated HuggingFace models (read-only)
+  ENABLE_MODEL_CPU_OFFLOAD: Keep only active component on GPU (fits large models in 24GB)
+  ENABLE_SEQUENTIAL_CPU_OFFLOAD: Layer-by-layer offload (slowest, least VRAM)
+  ENABLE_VAE_SLICING: Process VAE in slices (saves VRAM on batch generation)
+  ENABLE_VAE_TILING: Process VAE in tiles (saves VRAM on large images)
 """
 
 import base64
@@ -82,9 +86,9 @@ def _import_class(module_path, class_name):
 #
 # Model source resolution:
 #   - If model_dir contains actual model files → load from local path
-#   - If model_dir only has handler code → load from HF_MODEL_ID (direct pull)
-# The HuggingFace libraries' from_pretrained() accept both local paths
-# and HuggingFace repo IDs, so the same code handles both cases.
+#   - Otherwise → download from ARTSMOKER_HF_REPO (our own env var)
+#   - We do NOT use HF_MODEL_ID (the DLC container intercepts that and
+#     uses its own handler, bypassing our optimizations)
 
 def _resolve_model_source(model_dir):
     """Determine whether to load from local path or HuggingFace repo.
@@ -92,15 +96,15 @@ def _resolve_model_source(model_dir):
     Returns the model identifier to pass to from_pretrained():
     either a local directory path or a HuggingFace repo ID.
     """
-    hf_model_id = _get_env("HF_MODEL_ID")
+    # Our own env var — NOT HF_MODEL_ID (which the DLC container intercepts)
+    hf_repo = _get_env("ARTSMOKER_HF_REPO")
 
     # Check if model_dir has actual model files (not just the handler code dir)
     has_weights = False
     if os.path.isdir(model_dir):
         for item in os.listdir(model_dir):
             if item == "code":
-                continue  # Skip handler code directory
-            # Model weight files: .bin, .safetensors, .pth, .pt, config.json, etc.
+                continue
             if item.endswith((".bin", ".safetensors", ".pth", ".pt", ".onnx")) or \
                item in ("config.json", "model_index.json", "tokenizer.json"):
                 has_weights = True
@@ -109,20 +113,19 @@ def _resolve_model_source(model_dir):
     if has_weights:
         logger.info("Loading model from local path: %s", model_dir)
         return model_dir
-    elif hf_model_id:
-        logger.info("No model weights in %s — loading from HuggingFace: %s", model_dir, hf_model_id)
-        return hf_model_id
+    elif hf_repo:
+        logger.info("Downloading model from HuggingFace: %s", hf_repo)
+        return hf_repo
     else:
-        # Fallback: try local path anyway (might work for some model types)
-        logger.warning("No model weights found and no HF_MODEL_ID set — attempting local load from %s", model_dir)
+        logger.warning("No model weights and no ARTSMOKER_HF_REPO — attempting local: %s", model_dir)
         return model_dir
 
 
 def _load_diffusers(model_dir):
-    """Load any diffusers pipeline — the specific class comes from LOADER_CLASS env.
+    """Load any diffusers pipeline with memory optimizations from env vars.
 
-    If model_dir has no weights, loads from HuggingFace via HF_MODEL_ID.
-    Auth token (if any) is already in process env via _fetch_hf_token().
+    Downloads from HuggingFace if no local weights. Applies optimizations
+    (CPU offloading, VAE slicing/tiling) based on catalog-driven env vars.
     """
     loader_class_name = _get_env("LOADER_CLASS", "AutoPipelineForText2Image")
     variant = _get_env("LOADER_VARIANT") or None
@@ -130,9 +133,6 @@ def _load_diffusers(model_dir):
     PipelineClass = _import_class("diffusers", loader_class_name)
 
     model_source = _resolve_model_source(model_dir)
-
-    # HF token is in process env (set by _fetch_hf_token) — HF libraries read it automatically.
-    # We also pass it explicitly as a safety net for libraries that don't check the env.
     hf_token = _get_env("HUGGING_FACE_HUB_TOKEN") or None
 
     kwargs = {"torch_dtype": _get_torch_dtype()}
@@ -141,20 +141,38 @@ def _load_diffusers(model_dir):
     if hf_token:
         kwargs["token"] = hf_token
 
+    logger.info("Loading %s with %s (dtype=%s)", model_source, loader_class_name, _get_env("TORCH_DTYPE", "float16"))
+
     try:
         pipe = PipelineClass.from_pretrained(model_source, **kwargs)
     except Exception:
-        # Fallback: try without variant (some models don't have fp16 variants)
         fallback_kwargs = {"torch_dtype": _get_torch_dtype()}
         if hf_token:
             fallback_kwargs["token"] = hf_token
         pipe = PipelineClass.from_pretrained(model_source, **fallback_kwargs)
 
-    pipe.to("cuda")
+    # Apply memory optimizations from catalog (via env vars)
+    # Order matters: CPU offload INSTEAD of .to("cuda") — they're mutually exclusive
+    if _get_env_bool("ENABLE_MODEL_CPU_OFFLOAD"):
+        logger.info("Enabling model CPU offload (keeps only active component on GPU)")
+        pipe.enable_model_cpu_offload()
+    elif _get_env_bool("ENABLE_SEQUENTIAL_CPU_OFFLOAD"):
+        logger.info("Enabling sequential CPU offload (layer-by-layer, slowest but least VRAM)")
+        pipe.enable_sequential_cpu_offload()
+    else:
+        pipe.to("cuda")
 
-    if _get_env_bool("ENABLE_CPU_OFFLOAD"):
+    if _get_env_bool("ENABLE_VAE_SLICING"):
+        logger.info("Enabling VAE slicing")
         try:
-            pipe.enable_model_cpu_offload()
+            pipe.enable_vae_slicing()
+        except Exception:
+            pass
+
+    if _get_env_bool("ENABLE_VAE_TILING"):
+        logger.info("Enabling VAE tiling")
+        try:
+            pipe.enable_vae_tiling()
         except Exception:
             pass
 
@@ -164,8 +182,7 @@ def _load_diffusers(model_dir):
 def _load_transformers(model_dir):
     """Load any transformers model — class/task from env vars.
 
-    If model_dir has no weights, loads from HuggingFace via HF_MODEL_ID.
-    Auth token (if any) is already in process env via _fetch_hf_token().
+    Downloads from HuggingFace via ARTSMOKER_HF_REPO if no local weights.
     """
     loader_class = _get_env("LOADER_CLASS", "pipeline")
     loader_task = _get_env("LOADER_TASK", "")
@@ -389,9 +406,8 @@ def model_fn(model_dir):
         except Exception:
             _config = {}
 
-    # Note: HuggingFace token (HUGGING_FACE_HUB_TOKEN) is passed as an env var
-    # by the deployer. The HF DLC container reads it natively at startup —
-    # no need to fetch from Secrets Manager here.
+    # HuggingFace token (HUGGING_FACE_HUB_TOKEN) is in env — HF libraries read it automatically.
+    # Model is downloaded by OUR handler (not the DLC container) via ARTSMOKER_HF_REPO.
 
     loader = _LOADERS.get(library)
     if not loader:

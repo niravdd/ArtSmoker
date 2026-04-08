@@ -109,69 +109,18 @@ def invoke_custom_model(
         raise RuntimeError(f"Custom model '{model_config.get('label', model_key)}' failed: {exc}")
 
 
-def _to_hf_payload(payload: dict) -> dict:
-    """Transform our payload format to the HuggingFace DLC expected format.
-
-    Our format:  {"prompt": "...", "width": 1024, "height": 1024, "seed": 123, ...}
-    HF format:   {"inputs": "...", "parameters": {"width": 1024, "height": 1024, "seed": 123, ...}}
-
-    The HF DLC container's built-in handler uses this format when HF_MODEL_ID
-    is set (it intercepts the request before any custom handler).
-    """
-    prompt = payload.pop("prompt", "")
-    # Everything else goes into parameters
-    return {"inputs": prompt, "parameters": payload}
-
-
-def _from_hf_response(response_body: bytes) -> dict:
-    """Parse the HuggingFace DLC response into our standard format.
-
-    The HF DLC returns either:
-    - A JSON array with base64 image: [{"generated_image": "base64..."}]
-    - A raw image (PNG/JPEG bytes)
-    - A JSON dict with "image" key
-
-    We normalize to: {"image": "base64_png_string"}
-    """
-    # Try JSON first
-    try:
-        data = json.loads(response_body.decode("utf-8"))
-        # Array of results (HF default for text-to-image)
-        if isinstance(data, list) and len(data) > 0:
-            item = data[0]
-            if isinstance(item, dict):
-                # {"generated_image": "base64..."} or {"image": "base64..."}
-                img = item.get("generated_image") or item.get("image") or ""
-                if img:
-                    return {"image": img}
-            elif isinstance(item, str):
-                return {"image": item}
-        # Dict response
-        elif isinstance(data, dict):
-            img = data.get("image") or data.get("generated_image") or ""
-            if img:
-                return {"image": img}
-        # Return as-is if we can't parse
-        return data if isinstance(data, dict) else {"image": ""}
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        pass
-
-    # Raw image bytes — encode to base64
-    return {"image": base64.b64encode(response_body).decode("utf-8")}
-
-
 def _invoke_realtime(endpoint_name: str, payload: dict) -> dict:
     """Invoke a real-time Amazon SageMaker endpoint."""
     sm_runtime = boto3.client("sagemaker-runtime", region_name=_get_region(), config=_SM_CONFIG)
 
-    hf_payload = _to_hf_payload(dict(payload))  # Copy to avoid mutating original
     response = sm_runtime.invoke_endpoint(
         EndpointName=endpoint_name,
         ContentType="application/json",
-        Body=json.dumps(hf_payload),
+        Body=json.dumps(payload),
     )
 
-    return _from_hf_response(response["Body"].read())
+    result = json.loads(response["Body"].read().decode("utf-8"))
+    return result
 
 
 def _invoke_async(endpoint_name: str, payload: dict,
@@ -182,7 +131,6 @@ def _invoke_async(endpoint_name: str, payload: dict,
     """
     sm_runtime = boto3.client("sagemaker-runtime", region_name=_get_region(), config=_SM_CONFIG)
 
-    hf_payload = _to_hf_payload(dict(payload))  # Copy to avoid mutating original
     response = sm_runtime.invoke_endpoint_async(
         EndpointName=endpoint_name,
         ContentType="application/json",
@@ -203,7 +151,8 @@ def _invoke_async(endpoint_name: str, payload: dict,
             bucket, key = _parse_s3_uri(output_location)
             obj = s3.get_object(Bucket=bucket, Key=key)
             body = obj["Body"].read()
-            return _from_hf_response(body)
+            result = json.loads(body.decode("utf-8"))
+            return result
         except s3.exceptions.NoSuchKey:
             # Result not ready yet
             time.sleep(5)

@@ -651,15 +651,13 @@ def _get_model_environment(model_key: str, model: dict,
                            hf_token: str | None = None) -> dict:
     """Get environment variables for the Amazon SageMaker container.
 
-    These env vars tell the universal inference handler (inference.py)
-    how to load and invoke this specific model. ALL configuration comes
-    from the catalog — the handler reads env vars, not model-specific code.
+    These env vars tell OUR inference handler (inference.py) how to load
+    and invoke this model. ALL configuration comes from the catalog.
 
-    For HuggingFace models: HF_MODEL_ID tells the container's built-in
-    loader to pull from HuggingFace at startup. HUGGING_FACE_HUB_TOKEN
-    provides auth for gated models. The token is also stored encrypted
-    in Secrets Manager for management — but the container needs the actual
-    value in the env var because the DLC entry point runs before our handler.
+    IMPORTANT: We do NOT set HF_MODEL_ID — that would cause the DLC
+    container's built-in handler to intercept the model loading (bypassing
+    our handler and its optimizations like CPU offloading). Instead we use
+    ARTSMOKER_HF_REPO which only our handler reads.
     """
     invoke = model.get("invoke", {})
     source = model.get("source", {})
@@ -668,19 +666,17 @@ def _get_model_environment(model_key: str, model: dict,
         "MODEL_KEY": model_key,
         "INFERENCE_LIBRARY": invoke.get("library", "diffusers"),
         "PREDICTOR_TYPE": invoke.get("predictor_type", "text_to_image"),
-        "HF_MODEL_ID": source.get("repo_id", ""),
+        # Our own env var — NOT HF_MODEL_ID (which the DLC container intercepts)
+        "ARTSMOKER_HF_REPO": source.get("repo_id", ""),
         "SAGEMAKER_PROGRAM": "inference.py",
         "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",
         # Full invoke config as JSON for advanced use
         "INVOKE_CONFIG": json.dumps(invoke, default=str),
-        # Note: requirements.txt in code/ is auto-installed by the HF DLC container.
-        # No need for SAGEMAKER_REQUIREMENTS — the container handles it natively.
-        # CUDA memory management — helps large models that fill the GPU
+        # CUDA memory management
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
     }
 
-    # HuggingFace token for gated models — the DLC container reads this
-    # at startup before our handler runs, so it must be the actual token
+    # HuggingFace token for gated models
     if hf_token:
         env["HUGGING_FACE_HUB_TOKEN"] = hf_token
 
@@ -693,12 +689,20 @@ def _get_model_environment(model_key: str, model: dict,
         env["TORCH_DTYPE"] = invoke["torch_dtype"]
     if invoke.get("trust_remote_code"):
         env["TRUST_REMOTE_CODE"] = "true"
-    if invoke.get("enable_cpu_offload"):
-        env["ENABLE_CPU_OFFLOAD"] = "true"
     if invoke.get("processor_class"):
         env["PROCESSOR_CLASS"] = invoke["processor_class"]
     if invoke.get("loader_variant"):
         env["LOADER_VARIANT"] = invoke["loader_variant"]
+
+    # Memory optimizations — read from catalog invoke config
+    if invoke.get("enable_model_cpu_offload"):
+        env["ENABLE_MODEL_CPU_OFFLOAD"] = "true"
+    if invoke.get("enable_sequential_cpu_offload"):
+        env["ENABLE_SEQUENTIAL_CPU_OFFLOAD"] = "true"
+    if invoke.get("enable_vae_slicing"):
+        env["ENABLE_VAE_SLICING"] = "true"
+    if invoke.get("enable_vae_tiling"):
+        env["ENABLE_VAE_TILING"] = "true"
 
     return env
 

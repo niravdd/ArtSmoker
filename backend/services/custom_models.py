@@ -80,9 +80,11 @@ MODEL_CATALOG = {
         },
         "invoke": {
             "library": "diffusers",
-            "loader_class": "AutoPipelineForText2Image",
+            "loader_class": "FluxPipeline",
             "torch_dtype": "bfloat16",
-            "enable_cpu_offload": True,
+            "enable_model_cpu_offload": True,
+            "enable_vae_slicing": True,
+            "enable_vae_tiling": True,
             "predictor_type": "text_to_image",
             "input_fields": {
                 "prompt": {"type": "string", "required": True},
@@ -107,7 +109,7 @@ MODEL_CATALOG = {
 
     "flux1_dev": {
         "label": "FLUX.1 [dev]",
-        "description": "High-quality text-to-image by Black Forest Labs. Non-commercial license. Requires 48GB+ GPU (L40S).",
+        "description": "High-quality text-to-image by Black Forest Labs. Non-commercial license.",
         "category": "image_generation",
         "studio": "image",
         "provider": "Black Forest Labs",
@@ -119,16 +121,18 @@ MODEL_CATALOG = {
             "repo_id": "black-forest-labs/FLUX.1-dev",
         },
         "requirements": {
-            "min_vram_gb": 48,
-            "recommended_instance": "ml.g6e.xlarge",
-            "min_instance": "ml.g6e.xlarge",
+            "min_vram_gb": 24,
+            "recommended_instance": "ml.g5.2xlarge",
+            "min_instance": "ml.g5.xlarge",
             "disk_gb": 35,
         },
         "invoke": {
             "library": "diffusers",
-            "loader_class": "AutoPipelineForText2Image",
+            "loader_class": "FluxPipeline",
             "torch_dtype": "bfloat16",
-            "enable_cpu_offload": True,
+            "enable_model_cpu_offload": True,
+            "enable_vae_slicing": True,
+            "enable_vae_tiling": True,
             "predictor_type": "text_to_image",
             "input_fields": {
                 "prompt": {"type": "string", "required": True},
@@ -145,7 +149,7 @@ MODEL_CATALOG = {
         },
         "pricing": {
             "estimated_cost_per_image": 0.06,
-            "instance_cost_per_hour": {"ml.g6e.xlarge": 2.61},
+            "instance_cost_per_hour": {"ml.g5.xlarge": 1.41, "ml.g5.2xlarge": 1.52},
         },
         "version": "1.0",
         "last_updated": "2024-08-01",
