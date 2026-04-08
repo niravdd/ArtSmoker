@@ -1,16 +1,24 @@
-"""Auto-update — pulls latest code from GitHub and restarts if needed.
+"""Auto-update — version-gated code updates from GitHub.
 
 Two modes:
   1. Startup update: runs once before the server starts accepting requests.
-     If code was updated, restarts the process so new code loads fresh.
+     If a newer version exists on origin/main, pulls and restarts.
 
   2. Periodic update: background scheduler checks every 24 hours. If the
      server has been idle (no requests for 60+ seconds), pulls and restarts.
      The frontend is notified before restart so users can re-submit.
 
+Version gating:
+  - Only updates if remote APP_VERSION in config.py is NEWER than local
+  - This prevents pulling incomplete/untested code — only version bumps trigger updates
+  - Developers bump APP_VERSION when a release is ready
+
+Dev mode:
+  - Set ARTSMOKER_DEV_MODE=true in .env (gitignored) to disable auto-update
+  - Dev machines are never force-updated; developers control their own pulls
+  - For non-dev machines: force reset to origin/main (safe — runtime state in .user.json)
+
 Safety:
-  - If tracked files have uncommitted changes (developer testing), skips entirely
-  - Uses git pull --ff-only first; falls back to reset --hard if diverged
   - Runtime state is in gitignored .user.json files — never lost
   - User data is in data/ directory — never touched by git
   - If anything fails, the server continues with existing code
@@ -30,9 +38,6 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-
-# Protected files list — empty since layered config (.user.json pattern)
-PROTECTED_FILES = []
 
 # ── Shared state ─────────────────────────────────────────────────────────
 
@@ -71,14 +76,19 @@ def get_update_status() -> dict:
     return dict(_update_status)
 
 
+def is_dev_mode() -> bool:
+    """Check if this machine is in developer mode (never auto-update)."""
+    return os.environ.get("ARTSMOKER_DEV_MODE", "").lower() in ("true", "1", "yes")
+
+
 # ── Startup Update ───────────────────────────────────────────────────────
 
 def check_and_update() -> dict:
     """Check for updates and pull if available. Returns status dict.
 
     Called once during server startup (lifespan handler), BEFORE the
-    event loop starts. If code is updated, triggers a process restart
-    so the new code loads fresh.
+    event loop starts. Only pulls if the remote APP_VERSION is newer
+    than the local version — prevents pulling incomplete code.
     """
     result = {
         "checked": False,
@@ -96,15 +106,31 @@ def check_and_update() -> dict:
             return result
 
         result["checked"] = True
-        commits, from_ver, to_ver = _pull_latest()
+        local_ver = _read_version()
+
+        # Fetch remote and check version BEFORE pulling
+        _git("fetch", "origin", "main", "--quiet")
+        remote_ver = _read_remote_version()
+
+        if not remote_ver or remote_ver == "unknown":
+            result["skipped_reason"] = "Could not read remote version"
+            return result
+
+        if not _is_newer_version(remote_ver, local_ver):
+            result["skipped_reason"] = f"Already up to date (v{local_ver})"
+            return result
+
+        # Remote version is newer — pull the update
+        logger.info("Auto-update: newer version available: %s → %s", local_ver, remote_ver)
+        commits = _do_pull()
 
         if commits == 0:
-            result["skipped_reason"] = "Already up to date"
+            result["skipped_reason"] = f"Already up to date (v{local_ver})"
             return result
 
         result["updated"] = True
-        result["from_version"] = from_ver
-        result["to_version"] = to_ver
+        result["from_version"] = local_ver
+        result["to_version"] = remote_ver
         result["commits"] = commits
 
         logger.info(
@@ -112,15 +138,15 @@ def check_and_update() -> dict:
             "║  AUTO-UPDATE COMPLETE — RESTARTING                         ║\n"
             "║  %s → %s (%d commit(s))%s║\n"
             "╚══════════════════════════════════════════════════════════════╝",
-            from_ver, to_ver, commits,
-            " " * max(1, 39 - len(from_ver) - len(to_ver) - len(str(commits))),
+            local_ver, remote_ver, commits,
+            " " * max(1, 39 - len(local_ver) - len(remote_ver) - len(str(commits))),
         )
 
         # Send telemetry before restart (won't have another chance)
         try:
             from backend.services.telemetry import init as _telemetry_init, track_auto_update
             _telemetry_init()
-            track_auto_update(updated=True, from_version=from_ver, to_version=to_ver, commits=commits)
+            track_auto_update(updated=True, from_version=local_ver, to_version=remote_ver, commits=commits)
         except Exception:
             pass
 
@@ -145,11 +171,15 @@ def start_periodic_checker():
     """Start the background thread that checks for updates every 24 hours.
 
     Only triggers an update+restart when the server is idle (no requests
-    for 60+ seconds). If not idle, retries every 5 minutes.
+    for 60+ seconds) AND a newer version is available on origin/main.
     """
     global _scheduler_thread
 
     if os.environ.get("ARTSMOKER_AUTO_UPDATE", "").lower() in ("false", "0", "no"):
+        return
+
+    if is_dev_mode():
+        logger.debug("Auto-update scheduler: disabled (dev mode)")
         return
 
     if _scheduler_thread and _scheduler_thread.is_alive():
@@ -176,7 +206,7 @@ def _periodic_check_loop():
         if _scheduler_stop.is_set():
             break
 
-        # Time to check — but only if idle
+        # Time to check — but only if conditions are met
         if not _can_update():
             continue
 
@@ -193,44 +223,34 @@ def _periodic_check_loop():
             logger.info("Auto-update: server still busy after 30 min wait, skipping this cycle")
             continue
 
-        # Server is idle — check for updates
+        # Server is idle — check for version update
         try:
             _update_status["checking"] = True
             _update_status["message"] = "Checking for updates..."
-            logger.info("Auto-update: periodic check (server idle for %ds)",
-                        int(time.time() - _last_request_time) if _last_request_time else 0)
 
+            local_ver = _read_version()
             _git("fetch", "origin", "main", "--quiet")
-            local_sha = _git("rev-parse", "HEAD").strip()
-            remote_sha = _git("rev-parse", "origin/main").strip()
+            remote_ver = _read_remote_version()
 
-            if local_sha == remote_sha:
+            if not remote_ver or not _is_newer_version(remote_ver, local_ver):
                 _update_status["checking"] = False
                 _update_status["last_check"] = time.time()
                 _update_status["message"] = ""
-                logger.debug("Auto-update: already up to date")
+                logger.debug("Auto-update: no newer version (local=%s, remote=%s)", local_ver, remote_ver)
                 continue
 
-            behind = int(_git("rev-list", "--count", f"HEAD..origin/main").strip())
-            logger.info("Auto-update: %d commit(s) available, updating...", behind)
-
-            from_ver = _read_version()
-            try:
-                _git("pull", "--ff-only", "origin", "main")
-            except subprocess.CalledProcessError:
-                logger.warning("Auto-update: ff-only failed, falling back to hard reset")
-                _git("reset", "--hard", "origin/main")
-            to_ver = _read_version()
+            logger.info("Auto-update: newer version %s → %s, updating...", local_ver, remote_ver)
+            commits = _do_pull()
 
             _update_status["last_update"] = time.time()
-            _update_status["message"] = f"Updated {from_ver} → {to_ver} ({behind} commits). Restarting..."
+            _update_status["message"] = f"Updated {local_ver} → {remote_ver}. Restarting..."
             _update_status["restarting"] = True
-            logger.info("Auto-update: %s → %s (%d commits). Restarting server...", from_ver, to_ver, behind)
+            logger.info("Auto-update: %s → %s (%d commits). Restarting server...", local_ver, remote_ver, commits)
 
             # Track telemetry before restart
             try:
                 from backend.services.telemetry import track_auto_update
-                track_auto_update(updated=True, from_version=from_ver, to_version=to_ver, commits=behind)
+                track_auto_update(updated=True, from_version=local_ver, to_version=remote_ver, commits=commits)
             except Exception:
                 pass
 
@@ -253,13 +273,7 @@ def _periodic_check_loop():
 # ── Core helpers ─────────────────────────────────────────────────────────
 
 def _can_update() -> bool:
-    """Check if auto-update is possible (git repo, main branch, no local dev work).
-
-    Skips update if there are uncommitted changes to tracked files — protects
-    developers who are testing local code changes before committing.
-    Gitignored files (.user.json, data/) are NOT checked since they're
-    never touched by git operations.
-    """
+    """Check if auto-update is possible."""
     _can_update._reason = ""
 
     if not (PROJECT_ROOT / ".git").is_dir():
@@ -270,17 +284,13 @@ def _can_update() -> bool:
         _can_update._reason = "Disabled (ARTSMOKER_AUTO_UPDATE=false)"
         return False
 
+    if is_dev_mode():
+        _can_update._reason = "Dev mode — auto-update disabled"
+        return False
+
     branch = _git("rev-parse", "--abbrev-ref", "HEAD").strip()
     if branch != "main":
         _can_update._reason = f"Not on main branch (on '{branch}')"
-        return False
-
-    # Check for uncommitted changes to TRACKED files (protects developer work).
-    # git status --porcelain shows only tracked-file changes (not gitignored).
-    dirty = _git("status", "--porcelain").strip()
-    if dirty:
-        dirty_count = len([l for l in dirty.splitlines() if l.strip()])
-        _can_update._reason = f"Local changes detected ({dirty_count} files) — skipping to protect your work"
         return False
 
     return True
@@ -288,37 +298,55 @@ def _can_update() -> bool:
 _can_update._reason = ""
 
 
-def _pull_latest() -> tuple[int, str, str]:
-    """Fetch and pull latest code. Returns (commit_count, from_version, to_version).
-    Returns (0, "", "") if already up to date.
+def _is_newer_version(remote: str, local: str) -> bool:
+    """Check if the remote version string is newer than the local one.
 
-    Strategy:
-    - _can_update() already confirmed no uncommitted changes to tracked files
-    - Runtime state is in gitignored .user.json files (never touched by git)
-    - So git pull --ff-only SHOULD always succeed (clean tree, no divergence)
-    - If it fails (unexpected state), falls back to git reset --hard as last resort
+    Version format: "1.6-20260408_01" (major.minor-YYYYMMDD_seq)
+    Comparison: string comparison works because the date+seq format is
+    lexicographically ordered (newer dates sort after older ones).
     """
-    _git("fetch", "origin", "main", "--quiet")
+    if not remote or not local or remote == "unknown" or local == "unknown":
+        return False
+    return remote > local
 
+
+def _read_remote_version() -> str:
+    """Read APP_VERSION from the remote origin/main config.py (without pulling).
+
+    Uses git show to read the file content from the fetched remote branch.
+    """
+    try:
+        content = _git("show", "origin/main:backend/config.py")
+        for line in content.splitlines():
+            if line.startswith("APP_VERSION"):
+                return line.split("=", 1)[1].strip().strip('"').strip("'")
+    except Exception:
+        pass
+    return "unknown"
+
+
+def _do_pull() -> int:
+    """Pull latest code from origin/main. Returns commit count.
+
+    For non-dev machines: uses git reset --hard (always succeeds).
+    Runtime state is in gitignored .user.json files — safe to overwrite
+    all tracked files.
+    """
     local_sha = _git("rev-parse", "HEAD").strip()
     remote_sha = _git("rev-parse", "origin/main").strip()
 
     if local_sha == remote_sha:
-        return 0, "", ""
+        return 0
 
     behind = int(_git("rev-list", "--count", f"HEAD..origin/main").strip())
-    from_ver = _read_version()
 
-    try:
-        # Preferred: fast-forward pull (safe, preserves local commits if any)
-        _git("pull", "--ff-only", "origin", "main")
-    except subprocess.CalledProcessError:
-        # Fallback: hard reset (for non-technical users where local branch diverged)
-        logger.warning("Auto-update: ff-only failed, falling back to hard reset")
-        _git("reset", "--hard", "origin/main")
+    # Force reset to origin/main — safe because:
+    # (a) _can_update() blocks dev mode machines
+    # (b) runtime state is in .user.json (gitignored)
+    # (c) user data is in data/ (gitignored)
+    _git("reset", "--hard", "origin/main")
 
-    to_ver = _read_version()
-    return behind, from_ver, to_ver
+    return behind
 
 
 def _restart_process():
@@ -363,7 +391,7 @@ def _git(*args) -> str:
 
 
 def _read_version() -> str:
-    """Read APP_VERSION from config.py."""
+    """Read APP_VERSION from the local config.py."""
     config_path = PROJECT_ROOT / "backend" / "config.py"
     try:
         for line in config_path.read_text().splitlines():

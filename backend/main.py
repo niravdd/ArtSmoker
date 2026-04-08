@@ -293,11 +293,13 @@ async def lifespan(app: FastAPI):
                     from backend.services.model_registry import _save_user_pref
                     registry["last_synced_summary"] = f"{total_new} new, {total_updated} updated across {len(all_regions)} regions"
                     if failed_regions:
-                        registry["sync_failed_regions"] = failed_regions
-                        logger.info("Auto-Sync: %d region(s) failed/timed out: %s",
+                        registry["regions_not_opted_in"] = failed_regions
+                        logger.info("Auto-Sync: %d region(s) not opted in or unavailable: %s",
                                     len(failed_regions), ", ".join(r["region"] for r in failed_regions))
                     else:
-                        registry.pop("sync_failed_regions", None)
+                        registry.pop("regions_not_opted_in", None)
+                    # Clean up old key name
+                    registry.pop("sync_failed_regions", None)
                     _save_user_pref("_meta", "aws_account_discovered", "timestamp", datetime.now(timezone.utc).isoformat())
                     _reg_save()
 
