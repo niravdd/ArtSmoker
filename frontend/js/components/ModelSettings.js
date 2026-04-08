@@ -15,6 +15,9 @@
         async open(activeTab) {
             this._requestedTab = activeTab || null;
             document.getElementById('model-settings-modal')?.remove();
+            // Reset state so tabs reload fresh content when modal is reopened
+            this._customModelsLoaded = false;
+            this._templatesLoaded = false;
             window.showLoading?.(t('model_settings.loading_settings'));
 
             try {
