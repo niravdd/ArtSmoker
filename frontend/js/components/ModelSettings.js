@@ -1418,14 +1418,24 @@
                     return;
                 }
 
-                // Group by category (like Image Studio groups by purpose)
-                const groups = {};
+                // Group: Studio → Category → Models
+                // Top level: Image Studio, Video Studio (matches sidebar tabs)
+                // Second level: Image Generation, Post Processing, Utility, etc.
+                const studioGroups = {};
                 models.forEach(m => {
+                    const studio = m.studio || 'other';
                     const cat = m.category || 'other';
-                    if (!groups[cat]) groups[cat] = [];
-                    groups[cat].push(m);
+                    if (!studioGroups[studio]) studioGroups[studio] = {};
+                    if (!studioGroups[studio][cat]) studioGroups[studio][cat] = [];
+                    studioGroups[studio][cat].push(m);
                 });
 
+                const studioLabels = {
+                    image: '🖼️  Image Studio',
+                    video: '🎬  Video Studio',
+                    other: '⚙️  Other',
+                };
+                const studioOrder = ['image', 'video', 'other'];
                 const categoryLabels = {
                     image_generation: 'Image Generation',
                     post_processing: 'Post Processing',
@@ -1434,31 +1444,53 @@
                     other: 'Other',
                 };
                 const categoryOrder = ['image_generation', 'post_processing', 'utility', 'video_generation', 'other'];
-                const _cmColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400', 'text-amber-400'];
+                const _studioColors = ['text-brand-accent', 'text-cyan-400', 'text-amber-400'];
+                const _catColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400', 'text-amber-400'];
 
                 // Preserve which sections are expanded before re-rendering
                 const openSections = new Set();
+                container.querySelectorAll('details[data-cm-studio][open]').forEach(d => openSections.add(d.dataset.cmStudio));
                 container.querySelectorAll('details[data-cm-cat][open]').forEach(d => openSections.add(d.dataset.cmCat));
 
                 let html = '<div class="space-y-4">';
                 html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on Amazon SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
 
-                const sortedCats = Object.keys(groups).sort((a, b) => {
-                    const ai = categoryOrder.indexOf(a);
-                    const bi = categoryOrder.indexOf(b);
+                const sortedStudios = Object.keys(studioGroups).sort((a, b) => {
+                    const ai = studioOrder.indexOf(a);
+                    const bi = studioOrder.indexOf(b);
                     return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
                 });
 
-                sortedCats.forEach((cat, idx) => {
-                    const catModels = groups[cat];
-                    const wasOpen = openSections.has(cat);
-                    const cmColor = _cmColors[idx % _cmColors.length];
-                    html += `<details class="mb-3 ms-collapsible" data-cm-cat="${cat}" ${wasOpen ? 'open' : ''}>
-                        <summary class="text-sm font-semibold ${cmColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
-                            ${categoryLabels[cat] || cat}
-                            <span class="text-[10px] font-normal text-brand-text-muted">(${catModels.length})</span>
+                sortedStudios.forEach((studio, sIdx) => {
+                    const categories = studioGroups[studio];
+                    const studioTotal = Object.values(categories).reduce((s, arr) => s + arr.length, 0);
+                    const studioOpen = openSections.has(studio);
+                    const studioColor = _studioColors[sIdx % _studioColors.length];
+
+                    html += `<details class="mb-3 ms-collapsible" data-cm-studio="${studio}" ${studioOpen ? 'open' : ''}>
+                        <summary class="text-sm font-semibold ${studioColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                            ${studioLabels[studio] || studio}
+                            <span class="text-[10px] font-normal text-brand-text-muted">(${studioTotal})</span>
                         </summary>
-                        <div class="space-y-2 mt-2">`;
+                        <div class="space-y-3 mt-2 ml-2">`;
+
+                    const sortedCats = Object.keys(categories).sort((a, b) => {
+                        const ai = categoryOrder.indexOf(a);
+                        const bi = categoryOrder.indexOf(b);
+                        return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
+                    });
+
+                    sortedCats.forEach((cat, cIdx) => {
+                        const catModels = categories[cat];
+                        const catOpen = openSections.has(cat);
+                        const catColor = _catColors[cIdx % _catColors.length];
+
+                        html += `<details class="mb-2 ms-collapsible" data-cm-cat="${cat}" ${catOpen ? 'open' : ''}>
+                            <summary class="text-xs font-semibold ${catColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none flex items-center gap-2">
+                                ${categoryLabels[cat] || cat}
+                                <span class="text-[10px] font-normal text-brand-text-muted">(${catModels.length})</span>
+                            </summary>
+                            <div class="space-y-2 mt-2">`;
 
                     for (const m of catModels) {
                         const deployed = m.deployment_status === 'InService';
@@ -1499,7 +1531,9 @@
                                 </div>
                             </div>`;
                     }
-                    html += '</div></details>';
+                    html += '</div></details>';  // close category
+                    });
+                    html += '</div></details>';  // close studio
                 });
                 html += '</div>';
                 container.innerHTML = html;
