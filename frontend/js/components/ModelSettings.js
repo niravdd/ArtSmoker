@@ -1780,31 +1780,60 @@
         },
 
         _pollDeployProgress(modelKey, modal) {
+            // Track active polls to avoid duplicates
+            if (!this._activePolls) this._activePolls = new Set();
+            if (this._activePolls.has(modelKey)) return;
+            this._activePolls.add(modelKey);
+
             const poll = async () => {
+                // Stop if modal was closed
+                if (!document.getElementById('model-settings-modal')) {
+                    this._activePolls.delete(modelKey);
+                    return;
+                }
                 try {
                     const resp = await fetch(`/api/custom-models/deploy-status/${modelKey}`);
                     if (resp.ok) {
                         const status = await resp.json();
+
+                        // Update inline progress text without full reload
+                        const container = modal.querySelector('#ms-custom-models-content');
+                        if (container && status.progress) {
+                            // Find the model card and update its status text
+                            const cards = container.querySelectorAll('[data-model]');
+                            cards.forEach(btn => {
+                                if (btn.dataset.model === modelKey) {
+                                    const statusEl = btn.closest('.p-3')?.querySelector('.text-amber-400, .text-emerald-400');
+                                    if (statusEl) statusEl.textContent = status.progress;
+                                }
+                            });
+                        }
+
                         if (status.stage === 'complete') {
-                            window.showToast?.(t('custom_models.deploy_complete'), 'success');
+                            window.showToast?.(status.progress || t('custom_models.deploy_complete'), 'success');
                             this._customModelsLoaded = false;
                             this._loadCustomModels(modal);
+                            this._activePolls.delete(modelKey);
                             return;
                         }
                         if (status.stage === 'failed') {
                             window.showToast?.(`Deployment failed: ${status.error}`, 'error');
                             this._customModelsLoaded = false;
                             this._loadCustomModels(modal);
+                            this._activePolls.delete(modelKey);
                             return;
                         }
-                        // Still in progress — refresh the tab to show inline progress
-                        this._customModelsLoaded = false;
-                        this._loadCustomModels(modal);
-                        setTimeout(poll, 5000);
+                        // Still in progress — poll again (don't full-reload, just update inline)
+                        setTimeout(poll, 8000);
                     }
-                } catch { setTimeout(poll, 5000); }
+                } catch {
+                    setTimeout(poll, 8000);
+                }
             };
-            setTimeout(poll, 3000);
+            // First poll: do a full tab refresh to show "deploying" state, then poll inline
+            this._customModelsLoaded = false;
+            this._loadCustomModels(modal);
+            setTimeout(poll, 5000);
         },
 
         async _teardownCustomModel(modelKey, modal) {
