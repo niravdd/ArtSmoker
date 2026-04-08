@@ -357,6 +357,8 @@ async def lifespan(app: FastAPI):
     yield
     # Shutdown
     stop_periodic_checker()
+    from backend.services.async_jobs import stop_poller
+    stop_poller()
     track_server_stop()
     logger.info("ArtSmoker backend shutting down.")
 

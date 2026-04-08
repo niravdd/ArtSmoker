@@ -84,7 +84,10 @@ def invoke_custom_model(
 
     try:
         if endpoint_type == "async":
-            result = _invoke_async(endpoint_name, payload, timeout_seconds)
+            # Non-blocking: submit to SageMaker, register with async job tracker,
+            # return a sentinel immediately. The background poller handles the rest.
+            result = _submit_async_job(endpoint_name, model_key, model_config, payload)
+            return result
         else:
             result = _invoke_realtime(endpoint_name, payload)
 
@@ -94,7 +97,6 @@ def invoke_custom_model(
         # Track telemetry
         try:
             from backend.services.telemetry import track_custom_model_invoke
-            latency = int((time.time() - time.time()) * 1000)  # placeholder
             track_custom_model_invoke(
                 model=model_key, cost_usd=estimated_cost,
                 predictor_type=model_config.get("invoke", {}).get("predictor_type", ""),
@@ -123,49 +125,49 @@ def _invoke_realtime(endpoint_name: str, payload: dict) -> dict:
     return result
 
 
-def _invoke_async(endpoint_name: str, payload: dict,
-                  timeout_seconds: int = 600) -> dict:
-    """Invoke an async Amazon SageMaker endpoint and poll for results.
+def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, payload: dict) -> dict:
+    """Submit an async job to SageMaker and register with the job tracker.
 
-    timeout_seconds defaults to 600 (10 min) to handle cold starts.
+    Returns immediately with an async_submitted sentinel — does NOT poll.
+    The background poller in async_jobs.py handles S3 output detection
+    and gallery storage.
     """
+    import uuid
+    from backend.services.async_jobs import submit_job
+    from backend.services.sagemaker_deployer import get_deployment_s3_bucket
+
     sm_runtime = boto3.client("sagemaker-runtime", region_name=_get_region(), config=_SM_CONFIG)
 
+    input_location = _upload_async_input(endpoint_name, payload)
     response = sm_runtime.invoke_endpoint_async(
         EndpointName=endpoint_name,
         ContentType="application/json",
-        InputLocation=_upload_async_input(endpoint_name, payload),
+        InputLocation=input_location,
     )
 
     output_location = response.get("OutputLocation")
     if not output_location:
         raise RuntimeError("Async invocation returned no output location")
 
-    # Poll for result
-    s3 = boto3.client("s3", region_name=_get_region())
-    start_time = time.time()
+    # Parse S3 output location
+    parts = output_location.replace("s3://", "").split("/", 1)
+    s3_bucket, s3_key = parts[0], parts[1]
 
-    while time.time() - start_time < timeout_seconds:
-        try:
-            # Parse S3 URI
-            bucket, key = _parse_s3_uri(output_location)
-            obj = s3.get_object(Bucket=bucket, Key=key)
-            body = obj["Body"].read()
-            result = json.loads(body.decode("utf-8"))
-            return result
-        except s3.exceptions.NoSuchKey:
-            # Result not ready yet
-            time.sleep(5)
-        except Exception as e:
-            if "NoSuchKey" in str(e) or "404" in str(e):
-                time.sleep(5)
-            else:
-                raise
-
-    raise TimeoutError(
-        f"Async invocation timed out after {timeout_seconds}s. "
-        f"The endpoint may be scaling up from zero (cold start). Try again in a few minutes."
+    # Register with the async job tracker (non-blocking)
+    job_id = str(uuid.uuid4())[:8]
+    job = submit_job(
+        job_id=job_id,
+        model_key=model_key,
+        model_label=model_config.get("label", model_key),
+        prompt=payload.get("prompt", ""),
+        output_location=output_location,
+        s3_bucket=s3_bucket,
+        s3_key=s3_key,
+        gallery_dir="",
     )
+
+    # Return sentinel — the caller knows this is async (not a final image)
+    return {"async_submitted": True, "job_id": job_id, "model": model_key, "model_label": model_config.get("label", model_key)}
 
 
 def _upload_async_input(endpoint_name: str, payload: dict) -> str:
@@ -256,6 +258,10 @@ def invoke_custom_image_model(
             payload[field_name] = field_spec["default"]
 
     result = invoke_custom_model(model_key, payload)
+
+    # Async jobs return a sentinel — not image data
+    if result.get("async_submitted"):
+        return result  # Caller handles async flow
 
     image_b64 = result.get("image", "")
     if not image_b64:

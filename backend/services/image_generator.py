@@ -56,7 +56,7 @@ def generate_image(
             if attempt > 0:
                 emit({"type": "retry", "attempt": attempt + 1, "max_retries": _MAX_RETRIES,
                       "message": f"Retrying image generation (attempt {attempt + 1}/{_MAX_RETRIES})..."})
-            image_bytes = invoke_image_model(
+            result = invoke_image_model(
                 model_key,
                 refined_prompt,
                 width=width,
@@ -66,8 +66,12 @@ def generate_image(
                 quality=quality,
                 region_override=region_override,
             )
-            logger.info("Image generated: model=%s, %d bytes", model_key, len(image_bytes))
-            return image_bytes
+            # Async custom models return a sentinel dict, not image bytes
+            if isinstance(result, dict) and result.get("async_submitted"):
+                logger.info("Async job submitted: model=%s, job_id=%s", model_key, result.get("job_id"))
+                return result  # Propagate sentinel to the caller
+            logger.info("Image generated: model=%s, %d bytes", model_key, len(result))
+            return result
         except Exception as exc:
             last_exc = exc
             exc_str = str(exc).lower()

@@ -258,6 +258,12 @@
                                 </button>
                             </div>
 
+                            <!-- Pending Jobs (async custom models) -->
+                            <button id="btn-pending-jobs" class="w-full text-left p-2 rounded-lg bg-cyan-700/10 border border-cyan-600/20 hover:border-cyan-500/40 hover:bg-cyan-700/20 transition-colors flex items-center gap-2 text-xs text-cyan-400 mt-2 hidden">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span id="pending-jobs-label">Pending Jobs</span>
+                            </button>
+
                             <!-- Prompt info (original + AI-improved + negative) -->
                             <div id="gen-prompt-info" class="hidden card-static p-4 space-y-3">
                                 <div id="gen-original-prompt-section">
@@ -432,6 +438,10 @@
             document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateModelSummary());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open('image-studio'));
+            document.getElementById('btn-pending-jobs')?.addEventListener('click', () => this._showPendingJobs());
+
+            // Start polling for pending jobs count
+            this._pollPendingJobs();
 
             // IP declaration — show model recommendation + disable pre-check when claimed
             const updateIpNote = () => {
@@ -1690,6 +1700,18 @@
                     break;
                 }
 
+                case 'async_submitted': {
+                    const done = evt.completed || 0;
+                    const tot = evt.total || total;
+                    const pct = 20 + Math.round((done / tot) * 70);
+                    if (text) text.textContent = `${evt.model_label} — submitted (generating in background)`;
+                    if (sub) sub.textContent = 'Image will appear in Pending Jobs when ready. You can continue working.';
+                    if (bar) bar.style.width = Math.min(pct, 92) + '%';
+                    // Show the pending jobs button
+                    document.getElementById('btn-pending-jobs')?.classList.remove('hidden');
+                    break;
+                }
+
                 case 'image_error': {
                     const done = evt.completed || 0;
                     const tot = evt.total || total;
@@ -2269,6 +2291,111 @@
             const d = document.createElement('div');
             d.textContent = str;
             return d.innerHTML;
+        },
+
+        // ── Pending Jobs (async custom models) ─────────────────────────
+
+        _pendingJobsTimer: null,
+
+        _pollPendingJobs() {
+            const poll = async () => {
+                try {
+                    const resp = await fetch('/api/generate/async-jobs');
+                    if (resp.ok) {
+                        const data = await resp.json();
+                        const count = data.pending_count || 0;
+                        const btn = document.getElementById('btn-pending-jobs');
+                        const label = document.getElementById('pending-jobs-label');
+                        if (btn) {
+                            btn.classList.toggle('hidden', count === 0 && (data.jobs || []).length === 0);
+                            if (label) label.textContent = count > 0 ? `Pending Jobs (${count} generating...)` : `Pending Jobs (${(data.jobs || []).length})`;
+                        }
+
+                        // Toast when a job completes
+                        const completed = (data.jobs || []).filter(j => j.status === 'complete' && !j._notified);
+                        completed.forEach(j => {
+                            window.showToast?.(`${j.model_label} image ready — check Pending Jobs`, 'success');
+                            j._notified = true;
+                        });
+                    }
+                } catch {}
+                this._pendingJobsTimer = setTimeout(poll, 10000);
+            };
+            poll();
+        },
+
+        async _showPendingJobs() {
+            let data;
+            try {
+                const resp = await fetch('/api/generate/async-jobs');
+                if (!resp.ok) return;
+                data = await resp.json();
+            } catch { return; }
+
+            const jobs = data.jobs || [];
+            const backdrop = document.createElement('div');
+            backdrop.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
+
+            const jobsHtml = jobs.length === 0
+                ? '<p class="text-xs text-brand-text-muted py-4 text-center">No async jobs yet. Self-hosted models generate images in the background.</p>'
+                : jobs.map(j => {
+                    const statusColor = j.status === 'complete' ? 'text-emerald-400' : j.status === 'failed' ? 'text-red-400' : 'text-amber-400';
+                    const statusIcon = j.status === 'complete' ? '✓' : j.status === 'failed' ? '✗' : '⟳';
+                    const progressBar = j.status === 'generating' || j.status === 'pending'
+                        ? `<div class="w-full bg-brand-border/30 rounded-full h-1.5 mt-1"><div class="bg-amber-400 h-1.5 rounded-full transition-all" style="width:${j.progress || 0}%"></div></div>`
+                        : '';
+                    const thumb = j.status === 'complete' && j.image_path
+                        ? `<img src="/api/gallery/${j.image_path.split('/').slice(-2, -1)[0]}/png" class="w-12 h-12 rounded object-cover flex-shrink-0" />`
+                        : `<div class="w-12 h-12 rounded bg-brand-border/20 flex items-center justify-center flex-shrink-0"><span class="${statusColor} text-lg">${statusIcon}</span></div>`;
+                    const elapsed = j.submitted_at ? Math.round((Date.now() - new Date(j.submitted_at).getTime()) / 1000) : 0;
+                    const elapsedStr = elapsed > 60 ? `${Math.floor(elapsed/60)}m ${elapsed%60}s` : `${elapsed}s`;
+                    return `
+                        <div class="flex items-center gap-3 p-3 rounded-lg bg-brand-bg/40 border border-brand-border">
+                            ${thumb}
+                            <div class="flex-1 min-w-0">
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs font-semibold text-brand-text">${j.model_label}</span>
+                                    <span class="text-[10px] ${statusColor}">${j.status === 'complete' ? 'Complete' : j.status === 'failed' ? 'Failed' : j.progress + '%'}</span>
+                                </div>
+                                <p class="text-[10px] text-brand-text-muted truncate">${j.prompt || ''}</p>
+                                ${j.status === 'failed' ? `<p class="text-[10px] text-red-400 mt-0.5">${j.error || ''}</p>` : ''}
+                                ${progressBar}
+                                <span class="text-[9px] text-brand-text-muted/50">${elapsedStr} ago</span>
+                            </div>
+                        </div>`;
+                }).join('');
+
+            backdrop.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full max-h-[70vh] flex flex-col overflow-hidden">
+                    <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
+                        <h3 class="text-sm font-semibold text-brand-text flex items-center gap-2">
+                            <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Pending Jobs
+                        </h3>
+                        <div class="flex gap-2">
+                            ${jobs.some(j => j.status === 'complete' || j.status === 'failed') ? '<button class="pj-clear text-[10px] text-brand-text-muted hover:text-red-400">Clear completed</button>' : ''}
+                            <button class="pj-close p-1 rounded hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="flex-1 overflow-auto p-4 space-y-2">
+                        ${jobsHtml}
+                    </div>
+                    <div class="px-5 py-3 border-t border-brand-border text-[10px] text-brand-text-muted">
+                        Self-hosted models generate asynchronously. Images appear in the Gallery when complete.
+                    </div>
+                </div>`;
+
+            backdrop.querySelector('.pj-close').addEventListener('click', () => backdrop.remove());
+            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) backdrop.remove(); });
+            backdrop.querySelector('.pj-clear')?.addEventListener('click', async () => {
+                await fetch('/api/generate/async-jobs/clear', { method: 'POST' });
+                backdrop.remove();
+                this._showPendingJobs();
+            });
+
+            document.body.appendChild(backdrop);
         },
     };
 })();

@@ -11,6 +11,11 @@ class VariantResult(BaseModel):
     svg_path: str | None = None
     png_filename: str = ""
     svg_filename: str | None = None
+    seed: int | None = None
+    prompt_used: str | None = None
+    model_used: str | None = None
+    model_label: str | None = None
+    async_job: dict | None = None  # Set for async custom models (job_id, model, etc.)
 
 
 class OptionResult(BaseModel):

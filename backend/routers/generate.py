@@ -94,9 +94,9 @@ def _generate_single_image(
     negative_prompt: str = "",
     model_override: ImageModel | None = None,
     status_callback=None,
-) -> tuple[bytes, str | None]:
+) -> tuple[bytes | dict, str | None]:
     effective_model = model_override or body.image_model
-    image_bytes = generate_image(
+    result = generate_image(
         refined_prompt=refined_prompt,
         model=effective_model,
         width=body.width,
@@ -107,6 +107,13 @@ def _generate_single_image(
         region_override=body.region,
         status_callback=status_callback,
     )
+
+    # Async custom models return a sentinel dict — no image to process yet.
+    # The background poller in async_jobs.py will handle gallery storage.
+    if isinstance(result, dict) and result.get("async_submitted"):
+        return result, None
+
+    image_bytes = result
     svg_output_path = (
         store.generated_asset_dir(asset_id) / "asset.svg"
         if body.generate_svg else None
@@ -164,7 +171,7 @@ def _build_variant(
     if cancel_event and cancel_event.is_set():
         raise RuntimeError("Batch cancelled due to content moderation block")
 
-    final_bytes, svg_url = _generate_single_image(
+    gen_result, svg_url = _generate_single_image(
         asset_id=asset_id,
         refined_prompt=refined_prompt,
         body=body,
@@ -173,6 +180,22 @@ def _build_variant(
         model_override=model_override,
         status_callback=_status_cb,
     )
+
+    # Async custom models return a sentinel — image will arrive later via background poller
+    if isinstance(gen_result, dict) and gen_result.get("async_submitted"):
+        return VariantResult(
+            id=asset_id,
+            variant_index=variant_index,
+            png_path="",
+            svg_path=None,
+            seed=seed,
+            prompt_used=refined_prompt,
+            model_used=str(model_override or body.image_model),
+            model_label=model_label or "",
+            async_job=gen_result,
+        )
+
+    final_bytes = gen_result
 
     # Check after generation but before saving (another task may have triggered cancel)
     if cancel_event and cancel_event.is_set():
@@ -462,13 +485,21 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             for future in as_completed(futures):
                 oi, vi = futures[future]
                 try:
-                    variant_map[oi].append(future.result())
+                    variant = future.result()
+                    variant_map[oi].append(variant)
                     completed += 1
-                    while not progress_q.empty():
-                        evt = progress_q.get_nowait()
-                        evt["completed"] = completed
-                        evt["total"] = total
-                        emit(evt)
+                    # Notify frontend about async jobs (submitted, not completed yet)
+                    if hasattr(variant, 'async_job') and variant.async_job:
+                        emit({"type": "async_submitted", "option": oi, "variation": vi,
+                              "completed": completed, "total": total,
+                              "job_id": variant.async_job.get("job_id", ""),
+                              "model_label": variant.async_job.get("model_label", "")})
+                    else:
+                        while not progress_q.empty():
+                            evt = progress_q.get_nowait()
+                            evt["completed"] = completed
+                            evt["total"] = total
+                            emit(evt)
                 except Exception as exc:
                     completed += 1
                     exc_str = str(exc).lower()
@@ -1574,3 +1605,20 @@ async def post_process_assets(body: PostProcessRequest):
         track_post_process(action="+".join(actions), cost_usd=pp_cost)
 
     return {"processed": results, "errors": errors}
+
+
+# ── Async Jobs (self-hosted custom models) ───────────────────────────────
+
+@router.get("/async-jobs")
+def get_async_jobs():
+    """Get all async generation jobs (pending, complete, failed)."""
+    from backend.services.async_jobs import get_all_jobs, get_pending_count
+    return {"jobs": get_all_jobs(), "pending_count": get_pending_count()}
+
+
+@router.post("/async-jobs/clear")
+def clear_async_jobs():
+    """Clear completed and failed jobs from the tracker."""
+    from backend.services.async_jobs import clear_completed
+    removed = clear_completed()
+    return {"cleared": removed}
