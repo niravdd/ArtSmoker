@@ -2355,7 +2355,7 @@
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-semibold text-brand-text">${j.model_label}</span>
-                                    <span class="text-[10px] ${statusColor}">${j.status === 'complete' ? 'Complete' : j.status === 'failed' ? 'Failed' : j.progress + '%'}</span>
+                                    <span class="text-[10px] ${statusColor}">${j.status === 'complete' ? `Complete${j.compute_cost_usd ? ` (~$${j.compute_cost_usd.toFixed(4)})` : ''}` : j.status === 'failed' ? 'Failed' : j.progress + '%'}</span>
                                 </div>
                                 <p class="text-[10px] text-brand-text-muted truncate">${j.prompt || ''}</p>
                                 ${j.status === 'failed' ? `<p class="text-[10px] text-red-400 mt-0.5">${j.error || ''}</p>` : ''}

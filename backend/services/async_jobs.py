@@ -171,12 +171,21 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
     except Exception:
         meta = {}
 
+    # Calculate duration and cost for metadata
+    submitted = datetime.fromisoformat(job["submitted_at"])
+    duration = (datetime.now(timezone.utc) - submitted).total_seconds()
+    compute_cost = _calculate_compute_cost(job["model_key"], duration)
+
     meta.update({
         "async_status": "complete",
         "async_completed_at": datetime.now(timezone.utc).isoformat(),
         "png_path": f"/api/gallery/{asset_id}_o{job['option_index']}_v{job['variation_index']}/png",
         "png_filename": "asset.png",
         "image_size_bytes": len(image_bytes),
+        "generation_duration_seconds": round(duration, 1),
+        "estimated_compute_cost_usd": compute_cost,
+        "cost_history": [{"action": "generate", "model": job["model_key"],
+                          "cost_usd": compute_cost, "duration_s": round(duration, 1)}],
     })
     meta_path.write_text(json.dumps(meta, indent=2))
 
@@ -275,15 +284,27 @@ def _check_job(job: dict, s3):
 
         # Decode and save to gallery
         image_bytes = base64.b64decode(image_b64)
+        completed_at = datetime.now(timezone.utc)
         image_path = _update_gallery_on_complete(job, image_bytes)
+
+        # Calculate actual compute cost based on instance uptime
+        submitted = datetime.fromisoformat(job["submitted_at"])
+        duration_seconds = (completed_at - submitted).total_seconds()
+        compute_cost = _calculate_compute_cost(job["model_key"], duration_seconds)
 
         with _lock:
             job["status"] = COMPLETE
             job["image_path"] = image_path
-            job["completed_at"] = datetime.now(timezone.utc).isoformat()
+            job["completed_at"] = completed_at.isoformat()
             job["progress"] = 100
+            job["duration_seconds"] = round(duration_seconds, 1)
+            job["compute_cost_usd"] = compute_cost
 
-        logger.info("Async job complete: %s → %s (%d bytes)", job["job_id"], image_path, len(image_bytes))
+        # Track telemetry + cost
+        _track_completion(job, duration_seconds, compute_cost)
+
+        logger.info("Async job complete: %s → %s (%d bytes, %.0fs, ~$%.4f)",
+                     job["job_id"], image_path, len(image_bytes), duration_seconds, compute_cost)
 
     except s3.exceptions.NoSuchKey:
         _update_progress(job)
@@ -312,3 +333,72 @@ def _update_progress(job: dict):
     with _lock:
         job["status"] = GENERATING
         job["progress"] = progress
+
+
+def _calculate_compute_cost(model_key: str, duration_seconds: float) -> float:
+    """Calculate the actual compute cost based on instance uptime.
+
+    Uses the instance type's hourly rate from the catalog, prorated
+    to the actual generation duration. This is the real cost — not
+    a flat per-image estimate.
+    """
+    from backend.services.custom_models import get_catalog_model
+    from backend.services.model_registry import get_registry
+
+    # Try catalog first (has instance_cost_per_hour)
+    catalog_model = get_catalog_model(model_key)
+    hourly_rate = 0.0
+
+    if catalog_model:
+        pricing = catalog_model.get("pricing", {})
+        instance_costs = pricing.get("instance_cost_per_hour", {})
+        recommended = catalog_model.get("requirements", {}).get("recommended_instance", "")
+
+        # Use the recommended instance's hourly rate
+        if recommended and recommended in instance_costs:
+            hourly_rate = instance_costs[recommended]
+        elif instance_costs:
+            # Fallback: use the first (cheapest) instance rate
+            hourly_rate = min(instance_costs.values())
+
+    if hourly_rate == 0:
+        # Fallback: check deployed instance type in registry
+        registry = get_registry()
+        for section in ("image_models", "video_models"):
+            reg_model = registry.get(section, {}).get(model_key, {})
+            if reg_model.get("deployment", {}).get("instance_type"):
+                # Default rates for common instances
+                instance_type = reg_model["deployment"]["instance_type"]
+                default_rates = {
+                    "ml.g5.xlarge": 1.41,
+                    "ml.g5.2xlarge": 1.52,
+                    "ml.g5.4xlarge": 2.03,
+                    "ml.g6e.xlarge": 2.61,
+                }
+                hourly_rate = default_rates.get(instance_type, 1.50)
+                break
+
+    # Prorate: cost = (duration_seconds / 3600) * hourly_rate
+    cost = (duration_seconds / 3600.0) * hourly_rate
+    return round(cost, 6)
+
+
+def _track_completion(job: dict, duration_seconds: float, compute_cost: float):
+    """Track telemetry and cost for a completed async job."""
+    try:
+        from backend.services.cost_tracker import add_cost
+        add_cost("custom_model", compute_cost,
+                 f"{job['model_label']} × 1 ({duration_seconds:.0f}s @ instance rate)")
+    except Exception:
+        pass
+
+    try:
+        from backend.services.telemetry import track_custom_model_invoke
+        track_custom_model_invoke(
+            model=job["model_key"],
+            cost_usd=compute_cost,
+            latency_ms=int(duration_seconds * 1000),
+            predictor_type="text_to_image",
+        )
+    except Exception:
+        pass
