@@ -233,6 +233,11 @@
                         </div>
                     </div>  <!-- end tab content -->
                     </div>  <!-- end flex (sidebar + content) -->
+
+                    <!-- Footer -->
+                    <div class="flex-shrink-0 flex items-center justify-end px-6 py-3 border-t border-brand-border bg-black/10">
+                        <button class="ms-close btn btn-sm text-xs px-6 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Close</button>
+                    </div>
                 </div>
             `;
 
@@ -636,7 +641,7 @@
 
         _attachEvents(modal) {
             // Close
-            modal.querySelector('.ms-close')?.addEventListener('click', () => modal.remove());
+            modal.querySelectorAll('.ms-close').forEach(btn => btn.addEventListener('click', () => modal.remove()));
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
 
             // Tab switching
