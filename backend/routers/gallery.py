@@ -26,16 +26,24 @@ def _get_meta(asset_id: str) -> dict | None:
     return meta
 
 
-@router.get("/", response_model=list[GalleryItem])
-async def list_gallery(
+@router.get("/")
+def list_gallery(
     style_id: str | None = Query(default=None),
     asset_type: str | None = Query(default=None),
     limit: int = Query(default=100, ge=1, le=500),
     offset: int = Query(default=0, ge=0),
 ):
     """List generated assets, newest first, with optional filtering and pagination."""
+    try:
+        return _list_gallery_impl(style_id, asset_type, limit, offset)
+    except Exception:
+        logger.exception("Gallery list CRASHED")
+        return []
+
+
+def _list_gallery_impl(style_id, asset_type, limit, offset):
     from backend.services.telemetry import track_gallery_load
-    if offset == 0:  # Only track the initial load, not pagination
+    if offset == 0:
         track_gallery_load()
     try:
         asset_ids = store.list_generated_ids()
@@ -91,7 +99,8 @@ async def list_gallery(
         "Gallery: %d/%d items (offset=%d, limit=%d, style=%s, type=%s)",
         len(items), total, offset, limit, style_id, asset_type,
     )
-    return items
+    # Return as plain dicts to avoid Pydantic response_model serialization issues
+    return [item.model_dump() for item in items]
 
 
 @router.get("/batch/{batch_id}")
