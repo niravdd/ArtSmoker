@@ -848,7 +848,7 @@
             const selectedModelInfo = MODELS.find(m => m.value === payload.image_model);
             if (selectedModelInfo?.model_source === 'custom_hosted') {
                 const sub = document.getElementById('gen-loading-sub');
-                if (sub) sub.textContent = 'Self-hosted model — first request may take 5-15 min if the endpoint is waking up from idle (cold start). Subsequent requests are fast.';
+                if (sub) sub.textContent = t('custom_models.cold_start_warning');
             }
             // Unlock upscale toggle for new generation
             const upscaleToggle = document.getElementById('gen-upscale');

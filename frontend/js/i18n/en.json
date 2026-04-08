@@ -920,7 +920,17 @@
     "no_models": "No custom models available in the catalog.",
     "image_studio": "Image Studio",
     "video_studio": "Video Studio",
-    "other": "Other"
+    "other": "Other",
+    "cat_image_generation": "Image Generation",
+    "cat_post_processing": "Post Processing",
+    "cat_utility": "Utility & Composition",
+    "cat_video_generation": "Video Generation",
+    "description_line": "Self-hosted models that run on Amazon SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.",
+    "search_models": "Search models...",
+    "no_search_results": "No models found",
+    "cold_start_warning": "Self-hosted model — first request may take 5-15 min if the endpoint is waking up from idle (cold start). Subsequent requests are fast.",
+    "delete_token_confirm": "Delete the shared HuggingFace token? Gated models will fail on next cold start without it.",
+    "delete_token_title": "Delete HF Token"
   },
   "voice_input": {
     "record": "Record voice input",

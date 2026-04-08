@@ -550,7 +550,7 @@
                     <p class="text-[10px] text-brand-text-muted/50 mb-2">${this._esc(cat.description || '')}</p>
                     <div class="flex gap-2">
                         <div class="flex-1 relative ms-searchable-select">
-                            <input type="text" class="ms-cat-search input text-xs w-full" data-cat="${name}" placeholder="Search models..." value="${this._esc(currentLabel)}" autocomplete="off" />
+                            <input type="text" class="ms-cat-search input text-xs w-full" data-cat="${name}" placeholder="${t('custom_models.search_models')}" value="${this._esc(currentLabel)}" autocomplete="off" />
                             <select class="ms-cat-model hidden" data-cat="${name}">
                                 ${fallbackOpt}
                                 ${optionsHtml}
@@ -920,7 +920,7 @@
                             }
                         }
                     });
-                    if (!hasResults) html = '<div class="px-3 py-2 text-xs text-brand-text-muted">No models found</div>';
+                    if (!hasResults) html = `<div class="px-3 py-2 text-xs text-brand-text-muted">${t('custom_models.no_search_results')}</div>`;
                     dropdown.innerHTML = html;
 
                     // Wire click handlers
@@ -1443,11 +1443,11 @@
                 };
                 const studioOrder = ['image', 'video', 'other'];
                 const categoryLabels = {
-                    image_generation: 'Image Generation',
-                    post_processing: 'Post Processing',
-                    utility: 'Utility & Composition',
-                    video_generation: 'Video Generation',
-                    other: 'Other',
+                    image_generation: t('custom_models.cat_image_generation'),
+                    post_processing: t('custom_models.cat_post_processing'),
+                    utility: t('custom_models.cat_utility'),
+                    video_generation: t('custom_models.cat_video_generation'),
+                    other: t('custom_models.other'),
                 };
                 const categoryOrder = ['image_generation', 'post_processing', 'utility', 'video_generation', 'other'];
                 const _studioColors = ['text-brand-accent', 'text-cyan-400', 'text-amber-400'];
@@ -1459,7 +1459,7 @@
                 container.querySelectorAll('details[data-cm-cat][open]').forEach(d => openSections.add(d.dataset.cmCat));
 
                 let html = '<div class="space-y-4">';
-                html += '<p class="text-xs text-brand-text-muted">Self-hosted models that run on Amazon SageMaker in your AWS account. Deploy to use alongside Amazon Bedrock models.</p>';
+                html += `<p class="text-xs text-brand-text-muted">${t('custom_models.description_line')}</p>`;
 
                 const sortedStudios = Object.keys(studioGroups).sort((a, b) => {
                     const ai = studioOrder.indexOf(a);
@@ -1910,7 +1910,7 @@
             const deleteBtn = backdrop.querySelector('.hf-delete');
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', async () => {
-                    if (!await window.showConfirm('Delete the shared HuggingFace token? Gated models will fail on next cold start without it.', { title: 'Delete HF Token', confirmLabel: 'Delete', danger: true })) return;
+                    if (!await window.showConfirm(t('custom_models.delete_token_confirm'), { title: t('custom_models.delete_token_title'), confirmLabel: t('custom_models.remove'), danger: true })) return;
                     try {
                         await fetch('/api/custom-models/hf-token', { method: 'DELETE' });
                         window.showToast?.('HuggingFace token deleted', 'success');

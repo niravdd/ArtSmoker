@@ -901,7 +901,17 @@
     "no_models": "No hay modelos personalizados en el catálogo.",
     "image_studio": "Image Studio",
     "video_studio": "Video Studio",
-    "other": "Otro"
+    "other": "Otro",
+    "cat_image_generation": "Generación de imágenes",
+    "cat_post_processing": "Postprocesamiento",
+    "cat_utility": "Utilidades y Composición",
+    "cat_video_generation": "Generación de video",
+    "description_line": "Modelos auto-alojados en Amazon SageMaker en su cuenta AWS. Despliéguelos para usarlos junto con los modelos de Amazon Bedrock.",
+    "search_models": "Buscar modelos...",
+    "no_search_results": "No se encontraron modelos",
+    "cold_start_warning": "Modelo auto-alojado — la primera solicitud puede tardar 5-15 min si el endpoint se está despertando del reposo (arranque en frío). Las solicitudes posteriores son rápidas.",
+    "delete_token_confirm": "¿Eliminar el token compartido de HuggingFace? Los modelos restringidos fallarán en el próximo arranque en frío sin él.",
+    "delete_token_title": "Eliminar token HF"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

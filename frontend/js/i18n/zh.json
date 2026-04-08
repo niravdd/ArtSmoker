@@ -901,7 +901,17 @@
     "no_models": "目录中没有自定义模型。",
     "image_studio": "Image Studio",
     "video_studio": "Video Studio",
-    "other": "其他"
+    "other": "其他",
+    "cat_image_generation": "图像生成",
+    "cat_post_processing": "后处理",
+    "cat_utility": "实用工具与合成",
+    "cat_video_generation": "视频生成",
+    "description_line": "在您的 AWS 账户中的 Amazon SageMaker 上运行的自托管模型。部署后可与 Amazon Bedrock 模型一起使用。",
+    "search_models": "搜索模型...",
+    "no_search_results": "未找到模型",
+    "cold_start_warning": "自托管模型——如果端点正在从空闲状态唤醒（冷启动），首次请求可能需要 5-15 分钟。后续请求速度很快。",
+    "delete_token_confirm": "删除共享的 HuggingFace 令牌？受限模型在下次冷启动时将因缺少令牌而失败。",
+    "delete_token_title": "删除 HF 令牌"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

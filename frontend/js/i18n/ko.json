@@ -901,7 +901,17 @@
     "no_models": "카탈로그에 커스텀 모델이 없습니다.",
     "image_studio": "Image Studio",
     "video_studio": "Video Studio",
-    "other": "기타"
+    "other": "기타",
+    "cat_image_generation": "이미지 생성",
+    "cat_post_processing": "후처리",
+    "cat_utility": "유틸리티 & 합성",
+    "cat_video_generation": "동영상 생성",
+    "description_line": "AWS 계정의 Amazon SageMaker에서 실행되는 셀프 호스팅 모델. 배포하여 Amazon Bedrock 모델과 함께 사용할 수 있습니다.",
+    "search_models": "모델 검색...",
+    "no_search_results": "모델을 찾을 수 없습니다",
+    "cold_start_warning": "셀프 호스팅 모델 — 엔드포인트가 유휴 상태에서 깨어나는 경우(콜드 스타트) 첫 번째 요청에 5~15분이 걸릴 수 있습니다. 이후 요청은 빠릅니다.",
+    "delete_token_confirm": "공유 HuggingFace 토큰을 삭제하시겠습니까? 게이트 모델은 다음 콜드 스타트 시 토큰 없이 실패합니다.",
+    "delete_token_title": "HF 토큰 삭제"
   },
   "prompt_designer": {
     "title": "Prompt Designer",
