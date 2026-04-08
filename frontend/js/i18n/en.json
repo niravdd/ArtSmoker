@@ -138,6 +138,7 @@
     "elapsed_min": "{{min}}m {{sec}}s elapsed",
     "elapsed_sec": "{{sec}}s elapsed",
     "enter_prompt": "Enter a prompt before generating",
+    "checking": "Checking...",
     "pre_checking": "Pre-checking prompt...",
     "starting_generation": "Starting generation...",
     "creating_concepts": "AI is creating concept prompts",

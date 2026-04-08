@@ -786,6 +786,19 @@
                 ...this._getIpDeclaration(),
             };
 
+            // Immediate visual feedback — show the user something is happening
+            const btn = document.getElementById('btn-generate');
+            const _resetBtn = () => {
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('image_studio.generate')}`;
+                }
+            };
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = `<span class="spinner-sm"></span> ${t('image_studio.checking')}`;
+            }
+
             // ── Asset Type Classification (LLM-powered) ─────
             if (window.showConfirm) {
                 try {
@@ -831,6 +844,7 @@
                     window.hideLoading?.();
 
                     if (!screen.likely_safe) {
+                        _resetBtn();
                         this._showPreCheckDialog(prompt, screen, payload);
                         return;
                     }
