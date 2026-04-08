@@ -36,8 +36,10 @@ def list_gallery(
     """List generated assets, newest first, with optional filtering and pagination."""
     try:
         return _list_gallery_impl(style_id, asset_type, limit, offset)
-    except Exception:
-        logger.exception("Gallery list CRASHED")
+    except Exception as exc:
+        import traceback
+        tb = traceback.format_exc()
+        logger.error("Gallery list CRASHED: %s\n%s", exc, tb)
         return []
 
 
@@ -71,6 +73,9 @@ def _list_gallery_impl(style_id, asset_type, limit, offset):
             created_at_str = meta.get("created_at")
             try:
                 created_at = datetime.fromisoformat(created_at_str) if created_at_str else datetime.utcnow()
+                # Normalize to naive UTC (strip timezone) for consistent sorting
+                if created_at.tzinfo is not None:
+                    created_at = created_at.replace(tzinfo=None)
             except (ValueError, TypeError):
                 created_at = datetime.utcnow()
 
