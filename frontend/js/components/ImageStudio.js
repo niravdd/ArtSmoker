@@ -1840,7 +1840,9 @@
             }
 
             // Adjust grid columns to match option count
-            grid.className = `grid gap-3 grid-cols-${Math.min(options.length, 5)}`;
+            // Responsive grid: max 5 cols for ≤5 items, otherwise auto-fit for 6+
+            const cols = options.length <= 5 ? options.length : 5;
+            grid.className = `grid gap-3 grid-cols-${cols}`;
 
             grid.innerHTML = options.map((opt, i) => {
                 const thumb = opt.variants?.[0];

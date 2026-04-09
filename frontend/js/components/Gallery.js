@@ -494,7 +494,7 @@
                     <div class="p-4 space-y-2">
                         <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${this._esc(truncPrompt) || `<em class="text-brand-text-muted">${t('gallery.no_prompt')}</em>`}</p>
                         <div class="flex items-center flex-wrap gap-2 text-xs text-brand-text-muted">
-                            ${isVideo ? `<span class="badge badge-indigo">${this._esc(item.model_label || t('gallery.filter_videos'))}</span>` : ''}
+                            ${item.model_label ? `<span class="badge badge-indigo">${this._esc(item.model_label)}</span>` : ''}
                             ${styleName ? `<span class="badge badge-indigo">${this._esc(styleName)}</span>` : ''}
                             ${item.asset_type && item.asset_type !== 'video' ? `<span class="badge badge-indigo">${this._esc(item.asset_type)}</span>` : ''}
                             ${createdAt ? `<span>${createdAt}</span>` : ''}

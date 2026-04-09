@@ -79,12 +79,36 @@ def _list_gallery_impl(style_id, asset_type, limit, offset):
             except (ValueError, TypeError):
                 created_at = datetime.utcnow()
 
+            # Resolve model label: from metadata, or look up from registry
+            model_key = meta.get("image_model", "")
+            model_label = meta.get("model_label", "")
+            if not model_label and model_key:
+                from backend.services.model_registry import get_image_model
+                reg_model = get_image_model(model_key)
+                if reg_model:
+                    model_label = reg_model.get("label", model_key)
+                else:
+                    model_label = model_key.replace("_", " ").title()
+                # Backfill to metadata for future loads
+                meta["model_label"] = model_label
+                try:
+                    meta_path = store.generated_asset_dir(aid) / "metadata.json"
+                    if meta_path.exists():
+                        import json as _json
+                        existing = _json.loads(meta_path.read_text())
+                        existing["model_label"] = model_label
+                        meta_path.write_text(_json.dumps(existing, indent=2, default=str))
+                except Exception:
+                    pass
+
             items.append(
                 GalleryItem(
                     id=aid,
                     prompt=meta.get("prompt", meta.get("refined_prompt", "")),
                     style_id=meta.get("style_id"),
                     asset_type=meta.get("asset_type", ""),
+                    image_model=model_key,
+                    model_label=model_label,
                     png_url=f"/api/gallery/{aid}/png",
                     svg_url=svg_url,
                     created_at=created_at,

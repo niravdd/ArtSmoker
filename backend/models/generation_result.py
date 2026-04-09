@@ -55,6 +55,8 @@ class GalleryItem(BaseModel):
     prompt: str
     style_id: str | None = None
     asset_type: str
+    image_model: str | None = None
+    model_label: str | None = None
     png_url: str
     svg_url: str | None = None
     created_at: datetime
