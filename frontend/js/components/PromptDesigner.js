@@ -42,6 +42,7 @@
             this._onApply = opts.onApply || null;
             this._locks = {};
             this._activeTab = 'subject';
+            this._originalPrompt = prompt.trim();
 
             this._showModal(`
                 <div class="text-center py-12">
@@ -201,6 +202,20 @@
                 </div>`;
             }
 
+            // Original prompt (always visible at top of content)
+            const originalPromptBar = this._originalPrompt ? `
+                <div class="mx-5 mt-3 mb-1">
+                    <label class="block text-[9px] text-brand-text-muted uppercase tracking-wider mb-1">Original Prompt</label>
+                    <p class="text-[11px] text-brand-text/70 italic bg-black/10 rounded-lg px-3 py-2 line-clamp-2">${this._esc(this._originalPrompt)}</p>
+                </div>` : '';
+
+            // Live preview (constructed from current fields — no LLM, instant)
+            const previewBar = `
+                <div class="mx-5 mb-2">
+                    <label class="block text-[9px] text-brand-text-muted uppercase tracking-wider mb-1">Prompt Preview <span class="text-brand-text-muted/40">(constructed from fields above)</span></label>
+                    <p id="pd-live-preview" class="text-[10px] text-brand-text/60 bg-black/10 rounded-lg px-3 py-2 max-h-16 overflow-y-auto font-mono"></p>
+                </div>`;
+
             // Action bar
             const actionBar = `
                 <div class="flex items-center justify-between px-5 py-3 border-t border-brand-border bg-black/10">
@@ -212,7 +227,7 @@
                 </div>`;
 
             const body = this._modal?.querySelector('.pd-body');
-            if (body) body.innerHTML = translationBanner + tabBar + tabContent + actionBar;
+            if (body) body.innerHTML = originalPromptBar + translationBanner + tabBar + tabContent + previewBar + actionBar;
 
             // Attach events
             this._modal?.querySelectorAll('.pd-tab').forEach(btn => {
@@ -268,6 +283,23 @@
 
             this._modal?.querySelector('.pd-save')?.addEventListener('click', () => this._save());
             this._modal?.querySelector('.pd-cancel')?.addEventListener('click', () => this.close());
+
+            // Live preview: update on any field change
+            this._modal?.querySelectorAll('.pd-input').forEach(input => {
+                input.addEventListener('input', () => {
+                    const field = input.closest('.pd-field');
+                    if (field) {
+                        const tab = field.closest('[data-tab-content]')?.dataset.tabContent;
+                        const key = field.dataset.key;
+                        if (tab && key && this._data[tab]) {
+                            this._data[tab][key] = input.value;
+                        }
+                    }
+                    this._updateLivePreview();
+                });
+            });
+            // Initial preview render
+            this._updateLivePreview();
         },
 
         _save() {
@@ -276,6 +308,37 @@
             }
             this.close();
             window.showToast?.(_t('prompt_designer.saved'), 'success');
+        },
+
+        _esc(str) {
+            const d = document.createElement('div');
+            d.textContent = str || '';
+            return d.innerHTML;
+        },
+
+        _updateLivePreview() {
+            const el = this._modal?.querySelector('#pd-live-preview');
+            if (!el || !this._data) return;
+
+            // Construct prompt from current field values (no LLM — instant)
+            const parts = [];
+            for (const tab of TABS) {
+                const section = this._data[tab.key];
+                if (!section || typeof section !== 'object') continue;
+                for (const [key, value] of Object.entries(section)) {
+                    if (key === 'colors' || key === 'palette') continue; // handled separately
+                    if (typeof value === 'string' && value.trim()) {
+                        parts.push(value.trim());
+                    }
+                }
+            }
+            // Add color palette if present
+            const colors = this._data?.style?.colors || this._data?.style?.palette;
+            if (Array.isArray(colors) && colors.length > 0) {
+                const colorStr = colors.map(c => typeof c === 'object' ? `${c.name || c.hex || ''}` : c).filter(Boolean).join(', ');
+                if (colorStr) parts.push(`Color palette: ${colorStr}`);
+            }
+            el.textContent = parts.join('. ') + '.';
         },
     };
 })();
