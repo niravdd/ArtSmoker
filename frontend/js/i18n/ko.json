@@ -452,7 +452,8 @@
     "view_model_tests": "{{count}}개 모델 테스트 보기",
     "view_original_prompt": "원본 프롬프트 보기",
     "view_rewrite_attempts": "{{count}}회 재작성 시도 보기",
-    "will_generate_info": "모델당 1개 이미지 생성 ({{count}}개 모델) = 총 {{count}}개 이미지"
+    "will_generate_info": "모델당 1개 이미지 생성 ({{count}}개 모델) = 총 {{count}}개 이미지",
+    "checking": "확인 중..."
   },
   "lang": {
     "en": "영어",
@@ -921,7 +922,8 @@
     "async_ready_toast": "{{model}} 이미지 완성 — 대기 중인 작업 확인",
     "async_no_jobs": "아직 비동기 작업이 없습니다. 셀프 호스팅 모델은 백그라운드에서 이미지를 생성합니다.",
     "async_clear_completed": "완료된 항목 지우기",
-    "async_footer": "셀프 호스팅 모델은 비동기로 생성합니다. 완료되면 이미지가 갤러리에 표시됩니다."
+    "async_footer": "셀프 호스팅 모델은 비동기로 생성합니다. 완료되면 이미지가 갤러리에 표시됩니다.",
+    "refresh_status": "상태 새로고침"
   },
   "prompt_designer": {
     "title": "Prompt Designer",
