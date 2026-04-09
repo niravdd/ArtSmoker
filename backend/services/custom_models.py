@@ -41,7 +41,7 @@ BUNDLES = {
 }
 
 # Models that need their own dedicated instance (>12GB VRAM)
-DEDICATED_MODELS = {"flux1_schnell", "flux1_dev", "sdxl_turbo", "stable_video_diffusion"}
+DEDICATED_MODELS = {"flux1_schnell", "flux1_dev", "flux2_dev", "sdxl_turbo", "stable_video_diffusion"}
 
 
 # ── Catalog: Data-driven model definitions ────────────────────────────────
@@ -98,6 +98,15 @@ MODEL_CATALOG = {
             "supports_negative_prompt": False,
             "max_prompt_length": 2000,
             "typical_latency_seconds": 5,
+            "prompt_guidance": (
+                "FLUX.1 schnell uses natural language — write like describing a photograph or painting.\n"
+                "Structure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\n"
+                "Front-load the most important elements (the model pays more attention to what comes first).\n"
+                "DO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\n"
+                "Medium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\n"
+                "Use cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\n"
+                "Quality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'."
+            ),
         },
         "pricing": {
             "estimated_cost_per_image": 0.02,
@@ -145,7 +154,20 @@ MODEL_CATALOG = {
             "output_type": "base64_png",
             "supports_negative_prompt": False,
             "max_prompt_length": 2000,
-            "typical_latency_seconds": 15,
+            "typical_latency_seconds": 180,
+            "prompt_guidance": (
+                "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\n"
+                "Use natural language — write like describing a photograph or painting.\n"
+                "Structure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\n"
+                "Front-load the most important elements (the model pays more attention to what comes first).\n"
+                "DO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\n"
+                "Replace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\n"
+                "Medium-long prompts work best (40-100 words). Be specific and descriptive.\n"
+                "Camera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\n"
+                "Lighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\n"
+                "Artistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\n"
+                "Quality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'."
+            ),
         },
         "pricing": {
             "estimated_cost_per_image": 0.06,
@@ -153,6 +175,67 @@ MODEL_CATALOG = {
         },
         "version": "1.0",
         "last_updated": "2024-08-01",
+    },
+
+    "flux2_dev": {
+        "label": "FLUX.2 [dev]",
+        "description": "32B parameter flagship by Black Forest Labs. State-of-the-art quality with text rendering, reference editing. Non-commercial.",
+        "category": "image_generation",
+        "studio": "image",
+        "provider": "Black Forest Labs",
+        "license": "FLUX Non-Commercial License",
+        "requires_hf_auth": True,
+        "hf_license_url": "https://huggingface.co/black-forest-labs/FLUX.2-dev",
+        "source": {
+            "type": "huggingface",
+            "repo_id": "black-forest-labs/FLUX.2-dev",
+        },
+        "requirements": {
+            "min_vram_gb": 48,
+            "recommended_instance": "ml.g6e.xlarge",
+            "min_instance": "ml.g6e.xlarge",
+            "disk_gb": 50,
+        },
+        "invoke": {
+            "library": "diffusers",
+            "loader_class": "FluxPipeline",
+            "torch_dtype": "bfloat16",
+            "enable_sequential_cpu_offload": True,
+            "enable_vae_slicing": True,
+            "enable_vae_tiling": True,
+            "predictor_type": "text_to_image",
+            "input_fields": {
+                "prompt": {"type": "string", "required": True},
+                "width": {"type": "int", "default": 1024},
+                "height": {"type": "int", "default": 1024},
+                "num_inference_steps": {"type": "int", "default": 50},
+                "guidance_scale": {"type": "float", "default": 4.0},
+                "seed": {"type": "int", "required": False},
+            },
+            "output_type": "base64_png",
+            "supports_negative_prompt": False,
+            "max_prompt_length": 2000,
+            "typical_latency_seconds": 300,
+            "prompt_guidance": (
+                "FLUX.2 dev is a 32B parameter model — the most capable open-source image generator.\n"
+                "Use natural language — write like describing a photograph, painting, or cinematic shot.\n"
+                "Structure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\n"
+                "Front-load the most important elements (the model pays more attention to what comes first).\n"
+                "DO NOT use negative prompts or 'no/not/without' — describe what you WANT instead.\n"
+                "FLUX.2 excels at: text rendering in images, character consistency, multi-reference editing.\n"
+                "Longer prompts work well (50-120 words) — the model has exceptional prompt following.\n"
+                "Camera specs: '85mm lens, f/1.4', 'wide-angle 24mm', 'aerial drone shot'.\n"
+                "Lighting: 'golden hour', 'studio lighting', 'dramatic chiaroscuro', 'neon-lit'.\n"
+                "Quality: 'professional photography', 'cinematic', '8k resolution', 'award-winning'.\n"
+                "Can render readable text in images — include exact text in quotes if needed."
+            ),
+        },
+        "pricing": {
+            "estimated_cost_per_image": 0.15,
+            "instance_cost_per_hour": {"ml.g6e.xlarge": 2.61},
+        },
+        "version": "1.0",
+        "last_updated": "2025-06-01",
     },
 
     "sdxl_turbo": {
@@ -188,9 +271,19 @@ MODEL_CATALOG = {
                 "seed": {"type": "int", "required": False},
             },
             "output_type": "base64_png",
-            "supports_negative_prompt": False,
-            "max_prompt_length": 2000,
+            "supports_negative_prompt": True,
+            "max_prompt_length": 1500,
             "typical_latency_seconds": 2,
+            "prompt_guidance": (
+                "SDXL Turbo generates in 1 step — prompts must be clear and direct.\n"
+                "Use SDXL-style keyword prompting: comma-separated descriptors.\n"
+                "Quality boosters are essential: 'masterpiece, best quality, highly detailed'.\n"
+                "Style tokens work well: 'digital painting', 'concept art', 'photorealistic'.\n"
+                "Keep prompts concise (20-50 words) — quality over quantity for 1-step generation.\n"
+                "Negative prompts ARE supported and very effective for cleanup.\n"
+                "Common useful negatives: 'blurry, low quality, deformed, ugly, bad anatomy, watermark'.\n"
+                "Default resolution is 512×512. Higher resolutions may reduce quality."
+            ),
         },
         "pricing": {
             "estimated_cost_per_image": 0.01,

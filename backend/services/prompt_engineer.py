@@ -28,8 +28,45 @@ _last_negative_var: contextvars.ContextVar[str] = contextvars.ContextVar(
 
 
 def get_prompt_limit(image_model: str | None = None) -> int:
-    """Get the prompt character limit for a given image model."""
+    """Get the prompt character limit for a given image model.
+
+    Checks the model registry first (prompt_limit field), falls back to
+    the hardcoded dict, then the default.
+    """
+    # Check registry first (covers custom models and any model with prompt_limit)
+    if image_model:
+        from backend.services.model_registry import get_image_model
+        reg = get_image_model(image_model)
+        if reg and reg.get("prompt_limit"):
+            return reg["prompt_limit"]
     return _MODEL_PROMPT_LIMITS.get(image_model, _DEFAULT_PROMPT_LIMIT)
+
+
+def get_model_guidance(image_model: str | None = None) -> str:
+    """Get model-specific prompt guidance from the registry.
+
+    Each model can have a 'prompt_guidance' field in its invoke config
+    that tells the LLM how to best prompt that specific model.
+    Returns empty string if no guidance found.
+    """
+    if not image_model:
+        return ""
+    from backend.services.model_registry import get_image_model
+    reg = get_image_model(image_model)
+    if reg:
+        return reg.get("invoke", {}).get("prompt_guidance", "") or reg.get("prompt_guidance", "")
+    return ""
+
+
+def supports_negative_prompt(image_model: str | None = None) -> bool:
+    """Check if a model supports negative prompts (from registry)."""
+    if not image_model:
+        return True  # Default: assume yes for Bedrock models
+    from backend.services.model_registry import get_image_model
+    reg = get_image_model(image_model)
+    if reg:
+        return reg.get("invoke", {}).get("supports_negative_prompt", True)
+    return True
 
 # ── Asset-type context snippets ───────────────────────────────────────────
 
@@ -291,7 +328,8 @@ def refine_prompt(
     asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
     style_section = _build_style_section(style_profile)
     model_name = _get_model_label(image_model)
-    model_instructions = _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
+    # Model-specific prompt guidance: check registry first (extensible), then hardcoded
+    model_instructions = get_model_guidance(image_model) or _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
 
     prompt = get_template('image_refine_single').format(
         asset_context=asset_context,
@@ -319,7 +357,12 @@ def refine_prompt(
 
     # Parse out any NEGATIVE: line
     main_prompt, negative = _parse_negative_prompt(refined)
-    if negative:
+
+    # Skip negative prompts for models that don't support them (e.g., FLUX)
+    if negative and not supports_negative_prompt(image_model):
+        logger.info("Skipping negative prompt for %s (not supported)", image_model)
+        negative = ""
+    elif negative:
         logger.info("Extracted negative prompt: %s", negative[:100])
 
     # Store negative prompt for retrieval by the generation pipeline
