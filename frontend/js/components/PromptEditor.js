@@ -245,57 +245,65 @@
                 this._textareaEl.classList.add('hidden');
             });
 
-            // Prompt Designer button — runs asset type check first, THEN opens Designer
+            // Prompt Designer button — opens Designer (with or without prompt)
             this._btnDesigner?.addEventListener('click', async () => {
                 const text = this._textareaEl.value.trim();
-                if (!text) { window.showToast?.('Enter a prompt first', 'warning'); return; }
-
-                // Step A: Classify asset type (with loading indicator)
                 let assetType = this.opts.assetType || 'game_asset';
-                try {
-                    window.showLoading?.(typeof t !== 'undefined' ? t('prompt_designer.asset_check') : 'Checking asset type...');
-                    const resp = await fetch('/api/refine-prompt/classify-asset-type', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ prompt: text, asset_type: assetType }),
-                    });
-                    window.hideLoading?.();
 
-                    if (resp.ok && window.showConfirm) {
-                        const check = await resp.json();
-                        if (check.mismatch) {
-                            const sugLabel = (check.suggested || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                            const curLabel = (check.current || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                            // Step B: Ask user — this BLOCKS until they click
-                            const shouldSwitch = await window.showConfirm(
-                                check.reason,
-                                {
-                                    title: typeof t !== 'undefined' ? t('prompt_designer.asset_mismatch_title') : 'Asset Type may not be right',
-                                    detail: `You selected "${curLabel}" but your prompt looks like a "${sugLabel}". The right asset type significantly affects the quality of the generated image.`,
-                                    confirmLabel: `Switch to ${sugLabel}`,
-                                    cancelLabel: `Keep ${curLabel}`,
+                // If prompt exists, run asset type classification first
+                if (text) {
+                    try {
+                        window.showLoading?.(typeof t !== 'undefined' ? t('prompt_designer.asset_check') : 'Checking asset type...');
+                        const resp = await fetch('/api/refine-prompt/classify-asset-type', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ prompt: text, asset_type: assetType }),
+                        });
+                        window.hideLoading?.();
+
+                        if (resp.ok && window.showConfirm) {
+                            const check = await resp.json();
+                            if (check.mismatch) {
+                                const sugLabel = (check.suggested || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                const curLabel = (check.current || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+                                const shouldSwitch = await window.showConfirm(
+                                    check.reason,
+                                    {
+                                        title: typeof t !== 'undefined' ? t('prompt_designer.asset_mismatch_title') : 'Asset Type may not be right',
+                                        detail: `You selected "${curLabel}" but your prompt looks like a "${sugLabel}".`,
+                                        confirmLabel: `Switch to ${sugLabel}`,
+                                        cancelLabel: `Keep ${curLabel}`,
+                                    }
+                                );
+                                if (shouldSwitch) {
+                                    assetType = check.suggested;
+                                    if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(assetType);
+                                    this.opts.assetType = assetType;
                                 }
-                            );
-                            if (shouldSwitch) {
-                                assetType = check.suggested;
-                                if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(assetType);
-                                this.opts.assetType = assetType;
                             }
                         }
+                    } catch {
+                        window.hideLoading?.();
                     }
-                } catch {
-                    window.hideLoading?.();
                 }
 
-                // Step C: NOW open the Designer (only after classification dialog is resolved)
-                window.PromptDesigner?.open(text, {
+                // Open Designer — with prompt (decompose immediately) or without (input form)
+                window.PromptDesigner?.open(text || '', {
                     styleId: this.opts.styleId,
                     assetType: assetType,
                     imageModel: this.opts.imageModel,
+                    onAssetTypeChange: (newType) => {
+                        if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(newType);
+                        this.opts.assetType = newType;
+                    },
+                    onPromptSet: (prompt) => {
+                        // Populate Step 1 with the prompt from the Designer
+                        this._textareaEl.value = prompt;
+                        this._updateCharCount();
+                    },
                     onApply: (designerData) => {
-                        this._originalText = text;
+                        this._originalText = text || this._textareaEl.value;
                         this._designerData = designerData;
-                        // Auto-compose the enhanced prompt from designer data
                         this._composeFromDesigner(designerData);
                     },
                 });

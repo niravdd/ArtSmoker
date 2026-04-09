@@ -35,35 +35,128 @@
          * @param {object} opts - { styleId, assetType, imageModel, onApply(designerData) }
          */
         async open(prompt, opts = {}) {
-            if (!prompt?.trim()) {
-                window.showToast?.('Enter a prompt first', 'warning');
-                return;
-            }
             this._onApply = opts.onApply || null;
+            this._onPromptSet = opts.onPromptSet || null;
             this._locks = {};
             this._activeTab = 'subject';
-            this._originalPrompt = prompt.trim();
+            this._originalPrompt = (prompt || '').trim();
+            this._opts = opts;
 
-            this._showModal(`
-                <div class="text-center py-12">
-                    <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
-                    <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
-                    <p class="text-sm text-brand-text-muted">${_t('prompt_designer.analyzing')}</p>
-                    <p class="text-[10px] text-brand-text-muted/50 mt-1">${_t('prompt_designer.analyzing_sub')}</p>
-                </div>`);
+            if (this._originalPrompt) {
+                // Has prompt → decompose immediately (existing flow)
+                this._showModal(`
+                    <div class="text-center py-12">
+                        <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
+                        <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
+                        <p class="text-sm text-brand-text-muted">${_t('prompt_designer.analyzing')}</p>
+                        <p class="text-[10px] text-brand-text-muted/50 mt-1">${_t('prompt_designer.analyzing_sub')}</p>
+                    </div>`);
+                await this._decompose(this._originalPrompt);
+            } else {
+                // No prompt → show input form first
+                this._showModal('');
+                this._renderInputForm();
+            }
+        },
 
+        _renderInputForm() {
+            const body = this._modal?.querySelector('.pd-body');
+            if (!body) return;
+
+            const assetType = this._opts?.assetType || 'character';
+            const assetTypes = [
+                { value: 'character', label: 'Character' },
+                { value: 'environment', label: 'Environment' },
+                { value: 'game_asset', label: 'Game Asset' },
+                { value: 'ui_element', label: 'UI Element' },
+                { value: 'icon', label: 'Icon' },
+                { value: 'texture', label: 'Texture' },
+                { value: 'concept_art', label: 'Concept Art' },
+                { value: 'marketing', label: 'Marketing' },
+            ];
+            const assetOptions = assetTypes.map(a =>
+                `<option value="${a.value}" ${a.value === assetType ? 'selected' : ''}>${a.label}</option>`
+            ).join('');
+
+            body.innerHTML = `
+                <div class="px-5 py-4 space-y-4">
+                    <div>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Asset Type</label>
+                        <select id="pd-asset-type" class="input text-xs w-full">${assetOptions}</select>
+                    </div>
+                    <div>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Describe your idea</label>
+                        <textarea id="pd-prompt-input" class="input w-full text-sm" rows="3" placeholder="e.g. A fierce tiger, a cozy cabin in the woods, a futuristic spaceship..." autofocus></textarea>
+                    </div>
+                    <button id="pd-decompose-btn" class="w-full py-2.5 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white text-sm font-medium transition-colors">
+                        🎨 Decompose & Design
+                    </button>
+                </div>
+                <div class="px-5 pb-4">
+                    <p class="text-[10px] text-brand-text-muted/40 text-center">The AI will break down your idea into editable components: subject, scene, composition, lighting, and style.</p>
+                </div>
+                <div class="flex border-b border-brand-border opacity-30 pointer-events-none">
+                    ${TABS.map(tab => `<div class="flex-1 py-2.5 text-[11px] font-medium text-brand-text-muted/30 text-center">
+                        <span class="block">${tab.icon}</span>
+                        <span class="block mt-0.5">${_t(tab.labelKey)}</span>
+                    </div>`).join('')}
+                </div>
+                <div class="px-5 py-8 text-center text-brand-text-muted/20 text-xs">
+                    Enter a prompt above to populate these fields
+                </div>
+                <div class="flex items-center justify-end px-5 py-3 border-t border-brand-border bg-black/10">
+                    <button class="pd-cancel text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${_t('prompt_designer.cancel')}</button>
+                </div>`;
+
+            body.querySelector('#pd-decompose-btn')?.addEventListener('click', async () => {
+                const prompt = body.querySelector('#pd-prompt-input')?.value.trim();
+                if (!prompt) { window.showToast?.('Enter a prompt first', 'warning'); return; }
+
+                this._originalPrompt = prompt;
+
+                // Update asset type from dropdown
+                const selectedAsset = body.querySelector('#pd-asset-type')?.value;
+                if (selectedAsset && this._opts) {
+                    this._opts.assetType = selectedAsset;
+                    if (this._opts.onAssetTypeChange) this._opts.onAssetTypeChange(selectedAsset);
+                }
+
+                // Show loading in the decompose button
+                const btn = body.querySelector('#pd-decompose-btn');
+                if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyzing...'; }
+
+                await this._decompose(prompt);
+            });
+
+            // Also allow Enter key in textarea to trigger decompose
+            body.querySelector('#pd-prompt-input')?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    body.querySelector('#pd-decompose-btn')?.click();
+                }
+            });
+
+            body.querySelector('.pd-cancel')?.addEventListener('click', () => this.close());
+            body.querySelector('#pd-prompt-input')?.focus();
+        },
+
+        async _decompose(prompt) {
             try {
                 const resp = await fetch('/api/refine-prompt/decompose', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         prompt: prompt,
-                        style_id: opts.styleId || undefined,
-                        asset_type: opts.assetType || 'character',
+                        style_id: this._opts?.styleId || undefined,
+                        asset_type: this._opts?.assetType || 'character',
                     }),
                 });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 this._data = await resp.json();
+
+                // Notify the editor that a prompt was set (populates Step 1)
+                if (this._onPromptSet) this._onPromptSet(prompt);
+
                 this._renderDesigner();
             } catch (err) {
                 const body = this._modal?.querySelector('.pd-body');
