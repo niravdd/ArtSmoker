@@ -1612,8 +1612,8 @@ async def post_process_assets(body: PostProcessRequest):
 @router.get("/async-jobs")
 def get_async_jobs():
     """Get all async generation jobs (pending, complete, failed)."""
-    from backend.services.async_jobs import get_all_jobs, get_pending_count
-    return {"jobs": get_all_jobs(), "pending_count": get_pending_count()}
+    from backend.services.async_jobs import get_all_jobs, get_pending_count, has_active_jobs
+    return {"jobs": get_all_jobs(), "pending_count": get_pending_count(), "has_active": has_active_jobs()}
 
 
 @router.post("/async-jobs/clear")

@@ -349,6 +349,20 @@ async def lifespan(app: FastAPI):
     from backend.services.auto_update import start_periodic_checker, stop_periodic_checker
     start_periodic_checker()
 
+    # Resume any pending async jobs from S3 (non-blocking background thread)
+    import threading
+    def _resume_async_jobs():
+        try:
+            from backend.services.async_jobs import load_persisted_jobs, resume_pending_jobs, _ensure_poller
+            loaded = load_persisted_jobs()
+            if loaded > 0:
+                _ensure_poller()
+                resumed = resume_pending_jobs()
+                logger.info("Async jobs: %d loaded, %d resumed from S3", loaded, resumed)
+        except Exception as exc:
+            logger.debug("Async jobs resume: %s", exc)
+    threading.Thread(target=_resume_async_jobs, daemon=True, name="async-resume").start()
+
     # Mark ready only if Sync is not running in background
     # (background Sync thread will set ready=True when it completes)
     if not _server_state["sync_in_progress"]:

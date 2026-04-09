@@ -1707,8 +1707,9 @@
                     if (text) text.textContent = t('custom_models.async_submitted').replace('{{model}}', evt.model_label);
                     if (sub) sub.textContent = t('custom_models.async_submitted_hint');
                     if (bar) bar.style.width = Math.min(pct, 92) + '%';
-                    // Show the pending jobs button
+                    // Show the pending jobs button and start polling
                     document.getElementById('btn-pending-jobs')?.classList.remove('hidden');
+                    this._startAsyncPolling();
                     break;
                 }
 
@@ -1844,6 +1845,7 @@
             grid.innerHTML = options.map((opt, i) => {
                 const thumb = opt.variants?.[0];
                 const thumbSrc = thumb ? thumb.png_path : '';
+                const isAsync = thumb?.async_job || (opt.variants || []).some(v => v.async_job);
                 return `
                     <button
                         class="option-card group relative rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-pointer
@@ -1853,6 +1855,8 @@
                         <div class="aspect-square bg-brand-bg">
                             ${thumbSrc
                                 ? `<img src="${thumbSrc}" alt="${t('image_studio.option')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
+                                : isAsync
+                                ? `<div class="w-full h-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${t('custom_models.async_submitted_hint').split('.')[0]}</span></div>`
                                 : `<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
                             }
                         </div>
@@ -1961,19 +1965,26 @@
 
             grid.className = `grid gap-3 grid-cols-${Math.min(variants.length, 5)}`;
 
-            grid.innerHTML = variants.map((v, i) => `
+            grid.innerHTML = variants.map((v, i) => {
+                const isAsync = v.async_job && !v.png_path;
+                return `
                 <button
                     class="variant-thumb group relative aspect-square rounded-lg overflow-hidden border-2 transition-all duration-200 cursor-pointer
                            ${i === 0 ? 'border-emerald-400 ring-2 ring-emerald-400/30' : 'border-brand-border hover:border-emerald-400/50'}"
                     data-variant-index="${i}"
                 >
-                    <img src="${v.png_path}" alt="${t('image_studio.variation')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />
+                    ${isAsync
+                        ? `<div class="w-full h-full flex flex-col items-center justify-center bg-brand-bg text-cyan-400/50 text-[10px] gap-1"><svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Generating</div>`
+                        : v.png_path
+                        ? `<img src="${v.png_path}" alt="${t('image_studio.variation')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
+                        : `<div class="w-full h-full flex items-center justify-center bg-brand-bg text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
+                    }
                     <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
                     <span class="absolute bottom-1 right-1 text-[10px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">
                         v${i + 1}
                     </span>
-                </button>
-            `).join('');
+                </button>`;
+            }).join('');
 
             grid.querySelectorAll('.variant-thumb').forEach(btn => {
                 btn.addEventListener('click', () => {
@@ -2296,32 +2307,66 @@
         // ── Pending Jobs (async custom models) ─────────────────────────
 
         _pendingJobsTimer: null,
+        _pendingJobsActive: false,  // Whether polling is active
+        _notifiedJobIds: new Set(), // Track which completions we've toasted
 
         _pollPendingJobs() {
-            const poll = async () => {
-                try {
-                    const resp = await fetch('/api/generate/async-jobs');
-                    if (resp.ok) {
-                        const data = await resp.json();
-                        const count = data.pending_count || 0;
-                        const btn = document.getElementById('btn-pending-jobs');
-                        const label = document.getElementById('pending-jobs-label');
-                        if (btn) {
-                            btn.classList.toggle('hidden', count === 0 && (data.jobs || []).length === 0);
-                            if (label) label.textContent = count > 0 ? t('custom_models.pending_jobs_count').replace('{{count}}', count) : t('custom_models.pending_jobs_total').replace('{{count}}', (data.jobs || []).length);
-                        }
+            // Do one initial check, then only poll if there are active jobs
+            this._checkAsyncJobs();
+        },
 
-                        // Toast when a job completes
-                        const completed = (data.jobs || []).filter(j => j.status === 'complete' && !j._notified);
-                        completed.forEach(j => {
-                            window.showToast?.(t('custom_models.async_ready_toast').replace('{{model}}', j.model_label), 'success');
-                            j._notified = true;
-                        });
-                    }
-                } catch {}
-                this._pendingJobsTimer = setTimeout(poll, 10000);
-            };
-            poll();
+        _startAsyncPolling() {
+            if (this._pendingJobsActive) return;
+            this._pendingJobsActive = true;
+            this._asyncPollLoop();
+        },
+
+        _stopAsyncPolling() {
+            this._pendingJobsActive = false;
+            clearTimeout(this._pendingJobsTimer);
+        },
+
+        async _asyncPollLoop() {
+            if (!this._pendingJobsActive) return;
+            await this._checkAsyncJobs();
+            // Continue polling only if there are still active jobs
+            if (this._pendingJobsActive) {
+                this._pendingJobsTimer = setTimeout(() => this._asyncPollLoop(), 15000);
+            }
+        },
+
+        async _checkAsyncJobs() {
+            try {
+                const resp = await fetch('/api/generate/async-jobs');
+                if (!resp.ok) return;
+                const data = await resp.json();
+                const count = data.pending_count || 0;
+                const jobs = data.jobs || [];
+                const hasActive = data.has_active || false;
+
+                // Update button visibility and label
+                const btn = document.getElementById('btn-pending-jobs');
+                const label = document.getElementById('pending-jobs-label');
+                if (btn) {
+                    btn.classList.toggle('hidden', jobs.length === 0);
+                    if (label) label.textContent = count > 0
+                        ? t('custom_models.pending_jobs_count').replace('{{count}}', count)
+                        : t('custom_models.pending_jobs_total').replace('{{count}}', jobs.length);
+                }
+
+                // Toast for newly completed jobs
+                jobs.filter(j => j.status === 'complete' && !this._notifiedJobIds.has(j.job_id)).forEach(j => {
+                    window.showToast?.(t('custom_models.async_ready_toast').replace('{{model}}', j.model_label), 'success');
+                    this._notifiedJobIds.add(j.job_id);
+                });
+
+                // Smart polling: start/stop based on active jobs
+                if (hasActive && !this._pendingJobsActive) {
+                    this._startAsyncPolling();
+                } else if (!hasActive && this._pendingJobsActive) {
+                    this._stopAsyncPolling();
+                }
+            } catch {}
         },
 
         async _showPendingJobs() {

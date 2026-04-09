@@ -108,6 +108,12 @@ def get_pending_count() -> int:
         return sum(1 for j in _jobs.values() if j["status"] in (PENDING, GENERATING))
 
 
+def has_active_jobs() -> bool:
+    """Check if there are any pending/generating jobs (for smart frontend polling)."""
+    with _lock:
+        return any(j["status"] in (PENDING, GENERATING) for j in _jobs.values())
+
+
 def clear_completed():
     """Remove all completed and failed jobs from the tracker."""
     with _lock:
@@ -296,7 +302,10 @@ def _check_job(job: dict, s3):
 
         # Calculate actual compute cost based on instance uptime
         submitted = datetime.fromisoformat(job["submitted_at"])
+        if submitted.tzinfo is None:
+            submitted = submitted.replace(tzinfo=timezone.utc)
         duration_seconds = (completed_at - submitted).total_seconds()
+        duration_seconds = min(duration_seconds, 900)  # Cap at 15 min
         compute_cost = _calculate_compute_cost(job["model_key"], duration_seconds)
 
         with _lock:
@@ -561,3 +570,102 @@ def load_persisted_jobs():
     except Exception as e:
         logger.debug("Failed to load persisted jobs: %s", e)
         return 0
+
+
+def resume_pending_jobs() -> int:
+    """Check all pending/generating jobs against S3 outputs on startup.
+
+    For each pending job:
+    - If output exists in S3: download image, save to gallery, mark complete, clean up S3
+    - If output doesn't exist and job is >15 min old: mark failed (timed out)
+    - If output doesn't exist and job is recent: leave as pending (poller will handle)
+
+    Returns count of jobs resolved (completed + failed).
+    """
+    import boto3
+    from backend.config import settings
+
+    s3 = boto3.client("s3", region_name=settings.aws_region_models)
+    resolved = 0
+
+    with _lock:
+        pending = [j for j in _jobs.values() if j["status"] in (PENDING, GENERATING)]
+
+    for job in pending:
+        try:
+            output_location = job.get("output_location", "")
+            if not output_location:
+                continue
+
+            parts = output_location.replace("s3://", "").split("/", 1)
+            bucket, key = parts[0], parts[1]
+
+            try:
+                # Use head_object first to get LastModified (actual generation time)
+                head = s3.head_object(Bucket=bucket, Key=key)
+                s3_completed = head["LastModified"].astimezone(timezone.utc)
+
+                obj = s3.get_object(Bucket=bucket, Key=key)
+                body = obj["Body"].read()
+                result = json.loads(body.decode("utf-8"))
+                image_b64 = result.get("image", "")
+
+                if image_b64:
+                    image_bytes = base64.b64decode(image_b64)
+                    image_path = _update_gallery_on_complete(job, image_bytes)
+
+                    # Use S3 object timestamp as the real completion time
+                    # (not "now", which includes wait time after server restart)
+                    submitted = datetime.fromisoformat(job["submitted_at"])
+                    if submitted.tzinfo is None:
+                        submitted = submitted.replace(tzinfo=timezone.utc)
+                    duration = (s3_completed - submitted).total_seconds()
+                    # Cap duration at 15 min — anything longer means the job
+                    # waited in queue while the endpoint was at zero
+                    duration = min(duration, 900)
+                    compute_cost = _calculate_compute_cost(job["model_key"], duration)
+
+                    with _lock:
+                        job["status"] = COMPLETE
+                        job["image_path"] = image_path
+                        job["completed_at"] = s3_completed.isoformat()
+                        job["progress"] = 100
+                        job["duration_seconds"] = round(duration, 1)
+                        job["compute_cost_usd"] = compute_cost
+
+                    _track_completion(job, duration, compute_cost)
+                    _cleanup_s3(job, s3)
+                    _persist_job_to_s3(job)
+                    resolved += 1
+                    logger.info("Resumed job %s: complete (%d bytes, ~$%.4f)",
+                                job["job_id"], len(image_bytes), compute_cost)
+                else:
+                    with _lock:
+                        job["status"] = FAILED
+                        job["error"] = "No image data in output"
+                        job["completed_at"] = datetime.now(timezone.utc).isoformat()
+                    _update_gallery_on_failure(job)
+                    _cleanup_s3(job, s3)
+                    _persist_job_to_s3(job)
+                    resolved += 1
+
+            except Exception as e:
+                if "NoSuchKey" in str(e) or "404" in str(e):
+                    # Output not ready — check if timed out
+                    elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
+                    if elapsed > 900:
+                        with _lock:
+                            job["status"] = FAILED
+                            job["error"] = f"Timed out ({int(elapsed)}s) — endpoint may have been at zero capacity"
+                            job["completed_at"] = datetime.now(timezone.utc).isoformat()
+                        _update_gallery_on_failure(job)
+                        _persist_job_to_s3(job)
+                        resolved += 1
+                    # else: still pending, poller will check later
+                else:
+                    logger.warning("Resume check failed for %s: %s", job["job_id"], e)
+
+        except Exception as e:
+            logger.warning("Resume job %s error: %s", job["job_id"], e)
+
+    return resolved
