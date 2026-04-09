@@ -1846,17 +1846,19 @@
                 const thumb = opt.variants?.[0];
                 const thumbSrc = thumb ? thumb.png_path : '';
                 const isAsync = thumb?.async_job || (opt.variants || []).some(v => v.async_job);
+                const asyncJobId = thumb?.async_job?.job_id || '';
+                const asyncAssetId = thumb?.id || '';
                 return `
                     <button
                         class="option-card group relative rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-pointer
                                ${i === 0 ? 'border-brand-accent ring-2 ring-brand-accent/40 shadow-lg shadow-brand-accent/20' : 'border-brand-border hover:border-brand-accent/50'}"
-                        data-option-index="${i}"
+                        data-option-index="${i}" ${isAsync ? `data-async-job="${asyncJobId}" data-async-asset="${asyncAssetId}"` : ''}
                     >
-                        <div class="aspect-square bg-brand-bg">
+                        <div class="aspect-square bg-brand-bg async-thumb-container">
                             ${thumbSrc
                                 ? `<img src="${thumbSrc}" alt="${t('image_studio.option')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
                                 : isAsync
-                                ? `<div class="w-full h-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${t('custom_models.async_submitted_hint').split('.')[0]}</span></div>`
+                                ? `<div class="async-placeholder w-full h-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${t('custom_models.async_submitted_hint').split('.')[0]}</span></div>`
                                 : `<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
                             }
                         </div>
@@ -1967,14 +1969,16 @@
 
             grid.innerHTML = variants.map((v, i) => {
                 const isAsync = v.async_job && !v.png_path;
+                const vAsyncJobId = v.async_job?.job_id || '';
+                const vAsyncAssetId = v.id || '';
                 return `
                 <button
                     class="variant-thumb group relative aspect-square rounded-lg overflow-hidden border-2 transition-all duration-200 cursor-pointer
                            ${i === 0 ? 'border-emerald-400 ring-2 ring-emerald-400/30' : 'border-brand-border hover:border-emerald-400/50'}"
-                    data-variant-index="${i}"
+                    data-variant-index="${i}" ${isAsync ? `data-async-job="${vAsyncJobId}" data-async-asset="${vAsyncAssetId}"` : ''}
                 >
                     ${isAsync
-                        ? `<div class="w-full h-full flex flex-col items-center justify-center bg-brand-bg text-cyan-400/50 text-[10px] gap-1"><svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Generating</div>`
+                        ? `<div class="async-placeholder w-full h-full flex flex-col items-center justify-center bg-brand-bg text-cyan-400/50 text-[10px] gap-1"><svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Generating</div>`
                         : v.png_path
                         ? `<img src="${v.png_path}" alt="${t('image_studio.variation')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
                         : `<div class="w-full h-full flex items-center justify-center bg-brand-bg text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
@@ -2354,10 +2358,20 @@
                         : t('custom_models.pending_jobs_total').replace('{{count}}', jobs.length);
                 }
 
-                // Toast for newly completed jobs
+                // Toast + live update for newly completed jobs
                 jobs.filter(j => j.status === 'complete' && !this._notifiedJobIds.has(j.job_id)).forEach(j => {
                     window.showToast?.(t('custom_models.async_ready_toast').replace('{{model}}', j.model_label), 'success');
                     this._notifiedJobIds.add(j.job_id);
+
+                    // Replace async placeholder with actual image on the current result page
+                    const assetId = j.asset_id || '';
+                    if (assetId) {
+                        const imgSrc = `/api/gallery/${assetId}/png`;
+                        // Update option cards
+                        document.querySelectorAll(`[data-async-job="${j.job_id}"] .async-placeholder, [data-async-asset="${assetId}"] .async-placeholder`).forEach(ph => {
+                            ph.outerHTML = `<img src="${imgSrc}" alt="Generated" class="w-full h-full object-cover" loading="lazy" />`;
+                        });
+                    }
                 });
 
                 // Smart polling: start/stop based on active jobs
