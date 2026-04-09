@@ -81,7 +81,8 @@ def submit_job(
     }
 
     # Persist metadata to gallery NOW (before image arrives)
-    _persist_gallery_metadata(job)
+    # Note: gallery metadata is saved by the generate router (same code path as sync)
+    # We only manage the async job tracking and S3 polling here.
 
     with _lock:
         _jobs[job_id] = job
@@ -112,6 +113,17 @@ def has_active_jobs() -> bool:
     """Check if there are any pending/generating jobs (for smart frontend polling)."""
     with _lock:
         return any(j["status"] in (PENDING, GENERATING) for j in _jobs.values())
+
+
+def update_job_asset_id(job_id: str, asset_id: str, generate_svg: bool = False, remove_bg: bool = False, upscale: bool = False):
+    """Update a job's asset_id and post-processing flags (called from generate router)."""
+    with _lock:
+        job = _jobs.get(job_id)
+        if job:
+            job["asset_id"] = asset_id
+            job["generate_svg"] = generate_svg
+            job["remove_bg"] = remove_bg
+            job["upscale"] = upscale
 
 
 def clear_completed():
@@ -162,43 +174,55 @@ def _persist_gallery_metadata(job: dict):
 
 
 def _update_gallery_on_complete(job: dict, image_bytes: bytes):
-    """Save the image and update gallery metadata when the async job completes."""
+    """Save image, run post-processing (SVG/upscale/bg-remove), update metadata.
+
+    Runs the same post-processing pipeline as sync jobs to ensure
+    consistent gallery entries.
+    """
     from backend.config import settings
+    from backend.storage.local_store import store
 
-    asset_id = job["asset_id"]
-    variant_dir = settings.generated_dir / f"{asset_id}_o{job['option_index']}_v{job['variation_index']}"
-    variant_dir.mkdir(parents=True, exist_ok=True)
+    asset_id = job.get("asset_id", f"async_{job['job_id']}")
 
-    # Save image
-    image_path = variant_dir / "asset.png"
-    image_path.write_bytes(image_bytes)
+    # Run post-processing (same pipeline as sync jobs)
+    final_bytes = image_bytes
+    svg_path = None
+    try:
+        from backend.services.post_processor import process_asset
+        svg_output_path = store.generated_asset_dir(asset_id) / "asset.svg" if job.get("generate_svg") else None
+        final_bytes, svg_path = process_asset(
+            image_bytes=image_bytes,
+            refined_prompt=job.get("full_prompt", ""),
+            remove_bg=job.get("remove_bg", False),
+            do_upscale=job.get("upscale", False),
+            do_svg=job.get("generate_svg", False),
+            svg_output_path=svg_output_path,
+        )
+    except Exception as e:
+        logger.warning("Async post-processing failed for %s: %s", asset_id, e)
 
-    # Update metadata
-    meta_path = variant_dir / "metadata.json"
+    # Save the (possibly post-processed) image
+    store.save_generated_image(asset_id, "asset.png", final_bytes)
+    image_path = str(store.generated_asset_dir(asset_id) / "asset.png")
+
+    # Update existing metadata (created by generate router at submission time)
+    meta_path = store.generated_asset_dir(asset_id) / "metadata.json"
     try:
         meta = json.loads(meta_path.read_text())
     except Exception:
         meta = {}
 
-    # Calculate duration and cost for metadata
-    submitted = datetime.fromisoformat(job["submitted_at"])
-    duration = (datetime.now(timezone.utc) - submitted).total_seconds()
-    compute_cost = _calculate_compute_cost(job["model_key"], duration)
-
     meta.update({
         "async_status": "complete",
         "async_completed_at": datetime.now(timezone.utc).isoformat(),
-        "png_path": f"/api/gallery/{asset_id}_o{job['option_index']}_v{job['variation_index']}/png",
+        "png_path": f"/api/gallery/{asset_id}/png",
         "png_filename": "asset.png",
-        "image_size_bytes": len(image_bytes),
-        "generation_duration_seconds": round(duration, 1),
-        "estimated_compute_cost_usd": compute_cost,
-        "cost_history": [{"action": "generate", "model": job["model_key"],
-                          "cost_usd": compute_cost, "duration_s": round(duration, 1)}],
+        "svg_path": f"/api/gallery/{asset_id}/svg" if svg_path else None,
+        "image_size_bytes": len(final_bytes),
     })
     meta_path.write_text(json.dumps(meta, indent=2))
 
-    return str(image_path)
+    return image_path
 
 
 def _update_gallery_on_failure(job: dict):
@@ -362,9 +386,15 @@ def _update_progress(job: dict):
 def _calculate_compute_cost(model_key: str, duration_seconds: float) -> float:
     """Calculate the actual compute cost based on instance uptime.
 
-    Uses the instance type's hourly rate from the catalog, prorated
-    to the actual generation duration. This is the real cost — not
-    a flat per-image estimate.
+    Uses the instance type's hourly rate from the catalog, prorated to
+    the actual generation duration. Includes a share of the cooldown
+    cost (the instance stays up for 10 min after the last job, so that
+    cost is amortized across all jobs in the batch).
+
+    Note: This is ONLY the SageMaker compute cost. LLM costs (prompt
+    refinement, classification, etc.) are tracked separately by the
+    cost_tracker during the generation request and added to the session
+    total. The final telemetry event includes both.
     """
     from backend.services.custom_models import get_catalog_model
     from backend.services.model_registry import get_registry
@@ -403,8 +433,17 @@ def _calculate_compute_cost(model_key: str, duration_seconds: float) -> float:
                 break
 
     # Prorate: cost = (duration_seconds / 3600) * hourly_rate
-    cost = (duration_seconds / 3600.0) * hourly_rate
-    return round(cost, 6)
+    generation_cost = (duration_seconds / 3600.0) * hourly_rate
+
+    # Add amortized cooldown cost: the instance stays up for 10 min (600s)
+    # after the last job. This cost is shared across all jobs in the batch.
+    # Estimate: assume ~5 jobs per batch (conservative)
+    _COOLDOWN_SECONDS = 600
+    _ESTIMATED_BATCH_SIZE = max(1, get_pending_count() + 1)
+    cooldown_share = (_COOLDOWN_SECONDS / _ESTIMATED_BATCH_SIZE / 3600.0) * hourly_rate
+
+    total_cost = generation_cost + cooldown_share
+    return round(total_cost, 6)
 
 
 def _track_completion(job: dict, duration_seconds: float, compute_cost: float):
@@ -485,6 +524,9 @@ def _persist_job_to_s3(job: dict):
             "option_index": job.get("option_index", 0),
             "variation_index": job.get("variation_index", 0),
             "generation_id": job.get("generation_id", ""),
+            "generate_svg": job.get("generate_svg", False),
+            "remove_bg": job.get("remove_bg", False),
+            "upscale": job.get("upscale", False),
             "status": job["status"],
             "progress": job.get("progress", 0),
             "submitted_at": job["submitted_at"],

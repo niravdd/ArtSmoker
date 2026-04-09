@@ -183,6 +183,49 @@ def _build_variant(
 
     # Async custom models return a sentinel — image will arrive later via background poller
     if isinstance(gen_result, dict) and gen_result.get("async_submitted"):
+        # Save FULL metadata now (identical to sync jobs) — image arrives later
+        effective_model = model_override or body.image_model
+        store.save_generation_metadata(asset_id, {
+            "id": asset_id,
+            "batch_id": batch_id,
+            "option_index": option_index,
+            "variant_index": variant_index,
+            "num_options": body.num_options,
+            "num_variations": body.num_variations,
+            "all_models": body.all_models,
+            "original_prompt": body.original_prompt,
+            "moderation_original": body.moderation_original,
+            "prompt": body.prompt,
+            "refined_prompt": refined_prompt,
+            "negative_prompt": negative_prompt,
+            "style_id": body.style_id,
+            "style_snapshot": style_snapshot,
+            "asset_type": body.asset_type.value,
+            "image_model": effective_model.value if hasattr(effective_model, 'value') else str(effective_model),
+            "model_label": model_label or "",
+            "quality": body.quality or "",
+            "region": _get_model_region(effective_model),
+            "width": body.width,
+            "height": body.height,
+            "seed": seed,
+            "remove_background": body.remove_background,
+            "generate_svg": body.generate_svg,
+            "upscale": body.upscale,
+            "ip_owned": body.ip_owned,
+            "ip_licensed": body.ip_licensed,
+            "png_path": f"/api/gallery/{asset_id}/png",
+            "created_at": datetime.utcnow().isoformat(),
+            "async_status": "pending",
+            "async_job_id": gen_result.get("job_id"),
+        })
+
+        # Update the async job with the asset_id so the poller knows where to save
+        try:
+            from backend.services.async_jobs import update_job_asset_id
+            update_job_asset_id(gen_result["job_id"], asset_id, body.generate_svg, body.remove_background, body.upscale)
+        except Exception:
+            pass
+
         return VariantResult(
             id=asset_id,
             variant_index=variant_index,
