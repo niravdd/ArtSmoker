@@ -18,6 +18,9 @@ _REGISTRY_PATH = Path(__file__).resolve().parent.parent / "model_registry.json" 
 _USER_PREFS_PATH = Path(__file__).resolve().parent.parent / "model_registry.user.json"  # ALL runtime state (gitignored)
 _registry: dict = {}
 
+# Fields in model entries that are user preferences (saveable via _save_user_pref)
+_USER_PREF_FIELDS = {"enabled"}
+
 
 def _load():
     """Load the registry: git-tracked defaults + runtime state overlay.
