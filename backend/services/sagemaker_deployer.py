@@ -771,8 +771,11 @@ def _get_model_environment(model_key: str, model: dict,
         "ARTSMOKER_HF_REPO": source.get("repo_id", ""),
         "SAGEMAKER_PROGRAM": "inference.py",
         "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",
-        # Full invoke config as JSON for advanced use
-        "INVOKE_CONFIG": json.dumps(invoke, default=str),
+        # Full invoke config as JSON — strip server-side-only fields to stay under 1024-char limit
+        "INVOKE_CONFIG": json.dumps(
+            {k: v for k, v in invoke.items() if k not in ("prompt_guidance",)},
+            default=str,
+        ),
         # CUDA memory management
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
     }
