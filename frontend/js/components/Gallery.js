@@ -453,7 +453,7 @@
             const thumbUrl = isVideo
                 ? API.video.thumbnailUrl(item.id) + `?t=${this._cacheKey || '0'}`
                 : API.gallery.pngUrl(item.id) + `?t=${this._cacheKey || '0'}`;
-            const createdAt = item.created_at ? new Date(item.created_at).toLocaleDateString() : '';
+            const createdAt = item.created_at ? window.formatDate(item.created_at) : '';
             const styleName = item.style_name || this._findStyleName(item.style_id) || '';
             const prompt = item.original_prompt || item.prompt || '';
             const truncPrompt = prompt.length > 80 ? prompt.substring(0, 80) + '...' : prompt;

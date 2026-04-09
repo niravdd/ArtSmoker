@@ -35,7 +35,7 @@
             if (!reg) return;
 
             const lastUpdated = reg.last_updated
-                ? new Date(reg.last_updated).toLocaleString()
+                ? window.formatTimestamp(reg.last_updated)
                 : t('common.unknown');
 
             // Count models per tab

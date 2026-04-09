@@ -1255,7 +1255,7 @@
                             </svg>
                             ${_esc(b.name)}
                         </span>
-                        <span class="text-[10px] text-brand-text-muted">${b.created ? new Date(b.created).toLocaleDateString() : ''}</span>
+                        <span class="text-[10px] text-brand-text-muted">${b.created ? window.formatDate(b.created) : ''}</span>
                     </button>
                 `).join('');
 

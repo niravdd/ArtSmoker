@@ -145,6 +145,31 @@
         if (overlay) overlay.classList.add('hidden');
     };
 
+    // ── Global date formatters (dd MMM yyyy + timezone) ─────────────
+    const _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    window.formatDate = function(dateStr) {
+        if (!dateStr) return '';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d)) return '';
+            return `${d.getDate()} ${_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+        } catch { return ''; }
+    };
+    window.formatTimestamp = function(dateStr) {
+        if (!dateStr) return '';
+        try {
+            const d = new Date(dateStr);
+            if (isNaN(d)) return '';
+            const dd = d.getDate();
+            const mon = _MONTHS[d.getMonth()];
+            const yyyy = d.getFullYear();
+            const hh = String(d.getHours()).padStart(2, '0');
+            const mm = String(d.getMinutes()).padStart(2, '0');
+            const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
+            return `${dd} ${mon} ${yyyy}, ${hh}:${mm} (${tz})`;
+        } catch { return ''; }
+    };
+
     window.showToast = function (message, type, duration) {
         type = type || 'info';
         duration = duration || 4000;
