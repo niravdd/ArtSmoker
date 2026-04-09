@@ -1256,7 +1256,7 @@ Each model's catalog entry specifies which optimizations to enable. The inferenc
 
 This combination solves the cold-start-from-zero problem: TargetTracking alone cannot scale from 0→1 (no instances = no metric data). The StepScaling alarm triggers on backlog presence regardless of instance count.
 
-**15-minute warm-up window:** Amazon SageMaker reports `InService` as soon as the container starts, but the model is not ready until weights are downloaded from HuggingFace and loaded into GPU memory. For large models (e.g., FLUX.1 at ~23GB), this takes 5-15 minutes after `InService`. The status endpoint tracks this window and the frontend displays a warm-up progress indicator.
+**15-minute warm-up window:** Amazon SageMaker reports `InService` as soon as the container starts, but the model is not ready until weights are downloaded from HuggingFace and loaded into GPU memory. For large models (e.g., 23-70GB), this takes 5-15 minutes after `InService`. The status endpoint tracks this window and the frontend displays a warm-up progress indicator.
 
 **Amazon SageMaker IAM requirements:**
 ```

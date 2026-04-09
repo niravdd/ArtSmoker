@@ -98,7 +98,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 - 🌐 **6-Language i18n** — Full UI translation (EN, JA, ZH, KO, FR, ES), auto-detect non-English prompts, bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
-- 🔧 **Self-Hosted Models** — Deploy open-source models (FLUX.1, Real-ESRGAN, RMBG, SAM 2, and more) on Amazon SageMaker. Container pulls directly from HuggingFace, CPU offloading for large models, auto-scales to zero ($0 idle), async generation with Pending Jobs panel
+- 🔧 **Self-Hosted Models** — Deploy open-source models on Amazon SageMaker from an extensible catalog. Container pulls directly from HuggingFace, CPU offloading for large models, auto-scales to zero ($0 idle), async generation with Pending Jobs panel
 - 🔄 **Auto-Update** — Version-gated git pull on startup, self-restart on update, 24h periodic check (`ARTSMOKER_AUTO_UPDATE=false` to disable)
 
 ### 📝 1.2 Screenshots
@@ -1067,18 +1067,7 @@ All AI model configuration is centralized in `backend/model_registry.json` — t
 
 ArtSmoker can deploy open-source AI models on **Amazon SageMaker** in your own AWS account, extending your capabilities beyond what Amazon Bedrock offers. These run alongside Bedrock models and appear in the same studio dropdowns.
 
-**Available models** (extensible catalog — adding a new model requires only a catalog entry, no code changes):
-
-| Model | Category | What it does | License |
-|-------|----------|-------------|---------|
-| **FLUX.1 [schnell]** | Image Generation | Fast, high-quality text-to-image (1-4 steps) | Apache 2.0 |
-| **FLUX.1 [dev]** | Image Generation | Higher quality text-to-image (28 steps) | Non-commercial |
-| **SDXL Turbo** | Image Generation | Ultra-fast 1-step generation | Non-commercial |
-| **Real-ESRGAN** | Upscaling | Free 4x super-resolution (replaces $0.60/img Bedrock upscale) | BSD-3 |
-| **RMBG-2.0** | Background Removal | Free AI bg removal (replaces $0.07/img Bedrock) | CC-BY-NC-4.0 |
-| **Depth Anything v2** | Utility | Monocular depth map estimation | CC-BY-NC-4.0 |
-| **SAM 2** | Utility | Smart object segmentation by Meta | Apache 2.0 |
-| **Stable Video Diffusion** | Video | Image-to-video (25 frames) | Community |
+**Extensible model catalog:** Ships with a built-in catalog of open-source models spanning image generation, upscaling, background removal, depth estimation, segmentation, and video. Adding a new model requires only a catalog entry — no code changes. You can also add custom models via the UI (+ Add Model). The catalog and available models evolve over time.
 
 **Deployment options:**
 - **Async (scale-to-zero)** — pay only when generating. Scales to zero when idle ($0 cost), scales up automatically on new request. Cold start ~5-10 min.
@@ -1086,13 +1075,11 @@ ArtSmoker can deploy open-source AI models on **Amazon SageMaker** in your own A
 
 **How to deploy:** Model Settings → Custom Models tab → click Deploy. The SageMaker container pulls model weights directly from HuggingFace at startup — no multi-GB local download required.
 
-**CPU offloading:** Large diffusion models use intelligent CPU offloading to fit on smaller GPU instances:
-- `model_cpu_offload` for FLUX.1 [schnell] — keeps active layers on GPU, offloads idle layers to CPU
-- `sequential_cpu_offload` for FLUX.1 [dev] — aggressive layer-by-layer offload for peak memory reduction
+**CPU offloading:** Large diffusion models use intelligent CPU offloading to fit on smaller GPU instances. Each model's catalog entry specifies the strategy — `model_cpu_offload` (keeps active layers on GPU) or `sequential_cpu_offload` (aggressive per-layer offload for very large models). Applied automatically by the inference handler.
 
 **Async generation with Pending Jobs:** Self-hosted models generate asynchronously. A **Pending Jobs** panel appears in the 2D Image Studio showing active jobs with progress indicators. Completed images arrive in the Gallery automatically — no polling or page refresh needed.
 
-**HuggingFace token management:** Gated models (e.g., FLUX.1 [dev]) require a Read-only HuggingFace token. The token is stored encrypted in **AWS Secrets Manager** in your account, managed via the UI (set/update/delete), and shared across all models that need it. Tokens are automatically cleaned up when you tear down all models.
+**HuggingFace token management:** Gated models require a Read-only HuggingFace token. The token is stored encrypted in **AWS Secrets Manager** in your account, managed via the UI (set/update/delete), and shared across all models that need it. Tokens are automatically cleaned up when you tear down all models.
 
 **Setup:** Add Amazon SageMaker and Secrets Manager permissions to the **same IAM role** you already use for Bedrock — no separate role or environment variable needed. ArtSmoker auto-discovers your role on EC2/ECS, or auto-creates an `ArtSmokerSageMakerRole` if needed.
 
@@ -1266,7 +1253,7 @@ ArtSmoker/
 │   │   ├── video_generator.py   # Video: async Bedrock invoke, S3 download, ffmpeg thumbnails
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
 │   │   ├── telemetry.py         # PulseBoard SDK wrapper: tracks server events
-│   │   ├── custom_models.py    # Self-hosted model catalog (FLUX, ESRGAN, etc.)
+│   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)
 │   │   └── sagemaker_invoker.py  # Routes inference to Amazon SageMaker endpoints
