@@ -63,16 +63,14 @@
             const body = this._modal?.querySelector('.pd-body');
             if (!body) return;
 
-            const assetType = this._opts?.assetType || 'character';
+            const assetType = this._opts?.assetType || 'game_asset';
+            // Must match backend AssetType enum and Image Studio's ASSET_TYPES
             const assetTypes = [
-                { value: 'character', label: 'Character' },
-                { value: 'environment', label: 'Environment' },
-                { value: 'game_asset', label: 'Game Asset' },
-                { value: 'ui_element', label: 'UI Element' },
-                { value: 'icon', label: 'Icon' },
-                { value: 'texture', label: 'Texture' },
-                { value: 'concept_art', label: 'Concept Art' },
-                { value: 'marketing', label: 'Marketing' },
+                { value: 'game_asset', label: _t('image_studio.asset_type_game') },
+                { value: 'marketing_banner', label: _t('image_studio.asset_type_banner') },
+                { value: 'icon', label: _t('image_studio.asset_type_icon') },
+                { value: 'character', label: _t('image_studio.asset_type_character') },
+                { value: 'environment', label: _t('image_studio.asset_type_environment') },
             ];
             const assetOptions = assetTypes.map(a =>
                 `<option value="${a.value}" ${a.value === assetType ? 'selected' : ''}>${a.label}</option>`
