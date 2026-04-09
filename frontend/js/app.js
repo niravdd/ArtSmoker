@@ -544,12 +544,20 @@
         let restartBanner = null;
         let waitingForRestart = false;
 
+        let updateDisabled = false;
+
         async function checkUpdateStatus() {
-            if (waitingForRestart) return;
+            if (waitingForRestart || updateDisabled) return;
             try {
                 const resp = await fetch('/api/update-status');
                 if (!resp.ok) return;
                 const status = await resp.json();
+
+                // Stop polling entirely if auto-update is disabled on this server
+                if (status.disabled) {
+                    updateDisabled = true;
+                    return;
+                }
 
                 if (status.restarting) {
                     showRestartBanner();
@@ -620,8 +628,11 @@
             }, interval);
         }
 
-        // Check every 5 minutes — restarts are rare (at most once per 24h)
-        setInterval(checkUpdateStatus, 5 * 60 * 1000);
+        // Check once on page load (catch a restart that started while page was closed).
+        // Then check every 24 hours (aligned with backend's periodic checker).
+        // No need for frequent polling — the backend handles the timing.
+        checkUpdateStatus();
+        setInterval(checkUpdateStatus, 24 * 60 * 60 * 1000);
     })();
 
 })();

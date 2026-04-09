@@ -432,8 +432,10 @@ app.include_router(custom_deploy.router)
 @app.get("/api/update-status", tags=["health"])
 async def get_update_status():
     """Check auto-update status — frontend polls this to detect pending restarts."""
-    from backend.services.auto_update import get_update_status
-    return get_update_status()
+    from backend.services.auto_update import get_update_status, is_dev_mode
+    status = get_update_status()
+    status["disabled"] = is_dev_mode() or os.environ.get("ARTSMOKER_AUTO_UPDATE", "").lower() in ("false", "0", "no")
+    return status
 
 
 @app.post("/api/ping", tags=["telemetry"])
