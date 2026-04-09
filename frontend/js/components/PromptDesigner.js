@@ -86,14 +86,14 @@
             this._modal = document.createElement('div');
             this._modal.className = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto';
             this._modal.innerHTML = `
-                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-w-3xl">
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-w-3xl h-[80vh] flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
                         <h2 class="text-sm font-semibold text-brand-text flex items-center gap-2">
                             <span class="text-lg">🎨</span> ${_t('prompt_designer.title')}
                         </h2>
                         <button class="pd-close text-brand-text-muted hover:text-brand-text text-lg leading-none">&times;</button>
                     </div>
-                    <div class="pd-body">${innerHtml}</div>
+                    <div class="pd-body flex-1 overflow-y-auto">${innerHtml}</div>
                 </div>`;
             this._modal.querySelector('.pd-close')?.addEventListener('click', () => this.close());
             this._modal.addEventListener('click', (e) => { if (e.target === this._modal) this.close(); });
