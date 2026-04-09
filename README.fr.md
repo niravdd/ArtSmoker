@@ -95,12 +95,13 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 - 🔄 **Progression en temps réel** — Streaming SSE avec visibilité des tentatives/limitations
 - 🛡️ **Modération intelligente** — Test canari, changement automatique de modèle, réécriture assistée par l'IA
 - ⚙️ **Model Registry** — Interface d'administration organisée par studio (Image, Video, Chat, Type, Shared), découverte Bedrock, support des modèles personnalisés
-- 📝 **Prompt Templates** — 14 prompts directifs LLM éditables, amélioration assistée par l'IA, validation de variables avec correction automatique
+- 📝 **Prompt Templates** — 19 prompts directifs LLM éditables, amélioration assistée par l'IA, validation de variables avec correction automatique
 - 📦 **Versionnement des assets** — Édition sur place avec historique des versions (v1, v2, ...) et navigation entre versions
 - 💰 **Suivi des coûts** — Dépenses AWS estimées par requête, par session, par asset — envoyées à la télémétrie PulseBoard
 - 🌐 **i18n en 6 langues** — Traduction complète de l'UI (EN, JA, ZH, KO, FR, ES), détection automatique des prompts non anglais, aperçu bilingue
 - 🔍 **Support des modèles personnalisés** — Découverte automatique des modèles Bedrock fine-tunés, importés et déployés
-- 🔧 **Self-Hosted Models** — Déployez des modèles open-source (FLUX.1, Real-ESRGAN, RMBG, SAM 2, et plus) sur Amazon SageMaker dans votre propre compte AWS. Déploiement en un clic, scale-to-zero asynchrone ou toujours actif, entièrement intégré à tous les studios
+- 🔧 **Self-Hosted Models** — Déployez des modèles open-source (FLUX.1, Real-ESRGAN, RMBG, SAM 2, et plus) sur Amazon SageMaker. Pull de conteneurs directement depuis HuggingFace, CPU offloading pour les gros modèles, scale-to-zero automatique ($0 au repos), génération asynchrone avec panneau Pending Jobs
+- 🔄 **Auto-Update** — Git pull avec contrôle de version au démarrage, redémarrage automatique après mise à jour, vérification périodique toutes les 24h (`ARTSMOKER_AUTO_UPDATE=false` pour désactiver)
 
 ### 📝 1.2 Captures d'écran
 

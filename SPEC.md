@@ -48,8 +48,10 @@
   - [5.7 Video](#57-video)
   - [5.8 Chat Studio](#58-chat-studio)
   - [5.9 Browse](#59-browse)
-  - [5.10 Admin (Model Management)](#510-admin-model-management)
-  - [5.11 System](#511-system)
+  - [5.10 Custom Models (Self-Hosted)](#510-custom-models-self-hosted-on-amazon-sagemaker)
+  - [5.11 Async Jobs](#511-async-jobs-self-hosted-model-generation)
+  - [5.12 Admin (Model Management)](#512-admin-model-management)
+  - [5.13 System](#513-system)
 - [6. LLM Directive Prompts (Prompt Templates)](#6-llm-directive-prompts-prompt-templates)
 - [7. Prerequisites: AWS Setup](#7-prerequisites-aws-setup)
   - [7.1 AWS Credentials](#71-aws-credentials)
@@ -815,6 +817,16 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 
 All sections are collapsible with Show All / Hide All toggles. Clicking "Model Settings" in any studio opens the modal to the relevant tab. The modal is 72rem wide.
 
+**Searchable model dropdowns:** All model selection dropdowns (Image Studio, Chat Studio, LLM categories) support type-to-filter search. Models are grouped by provider with section headers. Typing narrows the list in real-time; clearing the search restores the full grouped list.
+
+**Custom Models tab:** Uses a two-level hierarchy — models are organized by Studio (Image, Video, Post-processing) and then by Category within each studio. Each model card shows deployment status, instance type, warm-up state, and action buttons (Deploy/Teardown/Redeploy).
+
+**Pending Jobs button:** Shown in the Image Studio toolbar when async jobs exist. Badge shows count of active jobs. Opens a slide-out panel with per-job details.
+
+**HF Token management button:** In the Custom Models tab header. Shows current token status (stored/not stored). Click to add, update, or delete the shared HuggingFace token. Token is stored encrypted in AWS Secrets Manager (`artsmoker/hf-token`).
+
+**15-minute warm-up display:** Custom model status cards show a warm-up progress bar after deployment reaches `InService`. The bar tracks elapsed time since `InService` was reported, with a 15-minute expected window. Status transitions: Creating → InService (warming up) → Ready.
+
 **Layered configuration (defaults + user overrides)**:
 
 Both the model registry and prompt templates use a two-file layered system that separates system data from user preferences:
@@ -843,11 +855,13 @@ prompt_templates.user.json   (gitignored, user edits only)
 └── translate_to_english.system_prompt ← user customized system prompt
 ```
 
-**Load order** (every server start): main file → overlay `.user.json` on top. User preferences always win.
+**Load order** (every server start): main file → overlay `.user.json` on top. User preferences always win. Deep merge semantics: dict sections (e.g., individual model entries within `image_models`) are merged at the model level; non-dict sections (e.g., `bedrock_regions` array) are replaced wholesale. `_meta` keys are preserved across save/load cycles.
 
-**Sync from AWS**: Writes discovered models, pricing, and regions to `model_registry.json`. User preferences in `.user.json` are preserved — a user who disabled a model keeps it disabled even after Sync re-discovers it.
+**Runtime immutability**: `model_registry.json` is **read-only at runtime**. All user actions (enable/disable models, change categories, adjust settings) write exclusively to `model_registry.user.json`. The main file is only written by: (a) Sync from AWS, (b) git pull / auto-update. `prompt_templates.json` is **never written at runtime** — code `_DEFAULTS` is the source of truth, regenerated on every startup.
 
-**Git pull / auto-update**: Updates `model_registry.json` (format families, code defaults) and `prompt_templates.json` (regenerated from code `_DEFAULTS`). User `.user.json` files are gitignored and untouched.
+**Sync from AWS**: Writes discovered models, pricing, and regions to `model_registry.json`. Sync data (discovered models, pricing, regions) goes to the main file. User preferences in `.user.json` are preserved — a user who disabled a model keeps it disabled even after Sync re-discovers it.
+
+**Git pull / auto-update**: Version-gated — only pulls when remote `APP_VERSION` > local. Compares semantic versions from `config.py`. Dev mode (`ARTSMOKER_DEV_MODE=true`) disables all auto-updates. On successful pull, triggers self-restart via `os.execv` to reload updated code. An `atexit` handler provides runtime restart capability (e.g., after admin-triggered update). Frontend monitor checks `/api/update-status` once on page load and every 24 hours — shows a restart banner when an update is available. Updates `model_registry.json` (format families, code defaults) and `prompt_templates.json` (regenerated from code `_DEFAULTS`). User `.user.json` files are gitignored and untouched.
 
 **Deleting `.user.json`**: Restores all settings to defaults. No user preferences leak into the main files.
 
@@ -858,7 +872,7 @@ prompt_templates.user.json   (gitignored, user edits only)
 **Prompt templates**: Code `_DEFAULTS` are the source of truth for template defaults. `prompt_templates.json` is regenerated from code on every startup, so it always reflects the latest code version. User edits are stored in `prompt_templates.user.json` with only the changed `text` and/or `system_prompt` fields.
 
 **Startup sequence**:
-1. Auto-update: check GitHub for code updates, pull if available
+1. Auto-update: compare local `APP_VERSION` against remote, pull if remote is newer (skipped if `ARTSMOKER_DEV_MODE=true`), self-restart via `os.execv` if code changed
 2. Check config freshness: prompt templates regenerated from code, registry checked for `aws_account_discovered` field
 3. Ensure data directories
 4. Validate AWS credentials + Bedrock access
@@ -1086,6 +1100,12 @@ Uses an LLM to determine the best asset type for a prompt. Key distinction: a pe
 | GET | `/api/gallery/{id}/version/{version}` | Download a specific version of an asset (e.g. `v1` = original, `v2` = after edit). |
 | GET | `/api/gallery/{id}/version-svg/{version}` | Download the SVG for a specific version. |
 
+**Async status indicators:** Gallery items from self-hosted model generation display status badges — pending (amber pulse), complete (green), or failed (red with error tooltip). Pending items show a placeholder thumbnail that live-replaces with the actual image on completion.
+
+**Model label auto-backfill:** When loading gallery items, the model key is resolved to a human-readable label from the registry. If the model key no longer exists in the registry (e.g., model was removed), the raw key is displayed as fallback.
+
+**Date format:** All gallery timestamps use `dd MMM yyyy` format globally (e.g., "07 Apr 2026"), consistent across all studios and the gallery grid.
+
 ### 5.6 Type Studio
 
 | Method | Endpoint | Description |
@@ -1162,10 +1182,13 @@ A full-featured LLM chat interface running on the user's own AWS account. 80+ mo
 |--------|----------|-------------|
 | GET | `/api/custom-models/catalog` | List all available custom models with deployment status. Checks Amazon SageMaker endpoint status for each. |
 | GET | `/api/custom-models/catalog/{key}` | Get detailed info for a specific model from the catalog. |
-| POST | `/api/custom-models/deploy` | Deploy a model. For HuggingFace: uploads handler to S3 → creates Amazon SageMaker endpoint (container pulls from HF). For others: download → S3 → endpoint. Body: `{model_key, endpoint_type ("async"/"realtime"), instance_type (optional), hf_token (optional, stored encrypted in Secrets Manager)}`. |
-| GET | `/api/custom-models/status/{key}` | Check Amazon SageMaker endpoint deployment status (Creating, InService, Failed, etc.). |
+| POST | `/api/custom-models/deploy` | Deploy a model. For HuggingFace: uploads handler to S3 → creates Amazon SageMaker endpoint (container pulls from HF). For others: download → S3 → endpoint. Body: `{model_key, endpoint_type ("async"/"realtime"), instance_type (optional)}`. |
+| GET | `/api/custom-models/status/{key}` | Check Amazon SageMaker endpoint deployment status (Creating, InService, Failed, etc.). Includes 15-minute warm-up awareness — InService does not mean ready (model download may still be in progress). |
 | DELETE | `/api/custom-models/teardown/{key}` | Delete Amazon SageMaker endpoint + Secrets Manager token. Optional `?delete_s3=true` to also remove S3 artifacts. |
 | POST | `/api/custom-models/redeploy/{key}` | Tear down and redeploy. For updates/patches. |
+| GET | `/api/custom-models/hf-token-status` | Check whether a HuggingFace token is stored in Secrets Manager. Returns `{has_token, secret_name}`. |
+| POST | `/api/custom-models/hf-token` | Store or update the HuggingFace token. Encrypted in AWS Secrets Manager (`artsmoker/hf-token`). Shared across all gated models. Body: `{token}`. |
+| DELETE | `/api/custom-models/hf-token` | Delete the stored HuggingFace token from Secrets Manager. |
 
 **Architecture:**
 
@@ -1192,6 +1215,9 @@ Studios (Image, Video, Post-processing)
     "loader_class": "AutoPipelineForText2Image",
     "torch_dtype": "bfloat16",
     "enable_cpu_offload": true,
+    "enable_sequential_cpu_offload": false,
+    "enable_vae_slicing": true,
+    "enable_vae_tiling": false,
     "predictor_type": "text_to_image",
     "input_fields": {
       "prompt": {"type": "string", "required": true},
@@ -1206,13 +1232,31 @@ Studios (Image, Video, Post-processing)
 }
 ```
 
-**HuggingFace model loading:** For HuggingFace models, the Amazon SageMaker container pulls weights directly from HuggingFace at startup using `HF_MODEL_ID` — no multi-GB local download required. For gated models, the HF token is stored encrypted in **AWS Secrets Manager** (`artsmoker/hf-token/{model_key}`), fetched by the inference handler at container startup, and automatically deleted when the model is torn down. The token is never stored as a plain-text environment variable.
+**Memory optimizations** (catalog-driven per model): The invoke config controls four memory strategies applied at model load time:
+- `enable_model_cpu_offload` — offloads inactive pipeline stages to CPU (recommended default)
+- `enable_sequential_cpu_offload` — aggressive per-layer offloading for very large models
+- `enable_vae_slicing` — processes VAE decoding in slices to reduce VRAM peak
+- `enable_vae_tiling` — tiles VAE decoding for high-resolution outputs
+
+Each model's catalog entry specifies which optimizations to enable. The inference handler applies them automatically — no per-model code.
+
+**HuggingFace model loading:** The container uses `ARTSMOKER_HF_REPO` (not `HF_MODEL_ID`) so our inference handler controls loading with CPU offloading strategies from the catalog. The deployer sets `ARTSMOKER_HF_REPO` to the HuggingFace repo ID and `INVOKE_CONFIG` with the full invoke JSON. The inference handler reads these, downloads the model, and applies memory optimizations before serving. For gated models, the HF token is stored encrypted in **AWS Secrets Manager** (`artsmoker/hf-token`) — a single shared token for all gated models, managed via the UI button. The token is also passed as `HUGGING_FACE_HUB_TOKEN` env var to the container (read-only, visible only in the user's own AWS account via `sagemaker:DescribeModel`).
+
+**Model bundles:** Lightweight models that share similar architectures (e.g., multiple LoRA adapters on the same base) can be deployed as a bundle on a single Amazon SageMaker endpoint. The inference handler loads the base model once and swaps adapters per request, reducing instance count and cost.
 
 **Non-HuggingFace models** (GitHub releases like Real-ESRGAN, CodeFormer): downloaded to the server, uploaded to S3 with the inference handler, then the endpoint loads from S3.
 
 **Deployment types:**
 - **Async** (scale-to-zero): `AsyncInferenceConfig` with S3 output. Scales to zero instances when idle ($0 cost). Cold start from zero: 5-15 minutes (includes HF model download on first start). Input uploaded to S3, output polled from S3.
 - **Realtime** (always-on): Standard endpoint with `InitialInstanceCount=1`. Instant inference. Costs ~$1.41/hr continuously (ml.g5.xlarge).
+
+**Auto-scaling** (async endpoints): Dual scaling policy for true scale-to-zero:
+- **TargetTracking** — scales in to zero instances when no requests arrive (zero-cost idle)
+- **StepScaling** with `HasBacklogWithoutCapacity` CloudWatch alarm — scales out from zero when the first request lands in the backlog
+
+This combination solves the cold-start-from-zero problem: TargetTracking alone cannot scale from 0→1 (no instances = no metric data). The StepScaling alarm triggers on backlog presence regardless of instance count.
+
+**15-minute warm-up window:** Amazon SageMaker reports `InService` as soon as the container starts, but the model is not ready until weights are downloaded from HuggingFace and loaded into GPU memory. For large models (e.g., FLUX.1 at ~23GB), this takes 5-15 minutes after `InService`. The status endpoint tracks this window and the frontend displays a warm-up progress indicator.
 
 **Amazon SageMaker IAM requirements:**
 ```
@@ -1241,7 +1285,26 @@ s3://your-bucket/
     └── inference-output/{key}/        ← Async inference results
 ```
 
-### 5.11 Admin (Model Management)
+### 5.11 Async Jobs (Self-Hosted Model Generation)
+
+Non-blocking generation for self-hosted models on Amazon SageMaker async endpoints. When a user generates with a custom model, the request is submitted to S3 and returns immediately — the UI tracks progress without blocking.
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/generate/async-jobs` | List all active and recent async jobs. Returns job ID, model key, status (pending/complete/failed), submission time, prompt, and full generation metadata. |
+| POST | `/api/generate/async-jobs/clear` | Clear completed/failed jobs from the tracking list. Active jobs are preserved. |
+
+**S3 persistence:** Jobs are persisted to `artsmoker/async-jobs/` in the S3 bucket. Job state survives server restarts — on startup, the system reloads active jobs from S3 and resumes polling.
+
+**Background poller:** A background thread checks S3 every 30 seconds for completed inference outputs. When output appears, it downloads the result, decodes the image, and writes it to the local gallery.
+
+**Gallery integration:** Full metadata (prompt, model, style snapshot, options/variations structure) is saved at submission time. The gallery entry is created immediately with a `pending` status. On completion, the PNG and SVG are written in-place and status flips to `complete`. On failure, status flips to `failed` with an error message.
+
+**Cost tracking:** Compute cost is calculated as `(duration_seconds / 3600) × hourly_rate`, where `hourly_rate` comes from the instance type pricing in the catalog. Duration is capped at 15 minutes (the Amazon SageMaker async invocation timeout). This cost is added to the request's cost accumulator alongside any LLM prompt-enhancement costs.
+
+**Frontend (Pending Jobs button):** A button in Image Studio shows the count of active async jobs. Clicking opens a panel listing each job with model name, prompt excerpt, elapsed time, and status. Smart polling: the frontend polls `/api/generate/async-jobs` only when at least one job is active — stops polling when all jobs resolve. On completion, the gallery thumbnail live-replaces the pending placeholder.
+
+### 5.12 Admin (Model Management)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -1267,11 +1330,12 @@ s3://your-bucket/
 | POST | `/api/admin/templates/reset-all` | Reset all templates to their defaults. |
 | POST | `/api/admin/templates/{key}/enhance` | Enhance a template using an LLM. Accepts model_id, region, optional instructions. Returns suggested improved content for review. |
 
-### 5.11 System
+### 5.13 System
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/health` | Health check — returns `{status, version, aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`. |
+| GET | `/api/update-status` | Check for available updates. Returns `{update_available, local_version, remote_version, dev_mode}`. Used by frontend monitor. |
 | POST | `/api/ping` | Frontend telemetry ping. Accepts `{event, properties}` and forwards to PulseBoard if telemetry is enabled. |
 | POST | `/api/log` | Receive client-side log entries. Body: `{ "level": "error", "message": "...", "context": {} }`. Logged server-side with `[CLIENT]` prefix. |
 | GET | `/docs` | Swagger UI (auto-generated by FastAPI). |

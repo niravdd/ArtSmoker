@@ -95,12 +95,13 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 - 🔄 **リアルタイム進捗** — リトライ/スロットル可視性付きSSEストリーミング
 - 🛡️ **スマートモデレーション** — カナリアテスト、自動モデル切り替え、AI支援リライト
 - ⚙️ **Model Registry** — スタジオ別管理UI（Image、Video、Chat、Type、Shared）、Bedrock検出、カスタムモデルサポート
-- 📝 **Prompt Templates** — 14の編集可能なLLM指示プロンプト、AI支援改良、変数検証と自動修正
+- 📝 **Prompt Templates** — 19の編集可能なLLM指示プロンプト、AI支援改良、変数検証と自動修正
 - 📦 **アセットバージョニング** — バージョン履歴（v1、v2、...）とバージョンナビゲーション付き編集
 - 💰 **コスト追跡** — リクエスト、セッション、アセットごとの推定AWS支出 — PulseBoard テレメトリーに送信
 - 🌐 **6言語i18n** — 完全UI翻訳（EN、JA、ZH、KO、FR、ES）、非英語プロンプト自動検出、バイリンガルプレビュー
 - 🔍 **カスタムモデルサポート** — ファインチューニング済み、インポート済み、デプロイ済みのカスタムBedrockモデルを自動検出
-- 🔧 **Self-Hosted Models** — オープンソースモデル（FLUX.1、Real-ESRGAN、RMBG、SAM 2など）を自分のAWSアカウントのAmazon SageMakerにデプロイ。ワンクリックデプロイ、非同期スケールトゥゼロまたは常時稼働、すべてのスタジオと完全統合
+- 🔧 **Self-Hosted Models** — オープンソースモデル（FLUX.1、Real-ESRGAN、RMBG、SAM 2など）をAmazon SageMakerにデプロイ。HuggingFaceから直接コンテナ取得、大規模モデル向けCPUオフローディング、ゼロまで自動スケール（アイドル時$0）、Pending Jobsパネルによる非同期生成
+- 🔄 **Auto-Update** — 起動時のバージョンゲート付きgit pull、更新時の自動再起動、24時間定期チェック（`ARTSMOKER_AUTO_UPDATE=false`で無効化）
 
 ### 📝 1.2 スクリーンショット
 

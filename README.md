@@ -93,12 +93,13 @@ For teams that want every generated asset to match an existing art style — upl
 - 🔄 **Real-time progress** — SSE streaming with retry/throttle visibility
 - 🛡️ **Smart moderation** — Canary testing, auto model switching, AI-assisted rewriting
 - ⚙️ **Model Registry** — Admin UI organized by studio (Image, Video, Chat, Type, Shared), Bedrock discovery, custom model support
-- 📝 **Prompt Templates** — 14 editable LLM directive prompts, AI-assisted refinement, variable validation with auto-fix
+- 📝 **Prompt Templates** — 19 editable LLM directive prompts, AI-assisted refinement, variable validation with auto-fix
 - 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...) and version navigation
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 - 🌐 **6-Language i18n** — Full UI translation (EN, JA, ZH, KO, FR, ES), auto-detect non-English prompts, bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
-- 🔧 **Self-Hosted Models** — Deploy open-source models (FLUX.1, Real-ESRGAN, RMBG, SAM 2, and more) on Amazon SageMaker in your own AWS account. One-click deploy, async scale-to-zero or always-on, fully integrated with all studios. HuggingFace models pull directly from HuggingFace at startup — no multi-GB local downloads
+- 🔧 **Self-Hosted Models** — Deploy open-source models (FLUX.1, Real-ESRGAN, RMBG, SAM 2, and more) on Amazon SageMaker. Container pulls directly from HuggingFace, CPU offloading for large models, auto-scales to zero ($0 idle), async generation with Pending Jobs panel
+- 🔄 **Auto-Update** — Version-gated git pull on startup, self-restart on update, 24h periodic check (`ARTSMOKER_AUTO_UPDATE=false` to disable)
 
 ### 📝 1.2 Screenshots
 
@@ -661,7 +662,7 @@ After ArtSmoker is running, complete these steps to get the best results:
 
 **1. Sync models from AWS** — Open **Model Settings** (gear icon in any studio) → click **Sync from AWS**. This discovers all available image, video, and chat models across all Bedrock regions. Takes 30-60 seconds. Only needed once, or when AWS adds new models.
 
-**2. Review and customize prompt templates** — This is the most impactful configuration you can do. Open **Model Settings → Prompt Templates** tab. ArtSmoker uses 14 editable directive prompts that control how the AI behaves:
+**2. Review and customize prompt templates** — This is the most impactful configuration you can do. Open **Model Settings → Prompt Templates** tab. ArtSmoker uses 19 editable directive prompts that control how the AI behaves:
 
 | Template | What it controls |
 |----------|-----------------|
@@ -1051,7 +1052,7 @@ All AI model configuration is centralized in `backend/model_registry.json` — t
   - **Chat Studio** — Discovered chat/LLM models (80+ from 16 providers), context windows, vision capability, pricing per 1K tokens
   - **Type Studio** — LLM model for text layout generation (Complex or Fast LLM)
   - **Shared Studio** — Cross-studio LLM categories (Fast LLM, Complex LLM, Fallback LLM, Voice), post-processing models (Remove Background, Upscale)
-  - **Prompt Templates** — 14 editable LLM directive prompts organized by studio (see section 4.4)
+  - **Prompt Templates** — 19 editable LLM directive prompts organized by studio (see section 4.4)
   - **Registry JSON** — Raw JSON editor for the full model registry
 - All sections are **collapsible** with **Show All / Hide All** toggles for quick navigation.
 - LLM categories and post-processing use **dropdown model pickers** (populated from discovered models) — not raw text fields.
@@ -1080,12 +1081,20 @@ ArtSmoker can deploy open-source AI models on **Amazon SageMaker** in your own A
 | **Stable Video Diffusion** | Video | Image-to-video (25 frames) | Community |
 
 **Deployment options:**
-- **Async (scale-to-zero)** — pay only when generating. $0 when idle. Cold start ~5-10 min.
+- **Async (scale-to-zero)** — pay only when generating. Scales to zero when idle ($0 cost), scales up automatically on new request. Cold start ~5-10 min.
 - **Always-On** — instant responses, ~$1.41/hr (ml.g5.xlarge)
 
-**How to deploy:** Model Settings → Custom Models tab → click Deploy. HuggingFace models are pulled directly by the Amazon SageMaker container at startup — no multi-GB local download required. For gated models, provide a Read-only HuggingFace token — it's stored encrypted in AWS Secrets Manager in your account and automatically deleted when you remove the model.
+**How to deploy:** Model Settings → Custom Models tab → click Deploy. The SageMaker container pulls model weights directly from HuggingFace at startup — no multi-GB local download required.
 
-**Setup:** Add Amazon SageMaker permissions to the **same IAM role** you already use for Bedrock — no separate role or environment variable needed. ArtSmoker auto-discovers your role on EC2/ECS, or auto-creates an `ArtSmokerSageMakerRole` if needed.
+**CPU offloading:** Large diffusion models use intelligent CPU offloading to fit on smaller GPU instances:
+- `model_cpu_offload` for FLUX.1 [schnell] — keeps active layers on GPU, offloads idle layers to CPU
+- `sequential_cpu_offload` for FLUX.1 [dev] — aggressive layer-by-layer offload for peak memory reduction
+
+**Async generation with Pending Jobs:** Self-hosted models generate asynchronously. A **Pending Jobs** panel appears in the 2D Image Studio showing active jobs with progress indicators. Completed images arrive in the Gallery automatically — no polling or page refresh needed.
+
+**HuggingFace token management:** Gated models (e.g., FLUX.1 [dev]) require a Read-only HuggingFace token. The token is stored encrypted in **AWS Secrets Manager** in your account, managed via the UI (set/update/delete), and shared across all models that need it. Tokens are automatically cleaned up when you tear down all models.
+
+**Setup:** Add Amazon SageMaker and Secrets Manager permissions to the **same IAM role** you already use for Bedrock — no separate role or environment variable needed. ArtSmoker auto-discovers your role on EC2/ECS, or auto-creates an `ArtSmokerSageMakerRole` if needed.
 
 ```bash
 # Add Amazon SageMaker permissions to your existing ArtSmoker role (one command)
@@ -1213,7 +1222,7 @@ Key endpoints:
 | `POST /api/admin/discover/refresh-all` | Full refresh: discover regions + scan models + fetch pricing + prune stale data. The ONLY endpoint that calls AWS discovery APIs. |
 | `POST /api/admin/discover/{region}/auto-register` | Scan a single region for models, register new ones, update regions for existing |
 | `GET /api/admin/discover/{region}` | Discover available Bedrock models in a region (raw listing) |
-| `GET /api/admin/templates` | Get all 14 editable prompt templates |
+| `GET /api/admin/templates` | Get all 19 editable prompt templates |
 | `PATCH /api/admin/templates/{name}` | Update a template (validates required variables) |
 | `POST /api/admin/templates/{name}/reset` | Reset a template to default |
 | `POST /api/admin/templates/{name}/enhance` | Enhance a template with AI |
@@ -1230,7 +1239,7 @@ ArtSmoker/
 │   ├── config.py            # Settings (AWS regions, model IDs, paths, limits)
 │   ├── model_registry.json  # Single source of truth: models, regions, pricing, format families, quality tiers
 │   ├── requirements.txt
-│   ├── prompt_templates.json # Persisted editable LLM directive prompts (14 templates)
+│   ├── prompt_templates.json # Persisted editable LLM directive prompts (19 templates)
 │   ├── routers/
 │   │   ├── generate.py      # Two-level asset generation + SSE streaming
 │   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis
@@ -1258,6 +1267,7 @@ ArtSmoker/
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
 │   │   ├── telemetry.py         # PulseBoard SDK wrapper: tracks server events
 │   │   ├── custom_models.py    # Self-hosted model catalog (FLUX, ESRGAN, etc.)
+│   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)
 │   │   └── sagemaker_invoker.py  # Routes inference to Amazon SageMaker endpoints
 │   ├── models/
@@ -1311,6 +1321,7 @@ Settings in `backend/config.py` can be overridden via environment variables (pre
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Region for Claude + Stability AI models |
 | `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Region for Nova Canvas + Titan + Nova Sonic |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWS profile name (uses default chain if unset) |
+| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Git pull on startup + 24h periodic check, self-restart on update |
 
 Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
 
