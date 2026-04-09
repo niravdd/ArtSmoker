@@ -463,9 +463,20 @@
             return `
                 <div class="gallery-card card cursor-pointer overflow-hidden group ${isSelected ? 'ring-2 ring-red-500/50' : ''}" data-id="${this._esc(item.id)}" data-media="${isVideo ? 'video' : 'image'}">
                     <div class="img-hover-zoom ${isVideo ? 'aspect-video' : 'aspect-[4/3]'} bg-brand-bg flex items-center justify-center overflow-hidden relative">
-                        <img src="${thumbUrl}" alt="${isVideo ? t('gallery.alt_video_thumb') : t('gallery.alt_asset')}"
-                             class="w-full h-full object-cover"
-                             loading="lazy" />
+                        ${item.async_status === 'pending' || item.async_status === 'generating'
+                            ? `<div class="w-full h-full flex flex-col items-center justify-center text-cyan-400/60 gap-2">
+                                <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <span class="text-[10px]">Generating...</span>
+                               </div>`
+                            : item.async_status === 'failed'
+                            ? `<div class="w-full h-full flex flex-col items-center justify-center text-red-400/60 gap-2">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                                <span class="text-[10px]">Failed</span>
+                               </div>`
+                            : `<img src="${thumbUrl}" alt="${isVideo ? t('gallery.alt_video_thumb') : t('gallery.alt_asset')}"
+                                 class="w-full h-full object-cover"
+                                 loading="lazy" />`
+                        }
                         ${isVideo ? `
                             <div class="absolute inset-0 flex items-center justify-center bg-black/20 group-hover:bg-black/40 transition-colors">
                                 <svg class="w-10 h-10 text-white/80 group-hover:text-white group-hover:scale-110 transition-all" fill="currentColor" viewBox="0 0 24 24">

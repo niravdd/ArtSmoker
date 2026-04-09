@@ -58,3 +58,4 @@ class GalleryItem(BaseModel):
     png_url: str
     svg_url: str | None = None
     created_at: datetime
+    async_status: str | None = None  # "pending", "complete", "failed" — None for sync jobs

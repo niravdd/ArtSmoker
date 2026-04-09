@@ -82,12 +82,13 @@ def _list_gallery_impl(style_id, asset_type, limit, offset):
             items.append(
                 GalleryItem(
                     id=aid,
-                    prompt=meta.get("prompt", ""),
+                    prompt=meta.get("prompt", meta.get("refined_prompt", "")),
                     style_id=meta.get("style_id"),
                     asset_type=meta.get("asset_type", ""),
                     png_url=f"/api/gallery/{aid}/png",
                     svg_url=svg_url,
                     created_at=created_at,
+                    async_status=meta.get("async_status"),
                 )
             )
         except Exception as exc:
