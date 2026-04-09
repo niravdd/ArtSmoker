@@ -427,6 +427,17 @@ app.include_router(admin.router)
 app.include_router(custom_deploy.router)
 
 
+# ── Global exception handler — logs full traceback on unhandled errors ────
+
+@app.exception_handler(Exception)
+async def _unhandled_exception_handler(request, exc):
+    import traceback
+    tb = traceback.format_exc()
+    logger.error("Unhandled %s at %s %s:\n%s", type(exc).__name__, request.method, request.url.path, tb)
+    from starlette.responses import JSONResponse
+    return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
+
+
 # ── Frontend load tracking ─────────────────────────────────────────────────
 
 @app.get("/api/update-status", tags=["health"])
