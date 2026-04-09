@@ -434,7 +434,8 @@ async def get_update_status():
     """Check auto-update status — frontend polls this to detect pending restarts."""
     from backend.services.auto_update import get_update_status, is_dev_mode
     status = get_update_status()
-    status["disabled"] = is_dev_mode() or os.environ.get("ARTSMOKER_AUTO_UPDATE", "").lower() in ("false", "0", "no")
+    import os as _os
+    status["disabled"] = is_dev_mode() or _os.environ.get("ARTSMOKER_AUTO_UPDATE", "").lower() in ("false", "0", "no")
     return status
 
 
