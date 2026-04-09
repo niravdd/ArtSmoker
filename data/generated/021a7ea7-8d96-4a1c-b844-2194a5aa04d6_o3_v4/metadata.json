@@ -51,5 +51,6 @@
   "created_at": "2026-03-16T06:17:40.073980",
   "batch_deleted_count": 14,
   "original_num_options": 1,
-  "original_num_variations": 1
+  "original_num_variations": 1,
+  "model_label": "Stable Diffusion 3.5 Large"
 }

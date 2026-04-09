@@ -17,7 +17,7 @@
   "style_snapshot": null,
   "asset_type": "character",
   "image_model": "sd35_large",
-  "model_label": "",
+  "model_label": "Stable Diffusion 3.5 Large",
   "quality": "premium",
   "region": "us-west-2",
   "width": 1024,
