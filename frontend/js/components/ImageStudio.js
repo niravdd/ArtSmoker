@@ -91,7 +91,7 @@
                                     <!-- All Models mode options -->
                                     <div id="gen-all-models-opts" class="hidden mt-2 p-2 rounded-lg bg-brand-bg/50 space-y-1.5">
                                         <label class="flex items-center gap-2 text-xs text-brand-text-muted cursor-pointer">
-                                            <input type="checkbox" id="gen-model-optimized" class="rounded" />
+                                            <input type="checkbox" id="gen-model-optimized" class="rounded" checked />
                                             ${t('image_studio.model_optimized_prompts')}
                                         </label>
                                         <p class="text-[10px] text-brand-text-dim">${t('image_studio.model_optimized_desc')}</p>
