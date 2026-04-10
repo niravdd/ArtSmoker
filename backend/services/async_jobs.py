@@ -457,10 +457,10 @@ def _track_completion(job: dict, duration_seconds: float, compute_cost: float):
 
     try:
         from backend.services.telemetry import track_custom_model_invoke, track_image_cost
-        # Invocation event (no cost — operational tracking only)
+        # Invocation event with compute cost (for raw event visibility)
         track_custom_model_invoke(
             model=job["model_key"],
-            cost_usd=0,
+            cost_usd=compute_cost,
             latency_ms=int(duration_seconds * 1000),
             predictor_type="text_to_image",
         )

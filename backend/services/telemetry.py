@@ -92,9 +92,10 @@ def track_image_cost(cost_usd: float = 0, model: str = "", breakdown: str = ""):
 
 def track_image_edit(edit_type: str = "", model: str = "", cost_usd: float = 0):
     """Image editing — distinct event per edit type for PulseBoard filtering."""
-    # e.g. image_studio.edit.inpaint, image_studio.edit.outpaint
     safe_type = edit_type.replace(" ", "_").lower() if edit_type else "unknown"
     _track(f"image_studio.edit.{safe_type}", model=model, cost_usd=cost_usd)
+    if cost_usd > 0:
+        _track("image_studio.edit.cost", cost_usd=cost_usd, model=model, edit_type=safe_type)
 
 
 def track_post_process(action: str = "", model: str = "", cost_usd: float = 0,
@@ -102,10 +103,14 @@ def track_post_process(action: str = "", model: str = "", cost_usd: float = 0,
     """Post-processing action (upscale, remove background, SVG)."""
     _track("image_studio.post_process", action=action, model=model,
            cost_usd=cost_usd, num_assets=num_assets)
+    if cost_usd > 0:
+        _track("image_studio.post_process.cost", cost_usd=cost_usd, action=action)
 
 
 def track_prompt_refinement(cost_usd: float = 0, asset_type: str = ""):
     _track("image_studio.prompt_preview", cost_usd=cost_usd, asset_type=asset_type)
+    if cost_usd > 0:
+        _track("image_studio.prompt_preview.cost", cost_usd=cost_usd)
 
 
 def track_voice_transcription():
@@ -216,7 +221,12 @@ def track_custom_model_deploy(model: str = "", endpoint_type: str = "", instance
 
 def track_custom_model_invoke(model: str = "", cost_usd: float = 0, latency_ms: float = 0,
                               predictor_type: str = ""):
-    """Operational invocation tracking. cost_usd should be 0 — cost goes on studio .cost event."""
+    """Invocation tracking with compute cost for visibility.
+
+    The cost here is the SageMaker compute cost. The authoritative total cost
+    (including LLM refinement) goes on the studio .cost event. PulseBoard
+    aggregates only from .cost suffix events, so this doesn't double-count.
+    """
     studio = _resolve_custom_studio(model)
     _track(f"{studio}.custom.invoke", model=model, cost_usd=cost_usd,
            latency_ms=latency_ms, predictor_type=predictor_type)
