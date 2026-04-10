@@ -458,7 +458,8 @@ async def analyze_style_endpoint(style_id: str):
 
     logger.info("Style analysis complete for '%s'.", style_id)
 
-    from backend.services.telemetry import track_style_analysis
-    track_style_analysis(num_images=len(profile.reference_images), cost_usd=get_total_cost())
+    from backend.services.telemetry import track_style_analysis, track_style_cost
+    track_style_analysis(num_images=len(profile.reference_images))
+    track_style_cost(cost_usd=get_total_cost())
 
     return updated_profile

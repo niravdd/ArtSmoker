@@ -697,17 +697,18 @@ async def chat_telemetry(body: ChatTelemetryEvent):
     Called once when the user navigates away from a session — captures the
     full session's usage in a single PulseBoard event.
     """
-    from backend.services.telemetry import track_chat_session
+    from backend.services.telemetry import track_chat_session, track_chat_cost
     track_chat_session(
         model=body.model_id,
         messages=body.messages,
         input_tokens=body.input_tokens,
         output_tokens=body.output_tokens,
-        cost_usd=body.cost_usd,
         duration_seconds=body.duration_seconds,
         has_vision=body.has_vision,
         compacted=body.compacted,
     )
+    if body.cost_usd > 0:
+        track_chat_cost(cost_usd=body.cost_usd, model=body.model_id)
     return {"ok": True}
 
 

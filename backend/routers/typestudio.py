@@ -449,7 +449,7 @@ def _get_layouts_from_llm(
 @router.post("/preview")
 async def preview(request: TypeStudioRequest):
     """Generate a text-composited image and save it as a new gallery asset."""
-    from backend.services.telemetry import track_type_generation
+    from backend.services.telemetry import track_type_generation, track_type_cost
     from backend.services.cost_tracker import reset_costs, get_total_cost
     reset_costs()
 
@@ -548,7 +548,8 @@ async def preview(request: TypeStudioRequest):
         })
 
     # 5. Track cost and return result
-    track_type_generation(cost_usd=get_total_cost())
+    track_type_generation()
+    track_type_cost(cost_usd=get_total_cost())
 
     return {
         "id": batch_id,

@@ -834,12 +834,11 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 progress_queue=progress_q,
                 cost_accumulator=shared_acc,
             )
-            # Track each model individually (no cost — actual cost sent by generation_cost at the end)
             track_image_generation(
                 model=model_key,
-                cost_usd=0,
                 num_options=1,
                 num_variations=1,
+                asset_type=body.asset_type.value if body.asset_type else "",
             )
             return OptionResult(
                 option_index=option_index,
@@ -977,14 +976,15 @@ async def generate_asset_stream(body: GenerationRequest):
       - complete:    {result: GenerationResult}
       - error:       {detail: string}
     """
-    # Track telemetry — event count only (no cost here — actual cost sent by generation_cost at the end)
+    # Track telemetry — action event (no cost — cost sent separately via image_studio.cost)
     if not body.all_models:
         from backend.services.telemetry import track_image_generation
         track_image_generation(
             model=body.image_model or "",
-            cost_usd=0,  # Actual cost tracked by cost_tracker and sent in generation_cost event
             num_options=body.num_options,
             num_variations=body.num_variations,
+            asset_type=body.asset_type.value if body.asset_type else "",
+            quality=body.quality or "",
         )
 
     event_queue = queue.Queue()
@@ -1645,7 +1645,7 @@ async def post_process_assets(body: PostProcessRequest):
             actions.append("remove_background")
         if body.upscale:
             actions.append("upscale")
-        track_post_process(action="+".join(actions), cost_usd=pp_cost)
+        track_post_process(action="+".join(actions), cost_usd=pp_cost, num_assets=total)
 
     return {"processed": results, "errors": errors}
 

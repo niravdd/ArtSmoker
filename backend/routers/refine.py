@@ -194,7 +194,8 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
     logger.info("Prompt refined: %d chars -> %d chars (negative: %s)", len(body.prompt), len(refined), negative[:80] if negative else "none")
 
     from backend.services.telemetry import track_prompt_refinement
-    track_prompt_refinement(cost_usd=get_total_cost())
+    track_prompt_refinement(cost_usd=get_total_cost(),
+                            asset_type=body.asset_type.value if body.asset_type else "")
 
     # Detect asset type mismatch — suggest a better type if the prompt implies a scene
     suggestion = _detect_asset_type_mismatch(body.prompt, body.asset_type)
