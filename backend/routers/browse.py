@@ -146,6 +146,12 @@ async def browse_s3(
     except Exception as exc:
         raise HTTPException(502, detail=f"Failed to browse S3: {exc}")
 
+    try:
+        from backend.services.cost_tracker import add_s3_cost
+        add_s3_cost("list", 0, "S3 browse")
+    except Exception:
+        pass
+
     dirs = []
     for cp in response.get("CommonPrefixes", []):
         p = cp["Prefix"]

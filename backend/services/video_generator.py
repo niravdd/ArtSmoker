@@ -283,6 +283,11 @@ def download_video_from_s3(s3_bucket: str, s3_prefix: str, local_dir: Path) -> P
     prefix = s3_prefix.rstrip("/") + "/"
     try:
         resp = s3.list_objects_v2(Bucket=s3_bucket, Prefix=prefix)
+        try:
+            from backend.services.cost_tracker import add_s3_cost
+            add_s3_cost("list", 0, "video output listing")
+        except Exception:
+            pass
     except Exception as exc:
         logger.error("Failed to list S3 objects: %s", exc)
         return None
@@ -385,6 +390,11 @@ def get_s3_video_url(s3_bucket: str, s3_prefix: str, expires: int = 3600) -> str
 
     try:
         resp = s3.list_objects_v2(Bucket=s3_bucket, Prefix=prefix)
+        try:
+            from backend.services.cost_tracker import add_s3_cost
+            add_s3_cost("list", 0, "video presigned URL listing")
+        except Exception:
+            pass
     except Exception:
         return None
 

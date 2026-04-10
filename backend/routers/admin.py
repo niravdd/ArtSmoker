@@ -543,6 +543,11 @@ async def update_video_settings_endpoint(body: VideoSettingsUpdate):
             test_key = f"{prefix}_access_test.txt"
             s3.put_object(Bucket=bucket, Key=test_key, Body=b"ArtSmoker access test")
             s3.delete_object(Bucket=bucket, Key=test_key)
+            try:
+                from backend.services.cost_tracker import add_s3_cost
+                add_s3_cost("put", 24, "S3 access validation test")
+            except Exception:
+                pass
             updates["s3_validated"] = True
             updates["s3_bucket_arn"] = f"arn:aws:s3:::{bucket}"
             logger.info("S3 bucket '%s' validated: read/write OK", bucket)

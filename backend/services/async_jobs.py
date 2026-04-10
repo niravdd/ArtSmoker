@@ -737,6 +737,11 @@ def load_persisted_jobs():
         s3 = boto3.client("s3", region_name=settings.aws_region_models)
         resp = s3.list_objects_v2(Bucket=bucket, Prefix=_JOBS_S3_PREFIX)
         files = resp.get("Contents", [])
+        try:
+            from backend.services.cost_tracker import add_background_s3_cost
+            add_background_s3_cost("list", 0, "load persisted jobs listing")
+        except Exception:
+            pass
 
         loaded = 0
         pending = 0
@@ -745,7 +750,13 @@ def load_persisted_jobs():
             for f in files:
                 try:
                     obj = s3.get_object(Bucket=bucket, Key=f["Key"])
-                    job = json.loads(obj["Body"].read().decode("utf-8"))
+                    job_bytes = obj["Body"].read()
+                    try:
+                        from backend.services.cost_tracker import add_background_s3_cost as _bg_s3
+                        _bg_s3("get", len(job_bytes), "load persisted job")
+                    except Exception:
+                        pass
+                    job = json.loads(job_bytes.decode("utf-8"))
                     job_id = job.get("job_id")
                     if not job_id or job_id in _jobs:
                         continue
@@ -818,6 +829,12 @@ def resume_pending_jobs() -> int:
 
                 obj = s3.get_object(Bucket=bucket, Key=key)
                 body = obj["Body"].read()
+                try:
+                    from backend.services.cost_tracker import add_background_s3_cost
+                    add_background_s3_cost("head", 0, "resume job head check")
+                    add_background_s3_cost("get", len(body), "resume job output download")
+                except Exception:
+                    pass
                 result = json.loads(body.decode("utf-8"))
                 image_b64 = result.get("image", "")
 

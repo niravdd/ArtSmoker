@@ -332,6 +332,11 @@ def _import_from_s3(src: str, style_id: str, available: int) -> list[str]:
             list_kwargs["ContinuationToken"] = response["NextContinuationToken"]
     except Exception as exc:
         raise HTTPException(400, detail=f"Failed to list S3 objects: {exc}") from exc
+    try:
+        from backend.services.cost_tracker import add_s3_cost
+        add_s3_cost("list", 0, "style S3 image listing")
+    except Exception:
+        pass
     if not contents:
         raise HTTPException(400, detail=f"No objects found at {src}")
 
@@ -354,6 +359,11 @@ def _import_from_s3(src: str, style_id: str, available: int) -> list[str]:
             store.save_reference_image(style_id, filename, data)
             saved.append(filename)
             logger.info("Imported from S3: %s/%s (%d bytes)", style_id, filename, len(data))
+            try:
+                from backend.services.cost_tracker import add_s3_cost
+                add_s3_cost("get", len(data), f"style image import ({filename})")
+            except Exception:
+                pass
         except Exception as exc:
             logger.warning("Failed to download s3://%s/%s: %s", bucket, key, exc)
 

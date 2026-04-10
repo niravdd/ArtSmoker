@@ -170,6 +170,13 @@ def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
 
         s3.upload_file(str(tar_path), bucket, s3_key)
 
+        try:
+            file_size = tar_path.stat().st_size
+            from backend.services.cost_tracker import add_background_s3_cost
+            add_background_s3_cost("put", file_size, f"handler tar.gz upload ({file_size}B)", region=_get_region())
+        except Exception:
+            pass
+
         s3_uri = f"s3://{bucket}/{s3_key}"
         logger.info("Uploaded handler model.tar.gz to %s", s3_uri)
         return s3_uri
@@ -284,11 +291,18 @@ def upload_to_s3(local_dir: Path, model_key: str,
         tar_size_mb = tar_path.stat().st_size / (1024 * 1024)
         progress_callback(f"Uploading model.tar.gz ({tar_size_mb:.0f} MB) to S3...")
 
+    tar_size = tar_path.stat().st_size
     s3.upload_file(str(tar_path), bucket, s3_key)
     tar_path.unlink(missing_ok=True)  # Clean up local tar.gz
 
+    try:
+        from backend.services.cost_tracker import add_background_s3_cost
+        add_background_s3_cost("put", tar_size, f"model weights upload ({tar_size // (1024*1024)}MB)", region=_get_region())
+    except Exception:
+        pass
+
     s3_uri = f"s3://{bucket}/{s3_key}"
-    logger.info("Uploaded model.tar.gz (%d files) to %s", file_count, s3_uri)
+    logger.info("Uploaded model.tar.gz (%d files, %d MB) to %s", file_count, tar_size // (1024*1024), s3_uri)
     return s3_uri
 
 
