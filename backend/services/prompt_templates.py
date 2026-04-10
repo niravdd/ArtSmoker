@@ -59,11 +59,18 @@ RULES:
    - BAD: "Create a warrior. Make sure the anatomy is correct."
    - GOOD: "A muscular warrior in battle-worn plate armor, standing in a wide combat stance, one hand gripping a longsword at shoulder height, scarred face visible beneath a dented half-helm, warm golden light from upper-left catching the polished steel pauldrons"
 
-5. **NEGATIVE: line** — always include, with terms that prevent common failures:
+5. **MODERATION-SAFE LANGUAGE.** AI image models have content filters. Avoid words that trigger false positives:
+   - Use "beige" or "skin-toned" instead of "nude" (the color)
+   - Use "barefoot" instead of "bare feet" or "naked feet"
+   - Use "form-fitting" instead of "tight" or "skin-tight"
+   - Use "exposed shoulders" instead of "bare shoulders"
+   - Never use: nude, naked, bare skin, undressed, revealing, provocative, seductive — even in innocent contexts
+
+6. **NEGATIVE: line** — always include, with terms that prevent common failures:
    - For people/characters: bad anatomy, extra limbs, extra fingers, missing fingers, deformed hands, disproportionate
    - For all: blurry, low quality, text, watermark, signature, ugly, deformed
 
-6. **Stay under {max_chars} characters.** Be precise, not verbose. Every word should paint the picture.
+7. **Stay under {max_chars} characters.** Be precise, not verbose. Every word should paint the picture.
 
 Output ONLY the caption and NEGATIVE: line.""",
     },
