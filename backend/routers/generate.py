@@ -909,6 +909,13 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
             if variant:
                 variant_map[flat_opt_idx].append(variant)
                 task_status.setdefault(flat_opt_idx, "success")
+                # Notify frontend about async jobs (custom models)
+                if hasattr(variant, 'async_job') and variant.async_job:
+                    emit({"type": "async_submitted",
+                          "option": flat_opt_idx, "variation": var_idx,
+                          "completed": completed, "total": total,
+                          "job_id": variant.async_job.get("job_id", ""),
+                          "model_label": variant.async_job.get("model_label", model_labels.get(mk, ""))})
             else:
                 exc_str = str(exc).lower()
                 is_mod = any(k in exc_str for k in [
