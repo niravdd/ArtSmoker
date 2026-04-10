@@ -141,7 +141,42 @@ def _load_diffusers(model_dir):
     if hf_token:
         kwargs["token"] = hf_token
 
-    logger.info("Loading %s with %s (dtype=%s)", model_source, loader_class_name, _get_env("TORCH_DTYPE", "float16"))
+    # Quantization: load specific components in int8/int4 before creating pipeline
+    quantization = _config.get("quantization", "")
+    quant_components = _config.get("quantization_components", [])
+    pre_loaded = {}
+
+    if quantization and quant_components:
+        logger.info("Applying %s quantization to: %s", quantization, quant_components)
+        try:
+            if "transformer" in quant_components:
+                if quantization in ("int8", "8bit"):
+                    from diffusers import BitsAndBytesConfig as DiffBnbConfig
+                    quant_config = DiffBnbConfig(load_in_8bit=True)
+                elif quantization in ("int4", "4bit", "nf4"):
+                    from diffusers import BitsAndBytesConfig as DiffBnbConfig
+                    quant_config = DiffBnbConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4")
+                else:
+                    quant_config = None
+
+                if quant_config:
+                    from diffusers import FluxTransformer2DModel
+                    pre_loaded["transformer"] = FluxTransformer2DModel.from_pretrained(
+                        model_source, subfolder="transformer",
+                        quantization_config=quant_config,
+                        torch_dtype=_get_torch_dtype(),
+                        token=hf_token,
+                    )
+                    logger.info("Transformer loaded with %s quantization", quantization)
+        except Exception as e:
+            logger.warning("Quantization failed (%s), falling back to full precision: %s", quantization, e)
+
+    logger.info("Loading %s with %s (dtype=%s, quantization=%s)",
+                model_source, loader_class_name, _get_env("TORCH_DTYPE", "float16"),
+                quantization or "none")
+
+    if pre_loaded:
+        kwargs.update(pre_loaded)
 
     try:
         pipe = PipelineClass.from_pretrained(model_source, **kwargs)
@@ -149,6 +184,8 @@ def _load_diffusers(model_dir):
         fallback_kwargs = {"torch_dtype": _get_torch_dtype()}
         if hf_token:
             fallback_kwargs["token"] = hf_token
+        if pre_loaded:
+            fallback_kwargs.update(pre_loaded)
         pipe = PipelineClass.from_pretrained(model_source, **fallback_kwargs)
 
     # Apply memory optimizations from catalog (via env vars)

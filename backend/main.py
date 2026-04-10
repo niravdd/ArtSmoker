@@ -363,6 +363,40 @@ async def lifespan(app: FastAPI):
             logger.debug("Async jobs resume: %s", exc)
     threading.Thread(target=_resume_async_jobs, daemon=True, name="async-resume").start()
 
+    # Verify auto-scaling for deployed custom model endpoints
+    # (background retry thread may have died on a previous server restart)
+    def _verify_auto_scaling():
+        try:
+            from backend.services.model_registry import get_registry
+            from backend.services.sagemaker_deployer import _setup_auto_scaling, check_endpoint_status
+            reg = get_registry()
+            for key, cfg in reg.get("image_models", {}).items():
+                if cfg.get("model_source") != "custom_hosted":
+                    continue
+                dep = cfg.get("deployment", {})
+                if dep.get("endpoint_type") != "async":
+                    continue
+                ep_name = dep.get("endpoint_name", "")
+                if not ep_name:
+                    continue
+                status = check_endpoint_status(ep_name)
+                if status.get("status") != "InService":
+                    continue
+                # Check if auto-scaling is already registered
+                import boto3
+                aas = boto3.client("application-autoscaling", region_name="us-west-2")
+                resp = aas.describe_scalable_targets(
+                    ServiceNamespace="sagemaker",
+                    ResourceIds=[f"endpoint/{ep_name}/variant/primary"],
+                )
+                if not resp.get("ScalableTargets"):
+                    logger.warning("Auto-scaling missing for %s — registering now", ep_name)
+                    _setup_auto_scaling(ep_name)
+                    logger.info("Auto-scaling registered for %s", ep_name)
+        except Exception as exc:
+            logger.debug("Auto-scaling verification: %s", exc)
+    threading.Thread(target=_verify_auto_scaling, daemon=True, name="autoscale-verify").start()
+
     # Mark ready only if Sync is not running in background
     # (background Sync thread will set ready=True when it completes)
     if not _server_state["sync_in_progress"]:
