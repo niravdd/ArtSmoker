@@ -1920,7 +1920,7 @@
                         ${thumbSrc
                             ? `<img src="${thumbSrc}" alt="${label}" class="w-full h-full object-cover" loading="lazy" />`
                             : isAsync
-                            ? `<div class="async-placeholder w-full h-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${t('custom_models.async_submitted_hint').split('.')[0]}</span></div>`
+                            ? `<div class="async-placeholder w-full h-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Generating...</span></div>`
                             : `<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
                         }
                     </div>

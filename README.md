@@ -10,28 +10,6 @@
 
 A simple, artist-friendly interface for Amazon Bedrock's image and video generation models. ArtSmoker helps creative teams use Bedrock efficiently — without needing to learn the API, CLI, or prompt engineering.
 
-### Language / 言語 / 语言 / 언어 / Langue / Idioma
-
-ArtSmoker supports 6 languages. Switch the UI language using the language buttons in the top navigation bar (EN | JA | ZH | KO | FR | ES). Your selection is saved automatically.
-
-| Language | README |
-|----------|--------|
-| English | This document |
-| 日本語 (Japanese) | [README.ja.md](README.ja.md) |
-| 中文 (Chinese) | [README.zh.md](README.zh.md) |
-| 한국어 (Korean) | [README.ko.md](README.ko.md) |
-| Français (French) | [README.fr.md](README.fr.md) |
-| Español (Spanish) | [README.es.md](README.es.md) |
-
-**Multi-lingual prompt support:**
-- Non-English prompts are automatically detected (Japanese, Chinese, Korean, French, Spanish) and translated to English before generation
-- A bilingual preview appears in the prompt area: toggle between your original text and the English translation to see exactly what the model will receive
-- The original prompt, detected language, and English translation are all preserved in the asset metadata
-- File names are generated from the translated English prompt (so "病院の建物" → `hospital-building_opt1_var1.png`)
-- Chat Studio passes prompts directly to the LLM (no translation) since models like Claude are natively multilingual
-- Type Studio text stays in your language (it's rendered on the image as-is)
-- All moderation pre-checks and content screening work on the translated English prompt for consistency
-
 ### 📝 The Problem
 
 Creative teams and game studios want to use AI for asset generation, but face real barriers:
@@ -53,6 +31,28 @@ ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean 
 Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering & chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (image editing), Nova Reel, Luma AI Ray (video generation), plus 80+ LLMs from 16 providers for Chat Studio.
 
 **[Get started now — jump to Prerequisites & Installation ▸](#get-started)**
+
+### Language / 言語 / 语言 / 언어 / Langue / Idioma
+
+ArtSmoker supports 6 languages. Switch the UI language using the language buttons in the top navigation bar (EN | JA | ZH | KO | FR | ES). Your selection is saved automatically.
+
+| Language | README |
+|----------|--------|
+| English | This document |
+| 日本語 (Japanese) | [README.ja.md](README.ja.md) |
+| 中文 (Chinese) | [README.zh.md](README.zh.md) |
+| 한국어 (Korean) | [README.ko.md](README.ko.md) |
+| Français (French) | [README.fr.md](README.fr.md) |
+| Español (Spanish) | [README.es.md](README.es.md) |
+
+**Multi-lingual prompt support:**
+- Non-English prompts are automatically detected (Japanese, Chinese, Korean, French, Spanish) and translated to English before generation
+- A bilingual preview appears in the prompt area: toggle between your original text and the English translation to see exactly what the model will receive
+- The original prompt, detected language, and English translation are all preserved in the asset metadata
+- File names are generated from the translated English prompt (so "病院の建物" → `hospital-building_opt1_var1.png`)
+- Chat Studio passes prompts directly to the LLM (no translation) since models like Claude are natively multilingual
+- Type Studio text stays in your language (it's rendered on the image as-is)
+- All moderation pre-checks and content screening work on the translated English prompt for consistency
 
 ## 📌 1. What It Does
 
