@@ -160,8 +160,12 @@ def _load_diffusers(model_dir):
                     quant_config = None
 
                 if quant_config:
-                    from diffusers import FluxTransformer2DModel
-                    pre_loaded["transformer"] = FluxTransformer2DModel.from_pretrained(
+                    # Use the right transformer class for the pipeline
+                    # Flux2Pipeline uses Flux2Transformer2DModel, FluxPipeline uses FluxTransformer2DModel
+                    transformer_cls_name = "Flux2Transformer2DModel" if "Flux2" in loader_class_name else "FluxTransformer2DModel"
+                    TransformerClass = _import_class("diffusers", transformer_cls_name)
+                    logger.info("Loading transformer with %s quantization (class=%s)", quantization, transformer_cls_name)
+                    pre_loaded["transformer"] = TransformerClass.from_pretrained(
                         model_source, subfolder="transformer",
                         quantization_config=quant_config,
                         torch_dtype=_get_torch_dtype(),
