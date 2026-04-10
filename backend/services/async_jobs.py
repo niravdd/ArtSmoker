@@ -456,12 +456,19 @@ def _track_completion(job: dict, duration_seconds: float, compute_cost: float):
         pass
 
     try:
-        from backend.services.telemetry import track_custom_model_invoke
+        from backend.services.telemetry import track_custom_model_invoke, track_image_generation
+        # Invocation event (no cost — operational tracking only)
         track_custom_model_invoke(
             model=job["model_key"],
-            cost_usd=compute_cost,
+            cost_usd=0,
             latency_ms=int(duration_seconds * 1000),
             predictor_type="text_to_image",
+        )
+        # Cost event (consistent with sync path — image_studio.generate carries the cost)
+        track_image_generation(
+            model=job["model_key"],
+            cost_usd=compute_cost,
+            duration_ms=int(duration_seconds * 1000),
         )
     except Exception:
         pass

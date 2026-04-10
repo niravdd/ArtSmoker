@@ -8,13 +8,17 @@ and aggregate feature usage counters.
 
 Event naming convention: <studio/area>.<action>
   system.*            — server lifecycle, frontend load, errors
-  image_studio.*      — 2D image generation, editing, post-processing, cost
+  image_studio.*      — 2D image generation, editing, post-processing
   video_studio.*      — video generation
   type_studio.*       — text overlay generation
   chat_studio.*       — LLM chat sessions
   style_library.*     — style analysis
   gallery.*           — gallery browsing
   model_settings.*    — model registry admin
+  custom_models.*     — self-hosted model deploy/teardown/invoke (no cost — cost tracked by studio events)
+
+Cost rule: ONE event per generation carries cost_usd. The studio .generate event
+includes actual cost. Operational events (custom_models.invoke) carry cost_usd=0.
 """
 
 import logging
@@ -69,16 +73,16 @@ def track_error(error_type: str = "", message: str = ""):
 # ── Image Studio Events ─────────────────────────────────────────────
 
 def track_image_generation(model: str = "", cost_usd: float = 0, num_options: int = 1,
-                           num_variations: int = 1, duration_ms: float = 0):
-    """Image generation started. cost_usd=0 here — actual cost sent via track_image_cost."""
-    _track("image_studio.generate", model=model, cost_usd=0,
+                           num_variations: int = 1, duration_ms: float = 0,
+                           breakdown: str = ""):
+    """Track a complete image generation with actual cost.
+
+    Called ONCE per generation at the end — not at the start.
+    cost_usd is the actual total (LLM refinement + image model + post-processing).
+    """
+    _track("image_studio.generate", model=model, cost_usd=cost_usd,
            num_options=num_options, num_variations=num_variations,
-           duration_ms=duration_ms)
-
-
-def track_image_cost(cost_usd: float = 0, model: str = "", breakdown: str = ""):
-    """Actual total cost for an image generation (LLM refinement + image model + post-processing)."""
-    _track("image_studio.cost", cost_usd=cost_usd, model=model, breakdown=breakdown)
+           duration_ms=duration_ms, breakdown=breakdown)
 
 
 def track_image_edit(edit_type: str = "", model: str = "", cost_usd: float = 0):

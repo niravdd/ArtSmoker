@@ -656,10 +656,15 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         cost_breakdown=cost_breakdown,
     )
 
-    # Send accurate cost to telemetry
-    from backend.services.telemetry import track_image_cost
-    track_image_cost(cost_usd=actual_cost, model=body.image_model,
-                     breakdown=json.dumps(cost_breakdown, default=str))
+    # Single telemetry event per generation — model + cost together
+    from backend.services.telemetry import track_image_generation
+    track_image_generation(
+        model=body.image_model or "",
+        cost_usd=actual_cost,
+        num_options=body.num_options,
+        num_variations=body.num_variations,
+        breakdown=json.dumps(cost_breakdown, default=str),
+    )
 
     emit({"type": "complete", "result": result.model_dump(mode="json")})
     return result
@@ -809,7 +814,6 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
 
     def _generate_for_model(option_index: int, model_key: str) -> OptionResult:
         """Generate one variant with a specific model. Returns OptionResult with status."""
-        from backend.services.telemetry import track_image_generation
         from backend.services.model_registry import get_image_model as _get_model
         model_enum = model_key  # Now a plain string, not an enum
         label = model_labels[model_key]
@@ -833,13 +837,6 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 translation_result=translation_result,
                 progress_queue=progress_q,
                 cost_accumulator=shared_acc,
-            )
-            # Track each model individually (no cost — actual cost sent by generation_cost at the end)
-            track_image_generation(
-                model=model_key,
-                cost_usd=0,
-                num_options=1,
-                num_variations=1,
             )
             return OptionResult(
                 option_index=option_index,
@@ -931,9 +928,14 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
         cost_breakdown=cost_breakdown,
     )
 
-    from backend.services.telemetry import track_image_cost
-    track_image_cost(cost_usd=actual_cost, model="all_models",
-                     breakdown=json.dumps(cost_breakdown, default=str))
+    from backend.services.telemetry import track_image_generation as _track_gen
+    _track_gen(
+        model="all_models",
+        cost_usd=actual_cost,
+        num_options=n_models,
+        num_variations=1,
+        breakdown=json.dumps(cost_breakdown, default=str),
+    )
 
     # Summary
     summary_parts = []
@@ -977,15 +979,7 @@ async def generate_asset_stream(body: GenerationRequest):
       - complete:    {result: GenerationResult}
       - error:       {detail: string}
     """
-    # Track telemetry — event count only (no cost here — actual cost sent by generation_cost at the end)
-    if not body.all_models:
-        from backend.services.telemetry import track_image_generation
-        track_image_generation(
-            model=body.image_model or "",
-            cost_usd=0,  # Actual cost tracked by cost_tracker and sent in generation_cost event
-            num_options=body.num_options,
-            num_variations=body.num_variations,
-        )
+    # Telemetry is sent at the END of generation (with actual cost), not here at the start.
 
     event_queue = queue.Queue()
 
