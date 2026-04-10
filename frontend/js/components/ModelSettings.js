@@ -1487,7 +1487,10 @@
                     });
 
                     sortedCats.forEach((cat, cIdx) => {
-                        const catModels = categories[cat];
+                        // Sort newest models first within each category
+                        const catModels = categories[cat].sort((a, b) =>
+                            (b.last_updated || '').localeCompare(a.last_updated || '') || b.label.localeCompare(a.label)
+                        );
                         const catOpen = openSections.has(cat);
                         const catColor = _catColors[cIdx % _catColors.length];
 

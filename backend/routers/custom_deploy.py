@@ -554,6 +554,7 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
         "enabled": True,
         "model_source": "custom_hosted",
         "format_family": f"sagemaker_{deployment['endpoint_type']}",
+        "last_updated": catalog_entry.get("last_updated", ""),
         "deployment": {
             "endpoint_name": deployment["endpoint_name"],
             "endpoint_type": deployment["endpoint_type"],

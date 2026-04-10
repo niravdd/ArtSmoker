@@ -358,7 +358,7 @@ def get_image_model_options(region: str | None = Query(default=None)):
     pricing = registry.get("image_pricing", {})
 
     models = []
-    for key, cfg in sorted(enabled.items(), key=lambda x: (x[1].get("provider", ""), x[1].get("label", x[0]))):
+    for key, cfg in enabled.items():
         if cfg.get("model_purpose") != "text_to_image":
             continue  # Only text-to-image models for the generation dropdown
 
@@ -443,7 +443,26 @@ def get_image_model_options(region: str | None = Query(default=None)):
             "default_quality": cfg.get("default_quality"),
             "base_price_usd": cfg.get("base_price_usd"),
             "model_source": cfg.get("model_source", "foundation"),
+            "_last_updated": cfg.get("last_updated", cfg.get("invoke", {}).get("last_updated", "")),
         })
+
+    # Sort: provider ascending, then newest model first within each provider.
+    # Models with last_updated sort by date descending (FLUX.2 > FLUX.1).
+    # Models without last_updated sort by label descending (Nova Canvas > Titan Image,
+    # SD 3.5 > SDXL Turbo) — version numbers in labels naturally order correctly.
+    def _model_sort_key(m):
+        provider = m["provider"]
+        date = m.pop("_last_updated", "") or ""
+        if date:
+            # Negate date digits for descending: "2025-06-01" → "7974-93-98"
+            neg_date = "".join(chr(ord('9') - ord(c)) if c.isdigit() else c for c in date)
+        else:
+            # No date → sort before dated models (assumed current/recent)
+            neg_date = ""
+        # Negate label for descending: complement ASCII so "Z" < "A" in sort
+        neg_label = "".join(chr(255 - ord(c)) if c.isascii() else c for c in m["label"])
+        return (provider, neg_date, neg_label)
+    models.sort(key=_model_sort_key)
 
     # Collect all regions that have at least one model
     all_regions = sorted(set(
