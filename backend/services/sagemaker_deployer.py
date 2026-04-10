@@ -368,12 +368,14 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         else:
             raise
 
-    # Set up auto-scaling (scale to zero when idle) for async endpoints
+    # Set up auto-scaling (scale to zero when idle) for async endpoints.
+    # May fail if endpoint is still Creating — retry in background.
     if endpoint_type == "async":
         try:
             _setup_auto_scaling(endpoint_name)
         except Exception as e:
-            logger.warning("Auto-scaling setup failed for %s (endpoint still works): %s", endpoint_name, e)
+            logger.warning("Auto-scaling setup deferred for %s (endpoint still Creating): %s", endpoint_name, e)
+            _retry_auto_scaling_in_background(endpoint_name)
 
     return {
         "endpoint_name": endpoint_name,
@@ -484,6 +486,29 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
             logger.warning("Failed to delete S3 artifacts: %s", e)
 
     return {"deleted": deleted}
+
+
+def _retry_auto_scaling_in_background(endpoint_name: str):
+    """Retry auto-scaling setup after the endpoint reaches InService."""
+    import threading, time as _time
+
+    def _retry():
+        for attempt in range(1, 13):  # 12 attempts × 60s = 12 min max
+            _time.sleep(60)
+            try:
+                status = check_endpoint_status(endpoint_name)
+                if status.get("status") == "InService":
+                    _setup_auto_scaling(endpoint_name)
+                    logger.info("Auto-scaling configured for %s (deferred, attempt %d)", endpoint_name, attempt)
+                    return
+                if status.get("status") == "Failed":
+                    logger.warning("Endpoint %s failed — skipping auto-scaling", endpoint_name)
+                    return
+            except Exception as e:
+                logger.debug("Auto-scaling retry %d for %s: %s", attempt, endpoint_name, e)
+        logger.warning("Auto-scaling setup timed out for %s after 12 retries", endpoint_name)
+
+    threading.Thread(target=_retry, daemon=True, name=f"autoscale-{endpoint_name}").start()
 
 
 def _setup_auto_scaling(endpoint_name: str):
