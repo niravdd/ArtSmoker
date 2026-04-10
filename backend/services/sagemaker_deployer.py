@@ -856,6 +856,9 @@ def _get_model_environment(model_key: str, model: dict,
         ),
         # CUDA memory management
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+        # Container timeout — large models (FLUX.2) need >60s default
+        # MMS uses this for both model loading and invocation timeout
+        "SAGEMAKER_MODEL_SERVER_TIMEOUT": str(invoke.get("typical_latency_seconds", 300) * 3),
     }
 
     # HuggingFace token for gated models
