@@ -387,14 +387,17 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     }
 
     if endpoint_type == "async":
+        # Max concurrent invocations from catalog (default 1 for safety)
+        max_concurrent = model.get("invoke", {}).get("max_concurrent_invocations", 1)
         config_params["AsyncInferenceConfig"] = {
             "OutputConfig": {
                 "S3OutputPath": f"s3://{bucket}/{S3_MODEL_PREFIX}/inference-output/{model_key}/",
             },
             "ClientConfig": {
-                "MaxConcurrentInvocationsPerInstance": 4,
+                "MaxConcurrentInvocationsPerInstance": max_concurrent,
             },
         }
+        logger.info("Async config: MaxConcurrentInvocations=%d for %s", max_concurrent, model_key)
 
     try:
         sm.delete_endpoint_config(EndpointConfigName=config_name)

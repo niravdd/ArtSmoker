@@ -488,10 +488,19 @@ def _check_job(job: dict, s3):
             _update_progress(job)
         else:
             elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
-            if elapsed > 900:  # 15 minute timeout
+            # Timeout based on model's typical latency (default 15 min)
+            # Allow 3x typical latency for cold start + queue wait
+            try:
+                from backend.services.custom_models import get_catalog_model
+                typical = get_catalog_model(job["model_key"]) or {}
+                typical_latency = typical.get("invoke", {}).get("typical_latency_seconds", 300)
+                timeout = max(900, typical_latency * 3)
+            except Exception:
+                timeout = 900
+            if elapsed > timeout:
                 with _lock:
                     job["status"] = FAILED
-                    job["error"] = f"Timed out after {int(elapsed)}s"
+                    job["error"] = f"Timed out ({int(elapsed)}s) — model may need longer or endpoint had issues"
                     job["completed_at"] = datetime.now(timezone.utc).isoformat()
                 _update_gallery_on_failure(job)
                 _cleanup_s3(job, s3)

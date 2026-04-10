@@ -4424,7 +4424,8 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 5,
-          "prompt_guidance": "FLUX.1 schnell uses natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'."
+          "prompt_guidance": "FLUX.1 schnell uses natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
+          "max_concurrent_invocations": 1
         },
         "pricing": {
           "estimated_cost_per_image": 0.02,
@@ -4508,7 +4509,8 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 180,
-          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'."
+          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
+          "max_concurrent_invocations": 1
         },
         "pricing": {
           "estimated_cost_per_image": 0.06,
@@ -4592,7 +4594,8 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 300,
-          "prompt_guidance": "FLUX.2 dev is a 32B parameter model \u2014 the most capable open-source image generator.\nUse natural language \u2014 write like describing a photograph, painting, or cinematic shot.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 describe what you WANT instead.\nFLUX.2 excels at: text rendering in images, character consistency, multi-reference editing.\nLonger prompts work well (50-120 words) \u2014 the model has exceptional prompt following.\nCamera specs: '85mm lens, f/1.4', 'wide-angle 24mm', 'aerial drone shot'.\nLighting: 'golden hour', 'studio lighting', 'dramatic chiaroscuro', 'neon-lit'.\nQuality: 'professional photography', 'cinematic', '8k resolution', 'award-winning'.\nCan render readable text in images \u2014 include exact text in quotes if needed."
+          "prompt_guidance": "FLUX.2 dev is a 32B parameter model \u2014 the most capable open-source image generator.\nUse natural language \u2014 write like describing a photograph, painting, or cinematic shot.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 describe what you WANT instead.\nFLUX.2 excels at: text rendering in images, character consistency, multi-reference editing.\nLonger prompts work well (50-120 words) \u2014 the model has exceptional prompt following.\nCamera specs: '85mm lens, f/1.4', 'wide-angle 24mm', 'aerial drone shot'.\nLighting: 'golden hour', 'studio lighting', 'dramatic chiaroscuro', 'neon-lit'.\nQuality: 'professional photography', 'cinematic', '8k resolution', 'award-winning'.\nCan render readable text in images \u2014 include exact text in quotes if needed.",
+          "max_concurrent_invocations": 1
         },
         "pricing": {
           "estimated_cost_per_image": 0.15,
@@ -4673,7 +4676,8 @@
           "supports_negative_prompt": true,
           "max_prompt_length": 1500,
           "typical_latency_seconds": 2,
-          "prompt_guidance": "SDXL Turbo generates in 1 step \u2014 prompts must be clear and direct.\nUse SDXL-style keyword prompting: comma-separated descriptors.\nQuality boosters are essential: 'masterpiece, best quality, highly detailed'.\nStyle tokens work well: 'digital painting', 'concept art', 'photorealistic'.\nKeep prompts concise (20-50 words) \u2014 quality over quantity for 1-step generation.\nNegative prompts ARE supported and very effective for cleanup.\nCommon useful negatives: 'blurry, low quality, deformed, ugly, bad anatomy, watermark'.\nDefault resolution is 512\u00d7512. Higher resolutions may reduce quality."
+          "prompt_guidance": "SDXL Turbo generates in 1 step \u2014 prompts must be clear and direct.\nUse SDXL-style keyword prompting: comma-separated descriptors.\nQuality boosters are essential: 'masterpiece, best quality, highly detailed'.\nStyle tokens work well: 'digital painting', 'concept art', 'photorealistic'.\nKeep prompts concise (20-50 words) \u2014 quality over quantity for 1-step generation.\nNegative prompts ARE supported and very effective for cleanup.\nCommon useful negatives: 'blurry, low quality, deformed, ugly, bad anatomy, watermark'.\nDefault resolution is 512\u00d7512. Higher resolutions may reduce quality.",
+          "max_concurrent_invocations": 2
         },
         "pricing": {
           "estimated_cost_per_image": 0.01,
@@ -4732,7 +4736,8 @@
             }
           },
           "output_type": "base64_png",
-          "typical_latency_seconds": 3
+          "typical_latency_seconds": 3,
+          "max_concurrent_invocations": 2
         },
         "pricing": {
           "estimated_cost_per_image": 0.01,
@@ -4787,7 +4792,8 @@
             }
           },
           "output_type": "base64_png_rgba",
-          "typical_latency_seconds": 2
+          "typical_latency_seconds": 2,
+          "max_concurrent_invocations": 4
         },
         "pricing": {
           "estimated_cost_per_image": 0.005,
@@ -4844,7 +4850,8 @@
             }
           },
           "output_type": "base64_png",
-          "typical_latency_seconds": 3
+          "typical_latency_seconds": 3,
+          "max_concurrent_invocations": 2
         },
         "pricing": {
           "estimated_cost_per_image": 0.01,
@@ -4896,7 +4903,8 @@
             }
           },
           "output_type": "base64_png_grayscale",
-          "typical_latency_seconds": 2
+          "typical_latency_seconds": 2,
+          "max_concurrent_invocations": 4
         },
         "pricing": {
           "estimated_cost_per_image": 0.005,
@@ -4959,7 +4967,8 @@
             }
           },
           "output_type": "base64_png_mask",
-          "typical_latency_seconds": 2
+          "typical_latency_seconds": 2,
+          "max_concurrent_invocations": 4
         },
         "pricing": {
           "estimated_cost_per_image": 0.005,
@@ -5029,7 +5038,8 @@
             }
           },
           "output_type": "base64_mp4",
-          "typical_latency_seconds": 60
+          "typical_latency_seconds": 60,
+          "max_concurrent_invocations": 1
         },
         "pricing": {
           "estimated_cost_per_video": 0.25,
