@@ -250,6 +250,75 @@ def _parse_negative_prompt(raw: str) -> tuple[str, str]:
 
 import re as _re
 
+
+def _extract_json_array(raw: str) -> list | None:
+    """Robustly extract a JSON array from an LLM response.
+
+    Handles multiple formats:
+    - Clean JSON: ["prompt1", "prompt2"]
+    - Markdown code block: ```json\n[...]\n```
+    - Text before/after JSON: "Here are the concepts:\n[...]"
+    - Multiple code blocks (takes the first JSON array found)
+    - Numbered list fallback: "1. prompt1\n2. prompt2"
+    """
+    text = raw.strip()
+
+    # Strip markdown code blocks (```json ... ``` or ``` ... ```)
+    if "```" in text:
+        # Find content between first ``` and last ```
+        parts = text.split("```")
+        for part in parts[1::2]:  # odd-indexed parts are inside code blocks
+            inner = part.strip()
+            # Remove language hint (json, JSON, etc.)
+            if inner.lower().startswith("json"):
+                inner = inner[4:].strip()
+            if inner.startswith("["):
+                try:
+                    return json.loads(inner)
+                except json.JSONDecodeError:
+                    pass
+
+    # Try to find a JSON array anywhere in the text (first [ to last ])
+    first_bracket = text.find("[")
+    if first_bracket >= 0:
+        # Find the matching closing bracket
+        depth = 0
+        for i in range(first_bracket, len(text)):
+            if text[i] == "[":
+                depth += 1
+            elif text[i] == "]":
+                depth -= 1
+                if depth == 0:
+                    candidate = text[first_bracket:i + 1]
+                    try:
+                        result = json.loads(candidate)
+                        if isinstance(result, list):
+                            return result
+                    except json.JSONDecodeError:
+                        break
+
+    # Fallback: try parsing the whole text as JSON
+    try:
+        result = json.loads(text)
+        if isinstance(result, list):
+            return result
+    except json.JSONDecodeError:
+        pass
+
+    # Last resort: extract numbered list items ("1. ...\n2. ...\n")
+    numbered = _re.findall(r'^\d+[\.\)]\s*["\']?(.+?)["\']?\s*$', text, _re.MULTILINE)
+    if len(numbered) >= 2:
+        logger.info("Extracted %d prompts from numbered list (not JSON)", len(numbered))
+        return numbered
+
+    # Also try lines that look like quoted strings
+    quoted = _re.findall(r'^["\'](.+?)["\']$', text, _re.MULTILINE)
+    if len(quoted) >= 2:
+        logger.info("Extracted %d prompts from quoted lines", len(quoted))
+        return quoted
+
+    return None
+
 # Pattern: "No X", "no X, no Y", "without X", "DO NOT include X" etc.
 # Captures the negation phrase and the term(s) that follow.
 _NEGATION_PATTERN = _re.compile(
@@ -448,24 +517,17 @@ def generate_concept_prompts(
         temperature=0.9,
     )
 
-    # Parse JSON array from response
-    cleaned = raw.strip()
-    if cleaned.startswith("```"):
-        first_nl = cleaned.index("\n")
-        cleaned = cleaned[first_nl + 1:]
-    if cleaned.endswith("```"):
-        cleaned = cleaned[:-3]
-    cleaned = cleaned.strip()
+    # Parse JSON array from response — robust extraction
+    concepts = _extract_json_array(raw)
 
-    try:
-        concepts = json.loads(cleaned)
-    except json.JSONDecodeError:
-        logger.warning("Failed to parse concepts JSON, falling back to single refined prompt")
+    if concepts is None:
+        logger.warning("Failed to parse concepts JSON from LLM response (%d chars), falling back to single refined prompt. Response start: %s",
+                       len(raw), raw[:200])
         single = refine_prompt(user_prompt, style_profile, asset_type, image_model)
         return [single] * num_options
 
-    if not isinstance(concepts, list):
-        logger.warning("Concepts response is not a list, falling back")
+    if not isinstance(concepts, list) or len(concepts) == 0:
+        logger.warning("Concepts response is empty or not a list, falling back")
         single = refine_prompt(user_prompt, style_profile, asset_type, image_model)
         return [single] * num_options
 
