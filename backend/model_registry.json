@@ -5107,6 +5107,43 @@
       "flux2_dev",
       "sdxl_turbo",
       "stable_video_diffusion"
-    ]
+    ],
+    "requirement_templates": {
+      "_description": "Default python requirements by library type. Models reference these instead of hardcoding versions. Update these when DLC or package versions change.",
+      "base": [
+        "torch>=2.6.0,<2.7.0",
+        "torchvision>=0.21.0,<0.22.0",
+        "Pillow>=10.0",
+        "numpy>=1.24,<2.5"
+      ],
+      "diffusers": [
+        "diffusers>=0.36.0,<0.38.0",
+        "transformers>=4.51.0,<4.52.0",
+        "accelerate>=1.6.0,<2.0.0",
+        "safetensors>=0.4.3",
+        "huggingface-hub>=0.34.0,<1.0.0"
+      ],
+      "diffusers_flux": [
+        "diffusers>=0.36.0,<0.38.0",
+        "transformers>=4.51.0,<4.52.0",
+        "accelerate>=1.6.0,<2.0.0",
+        "safetensors>=0.4.3",
+        "peft>=0.17.0,<0.19.0",
+        "huggingface-hub>=0.34.0,<1.0.0"
+      ],
+      "transformers": [
+        "transformers>=4.51.0,<4.52.0",
+        "accelerate>=1.6.0,<2.0.0",
+        "huggingface-hub>=0.34.0,<1.0.0"
+      ],
+      "realesrgan": [
+        "realesrgan==0.3.0",
+        "basicsr==1.4.2",
+        "opencv-python-headless>=4.8.0"
+      ],
+      "quantization": [
+        "bitsandbytes>=0.43.3"
+      ]
+    }
   }
 }

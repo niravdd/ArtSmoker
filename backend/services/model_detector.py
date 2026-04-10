@@ -109,38 +109,25 @@ def detect_from_hf_repo(repo_id: str, hf_token: str | None = None) -> dict:
         recommended = "ml.g5.xlarge"
         instance_costs = {"ml.g5.xlarge": 1.41}
 
-    # Python requirements based on library
-    base_reqs = [
-        "torch>=2.6.0,<2.7.0",
-        "torchvision>=0.21.0,<0.22.0",
-        "Pillow>=10.0",
-        "numpy>=1.24,<2.5",
-    ]
-    if invoke_config.get("library") == "diffusers":
-        model_reqs = [
-            "diffusers>=0.36.0,<0.38.0",
-            "transformers>=4.51.0,<4.52.0",
-            "accelerate>=1.6.0,<2.0.0",
-            "safetensors>=0.4.3",
-            "huggingface-hub>=0.34.0,<1.0.0",
-        ]
-        # FLUX models need peft
-        if "flux" in repo_id.lower():
-            model_reqs.append("peft>=0.17.0,<0.19.0")
-    elif invoke_config.get("library") == "transformers":
-        model_reqs = [
-            "transformers>=4.51.0,<4.52.0",
-            "accelerate>=1.6.0,<2.0.0",
-            "huggingface-hub>=0.34.0,<1.0.0",
-        ]
-    elif invoke_config.get("library") == "realesrgan":
-        model_reqs = [
-            "realesrgan==0.3.0",
-            "basicsr==1.4.2",
-            "opencv-python-headless>=4.8.0",
-        ]
+    # Python requirements from registry templates (not hardcoded)
+    try:
+        from backend.services.model_registry import get_registry
+        templates = get_registry().get("custom_model_catalog", {}).get("requirement_templates", {})
+    except Exception:
+        templates = {}
+
+    base_reqs = list(templates.get("base", []))
+    lib = invoke_config.get("library", "")
+    if lib == "diffusers" and "flux" in repo_id.lower():
+        model_reqs = list(templates.get("diffusers_flux", templates.get("diffusers", [])))
+    elif lib == "diffusers":
+        model_reqs = list(templates.get("diffusers", []))
+    elif lib == "transformers":
+        model_reqs = list(templates.get("transformers", []))
+    elif lib == "realesrgan":
+        model_reqs = list(templates.get("realesrgan", []))
     else:
-        model_reqs = ["huggingface-hub>=0.34.0,<1.0.0"]
+        model_reqs = list(templates.get("transformers", []))  # safe fallback
 
     # Build the catalog entry
     entry = {
