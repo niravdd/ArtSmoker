@@ -198,7 +198,7 @@ MODEL_CATALOG = {
         },
         "invoke": {
             "library": "diffusers",
-            "loader_class": "FluxPipeline",
+            "loader_class": "Flux2Pipeline",
             "torch_dtype": "bfloat16",
             "enable_sequential_cpu_offload": True,
             "enable_vae_slicing": True,
