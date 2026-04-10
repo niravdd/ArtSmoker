@@ -3,7 +3,7 @@
  *
  * Decomposes a user prompt into structured visual components using an LLM,
  * displays them in a tabbed interface with color swatches and lock/unlock per field.
- * "Save & Continue" stores the data and triggers enhanced prompt composition.
+ * "Generate Enhanced Prompt" stores the data and triggers enhanced prompt composition.
  */
 (function () {
     'use strict';

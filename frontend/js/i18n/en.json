@@ -854,7 +854,7 @@
     "title": "Prompt Designer",
     "analyzing": "Analyzing your prompt...",
     "analyzing_sub": "Breaking down into visual components",
-    "save_continue": "Save & Continue",
+    "save_continue": "Generate Enhanced Prompt",
     "cancel": "Cancel",
     "regenerate_unlocked": "Regenerate Unlocked Fields",
     "lock_hint": "Lock fields to keep them fixed when regenerating",
