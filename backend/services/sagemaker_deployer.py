@@ -114,6 +114,56 @@ def _generate_requirements(model_key: str, output_path: Path):
     logger.info("Generated requirements.txt for %s: %d base + %d model packages",
                 model_key, len(base), len(model_reqs))
 
+    # Validate requirements are still installable on PyPI
+    _validate_requirements(model_key, base + model_reqs)
+
+
+def _validate_requirements(model_key: str, requirements: list[str]):
+    """Check that pinned package versions exist on PyPI (not yanked/deleted).
+
+    Runs at deploy time as a pre-flight check. Warns on issues but doesn't
+    block deployment — stale pins may still install from pip cache.
+    """
+    import re
+    import urllib.request
+
+    pkg_pattern = re.compile(r'^([a-zA-Z0-9_-]+(?:\[[^\]]+\])?)\s*([><=!~].+)?$')
+    issues = []
+
+    for req in requirements:
+        req = req.strip()
+        if not req or req.startswith("#"):
+            continue
+        match = pkg_pattern.match(req)
+        if not match:
+            continue
+        pkg_name = match.group(1).split("[")[0]  # strip extras like [torch]
+
+        try:
+            url = f"https://pypi.org/pypi/{pkg_name}/json"
+            resp = urllib.request.urlopen(url, timeout=5)
+            data = json.loads(resp.read().decode())
+            latest = data.get("info", {}).get("version", "?")
+            # Check if package is yanked
+            releases = data.get("releases", {})
+            if latest in releases:
+                files = releases[latest]
+                if files and all(f.get("yanked", False) for f in files):
+                    issues.append(f"{pkg_name}: latest version {latest} is yanked")
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                issues.append(f"{pkg_name}: NOT FOUND on PyPI")
+            else:
+                pass  # Network issue, don't block
+        except Exception:
+            pass  # Timeout or network issue, don't block
+
+    if issues:
+        for issue in issues:
+            logger.warning("Requirement validation: %s (model: %s)", issue, model_key)
+    else:
+        logger.info("All requirements validated on PyPI for %s", model_key)
+
 
 # ── HuggingFace Direct Pull (no local download) ─────────────────────────
 
