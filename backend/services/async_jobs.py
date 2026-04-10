@@ -263,12 +263,20 @@ def stop_poller():
     _poller_stop.set()
 
 
+_endpoint_warm_state: dict = {}  # endpoint_name → {warm_start, last_job_time, hourly_rate, job_count}
+_last_bg_cost_flush = 0.0
+
+
 def _poll_loop():
-    """Background loop: check S3 for completed async jobs every 30 seconds."""
+    """Background loop: check S3 for completed async jobs every 30 seconds.
+    Also tracks custom model endpoint warm periods and flushes background costs."""
+    global _last_bg_cost_flush
     import boto3
+    import time as _time
     from backend.config import settings
 
     region = settings.aws_region_models
+    _last_bg_cost_flush = _time.time()
 
     while not _poller_stop.is_set():
         pending = []
@@ -276,6 +284,8 @@ def _poll_loop():
             pending = [j for j in _jobs.values() if j["status"] in (PENDING, GENERATING)]
 
         if not pending:
+            _flush_background_costs_if_due()
+            _check_warm_period_closures()
             _poller_stop.wait(timeout=5)
             continue
 
@@ -289,10 +299,113 @@ def _poll_loop():
             except Exception as e:
                 logger.warning("Async job poll error (%s): %s", job["job_id"], e)
 
+        _flush_background_costs_if_due()
+        _check_warm_period_closures()
+
         # Poll interval — 30 seconds
         _poller_stop.wait(timeout=30)
 
+    # Final flush on shutdown
+    _flush_background_costs_if_due(force=True)
     logger.debug("Async job poller stopped")
+
+
+def _track_warm_period_start(job: dict):
+    """Record when an endpoint becomes warm (first job starts generating)."""
+    ep = job.get("_endpoint_name") or f"artsmoker-{job['model_key'].replace('_', '-')}"
+    if ep in _endpoint_warm_state:
+        return  # already tracking
+    try:
+        from backend.services.custom_models import get_catalog_model
+        catalog = get_catalog_model(job["model_key"])
+        if catalog:
+            pricing = catalog.get("pricing", {})
+            instance_costs = pricing.get("instance_cost_per_hour", {})
+            recommended = catalog.get("requirements", {}).get("recommended_instance", "")
+            hourly_rate = instance_costs.get(recommended, 0)
+            if not hourly_rate and instance_costs:
+                hourly_rate = min(instance_costs.values())
+        else:
+            hourly_rate = 1.41  # g5.xlarge fallback
+    except Exception:
+        hourly_rate = 1.41
+
+    _endpoint_warm_state[ep] = {
+        "warm_start": datetime.now(timezone.utc),
+        "last_job_time": datetime.now(timezone.utc),
+        "hourly_rate": hourly_rate,
+        "job_count": 0,
+        "model_key": job["model_key"],
+    }
+    logger.debug("Warm period started for %s (rate=$%.2f/hr)", ep, hourly_rate)
+
+
+def _track_warm_period_job_complete(job: dict):
+    """Update warm-period state when a job completes."""
+    ep = job.get("_endpoint_name") or f"artsmoker-{job['model_key'].replace('_', '-')}"
+    state = _endpoint_warm_state.get(ep)
+    if state:
+        state["last_job_time"] = datetime.now(timezone.utc)
+        state["job_count"] += 1
+
+
+def _check_warm_period_closures():
+    """Close warm periods for endpoints that have been idle > cooldown."""
+    now = datetime.now(timezone.utc)
+    closed = []
+    for ep, state in _endpoint_warm_state.items():
+        idle_seconds = (now - state["last_job_time"]).total_seconds()
+        # Scale-in cooldown is 600s + 60s buffer
+        if idle_seconds > 660 and not _has_pending_for_endpoint(ep):
+            warm_seconds = (now - state["warm_start"]).total_seconds()
+            warm_cost = (warm_seconds / 3600.0) * state["hourly_rate"]
+            try:
+                from backend.services.cost_tracker import add_background_cost
+                add_background_cost(
+                    "custom_model_infra",
+                    warm_cost,
+                    f"{ep}: {warm_seconds:.0f}s warm, {state['job_count']} jobs, ${warm_cost:.4f}",
+                )
+            except Exception:
+                pass
+            logger.info("Warm period closed for %s: %ds, %d jobs, $%.4f",
+                        ep, warm_seconds, state["job_count"], warm_cost)
+            closed.append(ep)
+    for ep in closed:
+        del _endpoint_warm_state[ep]
+
+
+def _has_pending_for_endpoint(endpoint_name: str) -> bool:
+    """Check if any pending jobs target this endpoint."""
+    with _lock:
+        for j in _jobs.values():
+            if j["status"] in (PENDING, GENERATING):
+                job_ep = j.get("_endpoint_name") or f"artsmoker-{j['model_key'].replace('_', '-')}"
+                if job_ep == endpoint_name:
+                    return True
+    return False
+
+
+def _flush_background_costs_if_due(force: bool = False):
+    """Periodically flush accumulated background costs to telemetry."""
+    global _last_bg_cost_flush
+    import time as _time
+    now = _time.time()
+    if not force and (now - _last_bg_cost_flush) < 300:  # every 5 min
+        return
+    _last_bg_cost_flush = now
+    try:
+        from backend.services.cost_tracker import get_background_total, get_background_costs, reset_background_costs
+        total = get_background_total()
+        if total > 0:
+            breakdown = get_background_costs()
+            from backend.services.telemetry import _track
+            _track("system.infra_cost", cost_usd=total,
+                   breakdown=str(breakdown))
+            reset_background_costs()
+            logger.debug("Flushed background costs: $%.6f", total)
+    except Exception as e:
+        logger.debug("Background cost flush failed: %s", e)
 
 
 def _check_job(job: dict, s3):
@@ -306,6 +419,13 @@ def _check_job(job: dict, s3):
     try:
         obj = s3.get_object(Bucket=bucket, Key=key)
         body = obj["Body"].read()
+
+        # Track S3 download cost
+        try:
+            from backend.services.cost_tracker import add_background_s3_cost
+            add_background_s3_cost("get", len(body), "async job output download")
+        except Exception:
+            pass
 
         # Parse the output (our handler returns {"image": "base64...", "format": "base64_png"})
         result = json.loads(body.decode("utf-8"))
@@ -331,6 +451,8 @@ def _check_job(job: dict, s3):
         duration_seconds = (completed_at - submitted).total_seconds()
         duration_seconds = min(duration_seconds, 900)  # Cap at 15 min
         compute_cost = _calculate_compute_cost(job["model_key"], duration_seconds)
+
+        _track_warm_period_job_complete(job)
 
         with _lock:
             job["status"] = COMPLETE
@@ -379,8 +501,11 @@ def _update_progress(job: dict):
     typical = 180 if "dev" in job["model_key"] else 30
     progress = min(95, int((elapsed / typical) * 100))
     with _lock:
+        was_pending = job["status"] == PENDING
         job["status"] = GENERATING
         job["progress"] = progress
+    if was_pending:
+        _track_warm_period_start(job)
 
 
 def _calculate_compute_cost(model_key: str, duration_seconds: float) -> float:
@@ -543,13 +668,19 @@ def _persist_job_to_s3(job: dict):
             "compute_cost_usd": job.get("compute_cost_usd"),
         }
 
+        persist_bytes = json.dumps(persist, indent=2, default=str).encode()
         s3 = boto3.client("s3", region_name=settings.aws_region_models)
         s3.put_object(
             Bucket=bucket,
             Key=f"{_JOBS_S3_PREFIX}{job['job_id']}.json",
-            Body=json.dumps(persist, indent=2, default=str),
+            Body=persist_bytes,
             ContentType="application/json",
         )
+        try:
+            from backend.services.cost_tracker import add_background_s3_cost
+            add_background_s3_cost("put", len(persist_bytes), "job metadata persist")
+        except Exception:
+            pass
         logger.debug("Persisted job %s to S3", job["job_id"])
     except Exception as e:
         logger.debug("Failed to persist job %s to S3: %s", job["job_id"], e)

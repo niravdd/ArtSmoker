@@ -178,13 +178,17 @@ def _upload_async_input(endpoint_name: str, payload: dict) -> str:
     bucket = get_deployment_s3_bucket()
     key = f"{S3_MODEL_PREFIX}/inference-input/{endpoint_name}/{int(time.time() * 1000)}.json"
 
+    payload_bytes = json.dumps(payload).encode()
     s3 = boto3.client("s3", region_name=_get_region())
     s3.put_object(
         Bucket=bucket,
         Key=key,
-        Body=json.dumps(payload),
+        Body=payload_bytes,
         ContentType="application/json",
     )
+
+    from backend.services.cost_tracker import add_s3_cost
+    add_s3_cost("put", len(payload_bytes), "async inference input", region=_get_region())
 
     return f"s3://{bucket}/{key}"
 

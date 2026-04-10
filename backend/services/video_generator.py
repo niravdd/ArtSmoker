@@ -307,6 +307,15 @@ def download_video_from_s3(s3_bucket: str, s3_prefix: str, local_dir: Path) -> P
     local_path = local_dir / "video.mp4"
     logger.info("Downloading s3://%s/%s → %s", s3_bucket, mp4_key, local_path)
     s3.download_file(s3_bucket, mp4_key, str(local_path))
+
+    # Track S3 download cost (video files can be 5-100MB)
+    try:
+        file_size = local_path.stat().st_size
+        from backend.services.cost_tracker import add_s3_cost
+        add_s3_cost("get", file_size, f"video download ({file_size // 1024}KB)")
+    except Exception:
+        pass
+
     return local_path
 
 
