@@ -495,15 +495,32 @@ def _check_job(job: dict, s3):
 
 
 def _update_progress(job: dict):
-    """Estimate progress based on elapsed time."""
+    """Update job stage based on elapsed time and endpoint state.
+
+    SageMaker async has no intermediate progress — only submitted → complete.
+    We show honest stage-based status instead of fake percentages.
+    """
     elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
-    # Estimate based on typical latency (~180s for dev, ~30s for schnell)
-    typical = 180 if "dev" in job["model_key"] else 30
-    progress = min(95, int((elapsed / typical) * 100))
+
+    # Determine stage from elapsed time and what we know
+    # Cold start (model download + load): 0-600s for large models
+    # Generation: 30-300s depending on model
+    if elapsed < 10:
+        stage = "submitted"
+        stage_label = "Submitted — waiting for endpoint"
+    elif elapsed < 600:
+        stage = "generating"
+        stage_label = "Generating — model is processing"
+    else:
+        stage = "generating"
+        stage_label = "Still processing — large model may need extra time"
+
     with _lock:
         was_pending = job["status"] == PENDING
         job["status"] = GENERATING
-        job["progress"] = progress
+        job["stage"] = stage
+        job["stage_label"] = stage_label
+        job["elapsed_seconds"] = int(elapsed)
     if was_pending:
         _track_warm_period_start(job)
 

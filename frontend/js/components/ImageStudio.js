@@ -2476,28 +2476,42 @@
             const jobsHtml = jobs.length === 0
                 ? `<p class="text-xs text-brand-text-muted py-4 text-center">${t('custom_models.async_no_jobs')}</p>`
                 : jobs.map(j => {
-                    const statusColor = j.status === 'complete' ? 'text-emerald-400' : j.status === 'failed' ? 'text-red-400' : 'text-amber-400';
-                    const statusIcon = j.status === 'complete' ? '✓' : j.status === 'failed' ? '✗' : '⟳';
-                    const progressBar = j.status === 'generating' || j.status === 'pending'
-                        ? `<div class="w-full bg-brand-border/30 rounded-full h-1.5 mt-1"><div class="bg-amber-400 h-1.5 rounded-full transition-all" style="width:${j.progress || 0}%"></div></div>`
-                        : '';
+                    const isActive = j.status === 'generating' || j.status === 'pending';
+                    const statusColor = j.status === 'complete' ? 'text-emerald-400' : j.status === 'failed' ? 'text-red-400' : 'text-cyan-400';
+                    const statusIcon = j.status === 'complete' ? '✓' : j.status === 'failed' ? '✗' : '';
                     const thumb = j.status === 'complete' && j.image_path
                         ? `<img src="/api/gallery/${j.image_path.split('/').slice(-2, -1)[0]}/png" class="w-12 h-12 rounded object-cover flex-shrink-0" />`
-                        : `<div class="w-12 h-12 rounded bg-brand-border/20 flex items-center justify-center flex-shrink-0"><span class="${statusColor} text-lg">${statusIcon}</span></div>`;
+                        : `<div class="w-12 h-12 rounded bg-brand-border/20 flex items-center justify-center flex-shrink-0">
+                            ${j.status === 'failed'
+                                ? `<span class="text-red-400 text-lg">✗</span>`
+                                : `<div class="w-5 h-5 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>`
+                            }
+                        </div>`;
                     const elapsed = j.submitted_at ? Math.round((Date.now() - new Date(j.submitted_at).getTime()) / 1000) : 0;
                     const elapsedStr = elapsed > 60 ? `${Math.floor(elapsed/60)}m ${elapsed%60}s` : `${elapsed}s`;
+
+                    // Stage-based status (no fake percentages)
+                    let statusText;
+                    if (j.status === 'complete') {
+                        statusText = `Generated${j.compute_cost_usd ? ` (~$${j.compute_cost_usd.toFixed(4)})` : ''}`;
+                        if (j.duration_seconds) statusText += ` in ${Math.round(j.duration_seconds)}s`;
+                    } else if (j.status === 'failed') {
+                        statusText = 'Failed';
+                    } else {
+                        statusText = j.stage_label || 'Generation in progress';
+                    }
+
                     return `
                         <div class="flex items-center gap-3 p-3 rounded-lg bg-brand-bg/40 border border-brand-border">
                             ${thumb}
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-semibold text-brand-text">${j.model_label}</span>
-                                    <span class="text-[10px] ${statusColor}">${j.status === 'complete' ? `Complete${j.compute_cost_usd ? ` (~$${j.compute_cost_usd.toFixed(4)})` : ''}` : j.status === 'failed' ? 'Failed' : j.progress + '%'}</span>
+                                    <span class="text-[10px] ${statusColor}">${statusText}</span>
                                 </div>
                                 <p class="text-[10px] text-brand-text-muted truncate">${j.prompt || ''}</p>
                                 ${j.status === 'failed' ? `<p class="text-[10px] text-red-400 mt-0.5">${j.error || ''}</p>` : ''}
-                                ${progressBar}
-                                <span class="text-[9px] text-brand-text-muted/50">${elapsedStr} ago</span>
+                                ${isActive ? `<div class="flex items-center gap-2 mt-1"><div class="flex-1 h-1 rounded-full bg-brand-border/30 overflow-hidden"><div class="h-full rounded-full bg-cyan-400/50 animate-pulse" style="width:100%"></div></div><span class="text-[9px] text-brand-text-muted/50">${elapsedStr}</span></div>` : ''}
                             </div>
                         </div>`;
                 }).join('');
