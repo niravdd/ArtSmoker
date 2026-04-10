@@ -512,6 +512,7 @@
             if (previewImg) previewImg.style.cursor = 'pointer';
             document.getElementById('btn-reset')?.addEventListener('click', async () => {
                 if (this._result && !await window.showConfirm(t('image_studio.reset_confirm'), { title: t('image_studio.reset'), detail: t('image_studio.reset_detail'), confirmLabel: t('image_studio.reset'), danger: true })) return;
+                window.PromptDesigner?.reset();
                 window.resetView('image-studio');
             });
         },

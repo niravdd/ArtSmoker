@@ -36,13 +36,22 @@
         async open(prompt, opts = {}) {
             this._onApply = opts.onApply || null;
             this._onPromptSet = opts.onPromptSet || null;
-
-            this._activeTab = 'subject';
-            this._originalPrompt = (prompt || '').trim();
             this._opts = opts;
 
+            const newPrompt = (prompt || '').trim();
+
+            // If we have saved data and the prompt hasn't changed, restore it
+            if (this._data && this._originalPrompt === newPrompt) {
+                this._showModal('');
+                this._renderDesigner();
+                return;
+            }
+
+            this._activeTab = 'subject';
+            this._originalPrompt = newPrompt;
+
             if (this._originalPrompt) {
-                // Has prompt → decompose immediately (existing flow)
+                // Has prompt → decompose immediately
                 this._showModal(`
                     <div class="text-center py-12">
                         <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
@@ -170,6 +179,14 @@
                 this._modal.remove();
                 this._modal = null;
             }
+        },
+
+        /** Clear all saved state (called on view reset). */
+        reset() {
+            this.close();
+            this._data = null;
+            this._originalPrompt = null;
+            this._activeTab = 'subject';
         },
 
         _showModal(innerHtml) {
