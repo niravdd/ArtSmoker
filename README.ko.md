@@ -12,28 +12,6 @@
 
 Amazon Bedrock의 이미지 및 동영상 생성 모델을 위한 간단하고 아티스트 친화적인 인터페이스입니다. ArtSmoker는 API, CLI, 프롬프트 엔지니어링을 배울 필요 없이 크리에이티브 팀이 Bedrock을 효율적으로 사용할 수 있도록 도와줍니다.
 
-### Language / 言語 / 语言 / 언어 / Langue / Idioma
-
-ArtSmoker는 6개 언어를 지원합니다. 상단 내비게이션 바의 언어 버튼(EN | JA | ZH | KO | FR | ES)으로 UI 언어를 전환할 수 있습니다. 선택은 자동으로 저장됩니다.
-
-| 언어 | README |
-|------|--------|
-| English | [README.md](README.md) |
-| 日本語 (Japanese) | [README.ja.md](README.ja.md) |
-| 中文 (Chinese) | [README.zh.md](README.zh.md) |
-| 한국어 | 이 문서 |
-| Français (French) | [README.fr.md](README.fr.md) |
-| Español (Spanish) | [README.es.md](README.es.md) |
-
-**다국어 프롬프트 지원:**
-- 영어가 아닌 프롬프트(일본어, 중국어, 한국어, 프랑스어, 스페인어)는 자동으로 감지되어 생성 전에 영어로 번역됩니다
-- 프롬프트 영역에 이중 언어 미리보기가 표시됩니다: 원본 텍스트와 영어 번역을 전환하여 모델이 받게 될 내용을 정확히 확인할 수 있습니다
-- 원본 프롬프트, 감지된 언어, 영어 번역은 모두 에셋 메타데이터에 보존됩니다
-- 파일명은 번역된 영어 프롬프트로부터 생성됩니다 (예: "병원 건물" → `hospital-building_opt1_var1.png`)
-- Chat Studio는 LLM에 프롬프트를 직접 전달합니다(번역 없음) — Claude 같은 모델이 기본적으로 다국어를 지원하기 때문입니다
-- Type Studio의 텍스트는 사용자의 언어 그대로 유지됩니다(이미지에 그대로 렌더링됩니다)
-- 모든 사전 검토 및 콘텐츠 스크리닝은 일관성을 위해 번역된 영어 프롬프트에 대해 작동합니다
-
 ### 📝 문제
 
 크리에이티브 팀과 게임 스튜디오는 AI를 활용한 에셋 생성을 원하지만, 실제로는 많은 장벽이 존재합니다:
@@ -55,6 +33,28 @@ ArtSmoker는 Amazon Bedrock을 깔끔한 크리에이티브 인터페이스로 �
 Amazon Bedrock 기반으로 구축: Claude Sonnet/Opus(프롬프트 엔지니어링 및 채팅), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI(이미지 편집), Nova Reel, Luma AI Ray(동영상 생성), 그리고 Chat Studio용 16개 제공업체의 80개 이상의 LLM.
 
 **[지금 시작하기 — 사전 요구사항 및 설치로 이동 ▸](#get-started)**
+
+### Language / 言語 / 语言 / 언어 / Langue / Idioma
+
+ArtSmoker는 6개 언어를 지원합니다. 상단 내비게이션 바의 언어 버튼(EN | JA | ZH | KO | FR | ES)으로 UI 언어를 전환할 수 있습니다. 선택은 자동으로 저장됩니다.
+
+| 언어 | README |
+|------|--------|
+| English | [README.md](README.md) |
+| 日本語 (Japanese) | [README.ja.md](README.ja.md) |
+| 中文 (Chinese) | [README.zh.md](README.zh.md) |
+| 한국어 | 이 문서 |
+| Français (French) | [README.fr.md](README.fr.md) |
+| Español (Spanish) | [README.es.md](README.es.md) |
+
+**다국어 프롬프트 지원:**
+- 영어가 아닌 프롬프트(일본어, 중국어, 한국어, 프랑스어, 스페인어)는 자동으로 감지되어 생성 전에 영어로 번역됩니다
+- 프롬프트 영역에 이중 언어 미리보기가 표시됩니다: 원본 텍스트와 영어 번역을 전환하여 모델이 받게 될 내용을 정확히 확인할 수 있습니다
+- 원본 프롬프트, 감지된 언어, 영어 번역은 모두 에셋 메타데이터에 보존됩니다
+- 파일명은 번역된 영어 프롬프트로부터 생성됩니다 (예: "병원 건물" → `hospital-building_opt1_var1.png`)
+- Chat Studio는 LLM에 프롬프트를 직접 전달합니다(번역 없음) — Claude 같은 모델이 기본적으로 다국어를 지원하기 때문입니다
+- Type Studio의 텍스트는 사용자의 언어 그대로 유지됩니다(이미지에 그대로 렌더링됩니다)
+- 모든 사전 검토 및 콘텐츠 스크리닝은 일관성을 위해 번역된 영어 프롬프트에 대해 작동합니다
 
 ## 📌 1. 기능 개요
 

@@ -12,28 +12,6 @@
 
 Una interfaz sencilla y orientada al artista para los modelos de generación de imágenes y video de Amazon Bedrock. ArtSmoker ayuda a los equipos creativos a usar Bedrock de manera eficiente — sin necesidad de aprender la API, CLI o ingeniería de prompts.
 
-### Language / 言語 / 语言 / 언어 / Langue / Idioma
-
-ArtSmoker está disponible en 6 idiomas. Cambie el idioma de la interfaz usando los botones de idioma en la barra de navegación superior (EN | JA | ZH | KO | FR | ES). Su selección se guarda automáticamente.
-
-| Idioma | README |
-|--------|--------|
-| English | [README.md](README.md) |
-| 日本語 (Japanese) | [README.ja.md](README.ja.md) |
-| 中文 (Chinese) | [README.zh.md](README.zh.md) |
-| 한국어 (Korean) | [README.ko.md](README.ko.md) |
-| Français (French) | [README.fr.md](README.fr.md) |
-| Español | Este documento |
-
-**Soporte multilingüe para prompts:**
-- Los prompts en idiomas distintos al inglés (japonés, chino, coreano, francés, español) se detectan automáticamente y se traducen al inglés antes de la generación
-- Aparece una vista previa bilingüe en el área de prompts: alterne entre su texto original y la traducción al inglés para ver exactamente lo que recibirá el modelo
-- El prompt original, el idioma detectado y la traducción al inglés se conservan en los metadatos del recurso
-- Los nombres de archivo se generan a partir del prompt traducido al inglés (por ejemplo: "edificio del hospital" → `hospital-building_opt1_var1.png`)
-- Chat Studio pasa los prompts directamente al LLM (sin traducción) — ya que modelos como Claude son nativamente multilingües
-- El texto de Type Studio permanece en su idioma (se renderiza en la imagen tal cual)
-- Todas las verificaciones previas de moderación y filtrado de contenido operan sobre el prompt traducido al inglés para mantener la consistencia
-
 ### 📝 El problema
 
 Los equipos creativos y estudios de videojuegos quieren utilizar IA para la generación de recursos, pero enfrentan barreras reales:
@@ -55,6 +33,28 @@ ArtSmoker es una aplicación web autoalojada que envuelve Amazon Bedrock en una 
 Construido sobre Amazon Bedrock: Claude Sonnet/Opus (ingeniería de prompts y chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (edición de imágenes), Nova Reel, Luma AI Ray (generación de video), más de 80 LLMs de 16 proveedores para Chat Studio.
 
 **[Comience ahora — saltar a Requisitos previos e instalación ▸](#get-started)**
+
+### Language / 言語 / 语言 / 언어 / Langue / Idioma
+
+ArtSmoker está disponible en 6 idiomas. Cambie el idioma de la interfaz usando los botones de idioma en la barra de navegación superior (EN | JA | ZH | KO | FR | ES). Su selección se guarda automáticamente.
+
+| Idioma | README |
+|--------|--------|
+| English | [README.md](README.md) |
+| 日本語 (Japanese) | [README.ja.md](README.ja.md) |
+| 中文 (Chinese) | [README.zh.md](README.zh.md) |
+| 한국어 (Korean) | [README.ko.md](README.ko.md) |
+| Français (French) | [README.fr.md](README.fr.md) |
+| Español | Este documento |
+
+**Soporte multilingüe para prompts:**
+- Los prompts en idiomas distintos al inglés (japonés, chino, coreano, francés, español) se detectan automáticamente y se traducen al inglés antes de la generación
+- Aparece una vista previa bilingüe en el área de prompts: alterne entre su texto original y la traducción al inglés para ver exactamente lo que recibirá el modelo
+- El prompt original, el idioma detectado y la traducción al inglés se conservan en los metadatos del recurso
+- Los nombres de archivo se generan a partir del prompt traducido al inglés (por ejemplo: "edificio del hospital" → `hospital-building_opt1_var1.png`)
+- Chat Studio pasa los prompts directamente al LLM (sin traducción) — ya que modelos como Claude son nativamente multilingües
+- El texto de Type Studio permanece en su idioma (se renderiza en la imagen tal cual)
+- Todas las verificaciones previas de moderación y filtrado de contenido operan sobre el prompt traducido al inglés para mantener la consistencia
 
 ## 📌 1. Funcionalidades
 

@@ -12,28 +12,6 @@
 
 Amazon Bedrockの画像・動画生成モデルのためのシンプルでアーティストフレンドリーなインターフェース。ArtSmokerは、API、CLI、プロンプトエンジニアリングを学ぶことなく、クリエイティブチームがBedrockを効率的に使えるようにします。
 
-### Language / 言語 / 语言 / 언어 / Langue / Idioma
-
-ArtSmokerは6言語に対応しています。上部ナビゲーションバーの言語ボタン（EN | JA | ZH | KO | FR | ES）でUI言語を切り替えられます。選択は自動的に保存されます。
-
-| 言語 | README |
-|------|--------|
-| English | [README.md](README.md) |
-| 日本語 | このドキュメント |
-| 中文 (Chinese) | [README.zh.md](README.zh.md) |
-| 한국어 (Korean) | [README.ko.md](README.ko.md) |
-| Français (French) | [README.fr.md](README.fr.md) |
-| Español (Spanish) | [README.es.md](README.es.md) |
-
-**多言語プロンプト対応：**
-- 英語以外のプロンプト（日本語、中国語、韓国語、フランス語、スペイン語）は自動検出され、生成前に英語に翻訳されます
-- プロンプトエリアにバイリンガルプレビューが表示されます：元のテキストと英語翻訳を切り替えて、モデルが受け取る内容を確認できます
-- 元のプロンプト、検出された言語、英語翻訳はすべてアセットのメタデータに保存されます
-- ファイル名は翻訳された英語プロンプトから生成されます（例：「病院の建物」→ `hospital-building_opt1_var1.png`）
-- Chat StudioはLLMに直接プロンプトを渡します（翻訳なし）— Claudeなどのモデルはネイティブに多言語対応しているためです
-- Type Studioのテキストはあなたの言語のまま残ります（画像にそのままレンダリングされます）
-- すべてのモデレーション事前チェックとコンテンツスクリーニングは、一貫性のために翻訳された英語プロンプトに対して動作します
-
 ### 📝 課題
 
 クリエイティブチームやゲームスタジオはAIによるアセット生成を活用したいと考えていますが、実際には多くの障壁があります：
@@ -55,6 +33,28 @@ ArtSmokerは、Amazon Bedrockをクリーンなクリエイティブインター
 Amazon Bedrock上に構築：Claude Sonnet/Opus（プロンプトエンジニアリング＆チャット）、Nova Canvas、Titan Image、Stable Diffusion 3.5 Large、Stable Image Ultra、Stability AI（画像編集）、Nova Reel、Luma AI Ray（動画生成）、さらにChat Studio用に16プロバイダーから80以上のLLM。
 
 **[今すぐ始める — 前提条件とインストールへジャンプ ▸](#get-started)**
+
+### Language / 言語 / 语言 / 언어 / Langue / Idioma
+
+ArtSmokerは6言語に対応しています。上部ナビゲーションバーの言語ボタン（EN | JA | ZH | KO | FR | ES）でUI言語を切り替えられます。選択は自動的に保存されます。
+
+| 言語 | README |
+|------|--------|
+| English | [README.md](README.md) |
+| 日本語 | このドキュメント |
+| 中文 (Chinese) | [README.zh.md](README.zh.md) |
+| 한국어 (Korean) | [README.ko.md](README.ko.md) |
+| Français (French) | [README.fr.md](README.fr.md) |
+| Español (Spanish) | [README.es.md](README.es.md) |
+
+**多言語プロンプト対応：**
+- 英語以外のプロンプト（日本語、中国語、韓国語、フランス語、スペイン語）は自動検出され、生成前に英語に翻訳されます
+- プロンプトエリアにバイリンガルプレビューが表示されます：元のテキストと英語翻訳を切り替えて、モデルが受け取る内容を確認できます
+- 元のプロンプト、検出された言語、英語翻訳はすべてアセットのメタデータに保存されます
+- ファイル名は翻訳された英語プロンプトから生成されます（例：「病院の建物」→ `hospital-building_opt1_var1.png`）
+- Chat StudioはLLMに直接プロンプトを渡します（翻訳なし）— Claudeなどのモデルはネイティブに多言語対応しているためです
+- Type Studioのテキストはあなたの言語のまま残ります（画像にそのままレンダリングされます）
+- すべてのモデレーション事前チェックとコンテンツスクリーニングは、一貫性のために翻訳された英語プロンプトに対して動作します
 
 ## 📌 1. 機能概要
 

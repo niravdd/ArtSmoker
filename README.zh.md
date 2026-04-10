@@ -12,28 +12,6 @@
 
 为 Amazon Bedrock 的图像和视频生成模型提供的简洁、艺术家友好的界面。ArtSmoker 帮助创意团队高效使用 Bedrock——无需学习 API、CLI 或提示词工程。
 
-### Language / 言語 / 语言 / 언어 / Langue / Idioma
-
-ArtSmoker 支持 6 种语言。通过顶部导航栏的语言按钮（EN | JA | ZH | KO | FR | ES）切换 UI 语言。您的选择会自动保存。
-
-| 语言 | README |
-|------|--------|
-| English | [README.md](README.md) |
-| 日本語 (Japanese) | [README.ja.md](README.ja.md) |
-| 中文 | 本文档 |
-| 한국어 (Korean) | [README.ko.md](README.ko.md) |
-| Français (French) | [README.fr.md](README.fr.md) |
-| Español (Spanish) | [README.es.md](README.es.md) |
-
-**多语言提示词支持：**
-- 非英语提示词（日语、中文、韩语、法语、西班牙语）会被自动检测，并在生成前翻译为英语
-- 提示词区域会显示双语预览：可在原始文本和英语翻译之间切换，查看模型将接收的确切内容
-- 原始提示词、检测到的语言和英语翻译都会保存在资产元数据中
-- 文件名由翻译后的英语提示词生成（例如："病院の建物" → `hospital-building_opt1_var1.png`）
-- Chat Studio 将提示词直接传递给 LLM（不翻译）——因为 Claude 等模型原生支持多语言
-- Type Studio 中的文本保持您的语言不变（会按原样渲染到图像上）
-- 所有审核预检和内容筛查都基于翻译后的英语提示词执行，以确保一致性
-
 ### 📝 问题
 
 创意团队和游戏工作室希望利用 AI 进行资产生成，但面临诸多障碍：
@@ -55,6 +33,28 @@ ArtSmoker 是一个自托管的 Web 应用程序，以简洁的创意界面封�
 基于 Amazon Bedrock 构建：Claude Sonnet/Opus（提示词工程和聊天）、Nova Canvas、Titan Image、Stable Diffusion 3.5 Large、Stable Image Ultra、Stability AI（图像编辑）、Nova Reel、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。
 
 **[立即开始 —— 跳转至前置条件和安装 ▸](#get-started)**
+
+### Language / 言語 / 语言 / 언어 / Langue / Idioma
+
+ArtSmoker 支持 6 种语言。通过顶部导航栏的语言按钮（EN | JA | ZH | KO | FR | ES）切换 UI 语言。您的选择会自动保存。
+
+| 语言 | README |
+|------|--------|
+| English | [README.md](README.md) |
+| 日本語 (Japanese) | [README.ja.md](README.ja.md) |
+| 中文 | 本文档 |
+| 한국어 (Korean) | [README.ko.md](README.ko.md) |
+| Français (French) | [README.fr.md](README.fr.md) |
+| Español (Spanish) | [README.es.md](README.es.md) |
+
+**多语言提示词支持：**
+- 非英语提示词（日语、中文、韩语、法语、西班牙语）会被自动检测，并在生成前翻译为英语
+- 提示词区域会显示双语预览：可在原始文本和英语翻译之间切换，查看模型将接收的确切内容
+- 原始提示词、检测到的语言和英语翻译都会保存在资产元数据中
+- 文件名由翻译后的英语提示词生成（例如："病院の建物" → `hospital-building_opt1_var1.png`）
+- Chat Studio 将提示词直接传递给 LLM（不翻译）——因为 Claude 等模型原生支持多语言
+- Type Studio 中的文本保持您的语言不变（会按原样渲染到图像上）
+- 所有审核预检和内容筛查都基于翻译后的英语提示词执行，以确保一致性
 
 ## 📌 1. 功能概览
 
