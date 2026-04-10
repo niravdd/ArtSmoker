@@ -116,7 +116,10 @@ def has_active_jobs() -> bool:
 
 
 def update_job_asset_id(job_id: str, asset_id: str, generate_svg: bool = False, remove_bg: bool = False, upscale: bool = False):
-    """Update a job's asset_id and post-processing flags (called from generate router)."""
+    """Update a job's asset_id and post-processing flags (called from generate router).
+
+    Also re-persists to S3 so the correct asset_id survives server restarts.
+    """
     with _lock:
         job = _jobs.get(job_id)
         if job:
@@ -124,6 +127,9 @@ def update_job_asset_id(job_id: str, asset_id: str, generate_svg: bool = False, 
             job["generate_svg"] = generate_svg
             job["remove_bg"] = remove_bg
             job["upscale"] = upscale
+    # Re-persist with updated asset_id (initial persist had the default async_{job_id})
+    if job:
+        _persist_job_to_s3(job)
 
 
 def clear_completed():

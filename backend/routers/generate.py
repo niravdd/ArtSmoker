@@ -223,8 +223,8 @@ def _build_variant(
         try:
             from backend.services.async_jobs import update_job_asset_id
             update_job_asset_id(gen_result["job_id"], asset_id, body.generate_svg, body.remove_background, body.upscale)
-        except Exception:
-            pass
+        except Exception as e:
+            logger.error("Failed to update async job asset_id for %s: %s", gen_result["job_id"], e)
 
         return VariantResult(
             id=asset_id,
