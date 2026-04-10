@@ -498,8 +498,8 @@ async def remove_user_model(model_key: str):
     Only removes from the user catalog (custom_models.user.json).
     Built-in catalog models cannot be removed.
     """
-    from backend.services.custom_models import MODEL_CATALOG
-    if model_key in MODEL_CATALOG:
+    from backend.services.custom_models import get_catalog
+    if model_key in get_catalog():
         raise HTTPException(400, detail="Cannot remove built-in catalog models. Use teardown to remove the deployment.")
 
     removed = _remove_user_model(model_key)
