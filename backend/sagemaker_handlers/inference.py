@@ -141,38 +141,70 @@ def _load_diffusers(model_dir):
     if hf_token:
         kwargs["token"] = hf_token
 
-    # Quantization: load specific components in int8/int4 before creating pipeline
-    quantization = _config.get("quantization", "")
+    # Quantization: pre-load specific components with reduced precision.
+    # Fully data-driven from INVOKE_CONFIG — catalog specifies:
+    #   quantization_components: [
+    #     {"name": "transformer", "class": "Flux2Transformer2DModel",
+    #      "module": "diffusers", "subfolder": "transformer",
+    #      "quantization": "int8"}
+    #   ]
     quant_components = _config.get("quantization_components", [])
     pre_loaded = {}
 
-    if quantization and quant_components:
-        logger.info("Applying %s quantization to: %s", quantization, quant_components)
-        try:
-            if "transformer" in quant_components:
-                if quantization in ("int8", "8bit"):
-                    from diffusers import BitsAndBytesConfig as DiffBnbConfig
-                    quant_config = DiffBnbConfig(load_in_8bit=True)
-                elif quantization in ("int4", "4bit", "nf4"):
-                    from diffusers import BitsAndBytesConfig as DiffBnbConfig
-                    quant_config = DiffBnbConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4")
-                else:
-                    quant_config = None
+    # Support legacy format: list of strings + separate quantization field
+    if quant_components and isinstance(quant_components[0], str):
+        legacy_quant = _config.get("quantization", "")
+        legacy_class = _config.get("quantization_loader_class", "")
+        if legacy_quant and legacy_class:
+            quant_components = [{
+                "name": quant_components[0],
+                "class": legacy_class,
+                "module": "diffusers",
+                "subfolder": quant_components[0],
+                "quantization": legacy_quant,
+            }]
+        else:
+            quant_components = []
 
-                if quant_config:
-                    # Transformer class from catalog (each model declares its own)
-                    transformer_cls_name = _config.get("quantization_loader_class", "FluxTransformer2DModel")
-                    TransformerClass = _import_class("diffusers", transformer_cls_name)
-                    logger.info("Loading transformer with %s quantization (class=%s)", quantization, transformer_cls_name)
-                    pre_loaded["transformer"] = TransformerClass.from_pretrained(
-                        model_source, subfolder="transformer",
-                        quantization_config=quant_config,
-                        torch_dtype=_get_torch_dtype(),
-                        token=hf_token,
-                    )
-                    logger.info("Transformer loaded with %s quantization", quantization)
+    for comp in quant_components:
+        if not isinstance(comp, dict):
+            continue
+        comp_name = comp.get("name", "")
+        comp_class = comp.get("class", "")
+        comp_module = comp.get("module", "diffusers")
+        comp_subfolder = comp.get("subfolder", comp_name)
+        comp_quant = comp.get("quantization", "")
+
+        if not comp_name or not comp_class or not comp_quant:
+            continue
+
+        logger.info("Quantizing %s: class=%s, type=%s", comp_name, comp_class, comp_quant)
+        try:
+            # Build quantization config
+            if comp_module == "diffusers":
+                from diffusers import BitsAndBytesConfig as BnbConfig
+            else:
+                from transformers import BitsAndBytesConfig as BnbConfig
+
+            if comp_quant in ("int8", "8bit"):
+                qconfig = BnbConfig(load_in_8bit=True)
+            elif comp_quant in ("int4", "4bit", "nf4"):
+                qconfig = BnbConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4")
+            else:
+                logger.warning("Unknown quantization type '%s' for %s — skipping", comp_quant, comp_name)
+                continue
+
+            CompClass = _import_class(comp_module, comp_class)
+            pre_loaded[comp_name] = CompClass.from_pretrained(
+                model_source, subfolder=comp_subfolder,
+                quantization_config=qconfig,
+                torch_dtype=_get_torch_dtype(),
+                token=hf_token,
+            )
+            logger.info("Loaded %s with %s quantization", comp_name, comp_quant)
         except Exception as e:
-            logger.warning("Quantization failed (%s), falling back to full precision: %s", quantization, e)
+            logger.warning("Quantization failed for %s (%s), falling back to full precision: %s",
+                          comp_name, comp_quant, e)
 
     logger.info("Loading %s with %s (dtype=%s, quantization=%s)",
                 model_source, loader_class_name, _get_env("TORCH_DTYPE", "float16"),
