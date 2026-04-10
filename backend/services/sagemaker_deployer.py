@@ -430,6 +430,9 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
             logger.warning("Auto-scaling setup deferred for %s (endpoint still Creating): %s", endpoint_name, e)
             _retry_auto_scaling_in_background(endpoint_name)
 
+    # Set CloudWatch log retention (SageMaker creates log groups automatically)
+    _set_log_retention(endpoint_name)
+
     return {
         "endpoint_name": endpoint_name,
         "model_name": sm_model_name,
@@ -539,6 +542,39 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
             logger.warning("Failed to delete S3 artifacts: %s", e)
 
     return {"deleted": deleted}
+
+
+_LOG_RETENTION_DAYS = 3  # CloudWatch log retention for SageMaker endpoints
+
+
+def _set_log_retention(endpoint_name: str):
+    """Set CloudWatch log retention for a SageMaker endpoint.
+
+    SageMaker creates log groups automatically with no expiration (retain forever).
+    We set aggressive retention to control costs. Runs in background since the
+    log group may not exist yet (created when the endpoint starts).
+    """
+    import threading, time as _time
+
+    def _apply():
+        log_group = f"/aws/sagemaker/Endpoints/{endpoint_name}"
+        logs = boto3.client("logs", region_name=_get_region())
+        for attempt in range(6):  # Try for 5 minutes
+            try:
+                logs.put_retention_policy(
+                    logGroupName=log_group,
+                    retentionInDays=_LOG_RETENTION_DAYS,
+                )
+                logger.info("CloudWatch retention set to %d days for %s", _LOG_RETENTION_DAYS, log_group)
+                return
+            except logs.exceptions.ResourceNotFoundException:
+                _time.sleep(60)  # Log group not created yet — wait
+            except Exception as e:
+                logger.debug("Log retention setup failed for %s: %s", endpoint_name, e)
+                return
+        logger.debug("Log group not found after 5 min for %s — retention not set", endpoint_name)
+
+    threading.Thread(target=_apply, daemon=True, name=f"logret-{endpoint_name}").start()
 
 
 def _retry_auto_scaling_in_background(endpoint_name: str):
