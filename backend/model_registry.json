@@ -4434,7 +4434,23 @@
           }
         },
         "version": "1.0",
-        "last_updated": "2024-08-01"
+        "last_updated": "2024-08-01",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "diffusers>=0.36.0,<0.38.0",
+            "transformers>=4.51.0,<4.52.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "peft>=0.17.0,<0.19.0",
+            "huggingface-hub>=0.34.0,<1.0.0"
+          ]
+        }
       },
       "flux1_dev": {
         "label": "FLUX.1 [dev]",
@@ -4502,7 +4518,23 @@
           }
         },
         "version": "1.0",
-        "last_updated": "2024-08-01"
+        "last_updated": "2024-08-01",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "diffusers>=0.36.0,<0.38.0",
+            "transformers>=4.51.0,<4.52.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "peft>=0.17.0,<0.19.0",
+            "huggingface-hub>=0.34.0,<1.0.0"
+          ]
+        }
       },
       "flux2_dev": {
         "label": "FLUX.2 [dev]",
@@ -4569,7 +4601,23 @@
           }
         },
         "version": "1.0",
-        "last_updated": "2025-06-01"
+        "last_updated": "2025-06-01",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "diffusers>=0.36.0,<0.38.0",
+            "transformers>=4.51.0,<4.52.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "peft>=0.17.0,<0.19.0",
+            "huggingface-hub>=0.34.0,<1.0.0"
+          ]
+        }
       },
       "sdxl_turbo": {
         "label": "SDXL Turbo",
@@ -4634,7 +4682,22 @@
           }
         },
         "version": "1.0",
-        "last_updated": "2023-11-28"
+        "last_updated": "2023-11-28",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "diffusers>=0.28.0,<0.38.0",
+            "transformers>=4.51.0,<4.52.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "huggingface-hub>=0.34.0,<1.0.0"
+          ]
+        }
       },
       "real_esrgan": {
         "label": "Real-ESRGAN (4x Upscale)",
@@ -4678,7 +4741,20 @@
           }
         },
         "version": "0.1.0",
-        "last_updated": "2021-07-20"
+        "last_updated": "2021-07-20",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "realesrgan==0.3.0",
+            "basicsr==1.4.2",
+            "opencv-python-headless>=4.8.0"
+          ]
+        }
       },
       "rmbg_2": {
         "label": "RMBG-2.0 (Background Removal)",
@@ -4720,7 +4796,20 @@
           }
         },
         "version": "2.0",
-        "last_updated": "2024-06-15"
+        "last_updated": "2024-06-15",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "transformers>=4.51.0,<4.52.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "huggingface-hub>=0.34.0,<1.0.0"
+          ]
+        }
       },
       "codeformer": {
         "label": "CodeFormer (Face Restoration)",
@@ -4764,7 +4853,18 @@
           }
         },
         "version": "0.1.0",
-        "last_updated": "2022-12-15"
+        "last_updated": "2022-12-15",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "opencv-python-headless>=4.8.0"
+          ]
+        }
       },
       "depth_anything_v2": {
         "label": "Depth Anything v2",
@@ -4805,7 +4905,19 @@
           }
         },
         "version": "2.0",
-        "last_updated": "2024-06-13"
+        "last_updated": "2024-06-13",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "transformers>=4.51.0,<4.52.0",
+            "huggingface-hub>=0.34.0,<1.0.0"
+          ]
+        }
       },
       "sam2": {
         "label": "Segment Anything 2 (SAM 2)",
@@ -4856,7 +4968,19 @@
           }
         },
         "version": "2.0",
-        "last_updated": "2024-07-29"
+        "last_updated": "2024-07-29",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "transformers>=4.51.0,<4.52.0",
+            "huggingface-hub>=0.34.0,<1.0.0"
+          ]
+        }
       },
       "stable_video_diffusion": {
         "label": "Stable Video Diffusion (SVD-XT)",
@@ -4915,7 +5039,22 @@
           }
         },
         "version": "1.1",
-        "last_updated": "2023-11-21"
+        "last_updated": "2023-11-21",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "diffusers>=0.28.0,<0.38.0",
+            "transformers>=4.51.0,<4.52.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "huggingface-hub>=0.34.0,<1.0.0"
+          ]
+        }
       }
     },
     "bundles": {

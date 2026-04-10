@@ -69,6 +69,52 @@ def is_hf_source(model_key: str) -> bool:
     return model.get("source", {}).get("type") == "huggingface"
 
 
+def _generate_requirements(model_key: str, output_path: Path):
+    """Generate a model-specific requirements.txt from the catalog.
+
+    Each model declares its own python_requirements in the catalog:
+      "python_requirements": {
+        "base": ["torch>=2.6.0,<2.7.0", ...],   // shared, protect DLC
+        "model": ["diffusers>=0.36.0,<0.38.0", ...]  // model-specific
+      }
+
+    This avoids dependency conflicts between models (e.g., FLUX needs
+    diffusers 0.36+, Real-ESRGAN needs basicsr which pulls tb-nightly).
+    """
+    from backend.services.custom_models import get_catalog_model
+
+    model = get_catalog_model(model_key)
+    reqs = model.get("python_requirements", {}) if model else {}
+    base = reqs.get("base", [])
+    model_reqs = reqs.get("model", [])
+
+    if not base and not model_reqs:
+        # Fallback: copy the shared requirements.txt
+        fallback = output_path.parent.parent.parent / "sagemaker_handlers" / "requirements.txt"
+        if fallback.exists():
+            import shutil
+            shutil.copy2(str(fallback), str(output_path))
+            logger.warning("No python_requirements in catalog for %s — using shared fallback", model_key)
+            return
+        raise ValueError(f"No python_requirements for {model_key} and no fallback file")
+
+    lines = [
+        f"# Auto-generated requirements for {model_key}",
+        f"# From model_registry.json → custom_model_catalog → {model_key} → python_requirements",
+        "",
+        "# Base (protect DLC environment)",
+    ]
+    lines.extend(base)
+    lines.append("")
+    lines.append(f"# Model-specific ({model_key})")
+    lines.extend(model_reqs)
+    lines.append("")
+
+    output_path.write_text("\n".join(lines))
+    logger.info("Generated requirements.txt for %s: %d base + %d model packages",
+                model_key, len(base), len(model_reqs))
+
+
 # ── HuggingFace Direct Pull (no local download) ─────────────────────────
 
 
@@ -99,12 +145,16 @@ def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
         # Build the directory structure for the tar.gz
         code_dir = temp_dir / "code"
         code_dir.mkdir(exist_ok=True)
-        for fname in ("inference.py", "requirements.txt"):
-            src = handlers_dir / fname
-            if src.exists():
-                shutil.copy2(str(src), str(code_dir / fname))
-            else:
-                logger.warning("Handler file not found: %s", src)
+
+        # Copy the universal inference handler
+        src = handlers_dir / "inference.py"
+        if src.exists():
+            shutil.copy2(str(src), str(code_dir / "inference.py"))
+        else:
+            raise FileNotFoundError(f"Inference handler not found: {src}")
+
+        # Generate model-specific requirements.txt from catalog
+        _generate_requirements(model_key, code_dir / "requirements.txt")
 
         # Create model.tar.gz — Amazon SageMaker requires this format
         tar_path = temp_dir / "model.tar.gz"
