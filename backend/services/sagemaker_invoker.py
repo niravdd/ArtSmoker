@@ -94,12 +94,13 @@ def invoke_custom_model(
         if estimated_cost > 0:
             add_cost("custom_model", estimated_cost, f"{model_config.get('label', model_key)} × 1")
 
-        # Track invocation with compute cost (for raw event visibility)
+        # Track invocation (estimated cost — actual goes on image_studio.cost)
         try:
             from backend.services.telemetry import track_custom_model_invoke
             track_custom_model_invoke(
                 model=model_key, cost_usd=estimated_cost,
                 predictor_type=model_config.get("invoke", {}).get("predictor_type", ""),
+                cost_is_estimate=True,
             )
         except Exception:
             pass

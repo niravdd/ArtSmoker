@@ -220,16 +220,21 @@ def track_custom_model_deploy(model: str = "", endpoint_type: str = "", instance
 
 
 def track_custom_model_invoke(model: str = "", cost_usd: float = 0, latency_ms: float = 0,
-                              predictor_type: str = ""):
+                              predictor_type: str = "", cost_is_estimate: bool = False):
     """Invocation tracking with compute cost for visibility.
 
-    The cost here is the SageMaker compute cost. The authoritative total cost
-    (including LLM refinement) goes on the studio .cost event. PulseBoard
-    aggregates only from .cost suffix events, so this doesn't double-count.
+    cost_usd is the SageMaker compute cost (actual if from async_jobs,
+    estimated if from sync invoker). Labeled with est_cost_usd vs cost_usd
+    so PulseBoard can distinguish. Aggregate totals come only from .cost events.
     """
     studio = _resolve_custom_studio(model)
-    _track(f"{studio}.custom.invoke", model=model, cost_usd=cost_usd,
-           latency_ms=latency_ms, predictor_type=predictor_type)
+    props = {"model": model, "latency_ms": latency_ms, "predictor_type": predictor_type}
+    if cost_is_estimate:
+        props["est_cost_usd"] = cost_usd
+        props["cost_usd"] = 0  # Don't show estimated as if actual
+    else:
+        props["cost_usd"] = cost_usd
+    _track(f"{studio}.custom.invoke", **props)
 
 
 def track_custom_model_teardown(model: str = ""):
