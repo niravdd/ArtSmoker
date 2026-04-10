@@ -408,8 +408,9 @@ def model_fn(model_dir):
         logger.info("CUDA available: %s, device count: %d", torch.cuda.is_available(),
                      torch.cuda.device_count() if torch.cuda.is_available() else 0)
         if torch.cuda.is_available():
-            logger.info("GPU: %s, VRAM: %.1f GB", torch.cuda.get_device_name(0),
-                         torch.cuda.get_device_properties(0).total_mem / (1024**3))
+            props = torch.cuda.get_device_properties(0)
+            vram = getattr(props, 'total_memory', 0) or getattr(props, 'total_mem', 0)
+            logger.info("GPU: %s, VRAM: %.1f GB", torch.cuda.get_device_name(0), vram / (1024**3))
         try:
             import peft as _p
             logger.info("peft=%s", _p.__version__)
