@@ -1,25 +1,33 @@
 # Requirements for the SageMaker inference container.
 # These are installed INSIDE the container alongside the model weights.
-# The universal inference handler (inference.py) imports from these.
 #
-# The DLC container has pre-installed versions. We pin upper bounds to
-# avoid breaking the CUDA-compiled torch and to ensure reproducibility.
+# The HuggingFace DLC (Python 3.12, PyTorch 2.6.0, CUDA 12.4) has pre-installed
+# packages. We pin ranges to avoid breaking the CUDA-compiled torch and to
+# prevent unnecessary version cascades.
+#
+# Verified against PyPI (2026-04-10):
+#   diffusers 0.37.1: huggingface-hub>=0.34.0,<2.0 | safetensors>=0.3.1
+#   transformers 4.51.3 (DLC): huggingface-hub<1.0,>=0.30.0 | tokenizers<0.22,>=0.21
+#   peft 0.18.1: transformers (no upper) | accelerate>=0.21.0 | huggingface-hub>=0.25.0
 
-# Core — DO NOT upgrade torch (DLC has CUDA-compiled version)
+# Core — DO NOT upgrade torch/torchvision (DLC has CUDA-compiled versions)
 torch>=2.6.0,<2.7.0
 torchvision>=0.21.0,<0.22.0
 Pillow>=10.0
 numpy>=1.24,<2.5
 
-# HuggingFace ecosystem — pinned ranges for compatibility
+# HuggingFace ecosystem
+# diffusers 0.36+ needed for FLUX.2 (AutoencoderKLFlux2)
+# peft 0.17+ needed by diffusers 0.36+ runtime check
+# huggingface-hub capped <1.0 (transformers 4.51.x requires <1.0)
 diffusers>=0.36.0,<0.38.0
-transformers>=4.51.0,<4.58.0
+transformers>=4.51.0,<4.52.0
 accelerate>=1.6.0,<2.0.0
 safetensors>=0.4.3
 peft>=0.17.0,<0.19.0
 huggingface-hub>=0.34.0,<1.0.0
 
-# For Real-ESRGAN upscaling (install deps but skip tb-nightly conflict)
+# For Real-ESRGAN upscaling
 realesrgan==0.3.0
 basicsr==1.4.2
 
