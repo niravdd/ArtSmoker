@@ -668,14 +668,22 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
 # ── All Models generation ─────────────────────────────────────────────────
 
 def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
-    """Generate with every enabled image model — one option per model, 1 variation each.
+    """Generate with every enabled image model — supports multiple options and variations per model.
 
     Each model runs independently: moderation blocks on one model don't
-    cancel others. Per-model status is reported in real-time via SSE.
+    cancel others. Per-model/option status is reported in real-time via SSE.
+
+    With N models × O options × V variations, the result has N*O OptionResults,
+    each with V VariantResults. Options are flattened: option_index maps to
+    (model, concept_index) via model_map. Frontend groups by model for display.
     """
     from backend.services.model_registry import (
         get_enabled_image_model_keys_sorted,
         get_image_model_label,
+    )
+    from backend.services.prompt_engineer import (
+        generate_concept_prompts,
+        get_prompt_limit as _get_limit,
     )
 
     def emit(event):
@@ -689,12 +697,17 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
     if n_models == 0:
         raise HTTPException(400, detail="No image models are enabled.")
 
-    model_labels = {k: get_image_model_label(k) for k in model_keys}
-    total = n_models  # 1 variation per model
+    n_opts = body.num_options      # user-selected (1-5)
+    n_vars = body.num_variations   # user-selected (1-5)
+    total_flat_options = n_models * n_opts
+    total_images = total_flat_options * n_vars
 
-    emit({"type": "started", "batch_id": batch_id, "total": total,
-          "num_options": n_models, "num_variations": 1,
-          "all_models": True, "model_labels": model_labels})
+    model_labels = {k: get_image_model_label(k) for k in model_keys}
+
+    emit({"type": "started", "batch_id": batch_id, "total": total_images,
+          "num_options": total_flat_options, "num_variations": n_vars,
+          "all_models": True, "model_labels": model_labels,
+          "models_count": n_models, "options_per_model": n_opts})
 
     # Load style
     style_profile: StyleProfile | None = None
@@ -725,49 +738,68 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
     except Exception as exc:
         logger.warning("Prompt translation failed in all-models, using original: %s", exc)
 
-    # Generate prompts — one shared prompt or one per model
+    # ── Generate concept prompts ──────────────────────────────────────
+    # concept_prompts: model_key → list of n_opts prompts
+    # negative_prompts: model_key → list of n_opts negatives
     emit({"type": "stage", "stage": "prompts",
-          "message": f"Creating prompts for {n_models} models..."})
+          "message": f"Creating {n_opts} concept{'s' if n_opts > 1 else ''} for {n_models} models..."})
 
-    concept_prompts: dict[str, str] = {}  # model_key → prompt
-    negative_prompts: dict[str, str] = {}  # model_key → negative
+    concept_prompts: dict[str, list[str]] = {}
+    negative_prompts: dict[str, list[str]] = {}
 
     try:
         if body.model_optimized_prompts:
-            # Model-optimized: refine once per model for tailored prompts
+            # Model-optimized: tailored prompts per model
             for mk in model_keys:
-                if body.asset_type == AssetType.MARKETING_BANNER:
-                    concept_prompts[mk] = refine_marketing_prompt(
-                        body.prompt, style_profile, image_model=mk)
+                if n_opts == 1:
+                    # Single option — use the faster refine_prompt
+                    if body.asset_type == AssetType.MARKETING_BANNER:
+                        p = refine_marketing_prompt(body.prompt, style_profile, image_model=mk)
+                    else:
+                        p = refine_prompt(body.prompt, style_profile, body.asset_type, image_model=mk)
+                    concept_prompts[mk] = [p]
+                    negative_prompts[mk] = [get_last_negative_prompt()]
                 else:
-                    concept_prompts[mk] = refine_prompt(
-                        body.prompt, style_profile, body.asset_type, image_model=mk)
-                negative_prompts[mk] = get_last_negative_prompt()
-                logger.info("Model-optimized prompt for %s: %s", mk, concept_prompts[mk][:80])
+                    # Multiple options — generate N distinct concepts per model
+                    prompts = generate_concept_prompts(
+                        body.prompt, style_profile, body.asset_type,
+                        num_options=n_opts, image_model=mk)
+                    concept_prompts[mk] = prompts
+                    negative_prompts[mk] = [get_last_negative_prompt()] * n_opts
+                logger.info("Model-optimized: %s got %d concept(s)", mk, len(concept_prompts[mk]))
         else:
-            # Same prompt for all: refine once (model-neutral)
+            # Shared prompts: generate once, truncate per model
             if body.pre_composed:
-                shared_prompt = body.prompt
-                shared_negative = body.negative_prompt or ""
-            else:
+                shared_prompts = [body.prompt]
+                shared_negatives = [body.negative_prompt or ""]
+            elif n_opts == 1:
                 if body.asset_type == AssetType.MARKETING_BANNER:
-                    shared_prompt = refine_marketing_prompt(body.prompt, style_profile)
+                    p = refine_marketing_prompt(body.prompt, style_profile)
                 else:
-                    shared_prompt = refine_prompt(body.prompt, style_profile, body.asset_type)
-                shared_negative = get_last_negative_prompt()
-                if not shared_negative and body.negative_prompt:
-                    shared_negative = body.negative_prompt
+                    p = refine_prompt(body.prompt, style_profile, body.asset_type)
+                shared_prompts = [p]
+                shared_negatives = [get_last_negative_prompt() or body.negative_prompt or ""]
+            else:
+                shared_prompts = generate_concept_prompts(
+                    body.prompt, style_profile, body.asset_type, num_options=n_opts)
+                shared_negatives = [get_last_negative_prompt()] * n_opts
+
+            # Pad if fewer prompts returned than requested
+            while len(shared_prompts) < n_opts:
+                shared_prompts.append(shared_prompts[-1])
+            while len(shared_negatives) < n_opts:
+                shared_negatives.append(shared_negatives[-1] if shared_negatives else "")
+
             for mk in model_keys:
-                # Truncate shared prompt to each model's specific limit
-                from backend.services.prompt_engineer import get_prompt_limit as _get_limit
                 limit = _get_limit(mk)
-                truncated = shared_prompt
-                if len(truncated) > limit:
-                    truncated = truncated[:limit - 4].rsplit(" ", 1)[0]
-                    logger.info("Truncated prompt for %s: %d -> %d chars (limit %d)",
-                                mk, len(shared_prompt), len(truncated), limit)
+                truncated = []
+                for sp in shared_prompts:
+                    t = sp
+                    if len(t) > limit:
+                        t = t[:limit - 4].rsplit(" ", 1)[0]
+                    truncated.append(t)
                 concept_prompts[mk] = truncated
-                negative_prompts[mk] = shared_negative
+                negative_prompts[mk] = shared_negatives[:n_opts]
     except PromptRefusalError as refusal:
         logger.warning("Prompt refused in all-models generation: %s", refusal.reason[:200])
         emit({"type": "prompt_refused", "reason": refusal.reason,
@@ -777,109 +809,119 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
             id=batch_id, prompt=body.prompt, original_prompt=body.original_prompt,
             style_id=body.style_id, asset_type=body.asset_type.value,
             image_model="all_models", width=body.width, height=body.height,
-            num_options=n_models, num_variations=1, all_models=True, options=[],
+            num_options=total_flat_options, num_variations=n_vars,
+            all_models=True, options=[],
         )
         emit({"type": "complete", "result": result.model_dump(mode="json"), "prompt_refused": True})
         return result
     except Exception as exc:
         raise HTTPException(502, detail=f"Prompt generation failed: {exc}") from exc
 
-    # Emit prompts
+    # Emit prompts (first concept per model for preview)
     emit({"type": "prompts_ready",
-          "prompts": [concept_prompts[mk] for mk in model_keys],
-          "negative_prompt": negative_prompts.get(model_keys[0], ""),
+          "prompts": [concept_prompts[mk][0] for mk in model_keys],
+          "negative_prompt": negative_prompts.get(model_keys[0], [""])[0],
           "pre_composed": body.pre_composed,
           "all_models": True,
-          "model_labels": {i: model_labels[mk] for i, mk in enumerate(model_keys)}})
+          "model_labels": {i: model_labels[mk] for i, mk in enumerate(model_keys)},
+          "options_per_model": n_opts})
 
-    # Generate one image per model — independently, no cooperative cancellation
+    # ── Build task list: flatten (model, concept, variation) ──────────
     emit({"type": "stage", "stage": "generating",
-          "message": f"Generating with {n_models} models..."})
+          "message": f"Generating {total_images} images across {n_models} models..."})
 
     prompt_slug = _slugify_prompt(body.prompt)
-    model_map: dict[int, str] = {}
-    options: list[OptionResult] = []
-    completed = 0
+    model_map: dict[int, str] = {}  # flat_option_index → model_key
+    # Track variants per flat option for assembly
+    variant_map: dict[int, list] = {}  # flat_option_index → [VariantResult]
+    option_meta: dict[int, dict] = {}  # flat_option_index → {prompt, negative, model_key, label}
 
-    max_workers = 3 if body.upscale else min(n_models, 5)
+    # Build the flat task list
+    all_tasks = []  # [(flat_option_idx, variant_idx, model_key, prompt, negative)]
+    flat_idx = 0
+    for mk in model_keys:
+        prompts = concept_prompts[mk]
+        negatives = negative_prompts[mk]
+        for concept_idx in range(n_opts):
+            model_map[flat_idx] = mk
+            option_meta[flat_idx] = {
+                "prompt": prompts[concept_idx],
+                "negative": negatives[concept_idx] if concept_idx < len(negatives) else "",
+                "model_key": mk,
+                "label": model_labels[mk],
+                "concept_idx": concept_idx,
+            }
+            variant_map[flat_idx] = []
+            for var_idx in range(n_vars):
+                seed = random.randint(0, _SEED_MAX)
+                all_tasks.append((flat_idx, var_idx, mk, prompts[concept_idx],
+                                  negatives[concept_idx] if concept_idx < len(negatives) else "",
+                                  seed))
+            flat_idx += 1
+
+    completed = 0
+    total = len(all_tasks)
+    max_workers = 3 if body.upscale else min(total, 6)
     progress_q = queue.Queue()
 
     from backend.services.cost_tracker import share_accumulator_with_thread
     shared_acc = share_accumulator_with_thread()
 
-    def _generate_for_model(option_index: int, model_key: str) -> OptionResult:
-        """Generate one variant with a specific model. Returns OptionResult with status."""
-        from backend.services.telemetry import track_image_generation
-        from backend.services.model_registry import get_image_model as _get_model
-        model_enum = model_key  # Now a plain string, not an enum
+    def _generate_variant(flat_opt_idx: int, var_idx: int, model_key: str,
+                          prompt: str, negative: str, seed: int):
+        """Generate one variant. Returns (flat_opt_idx, var_idx, VariantResult_or_Exception)."""
         label = model_labels[model_key]
-        prompt = concept_prompts[model_key]
-        negative = negative_prompts.get(model_key, "")
-        seed = random.randint(0, _SEED_MAX)
-
         try:
             variant = _build_variant(
                 batch_id=batch_id,
-                option_index=option_index,
-                variant_index=0,
+                option_index=flat_opt_idx,
+                variant_index=var_idx,
                 refined_prompt=prompt,
                 negative_prompt=negative,
                 body=body,
                 seed=seed,
                 prompt_slug=prompt_slug,
-                model_override=model_enum,
+                model_override=model_key,
                 model_label=label,
                 style_snapshot=style_snapshot,
                 translation_result=translation_result,
                 progress_queue=progress_q,
                 cost_accumulator=shared_acc,
             )
-            track_image_generation(
-                model=model_key,
-                num_options=1,
-                num_variations=1,
-                asset_type=body.asset_type.value if body.asset_type else "",
-            )
-            return OptionResult(
-                option_index=option_index,
-                refined_prompt=prompt,
-                negative_prompt=negative,
-                image_model=model_key,
-                model_label=label,
-                status="success",
-                variants=[variant],
-            )
+            return (flat_opt_idx, var_idx, variant, None)
         except Exception as exc:
-            exc_str = str(exc).lower()
-            is_moderation = any(k in exc_str for k in [
-                "generation failed", "moderation", "blocked",
-                "not allowed", "unsafe", "policy",
-            ])
-            status = "moderation_blocked" if is_moderation else "error"
-            logger.warning("All-models: %s failed (%s): %s", label, status, exc)
-            return OptionResult(
-                option_index=option_index,
-                refined_prompt=prompt,
-                negative_prompt=negative,
-                image_model=model_key,
-                model_label=label,
-                status=status,
-                status_detail=str(exc),
-                variants=[],
-            )
+            return (flat_opt_idx, var_idx, None, exc)
+
+    # ── Execute all tasks in parallel ─────────────────────────────────
+    task_status: dict[int, str] = {}  # flat_opt_idx → worst status
 
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {}
-        for i, mk in enumerate(model_keys):
-            model_map[i] = mk
-            future = pool.submit(_generate_for_model, i, mk)
-            futures[future] = (i, mk)
+        for task in all_tasks:
+            future = pool.submit(_generate_variant, *task)
+            futures[future] = task[:3]  # (flat_opt_idx, var_idx, model_key)
 
         for future in as_completed(futures):
-            i, mk = futures[future]
-            opt_result = future.result()
-            options.append(opt_result)
+            flat_opt_idx, var_idx, mk = futures[future]
+            flat_opt_idx, var_idx, variant, exc = future.result()
             completed += 1
+
+            if variant:
+                variant_map[flat_opt_idx].append(variant)
+                task_status.setdefault(flat_opt_idx, "success")
+            else:
+                exc_str = str(exc).lower()
+                is_mod = any(k in exc_str for k in [
+                    "generation failed", "moderation", "blocked",
+                    "not allowed", "unsafe", "policy",
+                ])
+                status = "moderation_blocked" if is_mod else "error"
+                # Worst status wins
+                if task_status.get(flat_opt_idx) == "success" or flat_opt_idx not in task_status:
+                    task_status[flat_opt_idx] = status
+                logger.warning("All-models: %s concept %d var %d failed (%s): %s",
+                               model_labels[mk], option_meta[flat_opt_idx]["concept_idx"],
+                               var_idx, status, exc)
 
             # Drain progress events
             while not progress_q.empty():
@@ -888,18 +930,55 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 evt["total"] = total
                 emit(evt)
 
-            # Emit per-model status
+            # Emit per-task progress
+            meta = option_meta[flat_opt_idx]
             emit({"type": "model_status",
                   "model": mk,
                   "model_label": model_labels[mk],
-                  "option_index": i,
-                  "status": opt_result.status,
-                  "status_detail": opt_result.status_detail,
+                  "option_index": flat_opt_idx,
+                  "concept_index": meta["concept_idx"],
+                  "variant_index": var_idx,
+                  "status": "success" if variant else task_status.get(flat_opt_idx, "error"),
+                  "status_detail": str(exc) if exc else None,
                   "completed": completed,
                   "total": total})
 
-    # Sort options by original model order
-    options.sort(key=lambda o: o.option_index)
+    # ── Assemble OptionResults ────────────────────────────────────────
+    options: list[OptionResult] = []
+    for fi in range(flat_idx):
+        meta = option_meta[fi]
+        variants = sorted(variant_map.get(fi, []), key=lambda v: v.variant_index)
+        status = task_status.get(fi, "error" if not variants else "success")
+        # If at least one variant succeeded, mark as success
+        if variants and status != "success":
+            status = "success"
+        status_detail = None
+        if status != "success":
+            status_detail = f"All {n_vars} variation(s) failed for {meta['label']} concept {meta['concept_idx'] + 1}"
+
+        options.append(OptionResult(
+            option_index=fi,
+            refined_prompt=meta["prompt"],
+            negative_prompt=meta["negative"],
+            image_model=meta["model_key"],
+            model_label=meta["label"],
+            status=status,
+            status_detail=status_detail,
+            variants=variants,
+        ))
+
+    # Telemetry: one generate event per model (not per task)
+    from backend.services.telemetry import track_image_generation
+    for mk in model_keys:
+        model_opts = [o for o in options if o.image_model == mk]
+        model_variants = sum(len(o.variants) for o in model_opts)
+        if model_variants > 0:
+            track_image_generation(
+                model=mk,
+                num_options=n_opts,
+                num_variations=n_vars,
+                asset_type=body.asset_type.value if body.asset_type else "",
+            )
 
     succeeded = sum(1 for o in options if o.status == "success")
     blocked = sum(1 for o in options if o.status == "moderation_blocked")
@@ -915,14 +994,14 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
         id=batch_id,
         prompt=body.prompt,
         original_prompt=body.original_prompt,
-        negative_prompt=negative_prompts.get(model_keys[0], ""),
+        negative_prompt=negative_prompts.get(model_keys[0], [""])[0],
         style_id=body.style_id,
         asset_type=body.asset_type.value,
         image_model="all_models",
         width=body.width,
         height=body.height,
-        num_options=n_models,
-        num_variations=1,
+        num_options=total_flat_options,
+        num_variations=n_vars,
         all_models=True,
         model_map=model_map,
         options=options,
@@ -935,14 +1014,18 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                      breakdown=json.dumps(cost_breakdown, default=str))
 
     # Summary
+    succeeded_models = len(set(o.image_model for o in options if o.status == "success"))
+    blocked_models = set(o.model_label for o in options if o.status == "moderation_blocked")
+    failed_models = set(o.model_label for o in options if o.status == "error")
+
     summary_parts = []
-    if succeeded:
-        summary_parts.append(f"{succeeded} succeeded")
-    if blocked:
-        blocked_names = [o.model_label for o in options if o.status == "moderation_blocked"]
-        summary_parts.append(f"{blocked} blocked ({', '.join(blocked_names)})")
-    if failed:
-        summary_parts.append(f"{failed} failed")
+    if succeeded_models:
+        total_images_ok = sum(len(o.variants) for o in options if o.status == "success")
+        summary_parts.append(f"{total_images_ok} images from {succeeded_models} models")
+    if blocked_models:
+        summary_parts.append(f"{len(blocked_models)} blocked ({', '.join(blocked_models)})")
+    if failed_models:
+        summary_parts.append(f"{len(failed_models)} failed ({', '.join(failed_models)})")
 
     emit({"type": "complete",
           "result": result.model_dump(mode="json"),
@@ -951,12 +1034,62 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
               "blocked": blocked,
               "failed": failed,
               "total_models": n_models,
+              "options_per_model": n_opts,
+              "variations": n_vars,
+              "total_images": sum(len(o.variants) for o in options),
               "summary": "; ".join(summary_parts),
           }})
     return result
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────
+
+@router.post("/estimate-cost")
+async def estimate_generation_cost(body: GenerationRequest):
+    """Return a cost estimate without generating. For pre-generation UI display."""
+    from backend.services.model_registry import get_enabled_image_model_keys_sorted, get_image_model
+
+    if body.all_models:
+        model_keys = get_enabled_image_model_keys_sorted()
+    else:
+        model_keys = [body.image_model] if body.image_model else []
+
+    n_opts = body.num_options
+    n_vars = body.num_variations
+    images_per_model = n_opts * n_vars
+
+    image_costs = {}
+    for mk in model_keys:
+        model = get_image_model(mk)
+        price = model.get("base_price_usd") or 0.08
+        subtotal = price * images_per_model
+        image_costs[mk] = {
+            "label": model.get("label", mk),
+            "price_per_image": round(price, 4),
+            "count": images_per_model,
+            "subtotal": round(subtotal, 4),
+        }
+
+    # LLM cost estimate: ~$0.005 per refinement call
+    if body.model_optimized_prompts and body.all_models:
+        llm_calls = len(model_keys) * max(1, n_opts)
+    else:
+        llm_calls = max(1, n_opts)
+    llm_estimate = llm_calls * 0.005
+
+    total_images = len(model_keys) * images_per_model
+    total = sum(c["subtotal"] for c in image_costs.values()) + llm_estimate
+
+    return {
+        "total_estimate_usd": round(total, 4),
+        "total_images": total_images,
+        "models_count": len(model_keys),
+        "options_per_model": n_opts,
+        "variations": n_vars,
+        "image_costs": image_costs,
+        "llm_estimate_usd": round(llm_estimate, 4),
+    }
+
 
 @router.post("/", response_model=GenerationResult)
 async def generate_asset(body: GenerationRequest):

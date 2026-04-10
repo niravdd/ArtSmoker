@@ -434,8 +434,14 @@
             });
             document.getElementById('gen-region')?.addEventListener('change', () => this._updateModelSummary());
             document.getElementById('gen-size')?.addEventListener('change', () => this._updateModelSummary());
-            document.getElementById('gen-num-options')?.addEventListener('change', () => this._updateModelSummary());
-            document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateModelSummary());
+            document.getElementById('gen-num-options')?.addEventListener('change', () => {
+                this._updateModelSummary();
+                if (this._isAllModels()) this._updateAllModelsEstimate();
+            });
+            document.getElementById('gen-num-variations')?.addEventListener('change', () => {
+                this._updateModelSummary();
+                if (this._isAllModels()) this._updateAllModelsEstimate();
+            });
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open('image-studio'));
             document.getElementById('btn-pending-jobs')?.addEventListener('click', () => this._showPendingJobs());
@@ -788,8 +794,8 @@
                 region: document.getElementById('gen-region')?.value || null,
                 width: size.w,
                 height: size.h,
-                num_options: isAllModels ? 1 : numOptions,
-                num_variations: isAllModels ? 1 : numVariations,
+                num_options: numOptions,
+                num_variations: numVariations,
                 remove_background: document.getElementById('gen-remove-bg').checked,
                 generate_svg: document.getElementById('gen-svg').checked,
                 upscale: document.getElementById('gen-upscale').checked,
@@ -1817,16 +1823,15 @@
             if (!section || !grid) return;
 
             const isAllModels = this._result?.all_models;
+            const optsPerModel = this._result?.all_models_summary?.options_per_model || 1;
 
             if (options.length <= 1 && !isAllModels) {
-                // Single option — skip the options row, go straight to variations
                 section.classList.add('hidden');
                 return;
             }
 
             section.classList.remove('hidden');
 
-            // Update header for All Models vs normal mode
             const header = document.getElementById('gen-options-header');
             if (header) {
                 header.textContent = isAllModels
@@ -1834,58 +1839,102 @@
                     : t('image_studio.options_header');
             }
             if (countEl) {
+                const totalImages = options.reduce((s, o) => s + (o.variants?.length || 0), 0);
                 countEl.textContent = isAllModels
-                    ? `${options.length} ${t('common.model').toLowerCase()}s`
+                    ? `${totalImages} images across ${new Set(options.map(o => o.image_model)).size} models`
                     : `${options.length} ${t('image_studio.num_options').toLowerCase()}`;
             }
 
-            // Adjust grid columns to match option count
-            // Responsive grid: max 5 cols for ≤5 items, otherwise auto-fit for 6+
-            const cols = options.length <= 5 ? options.length : 5;
-            grid.className = `grid gap-3 grid-cols-${cols}`;
+            // Grouped layout: when All Models with multiple options per model
+            const useGrouped = isAllModels && optsPerModel > 1;
 
-            grid.innerHTML = options.map((opt, i) => {
-                const thumb = opt.variants?.[0];
-                const thumbSrc = thumb ? thumb.png_path : '';
-                const isAsync = thumb?.async_job || (opt.variants || []).some(v => v.async_job);
-                const asyncJobId = thumb?.async_job?.job_id || '';
-                const asyncAssetId = thumb?.id || '';
-                return `
-                    <button
-                        class="option-card group relative rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-pointer
-                               ${i === 0 ? 'border-brand-accent ring-2 ring-brand-accent/40 shadow-lg shadow-brand-accent/20' : 'border-brand-border hover:border-brand-accent/50'}"
-                        data-option-index="${i}" ${isAsync ? `data-async-job="${asyncJobId}" data-async-asset="${asyncAssetId}"` : ''}
-                    >
-                        <div class="aspect-square bg-brand-bg async-thumb-container">
-                            ${thumbSrc
-                                ? `<img src="${thumbSrc}" alt="${t('image_studio.option')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
-                                : isAsync
-                                ? `<div class="async-placeholder w-full h-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${t('custom_models.async_submitted_hint').split('.')[0]}</span></div>`
-                                : `<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
-                            }
+            if (useGrouped) {
+                // Group options by model
+                const groups = new Map();
+                options.forEach((opt, i) => {
+                    const mk = opt.image_model || 'unknown';
+                    if (!groups.has(mk)) groups.set(mk, []);
+                    groups.get(mk).push({ opt, globalIdx: i });
+                });
+
+                let html = '';
+                for (const [mk, entries] of groups) {
+                    const label = entries[0].opt.model_label || mk;
+                    const succCount = entries.filter(e => e.opt.status === 'success').length;
+                    const totalCount = entries.length;
+                    const statusBadge = succCount === totalCount
+                        ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">${succCount}/${totalCount}</span>`
+                        : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">${succCount}/${totalCount}</span>`;
+
+                    const cols = Math.min(entries.length, 5);
+                    html += `<div class="mb-4">
+                        <div class="flex items-center gap-2 mb-2">
+                            <h4 class="text-xs font-semibold text-brand-text">${this._escapeHtml(label)}</h4>
+                            ${statusBadge}
                         </div>
-                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
-                        <div class="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                            ${opt.model_label || `${t('image_studio.option')} ${i + 1}`}
-                        </div>
-                        ${opt.status && opt.status !== 'success' ? `
-                        <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
-                            <span class="px-2 py-1 rounded text-xs font-semibold ${opt.status === 'moderation_blocked' ? 'bg-amber-500/80 text-amber-950' : 'bg-red-500/80 text-white'}">
-                                ${opt.status === 'moderation_blocked' ? t('image_studio.blocked_moderation') : t('image_studio.failed')}
-                            </span>
-                        </div>` : ''}
-                        <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
-                            <p class="text-white text-[10px] leading-tight line-clamp-2">${this._escapeHtml(opt.refined_prompt || '').substring(0, 80)}...</p>
-                        </div>
-                    </button>
-                `;
-            }).join('');
+                        <div class="grid gap-2 grid-cols-${cols}">`;
+
+                    entries.forEach((e, conceptIdx) => {
+                        html += this._renderOptionCard(e.opt, e.globalIdx, `Concept ${conceptIdx + 1}`);
+                    });
+
+                    html += '</div></div>';
+                }
+                grid.className = '';
+                grid.innerHTML = html;
+            } else {
+                // Flat layout (single-model or All Models with 1 option each)
+                const cols = options.length <= 5 ? options.length : 5;
+                grid.className = `grid gap-3 grid-cols-${cols}`;
+                grid.innerHTML = options.map((opt, i) => {
+                    const cardLabel = opt.model_label || `${t('image_studio.option')} ${i + 1}`;
+                    return this._renderOptionCard(opt, i, cardLabel);
+                }).join('');
+            }
 
             grid.querySelectorAll('.option-card').forEach(btn => {
                 btn.addEventListener('click', () => {
                     this._selectOption(parseInt(btn.dataset.optionIndex, 10));
                 });
             });
+        },
+
+        _renderOptionCard(opt, index, label) {
+            const thumb = opt.variants?.[0];
+            const thumbSrc = thumb ? thumb.png_path : '';
+            const isAsync = thumb?.async_job || (opt.variants || []).some(v => v.async_job);
+            const asyncJobId = thumb?.async_job?.job_id || '';
+            const asyncAssetId = thumb?.id || '';
+            const isSelected = index === (this._selectedOption || 0);
+            return `
+                <button
+                    class="option-card group relative rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-pointer
+                           ${isSelected ? 'border-brand-accent ring-2 ring-brand-accent/40 shadow-lg shadow-brand-accent/20' : 'border-brand-border hover:border-brand-accent/50'}"
+                    data-option-index="${index}" ${isAsync ? `data-async-job="${asyncJobId}" data-async-asset="${asyncAssetId}"` : ''}
+                >
+                    <div class="aspect-square bg-brand-bg async-thumb-container">
+                        ${thumbSrc
+                            ? `<img src="${thumbSrc}" alt="${label}" class="w-full h-full object-cover" loading="lazy" />`
+                            : isAsync
+                            ? `<div class="async-placeholder w-full h-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>${t('custom_models.async_submitted_hint').split('.')[0]}</span></div>`
+                            : `<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
+                        }
+                    </div>
+                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                    <div class="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                        ${this._escapeHtml(label)}
+                    </div>
+                    ${opt.status && opt.status !== 'success' ? `
+                    <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
+                        <span class="px-2 py-1 rounded text-xs font-semibold ${opt.status === 'moderation_blocked' ? 'bg-amber-500/80 text-amber-950' : 'bg-red-500/80 text-white'}">
+                            ${opt.status === 'moderation_blocked' ? t('image_studio.blocked_moderation') : t('image_studio.failed')}
+                        </span>
+                    </div>` : ''}
+                    <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
+                        <p class="text-white text-[10px] leading-tight line-clamp-2">${this._escapeHtml(opt.refined_prompt || '').substring(0, 80)}...</p>
+                    </div>
+                </button>
+            `;
         },
 
         _selectOption(index) {
@@ -2224,17 +2273,43 @@
 
             if (isAllModels) {
                 allModelsOpts?.classList.remove('hidden');
-                // Disable options/variations (fixed: 1 option per model, 1 variation)
-                if (optsSelect) { optsSelect.value = '1'; optsSelect.disabled = true; }
-                if (varsSelect) { varsSelect.value = '1'; varsSelect.disabled = true; }
-                // Count real models (exclude the "All Available Models" entry)
-                const modelCount = MODELS.filter(m => m.value !== 'all_models').length;
-                if (infoEl) infoEl.textContent = t('image_studio.will_generate_info').replace(/\{\{count\}\}/g, modelCount);
+                // Keep selectors enabled — user controls options × variations per model
+                if (optsSelect) optsSelect.disabled = false;
+                if (varsSelect) varsSelect.disabled = false;
+                this._updateAllModelsEstimate();
             } else {
                 allModelsOpts?.classList.add('hidden');
                 if (optsSelect) optsSelect.disabled = false;
                 if (varsSelect) varsSelect.disabled = false;
             }
+        },
+
+        _updateAllModelsEstimate() {
+            const infoEl = document.getElementById('gen-all-models-info');
+            if (!infoEl) return;
+            const modelCount = MODELS.filter(m => m.value !== 'all_models').length;
+            const nOpts = parseInt(document.getElementById('gen-num-options')?.value || '1', 10);
+            const nVars = parseInt(document.getElementById('gen-num-variations')?.value || '1', 10);
+            const totalImages = modelCount * nOpts * nVars;
+
+            let msg = `${modelCount} models × ${nOpts} option${nOpts > 1 ? 's' : ''} × ${nVars} variation${nVars > 1 ? 's' : ''} = ${totalImages} images`;
+
+            // Cost estimate from model prices
+            const totalCost = MODELS
+                .filter(m => m.value !== 'all_models')
+                .reduce((sum, m) => sum + (m.base_price_usd || 0.08) * nOpts * nVars, 0);
+            if (totalCost > 0) msg += ` (~$${totalCost.toFixed(2)})`;
+
+            // Warnings
+            if (totalImages > 100) {
+                infoEl.className = 'text-[10px] text-red-400';
+                msg += ' — large batch, will take several minutes';
+            } else if (totalImages > 50) {
+                infoEl.className = 'text-[10px] text-amber-400';
+            } else {
+                infoEl.className = 'text-[10px] text-emerald-400/70';
+            }
+            infoEl.textContent = msg;
         },
 
         _getIpDeclaration() {
