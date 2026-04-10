@@ -398,31 +398,66 @@ def model_fn(model_dir):
     library = _get_env("INFERENCE_LIBRARY", "diffusers")
     model_key = _get_env("MODEL_KEY", "unknown")
 
+    # Log environment and versions for diagnostics
+    try:
+        import diffusers as _d, transformers as _t, accelerate as _a
+        logger.info("=== ArtSmoker Inference Handler ===")
+        logger.info("Model: %s, Library: %s", model_key, library)
+        logger.info("Versions: diffusers=%s, transformers=%s, accelerate=%s, torch=%s",
+                     _d.__version__, _t.__version__, _a.__version__, torch.__version__)
+        logger.info("CUDA available: %s, device count: %d", torch.cuda.is_available(),
+                     torch.cuda.device_count() if torch.cuda.is_available() else 0)
+        if torch.cuda.is_available():
+            logger.info("GPU: %s, VRAM: %.1f GB", torch.cuda.get_device_name(0),
+                         torch.cuda.get_device_properties(0).total_mem / (1024**3))
+        try:
+            import peft as _p
+            logger.info("peft=%s", _p.__version__)
+        except ImportError:
+            logger.info("peft: not installed")
+    except Exception as e:
+        logger.warning("Version logging failed: %s", e)
+
     # Load invoke config if provided as JSON
     config_json = _get_env("INVOKE_CONFIG")
     if config_json:
         try:
             _config = json.loads(config_json)
+            logger.info("INVOKE_CONFIG loaded (%d keys)", len(_config))
         except Exception:
             _config = {}
-
-    # HuggingFace token (HUGGING_FACE_HUB_TOKEN) is in env — HF libraries read it automatically.
-    # Model is downloaded by OUR handler (not the DLC container) via ARTSMOKER_HF_REPO.
 
     loader = _LOADERS.get(library)
     if not loader:
         raise ValueError(f"Unsupported INFERENCE_LIBRARY: {library}. Available: {list(_LOADERS.keys())}")
 
-    logger.info("Loading %s with library=%s", model_key, library)
+    logger.info("Loading %s with library=%s ...", model_key, library)
+    import time as _time
+    t0 = _time.time()
     _model = loader(model_dir)
-    logger.info("Model %s loaded (library=%s)", model_key, library)
+    elapsed = _time.time() - t0
+    logger.info("Model %s loaded in %.1fs (library=%s)", model_key, elapsed, library)
+
+    # Log VRAM usage after loading
+    if torch.cuda.is_available():
+        allocated = torch.cuda.memory_allocated(0) / (1024**3)
+        reserved = torch.cuda.memory_reserved(0) / (1024**3)
+        logger.info("GPU memory after load: %.2f GB allocated, %.2f GB reserved", allocated, reserved)
+
     return _model
 
 
 def input_fn(request_body, content_type="application/json"):
     """Parse input — supports JSON only."""
     if content_type == "application/json":
-        return json.loads(request_body)
+        data = json.loads(request_body)
+        # Log input summary (not the full prompt — could be long)
+        prompt_len = len(data.get("prompt", ""))
+        logger.info("Input: prompt=%d chars, size=%dx%d, steps=%s, guidance=%s, seed=%s",
+                     prompt_len, data.get("width", "?"), data.get("height", "?"),
+                     data.get("num_inference_steps", "?"), data.get("guidance_scale", "?"),
+                     data.get("seed", "?"))
+        return data
     raise ValueError(f"Unsupported content type: {content_type}")
 
 
@@ -433,7 +468,20 @@ def predict_fn(input_data, model_dict):
     if not predictor:
         raise ValueError(f"Unknown PREDICTOR_TYPE: {predictor_type}. Available: {list(_PREDICTORS.keys())}")
 
-    return predictor(input_data, model_dict)
+    import time as _time
+    t0 = _time.time()
+    try:
+        result = predictor(input_data, model_dict)
+        elapsed = _time.time() - t0
+        logger.info("Inference complete in %.1fs (predictor=%s, output=%d chars)",
+                     elapsed, predictor_type, len(result) if isinstance(result, str) else 0)
+        return result
+    except Exception as exc:
+        elapsed = _time.time() - t0
+        logger.error("Inference FAILED after %.1fs (predictor=%s): %s", elapsed, predictor_type, exc)
+        import traceback
+        logger.error("Traceback:\n%s", traceback.format_exc())
+        raise
 
 
 def output_fn(prediction, accept="application/json"):
