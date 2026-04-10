@@ -319,6 +319,7 @@
             await this._loadVideoSettings();
             await this._loadModels();
             await this._loadRecentJobs();
+            window.addEventListener('model-settings-closed', () => this._loadModels());
         },
 
         onShow() {

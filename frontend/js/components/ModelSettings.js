@@ -665,9 +665,13 @@
         },
 
         _attachEvents(modal) {
-            // Close
-            modal.querySelectorAll('.ms-close').forEach(btn => btn.addEventListener('click', () => modal.remove()));
-            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+            // Close — notify studios to refresh their model dropdowns
+            const _closeModal = () => {
+                modal.remove();
+                window.dispatchEvent(new CustomEvent('model-settings-closed'));
+            };
+            modal.querySelectorAll('.ms-close').forEach(btn => btn.addEventListener('click', _closeModal));
+            modal.addEventListener('click', (e) => { if (e.target === modal) _closeModal(); });
 
             // Tab switching
             modal.querySelectorAll('[data-ms-tab]').forEach(tab => {

@@ -40,6 +40,7 @@
             await _loadSessions();
             if (_sessions.length === 0) await _createSession();
             else await _loadSession(_sessions[0].session_id);
+            window.addEventListener('model-settings-closed', () => _loadModels());
         },
 
         onShow() { _scrollToBottom(); },

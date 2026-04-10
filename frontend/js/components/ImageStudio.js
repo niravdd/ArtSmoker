@@ -411,6 +411,9 @@
             await this._loadStyles();
             this._ensurePromptEditor();
 
+            // Refresh models when Model Settings closes (enable/disable, deploy/teardown)
+            window.addEventListener('model-settings-closed', () => this._loadModels());
+
             document.getElementById('gen-style')?.addEventListener('change', () => {
                 if (this._promptEditor) this._promptEditor.setContext({ styleId: this._getStyleId() });
             });
