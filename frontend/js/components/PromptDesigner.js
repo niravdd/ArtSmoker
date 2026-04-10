@@ -25,7 +25,6 @@
     window.PromptDesigner = {
         _modal: null,
         _data: null,
-        _locks: {},
         _onApply: null,
         _activeTab: 'subject',
 
@@ -37,7 +36,7 @@
         async open(prompt, opts = {}) {
             this._onApply = opts.onApply || null;
             this._onPromptSet = opts.onPromptSet || null;
-            this._locks = {};
+
             this._activeTab = 'subject';
             this._originalPrompt = (prompt || '').trim();
             this._opts = opts;
@@ -240,27 +239,13 @@
                 for (const field of tab.fields) {
                     const value = sectionData[field] || '';
                     if (!value) continue;
-                    const lockKey = `${tab.key}.${field}`;
-                    const isLocked = this._locks[lockKey];
                     fields += `
-                        <div class="pd-field group" data-key="${lockKey}">
-                            <div class="flex items-center justify-between mb-1">
-                                <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium">${_fieldLabel(field)}</label>
-                                <button class="pd-lock text-[10px] px-2 py-0.5 rounded-full transition-all ${
-                                    isLocked
-                                        ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                                        : 'bg-white/5 text-brand-text-muted/50 border border-transparent hover:border-brand-border'
-                                }" data-lock="${lockKey}" title="${isLocked ? _t('prompt_designer.lock_title_locked') : _t('prompt_designer.lock_title_unlocked')}">
-                                    ${isLocked ? `🔒 ${_t('prompt_designer.locked')}` : `🔓 ${_t('prompt_designer.editable')}`}
-                                </button>
-                            </div>
-                            <textarea class="pd-input w-full rounded-md px-3 py-2 text-xs resize-none focus:outline-none transition-all ${
-                                isLocked
-                                    ? 'bg-amber-950/10 border border-amber-500/20 text-brand-text/50 cursor-not-allowed'
-                                    : 'bg-black/20 border border-brand-border/50 text-brand-text focus:border-brand-accent/50'
-                            }" rows="${value.length > 150 ? 3 : 2}"
-                                data-section="${tab.key}" data-field="${field}"
-                                ${isLocked ? 'readonly' : ''}>${value}</textarea>
+                        <div class="pd-field group">
+                            <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium block mb-1">${_fieldLabel(field)}</label>
+                            <textarea class="pd-input w-full rounded-md px-3 py-2 text-xs resize-none focus:outline-none transition-all
+                                bg-black/20 border border-brand-border/50 text-brand-text focus:border-brand-accent/50"
+                                rows="${value.length > 150 ? 3 : 2}"
+                                data-section="${tab.key}" data-field="${field}">${value}</textarea>
                         </div>`;
                 }
 
@@ -303,18 +288,18 @@
             // Live preview (constructed from current fields — no LLM, instant)
             const previewBar = `
                 <div class="mx-5 mb-2">
-                    <label class="block text-[9px] text-brand-text-muted uppercase tracking-wider mb-1">Prompt Preview <span class="text-brand-text-muted/40">(constructed from fields above)</span></label>
-                    <p id="pd-live-preview" class="text-[10px] text-brand-text/60 bg-black/10 rounded-lg px-3 py-2 max-h-16 overflow-y-auto font-mono"></p>
+                    <div class="flex items-center justify-between mb-1">
+                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">Prompt Preview <span class="text-brand-text-muted/40">(constructed from fields above)</span></label>
+                        <span id="pd-preview-stats" class="text-[9px] text-brand-text-muted/40 font-mono"></span>
+                    </div>
+                    <p id="pd-live-preview" class="text-[10px] text-brand-text/60 bg-black/10 rounded-lg px-3 py-2.5 max-h-32 overflow-y-auto font-mono leading-relaxed"></p>
                 </div>`;
 
             // Action bar
             const actionBar = `
-                <div class="flex items-center justify-between px-5 py-3 border-t border-brand-border bg-black/10">
-                    <p class="text-[10px] text-brand-text-muted/50">${_t('prompt_designer.lock_hint')}</p>
-                    <div class="flex gap-2">
-                        <button class="pd-cancel text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${_t('prompt_designer.cancel')}</button>
-                        <button class="pd-save text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${_t('prompt_designer.save_continue')}</button>
-                    </div>
+                <div class="flex items-center justify-end px-5 py-3 border-t border-brand-border bg-black/10 gap-2">
+                    <button class="pd-cancel text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${_t('prompt_designer.cancel')}</button>
+                    <button class="pd-save text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${_t('prompt_designer.save_continue')}</button>
                 </div>`;
 
             const body = this._modal?.querySelector('.pd-body');
@@ -336,31 +321,6 @@
                     this._modal.querySelectorAll('.pd-tab-content').forEach(c => {
                         c.classList.toggle('hidden', c.dataset.tabContent !== this._activeTab);
                     });
-                });
-            });
-
-            this._modal?.querySelectorAll('.pd-lock').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    const key = btn.dataset.lock;
-                    this._locks[key] = !this._locks[key];
-                    const locked = this._locks[key];
-                    btn.innerHTML = locked ? `🔒 ${_t('prompt_designer.locked')}` : `🔓 ${_t('prompt_designer.editable')}`;
-                    btn.title = locked ? _t('prompt_designer.lock_title_locked') : _t('prompt_designer.lock_title_unlocked');
-                    btn.className = `pd-lock text-[10px] px-2 py-0.5 rounded-full transition-all ${
-                        locked
-                            ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
-                            : 'bg-white/5 text-brand-text-muted/50 border border-transparent hover:border-brand-border'
-                    }`;
-                    // Update textarea
-                    const field = this._modal.querySelector(`.pd-field[data-key="${key}"] .pd-input`);
-                    if (field) {
-                        field.readOnly = locked;
-                        field.className = `pd-input w-full rounded-md px-3 py-2 text-xs resize-none focus:outline-none transition-all ${
-                            locked
-                                ? 'bg-amber-950/10 border border-amber-500/20 text-brand-text/50 cursor-not-allowed'
-                                : 'bg-black/20 border border-brand-border/50 text-brand-text focus:border-brand-accent/50'
-                        }`;
-                    }
                 });
             });
 
@@ -409,6 +369,7 @@
 
         _updateLivePreview() {
             const el = this._modal?.querySelector('#pd-live-preview');
+            const statsEl = this._modal?.querySelector('#pd-preview-stats');
             if (!el || !this._data) return;
 
             // Construct prompt from current field values (no LLM — instant)
@@ -417,7 +378,7 @@
                 const section = this._data[tab.key];
                 if (!section || typeof section !== 'object') continue;
                 for (const [key, value] of Object.entries(section)) {
-                    if (key === 'colors' || key === 'palette') continue; // handled separately
+                    if (key === 'colors' || key === 'palette') continue;
                     if (typeof value === 'string' && value.trim()) {
                         parts.push(value.trim());
                     }
@@ -429,7 +390,15 @@
                 const colorStr = colors.map(c => typeof c === 'object' ? `${c.name || c.hex || ''}` : c).filter(Boolean).join(', ');
                 if (colorStr) parts.push(`Color palette: ${colorStr}`);
             }
-            el.textContent = parts.join('. ') + '.';
+            const text = parts.join('. ') + '.';
+            el.textContent = text;
+
+            // Show character and word count
+            if (statsEl) {
+                const chars = text.length;
+                const words = text.trim().split(/\s+/).filter(Boolean).length;
+                statsEl.textContent = `${chars} chars · ${words} words`;
+            }
         },
     };
 })();
