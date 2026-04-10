@@ -194,17 +194,34 @@ def track_auto_update(updated: bool = False, from_version: str = "", to_version:
 
 
 # ── Custom Model Events ───────────────────────────────────────────
+# Prefixed with studio name so they group with their parent studio in PulseBoard.
+# e.g. image_studio.custom.deploy, video_studio.custom.invoke
+
+def _resolve_custom_studio(model: str) -> str:
+    """Resolve studio prefix from model key via catalog."""
+    try:
+        from backend.services.custom_models import get_catalog_model
+        entry = get_catalog_model(model)
+        if entry:
+            return f"{entry['studio']}_studio"
+    except Exception:
+        pass
+    return "image_studio"  # fallback
+
 
 def track_custom_model_deploy(model: str = "", endpoint_type: str = "", instance: str = ""):
-    _track("custom_models.deploy", model=model, endpoint_type=endpoint_type, instance=instance)
+    studio = _resolve_custom_studio(model)
+    _track(f"{studio}.custom.deploy", model=model, endpoint_type=endpoint_type, instance=instance)
 
 
 def track_custom_model_invoke(model: str = "", cost_usd: float = 0, latency_ms: float = 0,
                               predictor_type: str = ""):
     """Operational invocation tracking. cost_usd should be 0 — cost goes on studio .cost event."""
-    _track("custom_models.invoke", model=model, cost_usd=cost_usd,
+    studio = _resolve_custom_studio(model)
+    _track(f"{studio}.custom.invoke", model=model, cost_usd=cost_usd,
            latency_ms=latency_ms, predictor_type=predictor_type)
 
 
 def track_custom_model_teardown(model: str = ""):
-    _track("custom_models.teardown", model=model)
+    studio = _resolve_custom_studio(model)
+    _track(f"{studio}.custom.teardown", model=model)

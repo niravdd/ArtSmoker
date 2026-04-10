@@ -230,6 +230,12 @@ async def deploy_model(body: DeployRequest):
                     ),
                     "error": "",
                 }
+                try:
+                    from backend.services.telemetry import track_custom_model_deploy
+                    track_custom_model_deploy(model=key, endpoint_type=body.endpoint_type,
+                                             instance=body.instance_type or "")
+                except Exception:
+                    pass
 
             else:
                 # ── Non-HuggingFace: download locally → upload to S3 ────────
@@ -263,6 +269,12 @@ async def deploy_model(body: DeployRequest):
                         "progress": "Endpoint created — waiting for it to become active (5-10 min).",
                         "error": "",
                     }
+                    try:
+                        from backend.services.telemetry import track_custom_model_deploy
+                        track_custom_model_deploy(model=key, endpoint_type=body.endpoint_type,
+                                                  instance=body.instance_type or "")
+                    except Exception:
+                        pass
                 finally:
                     shutil.rmtree(local_dir, ignore_errors=True)
 
@@ -375,6 +387,12 @@ async def teardown_model(model_key: str, delete_s3: bool = False):
 
     # Remove from model registry
     _unregister_custom_model(model_key)
+
+    try:
+        from backend.services.telemetry import track_custom_model_teardown
+        track_custom_model_teardown(model=model_key)
+    except Exception:
+        pass
 
     return {"status": "deleted", **result}
 
