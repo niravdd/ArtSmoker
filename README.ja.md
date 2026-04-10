@@ -8,7 +8,11 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
-## Language / 言語 / 语言 / 언어 / Langue / Idioma
+## 📌 0. 概要
+
+Amazon Bedrockの画像・動画生成モデルのためのシンプルでアーティストフレンドリーなインターフェース。ArtSmokerは、API、CLI、プロンプトエンジニアリングを学ぶことなく、クリエイティブチームがBedrockを効率的に使えるようにします。
+
+### Language / 言語 / 语言 / 언어 / Langue / Idioma
 
 ArtSmokerは6言語に対応しています。上部ナビゲーションバーの言語ボタン（EN | JA | ZH | KO | FR | ES）でUI言語を切り替えられます。選択は自動的に保存されます。
 
@@ -29,10 +33,6 @@ ArtSmokerは6言語に対応しています。上部ナビゲーションバー�
 - Chat StudioはLLMに直接プロンプトを渡します（翻訳なし）— Claudeなどのモデルはネイティブに多言語対応しているためです
 - Type Studioのテキストはあなたの言語のまま残ります（画像にそのままレンダリングされます）
 - すべてのモデレーション事前チェックとコンテンツスクリーニングは、一貫性のために翻訳された英語プロンプトに対して動作します
-
-## 📌 0. 概要
-
-Amazon Bedrockの画像・動画生成モデルのためのシンプルでアーティストフレンドリーなインターフェース。ArtSmokerは、API、CLI、プロンプトエンジニアリングを学ぶことなく、クリエイティブチームがBedrockを効率的に使えるようにします。
 
 ### 📝 課題
 

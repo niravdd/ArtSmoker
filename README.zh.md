@@ -8,7 +8,11 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
-## Language / 言語 / 语言 / 언어 / Langue / Idioma
+## 📌 0. 概述
+
+为 Amazon Bedrock 的图像和视频生成模型提供的简洁、艺术家友好的界面。ArtSmoker 帮助创意团队高效使用 Bedrock——无需学习 API、CLI 或提示词工程。
+
+### Language / 言語 / 语言 / 언어 / Langue / Idioma
 
 ArtSmoker 支持 6 种语言。通过顶部导航栏的语言按钮（EN | JA | ZH | KO | FR | ES）切换 UI 语言。您的选择会自动保存。
 
@@ -29,10 +33,6 @@ ArtSmoker 支持 6 种语言。通过顶部导航栏的语言按钮（EN | JA | 
 - Chat Studio 将提示词直接传递给 LLM（不翻译）——因为 Claude 等模型原生支持多语言
 - Type Studio 中的文本保持您的语言不变（会按原样渲染到图像上）
 - 所有审核预检和内容筛查都基于翻译后的英语提示词执行，以确保一致性
-
-## 📌 0. 概述
-
-为 Amazon Bedrock 的图像和视频生成模型提供的简洁、艺术家友好的界面。ArtSmoker 帮助创意团队高效使用 Bedrock——无需学习 API、CLI 或提示词工程。
 
 ### 📝 问题
 

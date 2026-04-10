@@ -6,7 +6,11 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
-## Language / 言語 / 语言 / 언어 / Langue / Idioma
+## 📌 0. Overview
+
+A simple, artist-friendly interface for Amazon Bedrock's image and video generation models. ArtSmoker helps creative teams use Bedrock efficiently — without needing to learn the API, CLI, or prompt engineering.
+
+### Language / 言語 / 语言 / 언어 / Langue / Idioma
 
 ArtSmoker supports 6 languages. Switch the UI language using the language buttons in the top navigation bar (EN | JA | ZH | KO | FR | ES). Your selection is saved automatically.
 
@@ -27,10 +31,6 @@ ArtSmoker supports 6 languages. Switch the UI language using the language button
 - Chat Studio passes prompts directly to the LLM (no translation) since models like Claude are natively multilingual
 - Type Studio text stays in your language (it's rendered on the image as-is)
 - All moderation pre-checks and content screening work on the translated English prompt for consistency
-
-## 📌 0. Overview
-
-A simple, artist-friendly interface for Amazon Bedrock's image and video generation models. ArtSmoker helps creative teams use Bedrock efficiently — without needing to learn the API, CLI, or prompt engineering.
 
 ### 📝 The Problem
 
