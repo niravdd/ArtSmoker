@@ -2444,14 +2444,37 @@
                     window.showToast?.(t('custom_models.async_ready_toast').replace('{{model}}', j.model_label), 'success');
                     this._notifiedJobIds.add(j.job_id);
 
-                    // Replace async placeholder with actual image on the current result page
                     const assetId = j.asset_id || '';
                     if (assetId) {
                         const imgSrc = `/api/gallery/${assetId}/png`;
-                        // Update option cards
+
+                        // Update the in-memory result data so re-renders show the image
+                        if (this._result?.options) {
+                            for (const opt of this._result.options) {
+                                for (const v of (opt.variants || [])) {
+                                    if (v.async_job?.job_id === j.job_id || v.id === assetId) {
+                                        v.png_path = imgSrc;
+                                        v.async_job = null; // No longer async
+                                    }
+                                }
+                            }
+                        }
+
+                        // Replace async placeholders in DOM
                         document.querySelectorAll(`[data-async-job="${j.job_id}"] .async-placeholder, [data-async-asset="${assetId}"] .async-placeholder`).forEach(ph => {
                             ph.outerHTML = `<img src="${imgSrc}" alt="Generated" class="w-full h-full object-cover" loading="lazy" />`;
                         });
+
+                        // Also update variation thumbnails if this option is currently selected
+                        document.querySelectorAll(`.variant-thumb[data-async-job="${j.job_id}"] .async-placeholder, .variant-thumb[data-async-asset="${assetId}"] .async-placeholder`).forEach(ph => {
+                            ph.outerHTML = `<img src="${imgSrc}" alt="Generated" class="w-full h-full object-cover" loading="lazy" />`;
+                        });
+
+                        // Re-render the options row to update thumbnails that weren't in DOM
+                        if (this._result) {
+                            this._renderOptionsRow(this._result.options || []);
+                            this._selectOption(this._selectedOption || 0);
+                        }
                     }
                 });
 
