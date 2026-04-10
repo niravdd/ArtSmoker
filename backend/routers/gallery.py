@@ -167,14 +167,40 @@ async def get_batch(batch_id: str):
                 "variants": [],
             }
         svg_url = f"/api/gallery/{meta['id']}/svg" if meta.get("svg_path") else None
-        options_map[oi]["variants"].append({
+        async_status = meta.get("async_status")
+        # Only set png_path if the image actually exists (not pending/failed async)
+        has_image = (store.generated_asset_dir(meta["id"]) / "asset.png").exists()
+        variant = {
             "id": meta["id"],
             "variant_index": meta.get("variant_index", 0),
-            "png_path": f"/api/gallery/{meta['id']}/png",
-            "svg_path": svg_url,
+            "png_path": f"/api/gallery/{meta['id']}/png" if has_image else "",
+            "svg_path": svg_url if has_image else None,
             "png_filename": meta.get("png_filename", f"{meta['id']}.png"),
             "svg_filename": meta.get("svg_filename"),
-        })
+            "model_used": meta.get("image_model"),
+            "model_label": meta.get("model_label"),
+        }
+        # Carry async job info so frontend shows proper status
+        if async_status and async_status != "complete":
+            variant["async_job"] = {
+                "job_id": meta.get("async_job_id", ""),
+                "model_label": meta.get("model_label", ""),
+                "status": "failed" if async_status == "failed" else "pending",
+            }
+        options_map[oi]["variants"].append(variant)
+
+    # Set option status based on variant states
+    for oi, opt_data in options_map.items():
+        variants = opt_data["variants"]
+        has_images = any(v.get("png_path") for v in variants)
+        all_failed = all(v.get("async_job", {}).get("status") == "failed" for v in variants if v.get("async_job"))
+        if has_images:
+            opt_data["status"] = "success"
+        elif all_failed and variants:
+            opt_data["status"] = "failed"
+            opt_data["status_detail"] = "All variations failed or timed out"
+        elif any(v.get("async_job") for v in variants):
+            opt_data["status"] = "pending"
 
     options = [options_map[k] for k in sorted(options_map.keys())]
 
