@@ -5049,7 +5049,8 @@
           },
           "output_type": "base64_mp4",
           "typical_latency_seconds": 60,
-          "max_concurrent_invocations": 1
+          "max_concurrent_invocations": 1,
+          "enable_model_cpu_offload": true
         },
         "pricing": {
           "estimated_cost_per_video": 0.25,

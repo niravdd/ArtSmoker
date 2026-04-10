@@ -71,6 +71,77 @@ def detect_from_hf_repo(repo_id: str, hf_token: str | None = None) -> dict:
     # Determine category and studio
     category, studio = _detect_category(pipeline_tag, invoke_config.get("predictor_type", ""))
 
+    # Determine offload strategy based on VRAM
+    if vram_gb >= 24:
+        invoke_config["enable_model_cpu_offload"] = True
+        invoke_config.pop("enable_cpu_offload", None)
+    elif vram_gb >= 12:
+        invoke_config["enable_model_cpu_offload"] = True
+        invoke_config.pop("enable_cpu_offload", None)
+    else:
+        invoke_config.pop("enable_cpu_offload", None)
+
+    # Concurrency: large diffusion models = 1, lightweight = 4
+    if invoke_config.get("library") == "diffusers" and vram_gb >= 8:
+        invoke_config["max_concurrent_invocations"] = 1
+    elif vram_gb >= 12:
+        invoke_config["max_concurrent_invocations"] = 1
+    else:
+        invoke_config["max_concurrent_invocations"] = 4
+
+    # Typical latency estimate
+    if invoke_config.get("library") == "diffusers":
+        steps = invoke_config.get("input_fields", {}).get("num_inference_steps", {}).get("default", 20)
+        # Rough: ~1-5s per step depending on model size
+        sec_per_step = max(1, vram_gb / 6)
+        invoke_config["typical_latency_seconds"] = int(steps * sec_per_step)
+    else:
+        invoke_config["typical_latency_seconds"] = max(3, vram_gb)
+
+    # Instance recommendation
+    if vram_gb > 40:
+        recommended = "ml.g6e.xlarge"
+        instance_costs = {"ml.g6e.xlarge": 2.61}
+    elif vram_gb > 16:
+        recommended = "ml.g5.2xlarge"
+        instance_costs = {"ml.g5.xlarge": 1.41, "ml.g5.2xlarge": 2.82}
+    else:
+        recommended = "ml.g5.xlarge"
+        instance_costs = {"ml.g5.xlarge": 1.41}
+
+    # Python requirements based on library
+    base_reqs = [
+        "torch>=2.6.0,<2.7.0",
+        "torchvision>=0.21.0,<0.22.0",
+        "Pillow>=10.0",
+        "numpy>=1.24,<2.5",
+    ]
+    if invoke_config.get("library") == "diffusers":
+        model_reqs = [
+            "diffusers>=0.36.0,<0.38.0",
+            "transformers>=4.51.0,<4.52.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "huggingface-hub>=0.34.0,<1.0.0",
+        ]
+        # FLUX models need peft
+        if "flux" in repo_id.lower():
+            model_reqs.append("peft>=0.17.0,<0.19.0")
+    elif invoke_config.get("library") == "transformers":
+        model_reqs = [
+            "transformers>=4.51.0,<4.52.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "huggingface-hub>=0.34.0,<1.0.0",
+        ]
+    elif invoke_config.get("library") == "realesrgan":
+        model_reqs = [
+            "realesrgan==0.3.0",
+            "basicsr==1.4.2",
+            "opencv-python-headless>=4.8.0",
+        ]
+    else:
+        model_reqs = ["huggingface-hub>=0.34.0,<1.0.0"]
+
     # Build the catalog entry
     entry = {
         "label": label,
@@ -87,14 +158,18 @@ def detect_from_hf_repo(repo_id: str, hf_token: str | None = None) -> dict:
         },
         "requirements": {
             "min_vram_gb": vram_gb,
-            "recommended_instance": "ml.g5.2xlarge" if vram_gb > 12 else "ml.g5.xlarge",
+            "recommended_instance": recommended,
             "min_instance": "ml.g5.xlarge",
-            "disk_gb": max(1, int(vram_gb * 1.5)),  # Rough estimate
+            "disk_gb": max(1, int(vram_gb * 1.5)),
         },
         "invoke": invoke_config,
         "pricing": {
-            "estimated_cost_per_image": round(0.02 * (vram_gb / 12), 3),  # Scale with VRAM
-            "instance_cost_per_hour": {"ml.g5.xlarge": 1.41, "ml.g5.2xlarge": 2.82},
+            "estimated_cost_per_image": round(0.02 * (vram_gb / 12), 3),
+            "instance_cost_per_hour": instance_costs,
+        },
+        "python_requirements": {
+            "base": base_reqs,
+            "model": model_reqs,
         },
         "version": "auto-detected",
         "last_updated": "",
