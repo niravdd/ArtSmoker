@@ -79,6 +79,8 @@ def _deep_merge_runtime(runtime: dict) -> int:
     # Sections that contain dict-of-models (merge at model level)
     MODEL_SECTIONS = {"image_models", "video_models", "chat_models", "post_processing",
                       "utility_models", "categories"}
+    # Nested catalog sections: merge the 'models' sub-dict at model level
+    CATALOG_SECTIONS = {"custom_model_catalog"}
     count = 0
 
     for key, value in runtime.items():
@@ -99,6 +101,26 @@ def _deep_merge_runtime(runtime: dict) -> int:
                 else:
                     # Non-dict value (unlikely but handle gracefully)
                     _registry[key][model_key] = model_data
+                    count += 1
+        elif key in CATALOG_SECTIONS and isinstance(value, dict) and isinstance(_registry.get(key), dict):
+            # Catalog section: deep merge 'models' sub-dict, replace others
+            base = _registry[key]
+            for sub_key, sub_value in value.items():
+                if sub_key == "models" and isinstance(sub_value, dict) and isinstance(base.get("models"), dict):
+                    for mk, md in sub_value.items():
+                        if isinstance(md, dict) and mk in base["models"] and isinstance(base["models"][mk], dict):
+                            # Merge: user fields override base, including nested invoke
+                            if "invoke" in md and "invoke" in base["models"][mk]:
+                                base["models"][mk]["invoke"].update(md["invoke"])
+                                md_copy = {k: v for k, v in md.items() if k != "invoke"}
+                                base["models"][mk].update(md_copy)
+                            else:
+                                base["models"][mk].update(md)
+                        else:
+                            base.setdefault("models", {})[mk] = md
+                        count += 1
+                else:
+                    base[sub_key] = sub_value
                     count += 1
         else:
             # Non-model section — runtime replaces entirely
@@ -131,6 +153,9 @@ def _save():
             pass
 
     output = dict(_registry)
+    # Strip sections that belong in the git-tracked main file, not user.json
+    # (custom_model_catalog is in model_registry.json — only user OVERRIDES go to user.json)
+    output.pop("custom_model_catalog", None)
     # Merge preserved metadata back in
     for k, v in existing_meta.items():
         if k not in output:

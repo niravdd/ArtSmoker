@@ -4365,5 +4365,588 @@
       ],
       "lifecycle": "ACTIVE"
     }
+  },
+  "custom_model_catalog": {
+    "models": {
+      "flux1_schnell": {
+        "label": "FLUX.1 [schnell]",
+        "description": "Fast text-to-image by Black Forest Labs. 1-4 step generation, Apache 2.0 licensed.",
+        "category": "image_generation",
+        "studio": "image",
+        "provider": "Black Forest Labs",
+        "license": "Apache 2.0",
+        "requires_hf_auth": true,
+        "hf_license_url": "https://huggingface.co/black-forest-labs/FLUX.1-schnell",
+        "source": {
+          "type": "huggingface",
+          "repo_id": "black-forest-labs/FLUX.1-schnell"
+        },
+        "requirements": {
+          "min_vram_gb": 12,
+          "recommended_instance": "ml.g5.2xlarge",
+          "min_instance": "ml.g5.xlarge",
+          "disk_gb": 25
+        },
+        "invoke": {
+          "library": "diffusers",
+          "loader_class": "FluxPipeline",
+          "torch_dtype": "bfloat16",
+          "enable_model_cpu_offload": true,
+          "enable_vae_slicing": true,
+          "predictor_type": "text_to_image",
+          "input_fields": {
+            "prompt": {
+              "type": "string",
+              "required": true
+            },
+            "width": {
+              "type": "int",
+              "default": 1024
+            },
+            "height": {
+              "type": "int",
+              "default": 1024
+            },
+            "num_inference_steps": {
+              "type": "int",
+              "default": 4
+            },
+            "guidance_scale": {
+              "type": "float",
+              "default": 0.0
+            },
+            "seed": {
+              "type": "int",
+              "required": false
+            }
+          },
+          "output_type": "base64_png",
+          "supports_negative_prompt": false,
+          "max_prompt_length": 2000,
+          "typical_latency_seconds": 5,
+          "prompt_guidance": "FLUX.1 schnell uses natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'."
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.02,
+          "instance_cost_per_hour": {
+            "ml.g5.xlarge": 1.41,
+            "ml.g5.2xlarge": 2.82
+          }
+        },
+        "version": "1.0",
+        "last_updated": "2024-08-01"
+      },
+      "flux1_dev": {
+        "label": "FLUX.1 [dev]",
+        "description": "High-quality text-to-image by Black Forest Labs. Non-commercial license. Slow on 24GB GPU (sequential CPU offload).",
+        "category": "image_generation",
+        "studio": "image",
+        "provider": "Black Forest Labs",
+        "license": "FLUX.1 [dev] Non-Commercial License",
+        "requires_hf_auth": true,
+        "hf_license_url": "https://huggingface.co/black-forest-labs/FLUX.1-dev",
+        "source": {
+          "type": "huggingface",
+          "repo_id": "black-forest-labs/FLUX.1-dev"
+        },
+        "requirements": {
+          "min_vram_gb": 24,
+          "recommended_instance": "ml.g5.2xlarge",
+          "min_instance": "ml.g5.xlarge",
+          "disk_gb": 35
+        },
+        "invoke": {
+          "library": "diffusers",
+          "loader_class": "FluxPipeline",
+          "torch_dtype": "bfloat16",
+          "enable_sequential_cpu_offload": true,
+          "enable_vae_slicing": true,
+          "predictor_type": "text_to_image",
+          "input_fields": {
+            "prompt": {
+              "type": "string",
+              "required": true
+            },
+            "width": {
+              "type": "int",
+              "default": 1024
+            },
+            "height": {
+              "type": "int",
+              "default": 1024
+            },
+            "num_inference_steps": {
+              "type": "int",
+              "default": 28
+            },
+            "guidance_scale": {
+              "type": "float",
+              "default": 3.5
+            },
+            "seed": {
+              "type": "int",
+              "required": false
+            }
+          },
+          "output_type": "base64_png",
+          "supports_negative_prompt": false,
+          "max_prompt_length": 2000,
+          "typical_latency_seconds": 180,
+          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'."
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.06,
+          "instance_cost_per_hour": {
+            "ml.g5.xlarge": 1.41,
+            "ml.g5.2xlarge": 1.52
+          }
+        },
+        "version": "1.0",
+        "last_updated": "2024-08-01"
+      },
+      "flux2_dev": {
+        "label": "FLUX.2 [dev]",
+        "description": "32B parameter flagship by Black Forest Labs. State-of-the-art quality with text rendering, reference editing. Non-commercial.",
+        "category": "image_generation",
+        "studio": "image",
+        "provider": "Black Forest Labs",
+        "license": "FLUX Non-Commercial License",
+        "requires_hf_auth": true,
+        "hf_license_url": "https://huggingface.co/black-forest-labs/FLUX.2-dev",
+        "source": {
+          "type": "huggingface",
+          "repo_id": "black-forest-labs/FLUX.2-dev"
+        },
+        "requirements": {
+          "min_vram_gb": 48,
+          "recommended_instance": "ml.g6e.xlarge",
+          "min_instance": "ml.g6e.xlarge",
+          "disk_gb": 50
+        },
+        "invoke": {
+          "library": "diffusers",
+          "loader_class": "Flux2Pipeline",
+          "torch_dtype": "bfloat16",
+          "enable_sequential_cpu_offload": true,
+          "enable_vae_slicing": true,
+          "predictor_type": "text_to_image",
+          "input_fields": {
+            "prompt": {
+              "type": "string",
+              "required": true
+            },
+            "width": {
+              "type": "int",
+              "default": 1024
+            },
+            "height": {
+              "type": "int",
+              "default": 1024
+            },
+            "num_inference_steps": {
+              "type": "int",
+              "default": 50
+            },
+            "guidance_scale": {
+              "type": "float",
+              "default": 4.0
+            },
+            "seed": {
+              "type": "int",
+              "required": false
+            }
+          },
+          "output_type": "base64_png",
+          "supports_negative_prompt": false,
+          "max_prompt_length": 2000,
+          "typical_latency_seconds": 300,
+          "prompt_guidance": "FLUX.2 dev is a 32B parameter model \u2014 the most capable open-source image generator.\nUse natural language \u2014 write like describing a photograph, painting, or cinematic shot.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 describe what you WANT instead.\nFLUX.2 excels at: text rendering in images, character consistency, multi-reference editing.\nLonger prompts work well (50-120 words) \u2014 the model has exceptional prompt following.\nCamera specs: '85mm lens, f/1.4', 'wide-angle 24mm', 'aerial drone shot'.\nLighting: 'golden hour', 'studio lighting', 'dramatic chiaroscuro', 'neon-lit'.\nQuality: 'professional photography', 'cinematic', '8k resolution', 'award-winning'.\nCan render readable text in images \u2014 include exact text in quotes if needed."
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.15,
+          "instance_cost_per_hour": {
+            "ml.g6e.xlarge": 2.61
+          }
+        },
+        "version": "1.0",
+        "last_updated": "2025-06-01"
+      },
+      "sdxl_turbo": {
+        "label": "SDXL Turbo",
+        "description": "Ultra-fast 1-step image generation by Stability AI.",
+        "category": "image_generation",
+        "studio": "image",
+        "provider": "Stability AI",
+        "license": "Stability AI Non-Commercial Community License",
+        "requires_hf_auth": false,
+        "source": {
+          "type": "huggingface",
+          "repo_id": "stabilityai/sdxl-turbo"
+        },
+        "requirements": {
+          "min_vram_gb": 8,
+          "recommended_instance": "ml.g5.xlarge",
+          "min_instance": "ml.g5.xlarge",
+          "disk_gb": 15
+        },
+        "invoke": {
+          "library": "diffusers",
+          "loader_class": "AutoPipelineForText2Image",
+          "torch_dtype": "float16",
+          "loader_variant": "fp16",
+          "predictor_type": "text_to_image",
+          "input_fields": {
+            "prompt": {
+              "type": "string",
+              "required": true
+            },
+            "width": {
+              "type": "int",
+              "default": 512
+            },
+            "height": {
+              "type": "int",
+              "default": 512
+            },
+            "num_inference_steps": {
+              "type": "int",
+              "default": 1
+            },
+            "guidance_scale": {
+              "type": "float",
+              "default": 0.0
+            },
+            "seed": {
+              "type": "int",
+              "required": false
+            }
+          },
+          "output_type": "base64_png",
+          "supports_negative_prompt": true,
+          "max_prompt_length": 1500,
+          "typical_latency_seconds": 2,
+          "prompt_guidance": "SDXL Turbo generates in 1 step \u2014 prompts must be clear and direct.\nUse SDXL-style keyword prompting: comma-separated descriptors.\nQuality boosters are essential: 'masterpiece, best quality, highly detailed'.\nStyle tokens work well: 'digital painting', 'concept art', 'photorealistic'.\nKeep prompts concise (20-50 words) \u2014 quality over quantity for 1-step generation.\nNegative prompts ARE supported and very effective for cleanup.\nCommon useful negatives: 'blurry, low quality, deformed, ugly, bad anatomy, watermark'.\nDefault resolution is 512\u00d7512. Higher resolutions may reduce quality."
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.01,
+          "instance_cost_per_hour": {
+            "ml.g5.xlarge": 1.41
+          }
+        },
+        "version": "1.0",
+        "last_updated": "2023-11-28"
+      },
+      "real_esrgan": {
+        "label": "Real-ESRGAN (4x Upscale)",
+        "description": "AI super-resolution upscaling. Free alternative to Stability AI Creative Upscale ($0.60/img).",
+        "category": "post_processing",
+        "studio": "image",
+        "provider": "Xinntao",
+        "license": "BSD-3-Clause",
+        "requires_hf_auth": false,
+        "source": {
+          "type": "github_release",
+          "repo": "xinntao/Real-ESRGAN",
+          "url": "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
+        },
+        "requirements": {
+          "min_vram_gb": 2,
+          "recommended_instance": "ml.g5.xlarge",
+          "min_instance": "ml.g5.xlarge",
+          "disk_gb": 1
+        },
+        "invoke": {
+          "library": "realesrgan",
+          "predictor_type": "image_upscale",
+          "input_fields": {
+            "image": {
+              "type": "base64_png",
+              "required": true
+            },
+            "scale": {
+              "type": "int",
+              "default": 4
+            }
+          },
+          "output_type": "base64_png",
+          "typical_latency_seconds": 3
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.01,
+          "instance_cost_per_hour": {
+            "ml.g5.xlarge": 1.41
+          }
+        },
+        "version": "0.1.0",
+        "last_updated": "2021-07-20"
+      },
+      "rmbg_2": {
+        "label": "RMBG-2.0 (Background Removal)",
+        "description": "AI background removal by BRIA. Free alternative to Stability AI Remove BG ($0.07/img).",
+        "category": "post_processing",
+        "studio": "image",
+        "provider": "BRIA AI",
+        "license": "CC-BY-NC-4.0",
+        "requires_hf_auth": true,
+        "hf_license_url": "https://huggingface.co/briaai/RMBG-2.0",
+        "source": {
+          "type": "huggingface",
+          "repo_id": "briaai/RMBG-2.0"
+        },
+        "requirements": {
+          "min_vram_gb": 2,
+          "recommended_instance": "ml.g5.xlarge",
+          "min_instance": "ml.g5.xlarge",
+          "disk_gb": 2
+        },
+        "invoke": {
+          "library": "transformers",
+          "loader_class": "AutoModelForImageSegmentation",
+          "trust_remote_code": true,
+          "predictor_type": "background_removal",
+          "input_fields": {
+            "image": {
+              "type": "base64_png",
+              "required": true
+            }
+          },
+          "output_type": "base64_png_rgba",
+          "typical_latency_seconds": 2
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.005,
+          "instance_cost_per_hour": {
+            "ml.g5.xlarge": 1.41
+          }
+        },
+        "version": "2.0",
+        "last_updated": "2024-06-15"
+      },
+      "codeformer": {
+        "label": "CodeFormer (Face Restoration)",
+        "description": "AI face restoration \u2014 fixes AI-generated face artifacts.",
+        "category": "post_processing",
+        "studio": "image",
+        "provider": "Shangchen Zhou et al.",
+        "license": "NTU S-Lab License 1.0 (research)",
+        "requires_hf_auth": false,
+        "source": {
+          "type": "github_release",
+          "repo": "sczhou/CodeFormer",
+          "url": "https://github.com/sczhou/CodeFormer/releases/download/v0.1.0/codeformer.pth"
+        },
+        "requirements": {
+          "min_vram_gb": 2,
+          "recommended_instance": "ml.g5.xlarge",
+          "min_instance": "ml.g5.xlarge",
+          "disk_gb": 1
+        },
+        "invoke": {
+          "library": "codeformer",
+          "predictor_type": "face_restoration",
+          "input_fields": {
+            "image": {
+              "type": "base64_png",
+              "required": true
+            },
+            "fidelity": {
+              "type": "float",
+              "default": 0.7
+            }
+          },
+          "output_type": "base64_png",
+          "typical_latency_seconds": 3
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.01,
+          "instance_cost_per_hour": {
+            "ml.g5.xlarge": 1.41
+          }
+        },
+        "version": "0.1.0",
+        "last_updated": "2022-12-15"
+      },
+      "depth_anything_v2": {
+        "label": "Depth Anything v2",
+        "description": "Monocular depth estimation \u2014 generates depth maps for 3D effects.",
+        "category": "utility",
+        "studio": "image",
+        "provider": "DepthAnything Team",
+        "license": "CC-BY-NC-4.0",
+        "requires_hf_auth": false,
+        "source": {
+          "type": "huggingface",
+          "repo_id": "depth-anything/Depth-Anything-V2-Large"
+        },
+        "requirements": {
+          "min_vram_gb": 4,
+          "recommended_instance": "ml.g5.xlarge",
+          "min_instance": "ml.g5.xlarge",
+          "disk_gb": 3
+        },
+        "invoke": {
+          "library": "transformers",
+          "loader_class": "pipeline",
+          "loader_task": "depth-estimation",
+          "predictor_type": "depth_estimation",
+          "input_fields": {
+            "image": {
+              "type": "base64_png",
+              "required": true
+            }
+          },
+          "output_type": "base64_png_grayscale",
+          "typical_latency_seconds": 2
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.005,
+          "instance_cost_per_hour": {
+            "ml.g5.xlarge": 1.41
+          }
+        },
+        "version": "2.0",
+        "last_updated": "2024-06-13"
+      },
+      "sam2": {
+        "label": "Segment Anything 2 (SAM 2)",
+        "description": "Smart object segmentation by Meta \u2014 click to select objects precisely.",
+        "category": "utility",
+        "studio": "image",
+        "provider": "Meta AI",
+        "license": "Apache 2.0",
+        "requires_hf_auth": false,
+        "source": {
+          "type": "huggingface",
+          "repo_id": "facebook/sam2-hiera-large"
+        },
+        "requirements": {
+          "min_vram_gb": 6,
+          "recommended_instance": "ml.g5.xlarge",
+          "min_instance": "ml.g5.xlarge",
+          "disk_gb": 5
+        },
+        "invoke": {
+          "library": "transformers",
+          "loader_class": "Sam2Model",
+          "processor_class": "Sam2Processor",
+          "predictor_type": "segmentation",
+          "input_fields": {
+            "image": {
+              "type": "base64_png",
+              "required": true
+            },
+            "points": {
+              "type": "list",
+              "required": false,
+              "description": "[[x,y], ...] coordinates"
+            },
+            "labels": {
+              "type": "list",
+              "required": false,
+              "description": "[1,0,...] foreground/background"
+            }
+          },
+          "output_type": "base64_png_mask",
+          "typical_latency_seconds": 2
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.005,
+          "instance_cost_per_hour": {
+            "ml.g5.xlarge": 1.41
+          }
+        },
+        "version": "2.0",
+        "last_updated": "2024-07-29"
+      },
+      "stable_video_diffusion": {
+        "label": "Stable Video Diffusion (SVD-XT)",
+        "description": "Image-to-video by Stability AI \u2014 25 frames from a single image.",
+        "category": "video_generation",
+        "studio": "video",
+        "provider": "Stability AI",
+        "license": "Stability AI Community License",
+        "requires_hf_auth": false,
+        "source": {
+          "type": "huggingface",
+          "repo_id": "stabilityai/stable-video-diffusion-img2vid-xt"
+        },
+        "requirements": {
+          "min_vram_gb": 16,
+          "recommended_instance": "ml.g5.2xlarge",
+          "min_instance": "ml.g5.xlarge",
+          "disk_gb": 20
+        },
+        "invoke": {
+          "library": "diffusers",
+          "loader_class": "StableVideoDiffusionPipeline",
+          "torch_dtype": "float16",
+          "predictor_type": "image_to_video",
+          "input_fields": {
+            "image": {
+              "type": "base64_png",
+              "required": true,
+              "description": "Conditioning image"
+            },
+            "num_frames": {
+              "type": "int",
+              "default": 14
+            },
+            "fps": {
+              "type": "int",
+              "default": 7
+            },
+            "motion_bucket_id": {
+              "type": "int",
+              "default": 127
+            },
+            "noise_aug_strength": {
+              "type": "float",
+              "default": 0.02
+            }
+          },
+          "output_type": "base64_mp4",
+          "typical_latency_seconds": 60
+        },
+        "pricing": {
+          "estimated_cost_per_video": 0.25,
+          "instance_cost_per_hour": {
+            "ml.g5.xlarge": 1.41,
+            "ml.g5.2xlarge": 2.82
+          }
+        },
+        "version": "1.1",
+        "last_updated": "2023-11-21"
+      }
+    },
+    "bundles": {
+      "enhancement": {
+        "label": "Enhancement Bundle",
+        "description": "Lightweight post-processing models sharing one GPU instance. Includes upscaling, background removal, and face restoration.",
+        "models": [
+          "real_esrgan",
+          "rmbg_2",
+          "codeformer"
+        ],
+        "recommended_instance": "ml.g5.xlarge",
+        "total_vram_gb": 6
+      },
+      "utility": {
+        "label": "Utility Bundle",
+        "description": "Depth estimation and segmentation models sharing one GPU instance.",
+        "models": [
+          "depth_anything_v2",
+          "sam2"
+        ],
+        "recommended_instance": "ml.g5.xlarge",
+        "total_vram_gb": 10
+      }
+    },
+    "dedicated_models": [
+      "flux1_dev",
+      "flux1_schnell",
+      "flux2_dev",
+      "sdxl_turbo",
+      "stable_video_diffusion"
+    ]
   }
 }
