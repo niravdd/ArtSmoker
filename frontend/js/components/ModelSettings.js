@@ -1638,7 +1638,7 @@
                 }
             } catch {}
 
-            const deployDesc = `Async (recommended): Scales to zero when idle — pay only when generating. Cold start ~5-10 min.${instanceType ? `\nInstance: ${instanceType}` : ''}\n\nAlways-On: Instant responses but costs ${hourlyCost}/hr continuously.`;
+            const deployDesc = `On-Demand (recommended): Scales to zero when idle — $0 when not in use. First request triggers a cold start (~5-10 min) while the model loads.${instanceType ? `\nInstance: ${instanceType}` : ''}\n\nAlways-On: No cold start — model stays loaded. Costs ${hourlyCost}/hr continuously, even when idle.`;
 
             // Ask endpoint type
             const useAsync = await window.showConfirm(
