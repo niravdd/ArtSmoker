@@ -4552,9 +4552,9 @@
           "repo_id": "black-forest-labs/FLUX.2-dev"
         },
         "requirements": {
-          "min_vram_gb": 48,
-          "recommended_instance": "ml.g6e.xlarge",
-          "min_instance": "ml.g6e.xlarge",
+          "min_vram_gb": 96,
+          "recommended_instance": "ml.g5.12xlarge",
+          "min_instance": "ml.g5.12xlarge",
           "disk_gb": 50
         },
         "invoke": {
@@ -4600,7 +4600,7 @@
         "pricing": {
           "estimated_cost_per_image": 0.15,
           "instance_cost_per_hour": {
-            "ml.g6e.xlarge": 2.61
+            "ml.g5.12xlarge": 7.09
           }
         },
         "version": "1.0",
