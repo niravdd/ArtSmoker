@@ -390,8 +390,11 @@ async def lifespan(app: FastAPI):
                     ResourceIds=[f"endpoint/{ep_name}/variant/primary"],
                 )
                 if not resp.get("ScalableTargets"):
-                    logger.warning("Auto-scaling missing for %s — registering now", ep_name)
-                    _setup_auto_scaling(ep_name)
+                    # Get cooldown from catalog
+                    typical = cfg.get("invoke", {}).get("typical_latency_seconds", 300)
+                    cooldown = max(600, typical * 2)
+                    logger.warning("Auto-scaling missing for %s — registering now (cooldown=%ds)", ep_name, cooldown)
+                    _setup_auto_scaling(ep_name, scale_in_cooldown=cooldown)
                     logger.info("Auto-scaling registered for %s", ep_name)
         except Exception as exc:
             logger.debug("Auto-scaling verification: %s", exc)

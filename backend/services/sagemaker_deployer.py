@@ -488,11 +488,14 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     # Set up auto-scaling (scale to zero when idle) for async endpoints.
     # May fail if endpoint is still Creating — retry in background.
     if endpoint_type == "async":
+        # Scale-in cooldown must exceed model load time to avoid killing during warmup
+        typical = model.get("invoke", {}).get("typical_latency_seconds", 300)
+        cooldown = max(600, typical * 2)  # At least 10 min, or 2x typical latency
         try:
-            _setup_auto_scaling(endpoint_name)
+            _setup_auto_scaling(endpoint_name, scale_in_cooldown=cooldown)
         except Exception as e:
             logger.warning("Auto-scaling setup deferred for %s (endpoint still Creating): %s", endpoint_name, e)
-            _retry_auto_scaling_in_background(endpoint_name)
+            _retry_auto_scaling_in_background(endpoint_name, scale_in_cooldown=cooldown)
 
     # Set CloudWatch log retention (SageMaker creates log groups automatically)
     _set_log_retention(endpoint_name)
@@ -641,7 +644,7 @@ def _set_log_retention(endpoint_name: str):
     threading.Thread(target=_apply, daemon=True, name=f"logret-{endpoint_name}").start()
 
 
-def _retry_auto_scaling_in_background(endpoint_name: str):
+def _retry_auto_scaling_in_background(endpoint_name: str, scale_in_cooldown: int = 600):
     """Retry auto-scaling setup after the endpoint reaches InService."""
     import threading, time as _time
 
@@ -651,7 +654,7 @@ def _retry_auto_scaling_in_background(endpoint_name: str):
             try:
                 status = check_endpoint_status(endpoint_name)
                 if status.get("status") == "InService":
-                    _setup_auto_scaling(endpoint_name)
+                    _setup_auto_scaling(endpoint_name, scale_in_cooldown=scale_in_cooldown)
                     logger.info("Auto-scaling configured for %s (deferred, attempt %d)", endpoint_name, attempt)
                     return
                 if status.get("status") == "Failed":
@@ -664,15 +667,18 @@ def _retry_auto_scaling_in_background(endpoint_name: str):
     threading.Thread(target=_retry, daemon=True, name=f"autoscale-{endpoint_name}").start()
 
 
-def _setup_auto_scaling(endpoint_name: str):
+def _setup_auto_scaling(endpoint_name: str, scale_in_cooldown: int = 600):
     """Configure auto-scaling for an async endpoint: scale to zero + scale from zero.
 
     Two policies needed (AWS limitation):
     1. Target tracking (ApproximateBacklogSizePerInstance): handles scale-in to zero
-       when the queue is empty for 10 minutes.
+       when the queue is empty for scale_in_cooldown seconds.
     2. Step scaling (HasBacklogWithoutCapacity): handles scale-OUT from zero when
        new requests arrive. Target tracking can't do this because "per instance"
        is undefined when instances = 0.
+
+    scale_in_cooldown: seconds idle before scaling to zero. Must be longer than
+    the model's load time, or auto-scaling will kill the instance during warmup.
     """
     region = _get_region()
     aas = boto3.client("application-autoscaling", region_name=region)
@@ -703,7 +709,7 @@ def _setup_auto_scaling(endpoint_name: str):
                 "Dimensions": [{"Name": "EndpointName", "Value": endpoint_name}],
                 "Statistic": "Average",
             },
-            "ScaleInCooldown": 600,   # 10 min idle → scale to zero
+            "ScaleInCooldown": scale_in_cooldown,
             "ScaleOutCooldown": 0,
         },
     )
