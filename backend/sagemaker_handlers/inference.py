@@ -206,9 +206,10 @@ def _load_diffusers(model_dir):
             logger.warning("Quantization failed for %s (%s), falling back to full precision: %s",
                           comp_name, comp_quant, e)
 
+    has_quant = "yes" if pre_loaded else "none"
     logger.info("Loading %s with %s (dtype=%s, quantization=%s)",
                 model_source, loader_class_name, _get_env("TORCH_DTYPE", "float16"),
-                quantization or "none")
+                has_quant)
 
     if pre_loaded:
         kwargs.update(pre_loaded)
