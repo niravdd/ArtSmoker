@@ -1538,7 +1538,7 @@
                                     ${deployed
                                         ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>
                                            <button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>`
-                                        : deploying
+                                        : (deploying || warmingUp)
                                         ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
                                         : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
                                     }
