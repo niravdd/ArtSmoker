@@ -1573,7 +1573,19 @@
 
                 // Attach deploy/teardown handlers
                 container.querySelectorAll('.ms-cm-deploy').forEach(btn => {
-                    btn.addEventListener('click', () => this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal, false, btn.dataset.license));
+                    btn.addEventListener('click', () => {
+                        // Disable immediately to prevent double-click
+                        btn.disabled = true;
+                        btn.textContent = 'Starting...';
+                        btn.className = 'btn btn-sm text-[10px] px-3 py-1 rounded bg-amber-500/20 border border-amber-500/30 text-amber-400 cursor-wait';
+                        // Update the status text next to it
+                        const statusEl = btn.closest('.flex')?.querySelector('.text-brand-text-muted\\/50, .text-\\[10px\\]');
+                        if (statusEl && statusEl.textContent.trim() === t('custom_models.not_deployed')) {
+                            statusEl.textContent = 'Preparing deployment...';
+                            statusEl.className = 'text-[10px] font-medium text-amber-400';
+                        }
+                        this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal, false, btn.dataset.license);
+                    });
                 });
                 container.querySelectorAll('.ms-cm-teardown').forEach(btn => {
                     btn.addEventListener('click', () => this._teardownCustomModel(btn.dataset.model, modal));
