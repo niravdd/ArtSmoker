@@ -1623,9 +1623,26 @@
                 }
             }
 
+            // Get model pricing for the dialog
+            let hourlyCost = '~$1.41';
+            let instanceType = '';
+            try {
+                const catResp = await fetch(`/api/custom-models/catalog/${modelKey}`);
+                if (catResp.ok) {
+                    const catData = await catResp.json();
+                    const costs = catData.pricing?.instance_cost_per_hour || {};
+                    const recommended = catData.requirements?.recommended_instance || '';
+                    instanceType = recommended;
+                    const rate = costs[recommended] || Object.values(costs)[0];
+                    if (rate) hourlyCost = `~$${rate.toFixed(2)}`;
+                }
+            } catch {}
+
+            const deployDesc = `Async (recommended): Scales to zero when idle — pay only when generating. Cold start ~5-10 min.${instanceType ? `\nInstance: ${instanceType}` : ''}\n\nAlways-On: Instant responses but costs ${hourlyCost}/hr continuously.`;
+
             // Ask endpoint type
             const useAsync = await window.showConfirm(
-                t('custom_models.deploy_type_desc'),
+                deployDesc,
                 {
                     title: t('custom_models.deploy_type_title'),
                     confirmLabel: t('custom_models.deploy_async'),
