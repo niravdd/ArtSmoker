@@ -206,10 +206,30 @@ def _load_diffusers(model_dir):
             logger.warning("Quantization failed for %s (%s), falling back to full precision: %s",
                           comp_name, comp_quant, e)
 
+    # Multi-GPU: load transformer with device_map to split across GPUs
+    device_map = _config.get("device_map", "")
+    if device_map and not pre_loaded:
+        # Load the transformer separately with device_map for multi-GPU distribution
+        transformer_class = _config.get("transformer_class", "")
+        if transformer_class:
+            logger.info("Loading transformer with device_map='%s' across multiple GPUs", device_map)
+            try:
+                TransformerClass = _import_class("diffusers", transformer_class)
+                pre_loaded["transformer"] = TransformerClass.from_pretrained(
+                    model_source, subfolder="transformer",
+                    device_map=device_map,
+                    torch_dtype=_get_torch_dtype(),
+                    token=hf_token,
+                )
+                num_devices = len(set(str(v) for v in pre_loaded["transformer"].hf_device_map.values()))
+                logger.info("Transformer distributed across %d devices (device_map=%s)", num_devices, device_map)
+            except Exception as e:
+                logger.warning("Multi-GPU transformer load failed: %s — falling back to single GPU", e)
+
     has_quant = "yes" if pre_loaded else "none"
-    logger.info("Loading %s with %s (dtype=%s, quantization=%s)",
+    logger.info("Loading %s with %s (dtype=%s, quantization=%s, device_map=%s)",
                 model_source, loader_class_name, _get_env("TORCH_DTYPE", "float16"),
-                has_quant)
+                has_quant, device_map or "none")
 
     if pre_loaded:
         kwargs.update(pre_loaded)
@@ -226,7 +246,10 @@ def _load_diffusers(model_dir):
 
     # Apply memory optimizations from catalog (via env vars)
     # Order matters: CPU offload INSTEAD of .to("cuda") — they're mutually exclusive
-    if _get_env_bool("ENABLE_MODEL_CPU_OFFLOAD"):
+    # Skip if device_map was used (model already placed across GPUs)
+    if device_map:
+        logger.info("Skipping .to(cuda)/offload — model placed by device_map")
+    elif _get_env_bool("ENABLE_MODEL_CPU_OFFLOAD"):
         logger.info("Enabling model CPU offload (keeps only active component on GPU)")
         pipe.enable_model_cpu_offload()
     elif _get_env_bool("ENABLE_SEQUENTIAL_CPU_OFFLOAD"):

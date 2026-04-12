@@ -4595,7 +4595,8 @@
           "typical_latency_seconds": 900,
           "prompt_guidance": "FLUX.2 dev is a 32B parameter model \u2014 the most capable open-source image generator.\nUse natural language \u2014 write like describing a photograph, painting, or cinematic shot.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 describe what you WANT instead.\nFLUX.2 excels at: text rendering in images, character consistency, multi-reference editing.\nLonger prompts work well (50-120 words) \u2014 the model has exceptional prompt following.\nCamera specs: '85mm lens, f/1.4', 'wide-angle 24mm', 'aerial drone shot'.\nLighting: 'golden hour', 'studio lighting', 'dramatic chiaroscuro', 'neon-lit'.\nQuality: 'professional photography', 'cinematic', '8k resolution', 'award-winning'.\nCan render readable text in images \u2014 include exact text in quotes if needed.",
           "max_concurrent_invocations": 1,
-          "enable_model_cpu_offload": true
+          "device_map": "auto",
+          "transformer_class": "Flux2Transformer2DModel"
         },
         "pricing": {
           "estimated_cost_per_image": 0.15,
