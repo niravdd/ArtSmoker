@@ -515,6 +515,168 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
 _endpoint_status_cache: dict = {}  # endpoint_name → {"result": dict, "time": float}
 _ENDPOINT_CACHE_TTL = 30  # seconds
 
+# Model readiness cache — tracks which endpoints have confirmed model loading
+# Once "loaded in" is seen in logs, the endpoint is marked ready permanently
+# (until the cache is cleared by teardown or server restart)
+_model_readiness: dict = {}  # endpoint_name → {"ready": bool, "detail": str, "checked_at": float}
+_readiness_monitors: set = set()  # endpoints with active background monitors
+
+
+def _check_model_readiness(endpoint_name: str) -> dict:
+    """Check if the model is actually loaded and ready, not just InService.
+
+    Uses a tiered approach:
+    1. Check cache — if already confirmed ready, return immediately
+    2. Quick CloudWatch log scan — look for 'loaded in' or error markers
+    3. Start background monitor if not yet confirmed (polls every 30s)
+
+    Returns: {"ready": bool, "detail": str}
+    """
+    import time as _time
+
+    # 1. Cached readiness (permanent once confirmed)
+    cached = _model_readiness.get(endpoint_name)
+    if cached and cached.get("ready"):
+        return cached
+
+    # 2. Quick log scan (non-blocking, fast)
+    readiness = _scan_logs_for_readiness(endpoint_name)
+    if readiness["ready"]:
+        _model_readiness[endpoint_name] = readiness
+        logger.info("Model ready confirmed for %s: %s", endpoint_name, readiness["detail"])
+        return readiness
+
+    # 3. Start background monitor if not already running
+    if endpoint_name not in _readiness_monitors:
+        _start_readiness_monitor(endpoint_name)
+
+    return readiness
+
+
+def _scan_logs_for_readiness(endpoint_name: str) -> dict:
+    """Scan CloudWatch logs for model readiness indicators.
+
+    Looks for our handler's log lines:
+    - "Model ... loaded in Xs" → ready
+    - "CUDA out of memory" → failed
+    - "NameError" / "Error" → failed
+    - "Loading checkpoint shards: N%" → progress
+    - "Enabling ... offload" → almost ready
+    """
+    try:
+        logs_client = boto3.client("logs", region_name=_get_region())
+        log_group = f"/aws/sagemaker/Endpoints/{endpoint_name}"
+
+        # Find the main log stream (not data-log)
+        streams = logs_client.describe_log_streams(
+            logGroupName=log_group,
+            orderBy="LastEventTime",
+            descending=True,
+            limit=3,
+        )
+        stream_name = None
+        for s in streams.get("logStreams", []):
+            if "data-log" not in s["logStreamName"]:
+                stream_name = s["logStreamName"]
+                break
+
+        if not stream_name:
+            return {"ready": False, "detail": "Waiting for container to start..."}
+
+        # Scan logs (get last 200 events)
+        events = logs_client.get_log_events(
+            logGroupName=log_group,
+            logStreamName=stream_name,
+            startFromHead=True,
+            limit=500,
+        )
+
+        latest_progress = ""
+        for e in events.get("events", []):
+            msg = e["message"].strip()
+
+            # Success: model loaded
+            if "loaded in" in msg and "Model" in msg:
+                # Extract the load time
+                return {"ready": True, "detail": msg[msg.index("Model"):msg.index("Model") + 80]}
+
+            # Failure indicators
+            if "CUDA out of memory" in msg:
+                return {"ready": False, "detail": "Failed: GPU out of memory", "failed": True}
+            if "NameError" in msg:
+                return {"ready": False, "detail": "Failed: handler code error", "failed": True}
+            if "Quantization failed" in msg:
+                return {"ready": False, "detail": "Failed: quantization error", "failed": True}
+
+            # Progress indicators
+            if "checkpoint shards" in msg and "%" in msg:
+                # Extract percentage
+                import re
+                pct = re.search(r'(\d+)%', msg)
+                if pct:
+                    latest_progress = f"Loading model weights... {pct.group(1)}%"
+            elif "pipeline comp" in msg and "%" in msg:
+                import re
+                pct = re.search(r'(\d+)%', msg)
+                if pct:
+                    latest_progress = f"Loading pipeline... {pct.group(1)}%"
+            elif "Enabling" in msg and "offload" in msg:
+                latest_progress = "Configuring memory offload..."
+            elif "Quantizing" in msg:
+                latest_progress = "Quantizing model..."
+            elif "Loading" in msg and "with library" in msg:
+                latest_progress = "Starting model download..."
+
+        if latest_progress:
+            return {"ready": False, "detail": latest_progress}
+        return {"ready": False, "detail": "Initializing container..."}
+
+    except Exception as e:
+        # Log group may not exist yet
+        if "ResourceNotFoundException" in str(e):
+            return {"ready": False, "detail": "Waiting for container to start..."}
+        return {"ready": False, "detail": "Checking..."}
+
+
+def _start_readiness_monitor(endpoint_name: str):
+    """Start a background thread that polls logs until the model is ready."""
+    import threading, time as _time
+
+    _readiness_monitors.add(endpoint_name)
+
+    def _monitor():
+        try:
+            for attempt in range(120):  # Up to 60 min (120 × 30s)
+                _time.sleep(30)
+                readiness = _scan_logs_for_readiness(endpoint_name)
+
+                if readiness.get("ready"):
+                    _model_readiness[endpoint_name] = readiness
+                    logger.info("Background monitor: %s is ready — %s", endpoint_name, readiness["detail"])
+                    break
+
+                if readiness.get("failed"):
+                    _model_readiness[endpoint_name] = readiness
+                    logger.warning("Background monitor: %s failed — %s", endpoint_name, readiness["detail"])
+                    break
+
+                if attempt % 4 == 0:  # Log progress every 2 min
+                    logger.debug("Background monitor: %s — %s", endpoint_name, readiness.get("detail", "checking"))
+            else:
+                _model_readiness[endpoint_name] = {"ready": False, "detail": "Timed out waiting for model to load (60 min)"}
+                logger.warning("Background monitor: %s timed out", endpoint_name)
+        finally:
+            _readiness_monitors.discard(endpoint_name)
+
+    threading.Thread(target=_monitor, daemon=True, name=f"readiness-{endpoint_name}").start()
+    logger.info("Started readiness monitor for %s", endpoint_name)
+
+
+def clear_readiness_cache(endpoint_name: str):
+    """Clear readiness cache for an endpoint (called on teardown/redeploy)."""
+    _model_readiness.pop(endpoint_name, None)
+    _readiness_monitors.discard(endpoint_name)
+
 
 def check_endpoint_status(endpoint_name: str) -> dict:
     """Check the status of an Amazon SageMaker endpoint.
@@ -535,39 +697,24 @@ def check_endpoint_status(endpoint_name: str) -> dict:
                           config=BotoConfig(connect_timeout=5, read_timeout=10, retries={"max_attempts": 1}))
         resp = sm.describe_endpoint(EndpointName=endpoint_name)
 
-        # Detect warm-up period: InService but model may still be downloading/loading
-        # inside the container. SageMaker reports InService as soon as the container
-        # starts, but the model takes minutes to download from HuggingFace and load.
-        # Warm-up window is model-specific from the catalog (large models need longer).
+        # Detect warm-up: check if model is ACTUALLY ready by reading CloudWatch logs
+        # SageMaker reports InService as soon as the container starts, but the model
+        # may still be downloading weights and loading for 5-60+ minutes.
+        # Our handler logs "Model ... loaded in Xs" when truly ready.
         status = resp["EndpointStatus"]
         warming_up = False
+        warmup_detail = ""
+
         if status == "InService":
-            creation_time = resp.get("CreationTime")
-            if creation_time:
-                from datetime import datetime, timezone
-                age_seconds = (datetime.now(timezone.utc) - creation_time.astimezone(timezone.utc)).total_seconds()
-
-                # Look up warm-up time from catalog via registry
-                warmup_seconds = 900  # default 15 min
-                try:
-                    from backend.services.model_registry import get_registry
-                    reg = get_registry()
-                    for _k, cfg in reg.get("image_models", {}).items():
-                        if cfg.get("deployment", {}).get("endpoint_name") == endpoint_name:
-                            typical = cfg.get("invoke", {}).get("typical_latency_seconds", 300)
-                            # Warm-up = 2x typical latency (covers download + load + first inference)
-                            warmup_seconds = max(900, typical * 2)
-                            break
-                except Exception:
-                    pass
-
-                if age_seconds < warmup_seconds:
-                    warming_up = True
+            readiness = _check_model_readiness(endpoint_name)
+            warming_up = not readiness["ready"]
+            warmup_detail = readiness.get("detail", "")
 
         result = {
             "endpoint_name": endpoint_name,
             "status": status,
             "warming_up": warming_up,
+            "warmup_detail": warmup_detail,
             "creation_time": resp.get("CreationTime", "").isoformat() if resp.get("CreationTime") else "",
             "last_modified": resp.get("LastModifiedTime", "").isoformat() if resp.get("LastModifiedTime") else "",
         }
@@ -582,6 +729,8 @@ def check_endpoint_status(endpoint_name: str) -> dict:
 def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
     """Delete an Amazon SageMaker endpoint, S3 artifacts, and HF token secret."""
     endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
+    clear_readiness_cache(endpoint_name)
+    _endpoint_status_cache.pop(endpoint_name, None)
     sm_model_name = f"artsmoker-{model_key.replace('_', '-')}-model"
     config_name = f"{endpoint_name}-config"
 
