@@ -598,11 +598,16 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
 
         # Scan backwards (newest first) to find the most recent status
         latest_progress = ""
-        found_ready = False
         found_failure = None
+        last_activity_ts = None  # Timestamp of most recent meaningful log event
 
         for e in reversed(events.get("events", [])):
             msg = e["message"].strip()
+            event_ts = e.get("timestamp", 0)
+
+            # Track last meaningful activity (any non-empty filtered event)
+            if last_activity_ts is None:
+                last_activity_ts = event_ts
 
             # Success: model loaded
             if "loaded in" in msg and "Model" in msg:
@@ -610,7 +615,7 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
                     detail = msg[msg.index("Model"):msg.index("Model") + 80]
                 except (ValueError, IndexError):
                     detail = "Model loaded"
-                return {"ready": True, "detail": detail}
+                return {"ready": True, "detail": detail, "last_activity_ms": event_ts}
 
             # Failure indicators (take the most recent one)
             if not found_failure:
@@ -624,7 +629,6 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
             # Progress indicators — take the first (most recent) match
             if not latest_progress:
                 if "checkpoint shards" in msg and "%" in msg:
-                    # Extract "N/M" and percentage: "Loading checkpoint shards:  57%|...| 4/7 [31:09..."
                     pct_match = _re.search(r'(\d+)%', msg)
                     fraction_match = _re.search(r'(\d+)/(\d+)\s*\[', msg)
                     if pct_match and fraction_match:
@@ -648,10 +652,10 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
                 break
 
         if found_failure:
-            return {"ready": False, "detail": found_failure, "failed": True}
+            return {"ready": False, "detail": found_failure, "failed": True, "last_activity_ms": last_activity_ts}
         if latest_progress:
-            return {"ready": False, "detail": latest_progress}
-        return {"ready": False, "detail": "Initializing container..."}
+            return {"ready": False, "detail": latest_progress, "last_activity_ms": last_activity_ts}
+        return {"ready": False, "detail": "Initializing container...", "last_activity_ms": last_activity_ts}
 
     except Exception as e:
         # Log group may not exist yet
@@ -740,6 +744,17 @@ def check_endpoint_status(endpoint_name: str) -> dict:
             readiness = _check_model_readiness(endpoint_name)
             warming_up = not readiness["ready"]
             warmup_detail = readiness.get("detail", "")
+
+            # If model is NOT ready yet (loading after scale-out), ensure auto-scaling
+            # is paused so scale-in doesn't kill the instance mid-load.
+            if warming_up and endpoint_name in _auto_scaling_registered:
+                _deregister_auto_scaling_during_load(endpoint_name)
+
+        elif status == "InService" and instance_count == 0:
+            # Scaled to zero — clear readiness cache so next scale-out starts fresh.
+            if _model_readiness.get(endpoint_name, {}).get("ready"):
+                _model_readiness.pop(endpoint_name, None)
+                _readiness_monitors.discard(endpoint_name)
 
         result = {
             "endpoint_name": endpoint_name,
@@ -886,6 +901,153 @@ def invalidate_model_cache(model_key: str) -> dict:
 
 # Track which endpoints already have auto-scaling registered to avoid duplicates
 _auto_scaling_registered: set[str] = set()
+
+
+def get_endpoint_health(endpoint_name: str) -> dict:
+    """Check if an endpoint is alive and making progress.
+
+    Returns a health assessment for use by the async job poller to decide
+    whether to keep waiting or give up on pending jobs.
+
+    Returns:
+        {
+            "alive": bool,       # Endpoint exists and is in a working state
+            "progressing": bool,  # Actively loading model or processing
+            "ready": bool,       # Model loaded and ready for inference
+            "failed": bool,      # Confirmed failure (OOM, code error, etc.)
+            "detail": str,       # Human-readable status
+            "stale_seconds": int, # Seconds since last meaningful log activity
+        }
+    """
+    import time as _time
+
+    try:
+        status_info = check_endpoint_status(endpoint_name)
+    except Exception:
+        return {"alive": False, "progressing": False, "ready": False, "failed": False,
+                "detail": "Cannot reach endpoint", "stale_seconds": 0}
+
+    ep_status = status_info.get("status", "NotFound")
+    instances = status_info.get("instance_count", 0)
+    warming = status_info.get("warming_up", False)
+
+    # Endpoint gone or failed
+    if ep_status in ("Failed", "NotFound"):
+        return {"alive": False, "progressing": False, "ready": False, "failed": True,
+                "detail": f"Endpoint {ep_status}", "stale_seconds": 0}
+
+    # Endpoint is creating or updating (scaling out)
+    if ep_status in ("Creating", "Updating"):
+        return {"alive": True, "progressing": True, "ready": False, "failed": False,
+                "detail": "Scaling out...", "stale_seconds": 0}
+
+    # InService but no instances — scaled to zero, waiting for auto-scale
+    if ep_status == "InService" and instances == 0:
+        return {"alive": True, "progressing": False, "ready": False, "failed": False,
+                "detail": "Scaled to zero — waiting for scale-out", "stale_seconds": 0}
+
+    # InService with instances — check model readiness via logs
+    if ep_status == "InService" and instances > 0:
+        if not warming:
+            return {"alive": True, "progressing": False, "ready": True, "failed": False,
+                    "detail": "Ready", "stale_seconds": 0}
+
+        # Model is loading — scan logs for progress and staleness
+        readiness = _scan_logs_for_readiness(endpoint_name)
+
+        if readiness.get("failed"):
+            return {"alive": True, "progressing": False, "ready": False, "failed": True,
+                    "detail": readiness.get("detail", "Failed"), "stale_seconds": 0}
+
+        # Compute staleness from last log activity
+        last_ms = readiness.get("last_activity_ms") or 0
+        stale_seconds = int(_time.time() - last_ms / 1000) if last_ms else 0
+
+        return {"alive": True, "progressing": True, "ready": False, "failed": False,
+                "detail": readiness.get("detail", "Loading..."), "stale_seconds": stale_seconds}
+
+    return {"alive": True, "progressing": False, "ready": False, "failed": False,
+            "detail": f"Status: {ep_status}", "stale_seconds": 0}
+
+
+def _compute_container_timeout(model: dict) -> int:
+    """Compute MMS container timeout based on model characteristics.
+
+    The timeout must cover both model loading and inference. For models with
+    quantization or large parameter counts, loading can take much longer than
+    inference. We compute based on available signals from the catalog.
+    """
+    invoke = model.get("invoke", {})
+    reqs = model.get("requirements", {})
+
+    # Inference time
+    typical_latency = invoke.get("typical_latency_seconds", 300)
+
+    # Model loading signals: quantization, VRAM requirements, source type
+    has_quantization = bool(invoke.get("quantization_components"))
+    min_vram = reqs.get("min_vram_gb", 0)
+    source_type = model.get("source", {}).get("type", "")
+
+    # Estimate load time based on model characteristics
+    if has_quantization and min_vram >= 24:
+        # Large quantized model (e.g. FLUX.2 dev 32B) — loading alone can take 60+ min
+        estimated_load = 4800  # 80 min
+    elif has_quantization:
+        # Smaller quantized model
+        estimated_load = 1800  # 30 min
+    elif min_vram >= 24:
+        # Large model without quantization
+        estimated_load = 2400  # 40 min
+    elif source_type == "huggingface":
+        # Standard HF model — download + load
+        estimated_load = 900  # 15 min
+    else:
+        # Pre-bundled or small model
+        estimated_load = 600  # 10 min
+
+    # Timeout = max(load estimate, 3x inference time) — covers both phases
+    timeout = max(estimated_load, typical_latency * 3)
+    return timeout
+
+
+def _deregister_auto_scaling_during_load(endpoint_name: str):
+    """Remove auto-scaling while the model is loading after a scale-out.
+
+    Without this, the scale-in policy could kill the instance mid-load
+    (cooldown starts from the scale-out activity, and model load may exceed it).
+    Auto-scaling is re-registered by _register_auto_scaling_after_ready() once
+    the readiness monitor confirms the model is fully loaded.
+    """
+    if endpoint_name not in _auto_scaling_registered:
+        return
+
+    try:
+        region = _get_region()
+        aas = boto3.client("application-autoscaling", region_name=region)
+        resource_id = f"endpoint/{endpoint_name}/variant/primary"
+
+        # Remove scaling policies first
+        policies = aas.describe_scaling_policies(
+            ServiceNamespace="sagemaker", ResourceId=resource_id,
+        )
+        for p in policies.get("ScalingPolicies", []):
+            aas.delete_scaling_policy(
+                PolicyName=p["PolicyName"],
+                ServiceNamespace="sagemaker",
+                ResourceId=resource_id,
+                ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+            )
+
+        # Deregister the scalable target
+        aas.deregister_scalable_target(
+            ServiceNamespace="sagemaker",
+            ResourceId=resource_id,
+            ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+        )
+        _auto_scaling_registered.discard(endpoint_name)
+        logger.info("Auto-scaling paused for %s — model loading, will re-register when ready", endpoint_name)
+    except Exception as e:
+        logger.debug("Auto-scaling deregister for %s: %s", endpoint_name, e)
 
 
 def _register_auto_scaling_after_ready(endpoint_name: str):
@@ -1235,9 +1397,10 @@ def _get_model_environment(model_key: str, model: dict,
         ),
         # CUDA memory management
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
-        # Container timeout — large models (FLUX.2) need >60s default
-        # MMS uses this for both model loading and invocation timeout
-        "SAGEMAKER_MODEL_SERVER_TIMEOUT": str(invoke.get("typical_latency_seconds", 300) * 3),
+        # Container timeout — MMS uses this for BOTH model loading AND invocation.
+        # Must accommodate the full cold-start cycle (download + quantize + load)
+        # plus inference time. Reads from catalog; defaults conservatively.
+        "SAGEMAKER_MODEL_SERVER_TIMEOUT": str(_compute_container_timeout(model)),
     }
 
     # HuggingFace token for gated models

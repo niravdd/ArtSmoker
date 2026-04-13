@@ -487,20 +487,45 @@ def _check_job(job: dict, s3):
         if "NoSuchKey" in str(e) or "404" in str(e):
             _update_progress(job)
         else:
+            # Smart timeout: check actual endpoint health rather than fixed timers.
+            # If the model is actively loading (logs show progress), keep waiting.
+            # Only fail when: endpoint is dead, confirmed failure, or stalled with no progress.
             elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
-            # Timeout based on model's typical latency (default 15 min)
-            # Allow 3x typical latency for cold start + queue wait
-            try:
-                from backend.services.custom_models import get_catalog_model
-                typical = get_catalog_model(job["model_key"]) or {}
-                typical_latency = typical.get("invoke", {}).get("typical_latency_seconds", 300)
-                timeout = max(900, typical_latency * 3)
-            except Exception:
-                timeout = 900
-            if elapsed > timeout:
+            should_timeout = False
+            fail_reason = ""
+
+            ep_name = job.get("endpoint_name", "")
+            if ep_name and elapsed > 300:  # Start checking after 5 min
+                try:
+                    from backend.services.sagemaker_deployer import get_endpoint_health
+                    health = get_endpoint_health(ep_name)
+
+                    if health["failed"]:
+                        should_timeout = True
+                        fail_reason = health["detail"]
+                    elif not health["alive"]:
+                        should_timeout = True
+                        fail_reason = health["detail"]
+                    elif health["progressing"]:
+                        # Actively loading — keep waiting, but check for stalls
+                        stale = health.get("stale_seconds", 0)
+                        if stale > 1800:  # No log activity for 30 min = stalled
+                            should_timeout = True
+                            fail_reason = f"Stalled — no log activity for {stale // 60} min"
+                        else:
+                            logger.debug("Async job %s: endpoint progressing (%s, %.0fs elapsed)",
+                                        job["job_id"], health["detail"], elapsed)
+                    elif health["ready"]:
+                        # Model is ready but output not in S3 — might be processing
+                        logger.debug("Async job %s: model ready, waiting for output (%.0fs)", job["job_id"], elapsed)
+                    # else: scaled to zero or unknown — keep waiting for scale-out
+                except Exception:
+                    logger.debug("Async job %s: health check failed, keeping alive (%.0fs)", job["job_id"], elapsed)
+
+            if should_timeout:
                 with _lock:
                     job["status"] = FAILED
-                    job["error"] = f"Timed out ({int(elapsed)}s) — model may need longer or endpoint had issues"
+                    job["error"] = fail_reason or f"Endpoint issue after {int(elapsed)}s"
                     job["completed_at"] = datetime.now(timezone.utc).isoformat()
                 _update_gallery_on_failure(job)
                 _cleanup_s3(job, s3)
@@ -879,12 +904,24 @@ def resume_pending_jobs() -> int:
 
             except Exception as e:
                 if "NoSuchKey" in str(e) or "404" in str(e):
-                    # Output not ready — check if timed out
+                    # Output not ready — check endpoint health before giving up
                     elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
-                    if elapsed > 900:
+                    should_fail = False
+                    ep_name = job.get("endpoint_name", "")
+                    if ep_name and elapsed > 300:
+                        try:
+                            from backend.services.sagemaker_deployer import get_endpoint_health
+                            health = get_endpoint_health(ep_name)
+                            if health["failed"] or not health["alive"]:
+                                should_fail = True
+                            elif health["progressing"] and health.get("stale_seconds", 0) > 1800:
+                                should_fail = True  # Stalled
+                        except Exception:
+                            pass
+                    if should_fail:
                         with _lock:
                             job["status"] = FAILED
-                            job["error"] = f"Timed out ({int(elapsed)}s) — endpoint may have been at zero capacity"
+                            job["error"] = f"Timed out ({int(elapsed)}s) — endpoint may have failed or been deleted"
                             job["completed_at"] = datetime.now(timezone.utc).isoformat()
                         _update_gallery_on_failure(job)
                         _persist_job_to_s3(job)

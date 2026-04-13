@@ -266,7 +266,7 @@ _DEFAULT_FORMAT_FAMILIES = {
         "prompt_path": "prompt", "negative_prompt_path": "negative_prompt",
         "image_path": "image", "mask_path": "mask", "seed_path": "seed",
         "response_image_path": "images[0]",
-        "body_template": {"output_format": "png", "grow_mask": 5},
+        "body_template": {"output_format": "png", "grow_mask": 15},
         "parameters": {
             "prompt": {"type": "string", "required": True, "max_length": 10000},
             "negative_prompt": {"type": "string", "required": False, "max_length": 10000},
@@ -300,7 +300,7 @@ _DEFAULT_FORMAT_FAMILIES = {
         "description": "Stability AI Erase. Removes objects via mask.",
         "image_path": "image", "mask_path": "mask", "seed_path": "seed",
         "response_image_path": "images[0]",
-        "body_template": {"output_format": "png", "grow_mask": 5},
+        "body_template": {"output_format": "png", "grow_mask": 15},
         "parameters": {
             "image": {"type": "image", "required": True},
             "mask": {"type": "image", "required": False, "description": "Black/white mask (white = erase area)"},

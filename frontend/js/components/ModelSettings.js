@@ -1610,9 +1610,9 @@
                         const deploying = !scalingUp && (m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying');
                         const failed = m.deployment_status === 'Failed' || m.deploy_stage === 'failed';
                         const deployed = active || idle;
-                        const cacheHint = m.has_cache ? 'Cached' : 'Cold start ~' + (m.warm_up_info?.cold_start_minutes || '?') + ' min';
+                        const cacheHint = m.has_cache ? 'Cached — faster startup' : 'Cold start on activation';
                         const statusColor = active ? 'text-emerald-400' : idle ? 'text-blue-400' : warmingUp ? 'text-cyan-400' : (deploying || scalingUp) ? 'text-amber-400' : failed ? 'text-red-400' : 'text-brand-text-muted/50';
-                        const statusText = active ? t('custom_models.active') : idle ? `Idle — scales on demand (${cacheHint})` : warmingUp ? (m.warmup_detail || t('custom_models.warming_up')) : scalingUp ? 'Starting instance...' : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? t('custom_models.failed') : t('custom_models.not_deployed');
+                        const statusText = active ? t('custom_models.active') : idle ? `Inactive — activates on next request (${cacheHint})` : warmingUp ? (m.warmup_detail || t('custom_models.warming_up')) : scalingUp ? 'Starting instance...' : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? t('custom_models.failed') : t('custom_models.not_deployed');
                         const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.hf_auth')}</span>` : '';
                         const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
                         const userBadge = m.user_added ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>` : '';
@@ -1636,9 +1636,11 @@
                                 </div>
                                 <div class="flex items-center gap-2 flex-shrink-0">
                                     <span class="text-[10px] font-medium ${statusColor}">${statusText}</span>
-                                    ${deployed
+                                    ${idle
                                         ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>
                                            <button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>`
+                                        : active
+                                        ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>`
                                         : (deploying || warmingUp || scalingUp)
                                         ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
                                         : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
@@ -1662,16 +1664,28 @@
                     if (firstSub) firstSub.open = true;
                 }
 
-                // Auto-refresh if any models are deploying or warming up
+                // Auto-refresh based on model states:
+                // - Deploying/warming up: every 2 min (need progress updates)
+                // - Active (instances running): every 10 min (catch scale-in transitions)
+                // - Idle: no auto-refresh needed
                 const hasInProgress = models.some(m =>
                     m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.warming_up
+                );
+                const hasActive = !hasInProgress && models.some(m =>
+                    m.deployment_status === 'InService' && m.instance_count > 0 && !m.warming_up
                 );
                 if (hasInProgress) {
                     clearTimeout(this._cmPollTimer);
                     this._cmPollTimer = setTimeout(() => {
                         this._customModelsLoaded = false;
                         this._loadCustomModels(modal);
-                    }, 120000);
+                    }, 120000);  // 2 min during active loading
+                } else if (hasActive) {
+                    clearTimeout(this._cmPollTimer);
+                    this._cmPollTimer = setTimeout(() => {
+                        this._customModelsLoaded = false;
+                        this._loadCustomModels(modal);
+                    }, 600000);  // 10 min for active models — catch scale-in
                 }
 
                 // Attach deploy/teardown handlers

@@ -795,7 +795,7 @@
                     if (outSection) outSection.classList.toggle('hidden', !needsOutpaint);
                     if (searchSection) searchSection.classList.toggle('hidden', !needsSearch);
 
-                    // Update labels for context
+                    // Update labels, placeholders, and hints for each mode
                     if (searchLabel) {
                         searchLabel.textContent = editMode === 'search_recolor'
                             ? t('asset_viewer.search_recolor_label')
@@ -805,11 +805,39 @@
                         const labels = {
                             'inpaint': t('asset_viewer.edit_prompt_inpaint'),
                             'erase': t('asset_viewer.edit_prompt_erase_full'),
-                            'outpaint': t('asset_viewer.edit_prompt_outpaint'),
+                            'outpaint': t('asset_viewer.edit_prompt_outpaint_full'),
                             'search_replace': t('asset_viewer.edit_prompt_replace'),
                             'search_recolor': t('asset_viewer.edit_prompt_recolor'),
                         };
                         promptLabel.textContent = labels[editMode] || t('asset_viewer.edit_prompt_default');
+                    }
+                    // Update placeholder per mode
+                    const promptInput = this._overlay?.querySelector('#av-edit-prompt');
+                    if (promptInput) {
+                        const placeholders = {
+                            'inpaint': t('asset_viewer.edit_prompt_placeholder_inpaint'),
+                            'erase': t('asset_viewer.edit_prompt_placeholder_erase'),
+                            'outpaint': t('asset_viewer.edit_prompt_placeholder_outpaint'),
+                            'search_replace': t('asset_viewer.edit_prompt_placeholder_replace'),
+                            'search_recolor': t('asset_viewer.edit_prompt_placeholder_recolor'),
+                        };
+                        promptInput.placeholder = placeholders[editMode] || t('asset_viewer.edit_prompt_placeholder');
+                    }
+                    // Update mode-specific hint
+                    const maskHint = this._overlay?.querySelector('#av-mask-section p');
+                    const editHint = this._overlay?.querySelector('#av-edit-status')?.previousElementSibling;
+                    const hints = {
+                        'inpaint': t('asset_viewer.edit_mode_hint_inpaint'),
+                        'erase': t('asset_viewer.edit_mode_hint_erase'),
+                        'outpaint': t('asset_viewer.edit_mode_hint_outpaint'),
+                        'search_replace': t('asset_viewer.edit_mode_hint_replace'),
+                        'search_recolor': t('asset_viewer.edit_mode_hint_recolor'),
+                    };
+                    if (maskHint && needsMask) {
+                        maskHint.textContent = hints[editMode] || t('asset_viewer.mask_hint_full');
+                    }
+                    if (editHint) {
+                        editHint.textContent = hints[editMode] || t('asset_viewer.edit_hint_full');
                     }
                 });
             });

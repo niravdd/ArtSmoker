@@ -1265,13 +1265,45 @@ async def edit_image(body: ImageEditRequest):
         except Exception:
             pass
 
+    # Smart prompt transformation for inpainting:
+    # Users often write removal instructions ("Remove X", "Delete X", "Get rid of X")
+    # but the Stability Inpaint API expects a GENERATIVE prompt describing what should
+    # APPEAR in the masked area. Transform removal prompts into generative descriptions.
+    edit_prompt = body.prompt
+    if purpose == "inpainting" and edit_prompt:
+        import re as _re
+        removal_patterns = [
+            r"^(?:remove|delete|erase|get rid of|clear|clean up|take out|eliminate)\s+(?:the\s+)?",
+            r"^(?:hide|cover|mask|paint over|fill in|replace)\s+(?:the\s+)?",
+        ]
+        is_removal = any(_re.match(p, edit_prompt, _re.IGNORECASE) for p in removal_patterns)
+        if is_removal:
+            # Use LLM to transform the removal prompt into a generative description
+            try:
+                from backend.services.bedrock_client import invoke_llm
+                transform_prompt = (
+                    f"An image editing tool needs a generative prompt for inpainting.\n"
+                    f"The user said: \"{edit_prompt}\"\n"
+                    f"This is a REMOVAL request. The inpainting model needs to know what should "
+                    f"REPLACE the removed area — describe the background/surface that should fill in.\n"
+                    f"Output ONLY the replacement description (e.g., 'clean wall surface matching "
+                    f"surrounding architecture' or 'continuation of the brick facade'). "
+                    f"Keep it short (under 30 words). No explanation."
+                )
+                generative_prompt = invoke_llm(transform_prompt, complexity="fast", max_tokens=100, temperature=0.3).strip()
+                if generative_prompt:
+                    logger.info("Inpaint prompt transformed: '%s' → '%s'", edit_prompt[:50], generative_prompt[:50])
+                    edit_prompt = generative_prompt
+            except Exception as e:
+                logger.warning("Inpaint prompt transform failed (using original): %s", e)
+
     logger.info("Image edit: model=%s purpose=%s source=%s prompt=%s",
-                body.model, purpose, body.source_image_id, body.prompt[:50] if body.prompt else "(none)")
+                body.model, purpose, body.source_image_id, edit_prompt[:50] if edit_prompt else "(none)")
 
     try:
         result_bytes = invoke_image_model(
             body.model,
-            body.prompt,
+            edit_prompt,
             negative_prompt=body.negative_prompt,
             seed=body.seed,
             region_override=body.region,
