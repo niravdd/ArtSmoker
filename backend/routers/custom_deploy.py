@@ -196,22 +196,36 @@ async def get_instance_options(model_key: str):
         if needs_bf16 and not supports_bf16:
             continue
 
+        # Skip if model needs more system RAM than instance has
+        # (e.g., runtime quantization needs lots of RAM)
+        min_ram = model.get("requirements", {}).get("min_ram_gb", 0)
+        instance_ram = specs.get("ram_gb", 0)
+        if min_ram > 0 and instance_ram < min_ram:
+            continue
+
         # Evaluate viability
+        uses_offload = model.get("invoke", {}).get("enable_model_cpu_offload") or model.get("invoke", {}).get("enable_sequential_cpu_offload")
+        uses_quantization = bool(model.get("invoke", {}).get("quantization_components"))
+
         if total_vram >= model_vram * 1.3:
-            # Comfortable fit — 30% headroom for activations
             viability = "recommended"
             speed_note = "Model fits comfortably"
         elif total_vram >= model_vram:
-            # Fits but tight — may need offloading for activations
             viability = "viable"
-            speed_note = "Tight fit — may need CPU offload for some operations"
+            speed_note = "Fits with some headroom"
+        elif uses_offload and vram_per_gpu >= model_vram * 0.8:
+            # With offloading, only one component on GPU at a time
+            viability = "viable"
+            speed_note = "Uses CPU offloading — slightly slower"
+        elif uses_quantization and vram_per_gpu >= 16:
+            # With quantization, model shrinks significantly — 16GB+ GPUs can handle it
+            viability = "viable"
+            speed_note = "Uses quantization + offloading"
         elif total_vram >= model_vram * 0.5 and gpus >= 2:
-            # Multi-GPU can split, but individual GPUs are small
             viability = "doubtful"
-            speed_note = "Requires model sharding across GPUs — slower"
+            speed_note = "Tight — may require sharding or aggressive offloading"
         else:
-            # Not enough VRAM even with tricks
-            continue  # Don't show non-viable
+            continue  # Not viable
 
         # Estimate speed relative to recommended instance
         if instance_type == recommended:
