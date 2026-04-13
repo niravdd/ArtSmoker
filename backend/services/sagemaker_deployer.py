@@ -579,50 +579,76 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
         if not stream_name:
             return {"ready": False, "detail": "Waiting for container to start..."}
 
-        # Scan logs (get last 200 events)
-        events = logs_client.get_log_events(
+        # Read from the END of the stream (most recent events) and filter
+        # pings in Python. get_log_events with startFromHead=False gives us
+        # the tail, which is where checkpoint progress lives.
+        raw_events = logs_client.get_log_events(
             logGroupName=log_group,
             logStreamName=stream_name,
-            startFromHead=True,
+            startFromHead=False,
             limit=500,
         )
+        # Filter out ping healthchecks and metric collector noise
+        events = {"events": [
+            e for e in raw_events.get("events", [])
+            if "/ping" not in e["message"] and "MetricCollector" not in e["message"]
+        ]}
 
+        import re as _re
+
+        # Scan backwards (newest first) to find the most recent status
         latest_progress = ""
-        for e in events.get("events", []):
+        found_ready = False
+        found_failure = None
+
+        for e in reversed(events.get("events", [])):
             msg = e["message"].strip()
 
             # Success: model loaded
             if "loaded in" in msg and "Model" in msg:
-                # Extract the load time
-                return {"ready": True, "detail": msg[msg.index("Model"):msg.index("Model") + 80]}
+                try:
+                    detail = msg[msg.index("Model"):msg.index("Model") + 80]
+                except (ValueError, IndexError):
+                    detail = "Model loaded"
+                return {"ready": True, "detail": detail}
 
-            # Failure indicators
-            if "CUDA out of memory" in msg:
-                return {"ready": False, "detail": "Failed: GPU out of memory", "failed": True}
-            if "NameError" in msg:
-                return {"ready": False, "detail": "Failed: handler code error", "failed": True}
-            if "Quantization failed" in msg:
-                return {"ready": False, "detail": "Failed: quantization error", "failed": True}
+            # Failure indicators (take the most recent one)
+            if not found_failure:
+                if "CUDA out of memory" in msg:
+                    found_failure = "Failed: GPU out of memory"
+                elif "NameError" in msg:
+                    found_failure = "Failed: handler code error"
+                elif "Quantization failed" in msg:
+                    found_failure = "Failed: quantization error"
 
-            # Progress indicators
-            if "checkpoint shards" in msg and "%" in msg:
-                # Extract percentage
-                import re
-                pct = re.search(r'(\d+)%', msg)
-                if pct:
-                    latest_progress = f"Loading model weights... {pct.group(1)}%"
-            elif "pipeline comp" in msg and "%" in msg:
-                import re
-                pct = re.search(r'(\d+)%', msg)
-                if pct:
-                    latest_progress = f"Loading pipeline... {pct.group(1)}%"
-            elif "Enabling" in msg and "offload" in msg:
-                latest_progress = "Configuring memory offload..."
-            elif "Quantizing" in msg:
-                latest_progress = "Quantizing model..."
-            elif "Loading" in msg and "with library" in msg:
-                latest_progress = "Starting model download..."
+            # Progress indicators — take the first (most recent) match
+            if not latest_progress:
+                if "checkpoint shards" in msg and "%" in msg:
+                    # Extract "N/M" and percentage: "Loading checkpoint shards:  57%|...| 4/7 [31:09..."
+                    pct_match = _re.search(r'(\d+)%', msg)
+                    fraction_match = _re.search(r'(\d+)/(\d+)\s*\[', msg)
+                    if pct_match and fraction_match:
+                        done, total = fraction_match.group(1), fraction_match.group(2)
+                        latest_progress = f"Loading weights: shard {done}/{total} ({pct_match.group(1)}%)"
+                    elif pct_match:
+                        latest_progress = f"Loading weights... {pct_match.group(1)}%"
+                elif "pipeline comp" in msg and "%" in msg:
+                    pct_match = _re.search(r'(\d+)%', msg)
+                    if pct_match:
+                        latest_progress = f"Assembling pipeline... {pct_match.group(1)}%"
+                elif "Enabling" in msg and "offload" in msg:
+                    latest_progress = "Configuring memory offload..."
+                elif "Quantizing" in msg:
+                    latest_progress = "Quantizing model..."
+                elif "Loading" in msg and "with library" in msg:
+                    latest_progress = "Downloading model..."
 
+            # Once we have a progress update, no need to scan further back
+            if latest_progress:
+                break
+
+        if found_failure:
+            return {"ready": False, "detail": found_failure, "failed": True}
         if latest_progress:
             return {"ready": False, "detail": latest_progress}
         return {"ready": False, "detail": "Initializing container..."}
@@ -708,7 +734,9 @@ def check_endpoint_status(endpoint_name: str) -> dict:
         for v in resp.get("ProductionVariants", []):
             instance_count = v.get("CurrentInstanceCount", 0)
 
-        if status == "InService":
+        if status == "InService" and instance_count > 0:
+            # Only check readiness when an instance is actually running.
+            # With 0 instances (scaled to zero), the endpoint is idle — not warming up.
             readiness = _check_model_readiness(endpoint_name)
             warming_up = not readiness["ready"]
             warmup_detail = readiness.get("detail", "")
@@ -807,6 +835,53 @@ def _set_log_retention(endpoint_name: str):
         logger.debug("Log group not found after 5 min for %s — retention not set", endpoint_name)
 
     threading.Thread(target=_apply, daemon=True, name=f"logret-{endpoint_name}").start()
+
+
+# ── S3 Model Cache Helpers ──────────────────────────────────────────────
+
+_CACHE_SUBFOLDER = "model-cache"
+
+
+def check_model_cache_exists(model_key: str) -> dict:
+    """Check if an S3 model cache exists for the given model."""
+    bucket = get_deployment_s3_bucket()
+    if not bucket:
+        return {"cached": False}
+
+    try:
+        s3 = boto3.client("s3", region_name=_get_region())
+        info_key = f"{S3_MODEL_PREFIX}/{model_key}/{_CACHE_SUBFOLDER}/.cache-info.json"
+        resp = s3.get_object(Bucket=bucket, Key=info_key)
+        cache_info = json.loads(resp["Body"].read().decode())
+        return {
+            "cached": True,
+            "saved_at": cache_info.get("saved_at", ""),
+            "version_key": cache_info.get("version_key", ""),
+            "model_key": cache_info.get("model_key", ""),
+            "library": cache_info.get("library", ""),
+        }
+    except Exception:
+        return {"cached": False}
+
+
+def invalidate_model_cache(model_key: str) -> dict:
+    """Delete the S3 model cache, forcing a fresh download on next deploy."""
+    bucket = get_deployment_s3_bucket()
+    if not bucket:
+        return {"deleted": False, "reason": "no bucket"}
+
+    try:
+        s3 = boto3.resource("s3", region_name=_get_region())
+        prefix = f"{S3_MODEL_PREFIX}/{model_key}/{_CACHE_SUBFOLDER}/"
+        bucket_obj = s3.Bucket(bucket)
+        objects = list(bucket_obj.objects.filter(Prefix=prefix))
+        if not objects:
+            return {"deleted": False, "reason": "no cache found"}
+        bucket_obj.objects.filter(Prefix=prefix).delete()
+        logger.info("Invalidated model cache for %s: %d files deleted", model_key, len(objects))
+        return {"deleted": True, "files": len(objects)}
+    except Exception as e:
+        return {"deleted": False, "reason": str(e)}
 
 
 # Track which endpoints already have auto-scaling registered to avoid duplicates
@@ -1192,6 +1267,14 @@ def _get_model_environment(model_key: str, model: dict,
         env["ENABLE_VAE_SLICING"] = "true"
     if invoke.get("enable_vae_tiling"):
         env["ENABLE_VAE_TILING"] = "true"
+
+    # S3 model cache — handler saves quantized weights after first load,
+    # loads from cache on subsequent cold starts (skips HF download + quantization)
+    bucket = get_deployment_s3_bucket()
+    if bucket:
+        env["ARTSMOKER_CACHE_BUCKET"] = bucket
+        env["ARTSMOKER_CACHE_PREFIX"] = f"{S3_MODEL_PREFIX}/{model_key}/model-cache"
+        env["ARTSMOKER_CACHE_VERSION"] = model.get("version", "1.0")
 
     return env
 

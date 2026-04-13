@@ -18,6 +18,25 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/custom-models", tags=["custom-models"])
 
 
+# ── Helpers ───────────────────────────────────────────────────────────────
+
+# Cache existence check — lightweight HEAD request, cached per session
+_cache_status: dict[str, bool] = {}
+
+
+def _check_cache_quick(model_key: str) -> bool:
+    """Quick check if model has S3 cache. Cached in-memory for the request."""
+    if model_key in _cache_status:
+        return _cache_status[model_key]
+    try:
+        from backend.services.sagemaker_deployer import check_model_cache_exists
+        result = check_model_cache_exists(model_key)
+        _cache_status[model_key] = result.get("cached", False)
+        return _cache_status[model_key]
+    except Exception:
+        return False
+
+
 # ── Catalog ───────────────────────────────────────────────────────────────
 
 @router.get("/catalog")
@@ -90,6 +109,7 @@ def list_catalog():
             "endpoint_name": endpoint_name if status.get("status") != "NotFound" else None,
             "user_added": model.get("_user_added", False),
             "bundle": _get_bundle_info(key),
+            "has_cache": _check_cache_quick(key),
             "warm_up_info": {
                 "cold_start_minutes": "5-10" if model.get("requirements", {}).get("min_vram_gb", 0) > 12 else "3-5",
                 "inference_seconds": model.get("invoke", {}).get("typical_latency_seconds", "?"),
@@ -543,6 +563,20 @@ async def teardown_model(model_key: str, delete_s3: bool = False):
         pass
 
     return {"status": "deleted", **result}
+
+
+@router.get("/cache/{model_key}")
+async def check_cache(model_key: str):
+    """Check if a model has cached weights in S3 (from a previous successful load)."""
+    from backend.services.sagemaker_deployer import check_model_cache_exists
+    return check_model_cache_exists(model_key)
+
+
+@router.delete("/cache/{model_key}")
+async def invalidate_cache(model_key: str):
+    """Delete cached model weights, forcing fresh download + quantization on next deploy."""
+    from backend.services.sagemaker_deployer import invalidate_model_cache
+    return invalidate_model_cache(model_key)
 
 
 class RedeployRequest(BaseModel):

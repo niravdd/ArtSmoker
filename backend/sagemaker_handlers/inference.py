@@ -48,6 +48,11 @@ logger = logging.getLogger(__name__)
 _model = None
 _config = {}
 
+# ── S3 Model Cache ───────────────────────────────────────────────────────
+_CACHE_LOCAL_DIR = "/tmp/model-cache"
+_CACHE_INFO_FILE = ".cache-info.json"
+_loaded_from_cache = False  # Set True when loading from S3 cache
+
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
@@ -80,26 +85,220 @@ def _import_class(module_path, class_name):
     return getattr(mod, class_name)
 
 
+# ── S3 Model Cache Functions ──────────────────────────────────────────────
+
+def _get_cache_s3_path():
+    """Return (bucket, prefix) for the S3 model cache, or (None, None) if not configured."""
+    bucket = _get_env("ARTSMOKER_CACHE_BUCKET")
+    prefix = _get_env("ARTSMOKER_CACHE_PREFIX")
+    if not bucket or not prefix:
+        return None, None
+    return bucket, prefix
+
+
+def _get_cache_version_key():
+    """Compute a fingerprint for cache invalidation.
+
+    Changes to model key, HF repo, catalog version, or quantization config
+    will produce a different key, causing cache miss → fresh download.
+    """
+    model_key = _get_env("MODEL_KEY", "unknown")
+    hf_repo = _get_env("ARTSMOKER_HF_REPO", "")
+    cache_version = _get_env("ARTSMOKER_CACHE_VERSION", "1.0")
+    quant_summary = ""
+    for comp in _config.get("quantization_components", []):
+        if isinstance(comp, dict):
+            quant_summary += f"{comp.get('name', '')}-{comp.get('quantization', '')}-"
+    return f"{model_key}:{hf_repo}:{cache_version}:{quant_summary}"
+
+
+def _check_s3_cache():
+    """Check S3 for cached model weights. Download if found and valid.
+
+    Returns local path to cached model, or None.
+    """
+    global _loaded_from_cache
+    bucket, prefix = _get_cache_s3_path()
+    if not bucket:
+        return None
+
+    try:
+        import boto3, time as _time, shutil
+        s3 = boto3.client("s3")
+        info_key = f"{prefix}/{_CACHE_INFO_FILE}"
+
+        # Check if cache exists and read metadata
+        try:
+            resp = s3.get_object(Bucket=bucket, Key=info_key)
+            cache_info = json.loads(resp["Body"].read().decode())
+        except Exception:
+            logger.info("No S3 cache found at s3://%s/%s", bucket, prefix)
+            return None
+
+        # Validate version fingerprint
+        expected = _get_cache_version_key()
+        cached_version = cache_info.get("version_key", "")
+        if cached_version != expected:
+            logger.info("Cache version mismatch: cached=%s, expected=%s — will rebuild",
+                        cached_version, expected)
+            return None
+
+        # Download cached files
+        logger.info("Found valid S3 cache (saved %s) — downloading...",
+                     cache_info.get("saved_at", "?"))
+        t0 = _time.time()
+
+        if os.path.exists(_CACHE_LOCAL_DIR):
+            shutil.rmtree(_CACHE_LOCAL_DIR)
+        os.makedirs(_CACHE_LOCAL_DIR, exist_ok=True)
+
+        paginator = s3.get_paginator("list_objects_v2")
+        total_bytes = 0
+        file_count = 0
+        for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+            for obj in page.get("Contents", []):
+                s3_key = obj["Key"]
+                relative = s3_key[len(prefix):].lstrip("/")
+                if not relative:
+                    continue
+                local_path = os.path.join(_CACHE_LOCAL_DIR, relative)
+                os.makedirs(os.path.dirname(local_path), exist_ok=True)
+                s3.download_file(bucket, s3_key, local_path)
+                total_bytes += obj.get("Size", 0)
+                file_count += 1
+
+        elapsed = _time.time() - t0
+        logger.info("Downloaded %d files (%.1f GB) from S3 cache in %.1fs",
+                     file_count, total_bytes / (1024**3), elapsed)
+        _loaded_from_cache = True
+        return _CACHE_LOCAL_DIR
+
+    except Exception as e:
+        logger.warning("S3 cache download failed (will load from source): %s", e)
+        return None
+
+
+def _save_to_s3_cache(model_dict):
+    """Save loaded model to S3 cache in a background thread.
+
+    Runs after model_fn() succeeds. Failures are non-fatal — they log
+    a warning but never block inference.
+    """
+    import threading
+
+    def _save():
+        bucket, prefix = _get_cache_s3_path()
+        if not bucket:
+            return
+
+        try:
+            import boto3, time as _time, shutil
+            s3 = boto3.client("s3")
+
+            # Check if cache already exists (another instance may have saved)
+            info_key = f"{prefix}/{_CACHE_INFO_FILE}"
+            try:
+                resp = s3.get_object(Bucket=bucket, Key=info_key)
+                cache_info = json.loads(resp["Body"].read().decode())
+                if cache_info.get("version_key") == _get_cache_version_key():
+                    logger.info("S3 cache already exists and is current — skipping save")
+                    return
+            except Exception:
+                pass  # No cache yet — proceed
+
+            save_dir = "/tmp/model-save"
+            if os.path.exists(save_dir):
+                shutil.rmtree(save_dir)
+            os.makedirs(save_dir, exist_ok=True)
+
+            t0 = _time.time()
+            library = model_dict.get("library", "")
+
+            if library == "diffusers" and "pipe" in model_dict:
+                model_dict["pipe"].save_pretrained(save_dir)
+            elif library == "transformers":
+                if "model" in model_dict:
+                    model_dict["model"].save_pretrained(save_dir)
+                if "processor" in model_dict:
+                    model_dict["processor"].save_pretrained(save_dir)
+                if "pipe" in model_dict and hasattr(model_dict["pipe"], "save_pretrained"):
+                    model_dict["pipe"].save_pretrained(save_dir)
+            else:
+                logger.info("Cache save not supported for library=%s — skipping", library)
+                return
+
+            save_elapsed = _time.time() - t0
+            logger.info("Model saved to local disk in %.1fs", save_elapsed)
+
+            # Write cache info (uploaded LAST as commit marker)
+            cache_info = {
+                "version_key": _get_cache_version_key(),
+                "model_key": _get_env("MODEL_KEY", "unknown"),
+                "hf_repo": _get_env("ARTSMOKER_HF_REPO", ""),
+                "cache_version": _get_env("ARTSMOKER_CACHE_VERSION", "1.0"),
+                "saved_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+                "library": library,
+                "torch_version": torch.__version__,
+            }
+            info_path = os.path.join(save_dir, _CACHE_INFO_FILE)
+            with open(info_path, "w") as f:
+                json.dump(cache_info, f, indent=2)
+
+            # Upload all files to S3
+            t0 = _time.time()
+            total_bytes = 0
+            file_count = 0
+            for root, dirs, files in os.walk(save_dir):
+                for fname in files:
+                    local_path = os.path.join(root, fname)
+                    relative = os.path.relpath(local_path, save_dir)
+                    s3_key = f"{prefix}/{relative}"
+                    file_size = os.path.getsize(local_path)
+                    s3.upload_file(local_path, bucket, s3_key)
+                    total_bytes += file_size
+                    file_count += 1
+
+            upload_elapsed = _time.time() - t0
+            logger.info("Uploaded %d files (%.1f GB) to S3 cache in %.1fs — s3://%s/%s",
+                         file_count, total_bytes / (1024**3), upload_elapsed, bucket, prefix)
+
+            # Cleanup local save directory
+            shutil.rmtree(save_dir, ignore_errors=True)
+
+        except Exception as e:
+            logger.warning("S3 cache save failed (non-fatal): %s", e)
+            import traceback
+            logger.debug("Cache save traceback:\n%s", traceback.format_exc())
+
+    threading.Thread(target=_save, daemon=True, name="s3-cache-save").start()
+    logger.info("Started background S3 cache save")
+
+
 # ── Loaders (by INFERENCE_LIBRARY) ────────────────────────────────────────
 # Each loader reads its configuration from environment variables.
 # No model-specific branching — everything is parameterized.
 #
 # Model source resolution:
-#   - If model_dir contains actual model files → load from local path
-#   - Otherwise → download from ARTSMOKER_HF_REPO (our own env var)
+#   1. S3 model cache (quantized weights from previous successful load)
+#   2. Local weights in model_dir (non-HF models bundled in tar.gz)
+#   3. HuggingFace repo download (first-time load)
 #   - We do NOT use HF_MODEL_ID (the DLC container intercepts that and
 #     uses its own handler, bypassing our optimizations)
 
 def _resolve_model_source(model_dir):
-    """Determine whether to load from local path or HuggingFace repo.
+    """Determine model source: S3 cache → local weights → HuggingFace repo.
 
     Returns the model identifier to pass to from_pretrained():
     either a local directory path or a HuggingFace repo ID.
     """
-    # Our own env var — NOT HF_MODEL_ID (which the DLC container intercepts)
-    hf_repo = _get_env("ARTSMOKER_HF_REPO")
+    # Priority 1: S3 model cache (quantized weights from previous successful load)
+    cached_path = _check_s3_cache()
+    if cached_path:
+        logger.info("Loading model from S3 cache: %s", cached_path)
+        return cached_path
 
-    # Check if model_dir has actual model files (not just the handler code dir)
+    # Priority 2: Local weights in model_dir (non-HF models bundled in tar.gz)
+    hf_repo = _get_env("ARTSMOKER_HF_REPO")
     has_weights = False
     if os.path.isdir(model_dir):
         for item in os.listdir(model_dir):
@@ -113,12 +312,14 @@ def _resolve_model_source(model_dir):
     if has_weights:
         logger.info("Loading model from local path: %s", model_dir)
         return model_dir
-    elif hf_repo:
+
+    # Priority 3: HuggingFace repo (first-time load)
+    if hf_repo:
         logger.info("Downloading model from HuggingFace: %s", hf_repo)
         return hf_repo
-    else:
-        logger.warning("No model weights and no ARTSMOKER_HF_REPO — attempting local: %s", model_dir)
-        return model_dir
+
+    logger.warning("No model weights and no ARTSMOKER_HF_REPO — attempting local: %s", model_dir)
+    return model_dir
 
 
 def _load_diffusers(model_dir):
@@ -142,14 +343,14 @@ def _load_diffusers(model_dir):
         kwargs["token"] = hf_token
 
     # Quantization: pre-load specific components with reduced precision.
-    # Fully data-driven from INVOKE_CONFIG — catalog specifies:
-    #   quantization_components: [
-    #     {"name": "transformer", "class": "Flux2Transformer2DModel",
-    #      "module": "diffusers", "subfolder": "transformer",
-    #      "quantization": "int8"}
-    #   ]
+    # When loading from S3 cache, quantization is already baked into the
+    # saved weights — skip the pre-load entirely.
     quant_components = _config.get("quantization_components", [])
     pre_loaded = {}
+
+    if _loaded_from_cache:
+        logger.info("Loading from S3 cache — skipping quantization (already baked in)")
+        quant_components = []
 
     # Support legacy format: list of strings + separate quantization field
     if quant_components and isinstance(quant_components[0], str):
@@ -549,6 +750,10 @@ def model_fn(model_dir):
         reserved = torch.cuda.memory_reserved(0) / (1024**3)
         logger.info("GPU memory after load: %.2f GB allocated, %.2f GB reserved", allocated, reserved)
 
+    # S3 cache save is deferred until AFTER the first successful inference
+    # (in predict_fn). We don't want to cache a model that loads but fails
+    # at inference time — that would persist broken weights.
+
     return _model
 
 
@@ -580,6 +785,15 @@ def predict_fn(input_data, model_dict):
         elapsed = _time.time() - t0
         logger.info("Inference complete in %.1fs (predictor=%s, output=%d chars)",
                      elapsed, predictor_type, len(result) if isinstance(result, str) else 0)
+
+        # After first successful inference, save model to S3 cache.
+        # We wait for a real inference to confirm the model actually works —
+        # don't cache weights that load but fail at generation time.
+        global _loaded_from_cache
+        if _get_env("ARTSMOKER_CACHE_BUCKET") and not _loaded_from_cache and not getattr(predict_fn, "_cache_saved", False):
+            predict_fn._cache_saved = True
+            _save_to_s3_cache(model_dict)
+
         return result
     except Exception as exc:
         elapsed = _time.time() - t0
