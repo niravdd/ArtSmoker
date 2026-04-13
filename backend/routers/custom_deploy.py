@@ -310,6 +310,7 @@ class DeployRequest(BaseModel):
     endpoint_type: str = "async"  # "async" or "realtime"
     instance_type: str | None = None
     hf_token: str | None = None  # For gated models — stored encrypted in Secrets Manager
+    build_only: bool = False  # Build mode: cache weights after load, don't expect inference
 
 
 _deploy_status: dict = {}  # model_key → {"stage": str, "progress": str, "error": str}
@@ -387,6 +388,7 @@ async def deploy_model(body: DeployRequest):
                     endpoint_type=body.endpoint_type,
                     instance_type=body.instance_type,
                     hf_token=body.hf_token,  # Stored in Secrets Manager, not plain-text env var
+                    build_only=body.build_only,
                 )
 
                 _register_custom_model(key, model, deployment)
@@ -577,6 +579,24 @@ async def invalidate_cache(model_key: str):
     """Delete cached model weights, forcing fresh download + quantization on next deploy."""
     from backend.services.sagemaker_deployer import invalidate_model_cache
     return invalidate_model_cache(model_key)
+
+
+@router.post("/update-handler/{model_key}")
+def update_handler(model_key: str):
+    """Update a deployed endpoint's handler code and config in-place.
+
+    Does NOT teardown — does a blue-green config swap. New instance gets
+    the latest inference.py, env vars, and S3 bucket paths. Preserves
+    endpoint name and auto-scaling.
+    """
+    from backend.services.sagemaker_deployer import update_endpoint_config
+    try:
+        result = update_endpoint_config(model_key)
+        return result
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(502, detail=f"Update failed: {e}")
 
 
 class RedeployRequest(BaseModel):

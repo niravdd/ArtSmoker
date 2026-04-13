@@ -362,6 +362,7 @@ def upload_to_s3(local_dir: Path, model_key: str,
 def deploy_endpoint(model_key: str, endpoint_type: str = "async",
                     instance_type: str | None = None,
                     hf_token: str | None = None,
+                    build_only: bool = False,
                     progress_callback=None) -> dict:
     """Create an Amazon SageMaker endpoint for the model.
 
@@ -418,6 +419,13 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     # token (not a Secrets Manager ARN). The token is a read-only token
     # visible only in the user's own AWS account via sagemaker:DescribeModel.
     container_env = _get_model_environment(model_key, model, hf_token=resolved_hf_token)
+
+    # Build mode: save cache after model load (no inference needed).
+    # Used when the build instance can't run inference (e.g., OOM on smaller GPUs)
+    # but has enough RAM for quantization. Cache is then served from a different instance.
+    if build_only:
+        container_env["ARTSMOKER_BUILD_ONLY"] = "true"
+        _build_only_endpoints.add(endpoint_name)
 
     # Create Amazon SageMaker model — delete and recreate if it already exists
     # (ensures env vars and container image are always up to date)
@@ -502,6 +510,117 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         "instance_type": instance,
         "status": "Creating",
         "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+def update_endpoint_config(model_key: str) -> dict:
+    """Update a deployed endpoint's handler code, env vars, and S3 paths in-place.
+
+    Does NOT teardown the endpoint — creates a new Model + EndpointConfig and calls
+    update_endpoint for a blue-green swap. SageMaker provisions a new instance with
+    the updated handler, then terminates the old one. Endpoint name, auto-scaling,
+    and CloudWatch alarms are all preserved.
+
+    Use this to:
+    - Deploy updated inference.py code (e.g., S3 cache support)
+    - Switch to a new S3 bucket
+    - Update env vars from changed catalog config
+    """
+    from .custom_models import get_catalog_model
+    model = get_catalog_model(model_key)
+    if not model:
+        raise ValueError(f"Model {model_key} not found in catalog")
+
+    endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
+    sm = boto3.client("sagemaker", region_name=_get_region())
+
+    # Verify endpoint exists
+    try:
+        desc = sm.describe_endpoint(EndpointName=endpoint_name)
+        if desc["EndpointStatus"] not in ("InService", "Updating"):
+            raise ValueError(f"Endpoint {endpoint_name} is {desc['EndpointStatus']} — cannot update")
+    except sm.exceptions.ClientError:
+        raise ValueError(f"Endpoint {endpoint_name} does not exist")
+
+    # Get current endpoint config to preserve instance type
+    current_config = sm.describe_endpoint_config(
+        EndpointConfigName=desc.get("EndpointConfigName", f"{endpoint_name}-config")
+    )
+    current_variant = current_config["ProductionVariants"][0]
+    instance = current_variant["InstanceType"]
+
+    bucket = get_deployment_s3_bucket()
+
+    # 1. Upload fresh handler code
+    logger.info("Uploading updated handler for %s...", model_key)
+    upload_handler_to_s3(model_key)
+
+    # 2. Retrieve HF token if needed
+    resolved_hf_token = _retrieve_hf_token() if model.get("requires_hf_auth") else None
+
+    # 3. Create new SageMaker Model (delete old first)
+    sm_model_name = f"artsmoker-{model_key.replace('_', '-')}-model"
+    model_data_url = f"s3://{bucket}/{S3_MODEL_PREFIX}/{model_key}/model.tar.gz"
+    container_env = _get_model_environment(model_key, model, hf_token=resolved_hf_token)
+
+    try:
+        sm.delete_model(ModelName=sm_model_name)
+    except Exception:
+        pass
+    sm.create_model(
+        ModelName=sm_model_name,
+        PrimaryContainer={
+            "Image": _get_inference_container(model),
+            "ModelDataUrl": model_data_url,
+            "Environment": container_env,
+        },
+        ExecutionRoleArn=_get_sagemaker_role(),
+    )
+
+    # 4. Create new EndpointConfig (delete old, create fresh with new bucket paths)
+    config_name = f"{endpoint_name}-config"
+    max_concurrent = model.get("invoke", {}).get("max_concurrent_invocations", 1)
+    config_params = {
+        "EndpointConfigName": config_name,
+        "ProductionVariants": [{
+            "VariantName": "primary",
+            "ModelName": sm_model_name,
+            "InstanceType": instance,
+            "InitialInstanceCount": 1,
+        }],
+        "AsyncInferenceConfig": {
+            "OutputConfig": {
+                "S3OutputPath": f"s3://{bucket}/{S3_MODEL_PREFIX}/inference-output/{model_key}/",
+            },
+            "ClientConfig": {
+                "MaxConcurrentInvocationsPerInstance": max_concurrent,
+            },
+        },
+    }
+
+    try:
+        sm.delete_endpoint_config(EndpointConfigName=config_name)
+    except Exception:
+        pass
+    sm.create_endpoint_config(**config_params)
+
+    # 5. Update endpoint — triggers blue-green deployment
+    sm.update_endpoint(
+        EndpointName=endpoint_name,
+        EndpointConfigName=config_name,
+    )
+
+    # Clear caches so status reflects the update
+    clear_readiness_cache(endpoint_name)
+    _endpoint_status_cache.pop(endpoint_name, None)
+
+    logger.info("Endpoint %s update triggered — blue-green swap with new handler + bucket", endpoint_name)
+    return {
+        "endpoint_name": endpoint_name,
+        "status": "Updating",
+        "instance_type": instance,
+        "new_bucket": bucket,
+        "detail": "Blue-green deployment in progress — new instance loading with updated handler",
     }
 
 
@@ -901,6 +1020,8 @@ def invalidate_model_cache(model_key: str) -> dict:
 
 # Track which endpoints already have auto-scaling registered to avoid duplicates
 _auto_scaling_registered: set[str] = set()
+# Build-only endpoints — skip auto-scaling entirely (manual teardown after cache save)
+_build_only_endpoints: set[str] = set()
 
 
 def get_endpoint_health(endpoint_name: str) -> dict:
@@ -1059,6 +1180,10 @@ def _register_auto_scaling_after_ready(endpoint_name: str):
     """
     if endpoint_name in _auto_scaling_registered:
         return  # Already registered
+
+    if endpoint_name in _build_only_endpoints:
+        logger.info("Skipping auto-scaling for %s — build-only deploy (cache save in progress)", endpoint_name)
+        return
 
     # Compute cooldown from model config
     from .custom_models import get_catalog

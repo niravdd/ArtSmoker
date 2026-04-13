@@ -178,100 +178,123 @@ def _check_s3_cache():
         return None
 
 
+def _save_to_s3_cache_sync(model_dict):
+    """Save loaded model to S3 cache SYNCHRONOUSLY (blocks until complete).
+
+    Used in build mode where the instance will be torn down after caching.
+    Must complete before model_fn returns, or auto-scaling could kill the
+    instance mid-upload.
+    """
+    logger.info("Synchronous S3 cache save starting...")
+    _do_s3_cache_save(model_dict)
+
+
 def _save_to_s3_cache(model_dict):
     """Save loaded model to S3 cache in a background thread.
 
-    Runs after model_fn() succeeds. Failures are non-fatal — they log
+    Runs after predict_fn() succeeds. Failures are non-fatal — they log
     a warning but never block inference.
     """
     import threading
+    threading.Thread(target=lambda: _do_s3_cache_save(model_dict), daemon=True, name="s3-cache-save").start()
+    logger.info("Started background S3 cache save")
 
-    def _save():
-        bucket, prefix = _get_cache_s3_path()
-        if not bucket:
+
+def _do_s3_cache_save(model_dict):
+    """Core cache save logic — used by both sync and async save paths."""
+    bucket, prefix = _get_cache_s3_path()
+    if not bucket:
+        return
+
+    try:
+        import boto3, time as _time, shutil
+        s3 = boto3.client("s3")
+
+        # Check if cache already exists (another instance may have saved)
+        info_key = f"{prefix}/{_CACHE_INFO_FILE}"
+        try:
+            resp = s3.get_object(Bucket=bucket, Key=info_key)
+            cache_info = json.loads(resp["Body"].read().decode())
+            if cache_info.get("version_key") == _get_cache_version_key():
+                logger.info("S3 cache already exists and is current — skipping save")
+                return
+        except Exception:
+            pass  # No cache yet — proceed
+
+        save_dir = "/tmp/model-save"
+        if os.path.exists(save_dir):
+            shutil.rmtree(save_dir)
+        os.makedirs(save_dir, exist_ok=True)
+
+        t0 = _time.time()
+        library = model_dict.get("library", "")
+
+        if library == "diffusers" and "pipe" in model_dict:
+            model_dict["pipe"].save_pretrained(save_dir)
+        elif library == "transformers":
+            if "model" in model_dict:
+                model_dict["model"].save_pretrained(save_dir)
+            if "processor" in model_dict:
+                model_dict["processor"].save_pretrained(save_dir)
+            if "pipe" in model_dict and hasattr(model_dict["pipe"], "save_pretrained"):
+                model_dict["pipe"].save_pretrained(save_dir)
+        else:
+            logger.info("Cache save not supported for library=%s — skipping", library)
             return
 
-        try:
-            import boto3, time as _time, shutil
-            s3 = boto3.client("s3")
+        save_elapsed = _time.time() - t0
+        logger.info("Model saved to local disk in %.1fs", save_elapsed)
 
-            # Check if cache already exists (another instance may have saved)
-            info_key = f"{prefix}/{_CACHE_INFO_FILE}"
-            try:
-                resp = s3.get_object(Bucket=bucket, Key=info_key)
-                cache_info = json.loads(resp["Body"].read().decode())
-                if cache_info.get("version_key") == _get_cache_version_key():
-                    logger.info("S3 cache already exists and is current — skipping save")
-                    return
-            except Exception:
-                pass  # No cache yet — proceed
+        # Upload all model files to S3 FIRST, then write cache-info LAST as commit marker.
+        # This ensures a partial upload is never treated as complete.
+        t0 = _time.time()
+        total_bytes = 0
+        file_count = 0
+        info_path = os.path.join(save_dir, _CACHE_INFO_FILE)
 
-            save_dir = "/tmp/model-save"
-            if os.path.exists(save_dir):
-                shutil.rmtree(save_dir)
-            os.makedirs(save_dir, exist_ok=True)
+        # Write cache info to disk (but upload it last)
+        cache_info = {
+            "version_key": _get_cache_version_key(),
+            "model_key": _get_env("MODEL_KEY", "unknown"),
+            "hf_repo": _get_env("ARTSMOKER_HF_REPO", ""),
+            "cache_version": _get_env("ARTSMOKER_CACHE_VERSION", "1.0"),
+            "saved_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
+            "library": library,
+            "torch_version": torch.__version__,
+        }
+        with open(info_path, "w") as f:
+            json.dump(cache_info, f, indent=2)
 
-            t0 = _time.time()
-            library = model_dict.get("library", "")
+        # Upload model files (not cache-info yet)
+        for root, dirs, files in os.walk(save_dir):
+            for fname in files:
+                if fname == _CACHE_INFO_FILE:
+                    continue  # Upload last
+                local_path = os.path.join(root, fname)
+                relative = os.path.relpath(local_path, save_dir)
+                s3_key = f"{prefix}/{relative}"
+                file_size = os.path.getsize(local_path)
+                s3.upload_file(local_path, bucket, s3_key)
+                total_bytes += file_size
+                file_count += 1
+                if file_count % 5 == 0:
+                    logger.info("Cache upload progress: %d files, %.1f GB...", file_count, total_bytes / (1024**3))
 
-            if library == "diffusers" and "pipe" in model_dict:
-                model_dict["pipe"].save_pretrained(save_dir)
-            elif library == "transformers":
-                if "model" in model_dict:
-                    model_dict["model"].save_pretrained(save_dir)
-                if "processor" in model_dict:
-                    model_dict["processor"].save_pretrained(save_dir)
-                if "pipe" in model_dict and hasattr(model_dict["pipe"], "save_pretrained"):
-                    model_dict["pipe"].save_pretrained(save_dir)
-            else:
-                logger.info("Cache save not supported for library=%s — skipping", library)
-                return
+        # Upload cache-info LAST (commit marker)
+        s3.upload_file(info_path, bucket, f"{prefix}/{_CACHE_INFO_FILE}")
+        file_count += 1
 
-            save_elapsed = _time.time() - t0
-            logger.info("Model saved to local disk in %.1fs", save_elapsed)
+        upload_elapsed = _time.time() - t0
+        logger.info("Uploaded %d files (%.1f GB) to S3 cache in %.1fs — s3://%s/%s",
+                     file_count, total_bytes / (1024**3), upload_elapsed, bucket, prefix)
 
-            # Write cache info (uploaded LAST as commit marker)
-            cache_info = {
-                "version_key": _get_cache_version_key(),
-                "model_key": _get_env("MODEL_KEY", "unknown"),
-                "hf_repo": _get_env("ARTSMOKER_HF_REPO", ""),
-                "cache_version": _get_env("ARTSMOKER_CACHE_VERSION", "1.0"),
-                "saved_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
-                "library": library,
-                "torch_version": torch.__version__,
-            }
-            info_path = os.path.join(save_dir, _CACHE_INFO_FILE)
-            with open(info_path, "w") as f:
-                json.dump(cache_info, f, indent=2)
+        # Cleanup local save directory
+        shutil.rmtree(save_dir, ignore_errors=True)
 
-            # Upload all files to S3
-            t0 = _time.time()
-            total_bytes = 0
-            file_count = 0
-            for root, dirs, files in os.walk(save_dir):
-                for fname in files:
-                    local_path = os.path.join(root, fname)
-                    relative = os.path.relpath(local_path, save_dir)
-                    s3_key = f"{prefix}/{relative}"
-                    file_size = os.path.getsize(local_path)
-                    s3.upload_file(local_path, bucket, s3_key)
-                    total_bytes += file_size
-                    file_count += 1
-
-            upload_elapsed = _time.time() - t0
-            logger.info("Uploaded %d files (%.1f GB) to S3 cache in %.1fs — s3://%s/%s",
-                         file_count, total_bytes / (1024**3), upload_elapsed, bucket, prefix)
-
-            # Cleanup local save directory
-            shutil.rmtree(save_dir, ignore_errors=True)
-
-        except Exception as e:
-            logger.warning("S3 cache save failed (non-fatal): %s", e)
-            import traceback
-            logger.debug("Cache save traceback:\n%s", traceback.format_exc())
-
-    threading.Thread(target=_save, daemon=True, name="s3-cache-save").start()
-    logger.info("Started background S3 cache save")
+    except Exception as e:
+        logger.warning("S3 cache save failed (non-fatal): %s", e)
+        import traceback
+        logger.debug("Cache save traceback:\n%s", traceback.format_exc())
 
 
 # ── Loaders (by INFERENCE_LIBRARY) ────────────────────────────────────────
@@ -750,9 +773,15 @@ def model_fn(model_dir):
         reserved = torch.cuda.memory_reserved(0) / (1024**3)
         logger.info("GPU memory after load: %.2f GB allocated, %.2f GB reserved", allocated, reserved)
 
-    # S3 cache save is deferred until AFTER the first successful inference
-    # (in predict_fn). We don't want to cache a model that loads but fails
-    # at inference time — that would persist broken weights.
+    # S3 cache save strategy:
+    # - Normal mode: deferred until first successful inference (in predict_fn)
+    # - Build mode (ARTSMOKER_BUILD_ONLY=true): save SYNCHRONOUSLY after model_fn.
+    #   Must block until upload completes — if we return early, MMS marks the model
+    #   as "loaded" and auto-scaling could kill the instance before upload finishes.
+    if _get_env("ARTSMOKER_CACHE_BUCKET") and not _loaded_from_cache:
+        if _get_env_bool("ARTSMOKER_BUILD_ONLY"):
+            logger.info("Build mode — saving cache synchronously after model load")
+            _save_to_s3_cache_sync(_model)
 
     return _model
 
