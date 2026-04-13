@@ -538,7 +538,7 @@ def check_endpoint_status(endpoint_name: str) -> dict:
         # Detect warm-up period: InService but model may still be downloading/loading
         # inside the container. SageMaker reports InService as soon as the container
         # starts, but the model takes minutes to download from HuggingFace and load.
-        # We use a conservative warm-up window based on creation time.
+        # Warm-up window is model-specific from the catalog (large models need longer).
         status = resp["EndpointStatus"]
         warming_up = False
         if status == "InService":
@@ -546,10 +546,22 @@ def check_endpoint_status(endpoint_name: str) -> dict:
             if creation_time:
                 from datetime import datetime, timezone
                 age_seconds = (datetime.now(timezone.utc) - creation_time.astimezone(timezone.utc)).total_seconds()
-                # Models need 5-15 min to download + load after container starts.
-                # Mark as warming up for 15 minutes after creation.
-                _WARMUP_SECONDS = 900
-                if age_seconds < _WARMUP_SECONDS:
+
+                # Look up warm-up time from catalog via registry
+                warmup_seconds = 900  # default 15 min
+                try:
+                    from backend.services.model_registry import get_registry
+                    reg = get_registry()
+                    for _k, cfg in reg.get("image_models", {}).items():
+                        if cfg.get("deployment", {}).get("endpoint_name") == endpoint_name:
+                            typical = cfg.get("invoke", {}).get("typical_latency_seconds", 300)
+                            # Warm-up = 2x typical latency (covers download + load + first inference)
+                            warmup_seconds = max(900, typical * 2)
+                            break
+                except Exception:
+                    pass
+
+                if age_seconds < warmup_seconds:
                     warming_up = True
 
         result = {
