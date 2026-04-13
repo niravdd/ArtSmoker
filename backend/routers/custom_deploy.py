@@ -135,6 +135,138 @@ async def get_catalog_model(model_key: str):
     return model
 
 
+@router.get("/instance-options/{model_key}")
+async def get_instance_options(model_key: str):
+    """Return viable GPU instances for deploying a model, ranked by suitability.
+
+    Checks the user's SageMaker service quotas and evaluates each instance
+    against the model's VRAM requirements. Returns only viable options
+    with cost, speed estimate, and recommendation level.
+    """
+    from backend.services.custom_models import get_catalog_model as _get
+    from backend.services.model_registry import get_registry
+
+    model = _get(model_key)
+    if not model:
+        raise HTTPException(404, detail=f"Unknown model: {model_key}")
+
+    reg = get_registry()
+    gpu_catalog = reg.get("custom_model_catalog", {}).get("gpu_instances", {})
+    model_vram = model.get("requirements", {}).get("min_vram_gb", 8)
+    model_dtype = model.get("invoke", {}).get("torch_dtype", "float16")
+    needs_bf16 = model_dtype == "bfloat16"
+    recommended = model.get("requirements", {}).get("recommended_instance", "")
+
+    # Query account quotas
+    import boto3
+    try:
+        sq = boto3.client("service-quotas", region_name="us-west-2")
+        quotas = {}
+        paginator = sq.get_paginator("list_service_quotas")
+        for page in paginator.paginate(ServiceCode="sagemaker"):
+            for q in page.get("Quotas", []):
+                name = q.get("QuotaName", "")
+                if "endpoint" in name.lower() and "usage" in name.lower():
+                    value = int(q.get("Value", 0))
+                    if value > 0:
+                        # Extract instance type from quota name (e.g., "ml.g5.xlarge for endpoint usage")
+                        instance = name.replace(" for endpoint usage", "").strip()
+                        quotas[instance] = value
+    except Exception as e:
+        logger.warning("Failed to query service quotas: %s", e)
+        quotas = {}
+
+    options = []
+    for instance_type, specs in gpu_catalog.items():
+        if instance_type.startswith("_"):
+            continue
+
+        total_vram = specs.get("total_vram_gb", 0)
+        vram_per_gpu = specs.get("vram_per_gpu_gb", 0)
+        gpus = specs.get("gpus", 1)
+        supports_bf16 = specs.get("bf16", True)
+        cost = specs.get("cost_per_hour_usd", 0)
+        quota = quotas.get(instance_type, 0)
+
+        # Skip if no quota
+        if quota <= 0:
+            continue
+
+        # Skip if bf16 needed but not supported
+        if needs_bf16 and not supports_bf16:
+            continue
+
+        # Evaluate viability
+        if total_vram >= model_vram * 1.3:
+            # Comfortable fit — 30% headroom for activations
+            viability = "recommended"
+            speed_note = "Model fits comfortably"
+        elif total_vram >= model_vram:
+            # Fits but tight — may need offloading for activations
+            viability = "viable"
+            speed_note = "Tight fit — may need CPU offload for some operations"
+        elif total_vram >= model_vram * 0.5 and gpus >= 2:
+            # Multi-GPU can split, but individual GPUs are small
+            viability = "doubtful"
+            speed_note = "Requires model sharding across GPUs — slower"
+        else:
+            # Not enough VRAM even with tricks
+            continue  # Don't show non-viable
+
+        # Estimate speed relative to recommended instance
+        if instance_type == recommended:
+            viability = "recommended"
+            speed_note = "Recommended by model catalog"
+
+        # Speed estimate based on GPU generation and count
+        cc = specs.get("compute_capability", 7.0)
+        if cc >= 8.9:
+            speed_tier = "Fast"
+        elif cc >= 8.0:
+            speed_tier = "Good"
+        elif cc >= 7.5:
+            speed_tier = "Moderate"
+        else:
+            speed_tier = "Slow"
+
+        if gpus > 1 and total_vram >= model_vram:
+            speed_note = f"{speed_tier} — {gpus}× {specs['gpu_type']} ({total_vram}GB total)"
+        elif gpus == 1:
+            speed_note = f"{speed_tier} — {specs['gpu_type']} ({vram_per_gpu}GB)"
+        else:
+            speed_note = f"{speed_tier} — {gpus}× {specs['gpu_type']}"
+
+        options.append({
+            "instance_type": instance_type,
+            "gpus": gpus,
+            "gpu_type": specs.get("gpu_type", ""),
+            "total_vram_gb": total_vram,
+            "vram_per_gpu_gb": vram_per_gpu,
+            "ram_gb": specs.get("ram_gb", 0),
+            "cost_per_hour_usd": cost,
+            "quota": quota,
+            "viability": viability,
+            "speed_note": speed_note,
+            "is_recommended": instance_type == recommended,
+        })
+
+    # Sort: recommended first, then by viability (recommended > viable > doubtful), then by cost
+    viability_order = {"recommended": 0, "viable": 1, "doubtful": 2}
+    options.sort(key=lambda o: (
+        0 if o["is_recommended"] else 1,
+        viability_order.get(o["viability"], 9),
+        o["cost_per_hour_usd"],
+    ))
+
+    return {
+        "model_key": model_key,
+        "model_label": model.get("label", model_key),
+        "min_vram_gb": model_vram,
+        "recommended_instance": recommended,
+        "options": options,
+    }
+
+
 # ── Deploy ────────────────────────────────────────────────────────────────
 
 class DeployRequest(BaseModel):

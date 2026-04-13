@@ -195,13 +195,21 @@ def _load_diffusers(model_dir):
                 continue
 
             CompClass = _import_class(comp_module, comp_class)
+            load_kwargs = {
+                "quantization_config": qconfig,
+                "torch_dtype": _get_torch_dtype(),
+                "token": hf_token,
+            }
+            # Optional device_map per component (e.g., "cpu" to avoid GPU OOM during quantization)
+            comp_device_map = comp.get("device_map")
+            if comp_device_map:
+                load_kwargs["device_map"] = comp_device_map
+                logger.info("Loading %s to device_map='%s'", comp_name, comp_device_map)
+
             pre_loaded[comp_name] = CompClass.from_pretrained(
-                model_source, subfolder=comp_subfolder,
-                quantization_config=qconfig,
-                torch_dtype=_get_torch_dtype(),
-                token=hf_token,
+                model_source, subfolder=comp_subfolder, **load_kwargs,
             )
-            logger.info("Loaded %s with %s quantization", comp_name, comp_quant)
+            logger.info("Loaded %s with %s quantization (device_map=%s)", comp_name, comp_quant, comp_device_map or "default")
         except Exception as e:
             logger.warning("Quantization failed for %s (%s), falling back to full precision: %s",
                           comp_name, comp_quant, e)

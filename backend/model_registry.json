@@ -4595,8 +4595,17 @@
           "typical_latency_seconds": 900,
           "prompt_guidance": "FLUX.2 dev is a 32B parameter model \u2014 the most capable open-source image generator.\nUse natural language \u2014 write like describing a photograph, painting, or cinematic shot.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 describe what you WANT instead.\nFLUX.2 excels at: text rendering in images, character consistency, multi-reference editing.\nLonger prompts work well (50-120 words) \u2014 the model has exceptional prompt following.\nCamera specs: '85mm lens, f/1.4', 'wide-angle 24mm', 'aerial drone shot'.\nLighting: 'golden hour', 'studio lighting', 'dramatic chiaroscuro', 'neon-lit'.\nQuality: 'professional photography', 'cinematic', '8k resolution', 'award-winning'.\nCan render readable text in images \u2014 include exact text in quotes if needed.",
           "max_concurrent_invocations": 1,
-          "device_map": "auto",
-          "transformer_class": "Flux2Transformer2DModel"
+          "enable_model_cpu_offload": true,
+          "quantization_components": [
+            {
+              "name": "transformer",
+              "class": "Flux2Transformer2DModel",
+              "module": "diffusers",
+              "subfolder": "transformer",
+              "quantization": "nf4",
+              "device_map": "cpu"
+            }
+          ]
         },
         "pricing": {
           "estimated_cost_per_image": 0.15,
@@ -4619,7 +4628,8 @@
             "accelerate>=1.6.0,<2.0.0",
             "safetensors>=0.4.3",
             "peft>=0.17.0,<0.19.0",
-            "huggingface-hub>=0.34.0,<1.0.0"
+            "huggingface-hub>=0.34.0,<1.0.0",
+            "bitsandbytes>=0.43.3"
           ]
         }
       },
@@ -5135,6 +5145,273 @@
       "quantization": [
         "bitsandbytes>=0.43.3"
       ]
+    },
+    "gpu_instances": {
+      "_description": "GPU instance specs for SageMaker endpoints. Used for smart instance selection at deploy time.",
+      "ml.g4dn.xlarge": {
+        "gpus": 1,
+        "gpu_type": "T4",
+        "vram_per_gpu_gb": 16,
+        "total_vram_gb": 16,
+        "ram_gb": 64,
+        "vcpus": 4,
+        "cost_per_hour_usd": 0.74,
+        "compute_capability": 7.5,
+        "bf16": false
+      },
+      "ml.g4dn.2xlarge": {
+        "gpus": 1,
+        "gpu_type": "T4",
+        "vram_per_gpu_gb": 16,
+        "total_vram_gb": 16,
+        "ram_gb": 128,
+        "vcpus": 8,
+        "cost_per_hour_usd": 1.12,
+        "compute_capability": 7.5,
+        "bf16": false
+      },
+      "ml.g4dn.4xlarge": {
+        "gpus": 1,
+        "gpu_type": "T4",
+        "vram_per_gpu_gb": 16,
+        "total_vram_gb": 16,
+        "ram_gb": 256,
+        "vcpus": 16,
+        "cost_per_hour_usd": 1.79,
+        "compute_capability": 7.5,
+        "bf16": false
+      },
+      "ml.g4dn.8xlarge": {
+        "gpus": 1,
+        "gpu_type": "T4",
+        "vram_per_gpu_gb": 16,
+        "total_vram_gb": 16,
+        "ram_gb": 128,
+        "vcpus": 32,
+        "cost_per_hour_usd": 3.23,
+        "compute_capability": 7.5,
+        "bf16": false
+      },
+      "ml.g4dn.12xlarge": {
+        "gpus": 4,
+        "gpu_type": "T4",
+        "vram_per_gpu_gb": 16,
+        "total_vram_gb": 64,
+        "ram_gb": 192,
+        "vcpus": 48,
+        "cost_per_hour_usd": 5.87,
+        "compute_capability": 7.5,
+        "bf16": false
+      },
+      "ml.g5.xlarge": {
+        "gpus": 1,
+        "gpu_type": "A10G",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 24,
+        "ram_gb": 32,
+        "vcpus": 4,
+        "cost_per_hour_usd": 1.41,
+        "compute_capability": 8.6,
+        "bf16": true
+      },
+      "ml.g5.2xlarge": {
+        "gpus": 1,
+        "gpu_type": "A10G",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 24,
+        "ram_gb": 64,
+        "vcpus": 8,
+        "cost_per_hour_usd": 2.82,
+        "compute_capability": 8.6,
+        "bf16": true
+      },
+      "ml.g5.4xlarge": {
+        "gpus": 1,
+        "gpu_type": "A10G",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 24,
+        "ram_gb": 128,
+        "vcpus": 16,
+        "cost_per_hour_usd": 4.44,
+        "compute_capability": 8.6,
+        "bf16": true
+      },
+      "ml.g5.8xlarge": {
+        "gpus": 1,
+        "gpu_type": "A10G",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 24,
+        "ram_gb": 256,
+        "vcpus": 32,
+        "cost_per_hour_usd": 5.63,
+        "compute_capability": 8.6,
+        "bf16": true
+      },
+      "ml.g5.12xlarge": {
+        "gpus": 4,
+        "gpu_type": "A10G",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 96,
+        "ram_gb": 192,
+        "vcpus": 48,
+        "cost_per_hour_usd": 7.09,
+        "compute_capability": 8.6,
+        "bf16": true
+      },
+      "ml.g5.16xlarge": {
+        "gpus": 1,
+        "gpu_type": "A10G",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 24,
+        "ram_gb": 256,
+        "vcpus": 64,
+        "cost_per_hour_usd": 7.09,
+        "compute_capability": 8.6,
+        "bf16": true
+      },
+      "ml.g5.24xlarge": {
+        "gpus": 4,
+        "gpu_type": "A10G",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 96,
+        "ram_gb": 384,
+        "vcpus": 96,
+        "cost_per_hour_usd": 10.63,
+        "compute_capability": 8.6,
+        "bf16": true
+      },
+      "ml.g5.48xlarge": {
+        "gpus": 8,
+        "gpu_type": "A10G",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 192,
+        "ram_gb": 768,
+        "vcpus": 192,
+        "cost_per_hour_usd": 21.26,
+        "compute_capability": 8.6,
+        "bf16": true
+      },
+      "ml.g6e.xlarge": {
+        "gpus": 1,
+        "gpu_type": "L40S",
+        "vram_per_gpu_gb": 48,
+        "total_vram_gb": 48,
+        "ram_gb": 32,
+        "vcpus": 4,
+        "cost_per_hour_usd": 2.61,
+        "compute_capability": 8.9,
+        "bf16": true
+      },
+      "ml.g6e.2xlarge": {
+        "gpus": 1,
+        "gpu_type": "L40S",
+        "vram_per_gpu_gb": 48,
+        "total_vram_gb": 48,
+        "ram_gb": 64,
+        "vcpus": 8,
+        "cost_per_hour_usd": 5.22,
+        "compute_capability": 8.9,
+        "bf16": true
+      },
+      "ml.g6e.4xlarge": {
+        "gpus": 1,
+        "gpu_type": "L40S",
+        "vram_per_gpu_gb": 48,
+        "total_vram_gb": 48,
+        "ram_gb": 128,
+        "vcpus": 16,
+        "cost_per_hour_usd": 10.44,
+        "compute_capability": 8.9,
+        "bf16": true
+      },
+      "ml.g6e.8xlarge": {
+        "gpus": 1,
+        "gpu_type": "L40S",
+        "vram_per_gpu_gb": 48,
+        "total_vram_gb": 48,
+        "ram_gb": 256,
+        "vcpus": 32,
+        "cost_per_hour_usd": 20.88,
+        "compute_capability": 8.9,
+        "bf16": true
+      },
+      "ml.g6e.12xlarge": {
+        "gpus": 4,
+        "gpu_type": "L40S",
+        "vram_per_gpu_gb": 48,
+        "total_vram_gb": 192,
+        "ram_gb": 384,
+        "vcpus": 48,
+        "cost_per_hour_usd": 31.32,
+        "compute_capability": 8.9,
+        "bf16": true
+      },
+      "ml.g6e.16xlarge": {
+        "gpus": 4,
+        "gpu_type": "L40S",
+        "vram_per_gpu_gb": 48,
+        "total_vram_gb": 192,
+        "ram_gb": 512,
+        "vcpus": 64,
+        "cost_per_hour_usd": 41.76,
+        "compute_capability": 8.9,
+        "bf16": true
+      },
+      "ml.g6e.24xlarge": {
+        "gpus": 4,
+        "gpu_type": "L40S",
+        "vram_per_gpu_gb": 48,
+        "total_vram_gb": 192,
+        "ram_gb": 768,
+        "vcpus": 96,
+        "cost_per_hour_usd": 62.64,
+        "compute_capability": 8.9,
+        "bf16": true
+      },
+      "ml.g6e.48xlarge": {
+        "gpus": 8,
+        "gpu_type": "L40S",
+        "vram_per_gpu_gb": 48,
+        "total_vram_gb": 384,
+        "ram_gb": 1536,
+        "vcpus": 192,
+        "cost_per_hour_usd": 125.28,
+        "compute_capability": 8.9,
+        "bf16": true
+      },
+      "ml.p3.2xlarge": {
+        "gpus": 1,
+        "gpu_type": "V100",
+        "vram_per_gpu_gb": 16,
+        "total_vram_gb": 16,
+        "ram_gb": 61,
+        "vcpus": 8,
+        "cost_per_hour_usd": 4.56,
+        "compute_capability": 7.0,
+        "bf16": false
+      },
+      "ml.p3.8xlarge": {
+        "gpus": 4,
+        "gpu_type": "V100",
+        "vram_per_gpu_gb": 16,
+        "total_vram_gb": 64,
+        "ram_gb": 244,
+        "vcpus": 32,
+        "cost_per_hour_usd": 17.14,
+        "compute_capability": 7.0,
+        "bf16": false
+      },
+      "ml.p3.16xlarge": {
+        "gpus": 8,
+        "gpu_type": "V100",
+        "vram_per_gpu_gb": 16,
+        "total_vram_gb": 128,
+        "ram_gb": 488,
+        "vcpus": 64,
+        "cost_per_hour_usd": 34.27,
+        "compute_capability": 7.0,
+        "bf16": false
+      }
     }
   }
 }

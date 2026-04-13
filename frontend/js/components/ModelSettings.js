@@ -1365,6 +1365,102 @@
             });
         },
 
+        _showDeployDialog(modelKey, instanceOptions, recommendedInstance, minVram) {
+            return new Promise((resolve) => {
+                // Build instance options HTML
+                let instanceHtml = '';
+                if (instanceOptions.length === 0) {
+                    instanceHtml = `<p class="text-xs text-red-400 py-2">No viable GPU instances found in your account. Check SageMaker service quotas.</p>`;
+                } else {
+                    const viabilityColors = { recommended: 'text-emerald-400', viable: 'text-cyan-400', doubtful: 'text-amber-400' };
+                    const viabilityLabels = { recommended: 'Recommended', viable: 'Viable', doubtful: 'Doubtful' };
+                    instanceHtml = instanceOptions.map((opt, i) => {
+                        const color = viabilityColors[opt.viability] || 'text-brand-text-muted';
+                        const label = viabilityLabels[opt.viability] || '';
+                        const isRec = opt.is_recommended;
+                        const costStr = opt.cost_per_hour_usd < 1 ? `$${opt.cost_per_hour_usd.toFixed(2)}` : `$${opt.cost_per_hour_usd.toFixed(2)}`;
+                        return `<option value="${opt.instance_type}" ${isRec ? 'selected' : ''} data-cost="${opt.cost_per_hour_usd}">
+                            ${opt.instance_type} — ${opt.gpus}× ${opt.gpu_type} (${opt.total_vram_gb}GB) — ${costStr}/hr ${isRec ? '★' : ''} [${label}] ${opt.speed_note}
+                        </option>`;
+                    }).join('');
+                }
+
+                const backdrop = document.createElement('div');
+                backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+                backdrop.innerHTML = `
+                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-5">
+                        <h3 class="text-sm font-semibold text-brand-text">Deploy Configuration</h3>
+
+                        <div>
+                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">Instance Type</label>
+                            <select class="deploy-instance input w-full text-xs">
+                                ${instanceHtml}
+                            </select>
+                            <p class="deploy-instance-info text-[10px] text-brand-text-muted mt-1"></p>
+                        </div>
+
+                        <div>
+                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">Deployment Type</label>
+                            <div class="space-y-2">
+                                <label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-emerald-500/30 has-[:checked]:border-emerald-500/50 has-[:checked]:bg-emerald-500/5">
+                                    <input type="radio" name="deploy-type" value="async" checked class="mt-0.5" />
+                                    <div>
+                                        <span class="text-xs font-medium text-brand-text">On-Demand (scale-to-zero)</span>
+                                        <p class="text-[10px] text-brand-text-muted">$0 when idle. Cold start ~5-15 min on first request. Recommended for development.</p>
+                                    </div>
+                                </label>
+                                <label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-amber-500/30 has-[:checked]:border-amber-500/50 has-[:checked]:bg-amber-500/5">
+                                    <input type="radio" name="deploy-type" value="realtime" class="mt-0.5" />
+                                    <div>
+                                        <span class="text-xs font-medium text-brand-text">Always-On (no cold start)</span>
+                                        <p class="text-[10px] text-brand-text-muted deploy-always-on-cost">Model stays loaded. Billed continuously even when idle.</p>
+                                    </div>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="flex gap-2 justify-end pt-2">
+                            <button class="deploy-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
+                            <button class="deploy-confirm btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium" ${instanceOptions.length === 0 ? 'disabled' : ''}>Deploy</button>
+                        </div>
+                    </div>`;
+
+                // Update cost display when instance changes
+                const instanceSelect = backdrop.querySelector('.deploy-instance');
+                const infoEl = backdrop.querySelector('.deploy-instance-info');
+                const alwaysOnCost = backdrop.querySelector('.deploy-always-on-cost');
+
+                const updateInfo = () => {
+                    const sel = instanceSelect.options[instanceSelect.selectedIndex];
+                    const cost = parseFloat(sel?.dataset.cost || 0);
+                    if (infoEl && cost > 0) {
+                        infoEl.textContent = `Est. ~$${cost.toFixed(2)}/hr when running`;
+                    }
+                    if (alwaysOnCost && cost > 0) {
+                        alwaysOnCost.textContent = `Model stays loaded. Costs ~$${cost.toFixed(2)}/hr continuously, even when idle.`;
+                    }
+                };
+                instanceSelect?.addEventListener('change', updateInfo);
+                updateInfo();
+
+                backdrop.querySelector('.deploy-cancel').addEventListener('click', () => {
+                    backdrop.remove();
+                    resolve(null);
+                });
+                backdrop.querySelector('.deploy-confirm').addEventListener('click', () => {
+                    const instanceType = instanceSelect?.value || recommendedInstance;
+                    const endpointType = backdrop.querySelector('input[name="deploy-type"]:checked')?.value || 'async';
+                    backdrop.remove();
+                    resolve({ instanceType, endpointType });
+                });
+                backdrop.addEventListener('click', (e) => {
+                    if (e.target === backdrop) { backdrop.remove(); resolve(null); }
+                });
+
+                document.body.appendChild(backdrop);
+            });
+        },
+
         _askHfToken(licenseUrl) {
             return new Promise((resolve) => {
                 const licenseLink = licenseUrl
@@ -1623,40 +1719,33 @@
                 }
             }
 
-            // Get model pricing for the dialog
-            let hourlyCost = '~$1.41';
-            let instanceType = '';
+            // Fetch viable instances for this model
+            let instanceOptions = [];
+            let recommendedInstance = '';
+            let minVram = 0;
             try {
-                const catResp = await fetch(`/api/custom-models/catalog/${modelKey}`);
-                if (catResp.ok) {
-                    const catData = await catResp.json();
-                    const costs = catData.pricing?.instance_cost_per_hour || {};
-                    const recommended = catData.requirements?.recommended_instance || '';
-                    instanceType = recommended;
-                    const rate = costs[recommended] || Object.values(costs)[0];
-                    if (rate) hourlyCost = `~$${rate.toFixed(2)}`;
+                const optResp = await fetch(`/api/custom-models/instance-options/${modelKey}`);
+                if (optResp.ok) {
+                    const optData = await optResp.json();
+                    instanceOptions = optData.options || [];
+                    recommendedInstance = optData.recommended_instance || '';
+                    minVram = optData.min_vram_gb || 0;
                 }
             } catch {}
 
-            const deployDesc = `On-Demand (recommended): Scales to zero when idle — $0 when not in use. First request triggers a cold start (~5-10 min) while the model loads.${instanceType ? `\nInstance: ${instanceType}` : ''}\n\nAlways-On: No cold start — model stays loaded. Costs ${hourlyCost}/hr continuously, even when idle.`;
+            // Build instance selector + deployment type dialog
+            const deployConfig = await this._showDeployDialog(modelKey, instanceOptions, recommendedInstance, minVram);
+            if (!deployConfig) return; // User cancelled
 
-            // Ask endpoint type
-            const useAsync = await window.showConfirm(
-                deployDesc,
-                {
-                    title: t('custom_models.deploy_type_title'),
-                    confirmLabel: t('custom_models.deploy_async'),
-                    cancelLabel: t('custom_models.deploy_always_on'),
-                }
-            );
+            const { instanceType: selectedInstance, endpointType } = deployConfig;
 
             window.showLoading?.(`${isRedeploy ? 'Redeploying' : 'Deploying'} model...`);
 
             try {
                 const url = isRedeploy ? `/api/custom-models/redeploy/${modelKey}` : '/api/custom-models/deploy';
                 const body = isRedeploy
-                    ? { endpoint_type: useAsync ? 'async' : 'realtime', hf_token: hfToken }
-                    : { model_key: modelKey, endpoint_type: useAsync ? 'async' : 'realtime', hf_token: hfToken };
+                    ? { endpoint_type: endpointType, instance_type: selectedInstance, hf_token: hfToken }
+                    : { model_key: modelKey, endpoint_type: endpointType, instance_type: selectedInstance, hf_token: hfToken };
 
                 const resp = await fetch(url, {
                     method: 'POST',
