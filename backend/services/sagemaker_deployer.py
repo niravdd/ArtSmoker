@@ -485,17 +485,11 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         else:
             raise
 
-    # Set up auto-scaling (scale to zero when idle) for async endpoints.
-    # May fail if endpoint is still Creating — retry in background.
-    if endpoint_type == "async":
-        # Scale-in cooldown must exceed model load time to avoid killing during warmup
-        typical = model.get("invoke", {}).get("typical_latency_seconds", 300)
-        cooldown = max(600, typical * 2)  # At least 10 min, or 2x typical latency
-        try:
-            _setup_auto_scaling(endpoint_name, scale_in_cooldown=cooldown)
-        except Exception as e:
-            logger.warning("Auto-scaling setup deferred for %s (endpoint still Creating): %s", endpoint_name, e)
-            _retry_auto_scaling_in_background(endpoint_name, scale_in_cooldown=cooldown)
+    # Auto-scaling (scale to zero) is NOT registered here — it's deferred until
+    # the readiness monitor confirms the model is fully loaded. This prevents
+    # scale-in from killing the instance while the model is still loading
+    # (which can take 5–60+ minutes for large models like FLUX.2 dev).
+    # See _start_readiness_monitor() → _register_auto_scaling_after_ready().
 
     # Set CloudWatch log retention (SageMaker creates log groups automatically)
     _set_log_retention(endpoint_name)
@@ -544,6 +538,8 @@ def _check_model_readiness(endpoint_name: str) -> dict:
     if readiness["ready"]:
         _model_readiness[endpoint_name] = readiness
         logger.info("Model ready confirmed for %s: %s", endpoint_name, readiness["detail"])
+        # Ensure auto-scaling is registered (may be first confirmation)
+        _register_auto_scaling_after_ready(endpoint_name)
         return readiness
 
     # 3. Start background monitor if not already running
@@ -653,6 +649,8 @@ def _start_readiness_monitor(endpoint_name: str):
                 if readiness.get("ready"):
                     _model_readiness[endpoint_name] = readiness
                     logger.info("Background monitor: %s is ready — %s", endpoint_name, readiness["detail"])
+                    # Now safe to register auto-scaling (model is loaded, won't be killed)
+                    _register_auto_scaling_after_ready(endpoint_name)
                     break
 
                 if readiness.get("failed"):
@@ -676,6 +674,7 @@ def clear_readiness_cache(endpoint_name: str):
     """Clear readiness cache for an endpoint (called on teardown/redeploy)."""
     _model_readiness.pop(endpoint_name, None)
     _readiness_monitors.discard(endpoint_name)
+    _auto_scaling_registered.discard(endpoint_name)
 
 
 def check_endpoint_status(endpoint_name: str) -> dict:
@@ -704,6 +703,10 @@ def check_endpoint_status(endpoint_name: str) -> dict:
         status = resp["EndpointStatus"]
         warming_up = False
         warmup_detail = ""
+        instance_count = 0
+
+        for v in resp.get("ProductionVariants", []):
+            instance_count = v.get("CurrentInstanceCount", 0)
 
         if status == "InService":
             readiness = _check_model_readiness(endpoint_name)
@@ -715,6 +718,7 @@ def check_endpoint_status(endpoint_name: str) -> dict:
             "status": status,
             "warming_up": warming_up,
             "warmup_detail": warmup_detail,
+            "instance_count": instance_count,
             "creation_time": resp.get("CreationTime", "").isoformat() if resp.get("CreationTime") else "",
             "last_modified": resp.get("LastModifiedTime", "").isoformat() if resp.get("LastModifiedTime") else "",
         }
@@ -803,6 +807,39 @@ def _set_log_retention(endpoint_name: str):
         logger.debug("Log group not found after 5 min for %s — retention not set", endpoint_name)
 
     threading.Thread(target=_apply, daemon=True, name=f"logret-{endpoint_name}").start()
+
+
+# Track which endpoints already have auto-scaling registered to avoid duplicates
+_auto_scaling_registered: set[str] = set()
+
+
+def _register_auto_scaling_after_ready(endpoint_name: str):
+    """Register auto-scaling AFTER the model is confirmed ready.
+
+    Called from the readiness monitor or quick log scan. This ensures
+    the scale-to-zero policy is only applied once the model is loaded,
+    preventing scale-in from killing instances during long model loads.
+    """
+    if endpoint_name in _auto_scaling_registered:
+        return  # Already registered
+
+    # Compute cooldown from model config
+    from .custom_models import get_catalog
+    catalog = get_catalog()
+    # Find the model key from endpoint name (artsmoker-flux2-dev → flux2_dev)
+    model_key = endpoint_name.replace("artsmoker-", "").replace("-", "_")
+    model = catalog.get("models", {}).get(model_key, {})
+    invoke = model.get("invoke", {})
+    typical = invoke.get("typical_latency_seconds", 300)
+    cooldown = max(600, typical * 2)  # At least 10 min, or 2x typical inference latency
+
+    try:
+        _setup_auto_scaling(endpoint_name, scale_in_cooldown=cooldown)
+        _auto_scaling_registered.add(endpoint_name)
+        logger.info("Auto-scaling registered for %s (cooldown=%ds) — model confirmed ready", endpoint_name, cooldown)
+    except Exception as e:
+        logger.warning("Auto-scaling setup failed for %s after model ready: %s — retrying in background", endpoint_name, e)
+        _retry_auto_scaling_in_background(endpoint_name, scale_in_cooldown=cooldown)
 
 
 def _retry_auto_scaling_in_background(endpoint_name: str, scale_in_cooldown: int = 600):

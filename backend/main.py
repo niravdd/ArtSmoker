@@ -363,12 +363,13 @@ async def lifespan(app: FastAPI):
             logger.debug("Async jobs resume: %s", exc)
     threading.Thread(target=_resume_async_jobs, daemon=True, name="async-resume").start()
 
-    # Verify auto-scaling for deployed custom model endpoints
-    # (background retry thread may have died on a previous server restart)
+    # Verify auto-scaling for deployed custom model endpoints.
+    # Only registers auto-scaling for endpoints whose model is confirmed ready.
+    # For endpoints still loading, the readiness monitor will handle it.
     def _verify_auto_scaling():
         try:
             from backend.services.model_registry import get_registry
-            from backend.services.sagemaker_deployer import _setup_auto_scaling, check_endpoint_status
+            from backend.services.sagemaker_deployer import _register_auto_scaling_after_ready, check_endpoint_status
             reg = get_registry()
             for key, cfg in reg.get("image_models", {}).items():
                 if cfg.get("model_source") != "custom_hosted":
@@ -382,20 +383,14 @@ async def lifespan(app: FastAPI):
                 status = check_endpoint_status(ep_name)
                 if status.get("status") != "InService":
                     continue
-                # Check if auto-scaling is already registered
-                import boto3
-                aas = boto3.client("application-autoscaling", region_name="us-west-2")
-                resp = aas.describe_scalable_targets(
-                    ServiceNamespace="sagemaker",
-                    ResourceIds=[f"endpoint/{ep_name}/variant/primary"],
-                )
-                if not resp.get("ScalableTargets"):
-                    # Get cooldown from catalog
-                    typical = cfg.get("invoke", {}).get("typical_latency_seconds", 300)
-                    cooldown = max(600, typical * 2)
-                    logger.warning("Auto-scaling missing for %s — registering now (cooldown=%ds)", ep_name, cooldown)
-                    _setup_auto_scaling(ep_name, scale_in_cooldown=cooldown)
-                    logger.info("Auto-scaling registered for %s", ep_name)
+                # Only register auto-scaling if model is confirmed ready
+                # (check_endpoint_status triggers readiness check, which will
+                #  call _register_auto_scaling_after_ready when ready)
+                if not status.get("warming_up"):
+                    logger.debug("Endpoint %s is ready — ensuring auto-scaling", ep_name)
+                    _register_auto_scaling_after_ready(ep_name)
+                else:
+                    logger.info("Endpoint %s still warming up — auto-scaling deferred until model ready", ep_name)
         except Exception as exc:
             logger.debug("Auto-scaling verification: %s", exc)
     threading.Thread(target=_verify_auto_scaling, daemon=True, name="autoscale-verify").start()

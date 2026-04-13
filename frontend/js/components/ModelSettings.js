@@ -1604,14 +1604,15 @@
                     for (const m of catModels) {
                         const deployed = m.deployment_status === 'InService' && !m.warming_up;
                         const warmingUp = m.deployment_status === 'InService' && m.warming_up;
-                        const deploying = m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying';
+                        const scalingUp = m.deployment_status === 'Updating' && (m.instance_count === 0 || m.instance_count === undefined);
+                        const deploying = !scalingUp && (m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying');
                         const failed = m.deployment_status === 'Failed' || m.deploy_stage === 'failed';
-                        const statusColor = deployed ? 'text-emerald-400' : warmingUp ? 'text-cyan-400' : deploying ? 'text-amber-400' : failed ? 'text-red-400' : 'text-brand-text-muted/50';
-                        const statusText = deployed ? t('custom_models.active') : warmingUp ? (m.warmup_detail || t('custom_models.warming_up')) : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? t('custom_models.failed') : t('custom_models.not_deployed');
+                        const statusColor = deployed ? 'text-emerald-400' : warmingUp ? 'text-cyan-400' : (deploying || scalingUp) ? 'text-amber-400' : failed ? 'text-red-400' : 'text-brand-text-muted/50';
+                        const statusText = deployed ? t('custom_models.active') : warmingUp ? (m.warmup_detail || t('custom_models.warming_up')) : scalingUp ? 'Starting instance...' : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? t('custom_models.failed') : t('custom_models.not_deployed');
                         const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.hf_auth')}</span>` : '';
                         const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
                         const userBadge = m.user_added ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>` : '';
-                        const statusDot = deployed ? 'bg-emerald-400' : warmingUp ? 'bg-cyan-400 animate-pulse' : deploying ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
+                        const statusDot = deployed ? 'bg-emerald-400' : warmingUp ? 'bg-cyan-400 animate-pulse' : (deploying || scalingUp) ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
 
                         html += `
                             <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${deployed ? '' : failed ? 'border-red-500/20' : ''} flex items-center gap-3">
@@ -1634,7 +1635,7 @@
                                     ${deployed
                                         ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>
                                            <button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>`
-                                        : (deploying || warmingUp)
+                                        : (deploying || warmingUp || scalingUp)
                                         ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
                                         : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
                                     }
@@ -1657,14 +1658,16 @@
                     if (firstSub) firstSub.open = true;
                 }
 
-                // Auto-refresh if any models are deploying
-                const hasDeploying = models.some(m => m.deployment_status === 'Creating' || m.deployment_status === 'Updating');
-                if (hasDeploying) {
+                // Auto-refresh if any models are deploying or warming up
+                const hasInProgress = models.some(m =>
+                    m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.warming_up
+                );
+                if (hasInProgress) {
                     clearTimeout(this._cmPollTimer);
                     this._cmPollTimer = setTimeout(() => {
                         this._customModelsLoaded = false;
                         this._loadCustomModels(modal);
-                    }, 15000);
+                    }, 120000);
                 }
 
                 // Attach deploy/teardown handlers

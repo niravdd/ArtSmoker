@@ -244,7 +244,9 @@ Rules:
 4. For weapons: use fantasy/stylized alternatives
 5. Keep the same visual energy and mood
 6. Stay under the original character count
-7. Output ONLY the rewritten prompt, nothing else.""",
+
+Output ONLY valid JSON (no markdown, no code fences):
+{{"rewritten_prompt": "the rewritten prompt text", "issues": ["list of issues addressed"], "explanation": "brief explanation of changes made"}}""",
     },
 
     "video_enhance_prompt": {
