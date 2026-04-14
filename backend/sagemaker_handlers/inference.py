@@ -201,7 +201,25 @@ def _save_to_s3_cache(model_dict):
 
 
 def _do_s3_cache_save(model_dict):
-    """Core cache save logic — used by both sync and async save paths."""
+    """Core cache save logic — component-level save preserving NF4 quantization.
+
+    CRITICAL: We save each pipeline component individually using
+    component.save_pretrained(), NOT pipe.save_pretrained(). This properly
+    preserves BitsAndBytes NF4 quantization (including quantization_config.json).
+    pipe.save_pretrained() silently expands NF4 weights to fp32 for some components.
+
+    The cache structure mirrors the HuggingFace model layout:
+      model-cache/
+        transformer/        ← NF4 quantized (~10 GB, not 38 GB)
+        text_encoder_2/     ← NF4 quantized (~6 GB, not 22 GB)
+        text_encoder/       ← bf16 (small, ~2 GB)
+        vae/                ← bf16 (~0.5 GB)
+        scheduler/
+        tokenizer/
+        tokenizer_2/
+        model_index.json    ← pipeline config
+        .cache-info.json    ← version fingerprint (uploaded LAST as commit marker)
+    """
     bucket, prefix = _get_cache_s3_path()
     if not bucket:
         return
@@ -230,7 +248,40 @@ def _do_s3_cache_save(model_dict):
         library = model_dict.get("library", "")
 
         if library == "diffusers" and "pipe" in model_dict:
-            model_dict["pipe"].save_pretrained(save_dir)
+            pipe = model_dict["pipe"]
+            # Save pipeline config (model_index.json) — tells from_pretrained
+            # which component classes to use and their subfolder locations
+            pipe.save_config(save_dir)
+            logger.info("Saved pipeline config (model_index.json)")
+
+            # Save each component individually — this preserves BnB quantization.
+            # component.save_pretrained() writes quantization_config.json for
+            # NF4/int8 quantized models, which from_pretrained() auto-detects.
+            components_saved = 0
+            for attr_name in ["transformer", "text_encoder", "text_encoder_2",
+                              "vae", "scheduler", "tokenizer", "tokenizer_2"]:
+                component = getattr(pipe, attr_name, None)
+                if component is None:
+                    continue
+                comp_dir = os.path.join(save_dir, attr_name)
+                os.makedirs(comp_dir, exist_ok=True)
+                try:
+                    if hasattr(component, "save_pretrained"):
+                        component.save_pretrained(comp_dir)
+                    elif hasattr(component, "save_config"):
+                        component.save_config(comp_dir)
+                    comp_size = sum(
+                        os.path.getsize(os.path.join(r, f))
+                        for r, _, files in os.walk(comp_dir)
+                        for f in files
+                    ) / (1024**3)
+                    logger.info("Saved %s: %.2f GB", attr_name, comp_size)
+                    components_saved += 1
+                except Exception as e:
+                    logger.warning("Failed to save component %s: %s", attr_name, e)
+
+            logger.info("Saved %d pipeline components individually", components_saved)
+
         elif library == "transformers":
             if "model" in model_dict:
                 model_dict["model"].save_pretrained(save_dir)
@@ -246,13 +297,28 @@ def _do_s3_cache_save(model_dict):
         logger.info("Model saved to local disk in %.1fs", save_elapsed)
 
         # Upload all model files to S3 FIRST, then write cache-info LAST as commit marker.
-        # This ensures a partial upload is never treated as complete.
         t0 = _time.time()
         total_bytes = 0
         file_count = 0
         info_path = os.path.join(save_dir, _CACHE_INFO_FILE)
 
-        # Write cache info to disk (but upload it last)
+        # Collect quantization info from saved components for cache metadata
+        quantized_components = []
+        for comp in _config.get("quantization_components", []):
+            if isinstance(comp, dict):
+                comp_dir = os.path.join(save_dir, comp.get("name", ""))
+                qconfig_path = os.path.join(comp_dir, "quantization_config.json")
+                has_qconfig = os.path.exists(qconfig_path)
+                quantized_components.append({
+                    "name": comp.get("name"),
+                    "quantization": comp.get("quantization"),
+                    "preserved": has_qconfig,
+                })
+                if has_qconfig:
+                    logger.info("✓ %s: quantization_config.json present (NF4 preserved)", comp.get("name"))
+                else:
+                    logger.warning("✗ %s: NO quantization_config.json — will need re-quantization on load", comp.get("name"))
+
         cache_info = {
             "version_key": _get_cache_version_key(),
             "model_key": _get_env("MODEL_KEY", "unknown"),
@@ -261,6 +327,8 @@ def _do_s3_cache_save(model_dict):
             "saved_at": __import__("datetime").datetime.utcnow().isoformat() + "Z",
             "library": library,
             "torch_version": torch.__version__,
+            "save_method": "component_level",
+            "quantized_components": quantized_components,
         }
         with open(info_path, "w") as f:
             json.dump(cache_info, f, indent=2)
@@ -366,14 +434,17 @@ def _load_diffusers(model_dir):
         kwargs["token"] = hf_token
 
     # Quantization: pre-load specific components with reduced precision.
-    # When loading from S3 cache, quantization is already baked into the
-    # saved weights — skip the pre-load entirely.
+    # When loading from S3 cache, we still need to tell from_pretrained to
+    # use BnB quantization config — the saved weights are in NF4 format but
+    # the loader needs the quantization_config to interpret them correctly.
+    # The difference: cache loads from local disk (fast), fresh loads from HF (slow).
     quant_components = _config.get("quantization_components", [])
     pre_loaded = {}
 
     if _loaded_from_cache:
-        logger.info("Loading from S3 cache — skipping quantization (already baked in)")
-        quant_components = []
+        logger.info("Loading from S3 cache — components saved individually with quantization preserved")
+        # Still load quantized components with BnB config, but from the local cache path
+        # (not from HuggingFace). This ensures NF4 weights are loaded as NF4, not expanded to bf16.
 
     # Support legacy format: list of strings + separate quantization field
     if quant_components and isinstance(quant_components[0], str):
@@ -402,9 +473,12 @@ def _load_diffusers(model_dir):
         if not comp_name or not comp_class or not comp_quant:
             continue
 
-        logger.info("Quantizing %s: class=%s, type=%s", comp_name, comp_class, comp_quant)
+        action = "Loading cached" if _loaded_from_cache else "Quantizing"
+        logger.info("%s %s: class=%s, type=%s", action, comp_name, comp_class, comp_quant)
         try:
-            # Build quantization config
+            # Build quantization config — needed for BOTH fresh quantization AND cache loading.
+            # For cache: tells from_pretrained to interpret saved weights as NF4 (not expand to bf16).
+            # For fresh: tells from_pretrained to quantize from full-precision HF weights.
             if comp_module == "diffusers":
                 from diffusers import BitsAndBytesConfig as BnbConfig
             else:
@@ -422,18 +496,33 @@ def _load_diffusers(model_dir):
             load_kwargs = {
                 "quantization_config": qconfig,
                 "torch_dtype": _get_torch_dtype(),
-                "token": hf_token,
             }
-            # Optional device_map per component (e.g., "cpu" to avoid GPU OOM during quantization)
-            comp_device_map = comp.get("device_map")
-            if comp_device_map:
-                load_kwargs["device_map"] = comp_device_map
-                logger.info("Loading %s to device_map='%s'", comp_name, comp_device_map)
+            if hf_token:
+                load_kwargs["token"] = hf_token
 
-            pre_loaded[comp_name] = CompClass.from_pretrained(
-                model_source, subfolder=comp_subfolder, **load_kwargs,
-            )
-            logger.info("Loaded %s with %s quantization (device_map=%s)", comp_name, comp_quant, comp_device_map or "default")
+            # Device map: for fresh loads, use catalog's device_map (e.g., "cpu" for large models).
+            # For cache loads, skip device_map — the weights are already compact (NF4).
+            if not _loaded_from_cache:
+                comp_device_map = comp.get("device_map")
+                if comp_device_map:
+                    load_kwargs["device_map"] = comp_device_map
+                    logger.info("Loading %s to device_map='%s'", comp_name, comp_device_map)
+
+            # Source path: for cache, component is in its own directory (not a subfolder of repo).
+            # For fresh HF load, component is a subfolder of the model repo.
+            if _loaded_from_cache:
+                comp_path = os.path.join(model_source, comp_name)
+                if os.path.isdir(comp_path):
+                    pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
+                else:
+                    logger.warning("Cache missing component %s at %s — will load from pipeline", comp_name, comp_path)
+                    continue
+            else:
+                pre_loaded[comp_name] = CompClass.from_pretrained(
+                    model_source, subfolder=comp_subfolder, **load_kwargs,
+                )
+
+            logger.info("Loaded %s with %s quantization (from_cache=%s)", comp_name, comp_quant, _loaded_from_cache)
         except Exception as e:
             logger.warning("Quantization failed for %s (%s), falling back to full precision: %s",
                           comp_name, comp_quant, e)
