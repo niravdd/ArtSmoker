@@ -515,22 +515,31 @@ def _load_diffusers(model_dir):
             if hf_token:
                 load_kwargs["token"] = hf_token
 
-            # Device map: for fresh loads, use catalog's device_map (e.g., "cpu" for large models).
-            # For cache loads, skip device_map — the weights are already compact (NF4).
-            if not _loaded_from_cache:
-                comp_device_map = comp.get("device_map")
-                if comp_device_map:
-                    load_kwargs["device_map"] = comp_device_map
-                    logger.info("Loading %s to device_map='%s'", comp_name, comp_device_map)
+            # Device map for quantization: "cpu" keeps large models in RAM during quantization
+            # to avoid GPU OOM. Needed for both fresh loads AND cache re-quantization.
+            comp_device_map = comp.get("device_map")
+            if comp_device_map:
+                load_kwargs["device_map"] = comp_device_map
+                logger.info("Loading %s to device_map='%s'", comp_name, comp_device_map)
 
-            # Source path: for cache, component is in its own directory (not a subfolder of repo).
-            # For fresh HF load, component is a subfolder of the model repo.
+            # Source path resolution:
+            # - Cache: component saved as subfolder of cache dir. Try both comp_name
+            #   and comp_subfolder (pipeline may save under different names).
+            # - Fresh: subfolder of HuggingFace repo.
             if _loaded_from_cache:
-                comp_path = os.path.join(model_source, comp_name)
-                if os.path.isdir(comp_path):
+                # Try multiple possible directory names
+                comp_path = None
+                for candidate in [comp_name, comp_subfolder]:
+                    candidate_path = os.path.join(model_source, candidate)
+                    if os.path.isdir(candidate_path):
+                        comp_path = candidate_path
+                        break
+
+                if comp_path:
+                    logger.info("Loading %s from cache: %s (re-quantizing to %s)", comp_name, comp_path, comp_quant)
                     pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
                 else:
-                    logger.warning("Cache missing component %s at %s — will load from pipeline", comp_name, comp_path)
+                    logger.warning("Cache missing component %s — will load from pipeline (UNQUANTIZED)", comp_name)
                     continue
             else:
                 pre_loaded[comp_name] = CompClass.from_pretrained(
