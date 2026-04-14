@@ -249,21 +249,37 @@ def _do_s3_cache_save(model_dict):
 
         if library == "diffusers" and "pipe" in model_dict:
             pipe = model_dict["pipe"]
-            # Save pipeline config (model_index.json) — tells from_pretrained
-            # which component classes to use and their subfolder locations
+            # Save pipeline config (model_index.json)
             pipe.save_config(save_dir)
             logger.info("Saved pipeline config (model_index.json)")
 
-            # Save each component individually — this preserves BnB quantization.
-            # component.save_pretrained() writes quantization_config.json for
-            # NF4/int8 quantized models, which from_pretrained() auto-detects.
+            # Quantized components were early-saved BEFORE pipeline assembly
+            # (in the quantization loop) to preserve BnB metadata.
+            # Non-quantized components are saved here from the pipeline.
+            quant_names = {
+                c.get("name") for c in _config.get("quantization_components", [])
+                if isinstance(c, dict)
+            }
+
             components_saved = 0
             for attr_name in ["transformer", "text_encoder", "text_encoder_2",
                               "vae", "scheduler", "tokenizer", "tokenizer_2"]:
+                comp_dir = os.path.join(save_dir, attr_name)
+
+                # Check if early-saved version exists (quantized components)
+                if attr_name in quant_names and os.path.isdir(comp_dir):
+                    comp_size = sum(
+                        os.path.getsize(os.path.join(r, f))
+                        for r, _, files in os.walk(comp_dir) for f in files
+                    ) / (1024**3)
+                    logger.info("Using early-saved %s: %.2f GB (NF4 preserved)", attr_name, comp_size)
+                    components_saved += 1
+                    continue
+
+                # Non-quantized component — save from pipeline
                 component = getattr(pipe, attr_name, None)
                 if component is None:
                     continue
-                comp_dir = os.path.join(save_dir, attr_name)
                 os.makedirs(comp_dir, exist_ok=True)
                 try:
                     if hasattr(component, "save_pretrained"):
@@ -272,15 +288,14 @@ def _do_s3_cache_save(model_dict):
                         component.save_config(comp_dir)
                     comp_size = sum(
                         os.path.getsize(os.path.join(r, f))
-                        for r, _, files in os.walk(comp_dir)
-                        for f in files
+                        for r, _, files in os.walk(comp_dir) for f in files
                     ) / (1024**3)
                     logger.info("Saved %s: %.2f GB", attr_name, comp_size)
                     components_saved += 1
                 except Exception as e:
                     logger.warning("Failed to save component %s: %s", attr_name, e)
 
-            logger.info("Saved %d pipeline components individually", components_saved)
+            logger.info("Saved %d pipeline components", components_saved)
 
         elif library == "transformers":
             if "model" in model_dict:
@@ -523,6 +538,28 @@ def _load_diffusers(model_dir):
                 )
 
             logger.info("Loaded %s with %s quantization (from_cache=%s)", comp_name, comp_quant, _loaded_from_cache)
+
+            # CRITICAL: Save quantized component IMMEDIATELY, before pipeline assembly
+            # or model_cpu_offload can strip BnB metadata. save_pretrained() on a freshly
+            # quantized component writes quantization_config.json. After pipeline assembly
+            # + offloading, this metadata is lost and save reverts to full precision.
+            if not _loaded_from_cache and _get_env("ARTSMOKER_CACHE_BUCKET"):
+                _early_save_dir = "/tmp/model-save"
+                comp_save_dir = os.path.join(_early_save_dir, comp_name)
+                try:
+                    os.makedirs(comp_save_dir, exist_ok=True)
+                    pre_loaded[comp_name].save_pretrained(comp_save_dir)
+                    qconfig_path = os.path.join(comp_save_dir, "quantization_config.json")
+                    has_qc = os.path.exists(qconfig_path)
+                    comp_size = sum(
+                        os.path.getsize(os.path.join(r, f))
+                        for r, _, files in os.walk(comp_save_dir) for f in files
+                    ) / (1024**3)
+                    logger.info("Early-saved %s: %.2f GB, quantization_config.json=%s",
+                                comp_name, comp_size, "✓" if has_qc else "✗")
+                except Exception as save_err:
+                    logger.warning("Early save failed for %s: %s", comp_name, save_err)
+
         except Exception as e:
             logger.warning("Quantization failed for %s (%s), falling back to full precision: %s",
                           comp_name, comp_quant, e)
