@@ -600,10 +600,6 @@ def _load_diffusers(model_dir):
 
     if pre_loaded:
         kwargs.update(pre_loaded)
-        # Official HF approach: use device_map="balanced" for quantized pipelines.
-        # Places model optimally across GPU+CPU. Fills GPU first, spills to CPU if needed.
-        kwargs["device_map"] = "balanced"
-        logger.info("Using device_map='balanced' for quantized pipeline — fills GPU first, spills to CPU if needed")
 
     try:
         pipe = PipelineClass.from_pretrained(model_source, **kwargs)
@@ -613,27 +609,22 @@ def _load_diffusers(model_dir):
             fallback_kwargs["token"] = hf_token
         if pre_loaded:
             fallback_kwargs.update(pre_loaded)
-            fallback_kwargs["device_map"] = "balanced"
         pipe = PipelineClass.from_pretrained(model_source, **fallback_kwargs)
 
-    # GPU placement strategy:
-    # - Quantized components (BnB NF4/INT8): use device_map="balanced" (official HF recommendation).
-    #   This places model optimally across GPU+CPU, spilling to CPU if GPU fills.
-    #   Much faster than model_cpu_offload (no per-step transfers) and safe (no OOM crashes).
-    # - Non-quantized: pipe.to("cuda") if it fits, or model_cpu_offload for large models.
-    # - device_map from catalog: model already placed (multi-GPU).
+    # GPU placement strategy for quantized models:
+    # device_map="balanced" causes CUDA illegal memory access when text encoder is on CPU
+    # and transformer is on GPU (cross-device tensor operations fail).
+    # model_cpu_offload is the correct approach: moves ONE component at a time to GPU,
+    # runs its forward pass, then moves it back. Each component gets full GPU access.
+    # With bf16 text encoder (~22 GB) + NF4 transformer (~10 GB), each fits on 44.5 GB L40S.
+    # Speed: text encoding once (~15s) + 28 denoising steps (~3-4 min) = ~3.5 min total.
     has_quantized = bool(pre_loaded)
 
     if device_map:
         logger.info("Skipping .to(cuda)/offload — model placed by device_map")
     elif has_quantized:
-        # Official diffusers approach for quantized models: device_map="balanced"
-        # Fills GPU first, spills to CPU if needed (safety net against OOM).
-        logger.info("Quantized components present — skipping .to(cuda), pipeline uses device_map placement")
-        # Note: components were loaded with device_map during from_pretrained.
-        # The pipeline's from_pretrained with pre_loaded components already handles placement.
-        # We do NOT call pipe.to("cuda") — that would try to move BnB quantized tensors
-        # which aren't movable. The pipeline is already on the correct devices.
+        logger.info("Quantized components present — using model_cpu_offload (one component on GPU at a time)")
+        pipe.enable_model_cpu_offload()
     elif _get_env_bool("ENABLE_MODEL_CPU_OFFLOAD"):
         logger.info("Enabling model CPU offload (keeps only active component on GPU)")
         pipe.enable_model_cpu_offload()
