@@ -603,7 +603,7 @@ def _load_diffusers(model_dir):
         # Official HF approach: use device_map="balanced" for quantized pipelines.
         # Places model optimally across GPU+CPU. Fills GPU first, spills to CPU if needed.
         kwargs["device_map"] = "balanced"
-        logger.info("Using device_map='auto' for quantized pipeline (official HF recommendation)")
+        logger.info("Using device_map='balanced' for quantized pipeline — fills GPU first, spills to CPU if needed")
 
     try:
         pipe = PipelineClass.from_pretrained(model_source, **kwargs)
@@ -645,7 +645,7 @@ def _load_diffusers(model_dir):
 
     # Log device placement summary — critical for debugging OOM/spill issues
     if has_quantized and hasattr(pipe, 'hf_device_map'):
-        logger.info("Device placement (device_map='auto'):")
+        logger.info("Device placement (device_map='balanced'):")
         for comp_name, device in pipe.hf_device_map.items():
             logger.info("  %s → %s", comp_name, device)
     elif has_quantized:
