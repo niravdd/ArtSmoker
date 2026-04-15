@@ -393,8 +393,11 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         instance = instance_type or bundle["recommended_instance"]
         logger.info("Model %s belongs to bundle '%s' (endpoint: %s)", model_key, bundle_key, endpoint_name)
     else:
-        endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
         instance = instance_type or model["requirements"]["recommended_instance"]
+        # Include instance type in endpoint name to allow multiple deployments
+        # of the same model on different hardware (e.g., testing g6e vs g7e).
+        inst_suffix = instance.replace("ml.", "").replace(".", "-")
+        endpoint_name = f"artsmoker-{model_key.replace('_', '-')}-{inst_suffix}"
 
     if progress_callback:
         progress_callback(f"Creating Amazon SageMaker {endpoint_type} endpoint: {endpoint_name}...")
@@ -429,7 +432,7 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
 
     # Create Amazon SageMaker model — delete and recreate if it already exists
     # (ensures env vars and container image are always up to date)
-    sm_model_name = f"artsmoker-{model_key.replace('_', '-')}-model"
+    sm_model_name = f"{endpoint_name}-model"
     try:
         sm.delete_model(ModelName=sm_model_name)
         logger.info("Deleted existing Amazon SageMaker model %s (will recreate with latest config)", sm_model_name)
@@ -531,7 +534,19 @@ def update_endpoint_config(model_key: str) -> dict:
     if not model:
         raise ValueError(f"Model {model_key} not found in catalog")
 
-    endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
+    # Look up endpoint name from registry
+    from .model_registry import get_registry
+    reg = get_registry()
+    endpoint_name = ""
+    for section in ["image_models", "video_models", "post_processing", "utility_models"]:
+        entry = reg.get(section, {}).get(model_key, {})
+        ep = entry.get("deployment", {}).get("endpoint_name", "")
+        if ep:
+            endpoint_name = ep
+            break
+    if not endpoint_name:
+        endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
+
     sm = boto3.client("sagemaker", region_name=_get_region())
 
     # Verify endpoint exists
@@ -559,7 +574,7 @@ def update_endpoint_config(model_key: str) -> dict:
     resolved_hf_token = _retrieve_hf_token() if model.get("requires_hf_auth") else None
 
     # 3. Create new SageMaker Model (delete old first)
-    sm_model_name = f"artsmoker-{model_key.replace('_', '-')}-model"
+    sm_model_name = f"{endpoint_name}-model"
     model_data_url = f"s3://{bucket}/{S3_MODEL_PREFIX}/{model_key}/model.tar.gz"
     container_env = _get_model_environment(model_key, model, hf_token=resolved_hf_token)
 
@@ -892,12 +907,23 @@ def check_endpoint_status(endpoint_name: str) -> dict:
         return result
 
 
-def teardown_endpoint(model_key: str, delete_s3: bool = False) -> dict:
+def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: str = "") -> dict:
     """Delete an Amazon SageMaker endpoint, S3 artifacts, and HF token secret."""
-    endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
+    if not endpoint_name:
+        # Look up from registry, fall back to legacy naming
+        from .model_registry import get_registry
+        reg = get_registry()
+        for section in ["image_models", "video_models", "post_processing", "utility_models"]:
+            entry = reg.get(section, {}).get(model_key, {})
+            ep = entry.get("deployment", {}).get("endpoint_name", "")
+            if ep:
+                endpoint_name = ep
+                break
+        if not endpoint_name:
+            endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
     clear_readiness_cache(endpoint_name)
     _endpoint_status_cache.pop(endpoint_name, None)
-    sm_model_name = f"artsmoker-{model_key.replace('_', '-')}-model"
+    sm_model_name = f"{endpoint_name}-model"
     config_name = f"{endpoint_name}-config"
 
     sm = boto3.client("sagemaker", region_name=_get_region())

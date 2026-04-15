@@ -754,6 +754,8 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
     """Register a deployed custom model in ArtSmoker's model registry.
 
     This makes the model appear in the appropriate studio dropdowns.
+    Uses a unique registry key derived from the endpoint name (includes instance type),
+    so multiple deployments of the same model on different hardware coexist.
     """
     from backend.services.model_registry import get_registry, _save
 
@@ -765,8 +767,18 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
     from backend.services.sagemaker_deployer import _get_region
     deploy_region = _get_region()
 
+    # Unique registry key: use endpoint name (includes instance suffix)
+    # e.g., "artsmoker-flux2-dev-g6e-2xlarge" → "flux2_dev_g6e_2xlarge"
+    ep_name = deployment.get("endpoint_name", "")
+    registry_key = ep_name.replace("artsmoker-", "").replace("-", "_") if ep_name else model_key
+
+    # Label includes instance type for disambiguation
+    instance_type = deployment.get("instance_type", "")
+    inst_label = instance_type.replace("ml.", "").upper() if instance_type else ""
+    label = f"{catalog_entry['label']} ({inst_label})" if inst_label else catalog_entry["label"]
+
     entry = {
-        "label": catalog_entry["label"],
+        "label": label,
         "model_id": f"sagemaker:{deployment['endpoint_name']}",
         "provider": catalog_entry["provider"],
         "region": deploy_region,
@@ -787,24 +799,24 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
     }
 
     if category == "image_generation":
-        registry.setdefault("image_models", {})[model_key] = {
+        registry.setdefault("image_models", {})[registry_key] = {
             **entry,
             "model_purpose": "text_to_image",
             "prompt_limit": invoke.get("max_prompt_length", 2048),
             "moderation_strictness": "none",
         }
     elif category == "post_processing":
-        registry.setdefault("post_processing", {})[model_key] = {
+        registry.setdefault("post_processing", {})[registry_key] = {
             **entry,
-            "purpose": model_key,  # e.g., "real_esrgan" → purpose for filtering
+            "purpose": model_key,
         }
     elif category == "video_generation":
-        registry.setdefault("video_models", {})[model_key] = entry
+        registry.setdefault("video_models", {})[registry_key] = entry
     elif category == "utility":
-        registry.setdefault("utility_models", {})[model_key] = entry
+        registry.setdefault("utility_models", {})[registry_key] = entry
 
     _save()
-    logger.info("Registered custom model %s in registry (category=%s)", model_key, category)
+    logger.info("Registered custom model %s (key=%s) in registry (category=%s)", model_key, registry_key, category)
 
 
 def _unregister_custom_model(model_key: str):
