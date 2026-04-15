@@ -772,10 +772,11 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
     ep_name = deployment.get("endpoint_name", "")
     registry_key = ep_name.replace("artsmoker-", "").replace("-", "_") if ep_name else model_key
 
-    # Label includes instance type for disambiguation
+    # Label includes short instance identifier for disambiguation
     instance_type = deployment.get("instance_type", "")
-    inst_label = instance_type.replace("ml.", "").upper() if instance_type else ""
-    label = f"{catalog_entry['label']} ({inst_label})" if inst_label else catalog_entry["label"]
+    # e.g., "ml.g6e.4xlarge" → "g6e.4xl"
+    inst_short = instance_type.replace("ml.", "").replace("xlarge", "xl") if instance_type else ""
+    label = f"{catalog_entry['label']} [{inst_short}]" if inst_short else catalog_entry["label"]
 
     entry = {
         "label": label,

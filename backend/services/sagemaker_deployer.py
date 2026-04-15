@@ -394,10 +394,12 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         logger.info("Model %s belongs to bundle '%s' (endpoint: %s)", model_key, bundle_key, endpoint_name)
     else:
         instance = instance_type or model["requirements"]["recommended_instance"]
-        # Include instance type in endpoint name to allow multiple deployments
-        # of the same model on different hardware (e.g., testing g6e vs g7e).
+        # Unique endpoint name: model + instance type + short ID.
+        # Allows multiple deployments of the same model on different (or same) hardware.
+        import hashlib, time as _t
         inst_suffix = instance.replace("ml.", "").replace(".", "-")
-        endpoint_name = f"artsmoker-{model_key.replace('_', '-')}-{inst_suffix}"
+        short_id = hashlib.md5(f"{model_key}{instance}{_t.time()}".encode()).hexdigest()[:4]
+        endpoint_name = f"artsmoker-{model_key.replace('_', '-')}-{inst_suffix}-{short_id}"
 
     if progress_callback:
         progress_callback(f"Creating Amazon SageMaker {endpoint_type} endpoint: {endpoint_name}...")
