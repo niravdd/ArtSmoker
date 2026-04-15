@@ -600,9 +600,9 @@ def _load_diffusers(model_dir):
 
     if pre_loaded:
         kwargs.update(pre_loaded)
-        # Official HF approach: use device_map="auto" for quantized pipelines.
+        # Official HF approach: use device_map="balanced" for quantized pipelines.
         # Places model optimally across GPU+CPU. Fills GPU first, spills to CPU if needed.
-        kwargs["device_map"] = "auto"
+        kwargs["device_map"] = "balanced"
         logger.info("Using device_map='auto' for quantized pipeline (official HF recommendation)")
 
     try:
@@ -613,11 +613,11 @@ def _load_diffusers(model_dir):
             fallback_kwargs["token"] = hf_token
         if pre_loaded:
             fallback_kwargs.update(pre_loaded)
-            fallback_kwargs["device_map"] = "auto"
+            fallback_kwargs["device_map"] = "balanced"
         pipe = PipelineClass.from_pretrained(model_source, **fallback_kwargs)
 
     # GPU placement strategy:
-    # - Quantized components (BnB NF4/INT8): use device_map="auto" (official HF recommendation).
+    # - Quantized components (BnB NF4/INT8): use device_map="balanced" (official HF recommendation).
     #   This places model optimally across GPU+CPU, spilling to CPU if GPU fills.
     #   Much faster than model_cpu_offload (no per-step transfers) and safe (no OOM crashes).
     # - Non-quantized: pipe.to("cuda") if it fits, or model_cpu_offload for large models.
@@ -627,7 +627,7 @@ def _load_diffusers(model_dir):
     if device_map:
         logger.info("Skipping .to(cuda)/offload — model placed by device_map")
     elif has_quantized:
-        # Official diffusers approach for quantized models: device_map="auto"
+        # Official diffusers approach for quantized models: device_map="balanced"
         # Fills GPU first, spills to CPU if needed (safety net against OOM).
         logger.info("Quantized components present — skipping .to(cuda), pipeline uses device_map placement")
         # Note: components were loaded with device_map during from_pretrained.
