@@ -643,6 +643,22 @@ def _load_diffusers(model_dir):
     else:
         pipe.to("cuda")
 
+    # Log device placement summary — critical for debugging OOM/spill issues
+    if has_quantized and hasattr(pipe, 'hf_device_map'):
+        logger.info("Device placement (device_map='auto'):")
+        for comp_name, device in pipe.hf_device_map.items():
+            logger.info("  %s → %s", comp_name, device)
+    elif has_quantized:
+        # Check individual component devices
+        for attr_name in ["transformer", "text_encoder", "text_encoder_2", "vae"]:
+            comp = getattr(pipe, attr_name, None)
+            if comp is not None:
+                try:
+                    device = next(comp.parameters()).device
+                    logger.info("  %s → %s", attr_name, device)
+                except StopIteration:
+                    pass
+
     if _get_env_bool("ENABLE_VAE_SLICING"):
         logger.info("Enabling VAE slicing")
         try:
@@ -962,9 +978,25 @@ def predict_fn(input_data, model_dict):
 
     import time as _time
     t0 = _time.time()
+
+    # Log GPU memory before inference
+    if torch.cuda.is_available():
+        alloc = torch.cuda.memory_allocated(0) / (1024**3)
+        reserved = torch.cuda.memory_reserved(0) / (1024**3)
+        logger.info("GPU memory before inference: %.2f GB allocated, %.2f GB reserved (%.1f GB free of 44.5 GB)",
+                     alloc, reserved, 44.5 - reserved)
+
     try:
         result = predictor(input_data, model_dict)
         elapsed = _time.time() - t0
+
+        # Log GPU memory after inference (peak is during, but this shows post-inference state)
+        if torch.cuda.is_available():
+            peak = torch.cuda.max_memory_allocated(0) / (1024**3)
+            alloc = torch.cuda.memory_allocated(0) / (1024**3)
+            logger.info("GPU memory after inference: %.2f GB peak, %.2f GB current", peak, alloc)
+            torch.cuda.reset_peak_memory_stats(0)
+
         logger.info("Inference complete in %.1fs (predictor=%s, output=%d chars)",
                      elapsed, predictor_type, len(result) if isinstance(result, str) else 0)
 
