@@ -614,8 +614,20 @@ def _load_diffusers(model_dir):
     # Apply memory optimizations from catalog (via env vars)
     # Order matters: CPU offload INSTEAD of .to("cuda") — they're mutually exclusive
     # Skip if device_map was used (model already placed across GPUs)
+    #
+    # When ALL components are NF4 quantized, the total VRAM is low enough (~27 GB)
+    # to fit on a 48 GB GPU WITHOUT offloading. Offloading adds massive overhead
+    # (7 min vs 30-60s per image) because it transfers ~10 GB over PCIe every step.
+    all_quantized = pre_loaded and len(pre_loaded) == len([
+        c for c in _config.get("quantization_components", []) if isinstance(c, dict)
+    ])
+
     if device_map:
         logger.info("Skipping .to(cuda)/offload — model placed by device_map")
+    elif all_quantized:
+        # All components quantized — fits on GPU without offloading. Much faster inference.
+        logger.info("All components NF4 quantized — loading to GPU directly (no offload)")
+        pipe.to("cuda")
     elif _get_env_bool("ENABLE_MODEL_CPU_OFFLOAD"):
         logger.info("Enabling model CPU offload (keeps only active component on GPU)")
         pipe.enable_model_cpu_offload()
