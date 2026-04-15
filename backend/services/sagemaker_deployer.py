@@ -1550,6 +1550,9 @@ def _get_model_environment(model_key: str, model: dict,
         ),
         # CUDA memory management
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+        # Single MMS worker — large models (FLUX.2) need all available RAM/VRAM.
+        # Multiple workers compete for resources and cause OOM or worker kills.
+        "SAGEMAKER_MODEL_SERVER_WORKERS": "1",
         # Container timeout — MMS uses this for BOTH model loading AND invocation.
         # Must accommodate the full cold-start cycle (download + quantize + load)
         # plus inference time. Reads from catalog; defaults conservatively.
