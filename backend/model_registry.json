@@ -4553,11 +4553,11 @@
         },
         "requirements": {
           "min_vram_gb": 48,
-          "min_ram_gb": 64,
-          "recommended_instance": "ml.g6e.2xlarge",
+          "min_ram_gb": 96,
+          "recommended_instance": "ml.g6e.4xlarge",
           "build_instance": "ml.g5.12xlarge",
           "disk_gb": 80,
-          "_note": "32B model. Transformer quantized to NF4 (~10 GB on GPU). Text encoder (Mistral 3) kept in full bf16 (~22 GB on GPU) for best quality. Total ~37 GB peak VRAM \u2014 fits on 48 GB L40S with device_map=auto. device_map=auto spills to CPU if needed (safety net)."
+          "_note": "32B model. Transformer quantized to NF4 (~10 GB on GPU). Text encoder (Mistral 3) kept in full bf16 (~22 GB) for best quality. Peak ~37 GB VRAM \u2014 fits on 48 GB L40S with device_map=balanced. Build phase (first deploy, no cache): needs 128GB+ RAM (g5.12xlarge). Serve phase (from cache): needs 96GB+ RAM (g6e.4xlarge)."
         },
         "invoke": {
           "library": "diffusers",
@@ -4595,7 +4595,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 3600,
-          "prompt_guidance": "FLUX.2 dev is a 32B parameter model \u2014 the most capable open-source image generator.\nUse natural language \u2014 write like describing a photograph, painting, or cinematic shot.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 describe what you WANT instead.\nFLUX.2 excels at: text rendering in images, character consistency, multi-reference editing.\nLonger prompts work well (50-120 words) \u2014 the model has exceptional prompt following.\nCamera specs: '85mm lens, f/1.4', 'wide-angle 24mm', 'aerial drone shot'.\nLighting: 'golden hour', 'studio lighting', 'dramatic chiaroscuro', 'neon-lit'.\nQuality: 'professional photography', 'cinematic', '8k resolution', 'award-winning'.\nCan render readable text in images \u2014 include exact text in quotes if needed.",
+          "prompt_guidance": "FLUX.2 dev is a 32B parameter model by Black Forest Labs \u2014 the most capable open-source image generator.\nIt uses Mistral 3 as its text encoder, giving it exceptional natural language understanding.\n\nPROMPT STRUCTURE (order matters \u2014 model prioritizes what comes first):\n1. Subject & action \u2014 who/what, their pose, expression, clothing\n2. Environment & setting \u2014 where, background elements\n3. Lighting & atmosphere \u2014 light source, mood, time of day\n4. Camera & composition \u2014 lens, angle, framing, depth of field\n5. Style & quality \u2014 artistic style, rendering quality\n\nCRITICAL RULES:\n- DO NOT generate negative prompts \u2014 FLUX.2 does not use them. Describe ONLY what you want.\n- DO NOT use 'no', 'not', 'without', 'avoid' \u2014 the model cannot process negation.\n- Use natural, descriptive language \u2014 write like describing a photograph to a skilled photographer.\n- Front-load the most important visual elements (subject, key details) in the first sentence.\n- Be specific with materials, textures, colors \u2014 'weathered red brick' not just 'wall'.\n- Include camera specifications for realism: '85mm f/1.4', 'wide-angle 24mm', 'aerial drone shot'.\n- Include lighting: 'golden hour rim light', 'soft diffused overcast', 'dramatic chiaroscuro'.\n- Quality markers: 'professional photography', 'cinematic', '8k resolution', 'award-winning'.\n\nFLUX.2 STRENGTHS (leverage these):\n- Exceptional at rendering readable text in images \u2014 include exact text in quotes.\n- Superior character consistency and anatomical accuracy.\n- Multi-reference editing and complex scene composition.\n- Longer prompts work extremely well (80-150 words) \u2014 more detail = better results.\n- Understands compositional framing: 'rule of thirds', 'centered subject filling 70% of frame'.\n\nOPTIMAL SETTINGS:\n- 28 inference steps provides excellent quality with good speed.\n- guidance_scale=4 for standard generation.\n- Supports up to 512 tokens (long, detailed prompts encouraged).",
           "max_concurrent_invocations": 1,
           "quantization_components": [
             {
