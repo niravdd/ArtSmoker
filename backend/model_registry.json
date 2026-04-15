@@ -4557,7 +4557,7 @@
           "recommended_instance": "ml.g6e.2xlarge",
           "build_instance": "ml.g5.12xlarge",
           "disk_gb": 80,
-          "_note": "32B model. FLUX.2 uses Mistral 3 as text encoder (not T5-XXL like FLUX.1). Both transformer and text_encoder need NF4 quantization. Build phase needs 128GB+ RAM. Serve needs re-quantization of text_encoder since transformers library save_pretrained does not preserve BnB NF4."
+          "_note": "32B model. Transformer quantized to NF4 (~10 GB on GPU). Text encoder (Mistral 3) kept in full bf16 (~22 GB on GPU) for best quality. Total ~37 GB peak VRAM \u2014 fits on 48 GB L40S with device_map=auto. device_map=auto spills to CPU if needed (safety net)."
         },
         "invoke": {
           "library": "diffusers",
@@ -4580,7 +4580,7 @@
             },
             "num_inference_steps": {
               "type": "int",
-              "default": 50
+              "default": 28
             },
             "guidance_scale": {
               "type": "float",
@@ -4604,14 +4604,6 @@
               "class": "Flux2Transformer2DModel",
               "module": "diffusers",
               "subfolder": "transformer",
-              "quantization": "nf4",
-              "device_map": "cpu"
-            },
-            {
-              "name": "text_encoder",
-              "class": "Mistral3ForConditionalGeneration",
-              "module": "transformers",
-              "subfolder": "text_encoder",
               "quantization": "nf4",
               "device_map": "cpu"
             }

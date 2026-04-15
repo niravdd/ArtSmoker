@@ -600,6 +600,10 @@ def _load_diffusers(model_dir):
 
     if pre_loaded:
         kwargs.update(pre_loaded)
+        # Official HF approach: use device_map="auto" for quantized pipelines.
+        # Places model optimally across GPU+CPU. Fills GPU first, spills to CPU if needed.
+        kwargs["device_map"] = "auto"
+        logger.info("Using device_map='auto' for quantized pipeline (official HF recommendation)")
 
     try:
         pipe = PipelineClass.from_pretrained(model_source, **kwargs)
@@ -609,25 +613,27 @@ def _load_diffusers(model_dir):
             fallback_kwargs["token"] = hf_token
         if pre_loaded:
             fallback_kwargs.update(pre_loaded)
+            fallback_kwargs["device_map"] = "auto"
         pipe = PipelineClass.from_pretrained(model_source, **fallback_kwargs)
 
-    # Apply memory optimizations from catalog (via env vars)
-    # Order matters: CPU offload INSTEAD of .to("cuda") — they're mutually exclusive
-    # Skip if device_map was used (model already placed across GPUs)
-    #
-    # When ALL components are NF4 quantized, the total VRAM is low enough (~27 GB)
-    # to fit on a 48 GB GPU WITHOUT offloading. Offloading adds massive overhead
-    # (7 min vs 30-60s per image) because it transfers ~10 GB over PCIe every step.
-    all_quantized = pre_loaded and len(pre_loaded) == len([
-        c for c in _config.get("quantization_components", []) if isinstance(c, dict)
-    ])
+    # GPU placement strategy:
+    # - Quantized components (BnB NF4/INT8): use device_map="auto" (official HF recommendation).
+    #   This places model optimally across GPU+CPU, spilling to CPU if GPU fills.
+    #   Much faster than model_cpu_offload (no per-step transfers) and safe (no OOM crashes).
+    # - Non-quantized: pipe.to("cuda") if it fits, or model_cpu_offload for large models.
+    # - device_map from catalog: model already placed (multi-GPU).
+    has_quantized = bool(pre_loaded)
 
     if device_map:
         logger.info("Skipping .to(cuda)/offload — model placed by device_map")
-    elif all_quantized:
-        # All components quantized — fits on GPU without offloading. Much faster inference.
-        logger.info("All components NF4 quantized — loading to GPU directly (no offload)")
-        pipe.to("cuda")
+    elif has_quantized:
+        # Official diffusers approach for quantized models: device_map="auto"
+        # Fills GPU first, spills to CPU if needed (safety net against OOM).
+        logger.info("Quantized components present — skipping .to(cuda), pipeline uses device_map placement")
+        # Note: components were loaded with device_map during from_pretrained.
+        # The pipeline's from_pretrained with pre_loaded components already handles placement.
+        # We do NOT call pipe.to("cuda") — that would try to move BnB quantized tensors
+        # which aren't movable. The pipeline is already on the correct devices.
     elif _get_env_bool("ENABLE_MODEL_CPU_OFFLOAD"):
         logger.info("Enabling model CPU offload (keeps only active component on GPU)")
         pipe.enable_model_cpu_offload()
