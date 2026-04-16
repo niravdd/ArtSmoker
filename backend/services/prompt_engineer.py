@@ -442,6 +442,100 @@ def refine_prompt(
     logger.info("Refined prompt (%d/%d chars): %s", len(main_prompt), max_chars, main_prompt[:150])
     return main_prompt
 
+def refine_prompt_structured(
+    user_prompt: str,
+    style_profile: StyleProfile | None,
+    asset_type: AssetType,
+    image_model: str | None = None,
+) -> tuple[str, dict]:
+    """Refine a prompt using structured decompose→recompose pipeline.
+
+    Always decomposes the prompt into visual components (subject, scene,
+    lighting, composition, style) then recomposes into an optimised prompt.
+    This produces higher quality results than single-shot refinement because
+    it forces the LLM to consider each visual aspect explicitly.
+
+    Returns: (refined_prompt, decomposed_data)
+        - refined_prompt: the final recomposed prompt for the model
+        - decomposed_data: the structured components (for display in UI)
+    """
+    from backend.services.prompt_templates import get_template, get_system_prompt
+
+    max_chars = get_prompt_limit(image_model)
+    asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
+    style_section = _build_style_section(style_profile)
+    model_name = _get_model_label(image_model)
+    model_instructions = get_model_guidance(image_model) or _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
+
+    # Step 1: Decompose — break the prompt into structured visual components
+    decompose_prompt_text = get_template('prompt_decompose').format(
+        asset_context=asset_context,
+        style_section=style_section,
+        user_prompt=user_prompt,
+        model_name=model_name,
+        model_specific_instructions=model_instructions,
+    )
+
+    logger.info("Structured refinement: decomposing prompt for %s, model=%s", asset_type.value, image_model)
+
+    raw_decompose = invoke_llm(
+        decompose_prompt_text,
+        system=get_system_prompt('prompt_decompose'),
+        complexity="fast",
+        max_tokens=2048,
+        temperature=0.5,
+    ).strip()
+
+    # Parse decomposed JSON
+    import re as _re
+    cleaned = raw_decompose
+    cleaned = _re.sub(r"^```(?:json)?\s*\n?", "", cleaned)
+    cleaned = _re.sub(r"\n?```\s*$", "", cleaned)
+    try:
+        decomposed = json.loads(cleaned.strip())
+    except Exception:
+        # Fallback: if decomposition fails, use single-shot refinement
+        logger.warning("Structured decomposition failed — falling back to single-shot refinement")
+        refined = refine_prompt(user_prompt, style_profile, asset_type, image_model)
+        return refined, {}
+
+    # Step 2: Recompose — build an optimised prompt from the components
+    recompose_prompt_text = get_template('prompt_recompose').format(
+        structured_json=json.dumps(decomposed, indent=2),
+        model_name=model_name,
+        max_chars=max_chars,
+    )
+
+    raw_recompose = invoke_llm(
+        recompose_prompt_text,
+        system=get_system_prompt('prompt_recompose'),
+        complexity="fast",
+        max_tokens=1500,
+        temperature=0.3,
+    ).strip()
+
+    # Split out NEGATIVE line
+    main_prompt = raw_recompose
+    negative = ""
+    for marker in ["NEGATIVE:", "Negative:"]:
+        if marker in raw_recompose:
+            parts = raw_recompose.split(marker, 1)
+            main_prompt = parts[0].strip()
+            negative = parts[1].strip()
+            break
+
+    # Skip negative prompts for models that don't support them
+    if negative and not supports_negative_prompt(image_model):
+        negative = ""
+    _last_negative_var.set(negative)
+
+    if len(main_prompt) > max_chars:
+        main_prompt = main_prompt[:max_chars - 4].rsplit(" ", 1)[0]
+
+    logger.info("Structured refinement complete (%d chars): %s", len(main_prompt), main_prompt[:150])
+    return main_prompt, decomposed
+
+
 def get_last_negative_prompt() -> str:
     """Retrieve the negative prompt from the most recent refine_prompt call."""
     return _last_negative_var.get()

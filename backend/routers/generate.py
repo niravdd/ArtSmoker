@@ -32,6 +32,7 @@ from backend.services.prompt_engineer import (
     get_last_negative_prompt,
     refine_marketing_prompt,
     refine_prompt,
+    refine_prompt_structured,
 )
 from backend.services.prompt_templates import get_template
 from backend.storage.local_store import store
@@ -384,7 +385,13 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                 if body.asset_type == AssetType.MARKETING_BANNER:
                     concept_prompts = [refine_marketing_prompt(body.prompt, style_profile, image_model=model_id)]
                 else:
-                    concept_prompts = [refine_prompt(body.prompt, style_profile, body.asset_type, image_model=model_id)]
+                    # Always use structured decompose→recompose for best quality.
+                    # This forces the LLM to consider subject, scene, lighting,
+                    # composition, and style explicitly — producing richer prompts.
+                    refined, decomposed = refine_prompt_structured(
+                        body.prompt, style_profile, body.asset_type, image_model=model_id,
+                    )
+                    concept_prompts = [refined]
             else:
                 concept_prompts = generate_concept_prompts(
                     body.prompt, style_profile, body.asset_type, n_opts, image_model=model_id,
@@ -752,11 +759,10 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
             # Model-optimized: tailored prompts per model
             for mk in model_keys:
                 if n_opts == 1:
-                    # Single option — use the faster refine_prompt
                     if body.asset_type == AssetType.MARKETING_BANNER:
                         p = refine_marketing_prompt(body.prompt, style_profile, image_model=mk)
                     else:
-                        p = refine_prompt(body.prompt, style_profile, body.asset_type, image_model=mk)
+                        p, _ = refine_prompt_structured(body.prompt, style_profile, body.asset_type, image_model=mk)
                     concept_prompts[mk] = [p]
                     negative_prompts[mk] = [get_last_negative_prompt()]
                 else:
@@ -776,7 +782,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 if body.asset_type == AssetType.MARKETING_BANNER:
                     p = refine_marketing_prompt(body.prompt, style_profile)
                 else:
-                    p = refine_prompt(body.prompt, style_profile, body.asset_type)
+                    p, _ = refine_prompt_structured(body.prompt, style_profile, body.asset_type)
                 shared_prompts = [p]
                 shared_negatives = [get_last_negative_prompt() or body.negative_prompt or ""]
             else:
