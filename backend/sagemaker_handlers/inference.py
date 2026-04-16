@@ -217,6 +217,24 @@ def _check_s3_cache():
         elapsed = _time.time() - t0
         logger.info("Downloaded %d files (%.1f GB) from S3 cache in %.1fs",
                      file_count, total_bytes / (1024**3), elapsed)
+
+        # Validate cache has actual model weights (not just config/scheduler/tokenizer).
+        # Sequential CPU offload models can't save weights (meta tensors) — their cache
+        # contains only metadata files. Reject such caches early so we fall through to HF.
+        has_weights = False
+        for root, dirs, files in os.walk(_CACHE_LOCAL_DIR):
+            for f in files:
+                if f.endswith((".safetensors", ".bin", ".pth", ".pt")):
+                    has_weights = True
+                    break
+            if has_weights:
+                break
+        if not has_weights:
+            logger.warning("S3 cache has no model weights (only config/metadata) — ignoring cache, will download from source")
+            import shutil as _shutil
+            _shutil.rmtree(_CACHE_LOCAL_DIR, ignore_errors=True)
+            return None
+
         _loaded_from_cache = True
         _cache_info = cache_info  # Preserve for _is_component_preserved() lookups
 
@@ -671,13 +689,22 @@ def _load_diffusers(model_dir):
 
     try:
         pipe = PipelineClass.from_pretrained(model_source, **kwargs)
-    except Exception:
+    except Exception as load_err:
+        # If loading from cache failed, fall back to HuggingFace repo (not same broken path).
+        # This handles corrupt/incomplete caches gracefully.
+        hf_repo = _get_env("ARTSMOKER_HF_REPO")
+        fallback_source = hf_repo if (hf_repo and _loaded_from_cache) else model_source
+        if fallback_source != model_source:
+            logger.warning("Cache load failed (%s) — falling back to HuggingFace: %s", load_err, fallback_source)
+        else:
+            logger.warning("Pipeline load failed (%s) — retrying with minimal kwargs", load_err)
+
         fallback_kwargs = {"torch_dtype": _get_torch_dtype()}
         if hf_token:
             fallback_kwargs["token"] = hf_token
         if pre_loaded:
             fallback_kwargs.update(pre_loaded)
-        pipe = PipelineClass.from_pretrained(model_source, **fallback_kwargs)
+        pipe = PipelineClass.from_pretrained(fallback_source, **fallback_kwargs)
 
     # GPU placement strategy for quantized models:
     # device_map="balanced" causes CUDA illegal memory access when text encoder is on CPU
