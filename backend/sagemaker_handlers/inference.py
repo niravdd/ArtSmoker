@@ -919,14 +919,24 @@ def model_fn(model_dir):
     except Exception as e:
         logger.warning("Version logging failed: %s", e)
 
-    # Load invoke config if provided as JSON
-    config_json = _get_env("INVOKE_CONFIG")
-    if config_json:
+    # Load invoke config — prefer file (no truncation risk), fall back to env var
+    config_file = os.path.join(model_dir, "code", "invoke_config.json")
+    if os.path.exists(config_file):
         try:
-            _config = json.loads(config_json)
-            logger.info("INVOKE_CONFIG loaded (%d keys)", len(_config))
-        except Exception:
+            with open(config_file) as f:
+                _config = json.load(f)
+            logger.info("invoke_config.json loaded from model.tar.gz (%d keys)", len(_config))
+        except Exception as e:
+            logger.warning("Failed to load invoke_config.json: %s", e)
             _config = {}
+    else:
+        config_json = _get_env("INVOKE_CONFIG")
+        if config_json:
+            try:
+                _config = json.loads(config_json)
+                logger.info("INVOKE_CONFIG loaded from env var (%d keys)", len(_config))
+            except Exception:
+                _config = {}
 
     loader = _LOADERS.get(library)
     if not loader:
