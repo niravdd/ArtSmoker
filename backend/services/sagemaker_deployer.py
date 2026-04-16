@@ -745,10 +745,15 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
             if last_activity_ts is None:
                 last_activity_ts = event_ts
 
-            # Success: model loaded
-            if "loaded in" in msg and "Model" in msg:
+            # Success: model loaded — match both our handler's log and MMS internal log
+            # Handler: "Model flux2_dev loaded in 189.4s (library=diffusers)"
+            # MMS:     "Model model loaded io_fd=..."
+            if ("loaded in" in msg and "Model" in msg) or ("Model model loaded" in msg):
                 try:
-                    detail = msg[msg.index("Model"):msg.index("Model") + 80]
+                    if "loaded in" in msg:
+                        detail = msg[msg.index("Model"):msg.index("Model") + 80]
+                    else:
+                        detail = "Model loaded"
                 except (ValueError, IndexError):
                     detail = "Model loaded"
                 return {"ready": True, "detail": detail, "last_activity_ms": event_ts}
