@@ -163,6 +163,7 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
         prompt=payload.get("prompt", ""),
         full_payload=payload,
         output_location=output_location,
+        input_location=input_location,
         s3_bucket=s3_bucket,
         s3_key=s3_key,
     )

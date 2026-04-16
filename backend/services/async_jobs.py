@@ -43,8 +43,9 @@ def submit_job(
     prompt: str,
     full_payload: dict,
     output_location: str,
-    s3_bucket: str,
-    s3_key: str,
+    input_location: str = "",
+    s3_bucket: str = "",
+    s3_key: str = "",
     option_index: int = 0,
     variation_index: int = 0,
     generation_id: str = "",
@@ -67,6 +68,7 @@ def submit_job(
         "full_prompt": prompt,
         "full_payload": full_payload,
         "output_location": output_location,
+        "input_location": input_location,
         "s3_bucket": s3_bucket,
         "s3_key": s3_key,
         "option_index": option_index,
@@ -471,11 +473,9 @@ def _check_job(job: dict, s3):
         # Track telemetry + cost
         _track_completion(job, duration_seconds, compute_cost)
 
-        # Clean up S3 input and output files (no longer needed)
+        # Clean up ALL S3 artifacts: input, output, AND job metadata.
+        # Job is complete — gallery has the image, no need to keep S3 state.
         _cleanup_s3(job, s3)
-
-        # Persist job state to S3 (survives server restarts)
-        _persist_job_to_s3(job)
 
         logger.info("Async job complete: %s → %s (%d bytes, %.0fs, ~$%.4f)",
                      job["job_id"], image_path, len(image_bytes), duration_seconds, compute_cost)
@@ -529,7 +529,6 @@ def _check_job(job: dict, s3):
                     job["completed_at"] = datetime.now(timezone.utc).isoformat()
                 _update_gallery_on_failure(job)
                 _cleanup_s3(job, s3)
-                _persist_job_to_s3(job)
             else:
                 logger.debug("Async job %s: S3 check error (will retry): %s", job["job_id"], e)
 
@@ -661,22 +660,30 @@ _JOBS_S3_PREFIX = "artsmoker/async-jobs/"
 
 
 def _cleanup_s3(job: dict, s3):
-    """Delete the S3 input and output files after job completes or fails."""
+    """Delete ALL S3 artifacts for a completed/failed job: output, input, and job metadata."""
     try:
-        # Delete output file
+        from backend.services.sagemaker_deployer import get_deployment_s3_bucket, S3_MODEL_PREFIX
+        bucket = get_deployment_s3_bucket()
+
+        # 1. Delete output file
         output_loc = job.get("output_location", "")
         if output_loc:
             parts = output_loc.replace("s3://", "").split("/", 1)
             s3.delete_object(Bucket=parts[0], Key=parts[1])
 
-        # Delete input file (find it by endpoint name + timestamp pattern)
-        # The input was uploaded to inference-input/{endpoint}/{timestamp}.json
-        # We don't store the exact input key, so we skip input cleanup for now
-        # (inputs are tiny ~1KB files, not worth the complexity)
+        # 2. Delete input file
+        input_loc = job.get("input_location", "")
+        if input_loc:
+            parts = input_loc.replace("s3://", "").split("/", 1)
+            s3.delete_object(Bucket=parts[0], Key=parts[1])
 
-        logger.debug("Cleaned up S3 output for job %s", job["job_id"])
+        # 3. Delete persisted job metadata from S3
+        if bucket:
+            s3.delete_object(Bucket=bucket, Key=f"{_JOBS_S3_PREFIX}{job['job_id']}.json")
+
+        logger.debug("Cleaned up all S3 artifacts for job %s", job["job_id"])
     except Exception as e:
-        logger.debug("S3 cleanup failed for job %s: %s", job["job_id"], e)
+        logger.debug("S3 cleanup for job %s: %s", job["job_id"], e)
 
 
 def _persist_job_to_s3(job: dict):
@@ -707,6 +714,7 @@ def _persist_job_to_s3(job: dict):
             "full_prompt": job.get("full_prompt", ""),
             "full_payload": job.get("full_payload", {}),
             "output_location": job.get("output_location", ""),
+            "input_location": job.get("input_location", ""),
             "s3_bucket": job.get("s3_bucket", ""),
             "s3_key": job.get("s3_key", ""),
             "option_index": job.get("option_index", 0),
