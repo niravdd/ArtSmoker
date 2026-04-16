@@ -916,13 +916,20 @@
                             const decomposed = evt.decomposed;
                             if (decomposed && Object.keys(decomposed).length > 0) {
                                 const parts = [];
-                                if (decomposed.subject) parts.push(`Subject: ${decomposed.subject}`);
-                                if (decomposed.scene) parts.push(`Scene: ${decomposed.scene}`);
-                                if (decomposed.composition) parts.push(`Composition: ${decomposed.composition}`);
-                                if (decomposed.lighting) parts.push(`Lighting: ${decomposed.lighting}`);
-                                if (decomposed.style) parts.push(`Style: ${decomposed.style}`);
+                                const _flatten = (label, obj) => {
+                                    if (!obj) return;
+                                    if (typeof obj === 'string') { parts.push(`${label}: ${obj}`); return; }
+                                    // Object with nested fields — extract key values
+                                    const vals = Object.values(obj).filter(v => typeof v === 'string').join('; ');
+                                    if (vals) parts.push(`${label}: ${vals}`);
+                                };
+                                _flatten('Subject', decomposed.subject);
+                                _flatten('Scene', decomposed.scene);
+                                _flatten('Composition', decomposed.composition);
+                                _flatten('Lighting', decomposed.lighting);
+                                _flatten('Style', decomposed.style);
                                 if (parts.length > 0) {
-                                    this._promptEditor.setDecomposedText(parts.join('\n'));
+                                    this._promptEditor.setDecomposedText(parts.join('\n\n'));
                                 }
                             }
                         }
