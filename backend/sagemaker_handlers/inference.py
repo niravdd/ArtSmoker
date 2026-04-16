@@ -71,19 +71,34 @@ def _is_component_preserved(comp_name: str) -> bool:
 
 
 def _clean_stale_quant_artifacts(comp_path: str):
-    """Remove stale BnB quantization artifacts from a cached component directory.
+    """Remove ALL stale BnB quantization artifacts from a cached component directory.
 
     When save_pretrained() saves bf16 weights but leaves partial quantization
-    metadata, BnB gets confused on reload (expects full BnB format but finds
-    bf16). Cleaning these artifacts lets BnB treat it as a fresh bf16→NF4
-    quantization from local disk.
+    metadata (in separate files AND inside config.json), BnB gets confused on
+    reload — it finds conflicting signals about the weight format.
+    Cleaning these artifacts lets BnB treat it as a fresh bf16→NF4 quantization.
     """
+    # 1. Remove standalone quantization config files
     stale_files = ["quantization_config.json", "quantize_config.json"]
     for fname in stale_files:
         fpath = os.path.join(comp_path, fname)
         if os.path.exists(fpath):
             os.remove(fpath)
-            logger.info("Removed stale quantization artifact: %s", fpath)
+            logger.info("Removed stale quantization file: %s", fpath)
+
+    # 2. Remove quantization_config from inside config.json (embedded metadata)
+    config_path = os.path.join(comp_path, "config.json")
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                config = json.load(f)
+            if "quantization_config" in config:
+                del config["quantization_config"]
+                with open(config_path, "w") as f:
+                    json.dump(config, f, indent=2)
+                logger.info("Removed embedded quantization_config from %s/config.json", comp_path.split("/")[-1])
+        except Exception as e:
+            logger.warning("Failed to clean config.json in %s: %s", comp_path, e)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
