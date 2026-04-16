@@ -635,8 +635,8 @@ def _load_diffusers(model_dir):
         pipe.to("cuda")
 
     # Log device placement summary — critical for debugging OOM/spill issues
-    if has_quantized and hasattr(pipe, 'hf_device_map'):
-        logger.info("Device placement (device_map='balanced'):")
+    if has_quantized and getattr(pipe, 'hf_device_map', None):
+        logger.info("Device placement:")
         for comp_name, device in pipe.hf_device_map.items():
             logger.info("  %s → %s", comp_name, device)
     elif has_quantized:
