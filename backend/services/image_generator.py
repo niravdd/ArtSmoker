@@ -16,7 +16,7 @@ _RETRY_BASE_DELAY = 2  # seconds
 
 
 def generate_image(
-    refined_prompt: str,
+    enhanced_prompt: str,
     model,  # str or ImageModel enum — any valid registry key
     width: int = 1024,
     height: int = 1024,
@@ -47,7 +47,7 @@ def generate_image(
 
     logger.info(
         "Generating image: model=%s, size=%dx%d, seed=%d, prompt_len=%d",
-        model_key, width, height, seed, len(refined_prompt),
+        model_key, width, height, seed, len(enhanced_prompt),
     )
 
     last_exc = None
@@ -58,7 +58,7 @@ def generate_image(
                       "message": f"Retrying image generation (attempt {attempt + 1}/{_MAX_RETRIES})..."})
             result = invoke_image_model(
                 model_key,
-                refined_prompt,
+                enhanced_prompt,
                 width=width,
                 height=height,
                 seed=seed,

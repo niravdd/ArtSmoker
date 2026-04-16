@@ -20,7 +20,7 @@ class VariantResult(BaseModel):
 
 class OptionResult(BaseModel):
     option_index: int
-    refined_prompt: str
+    enhanced_prompt: str
     negative_prompt: str = ""
     image_model: str | None = None  # Actual model used (set in "All Models" mode)
     model_label: str | None = None  # Human-readable model name

@@ -319,10 +319,22 @@
                     <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${isTypeStudio ? t('asset_viewer.meta_text_content') : (meta.original_prompt ? t('asset_viewer.meta_enhanced') : t('common.prompt'))}</label>
                     <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.prompt || 'N/A')}</p>
                 </div>
-                ${!isTypeStudio && meta.refined_prompt ? `
+                ${!isTypeStudio && meta.recomposed_prompt ? `
+                <div>
+                    <label class="block text-xs text-indigo-400/80 uppercase tracking-wider mb-1">Recomposed Prompt</label>
+                    <p class="p-3 rounded-lg bg-indigo-950/10 border border-indigo-500/20 whitespace-pre-wrap text-brand-text-muted text-sm">${this._esc(meta.recomposed_prompt)}</p>
+                </div>` : ''}
+                ${meta.decomposed_data && Object.keys(meta.decomposed_data).length > 0 ? `
+                <div>
+                    <label class="block text-xs text-amber-400/80 uppercase tracking-wider mb-1">Prompt Decomposition</label>
+                    <div class="p-3 rounded-lg bg-amber-950/10 border border-amber-500/20 text-xs text-brand-text/70 space-y-2">
+                        ${this._renderDecomposed(meta.decomposed_data)}
+                    </div>
+                </div>` : ''}
+                ${!isTypeStudio && meta.enhanced_prompt ? `
                 <div>
                     <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_generation_prompt')}</label>
-                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._esc(meta.refined_prompt)}</p>
+                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._esc(meta.enhanced_prompt)}</p>
                 </div>` : ''}
                 ${meta.negative_prompt ? `
                 <div>
@@ -534,10 +546,10 @@
                                 <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('common.prompt')} ${v.original_language_prompts?.prompt ? '<span class="text-[9px] text-emerald-400/70 font-normal">(English)</span>' : ''}</label>
                                 <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(v.prompt)}</p>
                             </div>` : ''}
-                            ${v.refined_prompt ? `
+                            ${v.enhanced_prompt ? `
                             <div>
                                 <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_generation_prompt')}</label>
-                                <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._esc(v.refined_prompt)}</p>
+                                <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._esc(v.enhanced_prompt)}</p>
                             </div>` : ''}
                             ${v.negative_prompt ? `
                             <div>
@@ -1148,6 +1160,36 @@
             const div = document.createElement('div');
             div.textContent = str || '';
             return div.innerHTML;
+        },
+
+        _renderDecomposed(data) {
+            if (!data || typeof data !== 'object') return '';
+            const sections = [];
+            const _section = (label, obj) => {
+                if (!obj) return;
+                if (typeof obj === 'string') { sections.push(`<div><strong class="text-brand-text/80">${label}:</strong> ${this._esc(obj)}</div>`); return; }
+                if (Array.isArray(obj)) {
+                    const items = obj.map(item => typeof item === 'string' ? item : (item.name ? `${item.name} (${item.hex || ''})` : '')).filter(Boolean).join(', ');
+                    if (items) sections.push(`<div><strong class="text-brand-text/80">${label}:</strong> ${this._esc(items)}</div>`);
+                    return;
+                }
+                const lines = [];
+                for (const [k, v] of Object.entries(obj)) {
+                    if (typeof v === 'string' && v.trim()) {
+                        lines.push(`<span class="text-brand-text-muted/60">${k.replace(/_/g, ' ')}:</span> ${this._esc(v)}`);
+                    } else if (Array.isArray(v)) {
+                        const items = v.map(item => typeof item === 'string' ? item : (item.name ? `${item.name} (${item.hex || ''})` : '')).filter(Boolean).join(', ');
+                        if (items) lines.push(`<span class="text-brand-text-muted/60">${k.replace(/_/g, ' ')}:</span> ${this._esc(items)}`);
+                    }
+                }
+                if (lines.length) sections.push(`<div><strong class="text-brand-text/80">${label}:</strong><div class="ml-3 space-y-0.5">${lines.map(l => `<div>${l}</div>`).join('')}</div></div>`);
+            };
+            _section('Subject', data.subject);
+            _section('Scene', data.scene);
+            _section('Composition', data.composition);
+            _section('Lighting', data.lighting);
+            _section('Style', data.style);
+            return sections.join('');
         },
     };
 

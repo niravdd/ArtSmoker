@@ -501,7 +501,7 @@ async def preview(request: TypeStudioRequest):
         svg_out = store.generated_asset_dir(asset_id) / "asset.svg" if request.generate_svg else None
         final_bytes, svg_path = _process_asset(
             image_bytes=rendered_bytes,
-            refined_prompt="",
+            enhanced_prompt="",
             remove_bg=request.remove_background,
             do_upscale=request.upscale,
             do_svg=request.generate_svg,

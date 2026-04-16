@@ -79,7 +79,7 @@ Output ONLY the caption and NEGATIVE: line.""",
         "label": "Multi-Concept Generation",
         "description": "Generates 2-5 visually distinct creative concepts from one user prompt.",
         "used_by": "Image Studio — multi-option generation",
-        "variables": ["{user_prompt}", "{num_options}", "{asset_context}", "{style_section}", "{max_chars}"],
+        "variables": ["{user_prompt}", "{num_options}", "{asset_context}", "{style_section}", "{max_chars}", "{decomposed_guidance}"],
         "model": "complex LLM (Opus)",
         "text": """You are a concept artist presenting {num_options} different design directions to a creative director. Each option must be a COMPLETE image description for an AI image generator.
 
@@ -91,6 +91,8 @@ Output ONLY the caption and NEGATIVE: line.""",
 
 === THE BRIEF ===
 "{user_prompt}"
+
+{decomposed_guidance}
 
 RULES:
 

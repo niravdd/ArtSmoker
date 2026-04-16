@@ -956,14 +956,18 @@ def model_fn(model_dir):
         logger.info("GPU memory after load: %.2f GB allocated, %.2f GB reserved", allocated, reserved)
 
     # S3 cache save strategy:
-    # - Normal mode: deferred until first successful inference (in predict_fn)
-    # - Build mode (ARTSMOKER_BUILD_ONLY=true): save SYNCHRONOUSLY after model_fn.
-    #   Must block until upload completes — if we return early, MMS marks the model
-    #   as "loaded" and auto-scaling could kill the instance before upload finishes.
+    # - Build mode (ARTSMOKER_BUILD_ONLY=true): save SYNCHRONOUSLY — must block
+    #   until upload completes, or auto-scaling could kill the instance mid-upload.
+    # - Normal mode: save in BACKGROUND thread — don't delay model readiness.
+    #   We save immediately after model_fn (not after first inference) because
+    #   the instance may scale down before any inference arrives.
     if _get_env("ARTSMOKER_CACHE_BUCKET") and not _loaded_from_cache:
         if _get_env_bool("ARTSMOKER_BUILD_ONLY"):
             logger.info("Build mode — saving cache synchronously after model load")
             _save_to_s3_cache_sync(_model)
+        else:
+            logger.info("Normal mode — saving cache in background after model load")
+            _save_to_s3_cache(_model)
 
     return _model
 
@@ -1013,13 +1017,8 @@ def predict_fn(input_data, model_dict):
         logger.info("Inference complete in %.1fs (predictor=%s, output=%d chars)",
                      elapsed, predictor_type, len(result) if isinstance(result, str) else 0)
 
-        # After first successful inference, save model to S3 cache.
-        # We wait for a real inference to confirm the model actually works —
-        # don't cache weights that load but fail at generation time.
-        global _loaded_from_cache
-        if _get_env("ARTSMOKER_CACHE_BUCKET") and not _loaded_from_cache and not getattr(predict_fn, "_cache_saved", False):
-            predict_fn._cache_saved = True
-            _save_to_s3_cache(model_dict)
+        # Cache save now happens in model_fn() (background thread in normal mode,
+        # synchronous in build mode). No longer deferred to first inference.
 
         return result
     except Exception as exc:

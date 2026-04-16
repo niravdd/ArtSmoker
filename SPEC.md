@@ -330,15 +330,16 @@ User prompt: "hospital building"
          v
     [Concept Generation — Claude Opus 4.6 (complex)]
     If num_options > 1: generate_concept_prompts() produces N distinctly
-    different design interpretations as a JSON array of prompt strings.
+    different enhanced prompts as a JSON array of prompt strings.
     If num_options == 1: refine_prompt() (Claude Sonnet, fast) produces
-    a single refined prompt. Marketing banners use refine_marketing_prompt()
+    a single enhanced prompt. Marketing banners use refine_marketing_prompt()
     (Claude Opus, complex).
-    Claude extracts exclusions to a separate "NEGATIVE:" line during refinement.
+    Claude extracts exclusions to a separate "NEGATIVE:" line during enhancement.
          |
          v
-    [Model-Optimized Prompt Engineering]
-    Prompt is restructured as a descriptive CAPTION (not a command) per target model:
+    [Model-Specific Prompt Enhancement]
+    Prompt is restructured as a descriptive CAPTION (not a command) per target model,
+    with model-specific guidance applied during the enhancement step:
     - Nova Canvas: caption style, Subject→Environment→Pose→Lighting→Camera→Style, 900 chars
     - Titan Image v2: concise captions, 480 chars
     - SD 3.5 Large: quality boosters (masterpiece, best quality), style tokens, 2000 chars
@@ -346,11 +347,11 @@ User prompt: "hospital building"
     Negative prompt parsed by _parse_negative_prompt() and passed through pipeline.
          |
          v
-    For each concept prompt, generate num_variations images in parallel:
+    For each enhanced prompt, generate num_variations images in parallel:
          |
          v
     [Image Generation — Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, or Stable Image Ultra]
-    Input: refined prompt + negative prompt + random seed per variation
+    Input: enhanced prompt + negative prompt + random seed per variation
     Output: PNG image (default 1024x1024)
          |
          v
@@ -504,7 +505,7 @@ GenerationResult
 ├── num_variations: int
 ├── options: list[OptionResult]
 │   ├── option_index: int
-│   ├── refined_prompt: str      # The concept-specific prompt
+│   ├── enhanced_prompt: str     # The model-specific enhanced prompt for this option
 │   └── variants: list[VariantResult]
 │       ├── id: str              # "{batch_id}_o{opt}_v{var}"
 │       ├── variant_index: int
@@ -515,7 +516,7 @@ GenerationResult
 └── created_at: datetime
 ```
 
-Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant stores: `original_prompt`, `moderation_original` (pre-rewrite prompt when applicable), `negative_prompt` (extracted exclusion terms), `num_options` and `num_variations` (generation-time batch dimensions — used for partial batch tracking after deletions), IP declaration fields (`ip_owned`, `ip_licensed`), and all other generation parameters. Full prompt lineage is: `original_prompt` (user's raw input) → AI-improved prompt → `moderation_original` (if rewritten to pass moderation) → `prompt` (final prompt sent to the image model) + `negative_prompt` (exclusion terms sent separately).
+Each variant is stored in its own directory under `data/generated/{asset_id}/` with `asset.png`, optionally `asset.svg`, and `metadata.json`. The metadata per variant stores: `original_prompt`, `moderation_original` (pre-rewrite prompt when applicable), `negative_prompt` (extracted exclusion terms), `num_options` and `num_variations` (generation-time batch dimensions — used for partial batch tracking after deletions), IP declaration fields (`ip_owned`, `ip_licensed`), and all other generation parameters. Full prompt lineage is: `original_prompt` (user's raw input) → `decomposed_data` (structured JSON from Prompt Designer) → `recomposed_prompt` (flat text from components) → `enhanced_prompt` (model-specific AI-enhanced prompt) → `moderation_original` (if rewritten to pass moderation) → `prompt` (final prompt sent to the image model) + `negative_prompt` (exclusion terms sent separately).
 
 **Style snapshot in metadata**: Each generated asset (from 2D Image Studio, Video Studio, and Type Studio) stores a `style_snapshot` object capturing the style's state at generation time:
 ```json
@@ -581,7 +582,7 @@ Clean, modern single-page application served as static files mounted at `/` by F
   - **Prompt info section**: After generation, shows: original prompt, AI-improved prompt, **negative prompt** (red-labeled "exclusions sent to model", hidden when empty), and concept prompts for full lineage visibility.
   - Voice input and `loadBatch(batchId)` restore a previous batch from the Gallery into the 2D Image Studio view. `ensurePromptEditor()` is called on show/loadBatch for robust initialization. The loadBatch navigation uses a yield-then-poll pattern: sets the hash, yields to let the `hashchange` event fire, polls for a DOM element (up to 10s), then adds a 200ms settling delay to let `init()`/`onShow()` finish before writing batch data into the DOM. For partial batches (where some variants were deleted from Gallery), the toast shows "X of Y images remaining (Z deleted)" instead of the normal batch summary.
 - **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge (or model name in "All Models" mode), and a truncated concept prompt. In "All Models" mode, the header changes to "Models — comparison across image models", and blocked/failed models show a semi-transparent overlay badge ("Blocked — moderation" or "Failed"). Click to select an option — the **"Generated prompt — Option N"** (or **"Generated prompt — Nova Canvas"**) section updates with the exact prompt and negative prompt used for that option.
-- **Concept prompt display**: Shows the full refined prompt for the selected option.
+- **Concept prompt display**: Shows the full enhanced prompt for the selected option.
 - **Variations row** (emerald borders): Shows seed variants of the selected option. Click to select a variation.
 - **Main preview**: Large preview of the selected variant with checkerboard transparency background.
 - **Download bar**: Shows the smart filename (e.g. `a-fierce-dragon_opt1_var2.png`) and provides PNG + SVG download buttons using the human-readable filenames.
@@ -721,7 +722,7 @@ If there is only one option, the options row is hidden. If there is only one var
 The post-processing pipeline (`backend/services/post_processor.py`) applies three optional steps in sequence:
 
 1. **Background removal** — Stability AI Remove Background model. If it fails, the pipeline continues with the original image.
-2. **Upscaling** — Stability AI Creative Upscale model. Takes the refined prompt as a quality guide. If it fails, the pipeline continues with the current image.
+2. **Upscaling** — Stability AI Creative Upscale model. Takes the enhanced prompt as a quality guide. If it fails, the pipeline continues with the current image.
 3. **SVG conversion** — Cascading approach:
    - **vtracer** (preferred): High-quality color vector tracing with configurable parameters (color precision 6, layer difference 16, speckle filter 4, etc.).
    - **potrace** (fallback): Monochrome bitmap tracing. Converts PNG to BMP via Pillow first.
@@ -745,7 +746,7 @@ Each step is independently fault-tolerant — failures are logged but do not abo
 **Generated asset storage** (`data/generated/{asset_id}/`):
 - `asset.png` — final processed PNG.
 - `asset.svg` — optional SVG conversion.
-- `metadata.json` — full generation metadata (prompt, refined_prompt, style_id, asset_type, seed, filenames, etc.).
+- `metadata.json` — full generation metadata (prompt, enhanced_prompt, recomposed_prompt, decomposed_data, style_id, asset_type, seed, filenames, etc.).
 
 Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
 
@@ -1018,18 +1019,35 @@ Fields:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/refine-prompt/` | Quick Enhance — auto-refine a prompt into a detailed image caption. |
-| POST | `/api/refine-prompt/decompose` | Prompt Designer — decompose a prompt into structured visual components (subject, scene, composition, lighting, style with color palette). |
-| POST | `/api/refine-prompt/recompose` | Reassemble structured components into a flat model-optimized prompt. |
+| POST | `/api/refine-prompt/decompose` | Prompt Designer — decompose a user prompt into structured visual components (subject, scene, composition, lighting, style with color palette). |
+| POST | `/api/refine-prompt/recompose` | Reassemble structured components into a flat recomposed prompt. |
 | POST | `/api/refine-prompt/classify-asset-type` | LLM-powered asset type classification — detects if the selected asset type matches the prompt (e.g., scene described as Game Asset → suggests Environment). |
 | POST | `/api/refine-prompt/translate-preview` | Lightweight language detection + translation preview. |
+
+**Prompt pipeline terminology:**
+
+The image generation pipeline transforms the user's idea through four stages:
+
+1. **User Prompt** — the user's raw text input (Step 1 textarea). Always preserved, never overwritten by the system.
+2. **Decomposed Data** — structured JSON with `subject`, `scene`, `composition`, `lighting`, `style` (including color palette). This is the intermediate representation produced by `/api/refine-prompt/decompose` and edited in the Prompt Designer (Step 2). Stored in metadata as `decomposed_data`.
+3. **Recomposed Prompt** — flat text rebuilt from the decomposed components by `/api/refine-prompt/recompose`. This is the primary input to the enhancement pipeline. Shown in the Step 2 read-only textarea. Stored in metadata as `recomposed_prompt`. Model-specific prompt guidance is **not** applied at this stage.
+4. **Enhanced AI Prompt** — model-specific optimized prompt generated by the LLM from the recomposed prompt + model guidance + style directives. This is what actually gets sent to the image model. Stored in metadata as `enhanced_prompt`. Each option gets its own enhanced prompt (via `generate_concept_prompts` for N×M mode).
+
+All three derived levels (`decomposed_data`, `recomposed_prompt`, `enhanced_prompt`) are persisted to `metadata.json` alongside the original `prompt`.
+
+**Generation flows:**
+
+- **1×1 (single option, single variation)**: decompose → recompose → enhance (1 enhanced prompt) → 1 image
+- **N×M (multiple options/variations)**: decompose → recompose → enhance (N enhanced prompts via `generate_concept_prompts`) → N options × M variations (different seeds per variation)
+- **Skip Steps 2/3**: Generate auto-enhances the user prompt server-side (decompose + recompose + enhance happen internally)
 
 **Prompt Designer flow:**
 
 The 2D Image Studio uses a guided 3-step workflow:
 
-1. **Step 1 — Describe**: User types a prompt. The textarea placeholder adapts to the selected asset type (e.g., "A young female warrior..." for Character, "A misty Japanese garden..." for Environment).
+1. **Step 1 — Describe** (User Prompt): User types a prompt. The textarea placeholder adapts to the selected asset type (e.g., "A young female warrior..." for Character, "A misty Japanese garden..." for Environment).
 
-2. **Step 2 — Prompt Designer** *(optional)*: Clicking the Prompt Designer button:
+2. **Step 2 — Prompt Designer** *(optional)* (Decomposed Data → Recomposed Prompt): Clicking the Prompt Designer button:
    - Runs LLM asset type classification first — if mismatch detected (e.g., scene prompt + Game Asset), a dialog suggests switching
    - Sends prompt to `/api/refine-prompt/decompose` — LLM decomposes into structured JSON:
      ```json
@@ -1042,12 +1060,12 @@ The 2D Image Studio uses a guided 3-step workflow:
      }
      ```
    - Displayed in a tabbed modal (Subject | Scene | Composition | Lighting | Style & Colors)
-   - Each field is editable with lock/unlock toggles (locked fields stay fixed on regenerate)
+   - Each field is editable — users can modify individual decomposed components
    - Color palette shown as named swatches with hex values and usage descriptions
    - Style Library hints are incorporated if a style is selected
-   - "Save & Continue" → sends to `/api/refine-prompt/recompose` → result appears in Step 3
+   - "Generate Enhanced Prompt" → sends edited components to `/api/refine-prompt/recompose` → recomposed prompt shown in Step 2, then enhanced with model guidance → Enhanced AI Prompt appears in Step 3
 
-3. **Step 3 — Enhanced Prompt Preview** *(optional)*: Shows the model-optimized prompt that the image model will receive. Editable before generating.
+3. **Step 3 — Enhanced Prompt Preview** *(optional)* (Enhanced AI Prompt): Shows the model-specific enhanced prompt that the image model will receive. Generated from the recomposed prompt + model guidance. Editable before generating.
 
 **Generate** works at any point — Steps 2 and 3 are optional. If skipped, Generate auto-enhances the prompt server-side.
 
@@ -1406,7 +1424,7 @@ Templates are organized by the feature they serve:
 | Template | File | Purpose | Variables | Model Used |
 |----------|------|---------|-----------|------------|
 | `prompt_decompose` | `refine.py` | Decompose a user prompt into structured visual components (subject, scene, composition, lighting, style with color palette). | `{user_prompt}`, `{style_section}`, `{asset_context}` | Sonnet |
-| `prompt_recompose` | `refine.py` | Reassemble structured components into a flat model-optimized prompt. | `{structured_json}`, `{model_name}`, `{max_chars}` | Sonnet |
+| `prompt_recompose` | `refine.py` | Reassemble decomposed structured components into a flat recomposed prompt. Model-specific guidance is applied later during enhancement, not here. | `{structured_json}`, `{model_name}`, `{max_chars}` | Sonnet |
 | `asset_type_classify` | `refine.py` | Classify a prompt into the best asset type. Distinguishes character-focused vs scene-focused prompts even when both mention people. | `{user_prompt}` | Sonnet |
 
 ### 7.10 Admin Templates
@@ -1836,7 +1854,7 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 7. **Download files**: Click PNG/SVG download buttons — verify the file is named with the prompt slug (e.g. `hospital-building_opt2_var1.png`).
 8. **Test voice input**: Record audio — verify transcription appears in the prompt editor.
 9. **Test two-area prompt editor**: Type a prompt, click "Preview Enhanced Prompt" — verify the composed prompt appears in the green-tinted area below. Verify the note under the button reflects whether a style is selected. Edit the original prompt — verify the composed area clears. Click Generate without composing — verify the backend auto-refines and populates the composed area via SSE.
-10. **Test prompt refinement**: Type a brief prompt, click "Preview Enhanced Prompt" — verify the refined prompt respects user intent over style defaults.
+10. **Test prompt enhancement**: Type a brief prompt, click "Preview Enhanced Prompt" — verify the enhanced prompt respects user intent over style defaults.
 11. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
 12. **Test Type Studio**: Navigate to Type Studio, enter text lines, select fonts, request AI layout suggestions. Verify 1-5 layout options are returned. Select a layout and render — verify the result is saved to the gallery.
 13. **Test Video Studio**: Navigate to Video Studio, configure S3 bucket in Video Settings, select a video model (Nova Reel or Luma Ray), enter a prompt, and generate. Verify the job appears in Active Jobs, polling updates the status, and on completion the video plays and thumbnail appears. Verify the video also appears in the Gallery with a VIDEO badge.
@@ -2041,7 +2059,7 @@ Returns: { original, translated, source_lang, was_translated }
 - `original_language`: Detected language code (e.g., "ja", "fr")
 - `original_language_prompt`: The user's original text (only if translated)
 - `prompt`: The English translation (sent to the model)
-- `refined_prompt`: AI-enhanced English prompt
+- `enhanced_prompt`: AI-enhanced English prompt (model-specific)
 - `negative_prompt`: Extracted negative concepts
 
 **File names:** `_slugify_prompt()` translates non-ASCII prompts to English before slugifying, so Japanese "病院の建物" becomes `hospital-building_opt1_var1.png` (not `asset.png`).

@@ -202,7 +202,7 @@ class PromptRefusalError(Exception):
         super().__init__(reason)
 
 
-def _validate_refined_prompt(refined: str, user_prompt: str) -> str:
+def _validate_enhanced_prompt(refined: str, user_prompt: str) -> str:
     """Validate the refined prompt is usable. Raises PromptRefusalError if not."""
     if _check_for_refusal(refined):
         # Extract Claude's reasoning (first 200 chars of the refusal)
@@ -422,7 +422,7 @@ def refine_prompt(
     )
 
     refined = refined.strip()
-    refined = _validate_refined_prompt(refined, user_prompt)
+    refined = _validate_enhanced_prompt(refined, user_prompt)
 
     # Parse out any NEGATIVE: line
     main_prompt, negative = _parse_negative_prompt(refined)
@@ -455,8 +455,8 @@ def refine_prompt_structured(
     This produces higher quality results than single-shot refinement because
     it forces the LLM to consider each visual aspect explicitly.
 
-    Returns: (refined_prompt, decomposed_data)
-        - refined_prompt: the final recomposed prompt for the model
+    Returns: (enhanced_prompt, decomposed_data)
+        - enhanced_prompt: the final recomposed prompt for the model
         - decomposed_data: the structured components (for display in UI)
     """
     from backend.services.prompt_templates import get_template, get_system_prompt
@@ -567,7 +567,7 @@ def refine_marketing_prompt(
     )
 
     refined = refined.strip()
-    refined = _validate_refined_prompt(refined, user_prompt)
+    refined = _validate_enhanced_prompt(refined, user_prompt)
     if len(refined) > max_chars:
         refined = refined[:max_chars - 4].rsplit(" ", 1)[0]
     logger.info("Refined marketing prompt (%d/%d chars): %s", len(refined), max_chars, refined[:150])
@@ -585,11 +585,26 @@ def generate_concept_prompts(
     asset_type: AssetType,
     num_options: int = 5,
     image_model: str | None = None,
+    recomposed_prompt: str | None = None,
 ) -> list[str]:
-    """Generate multiple distinctly different concept prompts from a single user request."""
+    """Generate multiple distinctly different concept prompts from a single user request.
+
+    If recomposed_prompt is provided (from prior refine_prompt_structured),
+    it's included as a quality baseline so the LLM generates options at
+    that detail level rather than starting from the raw user brief.
+    """
     max_chars = get_prompt_limit(image_model)
     asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
     style_section = _build_style_section(style_profile)
+    model_instructions = get_model_guidance(image_model) or _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
+
+    # Build guidance from recomposed prompt + model instructions
+    guidance_parts = []
+    if recomposed_prompt:
+        guidance_parts.append(f"=== REFINED REFERENCE PROMPT ===\nA prior analysis refined the user's brief into this detailed prompt. Use it as your quality baseline — every option should be at least this detailed, preserving all core elements while varying design choices:\n\"{recomposed_prompt}\"")
+    if model_instructions:
+        guidance_parts.append(f"=== MODEL-SPECIFIC GUIDANCE ===\n{model_instructions}")
+    decomposed_guidance = "\n\n".join(guidance_parts) if guidance_parts else ""
 
     prompt = get_template('image_concepts_multi').format(
         asset_context=asset_context,
@@ -597,6 +612,7 @@ def generate_concept_prompts(
         user_prompt=user_prompt,
         num_options=num_options,
         max_chars=max_chars,
+        decomposed_guidance=decomposed_guidance,
     )
 
     logger.info(

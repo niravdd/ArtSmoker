@@ -252,7 +252,7 @@ def convert_to_svg(png_bytes: bytes, output_path: Path) -> Path:
 
 def process_asset(
     image_bytes: bytes,
-    refined_prompt: str,
+    enhanced_prompt: str,
     remove_bg: bool = True,
     do_upscale: bool = False,
     do_svg: bool = True,
@@ -267,7 +267,7 @@ def process_asset(
 
     Args:
         image_bytes: Raw PNG bytes from the image generator.
-        refined_prompt: The prompt used for generation (passed to upscaler).
+        enhanced_prompt: The prompt used for generation (passed to upscaler).
         remove_bg: Whether to remove the background.
         do_upscale: Whether to upscale the image.
         do_svg: Whether to convert to SVG.
@@ -296,7 +296,7 @@ def process_asset(
     # Step 2: Upscaling
     if do_upscale:
         try:
-            current_bytes = upscale_image(current_bytes, prompt=refined_prompt)
+            current_bytes = upscale_image(current_bytes, prompt=enhanced_prompt)
         except Exception:
             logger.exception("Upscaling failed; continuing with current image.")
 

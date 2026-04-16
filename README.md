@@ -914,13 +914,15 @@ The 2D Image Studio uses a guided 3-step workflow:
 - **Lighting** — key light, fill/rim light, mood
 - **Style & Colors** — art style, quality level, and a named color palette with hex swatches
 
-Each field can be individually edited. Lock fields (🔒) to keep them fixed when regenerating. **Save & Continue** stores your edits and automatically generates the enhanced prompt for Step 3.
+Each field can be individually edited. **Generate Enhanced Prompt** recomposes your edits into a flat recomposed prompt (shown read-only in Step 2) and then automatically generates the Enhanced AI Prompt for Step 3.
 
 Before the Prompt Designer opens, an **AI asset type classification** runs — if your prompt describes a scene but you selected "Game Asset", a dialog suggests switching to "Environment" or "Character". This ensures the Prompt Designer decomposes with the correct context.
 
-**Step 3 — Enhanced prompt preview** *(optional)*: Click **Generate Enhanced Prompt** to see the model-optimized prompt before generating. The AI enhances your prompt with structural accuracy (anatomy, materials, lighting) and model-specific formatting. You can edit the enhanced prompt before generating. If you used the Prompt Designer in Step 2, this is auto-populated.
+**Step 3 — Enhanced prompt preview** *(optional)*: Click **Generate Enhanced Prompt** to see the model-optimized prompt before generating. The AI takes the recomposed prompt from Step 2 and enhances it with model-specific guidance (anatomy, materials, lighting, prompt structure). You can edit the enhanced prompt before generating. If you used the Prompt Designer in Step 2, this is auto-populated.
 
-**Generate**: Click Generate at any point — Steps 2 and 3 are optional. If you skip them, Generate auto-enhances your prompt and proceeds. **Prompt Pre-Check** (on by default) screens the prompt for moderation issues before generation.
+**Prompt pipeline**: User Prompt → Decompose → Recompose (`recomposed_prompt`) → Enhance with model guidance (`enhanced_prompt`) → Image Model. For multiple options, the enhancement step generates N distinct interpretations from the same recomposed base. All three levels are stored in metadata.
+
+**Generate**: Click Generate at any point — Steps 2 and 3 are optional. If you skip them, Generate auto-decomposes, recomposes, and enhances your prompt before proceeding. **Prompt Pre-Check** (on by default) screens the prompt for moderation issues before generation.
 
 **Additional controls:**
 - **Asset Type** — select in the sidebar. Changes the prompt placeholder and affects how the AI interprets your prompt. The system suggests switching if it detects a mismatch.

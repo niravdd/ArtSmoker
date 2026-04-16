@@ -100,9 +100,23 @@ def submit_job(
 
 
 def get_all_jobs() -> list:
-    """Get all jobs (pending, complete, failed), newest first."""
+    """Get all jobs (pending, complete, failed), newest first.
+
+    Adds queue_position (1-based) to active jobs so the frontend can show
+    which job is currently processing vs waiting in queue.
+    SageMaker async processes jobs FIFO — position 1 = currently generating.
+    """
     with _lock:
-        return sorted(_jobs.values(), key=lambda j: j["submitted_at"], reverse=True)
+        all_jobs = sorted(_jobs.values(), key=lambda j: j["submitted_at"], reverse=True)
+        # Assign queue positions to active jobs (oldest first = position 1)
+        active = sorted(
+            [j for j in all_jobs if j["status"] in (PENDING, GENERATING)],
+            key=lambda j: j["submitted_at"],
+        )
+        for i, job in enumerate(active):
+            job["queue_position"] = i + 1
+            job["queue_total"] = len(active)
+        return all_jobs
 
 
 def get_pending_count() -> int:
@@ -164,7 +178,7 @@ def _persist_gallery_metadata(job: dict):
         "option_index": job["option_index"],
         "variant_index": job["variation_index"],
         "original_prompt": job["full_prompt"],
-        "refined_prompt": job["full_prompt"],
+        "enhanced_prompt": job["full_prompt"],
         "negative_prompt": job["full_payload"].get("negative_prompt", ""),
         "image_model": job["model_key"],
         "model_label": job["model_label"],
@@ -200,7 +214,7 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
         svg_output_path = store.generated_asset_dir(asset_id) / "asset.svg" if job.get("generate_svg") else None
         final_bytes, svg_path = process_asset(
             image_bytes=image_bytes,
-            refined_prompt=job.get("full_prompt", ""),
+            enhanced_prompt=job.get("full_prompt", ""),
             remove_bg=job.get("remove_bg", False),
             do_upscale=job.get("upscale", False),
             do_svg=job.get("generate_svg", False),
@@ -310,8 +324,8 @@ def _poll_loop():
         _flush_background_costs_if_due()
         _check_warm_period_closures()
 
-        # Poll interval — 30 seconds
-        _poller_stop.wait(timeout=30)
+        # Poll interval — 10 seconds while jobs are active (fast feedback)
+        _poller_stop.wait(timeout=10)
 
     # Final flush on shutdown
     _flush_background_costs_if_due(force=True)
@@ -534,17 +548,19 @@ def _check_job(job: dict, s3):
 
 
 def _update_progress(job: dict):
-    """Update job stage based on elapsed time and endpoint state.
+    """Update job stage based on elapsed time, queue position, and endpoint state.
 
     SageMaker async has no intermediate progress — only submitted → complete.
-    We show honest stage-based status instead of fake percentages.
+    We use queue position to show which job is actively generating vs queued.
     """
     elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
+    queue_pos = job.get("queue_position", 1)
 
-    # Determine stage from elapsed time and what we know
-    # Cold start (model download + load): 0-600s for large models
-    # Generation: 30-300s depending on model
-    if elapsed < 10:
+    # Queue position 1 = currently generating, >1 = waiting in queue
+    if queue_pos > 1:
+        stage = "queued"
+        stage_label = f"Queued — #{queue_pos} in line"
+    elif elapsed < 10:
         stage = "submitted"
         stage_label = "Submitted — waiting for endpoint"
     elif elapsed < 600:

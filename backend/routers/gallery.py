@@ -104,7 +104,7 @@ def _list_gallery_impl(style_id, asset_type, limit, offset):
             items.append(
                 GalleryItem(
                     id=aid,
-                    prompt=meta.get("prompt", meta.get("refined_prompt", "")),
+                    prompt=meta.get("prompt", meta.get("enhanced_prompt", "")),
                     style_id=meta.get("style_id"),
                     asset_type=meta.get("asset_type", ""),
                     image_model=model_key,
@@ -163,7 +163,7 @@ async def get_batch(batch_id: str):
         if oi not in options_map:
             options_map[oi] = {
                 "option_index": oi,
-                "refined_prompt": meta.get("refined_prompt", ""),
+                "enhanced_prompt": meta.get("enhanced_prompt", ""),
                 "variants": [],
             }
         svg_url = f"/api/gallery/{meta['id']}/svg" if meta.get("svg_path") else None
@@ -236,7 +236,7 @@ async def get_batch(batch_id: str):
                     model_map[oi] = v_meta.get("image_model", "")
                     opt["image_model"] = v_meta.get("image_model", "")
                     opt["model_label"] = v_meta.get("model_label", "")
-                    opt["refined_prompt"] = v_meta.get("refined_prompt", opt.get("refined_prompt", ""))
+                    opt["enhanced_prompt"] = v_meta.get("enhanced_prompt", opt.get("enhanced_prompt", ""))
                     opt["negative_prompt"] = v_meta.get("negative_prompt", "")
 
     return {

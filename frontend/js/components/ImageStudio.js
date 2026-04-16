@@ -912,25 +912,9 @@
                                 // Backend refined the prompt — show it in the composed area
                                 this._promptEditor.setComposedText(prompts[0]);
                             }
-                            // Show decomposed prompt in Step 2 (auto-generated)
-                            const decomposed = evt.decomposed;
-                            if (decomposed && Object.keys(decomposed).length > 0) {
-                                const parts = [];
-                                const _flatten = (label, obj) => {
-                                    if (!obj) return;
-                                    if (typeof obj === 'string') { parts.push(`${label}: ${obj}`); return; }
-                                    // Object with nested fields — extract key values
-                                    const vals = Object.values(obj).filter(v => typeof v === 'string').join('; ');
-                                    if (vals) parts.push(`${label}: ${vals}`);
-                                };
-                                _flatten('Subject', decomposed.subject);
-                                _flatten('Scene', decomposed.scene);
-                                _flatten('Composition', decomposed.composition);
-                                _flatten('Lighting', decomposed.lighting);
-                                _flatten('Style', decomposed.style);
-                                if (parts.length > 0) {
-                                    this._promptEditor.setDecomposedText(parts.join('\n\n'));
-                                }
+                            // Show recomposed prompt in Step 2 (read-only flat text)
+                            if (evt.recomposed_prompt) {
+                                this._promptEditor.setDecomposedText(evt.recomposed_prompt);
                             }
                         }
                         // Capture negative prompt for display after generation
@@ -1737,9 +1721,19 @@
                     if (text) text.textContent = t('custom_models.async_submitted').replace('{{model}}', evt.model_label);
                     if (sub) sub.textContent = t('custom_models.async_submitted_hint');
                     if (bar) bar.style.width = Math.min(pct, 92) + '%';
-                    // Show the pending jobs button and start polling
-                    document.getElementById('btn-pending-jobs')?.classList.remove('hidden');
+                    // Show the pending jobs button immediately with count
+                    const pendBtn = document.getElementById('btn-pending-jobs');
+                    const pendLabel = document.getElementById('pending-jobs-label');
+                    if (pendBtn) {
+                        pendBtn.classList.remove('hidden');
+                        if (pendLabel) {
+                            const remaining = tot - done;
+                            pendLabel.textContent = t('custom_models.pending_jobs_count').replace('{{count}}', remaining);
+                        }
+                    }
                     this._startAsyncPolling();
+                    // Trigger first poll immediately (don't wait 5s)
+                    this._checkAsyncJobs();
                     break;
                 }
 
@@ -1955,7 +1949,7 @@
                         </span>
                     </div>` : ''}
                     <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
-                        <p class="text-white text-[10px] leading-tight line-clamp-2">${this._escapeHtml(opt.refined_prompt || '').substring(0, 80)}...</p>
+                        <p class="text-white text-[10px] leading-tight line-clamp-2">${this._escapeHtml(opt.enhanced_prompt || '').substring(0, 80)}...</p>
                     </div>
                 </button>
             `;
@@ -1992,14 +1986,14 @@
             const conceptNeg = document.getElementById('gen-concept-negative');
             const conceptNegText = document.getElementById('gen-concept-negative-text');
 
-            if (conceptSection && conceptText && option.refined_prompt) {
+            if (conceptSection && conceptText && option.enhanced_prompt) {
                 conceptSection.classList.remove('hidden');
                 // Label: "Generated prompt — Option N" or "Generated prompt — Nova Canvas"
                 const label = option.model_label
                     ? `${t('image_studio.generated_prompt')} \u2014 ${option.model_label}`
                     : `${t('image_studio.generated_prompt')} \u2014 ${t('image_studio.option')} ${index + 1}`;
                 if (conceptLabel) conceptLabel.textContent = label;
-                conceptText.textContent = option.refined_prompt;
+                conceptText.textContent = option.enhanced_prompt;
 
                 // Per-option negative prompt
                 const optNeg = option.negative_prompt || '';
@@ -2102,14 +2096,30 @@
             const placeholder = document.getElementById('gen-placeholder');
             const downloadBar = document.getElementById('gen-download-bar');
 
-            if (img) {
+            const isAsync = variant.async_job && !variant.png_path;
+            if (isAsync) {
+                // Async job still pending — show generating indicator in main preview
+                img?.classList.add('hidden');
+                if (placeholder) {
+                    placeholder.classList.remove('hidden');
+                    placeholder.innerHTML = `
+                        <div class="flex flex-col items-center justify-center gap-3 py-12 text-cyan-400/60">
+                            <div class="w-10 h-10 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
+                            <span class="text-sm font-medium">Generating with ${variant.model_label || 'custom model'}...</span>
+                            <span class="text-[10px] text-brand-text-muted/50">Image will appear automatically when ready</span>
+                        </div>`;
+                }
+            } else if (variant.png_path) {
                 img.src = variant.png_path;
                 img.classList.remove('hidden');
+                placeholder?.classList.add('hidden');
+            } else {
+                img?.classList.add('hidden');
+                placeholder?.classList.remove('hidden');
             }
-            placeholder?.classList.add('hidden');
 
             if (downloadBar) {
-                downloadBar.classList.remove('hidden');
+                downloadBar.classList.toggle('hidden', isAsync || !variant.png_path);
                 const info = document.getElementById('gen-result-info');
                 if (info) {
                     // Show the filename as the label
@@ -2436,7 +2446,7 @@
             await this._checkAsyncJobs();
             // Continue polling only if there are still active jobs
             if (this._pendingJobsActive) {
-                this._pendingJobsTimer = setTimeout(() => this._asyncPollLoop(), 15000);
+                this._pendingJobsTimer = setTimeout(() => this._asyncPollLoop(), 5000);
             }
         },
 
@@ -2460,9 +2470,11 @@
                 }
 
                 // Toast + live update for newly completed jobs
+                let newlyCompleted = 0;
                 jobs.filter(j => j.status === 'complete' && !this._notifiedJobIds.has(j.job_id)).forEach(j => {
                     window.showToast?.(t('custom_models.async_ready_toast').replace('{{model}}', j.model_label), 'success');
                     this._notifiedJobIds.add(j.job_id);
+                    newlyCompleted++;
 
                     const assetId = j.asset_id || '';
                     if (assetId) {
@@ -2497,6 +2509,11 @@
                         }
                     }
                 });
+
+                // Refresh Gallery component so completed async items update there too
+                if (newlyCompleted > 0 && window.Gallery?.refresh) {
+                    window.Gallery.refresh();
+                }
 
                 // Smart polling: start/stop based on active jobs
                 if (hasActive && !this._pendingJobsActive) {
@@ -2536,28 +2553,41 @@
                     const elapsed = j.submitted_at ? Math.round((Date.now() - new Date(j.submitted_at).getTime()) / 1000) : 0;
                     const elapsedStr = elapsed > 60 ? `${Math.floor(elapsed/60)}m ${elapsed%60}s` : `${elapsed}s`;
 
-                    // Stage-based status (no fake percentages)
+                    // Stage-based status with queue position
                     let statusText;
+                    const isCurrentlyGenerating = isActive && j.queue_position === 1;
+                    const isQueued = isActive && j.queue_position > 1;
                     if (j.status === 'complete') {
                         statusText = `Generated${j.compute_cost_usd ? ` (~$${j.compute_cost_usd.toFixed(4)})` : ''}`;
                         if (j.duration_seconds) statusText += ` in ${Math.round(j.duration_seconds)}s`;
                     } else if (j.status === 'failed') {
                         statusText = 'Failed';
+                    } else if (isQueued) {
+                        statusText = `Queued — #${j.queue_position} of ${j.queue_total}`;
                     } else {
-                        statusText = j.stage_label || 'Generation in progress';
+                        statusText = j.stage_label || 'Generating...';
+                    }
+
+                    // Progress bar: active spinner for #1, static dim bar for queued
+                    let progressBar = '';
+                    if (isCurrentlyGenerating) {
+                        progressBar = `<div class="flex items-center gap-2 mt-1"><div class="flex-1 h-1.5 rounded-full bg-brand-border/30 overflow-hidden"><div class="h-full rounded-full bg-cyan-400 animate-pulse" style="width:100%"></div></div><span class="text-[9px] text-cyan-400/70">${elapsedStr}</span></div>`;
+                    } else if (isQueued) {
+                        progressBar = `<div class="flex items-center gap-2 mt-1"><div class="flex-1 h-1 rounded-full bg-brand-border/20"></div><span class="text-[9px] text-brand-text-muted/40">waiting</span></div>`;
                     }
 
                     return `
-                        <div class="flex items-center gap-3 p-3 rounded-lg bg-brand-bg/40 border border-brand-border">
+                        <div class="flex items-center gap-3 p-3 rounded-lg ${isCurrentlyGenerating ? 'bg-cyan-950/20 border-cyan-500/30' : 'bg-brand-bg/40 border-brand-border'} border">
                             ${thumb}
                             <div class="flex-1 min-w-0">
                                 <div class="flex items-center gap-2">
                                     <span class="text-xs font-semibold text-brand-text">${j.model_label}</span>
+                                    ${isCurrentlyGenerating ? '<span class="text-[9px] text-cyan-400 bg-cyan-400/10 rounded px-1">ACTIVE</span>' : ''}
                                     <span class="text-[10px] ${statusColor}">${statusText}</span>
                                 </div>
                                 <p class="text-[10px] text-brand-text-muted truncate">${j.prompt || ''}</p>
                                 ${j.status === 'failed' ? `<p class="text-[10px] text-red-400 mt-0.5">${j.error || ''}</p>` : ''}
-                                ${isActive ? `<div class="flex items-center gap-2 mt-1"><div class="flex-1 h-1 rounded-full bg-brand-border/30 overflow-hidden"><div class="h-full rounded-full bg-cyan-400/50 animate-pulse" style="width:100%"></div></div><span class="text-[9px] text-brand-text-muted/50">${elapsedStr}</span></div>` : ''}
+                                ${progressBar}
                             </div>
                         </div>`;
                 }).join('');
