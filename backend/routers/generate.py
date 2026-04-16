@@ -363,6 +363,9 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     except Exception as exc:
         logger.warning("Prompt translation failed, using original: %s", exc)
 
+    # Track decomposed prompt data for the frontend (Step 2 display)
+    decomposed_data = {}
+
     # Generate concept prompts (skip if pre-composed by the user)
     if body.pre_composed and n_opts == 1:
         # User already composed the prompt via "Compose Generation Prompt" — use as-is
@@ -388,7 +391,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                     # Always use structured decompose→recompose for best quality.
                     # This forces the LLM to consider subject, scene, lighting,
                     # composition, and style explicitly — producing richer prompts.
-                    refined, decomposed = refine_prompt_structured(
+                    refined, decomposed_data = refine_prompt_structured(
                         body.prompt, style_profile, body.asset_type, image_model=model_id,
                     )
                     concept_prompts = [refined]
@@ -428,7 +431,8 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     emit({"type": "prompts_ready",
           "prompts": concept_prompts,
           "negative_prompt": negative_prompt or "",
-          "pre_composed": body.pre_composed})
+          "pre_composed": body.pre_composed,
+          "decomposed": decomposed_data or {}})
 
     emit({"type": "stage", "stage": "generating",
           "message": f"Generating {total} images...", "prompts_done": len(concept_prompts)})

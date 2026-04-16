@@ -91,6 +91,15 @@
             this._showComposed(text);
         }
 
+        setDecomposedText(text) {
+            const panel = this.container.querySelector('.decomposed-panel');
+            const textarea = this.container.querySelector('.decomposed-textarea');
+            if (panel && textarea) {
+                textarea.value = text;
+                panel.classList.remove('hidden');
+            }
+        }
+
         onChanged(cb) {
             this._changeCb = cb;
         }
@@ -158,6 +167,14 @@
                             <span>🎨</span> ${typeof t !== 'undefined' ? t('prompt_editor.prompt_designer') : 'Prompt Designer'}
                         </button>
                         <p class="compose-note text-[10px] text-brand-text-muted/60 mt-1">${typeof t !== 'undefined' ? t('prompt_editor.step2_tip') : 'Breaks down your prompt into editable visual components — subject, scene, lighting, colors. Skip this and go straight to Generate if you prefer.'}</p>
+                        <div class="decomposed-panel hidden mt-2">
+                            <textarea
+                                class="decomposed-textarea input w-full min-h-[60px] text-xs text-brand-text/70 bg-amber-950/10 border-amber-500/20"
+                                rows="3" readonly
+                                placeholder="Decomposed prompt will appear here after generation..."
+                            ></textarea>
+                            <p class="text-[10px] text-brand-text-muted/40 mt-0.5">Auto-decomposed from your prompt. Click Prompt Designer above to edit.</p>
+                        </div>
                     </div>
 
                     <!-- Step 3: Enhanced Prompt Preview -->

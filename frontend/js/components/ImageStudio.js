@@ -912,6 +912,19 @@
                                 // Backend refined the prompt — show it in the composed area
                                 this._promptEditor.setComposedText(prompts[0]);
                             }
+                            // Show decomposed prompt in Step 2 (auto-generated)
+                            const decomposed = evt.decomposed;
+                            if (decomposed && Object.keys(decomposed).length > 0) {
+                                const parts = [];
+                                if (decomposed.subject) parts.push(`Subject: ${decomposed.subject}`);
+                                if (decomposed.scene) parts.push(`Scene: ${decomposed.scene}`);
+                                if (decomposed.composition) parts.push(`Composition: ${decomposed.composition}`);
+                                if (decomposed.lighting) parts.push(`Lighting: ${decomposed.lighting}`);
+                                if (decomposed.style) parts.push(`Style: ${decomposed.style}`);
+                                if (parts.length > 0) {
+                                    this._promptEditor.setDecomposedText(parts.join('\n'));
+                                }
+                            }
                         }
                         // Capture negative prompt for display after generation
                         if (evt.negative_prompt) {
