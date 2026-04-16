@@ -1276,6 +1276,13 @@ This combination solves the cold-start-from-zero problem: TargetTracking alone c
 
 **15-minute warm-up window:** Amazon SageMaker reports `InService` as soon as the container starts, but the model is not ready until weights are downloaded from HuggingFace and loaded into GPU memory. For large models (e.g., 23-70GB), this takes 5-15 minutes after `InService`. The status endpoint tracks this window and the frontend displays a warm-up progress indicator.
 
+**S3 model cache:** After a successful model load, the handler saves pipeline components to S3 (`artsmoker/custom-models/{model_key}/model-cache/`) for faster cold starts. Cache behavior per component:
+- `.cache-info.json` — version fingerprint + per-component `preserved` flag. Fingerprint changes when model key, HF repo, catalog version, or quantization config changes → automatic cache invalidation.
+- **preserved=true** — NF4 weights with BnB metadata saved correctly. Loads directly with `quantization_config` (fast path, enables `pipe.to("cuda")` for ~30-60s/image inference).
+- **preserved=false** — `save_pretrained()` saved bf16 weights without BnB metadata (common for both diffusers and transformers models). Handler cleans stale quantization artifacts from `config.json`, then re-quantizes bf16→NF4 on the fly from local disk (skips HF download but still takes ~40 min for quantization). Uses `model_cpu_offload` (~5 min/image).
+- **Sequential CPU offload models** (e.g., FLUX.1 dev) — cache save fails because tensors are in "meta" state (no data on device). Every cold start re-downloads from HuggingFace.
+- Cache save runs in a background thread after `model_fn()` completes (does not block inference).
+
 **Amazon SageMaker IAM requirements:**
 ```
 sagemaker:CreateModel, sagemaker:CreateEndpointConfig, sagemaker:CreateEndpoint
@@ -1314,7 +1321,7 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 
 **S3 persistence:** Jobs are persisted to `artsmoker/async-jobs/` in the S3 bucket. Job state survives server restarts — on startup, the system reloads active jobs from S3 and resumes polling.
 
-**Background poller:** A background thread checks S3 every 30 seconds for completed inference outputs. When output appears, it downloads the result, decodes the image, and writes it to the local gallery.
+**Background poller:** A background thread checks S3 every 10 seconds (while jobs are active) for completed inference outputs. When output appears, it downloads the result, decodes the image, and writes it to the local gallery. Frontend polls at 5-second intervals for fast UI updates.
 
 **Gallery integration:** Full metadata (prompt, model, style snapshot, options/variations structure) is saved at submission time. The gallery entry is created immediately with a `pending` status. On completion, the PNG and SVG are written in-place and status flips to `complete`. On failure, status flips to `failed` with an error message.
 
