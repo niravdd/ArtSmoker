@@ -1867,7 +1867,7 @@
             const useGrouped = isAllModels && optsPerModel > 1;
 
             if (useGrouped) {
-                // Group options by model
+                // Group options by model — 1 card per option (first variant thumbnail)
                 const groups = new Map();
                 options.forEach((opt, i) => {
                     const mk = opt.image_model || 'unknown';

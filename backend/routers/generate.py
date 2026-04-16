@@ -795,7 +795,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
     # Pre-decompose once for all models — the recomposed prompt guides concept generation
     all_models_recomposed = None
     all_models_decomposed = None
-    if not body.pre_composed and n_opts > 1:
+    if not body.pre_composed:
         try:
             all_models_recomposed, all_models_decomposed = refine_prompt_structured(
                 body.prompt, style_profile, body.asset_type,
@@ -877,8 +877,10 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
     # Emit prompts (first concept per model for preview)
     emit({"type": "prompts_ready",
           "prompts": [concept_prompts[mk][0] for mk in model_keys],
+          "recomposed_prompt": all_models_recomposed or "",
           "negative_prompt": negative_prompts.get(model_keys[0], [""])[0],
           "pre_composed": body.pre_composed,
+          "decomposed": all_models_decomposed or {},
           "all_models": True,
           "model_labels": {i: model_labels[mk] for i, mk in enumerate(model_keys)},
           "options_per_model": n_opts})
@@ -1072,6 +1074,22 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
         total_cost_usd=actual_cost,
         cost_breakdown=cost_breakdown,
     )
+
+    # Persist recomposed + decomposed to all variant metadata
+    if all_models_recomposed or all_models_decomposed:
+        for opt in options:
+            for v in opt.variants:
+                try:
+                    meta_path = store.generated_asset_dir(v.id) / "metadata.json"
+                    if meta_path.exists():
+                        meta = json.loads(meta_path.read_text())
+                        if all_models_recomposed:
+                            meta["recomposed_prompt"] = all_models_recomposed
+                        if all_models_decomposed:
+                            meta["decomposed_data"] = all_models_decomposed
+                        meta_path.write_text(json.dumps(meta, indent=2))
+                except Exception:
+                    pass
 
     from backend.services.telemetry import track_image_cost
     track_image_cost(cost_usd=actual_cost, model="all_models",
