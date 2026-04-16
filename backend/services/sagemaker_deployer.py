@@ -1548,9 +1548,17 @@ def _get_model_environment(model_key: str, model: dict,
         "ARTSMOKER_HF_REPO": source.get("repo_id", ""),
         "SAGEMAKER_PROGRAM": "inference.py",
         "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",
-        # Full invoke config as JSON — strip server-side-only fields to stay under 1024-char limit
+        # Invoke config as JSON for the container handler. SageMaker silently truncates
+        # env vars — strip fields the handler doesn't need to stay well under the limit.
+        # Handler needs: library, loader_class, torch_dtype, quantization_components,
+        # predictor_type, output_type, enable_vae_slicing, max_concurrent_invocations.
+        # Handler does NOT need: prompt_guidance, input_fields, supports_negative_prompt,
+        # max_prompt_length, typical_latency_seconds (all server-side only).
         "INVOKE_CONFIG": json.dumps(
-            {k: v for k, v in invoke.items() if k not in ("prompt_guidance",)},
+            {k: v for k, v in invoke.items() if k not in (
+                "prompt_guidance", "input_fields", "supports_negative_prompt",
+                "max_prompt_length", "typical_latency_seconds",
+            )},
             default=str,
         ),
         # CUDA memory management
