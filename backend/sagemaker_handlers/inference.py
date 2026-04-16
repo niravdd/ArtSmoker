@@ -619,11 +619,23 @@ def _load_diffusers(model_dir):
     # With bf16 text encoder (~22 GB) + NF4 transformer (~10 GB), each fits on 44.5 GB L40S.
     # Speed: text encoding once (~15s) + 28 denoising steps (~3-4 min) = ~3.5 min total.
     has_quantized = bool(pre_loaded)
+    all_quantized = has_quantized and len(pre_loaded) == len([
+        c for c in _config.get("quantization_components", []) if isinstance(c, dict)
+    ])
 
     if device_map:
         logger.info("Skipping .to(cuda)/offload — model placed by device_map")
+    elif all_quantized and _loaded_from_cache:
+        # All components quantized + loaded from cache (already compact, no device_map="cpu").
+        # NF4 components went directly to GPU during from_pretrained. The remaining
+        # pipeline components (VAE, scheduler) need to be moved to GPU too.
+        # No offloading needed — total ~20 GB fits easily on 44.5+ GB GPU.
+        logger.info("All components NF4 from cache — moving pipeline to GPU (no offload, fast inference)")
+        pipe.to("cuda")
     elif has_quantized:
-        logger.info("Quantized components present — using model_cpu_offload (one component on GPU at a time)")
+        # Some components quantized but loaded to CPU (fresh build or partial quant).
+        # Use model_cpu_offload to move one at a time — slower but safe.
+        logger.info("Quantized components on CPU — using model_cpu_offload")
         pipe.enable_model_cpu_offload()
     elif _get_env_bool("ENABLE_MODEL_CPU_OFFLOAD"):
         logger.info("Enabling model CPU offload (keeps only active component on GPU)")

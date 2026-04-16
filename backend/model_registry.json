@@ -4557,7 +4557,7 @@
           "recommended_instance": "ml.g6e.4xlarge",
           "build_instance": "ml.g5.12xlarge",
           "disk_gb": 80,
-          "_note": "32B model. Transformer NF4 (~10 GB on GPU) + Text encoder INT8 (~11 GB on GPU). INT8 text encoder preserves ~90% of bf16 quality for prompt understanding. Total ~26 GB peak VRAM \u2014 comfortable on 48 GB L40S (18 GB headroom). bf16 text encoder (22 GB) does NOT fit alongside transformer during pipeline execution."
+          "_note": "32B model. Dual NF4: transformer (~10 GB) + text encoder (~5 GB) on GPU. Total ~20 GB \u2014 fits on 44.5 GB L40S with 24 GB headroom. No offloading needed when loaded from cache (components go to GPU directly). device_map=cpu only used during fresh build (quantization needs RAM)."
         },
         "invoke": {
           "library": "diffusers",
@@ -4611,7 +4611,7 @@
               "class": "Mistral3ForConditionalGeneration",
               "module": "transformers",
               "subfolder": "text_encoder",
-              "quantization": "int8",
+              "quantization": "nf4",
               "device_map": "cpu"
             }
           ]
@@ -4622,7 +4622,7 @@
             "ml.g5.12xlarge": 7.09
           }
         },
-        "version": "1.2",
+        "version": "1.3",
         "last_updated": "2025-06-01",
         "python_requirements": {
           "base": [
