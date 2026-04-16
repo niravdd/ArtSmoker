@@ -772,13 +772,12 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
     ep_name = deployment.get("endpoint_name", "")
     registry_key = ep_name.replace("artsmoker-", "").replace("-", "_") if ep_name else model_key
 
-    # Label includes instance type + short ID for disambiguation.
-    # Users deploying the same model multiple times see distinct entries.
-    # e.g., "FLUX.2 [dev] [g6e.4xl · a3f1]"
-    instance_type = deployment.get("instance_type", "")
-    inst_short = instance_type.replace("ml.", "").replace("xlarge", "xl") if instance_type else ""
-    ep_id = ep_name[-4:] if len(ep_name) >= 4 else ""
-    label = f"{catalog_entry['label']} [{inst_short} · {ep_id}]" if inst_short else catalog_entry["label"]
+    # Label includes compact deploy timestamp for disambiguation.
+    # Multiple deploys of the same model get distinct, user-friendly labels.
+    # e.g., "FLUX.2 [dev] (16Apr 12:29)"
+    from datetime import datetime
+    deploy_ts = datetime.now().strftime("%-d%b %H:%M")
+    label = f"{catalog_entry['label']} ({deploy_ts})"
 
     entry = {
         "label": label,
