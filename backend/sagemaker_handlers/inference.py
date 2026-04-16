@@ -51,7 +51,39 @@ _config = {}
 # ── S3 Model Cache ───────────────────────────────────────────────────────
 _CACHE_LOCAL_DIR = "/tmp/model-cache"
 _CACHE_INFO_FILE = ".cache-info.json"
-_loaded_from_cache = False  # Set True when loading from S3 cache
+_loaded_from_cache = False       # Set True when loading from S3 cache
+_all_preserved_from_cache = False # Set True ONLY when all NF4 components preserved in cache
+_cache_info = {}                 # Loaded from .cache-info.json during cache download
+
+
+def _is_component_preserved(comp_name: str) -> bool:
+    """Check if a cached component has NF4 weights preserved (with BnB metadata).
+
+    Reads from .cache-info.json's quantized_components array. If the component
+    has "preserved": true, its weights are in BnB NF4 format and can be loaded
+    directly with quantization_config. If false, weights are bf16 and need
+    re-quantization on the fly.
+    """
+    for comp in _cache_info.get("quantized_components", []):
+        if comp.get("name") == comp_name:
+            return comp.get("preserved", False)
+    return False
+
+
+def _clean_stale_quant_artifacts(comp_path: str):
+    """Remove stale BnB quantization artifacts from a cached component directory.
+
+    When save_pretrained() saves bf16 weights but leaves partial quantization
+    metadata, BnB gets confused on reload (expects full BnB format but finds
+    bf16). Cleaning these artifacts lets BnB treat it as a fresh bf16→NF4
+    quantization from local disk.
+    """
+    stale_files = ["quantization_config.json", "quantize_config.json"]
+    for fname in stale_files:
+        fpath = os.path.join(comp_path, fname)
+        if os.path.exists(fpath):
+            os.remove(fpath)
+            logger.info("Removed stale quantization artifact: %s", fpath)
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────
@@ -117,7 +149,7 @@ def _check_s3_cache():
 
     Returns local path to cached model, or None.
     """
-    global _loaded_from_cache
+    global _loaded_from_cache, _cache_info, _all_preserved_from_cache
     bucket, prefix = _get_cache_s3_path()
     if not bucket:
         return None
@@ -171,6 +203,17 @@ def _check_s3_cache():
         logger.info("Downloaded %d files (%.1f GB) from S3 cache in %.1fs",
                      file_count, total_bytes / (1024**3), elapsed)
         _loaded_from_cache = True
+        _cache_info = cache_info  # Preserve for _is_component_preserved() lookups
+
+        # Check if ALL quantized components have preserved NF4
+        quant_comps = cache_info.get("quantized_components", [])
+        if quant_comps and all(c.get("preserved", False) for c in quant_comps):
+            _all_preserved_from_cache = True
+            logger.info("All quantized components have preserved NF4 — fast GPU load path available")
+        else:
+            not_preserved = [c["name"] for c in quant_comps if not c.get("preserved", False)]
+            logger.info("Components without preserved NF4 (will re-quantize from bf16): %s", not_preserved)
+
         return _CACHE_LOCAL_DIR
 
     except Exception as e:
@@ -536,8 +579,18 @@ def _load_diffusers(model_dir):
                         break
 
                 if comp_path:
-                    logger.info("Loading %s from cache: %s (re-quantizing to %s)", comp_name, comp_path, comp_quant)
-                    pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
+                    preserved = _is_component_preserved(comp_name)
+                    if preserved:
+                        # NF4 weights with BnB metadata preserved — load directly (fast)
+                        logger.info("Loading %s from cache: NF4 preserved, direct load", comp_name)
+                        pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
+                    else:
+                        # bf16 weights — clean stale BnB artifacts and re-quantize on the fly.
+                        # BnB will treat these as fresh bf16 weights and quantize to NF4,
+                        # same as a fresh HF download but from local disk (faster).
+                        _clean_stale_quant_artifacts(comp_path)
+                        logger.info("Loading %s from cache: bf16 → re-quantizing to %s (NF4 not preserved)", comp_name, comp_quant)
+                        pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
                 else:
                     logger.warning("Cache missing component %s — will load from pipeline (UNQUANTIZED)", comp_name)
                     continue
@@ -625,15 +678,15 @@ def _load_diffusers(model_dir):
 
     if device_map:
         logger.info("Skipping .to(cuda)/offload — model placed by device_map")
-    elif all_quantized and _loaded_from_cache:
-        # All components quantized + loaded from cache (already compact, no device_map="cpu").
-        # NF4 components went directly to GPU during from_pretrained. The remaining
-        # pipeline components (VAE, scheduler) need to be moved to GPU too.
-        # No offloading needed — total ~20 GB fits easily on 44.5+ GB GPU.
-        logger.info("All components NF4 from cache — moving pipeline to GPU (no offload, fast inference)")
+    elif all_quantized and _all_preserved_from_cache:
+        # All components have PRESERVED NF4 weights loaded from cache — already compact,
+        # loaded directly to GPU (no device_map="cpu" needed for preserved NF4).
+        # Total ~16 GB NF4 fits easily on 44.5+ GB L40S GPU.
+        # This is the fast path: ~30-60s/image instead of ~5 min with model_cpu_offload.
+        logger.info("All components NF4 preserved from cache — moving pipeline to GPU (fast inference)")
         pipe.to("cuda")
     elif has_quantized:
-        # Some components quantized but loaded to CPU (fresh build or partial quant).
+        # Quantized components loaded to CPU (fresh build OR cache re-quantization).
         # Use model_cpu_offload to move one at a time — slower but safe.
         logger.info("Quantized components on CPU — using model_cpu_offload")
         pipe.enable_model_cpu_offload()
