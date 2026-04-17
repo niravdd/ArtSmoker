@@ -166,6 +166,7 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
         input_location=input_location,
         s3_bucket=s3_bucket,
         s3_key=s3_key,
+        endpoint_name=endpoint_name,
     )
 
     # Return sentinel — the caller knows this is async (not a final image)

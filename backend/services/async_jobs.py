@@ -35,6 +35,11 @@ GENERATING = "generating"
 COMPLETE = "complete"
 FAILED = "failed"
 
+# Resubmission constants
+STALE_JOB_THRESHOLD_SECONDS = 900   # 15 min before considering resubmission
+MAX_RESUBMITS = 3                    # Max resubmission attempts per job
+RESUBMIT_COOLDOWN_SECONDS = 60       # Min seconds between resubmission attempts
+
 
 def submit_job(
     job_id: str,
@@ -49,6 +54,7 @@ def submit_job(
     option_index: int = 0,
     variation_index: int = 0,
     generation_id: str = "",
+    endpoint_name: str = "",
 ) -> dict:
     """Register a new async job for background polling.
 
@@ -74,12 +80,15 @@ def submit_job(
         "option_index": option_index,
         "variation_index": variation_index,
         "generation_id": generation_id or asset_id,
+        "endpoint_name": endpoint_name,
         "status": PENDING,
         "progress": 0,
         "submitted_at": now,
         "completed_at": None,
         "image_path": None,
         "error": None,
+        "resubmit_count": 0,
+        "last_resubmit_at": None,
     }
 
     # Persist metadata to gallery NOW (before image arrives)
@@ -334,7 +343,7 @@ def _poll_loop():
 
 def _track_warm_period_start(job: dict):
     """Record when an endpoint becomes warm (first job starts generating)."""
-    ep = job.get("_endpoint_name") or f"artsmoker-{job['model_key'].replace('_', '-')}"
+    ep = _resolve_endpoint_for_job(job) or f"artsmoker-{job['model_key'].replace('_', '-')}"
     if ep in _endpoint_warm_state:
         return  # already tracking
     try:
@@ -364,7 +373,7 @@ def _track_warm_period_start(job: dict):
 
 def _track_warm_period_job_complete(job: dict):
     """Update warm-period state when a job completes."""
-    ep = job.get("_endpoint_name") or f"artsmoker-{job['model_key'].replace('_', '-')}"
+    ep = _resolve_endpoint_for_job(job) or f"artsmoker-{job['model_key'].replace('_', '-')}"
     state = _endpoint_warm_state.get(ep)
     if state:
         state["last_job_time"] = datetime.now(timezone.utc)
@@ -402,7 +411,7 @@ def _has_pending_for_endpoint(endpoint_name: str) -> bool:
     with _lock:
         for j in _jobs.values():
             if j["status"] in (PENDING, GENERATING):
-                job_ep = j.get("_endpoint_name") or f"artsmoker-{j['model_key'].replace('_', '-')}"
+                job_ep = _resolve_endpoint_for_job(j) or f"artsmoker-{j['model_key'].replace('_', '-')}"
                 if job_ep == endpoint_name:
                     return True
     return False
@@ -428,6 +437,216 @@ def _flush_background_costs_if_due(force: bool = False):
             logger.debug("Flushed background costs: $%.6f", total)
     except Exception as e:
         logger.debug("Background cost flush failed: %s", e)
+
+
+# ── Endpoint Resolution & Job Resubmission ──────────────────────────────
+
+def _resolve_endpoint_for_job(job: dict) -> str:
+    """Resolve the current SageMaker endpoint name for a job.
+
+    Priority:
+    1. The endpoint_name stored at submission time — verify it still exists
+    2. Look up by model_key prefix in registry (handles redeployed endpoints)
+    3. Return empty string if no endpoint found (model torn down)
+    """
+    # 1. Check stored endpoint
+    stored_ep = job.get("endpoint_name", "")
+    if stored_ep:
+        try:
+            from backend.services.model_registry import get_registry
+            registry = get_registry()
+            for section in ("image_models", "video_models", "post_processing", "utility_models"):
+                for key, cfg in registry.get(section, {}).items():
+                    if cfg.get("deployment", {}).get("endpoint_name") == stored_ep:
+                        return stored_ep
+        except Exception:
+            pass
+
+    # 2. Look up by model_key prefix in registry (handles redeployment)
+    model_key = job.get("model_key", "")
+    if model_key:
+        try:
+            from backend.services.model_registry import get_registry
+            registry = get_registry()
+            for section in ("image_models", "video_models", "post_processing", "utility_models"):
+                for key, cfg in registry.get(section, {}).items():
+                    ep = cfg.get("deployment", {}).get("endpoint_name", "")
+                    if ep and (key == model_key or key.startswith(model_key + "_")):
+                        return ep
+        except Exception:
+            pass
+
+    return ""
+
+
+def _check_stale_and_resubmit(job: dict, s3):
+    """Check if a pending job is stale and resubmit if the endpoint scaled to zero.
+
+    Called when S3 output is not found (NoSuchKey). Uses endpoint health to
+    distinguish "still processing" from "silently dropped by scale-to-zero".
+    """
+    elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
+
+    # Not stale yet — wait for normal processing
+    if elapsed < STALE_JOB_THRESHOLD_SECONDS:
+        _update_progress(job)
+        return
+
+    # Max retries exceeded
+    if job.get("resubmit_count", 0) >= MAX_RESUBMITS:
+        with _lock:
+            job["status"] = FAILED
+            job["error"] = f"Job failed after {MAX_RESUBMITS} resubmission attempts — output never appeared"
+            job["completed_at"] = datetime.now(timezone.utc).isoformat()
+        _update_gallery_on_failure(job)
+        _cleanup_s3(job, s3)
+        _persist_job_to_s3(job)
+        logger.warning("Async job %s failed after %d resubmissions", job["job_id"], MAX_RESUBMITS)
+        return
+
+    # Cooldown between resubmission attempts
+    last_resubmit = job.get("last_resubmit_at")
+    if last_resubmit:
+        since_last = (datetime.now(timezone.utc) - datetime.fromisoformat(last_resubmit)).total_seconds()
+        if since_last < RESUBMIT_COOLDOWN_SECONDS:
+            _update_progress(job)
+            return
+
+    # Resolve current endpoint
+    endpoint_name = _resolve_endpoint_for_job(job)
+    if not endpoint_name:
+        with _lock:
+            job["status"] = FAILED
+            job["error"] = "Endpoint not found — model may have been torn down"
+            job["completed_at"] = datetime.now(timezone.utc).isoformat()
+        _update_gallery_on_failure(job)
+        _cleanup_s3(job, s3)
+        _persist_job_to_s3(job)
+        logger.warning("Async job %s failed: no endpoint found for model_key=%s", job["job_id"], job.get("model_key"))
+        return
+
+    # Check endpoint health
+    try:
+        from backend.services.sagemaker_deployer import get_endpoint_health
+        health = get_endpoint_health(endpoint_name)
+    except Exception as e:
+        logger.debug("Health check failed for %s: %s — will retry next cycle", endpoint_name, e)
+        _update_progress(job)
+        return
+
+    if health.get("failed"):
+        with _lock:
+            job["status"] = FAILED
+            job["error"] = f"Endpoint failed: {health.get('detail', 'unknown')}"
+            job["completed_at"] = datetime.now(timezone.utc).isoformat()
+        _update_gallery_on_failure(job)
+        _cleanup_s3(job, s3)
+        _persist_job_to_s3(job)
+        return
+
+    if not health.get("alive"):
+        with _lock:
+            job["status"] = FAILED
+            job["error"] = f"Endpoint no longer exists: {health.get('detail', 'unknown')}"
+            job["completed_at"] = datetime.now(timezone.utc).isoformat()
+        _update_gallery_on_failure(job)
+        _cleanup_s3(job, s3)
+        _persist_job_to_s3(job)
+        return
+
+    if health.get("ready") or health.get("progressing"):
+        # Endpoint is alive and working — job may still be processing. Don't resubmit.
+        _update_progress(job)
+        return
+
+    # Endpoint is alive but has 0 instances (scaled to zero).
+    # The SageMaker async backlog was silently dropped. Resubmit.
+    _resubmit_job(job, endpoint_name, s3)
+
+
+def _resubmit_job(job: dict, endpoint_name: str, s3):
+    """Resubmit an async job using the original S3 input file.
+
+    The resubmission itself triggers HasBacklogWithoutCapacity → scale-from-zero.
+    """
+    import boto3
+    from backend.config import settings
+
+    input_location = job.get("input_location", "")
+    if not input_location:
+        with _lock:
+            job["status"] = FAILED
+            job["error"] = "Cannot resubmit: original input file location not stored"
+            job["completed_at"] = datetime.now(timezone.utc).isoformat()
+        _update_gallery_on_failure(job)
+        _persist_job_to_s3(job)
+        logger.error("Async job %s cannot resubmit: no input_location", job["job_id"])
+        return
+
+    # Verify input file still exists
+    try:
+        input_parts = input_location.replace("s3://", "").split("/", 1)
+        s3.head_object(Bucket=input_parts[0], Key=input_parts[1])
+    except Exception:
+        with _lock:
+            job["status"] = FAILED
+            job["error"] = "Cannot resubmit: original input file no longer exists in S3"
+            job["completed_at"] = datetime.now(timezone.utc).isoformat()
+        _update_gallery_on_failure(job)
+        _persist_job_to_s3(job)
+        logger.error("Async job %s cannot resubmit: input file missing at %s", job["job_id"], input_location)
+        return
+
+    old_output = job.get("output_location", "")
+
+    try:
+        sm_runtime = boto3.client("sagemaker-runtime", region_name=settings.aws_region_models)
+
+        response = sm_runtime.invoke_endpoint_async(
+            EndpointName=endpoint_name,
+            ContentType="application/json",
+            InputLocation=input_location,
+        )
+
+        new_output = response.get("OutputLocation")
+        if not new_output:
+            raise RuntimeError("Resubmission returned no output location")
+
+        now = datetime.now(timezone.utc).isoformat()
+        resubmit_count = job.get("resubmit_count", 0) + 1
+        new_parts = new_output.replace("s3://", "").split("/", 1)
+
+        with _lock:
+            job["output_location"] = new_output
+            job["s3_bucket"] = new_parts[0]
+            job["s3_key"] = new_parts[1]
+            job["endpoint_name"] = endpoint_name
+            job["resubmit_count"] = resubmit_count
+            job["last_resubmit_at"] = now
+            job["status"] = PENDING
+            job["progress"] = 0
+            job["stage"] = "resubmitted"
+            job["stage_label"] = f"Resubmitted (attempt {resubmit_count}/{MAX_RESUBMITS})"
+
+        _persist_job_to_s3(job)
+
+        logger.info("Async job %s resubmitted (attempt %d/%d) to %s — new output: %s",
+                     job["job_id"], resubmit_count, MAX_RESUBMITS, endpoint_name, new_output[-50:])
+
+    except Exception as e:
+        logger.warning("Async job %s resubmission failed: %s", job["job_id"], e)
+        resubmit_count = job.get("resubmit_count", 0) + 1
+        with _lock:
+            job["resubmit_count"] = resubmit_count
+            job["last_resubmit_at"] = datetime.now(timezone.utc).isoformat()
+        if resubmit_count >= MAX_RESUBMITS:
+            with _lock:
+                job["status"] = FAILED
+                job["error"] = f"Resubmission failed after {MAX_RESUBMITS} attempts: {e}"
+                job["completed_at"] = datetime.now(timezone.utc).isoformat()
+            _update_gallery_on_failure(job)
+            _cleanup_s3(job, s3)
+        _persist_job_to_s3(job)
 
 
 def _check_job(job: dict, s3):
@@ -495,54 +714,11 @@ def _check_job(job: dict, s3):
                      job["job_id"], image_path, len(image_bytes), duration_seconds, compute_cost)
 
     except s3.exceptions.NoSuchKey:
-        _update_progress(job)
+        _check_stale_and_resubmit(job, s3)
 
     except Exception as e:
         if "NoSuchKey" in str(e) or "404" in str(e):
-            _update_progress(job)
-        else:
-            # Smart timeout: check actual endpoint health rather than fixed timers.
-            # If the model is actively loading (logs show progress), keep waiting.
-            # Only fail when: endpoint is dead, confirmed failure, or stalled with no progress.
-            elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
-            should_timeout = False
-            fail_reason = ""
-
-            ep_name = job.get("endpoint_name", "")
-            if ep_name and elapsed > 300:  # Start checking after 5 min
-                try:
-                    from backend.services.sagemaker_deployer import get_endpoint_health
-                    health = get_endpoint_health(ep_name)
-
-                    if health["failed"]:
-                        should_timeout = True
-                        fail_reason = health["detail"]
-                    elif not health["alive"]:
-                        should_timeout = True
-                        fail_reason = health["detail"]
-                    elif health["progressing"]:
-                        # Actively loading — keep waiting, but check for stalls
-                        stale = health.get("stale_seconds", 0)
-                        if stale > 1800:  # No log activity for 30 min = stalled
-                            should_timeout = True
-                            fail_reason = f"Stalled — no log activity for {stale // 60} min"
-                        else:
-                            logger.debug("Async job %s: endpoint progressing (%s, %.0fs elapsed)",
-                                        job["job_id"], health["detail"], elapsed)
-                    elif health["ready"]:
-                        # Model is ready but output not in S3 — might be processing
-                        logger.debug("Async job %s: model ready, waiting for output (%.0fs)", job["job_id"], elapsed)
-                    # else: scaled to zero or unknown — keep waiting for scale-out
-                except Exception:
-                    logger.debug("Async job %s: health check failed, keeping alive (%.0fs)", job["job_id"], elapsed)
-
-            if should_timeout:
-                with _lock:
-                    job["status"] = FAILED
-                    job["error"] = fail_reason or f"Endpoint issue after {int(elapsed)}s"
-                    job["completed_at"] = datetime.now(timezone.utc).isoformat()
-                _update_gallery_on_failure(job)
-                _cleanup_s3(job, s3)
+            _check_stale_and_resubmit(job, s3)
             else:
                 logger.debug("Async job %s: S3 check error (will retry): %s", job["job_id"], e)
 
@@ -739,6 +915,9 @@ def _persist_job_to_s3(job: dict):
             "generate_svg": job.get("generate_svg", False),
             "remove_bg": job.get("remove_bg", False),
             "upscale": job.get("upscale", False),
+            "endpoint_name": job.get("endpoint_name", ""),
+            "resubmit_count": job.get("resubmit_count", 0),
+            "last_resubmit_at": job.get("last_resubmit_at"),
             "status": job["status"],
             "progress": job.get("progress", 0),
             "submitted_at": job["submitted_at"],
@@ -931,7 +1110,7 @@ def resume_pending_jobs() -> int:
                     # Output not ready — check endpoint health before giving up
                     elapsed = (datetime.now(timezone.utc) - datetime.fromisoformat(job["submitted_at"])).total_seconds()
                     should_fail = False
-                    ep_name = job.get("endpoint_name", "")
+                    ep_name = _resolve_endpoint_for_job(job)
                     if ep_name and elapsed > 300:
                         try:
                             from backend.services.sagemaker_deployer import get_endpoint_health
