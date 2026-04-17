@@ -1329,6 +1329,10 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 
 **Frontend (Pending Jobs button):** A button in Image Studio shows the count of active async jobs. Clicking opens a panel listing each job with model name, prompt excerpt, elapsed time, and status. Smart polling: the frontend polls `/api/generate/async-jobs` only when at least one job is active — stops polling when all jobs resolve. On completion, the gallery thumbnail live-replaces the pending placeholder.
 
+**Job resubmission:** SageMaker async endpoints silently drop queued jobs when instances scale to zero. The poller detects stale jobs (pending >15 min with no S3 output and endpoint at 0 instances) and resubmits them using the original S3 input file. The resubmission call itself triggers the `HasBacklogWithoutCapacity` CloudWatch alarm, forcing scale-from-zero. Max 3 resubmission attempts per job with 60-second cooldown between attempts. `endpoint_name` is stored per job and resolved via registry on resubmission (handles endpoint redeployment). All resubmission state persists to S3 (survives server restart).
+
+**Readiness detection:** Two-pass CloudWatch log scan: (1) `filter_log_events` with "loaded in" pattern scans entire log history server-side (catches model load even after hours of pings), (2) `get_log_events` tail for progress/error detection. Readiness is persisted to the registry (`deployment.model_ready=True`) so it survives server restarts without re-scanning logs.
+
 ### 5.12 Admin (Model Management)
 
 | Method | Endpoint | Description |
