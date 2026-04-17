@@ -727,20 +727,17 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
         if not stream_name:
             return {"ready": False, "detail": "Waiting for container to start..."}
 
-        # Read from the END of the stream (most recent events) and filter
-        # pings in Python. get_log_events with startFromHead=False gives us
-        # the tail, which is where checkpoint progress lives.
-        raw_events = logs_client.get_log_events(
+        # Use filter_log_events to scan ALL events server-side (not just tail).
+        # get_log_events with limit=500 only covers ~40 min of pings, but model
+        # load can take 60+ min — the "loaded in" message gets pushed out.
+        # filter_log_events scans the entire stream efficiently.
+        raw_events = logs_client.filter_log_events(
             logGroupName=log_group,
-            logStreamName=stream_name,
-            startFromHead=False,
-            limit=500,
+            logStreamNames=[stream_name],
+            filterPattern='"loaded" OR "Error" OR "CUDA" OR "Shard" OR "offload" OR "pipeline" OR "Quantiz" OR "quantiz" OR "ArtSmoker" OR "Inference"',
+            limit=100,
         )
-        # Filter out ping healthchecks and metric collector noise
-        events = {"events": [
-            e for e in raw_events.get("events", [])
-            if "/ping" not in e["message"] and "MetricCollector" not in e["message"]
-        ]}
+        events = raw_events
 
         import re as _re
 
