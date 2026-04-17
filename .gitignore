@@ -9,6 +9,9 @@ __pycache__/
 # User override files (local config, never committed)
 backend/*.user.json
 
+# Claude Code project instructions (local only)
+CLAUDE.md
+
 # Generated assets (user data, not tracked)
 data/generated/
 data/chat/
