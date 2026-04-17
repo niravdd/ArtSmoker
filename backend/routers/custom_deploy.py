@@ -75,13 +75,26 @@ def list_catalog():
         if _deploy_status[key].get("stage") in ("preparing", "downloading", "uploading", "deploying"):
             deployed_keys.add(key)
 
+    # Build mapping: catalog_key → deployed instance key + endpoint name.
+    # Deployed models use instance-specific keys like "flux2_dev_g6e_4xlarge_4ebe"
+    # but the catalog uses base keys like "flux2_dev". Match by prefix.
+    catalog_to_deployed = {}
+    for dk in deployed_keys:
+        for ck in catalog:
+            if dk == ck or dk.startswith(ck + "_"):
+                ep_name = registry.get("image_models", {}).get(dk, {}).get("deployment", {}).get("endpoint_name", "")
+                if ep_name:
+                    catalog_to_deployed[ck] = {"deployed_key": dk, "endpoint_name": ep_name}
+                break
+
     for key, model in catalog.items():
-        endpoint_name = f"artsmoker-{key.replace('_', '-')}"
+        deployed_info = catalog_to_deployed.get(key)
+        endpoint_name = deployed_info["endpoint_name"] if deployed_info else f"artsmoker-{key.replace('_', '-')}"
 
         # Only check Amazon SageMaker for models we know are deployed
-        if key in deployed_keys:
+        if deployed_info:
             status = check_endpoint_status(endpoint_name)
-            deploy_progress = _deploy_status.get(key, {})
+            deploy_progress = _deploy_status.get(key, _deploy_status.get(deployed_info["deployed_key"], {}))
         else:
             status = {"status": "NotFound"}
             deploy_progress = _deploy_status.get(key, {})
