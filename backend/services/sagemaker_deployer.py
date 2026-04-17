@@ -676,16 +676,31 @@ def _check_model_readiness(endpoint_name: str) -> dict:
     """
     import time as _time
 
-    # 1. Cached readiness (permanent once confirmed)
+    # 1. Cached readiness (permanent once confirmed in memory)
     cached = _model_readiness.get(endpoint_name)
     if cached and cached.get("ready"):
         return cached
+
+    # 1b. Check registry for persisted readiness (survives server restart)
+    try:
+        from backend.services.model_registry import get_registry
+        reg = get_registry()
+        for key, cfg in reg.get("image_models", {}).items():
+            dep = cfg.get("deployment", {})
+            if dep.get("endpoint_name") == endpoint_name and dep.get("model_ready"):
+                result = {"ready": True, "detail": "Confirmed ready (from registry)"}
+                _model_readiness[endpoint_name] = result
+                return result
+    except Exception:
+        pass
 
     # 2. Quick log scan (non-blocking, fast)
     readiness = _scan_logs_for_readiness(endpoint_name)
     if readiness["ready"]:
         _model_readiness[endpoint_name] = readiness
         logger.info("Model ready confirmed for %s: %s", endpoint_name, readiness["detail"])
+        # Persist to registry so readiness survives server restart
+        _persist_readiness_to_registry(endpoint_name)
         # Ensure auto-scaling is registered (may be first confirmation)
         _register_auto_scaling_after_ready(endpoint_name)
         return readiness
@@ -727,17 +742,45 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
         if not stream_name:
             return {"ready": False, "detail": "Waiting for container to start..."}
 
-        # Use filter_log_events to scan ALL events server-side (not just tail).
-        # get_log_events with limit=500 only covers ~40 min of pings, but model
-        # load can take 60+ min — the "loaded in" message gets pushed out.
-        # filter_log_events scans the entire stream efficiently.
-        raw_events = logs_client.filter_log_events(
+        # Two-pass log scan:
+        # 1. filter_log_events with "loaded in" pattern — fast server-side scan
+        #    across the entire log history. Catches model load even after hours of pings.
+        # 2. get_log_events tail for progress/error detection (checkpoint shards, etc.)
+        #
+        # The old approach (get_log_events limit=500) failed because 500 events
+        # covers only ~40 min of pings, but model load can take 60+ min.
+
+        # Pass 1: Check if model already loaded (fast — scans entire history server-side)
+        try:
+            loaded_events = logs_client.filter_log_events(
+                logGroupName=log_group,
+                logStreamNames=[stream_name],
+                filterPattern='"loaded in"',
+                limit=5,
+            )
+            for e in reversed(loaded_events.get("events", [])):
+                msg = e["message"].strip()
+                if "loaded in" in msg and "Model" in msg:
+                    try:
+                        detail = msg[msg.index("Model"):msg.index("Model") + 80]
+                    except (ValueError, IndexError):
+                        detail = "Model loaded"
+                    return {"ready": True, "detail": detail, "last_activity_ms": e.get("timestamp", 0)}
+        except Exception:
+            pass  # Fall through to tail scan
+
+        # Pass 2: Tail scan for progress and errors (recent events only)
+        raw_events = logs_client.get_log_events(
             logGroupName=log_group,
-            logStreamNames=[stream_name],
-            filterPattern='"loaded" OR "Error" OR "CUDA" OR "Shard" OR "offload" OR "pipeline" OR "Quantiz" OR "quantiz" OR "ArtSmoker" OR "Inference"',
-            limit=100,
+            logStreamName=stream_name,
+            startFromHead=False,
+            limit=500,
         )
-        events = raw_events
+        # Filter out ping healthchecks and metric collector noise
+        events = {"events": [
+            e for e in raw_events.get("events", [])
+            if "/ping" not in e["message"] and "MetricCollector" not in e["message"]
+        ]}
 
         import re as _re
 
@@ -814,6 +857,31 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
         return {"ready": False, "detail": "Checking..."}
 
 
+def _persist_readiness_to_registry(endpoint_name: str):
+    """Persist model readiness to the registry so it survives server restarts.
+
+    Writes deployment.model_ready=True to the model's user registry entry.
+    On next server start, _check_model_readiness reads this and skips log scanning.
+    Cleared on teardown (deployment entry removed) or redeploy.
+    """
+    try:
+        from backend.services.model_registry import get_registry, _save_user_overrides
+        import json, pathlib
+        user_path = pathlib.Path("backend/model_registry.user.json")
+        if not user_path.exists():
+            return
+        user = json.loads(user_path.read_text())
+        for key, cfg in user.get("image_models", {}).items():
+            dep = cfg.get("deployment", {})
+            if dep.get("endpoint_name") == endpoint_name:
+                dep["model_ready"] = True
+                user_path.write_text(json.dumps(user, indent=2))
+                logger.info("Persisted model_ready=True for %s in registry", endpoint_name)
+                return
+    except Exception as e:
+        logger.debug("Failed to persist readiness to registry: %s", e)
+
+
 def _start_readiness_monitor(endpoint_name: str):
     """Start a background thread that polls logs until the model is ready."""
     import threading, time as _time
@@ -829,6 +897,7 @@ def _start_readiness_monitor(endpoint_name: str):
                 if readiness.get("ready"):
                     _model_readiness[endpoint_name] = readiness
                     logger.info("Background monitor: %s is ready — %s", endpoint_name, readiness["detail"])
+                    _persist_readiness_to_registry(endpoint_name)
                     # Now safe to register auto-scaling (model is loaded, won't be killed)
                     _register_auto_scaling_after_ready(endpoint_name)
                     break
@@ -851,10 +920,29 @@ def _start_readiness_monitor(endpoint_name: str):
 
 
 def clear_readiness_cache(endpoint_name: str):
-    """Clear readiness cache for an endpoint (called on teardown/redeploy)."""
+    """Clear readiness cache for an endpoint (called on teardown/redeploy).
+
+    Clears both in-memory cache and registry-persisted model_ready flag.
+    """
     _model_readiness.pop(endpoint_name, None)
     _readiness_monitors.discard(endpoint_name)
     _auto_scaling_registered.discard(endpoint_name)
+
+    # Clear persisted readiness from registry
+    try:
+        import json, pathlib
+        user_path = pathlib.Path("backend/model_registry.user.json")
+        if user_path.exists():
+            user = json.loads(user_path.read_text())
+            for key, cfg in user.get("image_models", {}).items():
+                dep = cfg.get("deployment", {})
+                if dep.get("endpoint_name") == endpoint_name and dep.get("model_ready"):
+                    dep.pop("model_ready", None)
+                    user_path.write_text(json.dumps(user, indent=2))
+                    logger.debug("Cleared model_ready for %s in registry", endpoint_name)
+                    break
+    except Exception:
+        pass
 
 
 def check_endpoint_status(endpoint_name: str) -> dict:
