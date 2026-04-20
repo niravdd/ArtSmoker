@@ -66,13 +66,14 @@ RULES:
    - Use "exposed shoulders" instead of "bare shoulders"
    - Never use: nude, naked, bare skin, undressed, revealing, provocative, seductive — even in innocent contexts
 
-6. **NEGATIVE: line** — always include, with terms that prevent common failures:
+6. **NEGATIVE: line** — include ONLY if the model supports negative prompts (check MODEL instructions above). If the model says NO negative prompts, skip this entirely and focus all effort on the positive caption.
+   When included, use terms that prevent common failures:
    - For people/characters: bad anatomy, extra limbs, extra fingers, missing fingers, deformed hands, disproportionate
    - For all: blurry, low quality, text, watermark, signature, ugly, deformed
 
-7. **Stay under {max_chars} characters.** Be precise, not verbose. Every word should paint the picture.
+7. **Stay under {max_chars} characters.** Be precise, not verbose. Every word should paint the picture. Follow any length guidance in the MODEL instructions above.
 
-Output ONLY the caption and NEGATIVE: line.""",
+Output ONLY the caption (and NEGATIVE: line if applicable).""",
     },
 
     "image_concepts_multi": {
@@ -413,17 +414,20 @@ Be SPECIFIC and VISUAL. Not 'nice outfit' — describe the actual garments. Not 
         "label": "Prompt Recomposition",
         "description": "Assembles structured visual components back into a flat image generation prompt.",
         "used_by": "Image Studio — Prompt Designer modal — Generate button",
-        "variables": ["{structured_json}", "{model_name}", "{max_chars}"],
+        "variables": ["{structured_json}", "{model_name}", "{model_specific_instructions}", "{max_chars}"],
         "model": "fast LLM (Sonnet)",
-        "system_prompt": "You write image generation prompts from structured specifications. Output ONLY the prompt text and a NEGATIVE: line. No explanation.",
+        "system_prompt": "You write image generation prompts from structured specifications. Output ONLY the prompt text (and NEGATIVE: line if the model supports it). No explanation.",
         "text": """Convert these structured visual specifications into a single image generation prompt for {model_name}.
 
-Specifications:
+=== MODEL INSTRUCTIONS ===
+{model_specific_instructions}
+
+=== SPECIFICATIONS ===
 {structured_json}
 
-Write a DESCRIPTIVE CAPTION (not commands) that incorporates ALL the specifications above. Structure: subject and pose first, then scene/setting, then materials/textures, then lighting, then style/quality.
+Write a DESCRIPTIVE CAPTION (not commands) that incorporates the specifications above. Structure: subject and pose first, then scene/setting, then materials/textures, then lighting, then style/quality.
 
-Include a NEGATIVE: line with failure-prevention terms.
+Follow the MODEL INSTRUCTIONS above for prompt length, style, and whether to include a NEGATIVE: line. Only include NEGATIVE: if the model supports it. If the model says no negative prompts, focus all effort on the positive caption.
 
 Keep under {max_chars} characters. Every word should paint the picture.""",
     },

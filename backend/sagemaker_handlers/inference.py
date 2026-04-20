@@ -316,8 +316,21 @@ def _do_s3_cache_save(model_dict):
             pass  # No cache yet — proceed
 
         save_dir = "/tmp/model-save"
+        # Preserve early-saved quantized components (written during quantization loop).
+        # Only clean non-component files (stale model_index.json etc), not component dirs.
+        quant_comp_names = {
+            c.get("name") for c in _config.get("quantization_components", [])
+            if isinstance(c, dict)
+        }
         if os.path.exists(save_dir):
-            shutil.rmtree(save_dir)
+            for item in os.listdir(save_dir):
+                item_path = os.path.join(save_dir, item)
+                if item in quant_comp_names and os.path.isdir(item_path):
+                    continue  # Keep early-saved quantized component directories
+                if os.path.isdir(item_path):
+                    shutil.rmtree(item_path)
+                else:
+                    os.remove(item_path)
         os.makedirs(save_dir, exist_ok=True)
 
         t0 = _time.time()
@@ -409,6 +422,14 @@ def _do_s3_cache_save(model_dict):
                     logger.info("✓ %s: quantization_config.json present (NF4 preserved)", comp.get("name"))
                 else:
                     logger.warning("✗ %s: NO quantization_config.json — will need re-quantization on load", comp.get("name"))
+
+        # Abort cache save if NO quantized components are preserved — saves only corrupt weights
+        if quantized_components and not any(c["preserved"] for c in quantized_components):
+            logger.error("ABORTING cache save — no quantized components preserved. "
+                         "Cache would be unusable (corrupt bf16 weights). "
+                         "Next deploy will build fresh from HuggingFace.")
+            shutil.rmtree(save_dir, ignore_errors=True)
+            return
 
         cache_info = {
             "version_key": _get_cache_version_key(),
@@ -706,31 +727,28 @@ def _load_diffusers(model_dir):
             fallback_kwargs.update(pre_loaded)
         pipe = PipelineClass.from_pretrained(fallback_source, **fallback_kwargs)
 
-    # GPU placement strategy for quantized models:
-    # device_map="balanced" causes CUDA illegal memory access when text encoder is on CPU
-    # and transformer is on GPU (cross-device tensor operations fail).
-    # model_cpu_offload is the correct approach: moves ONE component at a time to GPU,
-    # runs its forward pass, then moves it back. Each component gets full GPU access.
-    # With bf16 text encoder (~22 GB) + NF4 transformer (~10 GB), each fits on 44.5 GB L40S.
-    # Speed: text encoding once (~15s) + 28 denoising steps (~3-4 min) = ~3.5 min total.
+    # GPU placement strategy:
+    # - Preserved NF4 from cache (~15 GB total) → pipe.to("cuda") = fast path (30-60s/image)
+    # - Fresh build with quantized components on CPU → model_cpu_offload (3-5 min/image)
+    # - Fallback from failed cache (full bf16, no quantization) → model_cpu_offload (prevents OOM)
     has_quantized = bool(pre_loaded)
     all_quantized = has_quantized and len(pre_loaded) == len([
         c for c in _config.get("quantization_components", []) if isinstance(c, dict)
     ])
+    expects_quantization = bool(_config.get("quantization_components"))
 
     if device_map:
         logger.info("Skipping .to(cuda)/offload — model placed by device_map")
     elif all_quantized and _all_preserved_from_cache:
-        # All components have PRESERVED NF4 weights loaded from cache — already compact,
-        # loaded directly to GPU (no device_map="cpu" needed for preserved NF4).
-        # Total ~16 GB NF4 fits easily on 44.5+ GB L40S GPU.
-        # This is the fast path: ~30-60s/image instead of ~5 min with model_cpu_offload.
         logger.info("All components NF4 preserved from cache — moving pipeline to GPU (fast inference)")
         pipe.to("cuda")
     elif has_quantized:
-        # Quantized components loaded to CPU (fresh build OR cache re-quantization).
-        # Use model_cpu_offload to move one at a time — slower but safe.
         logger.info("Quantized components on CPU — using model_cpu_offload")
+        pipe.enable_model_cpu_offload()
+    elif expects_quantization and not has_quantized:
+        # Quantization was expected but failed (corrupt cache or load error).
+        # Model is full bf16 — too large for direct GPU placement. Use offload.
+        logger.warning("Quantization expected but none succeeded — using model_cpu_offload (bf16 too large for GPU)")
         pipe.enable_model_cpu_offload()
     elif _get_env_bool("ENABLE_MODEL_CPU_OFFLOAD"):
         logger.info("Enabling model CPU offload (keeps only active component on GPU)")

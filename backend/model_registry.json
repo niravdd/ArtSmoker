@@ -4555,9 +4555,8 @@
           "min_vram_gb": 48,
           "min_ram_gb": 96,
           "recommended_instance": "ml.g6e.4xlarge",
-          "build_instance": "ml.g5.12xlarge",
           "disk_gb": 80,
-          "_note": "32B model. Dual NF4: transformer (~10 GB) + text encoder (~5 GB) on GPU. Total ~20 GB \u2014 fits on 44.5 GB L40S with 24 GB headroom. No offloading needed when loaded from cache (components go to GPU directly). device_map=cpu only used during fresh build (quantization needs RAM)."
+          "_note": "32B model. Build AND serve on same g6e.4xlarge (1× L40S 48 GB VRAM, 128 GB RAM). Quantization uses device_map=cpu (fits in 128 GB RAM). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB on GPU after cache load. Fast path: preserved NF4 cache → pipe.to(cuda) → 30-60s/image."
         },
         "invoke": {
           "library": "diffusers",
@@ -4595,7 +4594,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 3600,
-          "prompt_guidance": "FLUX.2 dev is a 32B parameter model by Black Forest Labs \u2014 the most capable open-source image generator.\nIt uses Mistral 3 as its text encoder, giving it exceptional natural language understanding.\n\nPROMPT STRUCTURE (order matters \u2014 model prioritizes what comes first):\n1. Subject & action \u2014 who/what, their pose, expression, clothing\n2. Environment & setting \u2014 where, background elements\n3. Lighting & atmosphere \u2014 light source, mood, time of day\n4. Camera & composition \u2014 lens, angle, framing, depth of field\n5. Style & quality \u2014 artistic style, rendering quality\n\nCRITICAL RULES:\n- DO NOT generate negative prompts \u2014 FLUX.2 does not use them. Describe ONLY what you want.\n- DO NOT use 'no', 'not', 'without', 'avoid' \u2014 the model cannot process negation.\n- Use natural, descriptive language \u2014 write like describing a photograph to a skilled photographer.\n- Front-load the most important visual elements (subject, key details) in the first sentence.\n- Be specific with materials, textures, colors \u2014 'weathered red brick' not just 'wall'.\n- Include camera specifications for realism: '85mm f/1.4', 'wide-angle 24mm', 'aerial drone shot'.\n- Include lighting: 'golden hour rim light', 'soft diffused overcast', 'dramatic chiaroscuro'.\n- Quality markers: 'professional photography', 'cinematic', '8k resolution', 'award-winning'.\n\nFLUX.2 STRENGTHS (leverage these):\n- Exceptional at rendering readable text in images \u2014 include exact text in quotes.\n- Superior character consistency and anatomical accuracy.\n- Multi-reference editing and complex scene composition.\n- Longer prompts work extremely well (80-150 words) \u2014 more detail = better results.\n- Understands compositional framing: 'rule of thirds', 'centered subject filling 70% of frame'.\n\nOPTIMAL SETTINGS:\n- 28 inference steps provides excellent quality with good speed.\n- guidance_scale=4 for standard generation.\n- Supports up to 512 tokens (long, detailed prompts encouraged).",
+          "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder \u2014 understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60\u2013100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') \u2014 describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2\u20133 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good \u2014 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
           "max_concurrent_invocations": 1,
           "quantization_components": [
             {
@@ -4622,8 +4621,8 @@
             "ml.g5.12xlarge": 7.09
           }
         },
-        "version": "1.3",
-        "last_updated": "2025-06-01",
+        "version": "1.4",
+        "last_updated": "2026-04-20",
         "python_requirements": {
           "base": [
             "torch>=2.6.0,<2.7.0",

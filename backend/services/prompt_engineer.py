@@ -503,6 +503,7 @@ def refine_prompt_structured(
     recompose_prompt_text = get_template('prompt_recompose').format(
         structured_json=json.dumps(decomposed, indent=2),
         model_name=model_name,
+        model_specific_instructions=model_instructions,
         max_chars=max_chars,
     )
 
