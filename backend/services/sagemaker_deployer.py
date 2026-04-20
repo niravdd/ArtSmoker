@@ -1307,18 +1307,36 @@ def _register_auto_scaling_after_ready(endpoint_name: str):
     Called from the readiness monitor or quick log scan. This ensures
     the scale-to-zero policy is only applied once the model is loaded,
     preventing scale-in from killing instances during long model loads.
+
+    Idempotent: checks AWS for existing policies before registering.
     """
     if endpoint_name in _auto_scaling_registered:
-        return  # Already registered
+        return  # Already registered this session
 
     if endpoint_name in _build_only_endpoints:
         logger.info("Skipping auto-scaling for %s — build-only deploy (cache save in progress)", endpoint_name)
         return
 
+    # Check if auto-scaling already exists in AWS (survives server restarts)
+    try:
+        import boto3
+        aas = boto3.client("application-autoscaling", region_name=_get_region())
+        resource_id = f"endpoint/{endpoint_name}/variant/primary"
+        resp = aas.describe_scaling_policies(
+            ServiceNamespace="sagemaker",
+            ResourceId=resource_id,
+            ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+        )
+        if resp.get("ScalingPolicies"):
+            _auto_scaling_registered.add(endpoint_name)
+            logger.debug("Auto-scaling already configured for %s — skipping", endpoint_name)
+            return
+    except Exception:
+        pass  # If check fails, proceed with registration attempt
+
     # Compute cooldown from model config
     from .custom_models import get_catalog
     catalog = get_catalog()
-    # Find the model key from endpoint name (artsmoker-flux2-dev → flux2_dev)
     model_key = endpoint_name.replace("artsmoker-", "").replace("-", "_")
     model = catalog.get("models", {}).get(model_key, {})
     invoke = model.get("invoke", {})
@@ -1328,6 +1346,7 @@ def _register_auto_scaling_after_ready(endpoint_name: str):
     try:
         _setup_auto_scaling(endpoint_name, scale_in_cooldown=cooldown)
         _auto_scaling_registered.add(endpoint_name)
+        logger.info("Auto-scaling configured for %s (scale to zero + scale from zero)", endpoint_name)
         logger.info("Auto-scaling registered for %s (cooldown=%ds) — model confirmed ready", endpoint_name, cooldown)
     except Exception as e:
         logger.warning("Auto-scaling setup failed for %s after model ready: %s — retrying in background", endpoint_name, e)
