@@ -719,8 +719,8 @@ def _check_job(job: dict, s3):
     except Exception as e:
         if "NoSuchKey" in str(e) or "404" in str(e):
             _check_stale_and_resubmit(job, s3)
-            else:
-                logger.debug("Async job %s: S3 check error (will retry): %s", job["job_id"], e)
+        else:
+            logger.debug("Async job %s: S3 check error (will retry): %s", job["job_id"], e)
 
 
 def _update_progress(job: dict):
