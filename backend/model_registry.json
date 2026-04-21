@@ -4556,7 +4556,7 @@
           "min_ram_gb": 96,
           "recommended_instance": "ml.g6e.4xlarge",
           "disk_gb": 80,
-          "_note": "32B model. Build AND serve on same g6e.4xlarge (1× L40S 48 GB VRAM, 128 GB RAM). Quantization uses device_map=cpu (fits in 128 GB RAM). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB on GPU after cache load. Fast path: preserved NF4 cache → pipe.to(cuda) → 30-60s/image."
+          "_note": "32B model on g6e.4xlarge (1× L40S 48 GB VRAM, 128 GB RAM). BnB NF4 quantization requires CUDA — no device_map override (loads layer-by-layer to GPU, peak ~13 GB). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB total. With preserved NF4 cache: S3 download + direct GPU load = ~2 min cold start."
         },
         "invoke": {
           "library": "diffusers",
@@ -4602,16 +4602,14 @@
               "class": "Flux2Transformer2DModel",
               "module": "diffusers",
               "subfolder": "transformer",
-              "quantization": "nf4",
-              "device_map": "cpu"
+              "quantization": "nf4"
             },
             {
               "name": "text_encoder",
               "class": "Mistral3ForConditionalGeneration",
               "module": "transformers",
               "subfolder": "text_encoder",
-              "quantization": "nf4",
-              "device_map": "cpu"
+              "quantization": "nf4"
             }
           ]
         },

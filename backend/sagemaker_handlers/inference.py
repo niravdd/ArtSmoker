@@ -728,9 +728,9 @@ def _load_diffusers(model_dir):
         pipe = PipelineClass.from_pretrained(fallback_source, **fallback_kwargs)
 
     # GPU placement strategy:
-    # - Preserved NF4 from cache (~15 GB total) → pipe.to("cuda") = fast path (30-60s/image)
-    # - Fresh build with quantized components on CPU → model_cpu_offload (3-5 min/image)
-    # - Fallback from failed cache (full bf16, no quantization) → model_cpu_offload (prevents OOM)
+    # - All NF4 quantized (fresh or cached) → pipe.to("cuda") = fast path (30-60s/image)
+    #   NF4 components are already on GPU from quantization. ~15 GB total fits easily.
+    # - Fallback from failed quantization (full bf16) → model_cpu_offload (prevents OOM)
     has_quantized = bool(pre_loaded)
     all_quantized = has_quantized and len(pre_loaded) == len([
         c for c in _config.get("quantization_components", []) if isinstance(c, dict)
@@ -739,15 +739,15 @@ def _load_diffusers(model_dir):
 
     if device_map:
         logger.info("Skipping .to(cuda)/offload — model placed by device_map")
-    elif all_quantized and _all_preserved_from_cache:
-        logger.info("All components NF4 preserved from cache — moving pipeline to GPU (fast inference)")
+    elif all_quantized:
+        # All expected components are NF4 quantized (on GPU). Total ~15 GB fits on 44.5+ GB.
+        logger.info("All components NF4 quantized — moving pipeline to GPU (fast inference)")
         pipe.to("cuda")
     elif has_quantized:
-        logger.info("Quantized components on CPU — using model_cpu_offload")
+        # Partial quantization — some components on GPU, some not. Use offload for safety.
+        logger.info("Partial quantization — using model_cpu_offload")
         pipe.enable_model_cpu_offload()
     elif expects_quantization and not has_quantized:
-        # Quantization was expected but failed (corrupt cache or load error).
-        # Model is full bf16 — too large for direct GPU placement. Use offload.
         logger.warning("Quantization expected but none succeeded — using model_cpu_offload (bf16 too large for GPU)")
         pipe.enable_model_cpu_offload()
     elif _get_env_bool("ENABLE_MODEL_CPU_OFFLOAD"):
