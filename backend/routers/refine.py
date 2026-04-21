@@ -306,15 +306,17 @@ async def recompose_prompt(body: RecomposeRequest):
     """Recompose structured visual components into a flat image generation prompt."""
     from backend.services.bedrock_client import invoke_llm
     from backend.services.prompt_templates import get_template, get_system_prompt
-    from backend.services.prompt_engineer import get_prompt_limit, _get_model_label
+    from backend.services.prompt_engineer import get_prompt_limit, get_model_guidance, _get_model_label, _MODEL_INSTRUCTIONS, _DEFAULT_MODEL_INSTRUCTIONS
     import json as _json, re as _re
 
     max_chars = get_prompt_limit(body.image_model)
     model_name = _get_model_label(body.image_model)
+    model_instructions = get_model_guidance(body.image_model) or _MODEL_INSTRUCTIONS.get(body.image_model, _DEFAULT_MODEL_INSTRUCTIONS)
 
     prompt_text = get_template('prompt_recompose').format(
         structured_json=_json.dumps(body.structured, indent=2),
         model_name=model_name,
+        model_specific_instructions=model_instructions,
         max_chars=max_chars,
     )
 
