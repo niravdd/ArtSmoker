@@ -819,8 +819,8 @@
                 btn.innerHTML = `<span class="spinner-sm"></span> ${t('image_studio.checking')}`;
             }
 
-            // ── Asset Type Classification (LLM-powered) ─────
-            if (window.showConfirm) {
+            // ── Asset Type Classification (LLM-powered) — only if not already confirmed ─────
+            if (window.showConfirm && this._promptEditor && !this._promptEditor._assetTypeConfirmed) {
                 try {
                     const classifyResp = await fetch('/api/refine-prompt/classify-asset-type', {
                         method: 'POST',
@@ -848,6 +848,7 @@
                             }
                         }
                     }
+                    this._promptEditor._assetTypeConfirmed = true;
                 } catch {}
             }
 
@@ -1794,38 +1795,19 @@
             document.getElementById('btn-apply-postprocess')?.classList.remove('hidden');
             document.getElementById('pp-hint')?.classList.remove('hidden');
 
-            // Show original vs used prompt
+            // Show prompt sent to model + negative prompt
+            // Original prompt is already in Step 1 — no need to repeat here.
+            // The per-option prompt updates when user selects an option (in _selectOption).
             const infoSection = document.getElementById('gen-prompt-info');
             const origSection = document.getElementById('gen-original-prompt-section');
-            const origText = document.getElementById('gen-original-prompt-text');
             const usedText = document.getElementById('gen-used-prompt-text');
             if (infoSection) {
                 infoSection.classList.remove('hidden');
-                if (result.original_prompt && result.original_prompt !== result.prompt) {
-                    origSection?.classList.remove('hidden');
-                    if (origText) origText.textContent = result.original_prompt;
-                    if (usedText) usedText.textContent = result.prompt;
-                } else {
-                    // No AI improvement was used — just show the prompt
-                    origSection?.classList.add('hidden');
-                    if (usedText) usedText.textContent = result.prompt;
-                    const usedLabel = document.querySelector('#gen-used-prompt-section > p:first-child');
-                    if (usedLabel) usedLabel.textContent = t('image_studio.prompt_label');
-                }
+                origSection?.classList.add('hidden');  // Step 1 already shows original
+                // Prompt + negative are updated per-option in _selectOption
             }
-
-            // Show negative prompt if present (check all sources)
             const negSection = document.getElementById('gen-negative-prompt-section');
-            const negText = document.getElementById('gen-negative-prompt-text');
-            const negPrompt = result.negative_prompt
-                || this._lastNegativePrompt
-                || (this._promptEditor?.getNegativePrompt?.() || '');
-            if (negSection && negText && negPrompt) {
-                negSection.classList.remove('hidden');
-                negText.textContent = negPrompt;
-            } else if (negSection) {
-                negSection.classList.add('hidden');
-            }
+            if (negSection) negSection.classList.remove('hidden');
 
             // Show options row
             this._renderOptionsRow(options);
@@ -1893,7 +1875,7 @@
                         <div class="grid gap-2 grid-cols-${cols}">`;
 
                     entries.forEach((e, conceptIdx) => {
-                        html += this._renderOptionCard(e.opt, e.globalIdx, `Concept ${conceptIdx + 1}`);
+                        html += this._renderOptionCard(e.opt, e.globalIdx, `o${e.globalIdx + 1} · Concept ${conceptIdx + 1}`);
                     });
 
                     html += '</div></div>';
@@ -1905,7 +1887,8 @@
                 const cols = options.length <= 5 ? options.length : 5;
                 grid.className = `grid gap-3 grid-cols-${cols}`;
                 grid.innerHTML = options.map((opt, i) => {
-                    const cardLabel = opt.model_label || `${t('image_studio.option')} ${i + 1}`;
+                    const modelPart = opt.model_label || `${t('image_studio.option')} ${i + 1}`;
+                    const cardLabel = `o${i + 1} · ${modelPart}`;
                     return this._renderOptionCard(opt, i, cardLabel);
                 }).join('');
             }
@@ -1980,36 +1963,29 @@
             }
 
             // Show per-option prompt with label
+            // Per-option prompt is shown in the main gen-prompt-info panel (updated above).
+            // Hide the legacy concept-prompt section to avoid duplication.
             const conceptSection = document.getElementById('gen-concept-prompt');
-            const conceptLabel = document.getElementById('gen-concept-prompt-label');
-            const conceptText = document.getElementById('gen-concept-prompt-text');
-            const conceptNeg = document.getElementById('gen-concept-negative');
-            const conceptNegText = document.getElementById('gen-concept-negative-text');
+            if (conceptSection) conceptSection.classList.add('hidden');
 
-            if (conceptSection && conceptText && option.enhanced_prompt) {
-                conceptSection.classList.remove('hidden');
-                // Label: "Generated prompt — Option N" or "Generated prompt — Nova Canvas"
-                const label = option.model_label
-                    ? `${t('image_studio.generated_prompt')} \u2014 ${option.model_label}`
-                    : `${t('image_studio.generated_prompt')} \u2014 ${t('image_studio.option')} ${index + 1}`;
-                if (conceptLabel) conceptLabel.textContent = label;
-                conceptText.textContent = option.enhanced_prompt;
-
-                // Per-option negative prompt
-                const optNeg = option.negative_prompt || '';
-                if (conceptNeg && conceptNegText) {
-                    if (optNeg) {
-                        conceptNeg.classList.remove('hidden');
-                        conceptNegText.textContent = optNeg;
-                    } else {
-                        conceptNeg.classList.add('hidden');
-                    }
-                }
-
-                // Show status detail for blocked/failed options
-                if (option.status && option.status !== 'success') {
-                    conceptText.textContent = `[${option.status === 'moderation_blocked' ? t('image_studio.blocked_by_moderation') : t('image_studio.generation_failed_status')}] ${option.status_detail || ''}`;
-                }
+            // Update the main prompt info panel to match selected option
+            const usedText = document.getElementById('gen-used-prompt-text');
+            const usedLabel = document.querySelector('#gen-used-prompt-section > p:first-child');
+            if (usedText) {
+                usedText.textContent = option.enhanced_prompt || result.enhanced_prompt || result.refined_prompt || result.prompt || '';
+            }
+            if (usedLabel) {
+                const modelPart = option.model_label || `${t('image_studio.option')} ${index + 1}`;
+                usedLabel.textContent = `${t('image_studio.prompt_sent_to_model')} \u2014 o${index + 1} · ${modelPart}`;
+            }
+            const negText = document.getElementById('gen-negative-prompt-text');
+            const negLabel = document.querySelector('#gen-negative-prompt-section > p:first-child');
+            if (negText) {
+                negText.textContent = option.negative_prompt || t('image_studio.negative_prompt_none');
+            }
+            if (negLabel) {
+                const modelPart = option.model_label || `${t('image_studio.option')} ${index + 1}`;
+                negLabel.textContent = `${t('image_studio.negative_prompt_exclusions')} \u2014 o${index + 1} · ${modelPart}`;
             }
 
             // Render variations for this option
@@ -2177,11 +2153,41 @@
                 // Ensure prompt editor exists, then populate
                 this._ensurePromptEditor();
                 if (this._promptEditor) {
-                    const displayPrompt = result.prompt || '';
-                    this._promptEditor.setText(displayPrompt);
-                    // Store original so getOriginalText() returns the right thing
-                    if (result.original_prompt) {
-                        this._promptEditor._originalText = result.original_prompt;
+                    // Step 1: original user prompt
+                    const originalPrompt = result.original_prompt || result.prompt || '';
+                    this._promptEditor.setText(originalPrompt);
+                    this._promptEditor._originalText = originalPrompt;
+
+                    // Step 3: AI-enhanced prompt
+                    const enhancedPrompt = result.enhanced_prompt || '';
+                    if (enhancedPrompt) {
+                        this._promptEditor.setComposedText(enhancedPrompt);
+                        this._promptEditor._negativePrompt = result.negative_prompt || '';
+                    }
+
+                    // Asset type was already set for this generation — skip re-classification
+                    this._promptEditor._assetTypeConfirmed = true;
+                    // Mark as gallery reload so Prompt Designer doesn't re-analyze
+                    this._promptEditor._galleryReload = true;
+                }
+
+                // Restore model selector — handle "All Models" and deleted endpoints
+                const modelSel = document.getElementById('gen-model');
+                if (modelSel) {
+                    if (result.all_models) {
+                        modelSel.value = '__all__';
+                    } else if (result.image_model) {
+                        // Try to set the model; if not found (deleted endpoint), show label
+                        modelSel.value = result.image_model;
+                        if (!modelSel.value && result.model_label) {
+                            // Model no longer in dropdown — add a temporary disabled option
+                            const tempOpt = document.createElement('option');
+                            tempOpt.value = result.image_model;
+                            tempOpt.textContent = `${result.model_label} (removed)`;
+                            tempOpt.disabled = true;
+                            tempOpt.selected = true;
+                            modelSel.appendChild(tempOpt);
+                        }
                     }
                 }
 
@@ -2192,8 +2198,7 @@
                 const typeSel = document.getElementById('gen-asset-type');
                 if (typeSel && result.asset_type) typeSel.value = result.asset_type;
 
-                const modelSel = document.getElementById('gen-model');
-                if (modelSel && result.image_model) modelSel.value = result.image_model;
+                // Model selector is restored above (handles all_models + deleted endpoints)
 
                 // Restore dimension preset
                 const sizeSel = document.getElementById('gen-size');

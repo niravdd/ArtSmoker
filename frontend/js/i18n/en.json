@@ -258,7 +258,9 @@
     "batch_loaded": "Batch loaded: {{options}} options × {{variations}} variations",
     "loading_batch": "Loading batch...",
     "original_prompt_label": "Original prompt",
-    "enhanced_prompt_label": "AI-improved prompt (sent to generator)"
+    "enhanced_prompt_label": "AI-improved prompt (sent to generator)",
+    "prompt_sent_to_model": "Prompt sent to model",
+    "negative_prompt_none": "None"
   },
   "video_studio": {
     "title": "Video Studio",
@@ -885,7 +887,9 @@
     "asset_mismatch_title": "Asset Type may not be right",
     "translated_notice": "Your prompt was translated to English for the designer. All fields are in English.",
     "original_prompt": "Original prompt",
-    "english_prompt": "English (used for design)"
+    "english_prompt": "English (used for design)",
+    "no_decomposed_data": "No decomposed prompt data available for this generation.",
+    "no_decomposed_data_sub": "Prompt Designer data is only saved for new generations that use this tool."
   },
   "custom_models": {
     "tab_title": "Custom Models",

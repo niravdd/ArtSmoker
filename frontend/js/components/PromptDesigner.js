@@ -47,6 +47,26 @@
                 return;
             }
 
+            // If caller provides saved decomposition data (e.g., from Gallery reload), restore it
+            if (opts.decomposedData && typeof opts.decomposedData === 'object') {
+                this._originalPrompt = newPrompt;
+                this._activeTab = 'subject';
+                this._data = opts.decomposedData;
+                this._showModal('');
+                this._renderDesigner();
+                return;
+            }
+
+            // Gallery reload with no decomposed data — don't re-analyze
+            if (opts.galleryReload && !opts.decomposedData) {
+                this._showModal(`
+                    <div class="text-center py-12">
+                        <p class="text-sm text-brand-text-muted">${_t('prompt_designer.no_decomposed_data')}</p>
+                        <p class="text-[10px] text-brand-text-muted/50 mt-2">${_t('prompt_designer.no_decomposed_data_sub')}</p>
+                    </div>`);
+                return;
+            }
+
             this._activeTab = 'subject';
             this._originalPrompt = newPrompt;
 

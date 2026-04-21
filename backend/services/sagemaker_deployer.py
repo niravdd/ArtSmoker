@@ -1433,7 +1433,7 @@ def _setup_auto_scaling(endpoint_name: str, scale_in_cooldown: int = 600):
         StepScalingPolicyConfiguration={
             "AdjustmentType": "ChangeInCapacity",
             "StepAdjustments": [{"MetricIntervalLowerBound": 0, "ScalingAdjustment": 1}],
-            "Cooldown": 300,
+            "Cooldown": 60,
         },
     )
 

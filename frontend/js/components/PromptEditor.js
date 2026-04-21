@@ -39,6 +39,8 @@
             this._originalText = null;
             this._moderationOriginal = null;
             this._isComposing = false;
+            this._assetTypeConfirmed = false;  // true after first classification check
+            this._decomposedData = null;       // saved decomposition from Prompt Designer
 
             this._render();
             this._attachEvents();
@@ -242,6 +244,8 @@
             this._textareaEl.addEventListener('input', () => {
                 this._updateCharCount();
                 if (this._composedText) this._clearComposed();
+                this._assetTypeConfirmed = false;  // New text = re-check asset type
+                this._galleryReload = false;       // User is writing fresh — not a reload
                 if (this._changeCb) this._changeCb(this._textareaEl.value);
                 // Debounced translation preview (500ms after user stops typing)
                 clearTimeout(this._translationTimer);
@@ -267,8 +271,8 @@
                 const text = this._textareaEl.value.trim();
                 let assetType = this.opts.assetType || 'game_asset';
 
-                // If prompt exists, run asset type classification first
-                if (text) {
+                // Asset type classification — only once per prompt session
+                if (text && !this._assetTypeConfirmed) {
                     try {
                         window.showLoading?.(typeof t !== 'undefined' ? t('prompt_designer.asset_check') : 'Checking asset type...');
                         const resp = await fetch('/api/refine-prompt/classify-asset-type', {
@@ -299,16 +303,19 @@
                                 }
                             }
                         }
+                        this._assetTypeConfirmed = true;
                     } catch {
                         window.hideLoading?.();
                     }
                 }
 
-                // Open Designer — with prompt (decompose immediately) or without (input form)
+                // Open Designer — pass saved decomposition if available
                 window.PromptDesigner?.open(text || '', {
                     styleId: this.opts.styleId,
                     assetType: assetType,
                     imageModel: this.opts.imageModel,
+                    decomposedData: this._decomposedData,
+                    galleryReload: this._galleryReload && !this._decomposedData,
                     onAssetTypeChange: (newType) => {
                         if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(newType);
                         this.opts.assetType = newType;
@@ -321,6 +328,7 @@
                     onApply: (designerData) => {
                         this._originalText = text || this._textareaEl.value;
                         this._designerData = designerData;
+                        this._decomposedData = designerData;
                         this._composeFromDesigner(designerData);
                     },
                 });
@@ -440,39 +448,6 @@
                 };
 
                 let result = await API.refinePrompt(payload);
-
-                // Check for asset type mismatch via LLM classification
-                if (window.showConfirm && this.opts.assetType) {
-                    try {
-                        const classifyResp = await fetch('/api/refine-prompt/classify-asset-type', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ prompt: text, asset_type: this.opts.assetType }),
-                        });
-                        if (classifyResp.ok) {
-                            const assetCheck = await classifyResp.json();
-                            if (assetCheck.mismatch) {
-                                const sugLabel = (assetCheck.suggested || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                                const curLabel = (assetCheck.current || '').replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-                                const shouldSwitch = await window.showConfirm(
-                                    assetCheck.reason,
-                                    {
-                                        title: `Switch to "${sugLabel}"?`,
-                                        detail: `Your current asset type is "${curLabel}". The AI recommends "${sugLabel}" for this prompt.`,
-                                        confirmLabel: `Switch to ${sugLabel}`,
-                                        cancelLabel: `Keep ${curLabel}`,
-                                    }
-                                );
-                                if (shouldSwitch) {
-                                    if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(assetCheck.suggested);
-                                    this.opts.assetType = assetCheck.suggested;
-                                    payload.asset_type = assetCheck.suggested;
-                                    result = await API.refinePrompt(payload);
-                                }
-                            }
-                        }
-                    } catch {}
-                }
 
                 const composed = result.refined || result.enhanced_prompt || result;
 
