@@ -634,15 +634,29 @@ def _load_diffusers(model_dir):
                 if comp_path:
                     preserved = _is_component_preserved(comp_name)
                     if preserved:
-                        # NF4 packed weights + quantization_config.json — load as pre-quantized.
-                        # Don't pass quantization_config in kwargs; loader auto-detects from config.json.
-                        logger.info("Loading %s from cache: NF4 preserved, direct load", comp_name)
-                        preserved_kwargs = {"torch_dtype": _get_torch_dtype()}
-                        if hf_token:
-                            preserved_kwargs["token"] = hf_token
-                        pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **preserved_kwargs)
+                        try:
+                            logger.info("Loading %s from cache: NF4 preserved, direct load", comp_name)
+                            preserved_kwargs = {"torch_dtype": _get_torch_dtype()}
+                            if hf_token:
+                                preserved_kwargs["token"] = hf_token
+                            pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **preserved_kwargs)
+                        except Exception as cache_err:
+                            # NF4 load failed (e.g., missing quant_state) — retry as re-quantize
+                            logger.warning("Preserved load failed for %s: %s — retrying with re-quantization", comp_name, cache_err)
+                            _clean_stale_quant_artifacts(comp_path)
+                            try:
+                                pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
+                                logger.info("Re-quantized %s from cache (fallback)", comp_name)
+                            except Exception as requant_err:
+                                # Cache is broken — fall back to HuggingFace
+                                logger.warning("Cache re-quantize failed for %s: %s — falling back to HuggingFace", comp_name, requant_err)
+                                hf_repo = _get_env("ARTSMOKER_HF_REPO")
+                                if hf_repo:
+                                    pre_loaded[comp_name] = CompClass.from_pretrained(
+                                        hf_repo, subfolder=comp_subfolder, **load_kwargs,
+                                    )
+                                    logger.info("Loaded %s from HuggingFace (fallback)", comp_name)
                     else:
-                        # Missing quantization metadata — clean stale artifacts and re-quantize.
                         _clean_stale_quant_artifacts(comp_path)
                         logger.info("Loading %s from cache: re-quantizing to %s (not preserved)", comp_name, comp_quant)
                         pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
