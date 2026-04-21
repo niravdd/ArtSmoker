@@ -852,30 +852,37 @@ _JOBS_S3_PREFIX = "artsmoker/async-jobs/"
 
 
 def _cleanup_s3(job: dict, s3):
-    """Delete ALL S3 artifacts for a completed/failed job: output, input, and job metadata."""
-    try:
-        from backend.services.sagemaker_deployer import get_deployment_s3_bucket, S3_MODEL_PREFIX
-        bucket = get_deployment_s3_bucket()
+    """Delete ALL S3 artifacts for a completed/failed job: output, input, and job metadata.
 
-        # 1. Delete output file
-        output_loc = job.get("output_location", "")
-        if output_loc:
+    Each delete is independent — a failure on one does not skip the others.
+    """
+    from backend.services.sagemaker_deployer import get_deployment_s3_bucket
+    bucket = get_deployment_s3_bucket()
+
+    # 1. Delete output file
+    output_loc = job.get("output_location", "")
+    if output_loc:
+        try:
             parts = output_loc.replace("s3://", "").split("/", 1)
             s3.delete_object(Bucket=parts[0], Key=parts[1])
+        except Exception as e:
+            logger.debug("S3 cleanup output for job %s: %s", job["job_id"], e)
 
-        # 2. Delete input file
-        input_loc = job.get("input_location", "")
-        if input_loc:
+    # 2. Delete input file
+    input_loc = job.get("input_location", "")
+    if input_loc:
+        try:
             parts = input_loc.replace("s3://", "").split("/", 1)
             s3.delete_object(Bucket=parts[0], Key=parts[1])
+        except Exception as e:
+            logger.debug("S3 cleanup input for job %s: %s", job["job_id"], e)
 
-        # 3. Delete persisted job metadata from S3
-        if bucket:
+    # 3. Delete persisted job metadata from S3
+    if bucket:
+        try:
             s3.delete_object(Bucket=bucket, Key=f"{_JOBS_S3_PREFIX}{job['job_id']}.json")
-
-        logger.debug("Cleaned up all S3 artifacts for job %s", job["job_id"])
-    except Exception as e:
-        logger.debug("S3 cleanup for job %s: %s", job["job_id"], e)
+        except Exception as e:
+            logger.debug("S3 cleanup metadata for job %s: %s", job["job_id"], e)
 
 
 def _persist_job_to_s3(job: dict):
