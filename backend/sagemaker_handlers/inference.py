@@ -657,9 +657,10 @@ def _load_diffusers(model_dir):
             logger.info("Loaded %s with %s quantization (from_cache=%s)", comp_name, comp_quant, _loaded_from_cache)
 
             # Save component IMMEDIATELY after quantization, before pipeline assembly.
-            # BnB correctly writes NF4 packed uint8 weights to safetensors, but diffusers
-            # has a bug (FrozenDict name-mangling) that prevents quantization_config from
-            # being written to config.json. We manually inject it after save.
+            # Diffusers models (Flux2Transformer2DModel) write real NF4 packed weights
+            # with BnB quant_state in safetensors. Transformers models (Mistral3) do NOT —
+            # they save bf16 without quant_state. We verify by checking safetensors for
+            # bitsandbytes__* keys before writing quantization_config.json.
             if not _loaded_from_cache and _get_env("ARTSMOKER_CACHE_BUCKET"):
                 _early_save_dir = "/tmp/model-save"
                 comp_save_dir = os.path.join(_early_save_dir, comp_name)
@@ -667,30 +668,46 @@ def _load_diffusers(model_dir):
                     os.makedirs(comp_save_dir, exist_ok=True)
                     pre_loaded[comp_name].save_pretrained(comp_save_dir)
 
-                    # Workaround diffusers bug: manually write quantization_config.json
-                    # and inject into config.json so the loader knows weights are NF4.
+                    # Check if safetensors actually contain BnB quant_state metadata.
+                    # Only write quantization_config.json if they do — otherwise the
+                    # loader will try to load bf16 weights as pre-quantized NF4 and fail.
                     qconfig_path = os.path.join(comp_save_dir, "quantization_config.json")
+                    has_real_nf4 = False
                     if not os.path.exists(qconfig_path):
-                        qconfig_data = {
-                            "load_in_4bit": comp_quant in ("int4", "4bit", "nf4"),
-                            "load_in_8bit": comp_quant in ("int8", "8bit"),
-                            "bnb_4bit_quant_type": "nf4" if comp_quant in ("int4", "4bit", "nf4") else None,
-                            "bnb_4bit_compute_dtype": "bfloat16",
-                            "bnb_4bit_use_double_quant": False,
-                            "bnb_4bit_quant_storage": "uint8",
-                            "quant_method": "bitsandbytes",
-                        }
-                        with open(qconfig_path, "w") as _f:
-                            json.dump(qconfig_data, _f, indent=2)
-                        # Also inject into config.json
-                        config_path = os.path.join(comp_save_dir, "config.json")
-                        if os.path.exists(config_path):
-                            with open(config_path, "r") as _f:
-                                cfg = json.load(_f)
-                            cfg["quantization_config"] = qconfig_data
-                            with open(config_path, "w") as _f:
-                                json.dump(cfg, _f, indent=2)
-                        logger.info("Wrote quantization_config.json (diffusers bug workaround)")
+                        for fname in os.listdir(comp_save_dir):
+                            if fname.endswith(".safetensors"):
+                                try:
+                                    from safetensors import safe_open
+                                    with safe_open(os.path.join(comp_save_dir, fname), framework="pt") as sf:
+                                        keys = sf.keys()
+                                        if any("bitsandbytes" in k for k in keys):
+                                            has_real_nf4 = True
+                                            break
+                                except Exception:
+                                    pass
+
+                        if has_real_nf4:
+                            qconfig_data = {
+                                "load_in_4bit": comp_quant in ("int4", "4bit", "nf4"),
+                                "load_in_8bit": comp_quant in ("int8", "8bit"),
+                                "bnb_4bit_quant_type": "nf4" if comp_quant in ("int4", "4bit", "nf4") else None,
+                                "bnb_4bit_compute_dtype": "bfloat16",
+                                "bnb_4bit_use_double_quant": False,
+                                "bnb_4bit_quant_storage": "uint8",
+                                "quant_method": "bitsandbytes",
+                            }
+                            with open(qconfig_path, "w") as _f:
+                                json.dump(qconfig_data, _f, indent=2)
+                            config_path = os.path.join(comp_save_dir, "config.json")
+                            if os.path.exists(config_path):
+                                with open(config_path, "r") as _f:
+                                    cfg = json.load(_f)
+                                cfg["quantization_config"] = qconfig_data
+                                with open(config_path, "w") as _f:
+                                    json.dump(cfg, _f, indent=2)
+                            logger.info("Verified NF4 quant_state in safetensors — wrote quantization_config.json")
+                        else:
+                            logger.info("No BnB quant_state in safetensors — saved as bf16 (will re-quantize on load)")
 
                     has_qc = os.path.exists(qconfig_path)
                     comp_size = sum(
