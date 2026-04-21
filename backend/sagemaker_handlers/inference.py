@@ -423,11 +423,12 @@ def _do_s3_cache_save(model_dict):
                 else:
                     logger.warning("✗ %s: NO quantization_config.json — will need re-quantization on load", comp.get("name"))
 
-        # Cache with preserved=false is valid — bf16 weights will be re-quantized
-        # on next load (~15 min from S3 cache vs ~60 min from HuggingFace).
-        # Only abort if the saved weights look corrupt (wrong sizes).
+        # If no components have quantization_config.json, the cache still contains
+        # valid weights (likely NF4 packed, just missing metadata due to diffusers bug).
+        # Save anyway — the workaround above should fix this, but if not, bf16 cache
+        # can still be re-quantized on load.
         if quantized_components and not any(c["preserved"] for c in quantized_components):
-            logger.info("No NF4 preserved — cache will contain bf16 weights (re-quantized on load)")
+            logger.warning("No quantization_config.json found — cache will need re-quantization on load")
 
         cache_info = {
             "version_key": _get_cache_version_key(),
@@ -633,15 +634,17 @@ def _load_diffusers(model_dir):
                 if comp_path:
                     preserved = _is_component_preserved(comp_name)
                     if preserved:
-                        # NF4 weights with BnB metadata preserved — load directly (fast)
+                        # NF4 packed weights + quantization_config.json — load as pre-quantized.
+                        # Don't pass quantization_config in kwargs; loader auto-detects from config.json.
                         logger.info("Loading %s from cache: NF4 preserved, direct load", comp_name)
-                        pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
+                        preserved_kwargs = {"torch_dtype": _get_torch_dtype()}
+                        if hf_token:
+                            preserved_kwargs["token"] = hf_token
+                        pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **preserved_kwargs)
                     else:
-                        # bf16 weights — clean stale BnB artifacts and re-quantize on the fly.
-                        # BnB will treat these as fresh bf16 weights and quantize to NF4,
-                        # same as a fresh HF download but from local disk (faster).
+                        # Missing quantization metadata — clean stale artifacts and re-quantize.
                         _clean_stale_quant_artifacts(comp_path)
-                        logger.info("Loading %s from cache: bf16 → re-quantizing to %s (NF4 not preserved)", comp_name, comp_quant)
+                        logger.info("Loading %s from cache: re-quantizing to %s (not preserved)", comp_name, comp_quant)
                         pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
                 else:
                     logger.warning("Cache missing component %s — will load from pipeline (UNQUANTIZED)", comp_name)
@@ -654,18 +657,41 @@ def _load_diffusers(model_dir):
             logger.info("Loaded %s with %s quantization (from_cache=%s)", comp_name, comp_quant, _loaded_from_cache)
 
             # Save component IMMEDIATELY after quantization, before pipeline assembly.
-            # save_pretrained() dequantizes NF4 to bf16 (library limitation — does NOT
-            # write quantization_config.json). But bf16 weights with correct shapes are
-            # still valuable: S3 cache load + re-quantize (~17 min) vs HuggingFace
-            # download + quantize (~60 min). Must save BEFORE model_cpu_offload which
-            # corrupts weight shapes (1D packed format).
+            # BnB correctly writes NF4 packed uint8 weights to safetensors, but diffusers
+            # has a bug (FrozenDict name-mangling) that prevents quantization_config from
+            # being written to config.json. We manually inject it after save.
             if not _loaded_from_cache and _get_env("ARTSMOKER_CACHE_BUCKET"):
                 _early_save_dir = "/tmp/model-save"
                 comp_save_dir = os.path.join(_early_save_dir, comp_name)
                 try:
                     os.makedirs(comp_save_dir, exist_ok=True)
                     pre_loaded[comp_name].save_pretrained(comp_save_dir)
+
+                    # Workaround diffusers bug: manually write quantization_config.json
+                    # and inject into config.json so the loader knows weights are NF4.
                     qconfig_path = os.path.join(comp_save_dir, "quantization_config.json")
+                    if not os.path.exists(qconfig_path):
+                        qconfig_data = {
+                            "load_in_4bit": comp_quant in ("int4", "4bit", "nf4"),
+                            "load_in_8bit": comp_quant in ("int8", "8bit"),
+                            "bnb_4bit_quant_type": "nf4" if comp_quant in ("int4", "4bit", "nf4") else None,
+                            "bnb_4bit_compute_dtype": "bfloat16",
+                            "bnb_4bit_use_double_quant": False,
+                            "bnb_4bit_quant_storage": "uint8",
+                            "quant_method": "bitsandbytes",
+                        }
+                        with open(qconfig_path, "w") as _f:
+                            json.dump(qconfig_data, _f, indent=2)
+                        # Also inject into config.json
+                        config_path = os.path.join(comp_save_dir, "config.json")
+                        if os.path.exists(config_path):
+                            with open(config_path, "r") as _f:
+                                cfg = json.load(_f)
+                            cfg["quantization_config"] = qconfig_data
+                            with open(config_path, "w") as _f:
+                                json.dump(cfg, _f, indent=2)
+                        logger.info("Wrote quantization_config.json (diffusers bug workaround)")
+
                     has_qc = os.path.exists(qconfig_path)
                     comp_size = sum(
                         os.path.getsize(os.path.join(r, f))
