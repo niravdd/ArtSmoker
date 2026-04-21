@@ -104,19 +104,48 @@ def _clean_stale_quant_artifacts(comp_path: str):
 # ── Helpers ───────────────────────────────────────────────────────────────
 
 def _cleanup_before_fallback(comp_name: str, pre_loaded: dict):
-    """Free GPU memory and references from a failed component load before retrying."""
+    """Free GPU memory and references from a failed component load before retrying.
+
+    Aggressively clears GPU: removes reference from pre_loaded, runs garbage
+    collection, and empties CUDA cache. Called before every HuggingFace fallback.
+    """
     if comp_name in pre_loaded:
         try:
-            del pre_loaded[comp_name]
+            obj = pre_loaded.pop(comp_name)
+            del obj
         except Exception:
             pass
     try:
         import torch, gc
         gc.collect()
+        gc.collect()  # Second pass catches ref cycles
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
+            allocated = torch.cuda.memory_allocated() / (1024**3)
+            reserved = torch.cuda.memory_reserved() / (1024**3)
+            logger.info("GPU after cleanup: %.1f GB allocated, %.1f GB reserved", allocated, reserved)
     except Exception:
         pass
+
+
+def _load_from_hf(comp_name, comp_subfolder, CompClass, load_kwargs, hf_token, pre_loaded):
+    """Single attempt to load a component from HuggingFace with quantization.
+
+    This is the final fallback — called once, never retried. If this fails,
+    the component is skipped (logged as error). The GPU placement logic
+    downstream handles missing components via model_cpu_offload.
+    """
+    hf_repo = _get_env("ARTSMOKER_HF_REPO")
+    if not hf_repo:
+        logger.error("No ARTSMOKER_HF_REPO set — cannot fall back to HuggingFace for %s", comp_name)
+        return
+    try:
+        pre_loaded[comp_name] = CompClass.from_pretrained(
+            hf_repo, subfolder=comp_subfolder, **load_kwargs,
+        )
+        logger.info("Loaded %s from HuggingFace (fallback)", comp_name)
+    except Exception as hf_err:
+        logger.error("HuggingFace load failed for %s: %s — component will be unquantized", comp_name, hf_err)
 
 
 def _decode_image(b64_string):
@@ -666,12 +695,7 @@ def _load_diffusers(model_dir):
                             except Exception as requant_err:
                                 logger.warning("Cache re-quantize failed for %s: %s — falling back to HuggingFace", comp_name, requant_err)
                                 _cleanup_before_fallback(comp_name, pre_loaded)
-                                hf_repo = _get_env("ARTSMOKER_HF_REPO")
-                                if hf_repo:
-                                    pre_loaded[comp_name] = CompClass.from_pretrained(
-                                        hf_repo, subfolder=comp_subfolder, **load_kwargs,
-                                    )
-                                    logger.info("Loaded %s from HuggingFace (fallback)", comp_name)
+                                _load_from_hf(comp_name, comp_subfolder, CompClass, load_kwargs, hf_token, pre_loaded)
                     else:
                         _clean_stale_quant_artifacts(comp_path)
                         logger.info("Loading %s from cache: re-quantizing to %s (not preserved)", comp_name, comp_quant)
@@ -680,23 +704,10 @@ def _load_diffusers(model_dir):
                         except Exception as requant_err:
                             logger.warning("Cache re-quantize failed for %s: %s — falling back to HuggingFace", comp_name, requant_err)
                             _cleanup_before_fallback(comp_name, pre_loaded)
-                            hf_repo = _get_env("ARTSMOKER_HF_REPO")
-                            if hf_repo:
-                                pre_loaded[comp_name] = CompClass.from_pretrained(
-                                    hf_repo, subfolder=comp_subfolder, **load_kwargs,
-                                )
-                                logger.info("Loaded %s from HuggingFace (fallback)", comp_name)
+                            _load_from_hf(comp_name, comp_subfolder, CompClass, load_kwargs, hf_token, pre_loaded)
                 else:
-                    # Component not in cache — load from HuggingFace with quantization
                     logger.warning("Cache missing component %s — loading from HuggingFace", comp_name)
-                    hf_repo = _get_env("ARTSMOKER_HF_REPO")
-                    if hf_repo:
-                        pre_loaded[comp_name] = CompClass.from_pretrained(
-                            hf_repo, subfolder=comp_subfolder, **load_kwargs,
-                        )
-                        logger.info("Loaded %s from HuggingFace (cache miss)", comp_name)
-                    else:
-                        continue
+                    _load_from_hf(comp_name, comp_subfolder, CompClass, load_kwargs, hf_token, pre_loaded)
             else:
                 pre_loaded[comp_name] = CompClass.from_pretrained(
                     model_source, subfolder=comp_subfolder, **load_kwargs,
@@ -768,17 +779,9 @@ def _load_diffusers(model_dir):
                     logger.warning("Early save failed for %s: %s", comp_name, save_err)
 
         except Exception as e:
-            logger.warning("Quantization failed for %s (%s): %s — trying HuggingFace", comp_name, comp_quant, e)
+            logger.warning("Component load failed for %s (%s): %s — trying HuggingFace", comp_name, comp_quant, e)
             _cleanup_before_fallback(comp_name, pre_loaded)
-            try:
-                hf_repo = _get_env("ARTSMOKER_HF_REPO")
-                if hf_repo:
-                    pre_loaded[comp_name] = CompClass.from_pretrained(
-                        hf_repo, subfolder=comp_subfolder, **load_kwargs,
-                    )
-                    logger.info("Loaded %s from HuggingFace (last-resort fallback)", comp_name)
-            except Exception as hf_err:
-                logger.error("All load attempts failed for %s: %s", comp_name, hf_err)
+            _load_from_hf(comp_name, comp_subfolder, CompClass, load_kwargs, hf_token, pre_loaded)
 
     # Multi-GPU: load transformer with device_map to split across GPUs
     device_map = _config.get("device_map", "")
