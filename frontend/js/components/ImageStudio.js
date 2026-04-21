@@ -377,6 +377,18 @@
             this._loadModels();  // Refresh model list (picks up newly deployed custom models)
             this._loadStyles();
             this._ensurePromptEditor();
+            // Re-render results if async jobs completed while we were on another view
+            if (this._result?.options) {
+                const hasNewImages = this._result.options.some(opt =>
+                    (opt.variants || []).some(v => v.png_path && !v.async_job)
+                );
+                if (hasNewImages) {
+                    this._renderOptionsRow(this._result.options);
+                    this._selectOption(this._selectedOption || 0);
+                }
+            }
+            // Restart polling check in case it stopped
+            this._checkAsyncJobs();
         },
 
         _ensurePromptEditor() {
