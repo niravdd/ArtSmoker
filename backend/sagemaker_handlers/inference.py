@@ -423,13 +423,11 @@ def _do_s3_cache_save(model_dict):
                 else:
                     logger.warning("✗ %s: NO quantization_config.json — will need re-quantization on load", comp.get("name"))
 
-        # Abort cache save if NO quantized components are preserved — saves only corrupt weights
+        # Cache with preserved=false is valid — bf16 weights will be re-quantized
+        # on next load (~15 min from S3 cache vs ~60 min from HuggingFace).
+        # Only abort if the saved weights look corrupt (wrong sizes).
         if quantized_components and not any(c["preserved"] for c in quantized_components):
-            logger.error("ABORTING cache save — no quantized components preserved. "
-                         "Cache would be unusable (corrupt bf16 weights). "
-                         "Next deploy will build fresh from HuggingFace.")
-            shutil.rmtree(save_dir, ignore_errors=True)
-            return
+            logger.info("No NF4 preserved — cache will contain bf16 weights (re-quantized on load)")
 
         cache_info = {
             "version_key": _get_cache_version_key(),
@@ -655,10 +653,12 @@ def _load_diffusers(model_dir):
 
             logger.info("Loaded %s with %s quantization (from_cache=%s)", comp_name, comp_quant, _loaded_from_cache)
 
-            # CRITICAL: Save quantized component IMMEDIATELY, before pipeline assembly
-            # or model_cpu_offload can strip BnB metadata. save_pretrained() on a freshly
-            # quantized component writes quantization_config.json. After pipeline assembly
-            # + offloading, this metadata is lost and save reverts to full precision.
+            # Save component IMMEDIATELY after quantization, before pipeline assembly.
+            # save_pretrained() dequantizes NF4 to bf16 (library limitation — does NOT
+            # write quantization_config.json). But bf16 weights with correct shapes are
+            # still valuable: S3 cache load + re-quantize (~17 min) vs HuggingFace
+            # download + quantize (~60 min). Must save BEFORE model_cpu_offload which
+            # corrupts weight shapes (1D packed format).
             if not _loaded_from_cache and _get_env("ARTSMOKER_CACHE_BUCKET"):
                 _early_save_dir = "/tmp/model-save"
                 comp_save_dir = os.path.join(_early_save_dir, comp_name)
