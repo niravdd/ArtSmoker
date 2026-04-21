@@ -659,10 +659,27 @@ def _load_diffusers(model_dir):
                     else:
                         _clean_stale_quant_artifacts(comp_path)
                         logger.info("Loading %s from cache: re-quantizing to %s (not preserved)", comp_name, comp_quant)
-                        pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
+                        try:
+                            pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
+                        except Exception as requant_err:
+                            logger.warning("Cache re-quantize failed for %s: %s — falling back to HuggingFace", comp_name, requant_err)
+                            hf_repo = _get_env("ARTSMOKER_HF_REPO")
+                            if hf_repo:
+                                pre_loaded[comp_name] = CompClass.from_pretrained(
+                                    hf_repo, subfolder=comp_subfolder, **load_kwargs,
+                                )
+                                logger.info("Loaded %s from HuggingFace (fallback)", comp_name)
                 else:
-                    logger.warning("Cache missing component %s — will load from pipeline (UNQUANTIZED)", comp_name)
-                    continue
+                    # Component not in cache — load from HuggingFace with quantization
+                    logger.warning("Cache missing component %s — loading from HuggingFace", comp_name)
+                    hf_repo = _get_env("ARTSMOKER_HF_REPO")
+                    if hf_repo:
+                        pre_loaded[comp_name] = CompClass.from_pretrained(
+                            hf_repo, subfolder=comp_subfolder, **load_kwargs,
+                        )
+                        logger.info("Loaded %s from HuggingFace (cache miss)", comp_name)
+                    else:
+                        continue
             else:
                 pre_loaded[comp_name] = CompClass.from_pretrained(
                     model_source, subfolder=comp_subfolder, **load_kwargs,
@@ -734,8 +751,16 @@ def _load_diffusers(model_dir):
                     logger.warning("Early save failed for %s: %s", comp_name, save_err)
 
         except Exception as e:
-            logger.warning("Quantization failed for %s (%s), falling back to full precision: %s",
-                          comp_name, comp_quant, e)
+            logger.warning("Quantization failed for %s (%s): %s — trying HuggingFace", comp_name, comp_quant, e)
+            try:
+                hf_repo = _get_env("ARTSMOKER_HF_REPO")
+                if hf_repo:
+                    pre_loaded[comp_name] = CompClass.from_pretrained(
+                        hf_repo, subfolder=comp_subfolder, **load_kwargs,
+                    )
+                    logger.info("Loaded %s from HuggingFace (last-resort fallback)", comp_name)
+            except Exception as hf_err:
+                logger.error("All load attempts failed for %s: %s", comp_name, hf_err)
 
     # Multi-GPU: load transformer with device_map to split across GPUs
     device_map = _config.get("device_map", "")
