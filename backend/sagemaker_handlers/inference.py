@@ -103,6 +103,22 @@ def _clean_stale_quant_artifacts(comp_path: str):
 
 # ── Helpers ───────────────────────────────────────────────────────────────
 
+def _cleanup_before_fallback(comp_name: str, pre_loaded: dict):
+    """Free GPU memory and references from a failed component load before retrying."""
+    if comp_name in pre_loaded:
+        try:
+            del pre_loaded[comp_name]
+        except Exception:
+            pass
+    try:
+        import torch, gc
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+    except Exception:
+        pass
+
+
 def _decode_image(b64_string):
     return Image.open(io.BytesIO(base64.b64decode(b64_string)))
 
@@ -641,15 +657,15 @@ def _load_diffusers(model_dir):
                                 preserved_kwargs["token"] = hf_token
                             pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **preserved_kwargs)
                         except Exception as cache_err:
-                            # NF4 load failed (e.g., missing quant_state) — retry as re-quantize
                             logger.warning("Preserved load failed for %s: %s — retrying with re-quantization", comp_name, cache_err)
+                            _cleanup_before_fallback(comp_name, pre_loaded)
                             _clean_stale_quant_artifacts(comp_path)
                             try:
                                 pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
                                 logger.info("Re-quantized %s from cache (fallback)", comp_name)
                             except Exception as requant_err:
-                                # Cache is broken — fall back to HuggingFace
                                 logger.warning("Cache re-quantize failed for %s: %s — falling back to HuggingFace", comp_name, requant_err)
+                                _cleanup_before_fallback(comp_name, pre_loaded)
                                 hf_repo = _get_env("ARTSMOKER_HF_REPO")
                                 if hf_repo:
                                     pre_loaded[comp_name] = CompClass.from_pretrained(
@@ -663,6 +679,7 @@ def _load_diffusers(model_dir):
                             pre_loaded[comp_name] = CompClass.from_pretrained(comp_path, **load_kwargs)
                         except Exception as requant_err:
                             logger.warning("Cache re-quantize failed for %s: %s — falling back to HuggingFace", comp_name, requant_err)
+                            _cleanup_before_fallback(comp_name, pre_loaded)
                             hf_repo = _get_env("ARTSMOKER_HF_REPO")
                             if hf_repo:
                                 pre_loaded[comp_name] = CompClass.from_pretrained(
@@ -752,6 +769,7 @@ def _load_diffusers(model_dir):
 
         except Exception as e:
             logger.warning("Quantization failed for %s (%s): %s — trying HuggingFace", comp_name, comp_quant, e)
+            _cleanup_before_fallback(comp_name, pre_loaded)
             try:
                 hf_repo = _get_env("ARTSMOKER_HF_REPO")
                 if hf_repo:
