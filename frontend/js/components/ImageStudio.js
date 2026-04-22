@@ -2244,6 +2244,9 @@
             // the DOM is fully built before we write batch data into it.
             window.location.hash = '#image-studio';
 
+            // Clear old result BEFORE navigating — prevents onShow from re-rendering stale data
+            this._result = null;
+
             // Yield to let the hashchange event fire and navigate() start
             await new Promise(r => setTimeout(r, 0));
 
@@ -2432,7 +2435,7 @@
                 // Keep selectors enabled — user controls options × variations per model
                 if (optsSelect) optsSelect.disabled = false;
                 if (varsSelect) varsSelect.disabled = false;
-                this._updateAllModelsEstimate();
+                this._updateMultiModelCostEstimate();
             } else {
                 allModelsOpts?.classList.add('hidden');
                 if (optsSelect) optsSelect.disabled = false;
