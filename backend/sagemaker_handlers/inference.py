@@ -1232,7 +1232,12 @@ def _predict_autoregressive_image(input_data, model_dict):
     guidance = input_data.get("guidance_scale", _config.get("input_fields", {}).get("guidance_scale", {}).get("default", 5.0))
     seed = input_data.get("seed")
 
-    image_size = f"{width}x{height}"
+    # HunyuanImage expects "HxW" format (height first), not "WxH"
+    image_size_format = _config.get("image_size_format", "HxW")
+    if image_size_format == "WxH":
+        image_size = f"{width}x{height}"
+    else:
+        image_size = f"{height}x{width}"
 
     gen_fn = getattr(model, generate_method, None)
     if not gen_fn:
