@@ -1736,10 +1736,27 @@ def _get_model_environment(model_key: str, model: dict,
     base_reqs = model.get("python_requirements", {}).get("base", [])
     needs_torch_upgrade = any("torch==2.8" in r or "torch>=2.8" in r for r in base_reqs)
     if needs_torch_upgrade:
-        nccl_lib = "/opt/conda/lib/python3.12/site-packages/nvidia/nccl/lib"
-        env["LD_PRELOAD"] = f"{nccl_lib}/libnccl.so.2"
+        # Override ALL NVIDIA library paths: NCCL, cuDNN, and other CUDA libs.
+        # The DLC container's system libraries (CUDA 12.4) are too old for torch 2.8.
+        # Pip-installed versions (via torch's dependencies) are at the correct version
+        # but the system ones load first. Prepend ALL pip-installed NVIDIA lib paths.
+        nvidia_base = "/opt/conda/lib/python3.12/site-packages/nvidia"
+        nvidia_libs = [
+            f"{nvidia_base}/nccl/lib",
+            f"{nvidia_base}/cudnn/lib",
+            f"{nvidia_base}/cublas/lib",
+            f"{nvidia_base}/cufft/lib",
+            f"{nvidia_base}/curand/lib",
+            f"{nvidia_base}/cusolver/lib",
+            f"{nvidia_base}/cusparse/lib",
+            f"{nvidia_base}/cuda_runtime/lib",
+            f"{nvidia_base}/cuda_nvrtc/lib",
+            f"{nvidia_base}/cuda_cupti/lib",
+        ]
+        nvidia_ld = ":".join(nvidia_libs)
+        env["LD_PRELOAD"] = f"{nvidia_base}/nccl/lib/libnccl.so.2"
         default_ld = "/opt/conda/lib:/usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu"
-        env["LD_LIBRARY_PATH"] = f"{nccl_lib}:{default_ld}"
+        env["LD_LIBRARY_PATH"] = f"{nvidia_ld}:{default_ld}"
 
     return env
 
