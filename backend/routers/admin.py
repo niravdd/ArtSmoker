@@ -443,6 +443,7 @@ def get_image_model_options(region: str | None = Query(default=None)):
             "default_quality": cfg.get("default_quality"),
             "base_price_usd": cfg.get("base_price_usd"),
             "model_source": cfg.get("model_source", "foundation"),
+            "supported_sizes": cfg.get("invoke", {}).get("supported_sizes"),
             "_last_updated": cfg.get("last_updated", cfg.get("invoke", {}).get("last_updated", "")),
         })
 

@@ -594,6 +594,7 @@
                         quality_options: m.quality_options || [],
                         default_quality: m.default_quality || '',
                         base_price_usd: m.base_price_usd || null,
+                        supported_sizes: m.supported_sizes || null,
                     }));
                     // Append the virtual "All Available Models" entry
                     MODELS.push({ value: 'all_models', label: '\u2500\u2500 All Available Models' });
@@ -841,7 +842,8 @@
                 : userPrompt;
 
             const sizeIdx = parseInt(document.getElementById('gen-size').value, 10);
-            const size = SIZE_PRESETS[sizeIdx] || SIZE_PRESETS[2];
+            const activeSizes = this._activeSizePresets || SIZE_PRESETS;
+            const size = activeSizes[sizeIdx] || activeSizes[Math.min(2, activeSizes.length - 1)];
             const numOptions = parseInt(document.getElementById('gen-num-options').value, 10) || 5;
             const numVariations = parseInt(document.getElementById('gen-num-variations').value, 10) || 5;
             const total = numOptions * numVariations;
@@ -2428,7 +2430,75 @@
                 this._updateRegionForModel('all_models');
             }
 
+            // Update size dropdown based on selected models' supported_sizes
+            this._updateSizePresetsForModels();
+
             this._updateMultiModelCostEstimate();
+        },
+
+        _updateSizePresetsForModels() {
+            const sizeSel = document.getElementById('gen-size');
+            if (!sizeSel) return;
+
+            const currentValue = sizeSel.value;
+            const currentSize = SIZE_PRESETS[parseInt(currentValue, 10)] || null;
+
+            // Collect supported_sizes from selected models
+            const selectedData = this._selectedModels
+                .map(key => MODELS.find(m => m.value === key))
+                .filter(Boolean);
+
+            // If any selected model declares supported_sizes, use union of all
+            const modelSizes = selectedData
+                .filter(m => m.supported_sizes?.length)
+                .flatMap(m => m.supported_sizes);
+
+            let sizes;
+            if (modelSizes.length > 0) {
+                // Deduplicate by "WxH" key, preserve order
+                const seen = new Set();
+                sizes = [];
+                for (const s of modelSizes) {
+                    const key = `${s.w}x${s.h}`;
+                    if (!seen.has(key)) {
+                        seen.add(key);
+                        sizes.push(s);
+                    }
+                }
+                // Sort: square first, then landscape, then portrait, by area ascending
+                sizes.sort((a, b) => {
+                    const areaA = a.w * a.h, areaB = b.w * b.h;
+                    if (areaA !== areaB) return areaA - areaB;
+                    return b.w - a.w;
+                });
+            } else {
+                // No model declares sizes — use defaults
+                sizes = SIZE_PRESETS;
+            }
+
+            // Rebuild the dropdown
+            sizeSel.innerHTML = '';
+            sizes.forEach((s, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = s.label;
+                sizeSel.appendChild(opt);
+            });
+
+            // Store current sizes for payload construction
+            this._activeSizePresets = sizes;
+
+            // Try to restore previous selection by matching dimensions
+            if (currentSize) {
+                const match = sizes.findIndex(s => s.w === currentSize.w && s.h === currentSize.h);
+                if (match >= 0) {
+                    sizeSel.value = match;
+                    return;
+                }
+            }
+            // Default to 1024x1024 or index 2
+            const default1024 = sizes.findIndex(s => s.w === 1024 && s.h === 1024);
+            sizeSel.value = default1024 >= 0 ? default1024 : Math.min(2, sizes.length - 1);
         },
 
         _updateMultiModelCostEstimate() {

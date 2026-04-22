@@ -804,6 +804,10 @@ def _calculate_compute_cost(model_key: str, duration_seconds: float) -> float:
                     "ml.g6e.2xlarge": 5.22,
                     "ml.g6e.4xlarge": 10.44,
                     "ml.g6e.8xlarge": 20.88,
+                    "ml.g7e.2xlarge": 4.37,
+                    "ml.g7e.4xlarge": 5.19,
+                    "ml.g7e.8xlarge": 6.85,
+                    "ml.g7e.12xlarge": 10.75,
                 }
                 hourly_rate = default_rates.get(instance_type, 1.50)
                 break

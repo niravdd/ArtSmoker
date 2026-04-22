@@ -407,11 +407,16 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     else:
         instance = instance_type or model["requirements"]["recommended_instance"]
         # Unique endpoint name: model + instance type + short ID.
-        # Allows multiple deployments of the same model on different (or same) hardware.
+        # Allows multiple deployments of the same model on different hardware.
+        # SageMaker model name = endpoint_name + "-model", max 63 chars.
+        # Endpoint name: artsmoker-{model_key}-{short_id} (no instance type — user never sees it)
         import hashlib, time as _t
-        inst_suffix = instance.replace("ml.", "").replace(".", "-")
         short_id = hashlib.md5(f"{model_key}{instance}{_t.time()}".encode()).hexdigest()[:4]
-        endpoint_name = f"artsmoker-{model_key.replace('_', '-')}-{inst_suffix}-{short_id}"
+        base = f"artsmoker-{model_key.replace('_', '-')}"
+        max_base = 57 - len(short_id) - 1  # 1 for the hyphen before short_id
+        if len(base) > max_base:
+            base = base[:max_base]
+        endpoint_name = f"{base}-{short_id}"
 
     if progress_callback:
         progress_callback(f"Creating Amazon SageMaker {endpoint_type} endpoint: {endpoint_name}...")
@@ -1673,7 +1678,7 @@ def _get_model_environment(model_key: str, model: dict,
         "INVOKE_CONFIG": json.dumps(
             {k: v for k, v in invoke.items() if k not in (
                 "prompt_guidance", "input_fields", "supports_negative_prompt",
-                "max_prompt_length", "typical_latency_seconds",
+                "max_prompt_length", "typical_latency_seconds", "supported_sizes",
             )},
             default=str,
         ),
@@ -1723,6 +1728,20 @@ def _get_model_environment(model_key: str, model: dict,
         env["ARTSMOKER_CACHE_BUCKET"] = bucket
         env["ARTSMOKER_CACHE_PREFIX"] = f"{S3_MODEL_PREFIX}/{model_key}/model-cache"
         env["ARTSMOKER_CACHE_VERSION"] = model.get("version", "1.0")
+
+    # NCCL fix for pip-upgraded torch: the DLC Dockerfile has
+    # ENV LD_PRELOAD="/usr/local/lib/libnccl.so" baked in, which forces the
+    # old NCCL (v2.23) to load before any process starts. When pip upgrades
+    # torch to 2.8, it installs NCCL 2.27+ but the LD_PRELOAD loads the old one.
+    # Fix: override LD_PRELOAD via SageMaker container env var (equivalent to
+    # docker run -e, overrides Dockerfile ENV defaults) to point to pip-installed NCCL.
+    base_reqs = model.get("python_requirements", {}).get("base", [])
+    needs_torch_upgrade = any("torch==2.8" in r or "torch>=2.8" in r for r in base_reqs)
+    if needs_torch_upgrade:
+        nccl_lib = "/opt/conda/lib/python3.12/site-packages/nvidia/nccl/lib"
+        env["LD_PRELOAD"] = f"{nccl_lib}/libnccl.so.2"
+        default_ld = "/opt/conda/lib:/usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu"
+        env["LD_LIBRARY_PATH"] = f"{nccl_lib}:{default_ld}"
 
     return env
 

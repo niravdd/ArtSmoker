@@ -4386,7 +4386,11 @@
           "recommended_instance": "ml.g5.2xlarge",
           "min_instance": "ml.g5.xlarge",
           "disk_gb": 25,
-          "allowed_instances": ["ml.g5.xlarge", "ml.g5.2xlarge", "ml.g5.4xlarge"]
+          "allowed_instances": [
+            "ml.g5.xlarge",
+            "ml.g5.2xlarge",
+            "ml.g5.4xlarge"
+          ]
         },
         "invoke": {
           "library": "diffusers",
@@ -4425,7 +4429,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 5,
-          "prompt_guidance": "FLUX.1 schnell uses natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
+          "prompt_guidance": "FLUX.1 schnell uses natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
           "max_concurrent_invocations": 1
         },
         "pricing": {
@@ -4472,7 +4476,11 @@
           "recommended_instance": "ml.g5.2xlarge",
           "min_instance": "ml.g5.xlarge",
           "disk_gb": 35,
-          "allowed_instances": ["ml.g5.xlarge", "ml.g5.2xlarge", "ml.g5.4xlarge"]
+          "allowed_instances": [
+            "ml.g5.xlarge",
+            "ml.g5.2xlarge",
+            "ml.g5.4xlarge"
+          ]
         },
         "invoke": {
           "library": "diffusers",
@@ -4511,7 +4519,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 180,
-          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
+          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
           "max_concurrent_invocations": 1
         },
         "pricing": {
@@ -4558,7 +4566,11 @@
           "min_ram_gb": 96,
           "recommended_instance": "ml.g6e.4xlarge",
           "disk_gb": 80,
-          "allowed_instances": ["ml.g6e.4xlarge", "ml.g6e.8xlarge", "ml.g6e.12xlarge"],
+          "allowed_instances": [
+            "ml.g6e.4xlarge",
+            "ml.g6e.8xlarge",
+            "ml.g6e.12xlarge"
+          ],
           "_note": "32B model on g6e.4xlarge (1× L40S 48 GB VRAM, 128 GB RAM). BnB NF4 quantization requires CUDA — no device_map override (loads layer-by-layer to GPU, peak ~13 GB). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB total. With preserved NF4 cache: S3 download + direct GPU load = ~2 min cold start."
         },
         "invoke": {
@@ -4597,8 +4609,45 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 3600,
-          "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder \u2014 understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60\u2013100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') \u2014 describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2\u20133 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good \u2014 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
+          "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder — understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60–100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') — describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2–3 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good — 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
           "max_concurrent_invocations": 1,
+          "supported_sizes": [
+            {
+              "w": 512,
+              "h": 512,
+              "label": "512 × 512"
+            },
+            {
+              "w": 768,
+              "h": 768,
+              "label": "768 × 768"
+            },
+            {
+              "w": 1024,
+              "h": 1024,
+              "label": "1024 × 1024"
+            },
+            {
+              "w": 1024,
+              "h": 576,
+              "label": "1024 × 576 (16:9)"
+            },
+            {
+              "w": 576,
+              "h": 1024,
+              "label": "576 × 1024 (9:16)"
+            },
+            {
+              "w": 1280,
+              "h": 720,
+              "label": "1280 × 720 (16:9)"
+            },
+            {
+              "w": 720,
+              "h": 1280,
+              "label": "720 × 1280 (9:16)"
+            }
+          ],
           "quantization_components": [
             {
               "name": "transformer",
@@ -4697,7 +4746,7 @@
           "supports_negative_prompt": true,
           "max_prompt_length": 1500,
           "typical_latency_seconds": 2,
-          "prompt_guidance": "SDXL Turbo generates in 1 step \u2014 prompts must be clear and direct.\nUse SDXL-style keyword prompting: comma-separated descriptors.\nQuality boosters are essential: 'masterpiece, best quality, highly detailed'.\nStyle tokens work well: 'digital painting', 'concept art', 'photorealistic'.\nKeep prompts concise (20-50 words) \u2014 quality over quantity for 1-step generation.\nNegative prompts ARE supported and very effective for cleanup.\nCommon useful negatives: 'blurry, low quality, deformed, ugly, bad anatomy, watermark'.\nDefault resolution is 512\u00d7512. Higher resolutions may reduce quality.",
+          "prompt_guidance": "SDXL Turbo generates in 1 step — prompts must be clear and direct.\nUse SDXL-style keyword prompting: comma-separated descriptors.\nQuality boosters are essential: 'masterpiece, best quality, highly detailed'.\nStyle tokens work well: 'digital painting', 'concept art', 'photorealistic'.\nKeep prompts concise (20-50 words) — quality over quantity for 1-step generation.\nNegative prompts ARE supported and very effective for cleanup.\nCommon useful negatives: 'blurry, low quality, deformed, ugly, bad anatomy, watermark'.\nDefault resolution is 512×512. Higher resolutions may reduce quality.",
           "max_concurrent_invocations": 2
         },
         "pricing": {
@@ -4840,7 +4889,7 @@
       },
       "codeformer": {
         "label": "CodeFormer (Face Restoration)",
-        "description": "AI face restoration \u2014 fixes AI-generated face artifacts.",
+        "description": "AI face restoration — fixes AI-generated face artifacts.",
         "category": "post_processing",
         "studio": "image",
         "provider": "Shangchen Zhou et al.",
@@ -4896,7 +4945,7 @@
       },
       "depth_anything_v2": {
         "label": "Depth Anything v2",
-        "description": "Monocular depth estimation \u2014 generates depth maps for 3D effects.",
+        "description": "Monocular depth estimation — generates depth maps for 3D effects.",
         "category": "utility",
         "studio": "image",
         "provider": "DepthAnything Team",
@@ -4950,7 +4999,7 @@
       },
       "sam2": {
         "label": "Segment Anything 2 (SAM 2)",
-        "description": "Smart object segmentation by Meta \u2014 click to select objects precisely.",
+        "description": "Smart object segmentation by Meta — click to select objects precisely.",
         "category": "utility",
         "studio": "image",
         "provider": "Meta AI",
@@ -5014,7 +5063,7 @@
       },
       "stable_video_diffusion": {
         "label": "Stable Video Diffusion (SVD-XT)",
-        "description": "Image-to-video by Stability AI \u2014 25 frames from a single image.",
+        "description": "Image-to-video by Stability AI — 25 frames from a single image.",
         "category": "video_generation",
         "studio": "video",
         "provider": "Stability AI",
@@ -5087,6 +5136,321 @@
             "huggingface-hub>=0.34.0,<1.0.0"
           ]
         }
+      },
+      "hunyuan_image_3_0_instruct_int8": {
+        "label": "HunyuanImage 3.0 Instruct (INT8) — Best Quality",
+        "description": "Tencent’s 80B MoE autoregressive image model. 13B active params per token, 64 experts. INT8 quantization preserves maximum quality with attention layers in bf16. Chain-of-thought reasoning auto-enhances prompts before generation.",
+        "provider": "Tencent",
+        "studio": "image",
+        "license": "Tencent Hunyuan Community License",
+        "hf_license_url": "https://huggingface.co/tencent/HunyuanImage-3.0/blob/main/LICENSE",
+        "category": "image_generation",
+        "source": {
+          "type": "huggingface",
+          "repo_id": "EricRollei/HunyuanImage-3.0-Instruct-INT8-v2"
+        },
+        "requires_hf_auth": false,
+        "requirements": {
+          "min_vram_gb": 92,
+          "min_ram_gb": 128,
+          "recommended_instance": "ml.g7e.4xlarge",
+          "disk_gb": 100,
+          "allowed_instances": [
+            "ml.g7e.4xlarge",
+            "ml.g7e.8xlarge",
+            "ml.g7e.12xlarge"
+          ],
+          "_note": "INT8 uses ~82-90GB VRAM. Deploy on g7e.4xlarge (128GB RAM) for safe operation at any resolution up to 2048x2048. Pre-quantized on disk — no runtime quantization needed."
+        },
+        "invoke": {
+          "library": "autoregressive",
+          "loader_class": "AutoModelForCausalLM",
+          "generate_method": "generate_image",
+          "trust_remote_code": true,
+          "torch_dtype": "auto",
+          "attn_implementation": "sdpa",
+          "moe_impl": "eager",
+          "moe_drop_tokens": true,
+          "predictor_type": "autoregressive_image",
+          "output_type": "base64_png",
+          "supports_negative_prompt": false,
+          "max_prompt_length": 2000,
+          "block_swap_blocks": 4,
+          "bot_task": "think_recaption",
+          "quantization_type": "pre_quantized_int8",
+          "input_fields": {
+            "prompt": {
+              "type": "string",
+              "required": true
+            },
+            "width": {
+              "type": "int",
+              "default": 1024
+            },
+            "height": {
+              "type": "int",
+              "default": 1024
+            },
+            "num_inference_steps": {
+              "type": "int",
+              "default": 50
+            },
+            "guidance_scale": {
+              "type": "float",
+              "default": 5.0
+            },
+            "seed": {
+              "type": "int",
+              "optional": true
+            }
+          },
+          "supported_sizes": [
+            {
+              "w": 512,
+              "h": 512,
+              "label": "512 × 512"
+            },
+            {
+              "w": 768,
+              "h": 768,
+              "label": "768 × 768"
+            },
+            {
+              "w": 1024,
+              "h": 1024,
+              "label": "1024 × 1024"
+            },
+            {
+              "w": 1024,
+              "h": 576,
+              "label": "1024 × 576 (16:9)"
+            },
+            {
+              "w": 576,
+              "h": 1024,
+              "label": "576 × 1024 (9:16)"
+            },
+            {
+              "w": 1280,
+              "h": 720,
+              "label": "1280 × 720 (16:9)"
+            },
+            {
+              "w": 720,
+              "h": 1280,
+              "label": "720 × 1280 (9:16)"
+            },
+            {
+              "w": 1536,
+              "h": 1536,
+              "label": "1536 × 1536"
+            },
+            {
+              "w": 2048,
+              "h": 1024,
+              "label": "2048 × 1024 (2:1)"
+            },
+            {
+              "w": 1024,
+              "h": 2048,
+              "label": "1024 × 2048 (1:2)"
+            },
+            {
+              "w": 2048,
+              "h": 2048,
+              "label": "2048 × 2048"
+            }
+          ],
+          "typical_latency_seconds": 300,
+          "max_concurrent_invocations": 1,
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don’t over-engineer — the model’s internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions"
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.43,
+          "instance_cost_per_hour": {
+            "ml.g7e.4xlarge": 5.19,
+            "ml.g7e.8xlarge": 6.85
+          }
+        },
+        "version": "1.0",
+        "last_updated": "2026-04-22",
+        "python_requirements": {
+          "base": [
+            "torch==2.8.0",
+            "--extra-index-url https://download.pytorch.org/whl/cu128",
+            "torchvision",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "nvidia-nccl-cu12>=2.26.2",
+            "transformers>=4.57.1",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "bitsandbytes>=0.49.0",
+            "einops",
+            "tokenizers>=0.22.0",
+            "loguru"
+          ]
+        }
+      },
+      "hunyuan_image_3_0_instruct_nf4": {
+        "label": "HunyuanImage 3.0 Instruct (NF4)",
+        "description": "Tencent’s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Chain-of-thought reasoning auto-enhances prompts.",
+        "provider": "Tencent",
+        "studio": "image",
+        "license": "Tencent Hunyuan Community License",
+        "hf_license_url": "https://huggingface.co/tencent/HunyuanImage-3.0/blob/main/LICENSE",
+        "category": "image_generation",
+        "source": {
+          "type": "huggingface",
+          "repo_id": "EricRollei/HunyuanImage-3.0-Instruct-NF4-v2"
+        },
+        "requires_hf_auth": false,
+        "requirements": {
+          "min_vram_gb": 48,
+          "min_ram_gb": 64,
+          "recommended_instance": "ml.g7e.2xlarge",
+          "disk_gb": 60,
+          "allowed_instances": [
+            "ml.g7e.2xlarge",
+            "ml.g7e.4xlarge",
+            "ml.g7e.8xlarge",
+            "ml.g7e.12xlarge"
+          ],
+          "_note": "NF4 uses ~41-49GB VRAM. Fits easily on g7e.2xlarge (96GB GPU) with 47-55GB headroom. No block swap needed."
+        },
+        "invoke": {
+          "library": "autoregressive",
+          "loader_class": "AutoModelForCausalLM",
+          "generate_method": "generate_image",
+          "trust_remote_code": true,
+          "torch_dtype": "auto",
+          "attn_implementation": "sdpa",
+          "moe_impl": "eager",
+          "moe_drop_tokens": true,
+          "predictor_type": "autoregressive_image",
+          "output_type": "base64_png",
+          "supports_negative_prompt": false,
+          "max_prompt_length": 2000,
+          "block_swap_blocks": 0,
+          "bot_task": "think_recaption",
+          "quantization_type": "pre_quantized_nf4",
+          "input_fields": {
+            "prompt": {
+              "type": "string",
+              "required": true
+            },
+            "width": {
+              "type": "int",
+              "default": 1024
+            },
+            "height": {
+              "type": "int",
+              "default": 1024
+            },
+            "num_inference_steps": {
+              "type": "int",
+              "default": 50
+            },
+            "guidance_scale": {
+              "type": "float",
+              "default": 5.0
+            },
+            "seed": {
+              "type": "int",
+              "optional": true
+            }
+          },
+          "supported_sizes": [
+            {
+              "w": 512,
+              "h": 512,
+              "label": "512 × 512"
+            },
+            {
+              "w": 768,
+              "h": 768,
+              "label": "768 × 768"
+            },
+            {
+              "w": 1024,
+              "h": 1024,
+              "label": "1024 × 1024"
+            },
+            {
+              "w": 1024,
+              "h": 576,
+              "label": "1024 × 576 (16:9)"
+            },
+            {
+              "w": 576,
+              "h": 1024,
+              "label": "576 × 1024 (9:16)"
+            },
+            {
+              "w": 1280,
+              "h": 720,
+              "label": "1280 × 720 (16:9)"
+            },
+            {
+              "w": 720,
+              "h": 1280,
+              "label": "720 × 1280 (9:16)"
+            },
+            {
+              "w": 1536,
+              "h": 1536,
+              "label": "1536 × 1536"
+            },
+            {
+              "w": 2048,
+              "h": 1024,
+              "label": "2048 × 1024 (2:1)"
+            },
+            {
+              "w": 1024,
+              "h": 2048,
+              "label": "1024 × 2048 (1:2)"
+            },
+            {
+              "w": 2048,
+              "h": 2048,
+              "label": "2048 × 2048"
+            }
+          ],
+          "typical_latency_seconds": 240,
+          "max_concurrent_invocations": 1,
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don’t over-engineer — the model’s internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions"
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.29,
+          "instance_cost_per_hour": {
+            "ml.g7e.2xlarge": 4.37,
+            "ml.g7e.4xlarge": 5.19
+          }
+        },
+        "version": "1.0",
+        "last_updated": "2026-04-22",
+        "python_requirements": {
+          "base": [
+            "torch==2.8.0",
+            "--extra-index-url https://download.pytorch.org/whl/cu128",
+            "torchvision",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "nvidia-nccl-cu12>=2.26.2",
+            "transformers>=4.57.1",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "bitsandbytes>=0.49.0",
+            "einops",
+            "tokenizers>=0.22.0",
+            "loguru"
+          ]
+        }
       }
     },
     "bundles": {
@@ -5154,6 +5518,17 @@
       ],
       "quantization": [
         "bitsandbytes>=0.43.3"
+      ],
+      "autoregressive_blackwell": [
+        "torch==2.8.0",
+        "--extra-index-url https://download.pytorch.org/whl/cu128",
+        "transformers>=4.57.1",
+        "accelerate>=1.6.0,<2.0.0",
+        "safetensors>=0.4.3",
+        "bitsandbytes>=0.49.0",
+        "einops",
+        "tokenizers>=0.22.0",
+        "loguru"
       ]
     },
     "gpu_instances": {
@@ -5387,6 +5762,72 @@
         "vcpus": 192,
         "cost_per_hour_usd": 125.28,
         "compute_capability": 8.9,
+        "bf16": true
+      },
+      "ml.g7e.2xlarge": {
+        "gpus": 1,
+        "gpu_type": "RTX PRO 6000 Blackwell",
+        "vram_per_gpu_gb": 96,
+        "total_vram_gb": 96,
+        "ram_gb": 64,
+        "vcpus": 8,
+        "cost_per_hour_usd": 4.37,
+        "compute_capability": 12.0,
+        "bf16": true
+      },
+      "ml.g7e.4xlarge": {
+        "gpus": 1,
+        "gpu_type": "RTX PRO 6000 Blackwell",
+        "vram_per_gpu_gb": 96,
+        "total_vram_gb": 96,
+        "ram_gb": 128,
+        "vcpus": 16,
+        "cost_per_hour_usd": 5.19,
+        "compute_capability": 12.0,
+        "bf16": true
+      },
+      "ml.g7e.8xlarge": {
+        "gpus": 1,
+        "gpu_type": "RTX PRO 6000 Blackwell",
+        "vram_per_gpu_gb": 96,
+        "total_vram_gb": 96,
+        "ram_gb": 256,
+        "vcpus": 32,
+        "cost_per_hour_usd": 6.85,
+        "compute_capability": 12.0,
+        "bf16": true
+      },
+      "ml.g7e.12xlarge": {
+        "gpus": 2,
+        "gpu_type": "RTX PRO 6000 Blackwell",
+        "vram_per_gpu_gb": 96,
+        "total_vram_gb": 192,
+        "ram_gb": 384,
+        "vcpus": 48,
+        "cost_per_hour_usd": 10.75,
+        "compute_capability": 12.0,
+        "bf16": true
+      },
+      "ml.g7e.24xlarge": {
+        "gpus": 4,
+        "gpu_type": "RTX PRO 6000 Blackwell",
+        "vram_per_gpu_gb": 96,
+        "total_vram_gb": 384,
+        "ram_gb": 768,
+        "vcpus": 96,
+        "cost_per_hour_usd": 15.0,
+        "compute_capability": 12.0,
+        "bf16": true
+      },
+      "ml.g7e.48xlarge": {
+        "gpus": 8,
+        "gpu_type": "RTX PRO 6000 Blackwell",
+        "vram_per_gpu_gb": 96,
+        "total_vram_gb": 768,
+        "ram_gb": 1536,
+        "vcpus": 192,
+        "cost_per_hour_usd": 30.0,
+        "compute_capability": 12.0,
         "bf16": true
       },
       "ml.p3.2xlarge": {

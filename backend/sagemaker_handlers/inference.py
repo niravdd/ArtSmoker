@@ -32,11 +32,28 @@ Environment variables (set by deployer from catalog['invoke']):
   ENABLE_VAE_TILING: Process VAE in tiles (saves VRAM on large images)
 """
 
+import os
+
+# Fix NCCL library path BEFORE any torch import.
+# When pip upgrades torch (e.g., 2.6→2.8), the new torch expects a newer NCCL
+# (nvidia-nccl-cu12>=2.26.2) but the DLC container's older system NCCL loads first,
+# causing "undefined symbol: ncclCommWindowRegister". We preload the pip-installed
+# version AND prepend it to LD_LIBRARY_PATH for any future loads.
+try:
+    import nvidia.nccl.lib as _nccl_lib
+    _nccl_dir = os.path.dirname(_nccl_lib.__file__)
+    _nccl_so = os.path.join(_nccl_dir, "libnccl.so.2")
+    if os.path.exists(_nccl_so):
+        import ctypes
+        ctypes.CDLL(_nccl_so, mode=ctypes.RTLD_GLOBAL)
+    os.environ["LD_LIBRARY_PATH"] = f"{_nccl_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
+except ImportError:
+    pass
+
 import base64
 import io
 import json
 import logging
-import os
 import importlib
 
 import torch
@@ -966,9 +983,108 @@ def _load_codeformer(model_dir):
     return {"library": "codeformer", "model_dir": model_dir}
 
 
+def _load_autoregressive(model_dir):
+    """Load an autoregressive image model (e.g., HunyuanImage 3.0).
+
+    Unlike diffusers pipelines, these models use AutoModelForCausalLM with
+    custom generation methods. The model-specific behavior (generate method
+    name, tokenizer loading, block swap) comes from invoke_config.json.
+
+    Supports pre-quantized checkpoints (INT8/NF4) — no runtime quantization.
+    """
+    from transformers import AutoModelForCausalLM
+
+    model_source = _resolve_model_source(model_dir)
+    hf_token = _get_env("HUGGING_FACE_HUB_TOKEN") or None
+
+    trust_remote = _config.get("trust_remote_code", False)
+    attn_impl = _config.get("attn_implementation", "sdpa")
+    moe_impl = _config.get("moe_impl", "eager")
+    moe_drop = _config.get("moe_drop_tokens", True)
+    torch_dtype = _config.get("torch_dtype", "auto")
+    block_swap_blocks = _config.get("block_swap_blocks", 0)
+
+    logger.info("Loading autoregressive model from %s (trust_remote=%s, attn=%s, moe=%s)",
+                model_source, trust_remote, attn_impl, moe_impl)
+
+    load_kwargs = {
+        "torch_dtype": torch_dtype,
+        "attn_implementation": attn_impl,
+    }
+    if trust_remote:
+        load_kwargs["trust_remote_code"] = True
+    if moe_impl:
+        load_kwargs["moe_impl"] = moe_impl
+    if moe_drop is not None:
+        load_kwargs["moe_drop_tokens"] = moe_drop
+    if hf_token:
+        load_kwargs["token"] = hf_token
+
+    model = AutoModelForCausalLM.from_pretrained(model_source, **load_kwargs)
+
+    # Load custom tokenizer (autoregressive models have their own tokenizer)
+    if hasattr(model, "load_tokenizer"):
+        logger.info("Loading custom tokenizer from %s", model_source)
+        model.load_tokenizer(model_source)
+    else:
+        logger.info("No custom tokenizer loader — using standard tokenizer")
+        from transformers import AutoTokenizer
+        tokenizer = AutoTokenizer.from_pretrained(
+            model_source, trust_remote_code=trust_remote, token=hf_token
+        )
+        model._tokenizer = tokenizer
+
+    # Block swap: offload N transformer blocks to CPU for VRAM savings
+    if block_swap_blocks > 0 and hasattr(model, "model") and hasattr(model.model, "layers"):
+        layers = model.model.layers
+        total_layers = len(layers)
+        swap_count = min(block_swap_blocks, total_layers)
+        logger.info("Block swap: moving %d of %d transformer blocks to CPU (pinned memory)",
+                     swap_count, total_layers)
+        for i in range(total_layers - swap_count, total_layers):
+            layers[i] = layers[i].to("cpu")
+            if hasattr(torch.cuda, "pin_memory"):
+                try:
+                    for param in layers[i].parameters():
+                        if not param.is_pinned():
+                            param.data = param.data.pin_memory()
+                except Exception:
+                    pass
+        # Move everything else to GPU
+        non_block_components = []
+        for name, child in model.named_children():
+            if name != "model":
+                non_block_components.append(name)
+                child.to("cuda")
+        for name, child in model.model.named_children():
+            if name != "layers":
+                child.to("cuda")
+        # Move non-swapped layers to GPU
+        for i in range(total_layers - swap_count):
+            layers[i] = layers[i].to("cuda")
+        logger.info("Block swap complete: %d blocks on GPU, %d on CPU", total_layers - swap_count, swap_count)
+    else:
+        model.to("cuda")
+        logger.info("Model moved to GPU (no block swap)")
+
+    model.eval()
+
+    gpu_alloc = torch.cuda.memory_allocated(0) / (1024**3) if torch.cuda.is_available() else 0
+    logger.info("Autoregressive model loaded: %.1f GB GPU allocated", gpu_alloc)
+
+    return {
+        "library": "autoregressive",
+        "model": model,
+        "block_swap_blocks": block_swap_blocks,
+        "generate_method": _config.get("generate_method", "generate_image"),
+        "bot_task": _config.get("bot_task", "image"),
+    }
+
+
 _LOADERS = {
     "diffusers": _load_diffusers,
     "transformers": _load_transformers,
+    "autoregressive": _load_autoregressive,
     "realesrgan": _load_realesrgan,
     "codeformer": _load_codeformer,
 }
@@ -1088,8 +1204,69 @@ def _predict_face_restoration(input_data, model_dict):
     return _encode_image(_decode_image(input_data["image"]))
 
 
+def _predict_autoregressive_image(input_data, model_dict):
+    """Generate an image from an autoregressive model (e.g., HunyuanImage 3.0).
+
+    The model uses generate_image() (or whatever generate_method is configured)
+    instead of a diffusers pipeline __call__. Returns a PIL.Image which we
+    convert to base64 PNG.
+    """
+    model = model_dict["model"]
+    generate_method = model_dict.get("generate_method", "generate_image")
+    bot_task = model_dict.get("bot_task", "image")
+
+    prompt = input_data.get("prompt", "")
+    width = input_data.get("width", 1024)
+    height = input_data.get("height", 1024)
+    steps = input_data.get("num_inference_steps", _config.get("input_fields", {}).get("num_inference_steps", {}).get("default", 50))
+    guidance = input_data.get("guidance_scale", _config.get("input_fields", {}).get("guidance_scale", {}).get("default", 5.0))
+    seed = input_data.get("seed")
+
+    image_size = f"{width}x{height}"
+
+    gen_fn = getattr(model, generate_method, None)
+    if not gen_fn:
+        raise ValueError(f"Model has no '{generate_method}' method. Available: {[m for m in dir(model) if 'generat' in m.lower()]}")
+
+    logger.info("Autoregressive generation: size=%s, steps=%d, guidance=%.1f, seed=%s, bot_task=%s",
+                image_size, steps, guidance, seed, bot_task)
+
+    gen_kwargs = {
+        "prompt": prompt,
+        "image_size": image_size,
+        "diff_infer_steps": steps,
+        "bot_task": bot_task,
+    }
+    if seed is not None:
+        gen_kwargs["seed"] = seed
+
+    result = gen_fn(**gen_kwargs)
+
+    # Result format varies by model. HunyuanImage returns (cot_text, [PIL.Image, ...])
+    if isinstance(result, tuple) and len(result) == 2:
+        cot_text, samples = result
+        if cot_text:
+            logger.info("CoT reasoning: %s", cot_text[:200])
+        image = samples[0] if samples else None
+    elif isinstance(result, list):
+        image = result[0] if result else None
+    else:
+        image = result
+
+    if image is None:
+        raise RuntimeError("Model returned no image")
+
+    if hasattr(image, "save"):
+        return _encode_image(image)
+    elif isinstance(image, str):
+        return image
+    else:
+        raise RuntimeError(f"Unexpected output type: {type(image)}")
+
+
 _PREDICTORS = {
     "text_to_image": _predict_text_to_image,
+    "autoregressive_image": _predict_autoregressive_image,
     "image_to_video": _predict_image_to_video,
     "image_upscale": _predict_image_upscale,
     "background_removal": _predict_background_removal,
