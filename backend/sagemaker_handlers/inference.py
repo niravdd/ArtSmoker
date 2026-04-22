@@ -1048,8 +1048,16 @@ def _load_autoregressive(model_dir):
             layers[i] = layers[i].to("cuda")
         logger.info("Block swap complete: %d blocks on GPU, %d on CPU", total_layers - swap_count, swap_count)
     else:
-        model.to("cuda")
-        logger.info("Model moved to GPU (no block swap)")
+        # BnB INT8 models reject .to("cuda") — they're already placed by from_pretrained.
+        # NF4 models can be moved. Try .to() and fall back gracefully.
+        try:
+            model.to("cuda")
+            logger.info("Model moved to GPU (no block swap)")
+        except (ValueError, RuntimeError) as move_err:
+            if "8-bit" in str(move_err) or "not supported" in str(move_err):
+                logger.info("Model already on correct device (pre-quantized, .to() not supported)")
+            else:
+                raise
 
     model.eval()
 
