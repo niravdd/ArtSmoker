@@ -2039,7 +2039,7 @@
                     <div class="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
                         ${this._escapeHtml(label)}
                     </div>
-                    ${opt.status && opt.status !== 'success' ? `
+                    ${opt.status === 'moderation_blocked' || opt.status === 'error' || opt.status === 'failed' ? `
                     <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
                         <span class="px-2 py-1 rounded text-xs font-semibold ${opt.status === 'moderation_blocked' ? 'bg-amber-500/80 text-amber-950' : 'bg-red-500/80 text-white'}">
                             ${opt.status === 'moderation_blocked' ? t('image_studio.blocked_moderation') : t('image_studio.failed')}
