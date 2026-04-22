@@ -893,7 +893,7 @@
 
             // Include Prompt Designer data if available (so backend doesn't re-decompose)
             const decomposedData = this._promptEditor?._decomposedData || null;
-            const recomposedPrompt = this._promptEditor?.getDecomposedText?.() || null;
+            const recomposedPrompt = this._promptEditor?._recomposedPrompt || null;
 
             const payload = {
                 prompt: hasComposed ? prompt : userPrompt,

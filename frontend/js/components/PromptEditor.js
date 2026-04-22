@@ -383,6 +383,10 @@
                 const recomposeResult = await recomposeResp.json();
                 const recomposedPrompt = recomposeResult.prompt;
 
+                // Show recomposed prompt in Step 2 textarea
+                this.setDecomposedText(recomposedPrompt);
+                this._recomposedPrompt = recomposedPrompt;
+
                 // Step 3 → Enhance for model (using recomposed as input)
                 const enhancePayload = {
                     prompt: recomposedPrompt,
