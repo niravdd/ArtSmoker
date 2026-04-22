@@ -12,6 +12,9 @@ backend/*.user.json
 # Claude Code project instructions (local only)
 CLAUDE.md
 
+# Internal design docs (merge into SPEC.md after proven)
+gpu_optimiser.md
+
 # Generated assets (user data, not tracked)
 data/generated/
 data/chat/

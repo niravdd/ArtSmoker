@@ -5160,7 +5160,7 @@
             "ml.g7e.8xlarge",
             "ml.g7e.12xlarge"
           ],
-          "_note": "INT8 uses ~82-90GB VRAM. No block swap — fits on g7e.4xlarge (96GB GPU) for standard resolutions. May OOM at 2048x2048."
+          "_note": "INT8 uses ~82GB VRAM. BlockOffloadManager offloads 8/32 blocks to CPU (~19GB freed). GPU usage drops to ~63GB with 33GB inference headroom. Async CUDA stream prefetch hides transfer latency."
         },
         "invoke": {
           "library": "autoregressive",
@@ -5175,7 +5175,7 @@
           "output_type": "base64_png",
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
-          "block_swap_blocks": 0,
+          "block_swap_blocks": 8,
           "bot_task": "think_recaption",
           "quantization_type": "pre_quantized_int8",
           "input_fields": {
@@ -5264,7 +5264,8 @@
           "typical_latency_seconds": 300,
           "max_concurrent_invocations": 1,
           "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don’t over-engineer — the model’s internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions",
-          "image_size_format": "HxW"
+          "image_size_format": "HxW",
+          "block_swap_prefetch": 2
         },
         "pricing": {
           "estimated_cost_per_image": 0.43,

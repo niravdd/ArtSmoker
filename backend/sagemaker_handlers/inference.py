@@ -102,6 +102,153 @@ def _clean_stale_quant_artifacts(comp_path: str):
             logger.warning("Failed to clean config.json in %s: %s", comp_path, e)
 
 
+# ── Block Offload Manager ────────────────────────────────────────────────
+# Generic GPU↔CPU block offloading with CUDA stream prefetching.
+# Standard PyTorch primitives: forward hooks, CUDA streams, non-blocking transfers.
+# Works with any model that has sequential transformer blocks (nn.ModuleList).
+
+class BlockOffloadManager:
+    """Offload transformer blocks to CPU with async CUDA stream prefetching.
+
+    Moves the last N blocks to CPU pinned memory after model load, then uses
+    forward hooks to swap them back to GPU just-in-time during inference.
+    A dedicated CUDA stream prefetches upcoming blocks to hide transfer latency.
+    """
+
+    def __init__(self, layers, blocks_to_offload, prefetch_ahead=2, target_device="cuda"):
+        self.layers = layers
+        self.num_blocks = len(layers)
+        self.blocks_to_offload = min(blocks_to_offload, self.num_blocks)
+        self.prefetch_ahead = prefetch_ahead
+        self.target_device = target_device
+        self.offload_start = self.num_blocks - self.blocks_to_offload
+        self._hooks = []
+        self._enabled = False
+        self._prefetch_stream = None
+        self._prefetch_events = {}
+        self._block_devices = {}  # block_idx → current device
+
+    def setup(self):
+        """Move offloaded blocks to CPU pinned memory and register hooks."""
+        if self.blocks_to_offload <= 0:
+            return
+
+        self._prefetch_stream = torch.cuda.Stream(device=self.target_device)
+
+        # Move offloaded blocks to CPU with pinned memory
+        for i in range(self.offload_start, self.num_blocks):
+            block = self.layers[i]
+            block.to("cpu")
+            # Pin memory for fast DMA transfers
+            for param in block.parameters():
+                try:
+                    if not param.data.is_pinned():
+                        param.data = param.data.pin_memory()
+                except Exception:
+                    pass
+            self._block_devices[i] = "cpu"
+            logger.debug("Block %d moved to CPU (pinned)", i)
+
+        # Track GPU-resident blocks
+        for i in range(self.offload_start):
+            self._block_devices[i] = self.target_device
+
+        # Register hooks on ALL blocks
+        for i, block in enumerate(self.layers):
+            pre = block.register_forward_pre_hook(
+                lambda mod, inp, idx=i: self._pre_forward(idx, mod, inp)
+            )
+            post = block.register_forward_hook(
+                lambda mod, inp, out, idx=i: self._post_forward(idx, mod, inp, out)
+            )
+            self._hooks.extend([pre, post])
+
+        self._enabled = True
+
+        gpu_saved = self.blocks_to_offload * self._estimate_block_size()
+        logger.info("Block offload: %d/%d blocks on CPU (freed ~%.1f GB GPU), prefetch=%d",
+                     self.blocks_to_offload, self.num_blocks, gpu_saved, self.prefetch_ahead)
+
+    def _estimate_block_size(self):
+        """Estimate size of one block in GB."""
+        if self.offload_start < self.num_blocks:
+            block = self.layers[self.offload_start]
+            total = sum(p.numel() * p.element_size() for p in block.parameters())
+            return total / (1024**3)
+        return 0
+
+    def _pre_forward(self, block_idx, module, input):
+        """Ensure block is on GPU before execution. Prefetch upcoming blocks."""
+        if not self._enabled:
+            return
+
+        # If this block was prefetched, wait for the transfer to complete
+        if block_idx in self._prefetch_events:
+            self._prefetch_events[block_idx].synchronize()
+            del self._prefetch_events[block_idx]
+            self._block_devices[block_idx] = self.target_device
+
+        # If block is on CPU (not prefetched), sync-move to GPU
+        if self._block_devices.get(block_idx) == "cpu":
+            module.to(self.target_device)
+            self._fix_bnb_state(module)
+            self._block_devices[block_idx] = self.target_device
+
+        # Prefetch upcoming blocks on the dedicated stream
+        for offset in range(1, self.prefetch_ahead + 1):
+            prefetch_idx = block_idx + offset
+            if (prefetch_idx < self.num_blocks and
+                prefetch_idx >= self.offload_start and
+                self._block_devices.get(prefetch_idx) == "cpu" and
+                prefetch_idx not in self._prefetch_events):
+                with torch.cuda.stream(self._prefetch_stream):
+                    self.layers[prefetch_idx].to(self.target_device, non_blocking=True)
+                    event = torch.cuda.Event()
+                    event.record(self._prefetch_stream)
+                    self._prefetch_events[prefetch_idx] = event
+
+    def _post_forward(self, block_idx, module, input, output):
+        """Move offloaded blocks back to CPU after execution."""
+        if not self._enabled:
+            return
+        if block_idx >= self.offload_start:
+            module.to("cpu")
+            self._block_devices[block_idx] = "cpu"
+
+    def _fix_bnb_state(self, module):
+        """Fix bitsandbytes INT8 state after device move.
+
+        PyTorch's Module._apply doesn't move BnB's CB/SCB attributes.
+        After .to(device), re-alias them to ensure device consistency.
+        """
+        try:
+            import bitsandbytes as bnb
+            for child in module.modules():
+                if isinstance(child, bnb.nn.Linear8bitLt):
+                    if hasattr(child.weight, 'CB') and child.weight.CB is not None:
+                        child.weight.CB = child.weight.data
+        except ImportError:
+            pass
+        except Exception:
+            pass
+
+    def enable(self):
+        """Activate hooks for inference."""
+        self._enabled = True
+
+    def disable(self):
+        """Deactivate hooks after inference."""
+        self._enabled = False
+        self._prefetch_events.clear()
+
+    def cleanup(self):
+        """Remove all hooks."""
+        for h in self._hooks:
+            h.remove()
+        self._hooks.clear()
+        self._enabled = False
+
+
 # ── Helpers ───────────────────────────────────────────────────────────────
 
 def _cleanup_before_fallback(comp_name: str, pre_loaded: dict):
@@ -1018,48 +1165,34 @@ def _load_autoregressive(model_dir):
         )
         model._tokenizer = tokenizer
 
-    # Block swap: offload N transformer blocks to CPU for VRAM savings
+    # GPU placement + optional block offloading
+    block_offload = None
+    prefetch_ahead = _config.get("block_swap_prefetch", 2)
+
     if block_swap_blocks > 0 and hasattr(model, "model") and hasattr(model.model, "layers"):
-        layers = model.model.layers
-        total_layers = len(layers)
-        swap_count = min(block_swap_blocks, total_layers)
-        logger.info("Block swap: moving %d of %d transformer blocks to CPU (pinned memory)",
-                     swap_count, total_layers)
-        for i in range(total_layers - swap_count, total_layers):
-            layers[i] = layers[i].to("cpu")
-            if hasattr(torch.cuda, "pin_memory"):
-                try:
-                    for param in layers[i].parameters():
-                        if not param.is_pinned():
-                            param.data = param.data.pin_memory()
-                except Exception:
-                    pass
-        # Move everything else to GPU
-        non_block_components = []
-        for name, child in model.named_children():
-            if name != "model":
-                non_block_components.append(name)
-                child.to("cuda")
-        for name, child in model.model.named_children():
-            if name != "layers":
-                child.to("cuda")
-        # Move non-swapped layers to GPU
-        for i in range(total_layers - swap_count):
-            layers[i] = layers[i].to("cuda")
-        logger.info("Block swap complete: %d blocks on GPU, %d on CPU", total_layers - swap_count, swap_count)
-    else:
-        # BnB INT8 models reject .to("cuda") — they're already placed by from_pretrained.
-        # NF4 models can be moved. Try .to() and fall back gracefully.
+        # Model is on GPU (or placed by BnB). Offload N blocks to CPU with async prefetch.
         try:
             model.to("cuda")
-            logger.info("Model moved to GPU (no block swap)")
+        except (ValueError, RuntimeError):
+            pass  # BnB INT8 already on device
+        model.eval()
+
+        block_offload = BlockOffloadManager(
+            model.model.layers, block_swap_blocks,
+            prefetch_ahead=prefetch_ahead, target_device="cuda"
+        )
+        block_offload.setup()
+    else:
+        # No block offload — move entire model to GPU
+        try:
+            model.to("cuda")
+            logger.info("Model moved to GPU (no block offload)")
         except (ValueError, RuntimeError) as move_err:
             if "8-bit" in str(move_err) or "not supported" in str(move_err):
-                logger.info("Model already on correct device (pre-quantized, .to() not supported)")
+                logger.info("Model already on correct device (pre-quantized)")
             else:
                 raise
-
-    model.eval()
+        model.eval()
 
     gpu_alloc = torch.cuda.memory_allocated(0) / (1024**3) if torch.cuda.is_available() else 0
     logger.info("Autoregressive model loaded: %.1f GB GPU allocated", gpu_alloc)
@@ -1067,7 +1200,7 @@ def _load_autoregressive(model_dir):
     return {
         "library": "autoregressive",
         "model": model,
-        "block_swap_blocks": block_swap_blocks,
+        "block_offload": block_offload,
         "generate_method": _config.get("generate_method", "generate_image"),
         "bot_task": _config.get("bot_task", "image"),
     }
@@ -1273,9 +1406,17 @@ def _predict_autoregressive_image(input_data, model_dict):
     if seed is not None:
         gen_kwargs["seed"] = seed
 
+    # Enable block offload hooks during generation (if configured)
+    block_offload = model_dict.get("block_offload")
+    if block_offload:
+        block_offload.enable()
+        logger.info("Block offload enabled for inference")
+
     try:
         result = gen_fn(**gen_kwargs)
     finally:
+        if block_offload:
+            block_offload.disable()
         _gen_done.set()
         elapsed = _t.time() - _gen_start
         logger.info("Autoregressive generation finished — %.1fs total", elapsed)
