@@ -211,9 +211,15 @@ async def get_instance_options(model_key: str):
         logger.warning("Failed to query service quotas: %s", e)
         quotas = {}
 
+    allowed_instances = model.get("requirements", {}).get("allowed_instances")
+
     options = []
     for instance_type, specs in gpu_catalog.items():
         if instance_type.startswith("_"):
+            continue
+
+        # Model-specific instance filtering (e.g., FLUX.2 only on g6e.4xl+)
+        if allowed_instances and instance_type not in allowed_instances:
             continue
 
         total_vram = specs.get("total_vram_gb", 0)

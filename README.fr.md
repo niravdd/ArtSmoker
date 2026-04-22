@@ -65,7 +65,7 @@ ArtSmoker fonctionne en deux modes — **autonome** (aucune configuration de sty
 Aucune configuration de style ou de thème nécessaire — ouvrez le 2D Image Studio, le Video Studio ou le Type Studio et commencez à créer immédiatement.
 
 1. **Décrivez ce dont vous avez besoin** — saisissez un prompt comme « hospital building » ou « fire mage character », ou utilisez l'entrée vocale. L'IA améliore automatiquement votre prompt avec les directives de composition appropriées, les prompts négatifs et le formatage spécifique au modèle.
-2. **Choisissez votre modèle et vos paramètres** — sélectionnez parmi tous les modèles text-to-image disponibles sur Amazon Bedrock, choisissez les dimensions, le niveau de qualité et la région. Ou utilisez « All Available Models » pour générer simultanément sur tous les modèles activés et comparer côte à côte.
+2. **Choisissez vos modèles et paramètres** — multi-sélection parmi tous les modèles text-to-image disponibles (Bedrock + auto-hébergés), choisissez les dimensions, le niveau de qualité et la région. Cochez plusieurs modèles pour une comparaison côte à côte, ou un seul pour une génération ciblée. L'estimation des coûts se met à jour en temps réel.
 3. **Obtenez plusieurs options** — le système génère jusqu'à 5 concepts créatifs distincts, chacun avec jusqu'à 5 variations de seed (25 images au total). Choisissez celle qui vous plaît.
 4. **Éditez et affinez** — utilisez l'inpainting, l'outpainting, l'effacement, la recherche et remplacement ou la recoloration directement dans l'Asset Viewer. Chaque modification crée une nouvelle version — l'original est toujours préservé.
 5. **Téléchargez des fichiers prêts pour le jeu** — PNG avec fond transparent + SVG, nommés de manière descriptive (par exemple `hospital-building_opt2_var3.png`). Les vidéos s'exportent en MP4.
@@ -100,12 +100,12 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 - 💰 **Suivi des coûts** — Dépenses AWS estimées par requête, par session, par asset — envoyées à la télémétrie PulseBoard
 - 🌐 **i18n en 6 langues** — Traduction complète de l'UI (EN, JA, ZH, KO, FR, ES), détection automatique des prompts non anglais, aperçu bilingue
 - 🔍 **Support des modèles personnalisés** — Découverte automatique des modèles Bedrock fine-tunés, importés et déployés
-- 🔧 **Self-Hosted Models** — Déployez des modèles open-source sur Amazon SageMaker depuis un catalogue extensible. Pull de conteneurs directement depuis HuggingFace, CPU offloading pour les gros modèles, scale-to-zero automatique ($0 au repos), génération asynchrone avec panneau Pending Jobs
+- 🔧 **Modèles auto-hébergés** — Déployez des modèles open source (FLUX.2, FLUX.1, etc.) sur Amazon SageMaker depuis un catalogue extensible. Quantification BnB NF4 sur GPU, cache de modèle S3 pour démarrage rapide (~4 min), mise à l'échelle automatique à zéro (0$ en veille), chaîne de secours résiliente (cache → re-quantification → HuggingFace), génération asynchrone avec panneau des tâches en attente
 - 🔄 **Auto-Update** — Git pull avec contrôle de version au démarrage, redémarrage automatique après mise à jour, vérification périodique toutes les 24h (`ARTSMOKER_AUTO_UPDATE=false` pour désactiver)
 
 ### 📝 1.2 Captures d'écran
 
-**2D Image Studio** — Paramètres à gauche, prompt avec amélioration IA à droite, résultats de comparaison de modèles en dessous. Le mode All Available Models génère simultanément sur tous les modèles d'image activés.
+**2D Image Studio** — Paramètres à gauche avec liste déroulante multi-sélection de modèles, workflow de prompt en 3 étapes à droite, résultats de comparaison des modèles en dessous. Le mode multi-modèle génère sur les modèles sélectionnés simultanément avec optimisation des prompts par modèle.
 
 ![2D Image Studio — Paramètres, prompt et résultats générés](docs/images/image-studio-top.png)
 
@@ -141,11 +141,18 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 
 Pour chaque prompt, l'IA crée des **Options** — des interprétations de design fondamentalement différentes (par exemple pour « a warrior » : berserker viking, samouraï japonais, guerrier tribal, cyber-soldat, hoplite grec). Pour chaque option, le modèle d'image produit des **Variations** — différents seeds aléatoires donnant des différences visuelles subtiles. Cela offre aux artistes une large palette créative pour faire leur choix.
 
-### 📝 1.4 All Available Models
+### 📝 1.4 Sélection multi-modèle
 
-Sélectionnez **« All Available Models »** dans le menu déroulant des modèles pour générer votre prompt simultanément sur tous les modèles d'image activés — une image par modèle. Cela permet une comparaison directe côte à côte de la façon dont Nova Canvas, Titan Image, SD 3.5 Large et Stable Image Ultra interprètent chacun le même prompt. Chaque modèle s'exécute indépendamment : si un modèle plus strict bloque le prompt, vous obtenez quand même les résultats des modèles qui l'ont accepté, avec des labels de statut clairs (succès, bloqué par la modération, ou échec) sur chaque carte d'option.
 
-Le toggle optionnel **« Model-optimized prompts »** adapte le prompt aux forces de chaque modèle au lieu d'envoyer le même prompt à tous — utile quand vous voulez le meilleur résultat de chaque modèle plutôt qu'une comparaison directe.
+Le menu déroulant des modèles prend en charge la **multi-sélection par cases à cocher** — choisissez n'importe quelle combinaison de modèles pour une seule génération :
+
+- **Modèle unique** — cochez un modèle pour une génération ciblée (le plus rapide, le moins cher)
+- **Plusieurs modèles** — cochez 2-3 modèles spécifiques pour une comparaison ciblée (ex : SD 3.5 + FLUX.2 uniquement)
+- **All Available Models** — le toggle en bas sélectionne/désélectionne tous les modèles activés pour une comparaison côte à côte complète
+
+Chaque modèle s'exécute indépendamment : si des modèles plus stricts bloquent le prompt, vous obtenez quand même les résultats des modèles qui l'ont accepté. L'estimation des coûts se met à jour en temps réel au fur et à mesure que vous cochez/décochez les modèles.
+
+Le toggle optionnel **« Model-optimized prompts »** adapte le prompt aux forces de chaque modèle — les prompts sont réécrits par modèle (ex : boosters de qualité pour SD 3.5, langage naturel pour FLUX.2, légendes concises pour Nova Canvas).
 
 ### 📝 1.5 Video Studio
 

@@ -260,7 +260,11 @@
     "original_prompt_label": "Original prompt",
     "enhanced_prompt_label": "AI-improved prompt (sent to generator)",
     "prompt_sent_to_model": "Prompt sent to model",
-    "negative_prompt_none": "None"
+    "negative_prompt_none": "None",
+    "select_models": "Select models...",
+    "models_selected": "models selected",
+    "models_count": "models",
+    "select_at_least_one_model": "Select at least one model"
   },
   "video_studio": {
     "title": "Video Studio",

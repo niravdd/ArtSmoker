@@ -736,7 +736,11 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
             progress_cb(event)
 
     batch_id = str(uuid4())
-    model_keys = get_enabled_image_model_keys_sorted()
+    all_keys = get_enabled_image_model_keys_sorted()
+    if body.selected_models:
+        model_keys = [k for k in all_keys if k in body.selected_models]
+    else:
+        model_keys = all_keys
     n_models = len(model_keys)
 
     if n_models == 0:
@@ -1131,7 +1135,10 @@ async def estimate_generation_cost(body: GenerationRequest):
     """Return a cost estimate without generating. For pre-generation UI display."""
     from backend.services.model_registry import get_enabled_image_model_keys_sorted, get_image_model
 
-    if body.all_models:
+    if body.all_models and body.selected_models:
+        all_keys = get_enabled_image_model_keys_sorted()
+        model_keys = [k for k in all_keys if k in body.selected_models]
+    elif body.all_models:
         model_keys = get_enabled_image_model_keys_sorted()
     else:
         model_keys = [body.image_model] if body.image_model else []

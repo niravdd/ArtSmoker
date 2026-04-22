@@ -455,7 +455,11 @@
     "will_generate_info": "モデルごとに1枚生成（{{count}} モデル）= 合計 {{count}} 枚",
     "checking": "確認中...",
     "prompt_sent_to_model": "モデルに送信されたプロンプト",
-    "negative_prompt_none": "なし"
+    "negative_prompt_none": "なし",
+    "select_models": "モデルを選択...",
+    "models_selected": "モデル選択済み",
+    "models_count": "モデル",
+    "select_at_least_one_model": "少なくとも1つのモデルを選択してください"
   },
   "lang": {
     "en": "英語",

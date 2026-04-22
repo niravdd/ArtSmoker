@@ -315,7 +315,7 @@ The generation system produces images across two dimensions:
 - **Variations** (1-5, default 5): Seed variations of each option. Same prompt, different random seeds passed to the image generator.
 - **Total images** = `num_options` x `num_variations` (up to 25 images per batch).
 
-**"All Available Models" mode** (`all_models: true`): Generates with every enabled image model instead of a single model. Each model becomes an "option" with 1 variation. Models run independently — no shared canary, no cooperative cancellation. Moderation blocks on one model don't affect others. The pipeline is handled by `_run_all_models_generation()` in `generate.py`.
+**Multi-model mode** (`all_models: true`): Generates with multiple models instead of a single model. The frontend sends `selected_models: ["nova_canvas", "sd35_large", ...]` — a list of specific model keys chosen via the checkbox dropdown. If `selected_models` is not provided (backward compat), all enabled models are used. Each model becomes an "option" with configurable variations. Models run independently — no shared canary, no cooperative cancellation. Moderation blocks on one model don't affect others. The pipeline is handled by `_run_all_models_generation()` in `generate.py`.
 
 - Models are ordered by moderation strictness (least strict first: SD 3.5 Large → Stable Image Ultra → Titan Image → Nova Canvas) for optimal throughput.
 - **Same prompt mode** (default): One prompt refined once, sent to all models for direct comparison.
@@ -564,12 +564,12 @@ Clean, modern single-page application served as static files mounted at `/` by F
 **2D Image Studio** (`#image-studio`) — The main image generation workspace with a two-tier result display:
 - **Left sidebar** (progressive disclosure layout):
   - **Art Style** selector, **Asset Type** selector.
-  - **Image Model** dropdown — populated dynamically from the registry (`GET /api/admin/models/image-options`), not hardcoded. Includes "All Available Models" at the bottom. Below the dropdown, a smart **summary line** shows the active configuration: `us-east-1 · Premium · $0.06/img` — updates on any change.
+  - **Image Model** multi-select checkbox dropdown — populated dynamically from the registry (`GET /api/admin/models/image-options`), not hardcoded. Checkboxes allow selecting any combination of models; "All Available Models" toggle at the bottom selects/deselects all. Minimum 1 model required — auto-selects first model on close if empty. Below the dropdown, a smart **summary line** shows the active configuration: `us-east-1 · Premium · $0.06/img` for single model, or `3 models × 2 options × 2 variations = 12 images (~$2.40)` for multi-model. Cost estimate updates live as models are checked/unchecked.
   - **Dimensions** (size presets: 512×512, 768×768, 1024×1024, 1024×576, 576×1024, 1280×720).
   - **Advanced** (collapsible `<details>` section): **Quality** dropdown — shows quality tiers when the model supports them (e.g. Standard/Premium for Nova Canvas, "Default" for models without tiers). **Region** dropdown — shows the model's available regions sorted cheapest-first, with per-image pricing. "Auto" selects the cheapest. Quality and region changes update the summary line and pricing.
   - **Cost estimate**: `Est. cost: ~$1.50 (25 images × $0.06)` — updates dynamically based on model, quality, region, options, and variations.
   - **Options** count (1-5), **Variations** count (1-5).
-  - When **"All Available Models"** is selected: options/variations are disabled (fixed at 1 per model), a "Model-optimized prompts" toggle appears, and info text shows the model count.
+  - When **multiple models** are selected: a "Model-optimized prompts" toggle appears, and info text shows the model count, total images, and estimated cost.
   - **"Model Settings"** button opens the Model Registry admin UI (see [4.11 Model Registry](#411-model-registry)).
 - **Processing options**: Toggle switches for Remove Background, SVG Conversion (on by default), Upscale, and **Prompt Pre-Check** (pre-screens prompts via Claude Sonnet before image generation). Options row is placed **below** the prompt areas (images grouped together). Before generation these are labeled **"Pre-Processing"** (applied during generation). After generation completes, the label switches to **"Post-Processing"** and an **"Apply to Current Results"** button appears, allowing users to re-apply processing to the existing generated images without re-generating (calls `POST /api/generate/post-process`).
 - **Two-area prompt editor** (center panel): The prompt editor uses a two-textarea design:
@@ -1009,7 +1009,8 @@ Fields:
 - `generate_svg` (default true): Convert to SVG.
 - `upscale` (default false): Run Stability AI upscaling.
 - `negative_prompt` (default ""): Negative prompt carried from the Compose step.
-- `all_models` (default false): When true, generates with every enabled image model (one option per model, 1 variation each). Overrides `num_options` and `num_variations`. Dispatches to `_run_all_models_generation()`.
+- `all_models` (default false): When true, generates with multiple models (one option per model). Dispatches to `_run_all_models_generation()`.
+- `selected_models` (default null): List of specific model keys for multi-model generation. When provided with `all_models=true`, only those models are used. When null, all enabled models run.
 - `model_optimized_prompts` (default false): Only used when `all_models` is true. When true, refines the prompt separately per model for tailored output. When false, all models receive the same prompt for direct comparison. When `pre_composed` is true and refinement is skipped, the backend uses this value instead of extracting from refinement.
 - `ip_owned` (default false): User asserts IP ownership over the content.
 - `ip_licensed` (default false): User asserts licensing rights. Both IP fields are stored in per-variant metadata for audit trail.
@@ -1069,7 +1070,15 @@ The 2D Image Studio uses a guided 3-step workflow:
 
 **Generate** works at any point — Steps 2 and 3 are optional. If skipped, Generate auto-enhances the prompt server-side.
 
+**Model-specific prompt handling:**
+- Each model can have `prompt_guidance` in its registry invoke config — LLM instructions for writing prompts optimized for that model's architecture
+- Models declare `supports_negative_prompt: true/false` — templates conditionally include/skip NEGATIVE: line. FLUX models skip negative prompts entirely; the LLM focuses all effort on the positive caption
+- FLUX.2 guidance targets 60-100 word concise prompts (not verbose 300+ word descriptions that dilute signal)
+- The `image_refine_single` and `prompt_recompose` templates pass `{model_specific_instructions}` so the LLM adapts per model
+
 **Asset type classification** (`/api/refine-prompt/classify-asset-type`):
+
+Runs exactly once per prompt session — whichever button the user clicks first (Prompt Designer, Generate Enhanced Prompt, or Generate) triggers the check. The `_assetTypeConfirmed` flag prevents re-checking on subsequent buttons. Editing the prompt text resets the flag.
 
 Uses an LLM to determine the best asset type for a prompt. Key distinction: a person mentioned IN a scene (e.g., "woman piloting a train shown from outside with a village backdrop") is classified as Environment (scene is the subject), not Character. Only prompts where the person IS the primary focal point are classified as Character.
 
@@ -1276,12 +1285,29 @@ This combination solves the cold-start-from-zero problem: TargetTracking alone c
 
 **15-minute warm-up window:** Amazon SageMaker reports `InService` as soon as the container starts, but the model is not ready until weights are downloaded from HuggingFace and loaded into GPU memory. For large models (e.g., 23-70GB), this takes 5-15 minutes after `InService`. The status endpoint tracks this window and the frontend displays a warm-up progress indicator.
 
+**NF4 quantization:** BnB NF4 quantization requires CUDA and loads layer-by-layer to GPU. No `device_map` override on quantization components (setting `device_map="cpu"` prevents quantization from firing — weights stay bf16). Peak GPU usage during quantization: ~13 GB for FLUX.2 transformer (7 shards). After quantization, NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB on 44.5 GB L40S with 29 GB headroom.
+
 **S3 model cache:** After a successful model load, the handler saves pipeline components to S3 (`artsmoker/custom-models/{model_key}/model-cache/`) for faster cold starts. Cache behavior per component:
 - `.cache-info.json` — version fingerprint + per-component `preserved` flag. Fingerprint changes when model key, HF repo, catalog version, or quantization config changes → automatic cache invalidation.
-- **preserved=true** — NF4 weights with BnB metadata saved correctly. Loads directly with `quantization_config` (fast path, enables `pipe.to("cuda")` for ~30-60s/image inference).
-- **preserved=false** — `save_pretrained()` saved bf16 weights without BnB metadata (common for both diffusers and transformers models). Handler cleans stale quantization artifacts from `config.json`, then re-quantizes bf16→NF4 on the fly from local disk (skips HF download but still takes ~40 min for quantization). Uses `model_cpu_offload` (~5 min/image).
-- **Sequential CPU offload models** (e.g., FLUX.1 dev) — cache save fails because tensors are in "meta" state (no data on device). Every cold start re-downloads from HuggingFace.
-- Cache save runs in a background thread after `model_fn()` completes (does not block inference).
+- **preserved=true** — NF4 packed uint8 weights with quantization metadata. Diffusers models (e.g., `Flux2Transformer2DModel`) write proper NF4 via `save_pretrained()`. Transformers models (e.g., `Mistral3ForConditionalGeneration`) may not preserve quant_state — handler verifies by inspecting safetensors for `bitsandbytes__*` keys before marking preserved. Workaround writes `quantization_config.json` manually (diffusers FrozenDict name-mangling bug). Fast path: loads directly to GPU, `pipe.to("cuda")`, ~30-60s/image inference.
+- **preserved=false** — bf16 weights without BnB metadata. Handler cleans stale quantization artifacts, re-quantizes to NF4 on GPU from local disk (~3 min per component vs ~3 min from HuggingFace).
+- Cache save runs in a background thread after `model_fn()` completes (does not block inference). Aborts if saved weights are corrupt (no BnB quant_state and not valid bf16).
+
+**Resilient cache load fallback chain** (per component, each step tried once):
+1. `preserved=true` → direct NF4 load (fastest)
+2. If fails → cleanup GPU → re-quantize from cached bf16 weights
+3. If fails → cleanup GPU → download from HuggingFace with quantization
+4. If fails → log error, component skipped → `model_cpu_offload` prevents OOM
+
+**Auto-scaling:** Registered after model readiness confirmed (not at endpoint InService — model may still be loading). Checks AWS for existing policies on startup to avoid redundant API calls. Configuration:
+- Scale-to-zero: TargetTracking on `ApproximateBacklogSizePerInstance`, 600s (10 min) idle cooldown
+- Scale-from-zero: StepScaling on `HasBacklogWithoutCapacity` alarm, 60s cooldown for fast response
+- Instance recommendations: `allowed_instances` field in catalog requirements filters instance dropdown (e.g., FLUX.2 limited to g6e.4xlarge+, FLUX.1 limited to g5.xlarge-4xlarge)
+
+**Cold start times** (FLUX.2 dev on g6e.4xlarge):
+- Fresh build (no cache): ~6 min (HF download + NF4 quantize on GPU)
+- From S3 cache (preserved=true): ~4 min (S3 download + direct NF4 load for transformer, HF fallback for text encoder)
+- Inference: ~80s/image at 1024x1024, 40 steps on GPU fast path
 
 **Amazon SageMaker IAM requirements:**
 ```

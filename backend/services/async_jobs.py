@@ -798,9 +798,12 @@ def _calculate_compute_cost(model_key: str, duration_seconds: float) -> float:
                 instance_type = reg_model["deployment"]["instance_type"]
                 default_rates = {
                     "ml.g5.xlarge": 1.41,
-                    "ml.g5.2xlarge": 1.52,
-                    "ml.g5.4xlarge": 2.03,
+                    "ml.g5.2xlarge": 2.82,
+                    "ml.g5.4xlarge": 4.44,
                     "ml.g6e.xlarge": 2.61,
+                    "ml.g6e.2xlarge": 5.22,
+                    "ml.g6e.4xlarge": 10.44,
+                    "ml.g6e.8xlarge": 20.88,
                 }
                 hourly_rate = default_rates.get(instance_type, 1.50)
                 break

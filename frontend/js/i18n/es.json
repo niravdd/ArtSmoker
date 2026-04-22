@@ -455,7 +455,11 @@
     "will_generate_info": "Se generará 1 imagen por modelo ({{count}} modelos) = {{count}} imágenes en total",
     "checking": "Verificando...",
     "prompt_sent_to_model": "Prompt enviado al modelo",
-    "negative_prompt_none": "Ninguno"
+    "negative_prompt_none": "Ninguno",
+    "select_models": "Seleccionar modelos...",
+    "models_selected": "modelos seleccionados",
+    "models_count": "modelos",
+    "select_at_least_one_model": "Seleccione al menos un modelo"
   },
   "lang": {
     "en": "English",

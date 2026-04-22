@@ -455,7 +455,11 @@
     "will_generate_info": "모델당 1개 이미지 생성 ({{count}}개 모델) = 총 {{count}}개 이미지",
     "checking": "확인 중...",
     "prompt_sent_to_model": "모델에 전송된 프롬프트",
-    "negative_prompt_none": "없음"
+    "negative_prompt_none": "없음",
+    "select_models": "모델 선택...",
+    "models_selected": "개 모델 선택됨",
+    "models_count": "개 모델",
+    "select_at_least_one_model": "최소 하나의 모델을 선택하세요"
   },
   "lang": {
     "en": "영어",

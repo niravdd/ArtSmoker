@@ -455,7 +455,11 @@
     "will_generate_info": "每个模型生成 1 张图片（共 {{count}} 个模型）= 共 {{count}} 张图片",
     "checking": "检查中...",
     "prompt_sent_to_model": "发送给模型的提示词",
-    "negative_prompt_none": "无"
+    "negative_prompt_none": "无",
+    "select_models": "选择模型...",
+    "models_selected": "个模型已选择",
+    "models_count": "个模型",
+    "select_at_least_one_model": "请至少选择一个模型"
   },
   "lang": {
     "en": "英语",

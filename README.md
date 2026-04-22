@@ -63,7 +63,7 @@ ArtSmoker works in two modes — **standalone** (no art style or theme setup nee
 No style or theme setup needed — open the 2D Image Studio, Video Studio, or Type Studio and start creating immediately.
 
 1. **Describe what you need** — type a prompt like "hospital building" or "fire mage character", or use voice input. The AI automatically enhances your prompt with proper composition directives, negative prompts, and model-specific formatting.
-2. **Choose your model and settings** — select from all available text-to-image models on Amazon Bedrock, pick dimensions, quality tier, and region. Or use "All Available Models" to generate across every enabled model simultaneously for a side-by-side comparison.
+2. **Choose your models and settings** — multi-select from all available text-to-image models (Bedrock + self-hosted), pick dimensions, quality tier, and region. Check multiple models for side-by-side comparison, or select one for focused generation. Cost estimate updates live.
 3. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
 4. **Edit and refine** — use inpainting, outpainting, erase, search & replace, or recolor directly in the Asset Viewer. Each edit creates a new version — the original is always preserved.
 5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`). Videos export as MP4.
@@ -98,12 +98,12 @@ For teams that want every generated asset to match an existing art style — upl
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 - 🌐 **6-Language i18n** — Full UI translation (EN, JA, ZH, KO, FR, ES), auto-detect non-English prompts, bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
-- 🔧 **Self-Hosted Models** — Deploy open-source models on Amazon SageMaker from an extensible catalog. Container pulls directly from HuggingFace, CPU offloading for large models, auto-scales to zero ($0 idle), async generation with Pending Jobs panel
+- 🔧 **Self-Hosted Models** — Deploy open-source models (FLUX.2, FLUX.1, etc.) on Amazon SageMaker from an extensible catalog. BnB NF4 quantization on GPU, S3 model cache for fast cold starts (~4 min), auto-scales to zero ($0 idle), resilient fallback chain (cache → re-quantize → HuggingFace), async generation with Pending Jobs panel
 - 🔄 **Auto-Update** — Version-gated git pull on startup, self-restart on update, 24h periodic check (`ARTSMOKER_AUTO_UPDATE=false` to disable)
 
 ### 📝 1.2 Screenshots
 
-**2D Image Studio** — Settings on the left, prompt with AI enhancement on the right, model comparison results below. All Available Models mode generates across every enabled image model simultaneously.
+**2D Image Studio** — Settings on the left with multi-select model dropdown, 3-step prompt workflow on the right, model comparison results below. Multi-model mode generates across selected models simultaneously with per-model prompt optimization.
 
 ![2D Image Studio — Settings, prompt, and generated results](docs/images/image-studio-top.png)
 
@@ -139,11 +139,17 @@ For teams that want every generated asset to match an existing art style — upl
 
 For each prompt, the AI creates **Options** — fundamentally different design interpretations (e.g. for "a warrior": Viking berserker, Japanese samurai, tribal fighter, cyber-soldier, Greek hoplite). For each option, the image model produces **Variations** — different random seeds giving subtle visual differences. This gives artists a broad creative palette to choose from.
 
-### 📝 1.4 All Available Models
+### 📝 1.4 Multi-Model Selection
 
-Select **"All Available Models"** from the model dropdown to generate your prompt across every enabled image model simultaneously — one image per model. This gives a direct side-by-side comparison of how Nova Canvas, Titan Image, SD 3.5 Large, and Stable Image Ultra each interpret the same prompt. Each model runs independently: if stricter models block the prompt, you still get results from models that accepted it, with clear status labels (success, blocked by moderation, or failed) on each option card.
+The model dropdown supports **checkbox-based multi-select** — pick any combination of models for a single generation run:
 
-An optional **"Model-optimized prompts"** toggle tailors the prompt to each model's strengths instead of sending the same prompt to all — useful when you want the best output from each model rather than a direct comparison.
+- **Single model** — check one model for focused generation (fastest, cheapest)
+- **Multiple models** — check 2-3 specific models for targeted comparison (e.g. SD 3.5 + FLUX.2 only)
+- **All Available Models** — toggle at the bottom selects/deselects all enabled models for a full side-by-side comparison
+
+Each model runs independently: if stricter models block the prompt, you still get results from models that accepted it, with clear status labels (success, blocked by moderation, or failed) on each option card. The cost estimate updates live as you check/uncheck models.
+
+An optional **"Model-optimized prompts"** toggle tailors the prompt to each model's strengths — prompts are rewritten per model (e.g. quality boosters for SD 3.5, natural language for FLUX.2, concise captions for Nova Canvas).
 
 ### 📝 1.5 Video Studio
 

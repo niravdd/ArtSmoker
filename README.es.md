@@ -65,7 +65,7 @@ ArtSmoker funciona en dos modos — **independiente** (sin necesidad de configur
 Sin necesidad de configurar estilo o tema — abra el 2D Image Studio, Video Studio o Type Studio y comience a crear de inmediato.
 
 1. **Describa lo que necesita** — escriba un prompt como "hospital building" o "fire mage character", o use entrada de voz. La IA mejora automáticamente su prompt con directivas de composición adecuadas, prompts negativos y formato específico del modelo.
-2. **Elija su modelo y configuración** — seleccione entre todos los modelos de texto a imagen disponibles en Amazon Bedrock, elija dimensiones, nivel de calidad y región. O use "All Available Models" para generar con todos los modelos habilitados simultáneamente para una comparación lado a lado.
+2. **Elija sus modelos y configuración** — multi-selección de todos los modelos de texto a imagen disponibles (Bedrock + autoalojados), elija dimensiones, nivel de calidad y región. Marque varios modelos para comparación lado a lado, o uno para generación enfocada. La estimación de costos se actualiza en tiempo real.
 3. **Obtenga múltiples opciones** — el sistema genera hasta 5 conceptos creativos claramente diferentes, cada uno con hasta 5 variaciones de semilla (25 imágenes en total). Elija el que más le guste.
 4. **Edite y refine** — use inpainting, outpainting, borrado, búsqueda y reemplazo, o recoloración directamente en el Asset Viewer. Cada edición crea una nueva versión — el original siempre se conserva.
 5. **Descargue archivos listos para el juego** — PNG con fondo transparente + SVG, con nombres descriptivos (ej. `hospital-building_opt2_var3.png`). Los videos se exportan como MP4.
@@ -100,12 +100,12 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 - 💰 **Seguimiento de costos** — Gasto estimado de AWS por solicitud, por sesión, por recurso — enviado a telemetría PulseBoard
 - 🌐 **i18n en 6 idiomas** — Traducción completa de la UI (EN, JA, ZH, KO, FR, ES), detección automática de prompts no ingleses, vista previa bilingüe
 - 🔍 **Soporte de modelos personalizados** — Descubra automáticamente modelos Bedrock personalizados afinados, importados y desplegados
-- 🔧 **Self-Hosted Models** — Despliegue modelos de codigo abierto en Amazon SageMaker desde un catalogo extensible. Pull de contenedores directamente desde HuggingFace, CPU offloading para modelos grandes, auto-escala a cero ($0 en reposo), generacion asincrona con panel de Pending Jobs
+- 🔧 **Modelos autoalojados** — Despliegue modelos de código abierto (FLUX.2, FLUX.1, etc.) en Amazon SageMaker desde un catálogo extensible. Cuantización BnB NF4 en GPU, caché de modelo S3 para inicio rápido (~4 min), escalado automático a cero ($0 en reposo), cadena de respaldo resiliente (caché → recuantización → HuggingFace), generación asíncrona con panel de trabajos pendientes
 - 🔄 **Auto-Update** — Git pull con control de version al inicio, reinicio automatico tras actualizacion, verificacion periodica cada 24h (`ARTSMOKER_AUTO_UPDATE=false` para desactivar)
 
 ### 📝 1.2 Capturas de pantalla
 
-**2D Image Studio** — Configuración a la izquierda, prompt con mejora de IA a la derecha, resultados de comparación de modelos abajo. El modo All Available Models genera con todos los modelos de imagen habilitados simultáneamente.
+**2D Image Studio** — Configuración a la izquierda con desplegable de multi-selección de modelos, flujo de trabajo de prompt en 3 pasos a la derecha, resultados de comparación de modelos abajo. El modo multi-modelo genera con los modelos seleccionados simultáneamente con optimización de prompts por modelo.
 
 ![2D Image Studio — Configuración, prompt y resultados generados](docs/images/image-studio-top.png)
 
@@ -141,11 +141,18 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 
 Para cada prompt, la IA crea **Opciones** — interpretaciones de diseño fundamentalmente diferentes (ej. para "warrior": berserker vikingo, samurái japonés, guerrero tribal, ciber-soldado, hoplita griego). Para cada opción, el modelo de imagen produce **Variaciones** — diferentes semillas aleatorias que proporcionan diferencias visuales sutiles. Esto ofrece a los artistas una amplia paleta creativa para elegir.
 
-### 📝 1.4 All Available Models
+### 📝 1.4 Selección multi-modelo
 
-Seleccione **"All Available Models"** del menú desplegable de modelos para generar su prompt con todos los modelos de imagen habilitados simultáneamente — una imagen por modelo. Esto permite una comparación directa lado a lado de cómo Nova Canvas, Titan Image, SD 3.5 Large y Stable Image Ultra interpretan el mismo prompt. Cada modelo se ejecuta de forma independiente: si modelos más estrictos bloquean el prompt, aún obtiene resultados de los modelos que lo aceptaron, con etiquetas de estado claras (éxito, bloqueado por moderación o fallido) en cada tarjeta de opción.
 
-El toggle opcional **"Model-optimized prompts"** adapta el prompt a las fortalezas de cada modelo en lugar de enviar el mismo prompt a todos — útil cuando desea la mejor salida de cada modelo en lugar de una comparación directa.
+El menú desplegable de modelos soporta **multi-selección basada en casillas de verificación** — elija cualquier combinación de modelos para una sola generación:
+
+- **Modelo único** — marque un modelo para generación enfocada (más rápido, más económico)
+- **Varios modelos** — marque 2-3 modelos específicos para comparación dirigida (ej: solo SD 3.5 + FLUX.2)
+- **All Available Models** — el interruptor en la parte inferior selecciona/deselecciona todos los modelos habilitados para una comparación completa lado a lado
+
+Cada modelo se ejecuta de forma independiente: si modelos más estrictos bloquean el prompt, aún obtiene resultados de los modelos que lo aceptaron. La estimación de costos se actualiza en tiempo real al marcar/desmarcar modelos.
+
+El toggle opcional **"Model-optimized prompts"** adapta el prompt a las fortalezas de cada modelo — los prompts se reescriben por modelo (ej: impulsores de calidad para SD 3.5, lenguaje natural para FLUX.2, descripciones concisas para Nova Canvas).
 
 ### 📝 1.5 Video Studio
 

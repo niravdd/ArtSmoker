@@ -4385,7 +4385,8 @@
           "min_vram_gb": 12,
           "recommended_instance": "ml.g5.2xlarge",
           "min_instance": "ml.g5.xlarge",
-          "disk_gb": 25
+          "disk_gb": 25,
+          "allowed_instances": ["ml.g5.xlarge", "ml.g5.2xlarge", "ml.g5.4xlarge"]
         },
         "invoke": {
           "library": "diffusers",
@@ -4470,7 +4471,8 @@
           "min_vram_gb": 24,
           "recommended_instance": "ml.g5.2xlarge",
           "min_instance": "ml.g5.xlarge",
-          "disk_gb": 35
+          "disk_gb": 35,
+          "allowed_instances": ["ml.g5.xlarge", "ml.g5.2xlarge", "ml.g5.4xlarge"]
         },
         "invoke": {
           "library": "diffusers",
@@ -4516,7 +4518,7 @@
           "estimated_cost_per_image": 0.06,
           "instance_cost_per_hour": {
             "ml.g5.xlarge": 1.41,
-            "ml.g5.2xlarge": 1.52
+            "ml.g5.2xlarge": 2.82
           }
         },
         "version": "1.0",
@@ -4556,6 +4558,7 @@
           "min_ram_gb": 96,
           "recommended_instance": "ml.g6e.4xlarge",
           "disk_gb": 80,
+          "allowed_instances": ["ml.g6e.4xlarge", "ml.g6e.8xlarge", "ml.g6e.12xlarge"],
           "_note": "32B model on g6e.4xlarge (1× L40S 48 GB VRAM, 128 GB RAM). BnB NF4 quantization requires CUDA — no device_map override (loads layer-by-layer to GPU, peak ~13 GB). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB total. With preserved NF4 cache: S3 download + direct GPU load = ~2 min cold start."
         },
         "invoke": {
@@ -4614,9 +4617,10 @@
           ]
         },
         "pricing": {
-          "estimated_cost_per_image": 0.15,
+          "estimated_cost_per_image": 0.87,
           "instance_cost_per_hour": {
-            "ml.g5.12xlarge": 7.09
+            "ml.g6e.4xlarge": 10.44,
+            "ml.g6e.8xlarge": 20.88
           }
         },
         "version": "1.4",
