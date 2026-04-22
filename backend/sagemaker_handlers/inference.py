@@ -34,22 +34,6 @@ Environment variables (set by deployer from catalog['invoke']):
 
 import os
 
-# Fix NCCL library path BEFORE any torch import.
-# When pip upgrades torch (e.g., 2.6→2.8), the new torch expects a newer NCCL
-# (nvidia-nccl-cu12>=2.26.2) but the DLC container's older system NCCL loads first,
-# causing "undefined symbol: ncclCommWindowRegister". We preload the pip-installed
-# version AND prepend it to LD_LIBRARY_PATH for any future loads.
-try:
-    import nvidia.nccl.lib as _nccl_lib
-    _nccl_dir = os.path.dirname(_nccl_lib.__file__)
-    _nccl_so = os.path.join(_nccl_dir, "libnccl.so.2")
-    if os.path.exists(_nccl_so):
-        import ctypes
-        ctypes.CDLL(_nccl_so, mode=ctypes.RTLD_GLOBAL)
-    os.environ["LD_LIBRARY_PATH"] = f"{_nccl_dir}:{os.environ.get('LD_LIBRARY_PATH', '')}"
-except ImportError:
-    pass
-
 import base64
 import io
 import json
