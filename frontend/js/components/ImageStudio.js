@@ -392,7 +392,7 @@
                     this._selectOption(this._selectedOption || 0);
                 }
             }
-            // Restart polling check in case it stopped
+            // One-time check — if active jobs found, polling resumes. If not, stops.
             this._checkAsyncJobs();
         },
 
@@ -2651,7 +2651,8 @@
         _notifiedJobIds: new Set(), // Track which completions we've toasted
 
         _pollPendingJobs() {
-            // Do one initial check, then only poll if there are active jobs
+            // One-time check at startup for recovery after server restart.
+            // If active jobs found → starts polling. If not → stops. No loop.
             this._checkAsyncJobs();
         },
 
