@@ -883,12 +883,18 @@
                 return;
             }
 
+            // Include Prompt Designer data if available (so backend doesn't re-decompose)
+            const decomposedData = this._promptEditor?._decomposedData || null;
+            const recomposedPrompt = this._promptEditor?.getDecomposedText?.() || null;
+
             const payload = {
                 prompt: hasComposed ? prompt : userPrompt,
                 original_prompt: userPrompt,
                 pre_composed: hasComposed || false,
                 moderation_original: moderationOriginal || null,
                 negative_prompt: composedNegative,
+                decomposed_data: decomposedData || undefined,
+                recomposed_prompt: recomposedPrompt || undefined,
                 all_models: isMultiModel,
                 selected_models: isMultiModel ? this._selectedModels : undefined,
                 model_optimized_prompts: isMultiModel && (document.getElementById('gen-model-optimized')?.checked || false),
@@ -2265,10 +2271,18 @@
                         this._promptEditor._negativePrompt = result.negative_prompt || '';
                     }
 
+                    // Restore decomposed data from metadata (for Prompt Designer reload)
+                    if (result.decomposed_data) {
+                        this._promptEditor._decomposedData = result.decomposed_data;
+                    }
+                    if (result.recomposed_prompt) {
+                        this._promptEditor.setDecomposedText(result.recomposed_prompt);
+                    }
+
                     // Asset type was already set for this generation — skip re-classification
                     this._promptEditor._assetTypeConfirmed = true;
-                    // Mark as gallery reload so Prompt Designer doesn't re-analyze
-                    this._promptEditor._galleryReload = true;
+                    // Mark as gallery reload — Designer shows saved data or "no data" message
+                    this._promptEditor._galleryReload = !result.decomposed_data;
                 }
 
                 // Restore model selection from batch metadata

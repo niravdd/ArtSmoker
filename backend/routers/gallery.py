@@ -245,6 +245,8 @@ async def get_batch(batch_id: str):
         "original_prompt": first.get("original_prompt"),
         "enhanced_prompt": first.get("enhanced_prompt", first.get("refined_prompt", "")),
         "negative_prompt": first.get("negative_prompt"),
+        "decomposed_data": first.get("decomposed_data"),
+        "recomposed_prompt": first.get("recomposed_prompt"),
         "style_id": first.get("style_id"),
         "style_snapshot": first.get("style_snapshot"),
         "asset_type": first.get("asset_type", ""),

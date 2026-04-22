@@ -388,14 +388,15 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     except Exception as exc:
         logger.warning("Prompt translation failed, using original: %s", exc)
 
-    # Track decomposed/recomposed prompt data for the frontend and metadata
-    decomposed_data = {}
-    recomposed_prompt = None  # The flat prompt from decompose→recompose (Step 2 output)
+    # Use decomposed/recomposed data from frontend if provided (Prompt Designer flow).
+    # Otherwise the backend will decompose independently (direct Generate flow).
+    decomposed_data = body.decomposed_data or {}
+    recomposed_prompt = body.recomposed_prompt or None
 
     # Generate concept prompts (skip if pre-composed by the user)
     if body.pre_composed and n_opts == 1:
         # User already composed the prompt via "Compose Generation Prompt" — use as-is
-        recomposed_prompt = body.prompt  # Pre-composed IS the recomposed prompt
+        recomposed_prompt = recomposed_prompt or body.prompt
         concept_prompts = [body.prompt]
         emit({"type": "stage", "stage": "prompts",
               "message": "Using your composed prompt..."})
@@ -418,24 +419,24 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                 if body.asset_type == AssetType.MARKETING_BANNER:
                     concept_prompts = [refine_marketing_prompt(body.prompt, style_profile, image_model=model_id)]
                 else:
-                    # Step 2: Decompose → Recompose (recomposed prompt)
-                    recomposed_prompt, decomposed_data = refine_prompt_structured(
-                        body.prompt, style_profile, body.asset_type, image_model=model_id,
-                    )
-                    # Step 3: Enhance with model-specific guidance → enhanced prompt
+                    # Skip decompose if frontend already provided the data
+                    if not recomposed_prompt:
+                        recomposed_prompt, decomposed_data = refine_prompt_structured(
+                            body.prompt, style_profile, body.asset_type, image_model=model_id,
+                        )
                     concept_prompts = generate_concept_prompts(
                         body.prompt, style_profile, body.asset_type, n_opts=1, image_model=model_id,
                         recomposed_prompt=recomposed_prompt,
                     )
             else:
-                # Multi-option: decompose→recompose first, then generate N
-                # enhanced concept prompts using the recomposed as quality guidance.
-                try:
-                    recomposed_prompt, decomposed_data = refine_prompt_structured(
-                        body.prompt, style_profile, body.asset_type, image_model=model_id,
-                    )
-                except Exception:
-                    pass  # Non-fatal — concept generation can still work without it
+                # Multi-option: skip decompose if frontend already provided data
+                if not recomposed_prompt:
+                    try:
+                        recomposed_prompt, decomposed_data = refine_prompt_structured(
+                            body.prompt, style_profile, body.asset_type, image_model=model_id,
+                        )
+                    except Exception:
+                        pass  # Non-fatal
                 concept_prompts = generate_concept_prompts(
                     body.prompt, style_profile, body.asset_type, n_opts, image_model=model_id,
                     recomposed_prompt=recomposed_prompt,
@@ -821,10 +822,10 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
     concept_prompts: dict[str, list[str]] = {}
     negative_prompts: dict[str, list[str]] = {}
 
-    # Pre-decompose once for all models — the recomposed prompt guides concept generation
-    all_models_recomposed = None
-    all_models_decomposed = None
-    if not body.pre_composed:
+    # Use frontend-provided decomposed data if available, else decompose once for all models
+    all_models_recomposed = body.recomposed_prompt or None
+    all_models_decomposed = body.decomposed_data or None
+    if not all_models_recomposed and not body.pre_composed:
         try:
             all_models_recomposed, all_models_decomposed = refine_prompt_structured(
                 body.prompt, style_profile, body.asset_type,

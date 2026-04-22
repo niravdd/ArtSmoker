@@ -102,6 +102,11 @@
             }
         }
 
+        getDecomposedText() {
+            const textarea = this.container.querySelector('.decomposed-textarea');
+            return textarea?.value || '';
+        }
+
         onChanged(cb) {
             this._changeCb = cb;
         }
