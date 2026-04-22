@@ -2279,12 +2279,18 @@
                         this._promptEditor._negativePrompt = result.negative_prompt || '';
                     }
 
-                    // Restore decomposed data from metadata (for Prompt Designer reload)
+                    // Restore decomposed data from metadata, or clear stale state
                     if (result.decomposed_data) {
                         this._promptEditor._decomposedData = result.decomposed_data;
+                    } else {
+                        this._promptEditor._decomposedData = null;
                     }
                     if (result.recomposed_prompt) {
                         this._promptEditor.setDecomposedText(result.recomposed_prompt);
+                    } else {
+                        this._promptEditor.setDecomposedText('');
+                        const panel = this._promptEditor.container?.querySelector('.decomposed-panel');
+                        if (panel) panel.classList.add('hidden');
                     }
 
                     // Asset type was already set for this generation — skip re-classification
