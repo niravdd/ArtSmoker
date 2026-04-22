@@ -1099,7 +1099,25 @@ def _predict_text_to_image(input_data, model_dict):
         if key in input_data and input_data[key] is not None:
             kwargs[key] = input_data[key]
 
-    result = pipe(**kwargs)
+    # Progress logging for diffusers pipelines
+    total_steps = kwargs.get("num_inference_steps", 50)
+    import time as _t
+    _step_start = _t.time()
+
+    def _log_progress(pipe, step, timestep, callback_kwargs):
+        elapsed = _t.time() - _step_start
+        pct = int((step + 1) / total_steps * 100)
+        if step == 0 or (step + 1) % 5 == 0 or step + 1 == total_steps:
+            logger.info("Diffusion step %d/%d (%d%%) — %.1fs elapsed", step + 1, total_steps, pct, elapsed)
+        return callback_kwargs
+
+    try:
+        kwargs["callback_on_step_end"] = _log_progress
+        result = pipe(**kwargs)
+    except TypeError:
+        del kwargs["callback_on_step_end"]
+        result = pipe(**kwargs)
+
     return _encode_image(result.images[0])
 
 
@@ -1223,6 +1241,24 @@ def _predict_autoregressive_image(input_data, model_dict):
     logger.info("Autoregressive generation: size=%s, steps=%d, guidance=%.1f, seed=%s, bot_task=%s",
                 image_size, steps, guidance, seed, bot_task)
 
+    import time as _t, threading
+
+    # Background progress logger — since autoregressive models don't emit step callbacks,
+    # log elapsed time periodically so CloudWatch shows the job is alive.
+    _gen_done = threading.Event()
+    _gen_start = _t.time()
+
+    def _progress_logger():
+        while not _gen_done.is_set():
+            _gen_done.wait(30)  # Log every 30 seconds
+            if not _gen_done.is_set():
+                elapsed = _t.time() - _gen_start
+                logger.info("Autoregressive generation in progress — %.0fs elapsed (%s, %d steps)",
+                            elapsed, image_size, steps)
+
+    progress_thread = threading.Thread(target=_progress_logger, daemon=True)
+    progress_thread.start()
+
     gen_kwargs = {
         "prompt": prompt,
         "image_size": image_size,
@@ -1232,7 +1268,12 @@ def _predict_autoregressive_image(input_data, model_dict):
     if seed is not None:
         gen_kwargs["seed"] = seed
 
-    result = gen_fn(**gen_kwargs)
+    try:
+        result = gen_fn(**gen_kwargs)
+    finally:
+        _gen_done.set()
+        elapsed = _t.time() - _gen_start
+        logger.info("Autoregressive generation finished — %.1fs total", elapsed)
 
     # Result format varies by model. HunyuanImage returns (cot_text, [PIL.Image, ...])
     if isinstance(result, tuple) and len(result) == 2:
