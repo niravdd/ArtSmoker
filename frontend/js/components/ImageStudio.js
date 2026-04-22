@@ -572,6 +572,14 @@
             if (previewImg) previewImg.style.cursor = 'pointer';
             document.getElementById('btn-reset')?.addEventListener('click', async () => {
                 if (this._result && !await window.showConfirm(t('image_studio.reset_confirm'), { title: t('image_studio.reset'), detail: t('image_studio.reset_detail'), confirmLabel: t('image_studio.reset'), danger: true })) return;
+                // Clear all state before rebuilding the view
+                this._result = null;
+                this._selectedOption = 0;
+                this._selectedVariant = 0;
+                this._lastNegativePrompt = '';
+                this._promptEditor = null;
+                this._stopAsyncPolling();
+                this._notifiedJobIds = new Set();
                 window.PromptDesigner?.reset();
                 window.resetView('image-studio');
             });
