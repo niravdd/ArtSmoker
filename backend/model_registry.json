@@ -5160,7 +5160,7 @@
             "ml.g7e.8xlarge",
             "ml.g7e.12xlarge"
           ],
-          "_note": "INT8 uses ~82-90GB VRAM. Deploy on g7e.4xlarge (128GB RAM) for safe operation at any resolution up to 2048x2048. Pre-quantized on disk — no runtime quantization needed."
+          "_note": "INT8 uses ~82-90GB VRAM. No block swap — fits on g7e.4xlarge (96GB GPU) for standard resolutions. May OOM at 2048x2048."
         },
         "invoke": {
           "library": "autoregressive",
@@ -5175,7 +5175,7 @@
           "output_type": "base64_png",
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
-          "block_swap_blocks": 4,
+          "block_swap_blocks": 0,
           "bot_task": "think_recaption",
           "quantization_type": "pre_quantized_int8",
           "input_fields": {
