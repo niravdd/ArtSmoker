@@ -169,7 +169,12 @@ async def update_postprocess_model(key: str, body: PostProcessUpdate):
 async def reload_registry():
     """Reload the model registry from disk."""
     reload()
-    return {"status": "reloaded"}
+    from backend.services.model_registry import get_registry
+    reg = get_registry()
+    image_count = len(reg.get("image_models", {}))
+    chat_count = len(reg.get("chat_models", {}))
+    logger.info("Model registry reloaded: %d image models, %d chat models", image_count, chat_count)
+    return {"status": "reloaded", "image_models": image_count, "chat_models": chat_count}
 
 
 # ── Prompt Templates ──────────────────────────────────────────────────────
