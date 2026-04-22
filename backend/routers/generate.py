@@ -86,6 +86,28 @@ def _slugify_prompt(prompt: str, max_len: int = 40) -> str:
     return slug or "asset"
 
 
+def _resolve_model_size(model_key: str, width: int, height: int) -> tuple[int, int]:
+    """Resolve the closest supported size for a model.
+
+    If the model declares supported_sizes in its registry config, returns
+    the closest match by area. Otherwise returns the requested size as-is.
+    """
+    from backend.services.model_registry import get_image_model
+    cfg = get_image_model(model_key) if model_key else None
+    if not cfg:
+        return width, height
+    sizes = cfg.get("invoke", {}).get("supported_sizes", [])
+    if not sizes:
+        return width, height
+    requested_area = width * height
+    best = min(sizes, key=lambda s: abs(s["w"] * s["h"] - requested_area))
+    if best["w"] == width and best["h"] == height:
+        return width, height
+    logger.info("Size %dx%d not supported by %s — using closest: %dx%d",
+                width, height, model_key, best["w"], best["h"])
+    return best["w"], best["h"]
+
+
 def _generate_single_image(
     *,
     asset_id: str,
@@ -97,11 +119,14 @@ def _generate_single_image(
     status_callback=None,
 ) -> tuple[bytes | dict, str | None]:
     effective_model = model_override or body.image_model
+    # Resolve closest supported size for this model (safety net — frontend should warn first)
+    model_key_str = effective_model.value if hasattr(effective_model, 'value') else str(effective_model)
+    gen_w, gen_h = _resolve_model_size(model_key_str, body.width, body.height)
     result = generate_image(
         enhanced_prompt=enhanced_prompt,
         model=effective_model,
-        width=body.width,
-        height=body.height,
+        width=gen_w,
+        height=gen_h,
         seed=seed,
         negative_prompt=negative_prompt,
         quality=body.quality,

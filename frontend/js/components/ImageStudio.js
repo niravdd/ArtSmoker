@@ -844,6 +844,28 @@
             const sizeIdx = parseInt(document.getElementById('gen-size').value, 10);
             const activeSizes = this._activeSizePresets || SIZE_PRESETS;
             const size = activeSizes[sizeIdx] || activeSizes[Math.min(2, activeSizes.length - 1)];
+
+            // Check if any selected model doesn't support the chosen dimensions
+            const unsupportedModels = this._selectedModels.map(key => {
+                const m = MODELS.find(m => m.value === key);
+                if (!m?.supported_sizes?.length) return null;
+                const match = m.supported_sizes.some(s => s.w === size.w && s.h === size.h);
+                return match ? null : m;
+            }).filter(Boolean);
+
+            if (unsupportedModels.length > 0 && window.showConfirm) {
+                const modelNames = unsupportedModels.map(m => m.label).join(', ');
+                const shouldContinue = await window.showConfirm(
+                    `${modelNames} ${unsupportedModels.length === 1 ? 'does' : 'do'} not support ${size.label}. The closest supported size will be used for ${unsupportedModels.length === 1 ? 'this model' : 'these models'}.`,
+                    {
+                        title: 'Dimension not supported by all models',
+                        confirmLabel: 'Continue anyway',
+                        cancelLabel: 'Change dimensions',
+                    }
+                );
+                if (!shouldContinue) return;
+            }
+
             const numOptions = parseInt(document.getElementById('gen-num-options').value, 10) || 5;
             const numVariations = parseInt(document.getElementById('gen-num-variations').value, 10) || 5;
             const total = numOptions * numVariations;
