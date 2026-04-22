@@ -657,6 +657,27 @@ def _check_job(job: dict, s3):
     parts = output_location.replace("s3://", "").split("/", 1)
     bucket, key = parts[0], parts[1]
 
+    # Check for failure file first — SageMaker writes errors to {output}.failure
+    try:
+        failure_key = key + ".failure"
+        failure_obj = s3.get_object(Bucket=bucket, Key=failure_key)
+        failure_body = failure_obj["Body"].read().decode("utf-8", errors="replace")
+        with _lock:
+            job["status"] = FAILED
+            job["error"] = failure_body[:500] if failure_body else "Model returned an error (no details)"
+            job["completed_at"] = datetime.now(timezone.utc).isoformat()
+        _update_gallery_on_failure(job)
+        _cleanup_s3(job, s3)
+        # Also delete the failure file
+        try:
+            s3.delete_object(Bucket=bucket, Key=failure_key)
+        except Exception:
+            pass
+        logger.warning("Async job %s failed (error output in S3): %s", job["job_id"], job["error"][:200])
+        return
+    except Exception:
+        pass  # No failure file — check for success
+
     try:
         obj = s3.get_object(Bucket=bucket, Key=key)
         body = obj["Body"].read()

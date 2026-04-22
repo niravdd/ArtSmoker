@@ -2673,10 +2673,13 @@
         _startAsyncPolling() {
             if (this._pendingJobsActive) return;
             this._pendingJobsActive = true;
+            this._pollingStartedAt = Date.now();
             this._asyncPollLoop();
         },
 
         _stopAsyncPolling() {
+            // Don't stop within 30s of starting — jobs may not be registered yet
+            if (this._pollingStartedAt && Date.now() - this._pollingStartedAt < 30000) return;
             this._pendingJobsActive = false;
             clearTimeout(this._pendingJobsTimer);
         },
