@@ -5138,7 +5138,7 @@
         }
       },
       "hunyuan_image_3_0_instruct_int8": {
-        "label": "HunyuanImage 3.0 Instruct (INT8) — Best Quality",
+        "label": "HunyuanImage 3.0 Instruct (INT8) — HQ",
         "description": "Tencent’s 80B MoE autoregressive image model. 13B active params per token, 64 experts. INT8 quantization preserves maximum quality with attention layers in bf16. Chain-of-thought reasoning auto-enhances prompts before generation.",
         "provider": "Tencent",
         "studio": "image",

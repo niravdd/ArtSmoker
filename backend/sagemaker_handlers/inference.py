@@ -1164,10 +1164,16 @@ def _load_autoregressive(model_dir):
     moe_drop = _config.get("moe_drop_tokens", True)
     torch_dtype = _config.get("torch_dtype", "auto")
     block_swap_blocks = _config.get("block_swap_blocks", 0)
-    device_map = _config.get("device_map", "")
 
-    logger.info("Loading autoregressive model from %s (trust_remote=%s, attn=%s, moe=%s, block_swap=%d, device_map=%s)",
-                model_source, trust_remote, attn_impl, moe_impl, block_swap_blocks, device_map or "none")
+    # Auto-detect GPU placement strategy based on hardware
+    num_gpus = torch.cuda.device_count() if torch.cuda.is_available() else 0
+    use_multi_gpu = num_gpus >= 2
+    use_block_offload = block_swap_blocks > 0 and not use_multi_gpu
+
+    logger.info("Loading autoregressive model from %s (trust_remote=%s, attn=%s, moe=%s, "
+                "gpus=%d, strategy=%s)",
+                model_source, trust_remote, attn_impl, moe_impl, num_gpus,
+                "multi-gpu" if use_multi_gpu else "block-offload" if use_block_offload else "single-gpu")
 
     load_kwargs = {
         "torch_dtype": torch_dtype,
@@ -1182,14 +1188,12 @@ def _load_autoregressive(model_dir):
     if hf_token:
         load_kwargs["token"] = hf_token
 
-    # Strategy 1: Multi-GPU via Accelerate dispatch (g7e.12xlarge+)
-    if device_map == "auto":
+    if use_multi_gpu:
         load_kwargs["device_map"] = "auto"
-        logger.info("Multi-GPU load: device_map='auto' (Accelerate dispatches layers across GPUs)")
-    # Strategy 2: CPU-first for block offload (single GPU, limited VRAM)
-    elif block_swap_blocks > 0:
+        logger.info("Multi-GPU: device_map='auto' — Accelerate dispatches across %d GPUs", num_gpus)
+    elif use_block_offload:
         load_kwargs["device_map"] = "cpu"
-        logger.info("CPU-first load: device_map='cpu' (block offload with sliding window)")
+        logger.info("CPU-first load: block offload with sliding window (%d blocks)", block_swap_blocks)
 
     model = AutoModelForCausalLM.from_pretrained(model_source, **load_kwargs)
 
@@ -1208,8 +1212,7 @@ def _load_autoregressive(model_dir):
     prefetch_ahead = _config.get("block_swap_prefetch", 2)
     window_size = _config.get("block_swap_window", 2)
 
-    # Strategy 1: Multi-GPU — Accelerate already placed everything
-    if device_map == "auto":
+    if use_multi_gpu:
         model.eval()
         if hasattr(model, 'hf_device_map'):
             devices = set(str(v) for v in model.hf_device_map.values())
@@ -1220,9 +1223,8 @@ def _load_autoregressive(model_dir):
         ) if torch.cuda.is_available() else 0
         logger.info("Multi-GPU total allocation: %.1f GB across %d GPUs", gpu_alloc, torch.cuda.device_count())
 
-    # Strategy 2: Block offload with sliding window
-    elif block_swap_blocks > 0 and hasattr(model, "model") and hasattr(model.model, "layers"):
-        if block_swap_blocks > 0 and not (hasattr(model, "model") and hasattr(model.model, "layers")):
+    elif use_block_offload and hasattr(model, "model") and hasattr(model.model, "layers"):
+        if not (hasattr(model, "model") and hasattr(model.model, "layers")):
             logger.warning("block_swap_blocks=%d but model has no model.model.layers — disabled", block_swap_blocks)
 
         model.eval()
