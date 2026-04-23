@@ -419,15 +419,14 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                 if body.asset_type == AssetType.MARKETING_BANNER:
                     concept_prompts = [refine_marketing_prompt(body.prompt, style_profile, image_model=model_id)]
                 else:
-                    # Skip decompose if frontend already provided the data
                     if not recomposed_prompt:
                         recomposed_prompt, decomposed_data = refine_prompt_structured(
                             body.prompt, style_profile, body.asset_type, image_model=model_id,
                         )
-                    concept_prompts = generate_concept_prompts(
-                        body.prompt, style_profile, body.asset_type, n_opts=1, image_model=model_id,
-                        recomposed_prompt=recomposed_prompt,
+                    enhanced = refine_prompt(
+                        recomposed_prompt or body.prompt, style_profile, body.asset_type, image_model=model_id,
                     )
+                    concept_prompts = [enhanced]
             else:
                 # Multi-option: skip decompose if frontend already provided data
                 if not recomposed_prompt:

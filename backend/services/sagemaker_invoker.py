@@ -140,11 +140,15 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
     sm_runtime = boto3.client("sagemaker-runtime", region_name=_get_region(), config=_SM_CONFIG)
 
     input_location = _upload_async_input(endpoint_name, payload)
-    response = sm_runtime.invoke_endpoint_async(
-        EndpointName=endpoint_name,
-        ContentType="application/json",
-        InputLocation=input_location,
-    )
+    invoke_kwargs = {
+        "EndpointName": endpoint_name,
+        "ContentType": "application/json",
+        "InputLocation": input_location,
+    }
+    typical_latency = model_config.get("invoke", {}).get("typical_latency_seconds", 0)
+    if typical_latency > 300:
+        invoke_kwargs["InvocationTimeoutSeconds"] = max(900, typical_latency * 2)
+    response = sm_runtime.invoke_endpoint_async(**invoke_kwargs)
 
     output_location = response.get("OutputLocation")
     if not output_location:

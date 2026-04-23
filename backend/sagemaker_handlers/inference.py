@@ -108,24 +108,26 @@ def _clean_stale_quant_artifacts(comp_path: str):
 # Works with any model that has sequential transformer blocks (nn.ModuleList).
 
 class BlockOffloadManager:
-    """Offload transformer blocks to CPU with async CUDA stream prefetching.
+    """Sliding-window block offloading with async CUDA stream prefetching.
 
-    CPU-first strategy (required for BnB INT8): Model loaded to CPU via
-    device_map="cpu". All blocks start on CPU. First N blocks moved to GPU
-    permanently. Remaining blocks shuttle CPU→GPU→CPU via forward hooks.
-    Async CUDA stream prefetches upcoming blocks to hide transfer latency.
+    CPU-first strategy: model loaded to CPU, components placed selectively.
+    Uses a sliding window to keep offloaded blocks on GPU as long as possible,
+    only evicting the oldest when space is needed for the next incoming block.
+    This avoids the costly move-back-after-every-forward pattern.
 
-    BnB INT8 locks quantized weights to their initial device — .to("cpu")
-    silently fails after GPU placement. Loading to CPU first allows free
-    CPU↔GPU movement. This is the same technique used by ComfyUI/Diffusers
-    group_offloading to run 80B+ models on limited VRAM.
+    Window size controls how many offloaded blocks can be on GPU simultaneously.
+    With window=2 and prefetch=2, at most 4 offloaded blocks are on GPU at once
+    (2 in window + 2 being prefetched). This uses ~9.6 GB extra VRAM for 2.4 GB
+    blocks, well within the ~32 GB headroom on 96 GB.
     """
 
-    def __init__(self, layers, blocks_to_offload, prefetch_ahead=2, target_device="cuda"):
+    def __init__(self, layers, blocks_to_offload, prefetch_ahead=2,
+                 window_size=2, target_device="cuda"):
         self.layers = layers
         self.num_blocks = len(layers)
         self.blocks_to_offload = min(blocks_to_offload, self.num_blocks)
         self.prefetch_ahead = prefetch_ahead
+        self.window_size = window_size
         self.target_device = target_device
         self.offload_start = self.num_blocks - self.blocks_to_offload
         self._hooks = []
@@ -133,13 +135,9 @@ class BlockOffloadManager:
         self._prefetch_stream = None
         self._prefetch_events = {}
         self._block_devices = {}
+        self._gpu_queue = []  # Track offloaded blocks currently on GPU (FIFO)
 
     def setup(self):
-        """Place blocks on correct devices and register forward hooks.
-
-        Expects model loaded to CPU (device_map="cpu"). Moves GPU-resident
-        blocks to GPU and pins offloaded blocks in CPU memory for fast DMA.
-        """
         if self.blocks_to_offload <= 0:
             return
 
@@ -166,9 +164,12 @@ class BlockOffloadManager:
         self._enabled = True
 
         block_size = self._estimate_block_size()
-        logger.info("Block offload (CPU-first): %d/%d blocks on CPU (%.1f GB each, ~%.1f GB freed), prefetch=%d",
+        max_gpu = self.window_size + self.prefetch_ahead
+        logger.info("Block offload (sliding window): %d/%d blocks offloaded (%.1f GB each), "
+                     "window=%d, prefetch=%d (max %d on GPU = ~%.1f GB extra)",
                      self.blocks_to_offload, self.num_blocks, block_size,
-                     self.blocks_to_offload * block_size, self.prefetch_ahead)
+                     self.window_size, self.prefetch_ahead, max_gpu,
+                     max_gpu * block_size)
 
     def _pin_block(self, block):
         for param in block.parameters():
@@ -185,6 +186,14 @@ class BlockOffloadManager:
             return total / (1024**3)
         return 0
 
+    def _evict_oldest(self):
+        """Evict the oldest offloaded block from GPU back to CPU."""
+        while len(self._gpu_queue) > self.window_size:
+            victim = self._gpu_queue.pop(0)
+            if self._block_devices.get(victim) == self.target_device:
+                self.layers[victim].to("cpu")
+                self._block_devices[victim] = "cpu"
+
     def _pre_forward(self, block_idx, module, input):
         if not self._enabled:
             return
@@ -200,6 +209,14 @@ class BlockOffloadManager:
             self._fix_bnb_state(module)
             self._block_devices[block_idx] = self.target_device
 
+        # Track this offloaded block in the GPU window queue
+        if block_idx >= self.offload_start:
+            if block_idx in self._gpu_queue:
+                self._gpu_queue.remove(block_idx)
+            self._gpu_queue.append(block_idx)
+            self._evict_oldest()
+
+        # Prefetch upcoming offloaded blocks
         for offset in range(1, self.prefetch_ahead + 1):
             prefetch_idx = block_idx + offset
             if (prefetch_idx < self.num_blocks and
@@ -213,18 +230,12 @@ class BlockOffloadManager:
                     self._prefetch_events[prefetch_idx] = event
 
     def _post_forward(self, block_idx, module, input, output):
-        if not self._enabled:
-            return
-        if block_idx >= self.offload_start:
-            module.to("cpu")
-            self._block_devices[block_idx] = "cpu"
+        # Sliding window: do NOT evict here. Eviction happens in _pre_forward
+        # when the window overflows. This keeps blocks on GPU across steps.
+        pass
 
     def _fix_bnb_state(self, module):
-        """Fix BnB INT8 CB/SCB after device move.
-
-        Module._apply() (used by .to()) doesn't propagate BnB's CB/SCB
-        attributes. Re-alias them to match weight.data's device.
-        """
+        """Fix BnB INT8 CB/SCB after CPU→GPU move only."""
         try:
             import bitsandbytes as bnb
             for child in module.modules():
@@ -243,10 +254,21 @@ class BlockOffloadManager:
 
     def enable(self):
         self._enabled = True
+        self._gpu_queue.clear()
 
     def disable(self):
         self._enabled = False
         self._prefetch_events.clear()
+        self._gpu_queue.clear()
+        for i in range(self.offload_start, self.num_blocks):
+            if self._block_devices.get(i) != "cpu":
+                try:
+                    self.layers[i].to("cpu")
+                    self._block_devices[i] = "cpu"
+                except Exception:
+                    pass
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
 
     def cleanup(self):
         for h in self._hooks:
@@ -1123,18 +1145,13 @@ def _load_codeformer(model_dir):
 def _load_autoregressive(model_dir):
     """Load an autoregressive image model (e.g., HunyuanImage 3.0).
 
-    Unlike diffusers pipelines, these models use AutoModelForCausalLM with
-    custom generation methods. The model-specific behavior (generate method
-    name, tokenizer loading, block swap) comes from invoke_config.json.
-
-    Block offload strategy (CPU-first):
-      BnB INT8 locks quantized weights to their initial device. Loading to
-      GPU first makes .to("cpu") silently fail. Instead, we load the entire
-      model to CPU (device_map="cpu"), then selectively move components:
-        - Non-block components (embed, norm, lm_head) → GPU permanently (~5 GB)
-        - First N-K blocks → GPU permanently
-        - Last K blocks → stay on CPU, shuttle to GPU via forward hooks
-      This is the same technique used by ComfyUI to run 80B+ models on 24 GB.
+    Three GPU placement strategies (chosen by config):
+      1. device_map="auto" — multi-GPU: Accelerate splits layers across GPUs.
+         No block offloading. Used on g7e.12xlarge+ (2+ GPUs, 192+ GB).
+      2. Block offload (CPU-first) — single GPU with limited VRAM.
+         Load to CPU, selectively place. Sliding window keeps offloaded blocks
+         on GPU as long as possible, evicting oldest when window overflows.
+      3. Single GPU, no offload — model fits entirely (NF4, or large GPU).
     """
     from transformers import AutoModelForCausalLM
 
@@ -1147,9 +1164,10 @@ def _load_autoregressive(model_dir):
     moe_drop = _config.get("moe_drop_tokens", True)
     torch_dtype = _config.get("torch_dtype", "auto")
     block_swap_blocks = _config.get("block_swap_blocks", 0)
+    device_map = _config.get("device_map", "")
 
-    logger.info("Loading autoregressive model from %s (trust_remote=%s, attn=%s, moe=%s, block_swap=%d)",
-                model_source, trust_remote, attn_impl, moe_impl, block_swap_blocks)
+    logger.info("Loading autoregressive model from %s (trust_remote=%s, attn=%s, moe=%s, block_swap=%d, device_map=%s)",
+                model_source, trust_remote, attn_impl, moe_impl, block_swap_blocks, device_map or "none")
 
     load_kwargs = {
         "torch_dtype": torch_dtype,
@@ -1164,11 +1182,14 @@ def _load_autoregressive(model_dir):
     if hf_token:
         load_kwargs["token"] = hf_token
 
-    # CPU-first loading: required for block offload with BnB INT8.
-    # Without this, BnB locks quantized weights to GPU and .to("cpu") silently fails.
-    if block_swap_blocks > 0:
+    # Strategy 1: Multi-GPU via Accelerate dispatch (g7e.12xlarge+)
+    if device_map == "auto":
+        load_kwargs["device_map"] = "auto"
+        logger.info("Multi-GPU load: device_map='auto' (Accelerate dispatches layers across GPUs)")
+    # Strategy 2: CPU-first for block offload (single GPU, limited VRAM)
+    elif block_swap_blocks > 0:
         load_kwargs["device_map"] = "cpu"
-        logger.info("CPU-first load: device_map='cpu' (block offload will place selectively)")
+        logger.info("CPU-first load: device_map='cpu' (block offload with sliding window)")
 
     model = AutoModelForCausalLM.from_pretrained(model_source, **load_kwargs)
 
@@ -1185,12 +1206,27 @@ def _load_autoregressive(model_dir):
 
     block_offload = None
     prefetch_ahead = _config.get("block_swap_prefetch", 2)
+    window_size = _config.get("block_swap_window", 2)
 
-    if block_swap_blocks > 0 and hasattr(model, "model") and hasattr(model.model, "layers"):
+    # Strategy 1: Multi-GPU — Accelerate already placed everything
+    if device_map == "auto":
+        model.eval()
+        if hasattr(model, 'hf_device_map'):
+            devices = set(str(v) for v in model.hf_device_map.values())
+            logger.info("Multi-GPU placement: %d devices — %s", len(devices), dict(model.hf_device_map))
+        gpu_alloc = sum(
+            torch.cuda.memory_allocated(i) / (1024**3)
+            for i in range(torch.cuda.device_count())
+        ) if torch.cuda.is_available() else 0
+        logger.info("Multi-GPU total allocation: %.1f GB across %d GPUs", gpu_alloc, torch.cuda.device_count())
+
+    # Strategy 2: Block offload with sliding window
+    elif block_swap_blocks > 0 and hasattr(model, "model") and hasattr(model.model, "layers"):
+        if block_swap_blocks > 0 and not (hasattr(model, "model") and hasattr(model.model, "layers")):
+            logger.warning("block_swap_blocks=%d but model has no model.model.layers — disabled", block_swap_blocks)
+
         model.eval()
 
-        # Move non-block components to GPU permanently.
-        # These are small (~5 GB total): embeddings, final norm, lm_head, etc.
         inner = model.model
         moved_components = []
         for name, child in inner.named_children():
@@ -1202,7 +1238,6 @@ def _load_autoregressive(model_dir):
             except Exception as e:
                 logger.warning("Could not move %s to GPU: %s", name, e)
 
-        # Move lm_head and any other top-level non-model children to GPU
         for name, child in model.named_children():
             if name == "model":
                 continue
@@ -1214,10 +1249,10 @@ def _load_autoregressive(model_dir):
 
         logger.info("Moved non-block components to GPU: %s", moved_components)
 
-        # BlockOffloadManager moves first N-K blocks to GPU, keeps last K on CPU
         block_offload = BlockOffloadManager(
             inner.layers, block_swap_blocks,
-            prefetch_ahead=prefetch_ahead, target_device="cuda"
+            prefetch_ahead=prefetch_ahead, window_size=window_size,
+            target_device="cuda"
         )
         block_offload.setup()
 

@@ -664,6 +664,8 @@ def generate_concept_prompts(
 
     # Deduplicate and store the combined negative prompt
     negative = _deduplicate_negative(negative_parts)
+    if negative and not supports_negative_prompt(image_model):
+        negative = ""
     if negative:
         _last_negative_var.set(negative)
         logger.info("Concept generation negative prompt: %s", negative[:100])

@@ -212,8 +212,10 @@ def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
         catalog_model = get_catalog_model(model_key)
         if catalog_model:
             invoke_config = catalog_model.get("invoke", {})
-            # Strip only prompt_guidance (too large, not needed by handler)
-            invoke_for_file = {k: v for k, v in invoke_config.items() if k != "prompt_guidance"}
+            # Strip fields not needed by the handler (same list as INVOKE_CONFIG env var)
+            invoke_for_file = {k: v for k, v in invoke_config.items() if k not in (
+                "prompt_guidance", "supported_sizes",
+            )}
             config_path = code_dir / "invoke_config.json"
             config_path.write_text(json.dumps(invoke_for_file, indent=2, default=str))
             logger.info("Wrote invoke_config.json (%d bytes) to model.tar.gz", config_path.stat().st_size)
@@ -481,7 +483,6 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     }
 
     if endpoint_type == "async":
-        # Max concurrent invocations from catalog (default 1 for safety)
         max_concurrent = model.get("invoke", {}).get("max_concurrent_invocations", 1)
         config_params["AsyncInferenceConfig"] = {
             "OutputConfig": {
