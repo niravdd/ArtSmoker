@@ -1370,7 +1370,14 @@
                 // Build instance options HTML
                 let instanceHtml = '';
                 if (instanceOptions.length === 0) {
-                    instanceHtml = `<p class="text-xs text-red-400 py-2">No viable GPU instances found in your account. Check SageMaker service quotas.</p>`;
+                    instanceHtml = `<div class="text-xs text-red-400 py-3 space-y-2">
+                        <p class="font-medium">No GPU instances available for this model.</p>
+                        <p class="text-brand-text-muted">This usually means your AWS account doesn't have SageMaker GPU endpoint quotas.
+                        GPU instances default to 0 quota — you need to request an increase.</p>
+                        <p class="text-brand-text-muted">Go to <span class="text-cyan-400">AWS Service Quotas</span> in the AWS Console,
+                        search for <span class="text-cyan-400">SageMaker</span>, then request quota for a GPU instance type
+                        (e.g., ml.g6e.xlarge${minVram > 48 ? ', ml.g7e.4xlarge' : ''}) under "endpoint usage".</p>
+                    </div>`;
                 } else {
                     const viabilityColors = { recommended: 'text-emerald-400', viable: 'text-cyan-400', doubtful: 'text-amber-400' };
                     const viabilityLabels = { recommended: 'Recommended', viable: 'Viable', doubtful: 'Doubtful' };

@@ -5138,6 +5138,7 @@
         }
       },
       "hunyuan_image_3_0_instruct_int8": {
+        "hidden": true,
         "label": "HunyuanImage 3.0 Instruct (INT8) — HQ",
         "description": "Tencent’s 80B MoE autoregressive image model. 13B active params per token, 64 experts. INT8 quantization preserves maximum quality with attention layers in bf16. Chain-of-thought reasoning auto-enhances prompts before generation.",
         "provider": "Tencent",
@@ -5291,6 +5292,162 @@
             "accelerate>=1.6.0,<2.0.0",
             "safetensors>=0.4.3",
             "bitsandbytes>=0.49.0",
+            "einops",
+            "tokenizers>=0.22.0",
+            "loguru"
+          ]
+        }
+      },
+      "hunyuan_image_3_0_instruct_bf16": {
+        "label": "HunyuanImage 3.0 Instruct (BF16) — Original Quality",
+        "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision — zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Chain-of-thought reasoning auto-enhances prompts.",
+        "provider": "Tencent",
+        "studio": "image",
+        "license": "Tencent Hunyuan Community License",
+        "hf_license_url": "https://huggingface.co/tencent/HunyuanImage-3.0/blob/main/LICENSE",
+        "category": "image_generation",
+        "source": {
+          "type": "huggingface",
+          "repo_id": "tencent/HunyuanImage-3.0"
+        },
+        "requires_hf_auth": false,
+        "requirements": {
+          "min_vram_gb": 160,
+          "min_ram_gb": 192,
+          "recommended_instance": "ml.g7e.12xlarge",
+          "disk_gb": 200,
+          "allowed_instances": [
+            "ml.g7e.12xlarge",
+            "ml.g7e.24xlarge",
+            "ml.g7e.48xlarge"
+          ],
+          "_note": "BF16 model ~160GB. Requires 2+ GPUs (g7e.12xlarge = 2x96GB = 192GB). FlashInfer fused MoE kernels give ~3x speedup. First run compiles kernels (~10 min), subsequent runs are fast."
+        },
+        "invoke": {
+          "library": "autoregressive",
+          "loader_class": "AutoModelForCausalLM",
+          "generate_method": "generate_image",
+          "trust_remote_code": true,
+          "torch_dtype": "auto",
+          "attn_implementation": "sdpa",
+          "moe_impl": "flashinfer",
+          "moe_drop_tokens": true,
+          "predictor_type": "autoregressive_image",
+          "output_type": "base64_png",
+          "supports_negative_prompt": false,
+          "max_prompt_length": 2000,
+          "block_swap_blocks": 0,
+          "bot_task": "think_recaption",
+          "input_fields": {
+            "prompt": {
+              "type": "string",
+              "required": true
+            },
+            "width": {
+              "type": "int",
+              "default": 1024
+            },
+            "height": {
+              "type": "int",
+              "default": 1024
+            },
+            "num_inference_steps": {
+              "type": "int",
+              "default": 50
+            },
+            "guidance_scale": {
+              "type": "float",
+              "default": 5.0
+            },
+            "seed": {
+              "type": "int",
+              "optional": true
+            }
+          },
+          "supported_sizes": [
+            {
+              "w": 512,
+              "h": 512,
+              "label": "512 × 512"
+            },
+            {
+              "w": 768,
+              "h": 768,
+              "label": "768 × 768"
+            },
+            {
+              "w": 1024,
+              "h": 1024,
+              "label": "1024 × 1024"
+            },
+            {
+              "w": 1024,
+              "h": 576,
+              "label": "1024 × 576 (16:9)"
+            },
+            {
+              "w": 576,
+              "h": 1024,
+              "label": "576 × 1024 (9:16)"
+            },
+            {
+              "w": 1280,
+              "h": 720,
+              "label": "1280 × 720 (16:9)"
+            },
+            {
+              "w": 720,
+              "h": 1280,
+              "label": "720 × 1280 (9:16)"
+            },
+            {
+              "w": 1536,
+              "h": 1536,
+              "label": "1536 × 1536"
+            },
+            {
+              "w": 2048,
+              "h": 1024,
+              "label": "2048 × 1024 (2:1)"
+            },
+            {
+              "w": 1024,
+              "h": 2048,
+              "label": "1024 × 2048 (1:2)"
+            },
+            {
+              "w": 2048,
+              "h": 2048,
+              "label": "2048 × 2048"
+            }
+          ],
+          "typical_latency_seconds": 420,
+          "max_concurrent_invocations": 1,
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer — the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
+          "image_size_format": "HxW"
+        },
+        "pricing": {
+          "estimated_cost_per_image": 1.14,
+          "instance_cost_per_hour": {
+            "ml.g7e.12xlarge": 9.75
+          }
+        },
+        "version": "1.0",
+        "last_updated": "2026-04-23",
+        "python_requirements": {
+          "base": [
+            "torch==2.8.0",
+            "--extra-index-url https://download.pytorch.org/whl/cu128",
+            "torchvision",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "nvidia-nccl-cu12>=2.26.2",
+            "transformers>=4.57.1,<5.0.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "flashinfer-python>=0.6.8",
             "einops",
             "tokenizers>=0.22.0",
             "loguru"

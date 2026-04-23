@@ -88,6 +88,8 @@ def list_catalog():
                 break
 
     for key, model in catalog.items():
+        if model.get("hidden"):
+            continue
         deployed_info = catalog_to_deployed.get(key)
         endpoint_name = deployed_info["endpoint_name"] if deployed_info else f"artsmoker-{key.replace('_', '-')}"
 
