@@ -1338,14 +1338,19 @@ def _register_auto_scaling_after_ready(endpoint_name: str):
     except Exception:
         pass  # If check fails, proceed with registration attempt
 
-    # Compute cooldown from model config
+    # Compute cooldown from model config.
+    # Endpoint name has a hash suffix (e.g., "...-int8-620a") that the catalog key lacks.
+    # Try full key, then strip the hash suffix, searching both catalog and nested "models".
     from .custom_models import get_catalog
     catalog = get_catalog()
     model_key = endpoint_name.replace("artsmoker-", "").replace("-", "_")
-    model = catalog.get("models", {}).get(model_key, {})
+    base_key = "_".join(model_key.rsplit("_", 1)[:-1])
+    model = (catalog.get(model_key) or catalog.get(base_key)
+             or catalog.get("models", {}).get(model_key)
+             or catalog.get("models", {}).get(base_key) or {})
     invoke = model.get("invoke", {})
     typical = invoke.get("typical_latency_seconds", 300)
-    cooldown = max(600, typical * 2)  # At least 10 min, or 2x typical inference latency
+    cooldown = max(600, typical * 2)
 
     try:
         _setup_auto_scaling(endpoint_name, scale_in_cooldown=cooldown)

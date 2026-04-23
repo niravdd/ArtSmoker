@@ -468,10 +468,18 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     elif negative_prompt:
         logger.info("Using negative prompt from refinement: %s", negative_prompt[:100])
 
-    # Emit the composed/refined prompts so the frontend can display them
+    # Build flat concatenation of decomposed fields for Step 2 display.
+    # This shows the structured breakdown as plain text, distinct from the
+    # LLM-enhanced prompt in Step 3.
+    display_recomposed = recomposed_prompt or ""
+    if decomposed_data and isinstance(decomposed_data, dict):
+        parts = [v for v in decomposed_data.values() if isinstance(v, str) and v.strip()]
+        if parts:
+            display_recomposed = " ".join(parts)
+
     emit({"type": "prompts_ready",
           "prompts": concept_prompts,
-          "recomposed_prompt": recomposed_prompt or "",
+          "recomposed_prompt": display_recomposed,
           "negative_prompt": negative_prompt or "",
           "pre_composed": body.pre_composed,
           "decomposed": decomposed_data or {}})
