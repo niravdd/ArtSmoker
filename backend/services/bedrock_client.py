@@ -205,9 +205,19 @@ def invoke_llm(
     content_blocks: list[dict] = []
     if images:
         for img_bytes in images:
+            if img_bytes[:3] == b'\xff\xd8\xff':
+                fmt = "jpeg"
+            elif img_bytes[:8] == b'\x89PNG\r\n\x1a\n':
+                fmt = "png"
+            elif img_bytes[:4] == b'GIF8':
+                fmt = "gif"
+            elif img_bytes[:4] == b'RIFF' and img_bytes[8:12] == b'WEBP':
+                fmt = "webp"
+            else:
+                fmt = "png"
             content_blocks.append({
                 "image": {
-                    "format": "png",
+                    "format": fmt,
                     "source": {"bytes": img_bytes},
                 }
             })
