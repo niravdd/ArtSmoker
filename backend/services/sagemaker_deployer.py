@@ -1843,6 +1843,7 @@ def _get_model_environment(model_key: str, model: dict,
         model_reqs = model.get("python_requirements", {}).get("model", [])
         if any("flashinfer" in r for r in model_reqs):
             env["FLASHINFER_DISABLE_JIT"] = "1"
+            env["FLASHINFER_CUDA_ARCH_LIST"] = "12.0f"
 
     return env
 
