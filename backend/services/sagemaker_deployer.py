@@ -473,13 +473,16 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     # Create endpoint config — same pattern: delete old, create fresh
     config_name = f"{endpoint_name}-config"
     disk_gb = model.get("requirements", {}).get("disk_gb", 0)
+    # Instances with NVMe local storage reject VolumeSizeInGB
+    _nvme_families = ("g7e", "p5", "p5e", "p5en", "p6")
+    has_nvme = any(f"ml.{fam}." in instance for fam in _nvme_families)
     variant_config = {
         "VariantName": "primary",
         "ModelName": sm_model_name,
         "InstanceType": instance,
         "InitialInstanceCount": 1,
     }
-    if disk_gb > 30:
+    if disk_gb > 30 and not has_nvme:
         variant_config["VolumeSizeInGB"] = disk_gb
     config_params = {
         "EndpointConfigName": config_name,
@@ -620,13 +623,14 @@ def update_endpoint_config(model_key: str) -> dict:
     config_name = f"{endpoint_name}-config"
     max_concurrent = model.get("invoke", {}).get("max_concurrent_invocations", 1)
     disk_gb = model.get("requirements", {}).get("disk_gb", 0)
+    has_nvme = any(f"ml.{fam}." in instance for fam in ("g7e", "p5", "p5e", "p5en", "p6"))
     variant_config = {
         "VariantName": "primary",
         "ModelName": sm_model_name,
         "InstanceType": instance,
         "InitialInstanceCount": 1,
     }
-    if disk_gb > 30:
+    if disk_gb > 30 and not has_nvme:
         variant_config["VolumeSizeInGB"] = disk_gb
     config_params = {
         "EndpointConfigName": config_name,
