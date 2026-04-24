@@ -472,14 +472,18 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
 
     # Create endpoint config — same pattern: delete old, create fresh
     config_name = f"{endpoint_name}-config"
+    disk_gb = model.get("requirements", {}).get("disk_gb", 0)
+    variant_config = {
+        "VariantName": "primary",
+        "ModelName": sm_model_name,
+        "InstanceType": instance,
+        "InitialInstanceCount": 1,
+    }
+    if disk_gb > 30:
+        variant_config["VolumeSizeInGB"] = disk_gb
     config_params = {
         "EndpointConfigName": config_name,
-        "ProductionVariants": [{
-            "VariantName": "primary",
-            "ModelName": sm_model_name,
-            "InstanceType": instance,
-            "InitialInstanceCount": 1,
-        }],
+        "ProductionVariants": [variant_config],
     }
 
     if endpoint_type == "async":
@@ -615,14 +619,18 @@ def update_endpoint_config(model_key: str) -> dict:
     # 4. Create new EndpointConfig (delete old, create fresh with new bucket paths)
     config_name = f"{endpoint_name}-config"
     max_concurrent = model.get("invoke", {}).get("max_concurrent_invocations", 1)
+    disk_gb = model.get("requirements", {}).get("disk_gb", 0)
+    variant_config = {
+        "VariantName": "primary",
+        "ModelName": sm_model_name,
+        "InstanceType": instance,
+        "InitialInstanceCount": 1,
+    }
+    if disk_gb > 30:
+        variant_config["VolumeSizeInGB"] = disk_gb
     config_params = {
         "EndpointConfigName": config_name,
-        "ProductionVariants": [{
-            "VariantName": "primary",
-            "ModelName": sm_model_name,
-            "InstanceType": instance,
-            "InitialInstanceCount": 1,
-        }],
+        "ProductionVariants": [variant_config],
         "AsyncInferenceConfig": {
             "OutputConfig": {
                 "S3OutputPath": f"s3://{bucket}/{S3_MODEL_PREFIX}/inference-output/{model_key}/",
@@ -1244,7 +1252,10 @@ def _compute_container_timeout(model: dict) -> int:
     source_type = model.get("source", {}).get("type", "")
 
     # Estimate load time based on model characteristics
-    if has_quantization and min_vram >= 24:
+    if min_vram >= 100:
+        # Very large model (e.g. 80B bf16 ~160 GB) — download + load + kernel compilation
+        estimated_load = 4800  # 80 min
+    elif has_quantization and min_vram >= 24:
         # Large quantized model (e.g. FLUX.2 dev 32B) — loading alone can take 60+ min
         estimated_load = 4800  # 80 min
     elif has_quantization:

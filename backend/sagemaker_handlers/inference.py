@@ -1479,6 +1479,7 @@ def _predict_autoregressive_image(input_data, model_dict):
         "image_size": image_size,
         "diff_infer_steps": steps,
         "bot_task": bot_task,
+        "guidance_scale": guidance,
     }
     if seed is not None:
         gen_kwargs["seed"] = seed

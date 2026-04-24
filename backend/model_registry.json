@@ -5421,7 +5421,7 @@
               "label": "2048 × 2048"
             }
           ],
-          "typical_latency_seconds": 420,
+          "typical_latency_seconds": 600,
           "max_concurrent_invocations": 1,
           "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer — the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
           "image_size_format": "HxW"
