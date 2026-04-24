@@ -5437,7 +5437,7 @@
         "python_requirements": {
           "base": [
             "torch==2.8.0",
-            "--extra-index-url https://download.pytorch.org/whl/cu128",
+            "--extra-index-url https://download.pytorch.org/whl/cu129",
             "torchvision",
             "Pillow>=10.0",
             "numpy>=1.24,<2.5"
