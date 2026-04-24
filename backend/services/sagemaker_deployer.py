@@ -1081,6 +1081,34 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
         except Exception as e:
             logger.warning("Failed to delete S3 artifacts: %s", e)
 
+    # Clean async jobs — both in-memory and S3-persisted
+    try:
+        from backend.services.async_jobs import _jobs
+        job_keys = [k for k, v in _jobs.items()
+                    if model_key in str(v.get("model_key", ""))
+                    or endpoint_name in str(v.get("endpoint_name", ""))]
+        for k in job_keys:
+            del _jobs[k]
+        if job_keys:
+            deleted.append(f"async-jobs-memory:{len(job_keys)}")
+
+        bucket_name = get_deployment_s3_bucket()
+        if bucket_name:
+            s3_client = boto3.client("s3", region_name=_get_region())
+            resp = s3_client.list_objects_v2(Bucket=bucket_name, Prefix="artsmoker/async-jobs/")
+            for obj in resp.get("Contents", []):
+                try:
+                    body = s3_client.get_object(Bucket=bucket_name, Key=obj["Key"])
+                    job_data = json.loads(body["Body"].read())
+                    if (model_key in str(job_data.get("model_key", ""))
+                            or endpoint_name in str(job_data.get("endpoint_name", ""))):
+                        s3_client.delete_object(Bucket=bucket_name, Key=obj["Key"])
+                        deleted.append(f"async-job-s3:{obj['Key']}")
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.debug("Async job cleanup during teardown: %s", e)
+
     return {"deleted": deleted}
 
 
