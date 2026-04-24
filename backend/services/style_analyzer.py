@@ -177,7 +177,7 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
             )
         logger.info("Phase 1 result for '%s': cohesion=%s", style_id, cohesion_level)
     except Exception as exc:
-        logger.warning("Cohesion check failed for '%s', proceeding without: %s", style_id, exc)
+        logger.warning("Cohesion check failed for '%s', proceeding without: %s", style_id, exc, exc_info=True)
 
     # ── Phase 2: Full analysis (Opus with all sampled images) ──
     guidance_parts = []
@@ -204,18 +204,23 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
 
     prompt = get_template('style_analysis_full').format(user_guidance_section=guidance)
 
+    total_bytes = sum(len(b) for b in image_bytes_list)
     logger.info(
-        "Phase 2: Analyzing %d/%d reference image(s) for style '%s' (user hints: %s) using Claude Opus.",
-        sample_count, total_count, style_id, bool(user_hints),
+        "Phase 2: Analyzing %d/%d reference image(s) for style '%s' (user hints: %s, total %.1f MB) using Claude Opus.",
+        sample_count, total_count, style_id, bool(user_hints), total_bytes / (1024 * 1024),
     )
 
-    raw_response = invoke_llm(
-        prompt,
-        complexity="complex",
-        images=image_bytes_list,
-        max_tokens=2048,
-        temperature=0.3,
-    )
+    try:
+        raw_response = invoke_llm(
+            prompt,
+            complexity="complex",
+            images=image_bytes_list,
+            max_tokens=2048,
+            temperature=0.3,
+        )
+    except Exception as exc:
+        logger.error("Phase 2 LLM call failed for '%s': %s", style_id, exc)
+        raise
 
     # Parse the JSON response
     try:
@@ -236,6 +241,10 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
         raise ValueError(
             f"Claude returned invalid JSON for style analysis: {exc}"
         ) from exc
+
+    # Coerce palette: Claude sometimes returns a dict of named colors instead of a list
+    if isinstance(data.get("palette"), dict):
+        data["palette"] = list(data["palette"].values())
 
     analyzed = AnalyzedStyle(**data)
     logger.info("Style analysis complete for '%s': %s", style_id, analyzed.model_dump())
