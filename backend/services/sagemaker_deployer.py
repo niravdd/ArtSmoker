@@ -1046,8 +1046,43 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
     sm_model_name = f"{endpoint_name}-model"
     config_name = f"{endpoint_name}-config"
 
-    sm = boto3.client("sagemaker", region_name=_get_region())
+    region = _get_region()
+    sm = boto3.client("sagemaker", region_name=region)
     deleted = []
+
+    # Auto-scaling: remove policies, alarms, and scalable target FIRST
+    # (must happen before endpoint deletion or they become orphaned)
+    resource_id = f"endpoint/{endpoint_name}/variant/primary"
+    try:
+        aas = boto3.client("application-autoscaling", region_name=region)
+        policies = aas.describe_scaling_policies(
+            ServiceNamespace="sagemaker", ResourceId=resource_id,
+            ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+        )
+        for p in policies.get("ScalingPolicies", []):
+            aas.delete_scaling_policy(
+                PolicyName=p["PolicyName"], ServiceNamespace="sagemaker",
+                ResourceId=resource_id, ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+            )
+            deleted.append(f"scaling-policy:{p['PolicyName']}")
+        aas.deregister_scalable_target(
+            ServiceNamespace="sagemaker", ResourceId=resource_id,
+            ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+        )
+        deleted.append("scalable-target")
+    except Exception:
+        pass
+    _auto_scaling_registered.discard(endpoint_name)
+
+    try:
+        cw = boto3.client("cloudwatch", region_name=region)
+        alarms = cw.describe_alarms(AlarmNamePrefix=f"{endpoint_name}-")
+        alarm_names = [a["AlarmName"] for a in alarms.get("MetricAlarms", [])]
+        if alarm_names:
+            cw.delete_alarms(AlarmNames=alarm_names)
+            deleted.append(f"alarms:{alarm_names}")
+    except Exception:
+        pass
 
     try:
         sm.delete_endpoint(EndpointName=endpoint_name)
@@ -1066,9 +1101,6 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
         deleted.append(f"model:{sm_model_name}")
     except Exception:
         pass
-
-    # Note: shared HF token is NOT deleted on teardown — other gated models may need it.
-    # Use delete_hf_token() explicitly to remove it.
 
     if delete_s3:
         try:
