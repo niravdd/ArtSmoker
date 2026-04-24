@@ -5299,7 +5299,7 @@
         }
       },
       "hunyuan_image_3_0_instruct_bf16": {
-        "label": "HunyuanImage 3.0 Instruct (BF16) — Original Quality",
+        "label": "HunyuanImage 3.0 Instruct (BF16) — HQ",
         "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision — zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Chain-of-thought reasoning auto-enhances prompts.",
         "provider": "Tencent",
         "studio": "image",
