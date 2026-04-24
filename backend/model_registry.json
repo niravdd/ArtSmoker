@@ -5447,8 +5447,10 @@
             "transformers>=4.57.1,<5.0.0",
             "accelerate>=1.6.0,<2.0.0",
             "safetensors>=0.4.3",
-            "nvidia-cuda-nvcc-cu12>=12.9",
-            "flashinfer-python>=0.6.8",
+            "flashinfer-python==0.6.8.post1",
+            "flashinfer-cubin==0.6.8.post1",
+            "--find-links https://flashinfer.ai/whl/cu129/flashinfer-jit-cache/",
+            "flashinfer-jit-cache==0.6.8.post1+cu129",
             "einops",
             "tokenizers>=0.22.0",
             "loguru"

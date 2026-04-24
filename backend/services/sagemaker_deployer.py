@@ -1779,14 +1779,10 @@ def _get_model_environment(model_key: str, model: dict,
         default_ld = "/opt/conda/lib:/usr/local/cuda/lib64:/usr/lib/x86_64-linux-gnu"
         env["LD_LIBRARY_PATH"] = f"{nvidia_ld}:{default_ld}"
 
-        # FlashInfer JIT needs nvcc 12.9+ for Blackwell SM 12.x kernels.
-        # pip-installed nvidia-cuda-nvcc-cu12 puts nvcc under this path.
-        # Set CUDA_HOME so torch.utils.cpp_extension finds it.
+        # FlashInfer: use pre-compiled jit-cache, disable JIT fallback (no nvcc 12.9 on DLC)
         model_reqs = model.get("python_requirements", {}).get("model", [])
         if any("flashinfer" in r for r in model_reqs):
-            nvcc_base = f"{nvidia_base}/cuda_nvcc"
-            env["CUDA_HOME"] = nvcc_base
-            env["PATH"] = f"{nvcc_base}/bin:/opt/conda/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+            env["FLASHINFER_DISABLE_JIT"] = "1"
 
     return env
 
