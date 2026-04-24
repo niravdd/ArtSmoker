@@ -843,16 +843,23 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
 
 
 def _unregister_custom_model(model_key: str):
-    """Remove a custom model from the registry."""
+    """Remove a custom model from the registry (exact key or prefix match)."""
     from backend.services.model_registry import get_registry, _save
 
     registry = get_registry()
     removed = False
 
     for section in ("image_models", "video_models", "post_processing", "utility_models"):
+        # Exact match
         if model_key in registry.get(section, {}):
             del registry[section][model_key]
             removed = True
+        else:
+            # Prefix match: catalog key → deployed instance key with hash suffix
+            matches = [k for k in registry.get(section, {}) if k.startswith(model_key + "_")]
+            for k in matches:
+                del registry[section][k]
+                removed = True
 
     if removed:
         _save()

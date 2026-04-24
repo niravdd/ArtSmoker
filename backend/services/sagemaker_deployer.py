@@ -1030,7 +1030,8 @@ def check_endpoint_status(endpoint_name: str) -> dict:
 def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: str = "") -> dict:
     """Delete an Amazon SageMaker endpoint, S3 artifacts, and HF token secret."""
     if not endpoint_name:
-        # Look up from registry, fall back to legacy naming
+        # Look up from registry: try exact key first, then prefix match
+        # (deployed keys have hash suffix, e.g., model_key_e64f)
         from .model_registry import get_registry
         reg = get_registry()
         for section in ["image_models", "video_models", "post_processing", "utility_models"]:
@@ -1038,6 +1039,16 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
             ep = entry.get("deployment", {}).get("endpoint_name", "")
             if ep:
                 endpoint_name = ep
+                break
+            # Prefix match: catalog key → deployed instance key
+            for key, entry in reg.get(section, {}).items():
+                if key.startswith(model_key + "_") or key == model_key:
+                    ep = entry.get("deployment", {}).get("endpoint_name", "")
+                    if ep:
+                        endpoint_name = ep
+                        model_key = key
+                        break
+            if endpoint_name:
                 break
         if not endpoint_name:
             endpoint_name = f"artsmoker-{model_key.replace('_', '-')}"
