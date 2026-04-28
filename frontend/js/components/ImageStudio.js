@@ -909,6 +909,7 @@
                 negative_prompt: composedNegative,
                 decomposed_data: decomposedData || undefined,
                 recomposed_prompt: recomposedPrompt || undefined,
+                vary_fields: this._promptEditor?._varyFlags || undefined,
                 all_models: isMultiModel,
                 selected_models: isMultiModel ? this._selectedModels : undefined,
                 model_optimized_prompts: isMultiModel && (document.getElementById('gen-model-optimized')?.checked || false),

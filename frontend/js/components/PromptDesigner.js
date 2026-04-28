@@ -52,6 +52,7 @@
                 this._originalPrompt = newPrompt;
                 this._activeTab = 'subject';
                 this._data = opts.decomposedData;
+                this._varyFlags = opts.varyFlags || this._initVaryFlags(opts.decomposedData);
                 this._showModal('');
                 this._renderDesigner();
                 return;
@@ -175,10 +176,12 @@
                         prompt: prompt,
                         style_id: this._opts?.styleId || undefined,
                         asset_type: this._opts?.assetType || 'character',
+                        image_model: this._opts?.imageModel || '',
                     }),
                 });
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 this._data = await resp.json();
+                this._varyFlags = this._initVaryFlags(this._data);
 
                 // Notify the editor that a prompt was set (populates Step 1)
                 if (this._onPromptSet) this._onPromptSet(prompt);
@@ -280,11 +283,23 @@
                     const raw = sectionData[field] || '';
                     const value = (raw && typeof raw === 'object' && raw.value) ? raw.value : (typeof raw === 'string' ? raw : '');
                     if (!value) continue;
+                    const flagKey = `${tab.key}.${field}`;
+                    const isLocked = (this._varyFlags || {})[flagKey] === 'lock';
+                    const toggleLabel = isLocked ? '🔒 Fixed' : '🎲 Randomise';
+                    const toggleTitle = isLocked
+                        ? 'This element stays the same across all options. Click to allow variation.'
+                        : 'This element will be different in each option. Click to keep it fixed.';
+                    const toggleBg = isLocked ? 'bg-amber-500/15 text-amber-400' : 'bg-brand-accent/10 text-brand-accent';
                     fields += `
                         <div class="pd-field group">
-                            <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium block mb-1">${_fieldLabel(field)}</label>
+                            <div class="flex items-center justify-between mb-1">
+                                <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium">${_fieldLabel(field)}</label>
+                                <button class="pd-vary-toggle text-[9px] px-2 py-0.5 rounded-full font-medium transition-all hover:brightness-125 ${toggleBg}"
+                                    data-flag-key="${flagKey}" title="${toggleTitle}">${toggleLabel}</button>
+                            </div>
                             <textarea class="pd-input w-full rounded-md px-3 py-2 text-xs resize-none focus:outline-none transition-all
-                                bg-black/20 border border-brand-border/50 text-brand-text focus:border-brand-accent/50"
+                                bg-black/20 border border-brand-border/50 text-brand-text focus:border-brand-accent/50
+                                ${isLocked ? 'border-l-2 border-l-amber-500/50' : 'border-l-2 border-l-brand-accent/30'}"
                                 rows="${value.length > 150 ? 3 : 2}"
                                 data-section="${tab.key}" data-field="${field}">${value}</textarea>
                         </div>`;
@@ -370,11 +385,52 @@
                     const section = input.dataset.section;
                     const field = input.dataset.field;
                     if (this._data[section]) this._data[section][field] = input.value;
+                    // Auto-lock when user edits a field — their edit should be respected
+                    const flagKey = `${section}.${field}`;
+                    if (this._varyFlags && this._varyFlags[flagKey] !== 'lock') {
+                        this._varyFlags[flagKey] = 'lock';
+                        const toggle = this._modal?.querySelector(`.pd-vary-toggle[data-flag-key="${flagKey}"]`);
+                        if (toggle) {
+                            toggle.innerHTML = '🔒 Fixed';
+                            toggle.title = 'This element stays the same across all options. Click to allow variation.';
+                            toggle.className = toggle.className.replace(/bg-\S+\s*text-\S+/g, '');
+                            toggle.classList.add('bg-amber-500/15', 'text-amber-400');
+                        }
+                        const textarea = input;
+                        textarea.classList.remove('border-l-brand-accent/30');
+                        textarea.classList.add('border-l-amber-500/50');
+                    }
                 });
             });
 
             this._modal?.querySelector('.pd-save')?.addEventListener('click', () => this._save());
             this._modal?.querySelector('.pd-cancel')?.addEventListener('click', () => this.close());
+
+            // Lock/vary toggle handlers
+            this._modal?.querySelectorAll('.pd-vary-toggle').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const key = btn.dataset.flagKey;
+                    if (!this._varyFlags) this._varyFlags = {};
+                    const current = this._varyFlags[key] || 'vary';
+                    const next = current === 'lock' ? 'vary' : 'lock';
+                    this._varyFlags[key] = next;
+                    btn.innerHTML = next === 'lock' ? '🔒 Fixed' : '🎲 Randomise';
+                    btn.title = next === 'lock'
+                        ? 'This element stays the same across all options. Click to allow variation.'
+                        : 'This element will be different in each option. Click to keep it fixed.';
+                    btn.className = btn.className.replace(/bg-\S+\s*text-\S+/g, '');
+                    btn.classList.add(
+                        ...(next === 'lock'
+                            ? ['bg-amber-500/15', 'text-amber-400']
+                            : ['bg-brand-accent/10', 'text-brand-accent'])
+                    );
+                    const textarea = btn.closest('.pd-field')?.querySelector('.pd-input');
+                    if (textarea) {
+                        textarea.classList.toggle('border-l-amber-500/50', next === 'lock');
+                        textarea.classList.toggle('border-l-brand-accent/30', next === 'vary');
+                    }
+                });
+            });
 
             // Live preview: update on any field change
             this._modal?.querySelectorAll('.pd-input').forEach(input => {
@@ -396,10 +452,24 @@
 
         _save() {
             if (this._onApply) {
-                this._onApply(this._data);
+                this._onApply(this._data, this._varyFlags);
             }
             this.close();
             window.showToast?.(_t('prompt_designer.saved'), 'success');
+        },
+
+        _initVaryFlags(data) {
+            const flags = {};
+            if (!data) return flags;
+            for (const [section, fields] of Object.entries(data)) {
+                if (!fields || typeof fields !== 'object' || Array.isArray(fields)) continue;
+                for (const [field, val] of Object.entries(fields)) {
+                    if (Array.isArray(val)) continue;
+                    const source = (val && typeof val === 'object' && val.source) ? val.source : 'inferred';
+                    flags[`${section}.${field}`] = source === 'user' ? 'lock' : 'vary';
+                }
+            }
+            return flags;
         },
 
         _esc(str) {

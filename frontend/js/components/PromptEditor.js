@@ -330,10 +330,11 @@
                         this._textareaEl.value = prompt;
                         this._updateCharCount();
                     },
-                    onApply: (designerData) => {
+                    onApply: (designerData, varyFlags) => {
                         this._originalText = text || this._textareaEl.value;
                         this._designerData = designerData;
                         this._decomposedData = designerData;
+                        this._varyFlags = varyFlags || null;
                         this._composeFromDesigner(designerData);
                     },
                 });
