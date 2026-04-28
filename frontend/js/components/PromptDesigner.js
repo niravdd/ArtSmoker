@@ -351,6 +351,16 @@
                     <p id="pd-live-preview" class="text-[10px] text-brand-text/60 bg-black/10 rounded-lg px-3 py-2.5 max-h-32 overflow-y-auto font-mono leading-relaxed"></p>
                 </div>`;
 
+            // Info footer explaining lock/vary
+            const infoFooter = `
+                <div class="mx-5 mb-2 px-3 py-2 rounded-lg bg-brand-accent/5 border border-brand-accent/10">
+                    <p class="text-[9px] text-brand-text-muted/70 leading-relaxed">
+                        <span class="text-brand-accent">🎲 Randomise</span> <span class="text-brand-text-muted/50">(default)</span> — each option gets a different creative take on this element.
+                        <span class="text-amber-400">🔒 Fixed</span> — this element stays identical across all options.
+                        You can edit any field and choose whether it should be randomised or fixed. With a single option (1×1), all fields are used as-is.
+                    </p>
+                </div>`;
+
             // Action bar
             const actionBar = `
                 <div class="flex items-center justify-end px-5 py-3 border-t border-brand-border bg-black/10 gap-2">
@@ -359,7 +369,7 @@
                 </div>`;
 
             const body = this._modal?.querySelector('.pd-body');
-            if (body) body.innerHTML = originalPromptBar + translationBanner + tabBar + tabContent + previewBar + actionBar;
+            if (body) body.innerHTML = originalPromptBar + translationBanner + tabBar + tabContent + previewBar + infoFooter + actionBar;
 
             // Attach events
             this._modal?.querySelectorAll('.pd-tab').forEach(btn => {
@@ -385,21 +395,6 @@
                     const section = input.dataset.section;
                     const field = input.dataset.field;
                     if (this._data[section]) this._data[section][field] = input.value;
-                    // Auto-lock when user edits a field — their edit should be respected
-                    const flagKey = `${section}.${field}`;
-                    if (this._varyFlags && this._varyFlags[flagKey] !== 'lock') {
-                        this._varyFlags[flagKey] = 'lock';
-                        const toggle = this._modal?.querySelector(`.pd-vary-toggle[data-flag-key="${flagKey}"]`);
-                        if (toggle) {
-                            toggle.innerHTML = '🔒 Fixed';
-                            toggle.title = 'This element stays the same across all options. Click to allow variation.';
-                            toggle.className = toggle.className.replace(/bg-\S+\s*text-\S+/g, '');
-                            toggle.classList.add('bg-amber-500/15', 'text-amber-400');
-                        }
-                        const textarea = input;
-                        textarea.classList.remove('border-l-brand-accent/30');
-                        textarea.classList.add('border-l-amber-500/50');
-                    }
                 });
             });
 
