@@ -464,7 +464,14 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     # LLM-enhanced prompt in Step 3.
     display_recomposed = recomposed_prompt or ""
     if decomposed_data and isinstance(decomposed_data, dict):
-        parts = [v for v in decomposed_data.values() if isinstance(v, str) and v.strip()]
+        parts = []
+        for section in decomposed_data.values():
+            if isinstance(section, dict):
+                for field in section.values():
+                    if isinstance(field, dict) and field.get("value"):
+                        parts.append(field["value"].strip())
+                    elif isinstance(field, str) and field.strip():
+                        parts.append(field.strip())
         if parts:
             display_recomposed = " ".join(parts)
 

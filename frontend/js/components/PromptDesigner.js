@@ -253,7 +253,10 @@
             let tabBar = '<div class="flex border-b border-brand-border">';
             for (const tab of TABS) {
                 const active = tab.key === this._activeTab;
-                const count = (d[tab.key] ? Object.values(d[tab.key]).filter(v => v && typeof v === 'string' && v.length > 0).length : 0);
+                const count = (d[tab.key] ? Object.values(d[tab.key]).filter(v => {
+                    if (v && typeof v === 'object' && v.value) return v.value.length > 0;
+                    return v && typeof v === 'string' && v.length > 0;
+                }).length : 0);
                 tabBar += `<button class="pd-tab flex-1 py-2.5 text-[11px] font-medium transition-all border-b-2 ${
                     active
                         ? 'text-brand-accent border-brand-accent bg-brand-accent/5'
@@ -274,7 +277,8 @@
                 let fields = '';
 
                 for (const field of tab.fields) {
-                    const value = sectionData[field] || '';
+                    const raw = sectionData[field] || '';
+                    const value = (raw && typeof raw === 'object' && raw.value) ? raw.value : (typeof raw === 'string' ? raw : '');
                     if (!value) continue;
                     fields += `
                         <div class="pd-field group">
@@ -414,15 +418,14 @@
             for (const tab of TABS) {
                 const section = this._data[tab.key];
                 if (!section || typeof section !== 'object') continue;
-                for (const [key, value] of Object.entries(section)) {
-                    if (key === 'colors' || key === 'palette') continue;
-                    if (typeof value === 'string' && value.trim()) {
-                        parts.push(value.trim());
-                    }
+                for (const [key, val] of Object.entries(section)) {
+                    if (key === 'colors' || key === 'palette' || key === 'color_palette') continue;
+                    const text = (val && typeof val === 'object' && val.value) ? val.value : (typeof val === 'string' ? val : '');
+                    if (text.trim()) parts.push(text.trim());
                 }
             }
             // Add color palette if present
-            const colors = this._data?.style?.colors || this._data?.style?.palette;
+            const colors = this._data?.style?.color_palette || this._data?.style?.colors || this._data?.style?.palette;
             if (Array.isArray(colors) && colors.length > 0) {
                 const colorStr = colors.map(c => typeof c === 'object' ? `${c.name || c.hex || ''}` : c).filter(Boolean).join(', ');
                 if (colorStr) parts.push(`Color palette: ${colorStr}`);
