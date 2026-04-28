@@ -89,7 +89,8 @@
       "customizations_supported": [
         "FINE_TUNING"
       ],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "optimal_prompt_words": 80
     },
     "titan_image": {
       "label": "Amazon Titan Image v2",
@@ -138,7 +139,8 @@
       "customizations_supported": [
         "FINE_TUNING"
       ],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "optimal_prompt_words": 40
     },
     "sd35_large": {
       "label": "Stable Diffusion 3.5 Large",
@@ -164,7 +166,8 @@
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/stability.sd3-5-large-v1:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "optimal_prompt_words": 120
     },
     "stable_image_ultra": {
       "label": "Stable Image Ultra",
@@ -189,7 +192,8 @@
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/stability.stable-image-ultra-v1:1",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "optimal_prompt_words": 120
     },
     "stable_image_core_v1": {
       "label": "Stable Image Core 1.0",
@@ -214,7 +218,8 @@
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/stability.stable-image-core-v1:1",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "optimal_prompt_words": 100
     },
     "stable_creative_upscale_v1": {
       "label": "Stable Image Creative Upscale",
@@ -4430,13 +4435,14 @@
           "max_prompt_length": 2000,
           "typical_latency_seconds": 5,
           "prompt_guidance": "FLUX.1 schnell uses natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
-          "max_concurrent_invocations": 1
+          "max_concurrent_invocations": 1,
+          "optimal_prompt_words": 50
         },
         "pricing": {
           "estimated_cost_per_image": 0.02,
           "instance_cost_per_hour": {
             "ml.g5.xlarge": 1.41,
-            "ml.g5.2xlarge": 2.82
+            "ml.g5.2xlarge": 1.51
           }
         },
         "version": "1.0",
@@ -4520,13 +4526,14 @@
           "max_prompt_length": 2000,
           "typical_latency_seconds": 180,
           "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
-          "max_concurrent_invocations": 1
+          "max_concurrent_invocations": 1,
+          "optimal_prompt_words": 70
         },
         "pricing": {
           "estimated_cost_per_image": 0.06,
           "instance_cost_per_hour": {
             "ml.g5.xlarge": 1.41,
-            "ml.g5.2xlarge": 2.82
+            "ml.g5.2xlarge": 1.51
           }
         },
         "version": "1.0",
@@ -4663,13 +4670,14 @@
               "subfolder": "text_encoder",
               "quantization": "nf4"
             }
-          ]
+          ],
+          "optimal_prompt_words": 75
         },
         "pricing": {
-          "estimated_cost_per_image": 0.87,
+          "estimated_cost_per_image": 0.19,
           "instance_cost_per_hour": {
-            "ml.g6e.4xlarge": 10.44,
-            "ml.g6e.8xlarge": 20.88
+            "ml.g6e.4xlarge": 3.76,
+            "ml.g6e.8xlarge": 5.66
           }
         },
         "version": "1.4",
@@ -4689,87 +4697,6 @@
             "peft>=0.17.0,<0.19.0",
             "huggingface-hub>=0.34.0,<1.0.0",
             "bitsandbytes>=0.43.3"
-          ]
-        }
-      },
-      "sdxl_turbo": {
-        "label": "SDXL Turbo",
-        "description": "Ultra-fast 1-step image generation by Stability AI.",
-        "category": "image_generation",
-        "studio": "image",
-        "provider": "Stability AI",
-        "license": "Stability AI Non-Commercial Community License",
-        "requires_hf_auth": false,
-        "source": {
-          "type": "huggingface",
-          "repo_id": "stabilityai/sdxl-turbo"
-        },
-        "requirements": {
-          "min_vram_gb": 8,
-          "recommended_instance": "ml.g5.xlarge",
-          "min_instance": "ml.g5.xlarge",
-          "disk_gb": 15
-        },
-        "invoke": {
-          "library": "diffusers",
-          "loader_class": "AutoPipelineForText2Image",
-          "torch_dtype": "float16",
-          "loader_variant": "fp16",
-          "predictor_type": "text_to_image",
-          "input_fields": {
-            "prompt": {
-              "type": "string",
-              "required": true
-            },
-            "width": {
-              "type": "int",
-              "default": 512
-            },
-            "height": {
-              "type": "int",
-              "default": 512
-            },
-            "num_inference_steps": {
-              "type": "int",
-              "default": 1
-            },
-            "guidance_scale": {
-              "type": "float",
-              "default": 0.0
-            },
-            "seed": {
-              "type": "int",
-              "required": false
-            }
-          },
-          "output_type": "base64_png",
-          "supports_negative_prompt": true,
-          "max_prompt_length": 1500,
-          "typical_latency_seconds": 2,
-          "prompt_guidance": "SDXL Turbo generates in 1 step — prompts must be clear and direct.\nUse SDXL-style keyword prompting: comma-separated descriptors.\nQuality boosters are essential: 'masterpiece, best quality, highly detailed'.\nStyle tokens work well: 'digital painting', 'concept art', 'photorealistic'.\nKeep prompts concise (20-50 words) — quality over quantity for 1-step generation.\nNegative prompts ARE supported and very effective for cleanup.\nCommon useful negatives: 'blurry, low quality, deformed, ugly, bad anatomy, watermark'.\nDefault resolution is 512×512. Higher resolutions may reduce quality.",
-          "max_concurrent_invocations": 2
-        },
-        "pricing": {
-          "estimated_cost_per_image": 0.01,
-          "instance_cost_per_hour": {
-            "ml.g5.xlarge": 1.41
-          }
-        },
-        "version": "1.0",
-        "last_updated": "2023-11-28",
-        "python_requirements": {
-          "base": [
-            "torch>=2.6.0,<2.7.0",
-            "torchvision>=0.21.0,<0.22.0",
-            "Pillow>=10.0",
-            "numpy>=1.24,<2.5"
-          ],
-          "model": [
-            "diffusers>=0.28.0,<0.38.0",
-            "transformers>=4.51.0,<4.52.0",
-            "accelerate>=1.6.0,<2.0.0",
-            "safetensors>=0.4.3",
-            "huggingface-hub>=0.34.0,<1.0.0"
           ]
         }
       },
@@ -5137,167 +5064,6 @@
           ]
         }
       },
-      "hunyuan_image_3_0_instruct_int8": {
-        "hidden": true,
-        "label": "HunyuanImage 3.0 Instruct (INT8) — HQ",
-        "description": "Tencent’s 80B MoE autoregressive image model. 13B active params per token, 64 experts. INT8 quantization preserves maximum quality with attention layers in bf16. Chain-of-thought reasoning auto-enhances prompts before generation.",
-        "provider": "Tencent",
-        "studio": "image",
-        "license": "Tencent Hunyuan Community License",
-        "hf_license_url": "https://huggingface.co/tencent/HunyuanImage-3.0/blob/main/LICENSE",
-        "category": "image_generation",
-        "source": {
-          "type": "huggingface",
-          "repo_id": "EricRollei/HunyuanImage-3.0-Instruct-INT8-v2"
-        },
-        "requires_hf_auth": false,
-        "requirements": {
-          "min_vram_gb": 92,
-          "min_ram_gb": 128,
-          "recommended_instance": "ml.g7e.4xlarge",
-          "disk_gb": 100,
-          "allowed_instances": [
-            "ml.g7e.4xlarge",
-            "ml.g7e.8xlarge",
-            "ml.g7e.12xlarge"
-          ],
-          "_note": "INT8 uses ~82GB VRAM. Sliding-window offload: 5/32 blocks to CPU (~12GB freed), window=2 keeps blocks on GPU across steps. g7e.12xlarge (2 GPUs, 192GB) uses device_map=auto with no offload."
-        },
-        "invoke": {
-          "library": "autoregressive",
-          "loader_class": "AutoModelForCausalLM",
-          "generate_method": "generate_image",
-          "trust_remote_code": true,
-          "torch_dtype": "auto",
-          "attn_implementation": "sdpa",
-          "moe_impl": "eager",
-          "moe_drop_tokens": true,
-          "predictor_type": "autoregressive_image",
-          "output_type": "base64_png",
-          "supports_negative_prompt": false,
-          "max_prompt_length": 2000,
-          "block_swap_blocks": 5,
-          "block_swap_window": 2,
-          "bot_task": "think_recaption",
-          "quantization_type": "pre_quantized_int8",
-          "input_fields": {
-            "prompt": {
-              "type": "string",
-              "required": true
-            },
-            "width": {
-              "type": "int",
-              "default": 1024
-            },
-            "height": {
-              "type": "int",
-              "default": 1024
-            },
-            "num_inference_steps": {
-              "type": "int",
-              "default": 50
-            },
-            "guidance_scale": {
-              "type": "float",
-              "default": 5.0
-            },
-            "seed": {
-              "type": "int",
-              "optional": true
-            }
-          },
-          "supported_sizes": [
-            {
-              "w": 512,
-              "h": 512,
-              "label": "512 × 512"
-            },
-            {
-              "w": 768,
-              "h": 768,
-              "label": "768 × 768"
-            },
-            {
-              "w": 1024,
-              "h": 1024,
-              "label": "1024 × 1024"
-            },
-            {
-              "w": 1024,
-              "h": 576,
-              "label": "1024 × 576 (16:9)"
-            },
-            {
-              "w": 576,
-              "h": 1024,
-              "label": "576 × 1024 (9:16)"
-            },
-            {
-              "w": 1280,
-              "h": 720,
-              "label": "1280 × 720 (16:9)"
-            },
-            {
-              "w": 720,
-              "h": 1280,
-              "label": "720 × 1280 (9:16)"
-            },
-            {
-              "w": 1536,
-              "h": 1536,
-              "label": "1536 × 1536"
-            },
-            {
-              "w": 2048,
-              "h": 1024,
-              "label": "2048 × 1024 (2:1)"
-            },
-            {
-              "w": 1024,
-              "h": 2048,
-              "label": "1024 × 2048 (1:2)"
-            },
-            {
-              "w": 2048,
-              "h": 2048,
-              "label": "2048 × 2048"
-            }
-          ],
-          "typical_latency_seconds": 1200,
-          "max_concurrent_invocations": 1,
-          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don’t over-engineer — the model’s internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions",
-          "image_size_format": "HxW",
-          "block_swap_prefetch": 2
-        },
-        "pricing": {
-          "estimated_cost_per_image": 0.43,
-          "instance_cost_per_hour": {
-            "ml.g7e.4xlarge": 5.19,
-            "ml.g7e.8xlarge": 6.85
-          }
-        },
-        "version": "1.0",
-        "last_updated": "2026-04-22",
-        "python_requirements": {
-          "base": [
-            "torch==2.8.0",
-            "--extra-index-url https://download.pytorch.org/whl/cu128",
-            "torchvision",
-            "Pillow>=10.0",
-            "numpy>=1.24,<2.5"
-          ],
-          "model": [
-            "nvidia-nccl-cu12>=2.26.2",
-            "transformers>=4.57.1,<5.0.0",
-            "accelerate>=1.6.0,<2.0.0",
-            "safetensors>=0.4.3",
-            "bitsandbytes>=0.49.0",
-            "einops",
-            "tokenizers>=0.22.0",
-            "loguru"
-          ]
-        }
-      },
       "hunyuan_image_3_0_instruct_bf16": {
         "label": "HunyuanImage 3.0 Instruct (BF16) — HQ",
         "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision — zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Chain-of-thought reasoning auto-enhances prompts.",
@@ -5444,12 +5210,13 @@
           "typical_latency_seconds": 120,
           "max_concurrent_invocations": 1,
           "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer — the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
-          "image_size_format": "HxW"
+          "image_size_format": "HxW",
+          "optimal_prompt_words": 55
         },
         "pricing": {
-          "estimated_cost_per_image": 1.14,
+          "estimated_cost_per_image": 0.19,
           "instance_cost_per_hour": {
-            "ml.g7e.12xlarge": 9.75
+            "ml.g7e.12xlarge": 10.36
           }
         },
         "version": "1.0",
@@ -5605,13 +5372,14 @@
           "typical_latency_seconds": 240,
           "max_concurrent_invocations": 1,
           "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don’t over-engineer — the model’s internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions",
-          "image_size_format": "HxW"
+          "image_size_format": "HxW",
+          "optimal_prompt_words": 55
         },
         "pricing": {
-          "estimated_cost_per_image": 0.29,
+          "estimated_cost_per_image": 0.28,
           "instance_cost_per_hour": {
-            "ml.g7e.2xlarge": 4.37,
-            "ml.g7e.4xlarge": 5.19
+            "ml.g7e.2xlarge": 4.2,
+            "ml.g7e.4xlarge": 5.0
           }
         },
         "version": "1.0",
@@ -5777,33 +5545,39 @@
         "gpu_type": "A10G",
         "vram_per_gpu_gb": 24,
         "total_vram_gb": 24,
-        "ram_gb": 32,
+        "ram_gb": 16,
         "vcpus": 4,
         "cost_per_hour_usd": 1.41,
         "compute_capability": 8.6,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA A10G",
+        "nvme": true
       },
       "ml.g5.2xlarge": {
         "gpus": 1,
         "gpu_type": "A10G",
         "vram_per_gpu_gb": 24,
         "total_vram_gb": 24,
-        "ram_gb": 64,
+        "ram_gb": 32,
         "vcpus": 8,
-        "cost_per_hour_usd": 2.82,
+        "cost_per_hour_usd": 1.51,
         "compute_capability": 8.6,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA A10G",
+        "nvme": true
       },
       "ml.g5.4xlarge": {
         "gpus": 1,
         "gpu_type": "A10G",
         "vram_per_gpu_gb": 24,
         "total_vram_gb": 24,
-        "ram_gb": 128,
+        "ram_gb": 64,
         "vcpus": 16,
-        "cost_per_hour_usd": 4.44,
+        "cost_per_hour_usd": 2.03,
         "compute_capability": 8.6,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA A10G",
+        "nvme": true
       },
       "ml.g5.8xlarge": {
         "gpus": 1,
@@ -5889,9 +5663,11 @@
         "total_vram_gb": 48,
         "ram_gb": 128,
         "vcpus": 16,
-        "cost_per_hour_usd": 10.44,
+        "cost_per_hour_usd": 3.76,
         "compute_capability": 8.9,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA L40S",
+        "nvme": true
       },
       "ml.g6e.8xlarge": {
         "gpus": 1,
@@ -5900,9 +5676,11 @@
         "total_vram_gb": 48,
         "ram_gb": 256,
         "vcpus": 32,
-        "cost_per_hour_usd": 20.88,
+        "cost_per_hour_usd": 5.66,
         "compute_capability": 8.9,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA L40S",
+        "nvme": true
       },
       "ml.g6e.12xlarge": {
         "gpus": 4,
@@ -5911,9 +5689,11 @@
         "total_vram_gb": 192,
         "ram_gb": 384,
         "vcpus": 48,
-        "cost_per_hour_usd": 31.32,
+        "cost_per_hour_usd": 13.12,
         "compute_capability": 8.9,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA L40S",
+        "nvme": true
       },
       "ml.g6e.16xlarge": {
         "gpus": 4,
@@ -5955,9 +5735,11 @@
         "total_vram_gb": 96,
         "ram_gb": 64,
         "vcpus": 8,
-        "cost_per_hour_usd": 4.37,
+        "cost_per_hour_usd": 4.2,
         "compute_capability": 12.0,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
+        "nvme": true
       },
       "ml.g7e.4xlarge": {
         "gpus": 1,
@@ -5966,9 +5748,11 @@
         "total_vram_gb": 96,
         "ram_gb": 128,
         "vcpus": 16,
-        "cost_per_hour_usd": 5.19,
+        "cost_per_hour_usd": 5.0,
         "compute_capability": 12.0,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
+        "nvme": true
       },
       "ml.g7e.8xlarge": {
         "gpus": 1,
@@ -5977,42 +5761,50 @@
         "total_vram_gb": 96,
         "ram_gb": 256,
         "vcpus": 32,
-        "cost_per_hour_usd": 6.85,
+        "cost_per_hour_usd": 6.59,
         "compute_capability": 12.0,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
+        "nvme": true
       },
       "ml.g7e.12xlarge": {
         "gpus": 2,
         "gpu_type": "RTX PRO 6000 Blackwell",
         "vram_per_gpu_gb": 96,
         "total_vram_gb": 192,
-        "ram_gb": 384,
+        "ram_gb": 512,
         "vcpus": 48,
-        "cost_per_hour_usd": 10.75,
+        "cost_per_hour_usd": 10.36,
         "compute_capability": 12.0,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
+        "nvme": true
       },
       "ml.g7e.24xlarge": {
         "gpus": 4,
         "gpu_type": "RTX PRO 6000 Blackwell",
         "vram_per_gpu_gb": 96,
         "total_vram_gb": 384,
-        "ram_gb": 768,
+        "ram_gb": 1024,
         "vcpus": 96,
-        "cost_per_hour_usd": 15.0,
+        "cost_per_hour_usd": 20.72,
         "compute_capability": 12.0,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
+        "nvme": true
       },
       "ml.g7e.48xlarge": {
         "gpus": 8,
         "gpu_type": "RTX PRO 6000 Blackwell",
         "vram_per_gpu_gb": 96,
         "total_vram_gb": 768,
-        "ram_gb": 1536,
+        "ram_gb": 2048,
         "vcpus": 192,
-        "cost_per_hour_usd": 30.0,
+        "cost_per_hour_usd": 41.43,
         "compute_capability": 12.0,
-        "bf16": true
+        "bf16": true,
+        "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
+        "nvme": true
       },
       "ml.p3.2xlarge": {
         "gpus": 1,

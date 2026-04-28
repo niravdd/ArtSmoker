@@ -408,38 +408,29 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     if not body.pre_composed or n_opts > 1:
         model_id = body.image_model
         try:
-            if body.pre_composed and n_opts > 1:
-                # User composed via Designer — their prompt IS the recomposed prompt
-                recomposed_prompt = body.prompt
-                concept_prompts = generate_concept_prompts(
-                    body.prompt, style_profile, body.asset_type, n_opts, image_model=model_id,
-                    recomposed_prompt=recomposed_prompt,
-                )
-            elif n_opts == 1:
-                if body.asset_type == AssetType.MARKETING_BANNER:
-                    concept_prompts = [refine_marketing_prompt(body.prompt, style_profile, image_model=model_id)]
-                else:
-                    if not recomposed_prompt:
-                        recomposed_prompt, decomposed_data = refine_prompt_structured(
-                            body.prompt, style_profile, body.asset_type, image_model=model_id,
-                        )
-                    enhanced = refine_prompt(
-                        recomposed_prompt or body.prompt, style_profile, body.asset_type, image_model=model_id,
-                    )
-                    concept_prompts = [enhanced]
+            if body.asset_type == AssetType.MARKETING_BANNER and n_opts == 1:
+                concept_prompts = [refine_marketing_prompt(body.prompt, style_profile, image_model=model_id)]
             else:
-                # Multi-option: skip decompose if frontend already provided data
-                if not recomposed_prompt:
+                # ALWAYS decompose (style is baked in at this stage)
+                if not decomposed_data:
                     try:
                         recomposed_prompt, decomposed_data = refine_prompt_structured(
                             body.prompt, style_profile, body.asset_type, image_model=model_id,
                         )
                     except Exception:
-                        pass  # Non-fatal
-                concept_prompts = generate_concept_prompts(
-                    body.prompt, style_profile, body.asset_type, n_opts, image_model=model_id,
-                    recomposed_prompt=recomposed_prompt,
-                )
+                        logger.warning("Decomposition failed, proceeding with raw prompt")
+
+                if n_opts == 1:
+                    enhanced = refine_prompt(
+                        recomposed_prompt or body.prompt, style_profile, body.asset_type, image_model=model_id,
+                    )
+                    concept_prompts = [enhanced]
+                else:
+                    concept_prompts = generate_concept_prompts(
+                        body.prompt, style_profile, body.asset_type, n_opts, image_model=model_id,
+                        decomposed_data=decomposed_data,
+                        vary_fields=body.vary_fields,
+                    )
         except PromptRefusalError as refusal:
             logger.warning("Claude refused to refine prompt: %s", refusal.reason[:200])
             emit({"type": "prompt_refused",

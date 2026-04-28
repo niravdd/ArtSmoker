@@ -27,7 +27,7 @@ _DEFAULTS = {
         "label": "Image Prompt Refinement (Single)",
         "description": "Refines a user prompt into a detailed image caption optimized for the target model.",
         "used_by": "Image Studio — single-model generation",
-        "variables": ["{user_prompt}", "{model_name}", "{model_specific_instructions}", "{asset_context}", "{style_section}", "{max_chars}"],
+        "variables": ["{user_prompt}", "{model_name}", "{model_specific_instructions}", "{asset_context}", "{style_section}", "{max_chars}", "{optimal_length}"],
         "model": "fast or complex LLM",
         "text": """You are a professional concept artist creating an image description for an AI image generator. Your job: take the user's idea and write a DESCRIPTIVE CAPTION that will produce a stunning, professional-quality image.
 
@@ -71,7 +71,7 @@ RULES:
    - For people/characters: bad anatomy, extra limbs, extra fingers, missing fingers, deformed hands, disproportionate
    - For all: blurry, low quality, text, watermark, signature, ugly, deformed
 
-7. **Stay under {max_chars} characters.** Be precise, not verbose. Every word should paint the picture. Follow any length guidance in the MODEL instructions above.
+7. **PROMPT LENGTH: Target approximately {optimal_length}.** Maximum {max_chars} characters. Be precise, not verbose. Every word should paint the picture.
 
 Output ONLY the caption (and NEGATIVE: line if applicable).""",
     },
@@ -80,43 +80,46 @@ Output ONLY the caption (and NEGATIVE: line if applicable).""",
         "label": "Multi-Concept Generation",
         "description": "Generates 2-5 visually distinct creative concepts from one user prompt.",
         "used_by": "Image Studio — multi-option generation",
-        "variables": ["{user_prompt}", "{num_options}", "{asset_context}", "{style_section}", "{max_chars}", "{decomposed_guidance}"],
+        "variables": ["{user_prompt}", "{num_options}", "{asset_context}", "{style_section}", "{max_chars}", "{optimal_length}", "{locked_elements}", "{variable_elements}", "{model_guidance}"],
         "model": "complex LLM (Opus)",
-        "text": """You are a concept artist presenting {num_options} different design directions to a creative director. Each option must be a COMPLETE image description for an AI image generator.
+        "text": """You are a concept artist presenting {num_options} fundamentally different creative interpretations of one brief.
 
-=== ASSET TYPE (default — user's words override) ===
+=== ASSET TYPE ===
 {asset_context}
 
-=== STYLE ===
+=== VISUAL STYLE (all options MUST follow this) ===
 {style_section}
 
 === THE BRIEF ===
 "{user_prompt}"
 
-{decomposed_guidance}
+=== LOCKED (reproduce exactly in every option) ===
+{locked_elements}
+
+=== VARIABLE (make genuinely different choices for each option) ===
+{variable_elements}
+
+=== MODEL GUIDANCE ===
+{model_guidance}
 
 RULES:
 
-1. **ALL options must honor the user's brief.** If they said "female sailor on a victorian ship" — every option has a female sailor on a victorian ship. You vary the INTERPRETATION, not the subject.
+1. **LOCKED elements appear in EVERY option exactly as described.** These are what the user explicitly asked for.
 
-2. **Vary DESIGN CHOICES, not art medium.** All options should feel like they belong in the same portfolio — same production quality, same art style. What changes between options:
-   - Different character design (outfit details, pose, expression, accessories)
-   - Different composition/camera angle (eye-level vs low-angle vs over-shoulder)
-   - Different mood/atmosphere (warm golden hour vs moody overcast vs dramatic storm)
-   - Different moment/action (standing confidently vs in motion vs examining something)
-   Do NOT vary: art style (no cel-shaded in one and photorealistic in another), and NEVER make any option chibi, cartoon, or low-detail unless the user asked for that.
+2. **VARIABLE elements MUST DIFFER between options.** Each option should explore a completely different creative direction for these elements. Not minor tweaks — bold, distinct choices. Think: different artists interpreting the same brief.
+   Examples of real variation:
+   - Option 1: warm golden hour, flowing silk dress, serene expression
+   - Option 2: stormy overcast, leather armor, fierce determination
+   - Option 3: cool moonlight, formal uniform, contemplative mood
+   Each option should differ on at least 3 variable elements simultaneously.
 
-3. **Every option must be production-quality.** Each one should include:
-   - Accurate anatomy/proportions for any characters or creatures
-   - Material descriptions (not just colors — how surfaces look and behave)
-   - Lighting setup (key light, rim light, ambient)
-   - Enough detail that the image model knows exactly what to render
+3. **If STYLE guidance is provided above, ALL options follow it.** Style is the visual language — palette, rendering, mood. Content varies, style stays consistent.
 
-4. **Keep the user's setting/context in EVERY option.** If they described a scene, all options include that scene. If they mentioned specific clothing, all options have that clothing (but can vary details).
+4. **PROMPT LENGTH: Each option must be approximately {optimal_length}.** Concise and vivid. Do NOT pad with generic quality terms. Every word should describe something visible. Maximum {max_chars} characters per option.
 
-5. Each concept must be under {max_chars} characters. Write as a descriptive caption.
+5. **Write as descriptive captions.** Not commands. Paint what the viewer sees.
 
-Return a JSON array of {num_options} strings. Each string is a complete image caption. Add one final entry prefixed with "NEGATIVE:" for shared exclusion terms (bad anatomy, extra limbs, deformed, blurry, low quality, text, watermark).""",
+Return a JSON array of {num_options} strings. Each string is a complete image caption. If the model supports negative prompts, add one final entry prefixed with "NEGATIVE:" for shared exclusion terms.""",
     },
 
     "image_refine_marketing": {
@@ -361,60 +364,72 @@ Make sure text does not overflow the canvas boundaries. Account for font size wh
         "label": "Prompt Decomposition",
         "description": "Decomposes a user prompt into structured visual components for the Prompt Designer.",
         "used_by": "Image Studio — Prompt Designer modal",
-        "variables": ["{user_prompt}", "{style_section}", "{asset_context}"],
+        "variables": ["{user_prompt}", "{style_section}", "{asset_context}", "{model_name}", "{model_specific_instructions}"],
         "model": "fast LLM (Sonnet)",
         "system_prompt": "You decompose image generation prompts into structured visual components. Reply with ONLY a JSON object, no explanation or markdown fences.",
         "text": """Decompose this image generation prompt into structured visual components that an artist can individually edit.
 
 Prompt: "{user_prompt}"
 
+=== STYLE GUIDANCE (incorporate into fields below) ===
 {style_section}
 
+=== ASSET TYPE ===
 {asset_context}
 
-Analyze the prompt and return a JSON object with these sections. Fill in details the user implied but didn't state explicitly — use your knowledge of the subject to add accurate, specific visual information.
+=== TARGET MODEL: {model_name} ===
+{model_specific_instructions}
+
+Analyze the prompt and return a JSON object. For EVERY field, include:
+- "value": the visual description
+- "source": "user" if the user explicitly stated this detail, or "inferred" if you are filling in a professional default
+
+CRITICAL RULES:
+1. User-stated details are SACRED. If the user said "red coat" — the clothing value MUST include "red coat" with source "user".
+2. If STYLE GUIDANCE is provided above, EMBED it into the relevant fields. Style hints for palette go into style.color_palette. Style hints for perspective go into composition.camera_angle. Style hints for rendering go into style.art_style. Do NOT just acknowledge the style — make the field values reflect it.
+3. For fields the user did not specify, fill in rich professional defaults with source "inferred".
 
 {{
   "subject": {{
-    "description": "What/who is the main subject — be specific about type, age, build",
-    "clothing": "Detailed clothing/covering/surface description",
-    "accessories": "Items held, worn, or carried",
-    "expression_pose": "Facial expression and body pose/stance",
-    "details": "Any other distinctive features (scars, tattoos, markings, etc.)"
+    "description": {{"value": "What/who is the main subject", "source": "user or inferred"}},
+    "clothing": {{"value": "Detailed clothing description", "source": "user or inferred"}},
+    "accessories": {{"value": "Items held, worn, or carried", "source": "user or inferred"}},
+    "expression_pose": {{"value": "Expression and pose", "source": "user or inferred"}},
+    "details": {{"value": "Distinctive features", "source": "user or inferred"}}
   }},
   "scene": {{
-    "setting": "Where the scene takes place — specific location",
-    "background": "What's visible behind/around the subject",
-    "props": "Objects in the scene (not on the subject)",
-    "time_of_day": "Time and atmospheric conditions"
+    "setting": {{"value": "Location", "source": "user or inferred"}},
+    "background": {{"value": "What is behind the subject", "source": "user or inferred"}},
+    "props": {{"value": "Objects in the scene", "source": "user or inferred"}},
+    "time_of_day": {{"value": "Time and atmosphere", "source": "user or inferred"}}
   }},
   "composition": {{
-    "camera_angle": "Camera position relative to subject (eye-level, low angle, overhead, etc.)",
-    "framing": "How much of the subject is visible (full body, 3/4, close-up, wide shot)",
-    "depth_of_field": "Focus behavior (sharp throughout, soft background, etc.)"
+    "camera_angle": {{"value": "Camera position", "source": "user or inferred"}},
+    "framing": {{"value": "Framing and crop", "source": "user or inferred"}},
+    "depth_of_field": {{"value": "Focus behavior", "source": "user or inferred"}}
   }},
   "lighting": {{
-    "key_light": "Main light source — direction, warmth, intensity",
-    "fill_rim": "Secondary lights for separation and shadow fill",
-    "mood": "Overall emotional quality of the light"
+    "key_light": {{"value": "Main light", "source": "user or inferred"}},
+    "fill_rim": {{"value": "Secondary lights", "source": "user or inferred"}},
+    "mood": {{"value": "Light mood", "source": "user or inferred"}}
   }},
   "style": {{
-    "art_style": "Rendering approach (digital painting, photorealistic, concept art, etc.)",
-    "quality": "Detail level and production quality markers",
+    "art_style": {{"value": "Rendering approach", "source": "user or inferred"}},
+    "quality": {{"value": "Detail and quality", "source": "user or inferred"}},
     "color_palette": [
-      {{"name": "Color Name", "hex": "#HEXVAL", "usage": "where this color appears"}}
+      {{"name": "Color", "hex": "#HEX", "usage": "where used", "source": "user or inferred"}}
     ]
   }}
 }}
 
-Be SPECIFIC and VISUAL. Not 'nice outfit' — describe the actual garments. Not 'good lighting' — describe the light direction and color temperature. Generate 4-6 colors in the palette that define the image's look. If the user's prompt is simple (e.g. 'a cat'), fill in rich professional defaults.""",
+Be SPECIFIC and VISUAL. Keep each field value CONCISE (1-2 sentences max). Do not write paragraphs.""",
     },
 
     "prompt_recompose": {
         "label": "Prompt Recomposition",
         "description": "Assembles structured visual components back into a flat image generation prompt.",
         "used_by": "Image Studio — Prompt Designer modal — Generate button",
-        "variables": ["{structured_json}", "{model_name}", "{model_specific_instructions}", "{max_chars}"],
+        "variables": ["{structured_json}", "{model_name}", "{model_specific_instructions}", "{max_chars}", "{optimal_length}", "{style_section}"],
         "model": "fast LLM (Sonnet)",
         "system_prompt": "You write image generation prompts from structured specifications. Output ONLY the prompt text (and NEGATIVE: line if the model supports it). No explanation.",
         "text": """Convert these structured visual specifications into a single image generation prompt for {model_name}.
@@ -422,14 +437,17 @@ Be SPECIFIC and VISUAL. Not 'nice outfit' — describe the actual garments. Not 
 === MODEL INSTRUCTIONS ===
 {model_specific_instructions}
 
+=== STYLE GUIDANCE ===
+{style_section}
+
 === SPECIFICATIONS ===
 {structured_json}
 
-Write a DESCRIPTIVE CAPTION (not commands) that incorporates the specifications above. Structure: subject and pose first, then scene/setting, then materials/textures, then lighting, then style/quality.
+Write a DESCRIPTIVE CAPTION (not commands) that incorporates the specifications above. Structure: subject first, then scene, then lighting, then style.
 
-Follow the MODEL INSTRUCTIONS above for prompt length, style, and whether to include a NEGATIVE: line. Only include NEGATIVE: if the model supports it. If the model says no negative prompts, focus all effort on the positive caption.
+PROMPT LENGTH: Target approximately {optimal_length}. The model works best with concise, natural descriptions. Maximum hard limit: {max_chars} characters. Every word must paint the picture — no filler.
 
-Keep under {max_chars} characters. Every word should paint the picture.""",
+Follow the MODEL INSTRUCTIONS for whether to include a NEGATIVE: line. If the model says no negative prompts, skip it entirely.""",
     },
 
     # ── Asset Classification ─────────────────────────────────────────

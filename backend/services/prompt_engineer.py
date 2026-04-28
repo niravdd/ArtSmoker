@@ -42,6 +42,23 @@ def get_prompt_limit(image_model: str | None = None) -> int:
     return _MODEL_PROMPT_LIMITS.get(image_model, _DEFAULT_PROMPT_LIMIT)
 
 
+def get_optimal_length(image_model: str | None = None) -> int:
+    """Get the optimal prompt word count for a model from the registry.
+
+    Ensures the word target won't exceed the model's character limit
+    (assuming ~6.5 chars per word average including spaces).
+    """
+    if image_model:
+        from backend.services.model_registry import get_image_model
+        reg = get_image_model(image_model)
+        if reg:
+            optimal = reg.get("optimal_prompt_words", 0) or reg.get("invoke", {}).get("optimal_prompt_words", 0) or 80
+            char_limit = get_prompt_limit(image_model)
+            max_safe_words = int(char_limit / 6.5)
+            return min(optimal, max_safe_words)
+    return 80
+
+
 def get_model_guidance(image_model: str | None = None) -> str:
     """Get model-specific prompt guidance from the registry.
 
@@ -400,11 +417,13 @@ def refine_prompt(
     # Model-specific prompt guidance: check registry first (extensible), then hardcoded
     model_instructions = get_model_guidance(image_model) or _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
 
+    optimal_length = get_optimal_length(image_model)
     prompt = get_template('image_refine_single').format(
         asset_context=asset_context,
         style_section=style_section,
         user_prompt=user_prompt,
         max_chars=max_chars,
+        optimal_length=f"{optimal_length} words",
         model_name=model_name,
         model_specific_instructions=model_instructions,
     )
@@ -500,11 +519,14 @@ def refine_prompt_structured(
         return refined, {}
 
     # Step 2: Recompose — build an optimised prompt from the components
+    optimal_length = get_optimal_length(image_model)
     recompose_prompt_text = get_template('prompt_recompose').format(
         structured_json=json.dumps(decomposed, indent=2),
         model_name=model_name,
         model_specific_instructions=model_instructions,
         max_chars=max_chars,
+        optimal_length=f"{optimal_length} words",
+        style_section=style_section,
     )
 
     raw_recompose = invoke_llm(
@@ -580,6 +602,48 @@ def refine_marketing_prompt(
 # _CONCEPTS_PROMPT_TEMPLATE loaded from prompt_templates registry as 'image_concepts_multi'
 
 
+def _build_locked_variable_sections(
+    decomposed_data: dict,
+    vary_fields: dict | None = None,
+) -> tuple[str, str]:
+    """Split decomposed fields into locked (user-specified) and variable (LLM-inferred) sections."""
+    locked_lines = []
+    variable_lines = []
+
+    for section_name, section in decomposed_data.items():
+        if not isinstance(section, dict):
+            continue
+        for field_name, field in section.items():
+            # Handle both new format {value, source} and legacy bare strings
+            if isinstance(field, dict) and "value" in field:
+                value = field["value"]
+                source = field.get("source", "inferred")
+            elif isinstance(field, list):
+                continue  # Skip palette arrays
+            elif isinstance(field, str):
+                value = field
+                source = "inferred"
+            else:
+                continue
+
+            # User override from frontend takes priority
+            full_key = f"{section_name}.{field_name}"
+            if vary_fields and full_key in vary_fields:
+                is_locked = vary_fields[full_key] == "lock"
+            else:
+                is_locked = source == "user"
+
+            label = f"{section_name}.{field_name}"
+            if is_locked:
+                locked_lines.append(f"- {label}: {value}")
+            else:
+                variable_lines.append(f"- {label}: {value} (suggested — vary freely)")
+
+    locked_text = "\n".join(locked_lines) if locked_lines else "None — all elements can be varied."
+    variable_text = "\n".join(variable_lines) if variable_lines else "None — all elements are locked."
+    return locked_text, variable_text
+
+
 def generate_concept_prompts(
     user_prompt: str,
     style_profile: StyleProfile | None,
@@ -587,25 +651,26 @@ def generate_concept_prompts(
     num_options: int = 5,
     image_model: str | None = None,
     recomposed_prompt: str | None = None,
+    decomposed_data: dict | None = None,
+    vary_fields: dict | None = None,
 ) -> list[str]:
     """Generate multiple distinctly different concept prompts from a single user request.
 
-    If recomposed_prompt is provided (from prior refine_prompt_structured),
-    it's included as a quality baseline so the LLM generates options at
-    that detail level rather than starting from the raw user brief.
+    Uses locked/variable semantics from decomposed data to ensure options
+    are genuinely distinct while preserving user-specified details.
     """
     max_chars = get_prompt_limit(image_model)
+    optimal_length = get_optimal_length(image_model)
     asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
     style_section = _build_style_section(style_profile)
     model_instructions = get_model_guidance(image_model) or _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
 
-    # Build guidance from recomposed prompt + model instructions
-    guidance_parts = []
-    if recomposed_prompt:
-        guidance_parts.append(f"=== REFINED REFERENCE PROMPT ===\nA prior analysis refined the user's brief into this detailed prompt. Use it as your quality baseline — every option should be at least this detailed, preserving all core elements while varying design choices:\n\"{recomposed_prompt}\"")
-    if model_instructions:
-        guidance_parts.append(f"=== MODEL-SPECIFIC GUIDANCE ===\n{model_instructions}")
-    decomposed_guidance = "\n\n".join(guidance_parts) if guidance_parts else ""
+    # Build locked/variable sections from decomposed data
+    if decomposed_data:
+        locked_text, variable_text = _build_locked_variable_sections(decomposed_data, vary_fields)
+    else:
+        locked_text = f"The user's brief: \"{user_prompt}\" — preserve the core subject and setting."
+        variable_text = "All creative details (outfit, lighting, mood, composition, time of day) — vary boldly."
 
     prompt = get_template('image_concepts_multi').format(
         asset_context=asset_context,
@@ -613,12 +678,15 @@ def generate_concept_prompts(
         user_prompt=user_prompt,
         num_options=num_options,
         max_chars=max_chars,
-        decomposed_guidance=decomposed_guidance,
+        optimal_length=f"{optimal_length} words",
+        locked_elements=locked_text,
+        variable_elements=variable_text,
+        model_guidance=model_instructions,
     )
 
     logger.info(
-        "Generating %d concept prompts for asset_type=%s, has_style=%s, model=%s, max_chars=%d",
-        num_options, asset_type.value, style_profile is not None, image_model, max_chars,
+        "Generating %d concept prompts for asset_type=%s, has_style=%s, model=%s, optimal=%dw",
+        num_options, asset_type.value, style_profile is not None, image_model, optimal_length,
     )
 
     raw = invoke_llm(
