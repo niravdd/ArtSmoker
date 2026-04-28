@@ -215,6 +215,7 @@ class DecomposeRequest(_BaseModel):
     prompt: str
     style_id: str | None = None
     asset_type: str = "game_asset"
+    image_model: str = ""
 
 
 @router.post("/decompose")
@@ -264,10 +265,16 @@ async def decompose_prompt(body: DecomposeRequest):
         asset_enum = AssetType.GAME_ASSET
     asset_context = _ASSET_TYPE_CONTEXT.get(asset_enum, "")
 
+    from backend.services.prompt_engineer import _get_model_label, get_model_guidance, _MODEL_INSTRUCTIONS, _DEFAULT_MODEL_INSTRUCTIONS
+    model_name = _get_model_label(body.image_model) if body.image_model else "AI image generator"
+    model_instructions = (get_model_guidance(body.image_model) or _MODEL_INSTRUCTIONS.get(body.image_model, _DEFAULT_MODEL_INSTRUCTIONS)) if body.image_model else _DEFAULT_MODEL_INSTRUCTIONS
+
     prompt_text = get_template('prompt_decompose').format(
-        user_prompt=prompt_for_decompose,  # Always English
+        user_prompt=prompt_for_decompose,
         style_section=style_section,
         asset_context=asset_context,
+        model_name=model_name,
+        model_specific_instructions=model_instructions,
     )
 
     try:
@@ -306,10 +313,11 @@ async def recompose_prompt(body: RecomposeRequest):
     """Recompose structured visual components into a flat image generation prompt."""
     from backend.services.bedrock_client import invoke_llm
     from backend.services.prompt_templates import get_template, get_system_prompt
-    from backend.services.prompt_engineer import get_prompt_limit, get_model_guidance, _get_model_label, _MODEL_INSTRUCTIONS, _DEFAULT_MODEL_INSTRUCTIONS
+    from backend.services.prompt_engineer import get_prompt_limit, get_optimal_length, get_model_guidance, _get_model_label, _build_style_section, _MODEL_INSTRUCTIONS, _DEFAULT_MODEL_INSTRUCTIONS
     import json as _json, re as _re
 
     max_chars = get_prompt_limit(body.image_model)
+    optimal_length = get_optimal_length(body.image_model)
     model_name = _get_model_label(body.image_model)
     model_instructions = get_model_guidance(body.image_model) or _MODEL_INSTRUCTIONS.get(body.image_model, _DEFAULT_MODEL_INSTRUCTIONS)
 
@@ -318,6 +326,8 @@ async def recompose_prompt(body: RecomposeRequest):
         model_name=model_name,
         model_specific_instructions=model_instructions,
         max_chars=max_chars,
+        optimal_length=f"{optimal_length} words",
+        style_section="(Style already embedded in the structured specifications above)",
     )
 
     try:
