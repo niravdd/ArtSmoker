@@ -361,9 +361,9 @@
             // Info footer explaining lock/vary — below buttons, visible on every tab
             const infoFooter = `
                 <div class="px-5 py-2.5 bg-black/5">
-                    <p class="text-[10.5px] text-brand-text-muted/80 leading-relaxed">
-                        <span class="text-brand-accent font-medium">🎲 Randomise</span> <span class="text-brand-text-muted/50">(default)</span> — each generated option gets a different creative take on this element.
-                        <span class="text-amber-400 font-medium">🔒 Fixed</span> — this element stays identical across all options.
+                    <p class="text-[10.5px] text-brand-text-muted/80 leading-loose">
+                        <span class="text-brand-accent font-medium">🎲 Randomise</span> <span class="text-brand-text-muted/50">(default)</span> — each generated option gets a different creative take on this element.<br>
+                        <span class="text-amber-400 font-medium">🔒 Fixed</span> — this element stays identical across all options.<br>
                         Edit any field freely and choose whether it should be randomised or fixed. With a single option (1×1), all fields are used as-is.
                     </p>
                 </div>`;
