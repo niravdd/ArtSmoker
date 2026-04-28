@@ -180,9 +180,11 @@
                                 <!-- Style Selector -->
                                 <div>
                                     <label class="block text-sm font-medium mb-1.5">${t('type_studio.style')}</label>
-                                    <select id="ts-style" class="input">
-                                        <option value="">${t('type_studio.style_none')}</option>
-                                    </select>
+                                    <div class="select-expand-wrap">
+                                        <select id="ts-style" class="input">
+                                            <option value="">${t('type_studio.style_none')}</option>
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <!-- Source Image (On Image mode only) -->

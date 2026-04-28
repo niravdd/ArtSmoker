@@ -16,6 +16,7 @@
     let _abortController = null;
     let _searchQuery = '';
     let _sessionStartTime = null; // Track when user started interacting with current session
+    let _selectedModelId = ''; // Custom dropdown selection state
 
     // System prompt templates
     const TEMPLATES = [
@@ -71,7 +72,13 @@
                         <button id="cs-open-settings" class="text-brand-accent hover:text-brand-accent-hover font-medium">${t('chat_studio.open_settings')}</button>
                     </div>
                     <div class="flex items-center gap-3 flex-wrap">
-                        <select id="cs-model-picker" class="input text-xs font-mono flex-1 min-w-[200px]"></select>
+                        <div id="cs-model-multi" class="relative flex-1 min-w-[200px]">
+                            <button id="cs-model-btn" type="button" class="input text-left flex items-center justify-between w-full cursor-pointer text-xs font-mono">
+                                <span id="cs-model-label" class="truncate">Select model...</span>
+                                <svg class="w-3.5 h-3.5 text-brand-text-muted flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                            </button>
+                            <div id="cs-model-dropdown" class="hidden absolute z-50 mt-1 min-w-full w-max max-h-[28rem] overflow-y-auto rounded-lg border border-brand-border shadow-xl" style="background: var(--bg, #0f172a)"></div>
+                        </div>
                         <select id="cs-region-picker" class="input text-[10px] font-mono w-32" title="${t('common.region')}"></select>
                         <div class="flex items-center gap-2 text-[10px] text-brand-text-muted">
                             <span>${t('chat_studio.temperature')}: <input type="number" id="cs-temperature" class="input text-[10px] w-14 text-center" value="0.7" min="0" max="2" step="0.1"></span>
@@ -180,10 +187,36 @@
             e.target.value = '';
         });
 
-        // Model picker
-        _container.querySelector('#cs-model-picker')?.addEventListener('change', (e) => {
+        // Custom model dropdown: toggle open/close
+        _container.querySelector('#cs-model-btn')?.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const dd = _container.querySelector('#cs-model-dropdown');
+            dd?.classList.toggle('hidden');
+        });
+        // Close dropdown on outside click
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('#cs-model-multi')) {
+                _container?.querySelector('#cs-model-dropdown')?.classList.add('hidden');
+            }
+        });
+        // Handle model selection from custom dropdown
+        _container.querySelector('#cs-model-dropdown')?.addEventListener('click', (e) => {
+            const item = e.target.closest('.cs-model-item');
+            if (!item) return;
+            const modelId = item.dataset.modelId;
+            _selectedModelId = modelId;
+            // Update button label (show short model name, not full label)
+            const label = _container.querySelector('#cs-model-label');
+            const modelObj = _models.find(m => m.model_id === modelId);
+            if (label) label.textContent = modelObj?.label || modelId;
+            // Highlight active item
+            _container.querySelectorAll('.cs-model-item').forEach(el => el.classList.remove('bg-brand-accent/15'));
+            item.classList.add('bg-brand-accent/15');
+            // Close dropdown
+            _container.querySelector('#cs-model-dropdown')?.classList.add('hidden');
+            // Update session state
             if (_currentSession) {
-                _currentSession.model_id = e.target.value;
+                _currentSession.model_id = modelId;
                 _updateRegionPicker();
                 _updatePricingInfo();
                 _updateContextBar();
@@ -302,8 +335,8 @@
     }
 
     function _renderModelPicker() {
-        const sel = _container.querySelector('#cs-model-picker');
-        if (!sel) return;
+        const dd = _container.querySelector('#cs-model-dropdown');
+        if (!dd) return;
 
         // Group by provider
         const byProvider = {};
@@ -313,18 +346,33 @@
             byProvider[provider].push(m);
         }
 
-        sel.innerHTML = Object.entries(byProvider).map(([provider, models]) => {
-            const opts = models.map(m => {
+        let html = '';
+        for (const [provider, models] of Object.entries(byProvider)) {
+            html += `<div class="px-3 pt-2 pb-1 text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider">${_esc(provider)}</div>`;
+            for (const m of models) {
                 const ctx = m.max_context_tokens >= 1000000 ? `${Math.round(m.max_context_tokens / 1000000)}M` : `${Math.round(m.max_context_tokens / 1000)}K`;
                 const vision = m.has_vision ? ' [vision]' : '';
                 const source = m.model_source !== 'foundation' ? ` (${m.model_source})` : '';
                 const regions = (m.available_regions || []).length;
                 const regionHint = regions > 1 ? ` [${regions} regions]` : '';
                 const price = m.pricing?.input_per_1k ? ` · $${m.pricing.input_per_1k}/1K in` : '';
-                return `<option value="${_esc(m.model_id)}">${_esc(m.label)} — ${ctx}${price}${vision}${source}${regionHint}</option>`;
-            }).join('');
-            return `<optgroup label="${_esc(provider)}">${opts}</optgroup>`;
-        }).join('');
+                const label = `${m.label} — ${ctx}${price}${vision}${source}${regionHint}`;
+                const active = m.model_id === _selectedModelId ? ' bg-brand-accent/15' : '';
+                html += `<div class="cs-model-item flex items-center gap-2 text-xs font-mono cursor-pointer py-1.5 px-3 hover:bg-brand-bg/60 whitespace-nowrap${active}" data-model-id="${_esc(m.model_id)}" data-label="${_esc(label)}">${_esc(label)}</div>`;
+            }
+        }
+        dd.innerHTML = html;
+
+        // If no selection yet, auto-select first model
+        if (!_selectedModelId && _models.length) {
+            _selectedModelId = _models[0].model_id;
+        }
+        // Update button label to match current selection
+        const selected = _models.find(m => m.model_id === _selectedModelId);
+        if (selected) {
+            const label = _container.querySelector('#cs-model-label');
+            if (label) label.textContent = selected.label;
+        }
 
         _updatePricingInfo();
 
@@ -339,7 +387,7 @@
     }
 
     function _getSelectedModel() {
-        return _models.find(m => m.model_id === _container.querySelector('#cs-model-picker')?.value) || _models[0] || {};
+        return _models.find(m => m.model_id === _selectedModelId) || _models[0] || {};
     }
 
     function _updateRegionPicker() {
@@ -517,8 +565,17 @@
             _pendingImages = [];
             _renderAttachments();
 
-            const picker = _container.querySelector('#cs-model-picker');
-            if (picker && session.model_id) picker.value = session.model_id;
+            // Update custom model dropdown selection
+            if (session.model_id) {
+                _selectedModelId = session.model_id;
+                const selected = _models.find(m => m.model_id === session.model_id);
+                const label = _container.querySelector('#cs-model-label');
+                if (label && selected) label.textContent = selected.label;
+                // Update highlight in dropdown
+                _container.querySelectorAll('.cs-model-item').forEach(el => {
+                    el.classList.toggle('bg-brand-accent/15', el.dataset.modelId === session.model_id);
+                });
+            }
             const temp = _container.querySelector('#cs-temperature');
             if (temp) temp.value = session.temperature || 0.7;
             const maxTok = _container.querySelector('#cs-max-tokens');

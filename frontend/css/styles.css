@@ -417,6 +417,26 @@ select.input {
     padding-right: 2.25rem;
 }
 
+/* Wrapper for selects that need to expand wider than their container when open.
+   Parent must have .select-expand-wrap, child <select> gains full-width popup.
+   The wrapper preserves height when select goes absolute on focus. */
+.select-expand-wrap {
+    position: relative;
+    /* Reserve space so layout doesn't collapse when select goes absolute */
+    min-height: 2.5rem;
+}
+.select-expand-wrap select.input {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+}
+.select-expand-wrap select.input:focus {
+    position: absolute;
+    width: max-content;
+    min-width: 100%;
+    z-index: 50;
+}
+
 /* --- Toggle Switch --- */
 .toggle {
     position: relative;

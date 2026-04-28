@@ -39,9 +39,11 @@
                                 <!-- Model -->
                                 <div>
                                     <label class="block text-sm font-medium mb-1.5">${t('video_studio.model')}</label>
-                                    <select id="vs-model" class="input">
-                                        <option value="">${t('video_studio.model_loading')}</option>
-                                    </select>
+                                    <div class="select-expand-wrap">
+                                        <select id="vs-model" class="input">
+                                            <option value="">${t('video_studio.model_loading')}</option>
+                                        </select>
+                                    </div>
                                     <p id="vs-model-summary" class="text-[10px] text-brand-text-muted mt-1"></p>
                                 </div>
 

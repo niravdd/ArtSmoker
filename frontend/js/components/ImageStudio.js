@@ -70,16 +70,20 @@
 
                                 <div>
                                     <label class="block text-sm font-medium mb-1.5">${t('image_studio.style')}</label>
-                                    <select id="gen-style" class="input">
-                                        <option value="">${t('image_studio.style_none')}</option>
-                                    </select>
+                                    <div class="select-expand-wrap">
+                                        <select id="gen-style" class="input">
+                                            <option value="">${t('image_studio.style_none')}</option>
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div>
                                     <label class="block text-sm font-medium mb-1.5">${t('image_studio.asset_type')}</label>
-                                    <select id="gen-asset-type" class="input">
-                                        ${ASSET_TYPES.map(at => `<option value="${at.value}">${t(at.labelKey)}</option>`).join('')}
-                                    </select>
+                                    <div class="select-expand-wrap">
+                                        <select id="gen-asset-type" class="input">
+                                            ${ASSET_TYPES.map(at => `<option value="${at.value}">${t(at.labelKey)}</option>`).join('')}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <div>
@@ -89,7 +93,7 @@
                                             <span id="gen-model-label" class="truncate text-sm">Select models...</span>
                                             <svg class="w-4 h-4 text-brand-text-muted flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                         </button>
-                                        <div id="gen-model-dropdown" class="hidden absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-lg border border-brand-border shadow-xl" style="background: var(--bg, #0f172a)"></div>
+                                        <div id="gen-model-dropdown" class="hidden absolute z-50 mt-1 min-w-full w-max max-h-60 overflow-y-auto rounded-lg border border-brand-border shadow-xl" style="background: var(--bg, #0f172a)"></div>
                                     </div>
                                     <!-- Smart summary line -->
                                     <p id="gen-model-summary" class="text-[10px] text-brand-text-dim mt-1"></p>
@@ -106,9 +110,11 @@
 
                                 <div>
                                     <label class="block text-sm font-medium mb-1.5">${t('image_studio.dimensions')}</label>
-                                    <select id="gen-size" class="input">
-                                        ${SIZE_PRESETS.map((s, i) => `<option value="${i}" ${i === 2 ? 'selected' : ''}>${s.label}</option>`).join('')}
-                                    </select>
+                                    <div class="select-expand-wrap">
+                                        <select id="gen-size" class="input">
+                                            ${SIZE_PRESETS.map((s, i) => `<option value="${i}" ${i === 2 ? 'selected' : ''}>${s.label}</option>`).join('')}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <!-- Advanced: Quality + Region (collapsible) -->
@@ -628,7 +634,7 @@
                 const row = document.createElement('label');
                 row.className = 'flex items-center gap-2 text-xs cursor-pointer py-1.5 px-3 hover:bg-brand-bg/60';
                 row.innerHTML = `<input type="checkbox" class="gen-model-cb rounded border-brand-border" value="${m.value}" data-idx="${idx}" />
-                    <span class="truncate">${m.label}</span>`;
+                    <span class="whitespace-nowrap">${m.label}</span>`;
                 dropdown.appendChild(row);
             });
 
