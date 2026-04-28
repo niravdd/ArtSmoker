@@ -351,16 +351,6 @@
                     <p id="pd-live-preview" class="text-[10px] text-brand-text/60 bg-black/10 rounded-lg px-3 py-2.5 max-h-32 overflow-y-auto font-mono leading-relaxed"></p>
                 </div>`;
 
-            // Info footer explaining lock/vary
-            const infoFooter = `
-                <div class="mx-5 mb-2 px-3 py-2 rounded-lg bg-brand-accent/5 border border-brand-accent/10">
-                    <p class="text-[9px] text-brand-text-muted/70 leading-relaxed">
-                        <span class="text-brand-accent">🎲 Randomise</span> <span class="text-brand-text-muted/50">(default)</span> — each option gets a different creative take on this element.
-                        <span class="text-amber-400">🔒 Fixed</span> — this element stays identical across all options.
-                        You can edit any field and choose whether it should be randomised or fixed. With a single option (1×1), all fields are used as-is.
-                    </p>
-                </div>`;
-
             // Action bar
             const actionBar = `
                 <div class="flex items-center justify-end px-5 py-3 border-t border-brand-border bg-black/10 gap-2">
@@ -368,8 +358,18 @@
                     <button class="pd-save text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${_t('prompt_designer.save_continue')}</button>
                 </div>`;
 
+            // Info footer explaining lock/vary — below buttons, visible on every tab
+            const infoFooter = `
+                <div class="px-5 py-2.5 bg-black/5">
+                    <p class="text-[10.5px] text-brand-text-muted/80 leading-relaxed">
+                        <span class="text-brand-accent font-medium">🎲 Randomise</span> <span class="text-brand-text-muted/50">(default)</span> — each generated option gets a different creative take on this element.
+                        <span class="text-amber-400 font-medium">🔒 Fixed</span> — this element stays identical across all options.
+                        Edit any field freely and choose whether it should be randomised or fixed. With a single option (1×1), all fields are used as-is.
+                    </p>
+                </div>`;
+
             const body = this._modal?.querySelector('.pd-body');
-            if (body) body.innerHTML = originalPromptBar + translationBanner + tabBar + tabContent + previewBar + infoFooter + actionBar;
+            if (body) body.innerHTML = originalPromptBar + translationBanner + tabBar + tabContent + previewBar + actionBar + infoFooter;
 
             // Attach events
             this._modal?.querySelectorAll('.pd-tab').forEach(btn => {
