@@ -1736,7 +1736,7 @@
                                         const iWarm = inst.status === 'InService' && inst.warming_up;
                                         const iDot = iActive ? 'bg-emerald-400' : iIdle ? 'bg-blue-400' : iWarm ? 'bg-cyan-400 animate-pulse' : 'bg-brand-text-muted/30';
                                         const iColor = iActive ? 'text-emerald-400' : iIdle ? 'text-blue-400' : iWarm ? 'text-cyan-400' : 'text-brand-text-muted/50';
-                                        const iStatusTxt = iActive ? t('custom_models.active') : iIdle ? 'Inactive' : iWarm ? t('custom_models.warming_up') : inst.status;
+                                        const iStatusTxt = iActive ? t('custom_models.active') : iIdle ? 'Inactive — activates when jobs are submitted' : iWarm ? t('custom_models.warming_up') : inst.status;
                                         return `
                                         <div class="flex items-center gap-2 p-2 rounded bg-brand-bg/20 border border-brand-border/30">
                                             <div class="w-1.5 h-1.5 rounded-full ${iDot} flex-shrink-0"></div>
