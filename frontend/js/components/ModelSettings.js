@@ -1730,8 +1730,8 @@
                                     </div>
                                 </div>
                                 ${(m.deployed_instances || []).length > 0 ? `
-                                <div class="px-3 pb-3 pt-0 space-y-1.5 border-t border-brand-border/20 mt-0">
-                                    <div class="text-[9px] text-brand-text-muted/50 pt-2">${(m.deployed_instances || []).length} deployed instance${(m.deployed_instances || []).length > 1 ? 's' : ''}:</div>
+                                <div class="px-3 pb-3 pt-0 space-y-1.5 border-t border-brand-border/20 mt-0 ml-4">
+                                    <div class="text-[9px] text-brand-text-muted/40 pt-2">${(m.deployed_instances || []).length} deployed instance${(m.deployed_instances || []).length > 1 ? 's' : ''}:</div>
                                     ${(m.deployed_instances || []).map(inst => {
                                         const iActive = inst.status === 'InService' && !inst.warming_up && inst.instance_count > 0;
                                         const iIdle = inst.status === 'InService' && !inst.warming_up && !iActive;
@@ -1742,11 +1742,11 @@
                                         return `
                                         <div class="flex items-center gap-2 p-2 rounded bg-black/10 border border-brand-border/20">
                                             <div class="w-1.5 h-1.5 rounded-full ${iDot} flex-shrink-0"></div>
-                                            <span class="text-[10px] text-brand-text font-medium truncate" title="${inst.label}">${inst.label}</span>
+                                            <span class="text-[10px] text-cyan-300/80 truncate" title="${inst.label}">${inst.label}</span>
                                             <span class="text-[9px] ${iColor} flex-shrink-0">${iStatusTxt}</span>
                                             <div class="ml-auto flex gap-1.5 flex-shrink-0">
                                                 <button class="ms-cm-teardown btn text-[9px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10" data-model="${inst.deployed_key}">${t('custom_models.remove')}</button>
-                                                ${iIdle ? `<button class="ms-cm-redeploy btn text-[9px] px-2 py-0.5 rounded border border-brand-border/50 text-brand-text-muted/60 hover:bg-white/5" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
+                                                ${iIdle ? `<button class="ms-cm-redeploy btn text-[9px] px-2.5 py-0.5 rounded border border-brand-accent/30 text-brand-accent/80 hover:bg-brand-accent/10 hover:text-brand-accent" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
                                             </div>
                                         </div>`;
                                     }).join('')}
