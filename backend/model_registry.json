@@ -4388,6 +4388,18 @@
         "license": "Apache 2.0",
         "requires_hf_auth": true,
         "hf_license_url": "https://huggingface.co/black-forest-labs/FLUX.1-schnell",
+        "license_agreement": {
+          "required": true,
+          "license_name": "Apache License 2.0",
+          "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
+          "key_terms": [
+            "Commercial use: Unrestricted",
+            "Modification and redistribution: Allowed",
+            "Patent grant: Yes",
+            "No territory or revenue restrictions"
+          ],
+          "warnings": []
+        },
         "source": {
           "type": "huggingface",
           "repo_id": "black-forest-labs/FLUX.1-schnell"
@@ -4479,6 +4491,19 @@
         "license": "FLUX.1 [dev] Non-Commercial License",
         "requires_hf_auth": true,
         "hf_license_url": "https://huggingface.co/black-forest-labs/FLUX.1-dev",
+        "license_agreement": {
+          "required": true,
+          "license_name": "FLUX.1 [dev] Non-Commercial License",
+          "license_url": "https://huggingface.co/black-forest-labs/FLUX.1-dev/blob/main/LICENSE.md",
+          "key_terms": [
+            "Non-commercial use only",
+            "Modification: Allowed for non-commercial purposes",
+            "Redistribution: Allowed with license notice"
+          ],
+          "warnings": [
+            "Commercial use is NOT permitted under this license"
+          ]
+        },
         "source": {
           "type": "huggingface",
           "repo_id": "black-forest-labs/FLUX.1-dev"
@@ -4570,6 +4595,19 @@
         "license": "FLUX Non-Commercial License",
         "requires_hf_auth": true,
         "hf_license_url": "https://huggingface.co/black-forest-labs/FLUX.2-dev",
+        "license_agreement": {
+          "required": true,
+          "license_name": "FLUX Non-Commercial License",
+          "license_url": "https://huggingface.co/black-forest-labs/FLUX.2-dev/blob/main/LICENSE.md",
+          "key_terms": [
+            "Non-commercial use only",
+            "Modification: Allowed for non-commercial purposes",
+            "Redistribution: Allowed with license notice"
+          ],
+          "warnings": [
+            "Commercial use is NOT permitted under this license"
+          ]
+        },
         "source": {
           "type": "huggingface",
           "repo_id": "black-forest-labs/FLUX.2-dev"
@@ -4714,6 +4752,17 @@
         "provider": "Xinntao",
         "license": "BSD-3-Clause",
         "requires_hf_auth": false,
+        "license_agreement": {
+          "required": true,
+          "license_name": "BSD 3-Clause License",
+          "license_url": "https://github.com/xinntao/Real-ESRGAN/blob/master/LICENSE",
+          "key_terms": [
+            "Commercial use: Unrestricted",
+            "Modification and redistribution: Allowed with attribution",
+            "No patent grant"
+          ],
+          "warnings": []
+        },
         "source": {
           "type": "github_release",
           "repo": "xinntao/Real-ESRGAN",
@@ -4773,6 +4822,19 @@
         "license": "CC-BY-NC-4.0",
         "requires_hf_auth": true,
         "hf_license_url": "https://huggingface.co/briaai/RMBG-2.0",
+        "license_agreement": {
+          "required": true,
+          "license_name": "Creative Commons Attribution-NonCommercial 4.0",
+          "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+          "key_terms": [
+            "Non-commercial use only",
+            "Attribution required",
+            "Modification: Allowed with attribution"
+          ],
+          "warnings": [
+            "Commercial use is NOT permitted under this license"
+          ]
+        },
         "source": {
           "type": "huggingface",
           "repo_id": "briaai/RMBG-2.0"
@@ -4828,6 +4890,19 @@
         "provider": "Shangchen Zhou et al.",
         "license": "NTU S-Lab License 1.0 (research)",
         "requires_hf_auth": false,
+        "license_agreement": {
+          "required": true,
+          "license_name": "NTU S-Lab License 1.0",
+          "license_url": "https://github.com/sczhou/CodeFormer/blob/master/LICENSE",
+          "key_terms": [
+            "Non-commercial research use only",
+            "Modification: Allowed for research",
+            "Redistribution: Allowed with license notice"
+          ],
+          "warnings": [
+            "Commercial use is NOT permitted — research use only"
+          ]
+        },
         "source": {
           "type": "github_release",
           "repo": "sczhou/CodeFormer",
@@ -4884,6 +4959,19 @@
         "provider": "DepthAnything Team",
         "license": "CC-BY-NC-4.0",
         "requires_hf_auth": false,
+        "license_agreement": {
+          "required": true,
+          "license_name": "Creative Commons Attribution-NonCommercial 4.0",
+          "license_url": "https://creativecommons.org/licenses/by-nc/4.0/",
+          "key_terms": [
+            "Non-commercial use only",
+            "Attribution required",
+            "Modification: Allowed with attribution"
+          ],
+          "warnings": [
+            "Commercial use is NOT permitted under this license"
+          ]
+        },
         "source": {
           "type": "huggingface",
           "repo_id": "depth-anything/Depth-Anything-V2-Large"
@@ -4938,6 +5026,18 @@
         "provider": "Meta AI",
         "license": "Apache 2.0",
         "requires_hf_auth": false,
+        "license_agreement": {
+          "required": true,
+          "license_name": "Apache License 2.0",
+          "license_url": "https://www.apache.org/licenses/LICENSE-2.0",
+          "key_terms": [
+            "Commercial use: Unrestricted",
+            "Modification and redistribution: Allowed",
+            "Patent grant: Yes",
+            "No territory or revenue restrictions"
+          ],
+          "warnings": []
+        },
         "source": {
           "type": "huggingface",
           "repo_id": "facebook/sam2-hiera-large"
@@ -5002,6 +5102,19 @@
         "provider": "Stability AI",
         "license": "Stability AI Community License",
         "requires_hf_auth": false,
+        "license_agreement": {
+          "required": true,
+          "license_name": "Stability AI Community License",
+          "license_url": "https://huggingface.co/stabilityai/stable-video-diffusion-img2vid-xt/blob/main/LICENSE",
+          "key_terms": [
+            "Non-commercial use: Allowed",
+            "Commercial use: Allowed under 1M monthly revenue",
+            "Modification: Allowed"
+          ],
+          "warnings": [
+            "Above $1M monthly revenue requires a separate Stability AI Enterprise license"
+          ]
+        },
         "source": {
           "type": "huggingface",
           "repo_id": "stabilityai/stable-video-diffusion-img2vid-xt"
@@ -5077,6 +5190,21 @@
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
         "hf_license_url": "https://huggingface.co/tencent/HunyuanImage-3.0/blob/main/LICENSE",
+        "license_agreement": {
+          "required": true,
+          "license_name": "Tencent Hunyuan Community License",
+          "license_url": "https://huggingface.co/tencent/HunyuanImage-3.0/blob/main/LICENSE",
+          "key_terms": [
+            "Commercial use: Yes (under 100M MAU)",
+            "Hosted service (SaaS): Allowed",
+            "Modification: Allowed, you own derivatives"
+          ],
+          "warnings": [
+            "EXCLUDES EU, UK, and South Korea — users in these territories have no license to use this model",
+            "Cannot use outputs to train non-Hunyuan AI models",
+            "Above 100M MAU requires separate Tencent approval"
+          ]
+        },
         "category": "image_generation",
         "source": {
           "type": "huggingface",
@@ -5257,6 +5385,21 @@
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
         "hf_license_url": "https://huggingface.co/tencent/HunyuanImage-3.0/blob/main/LICENSE",
+        "license_agreement": {
+          "required": true,
+          "license_name": "Tencent Hunyuan Community License",
+          "license_url": "https://huggingface.co/tencent/HunyuanImage-3.0/blob/main/LICENSE",
+          "key_terms": [
+            "Commercial use: Yes (under 100M MAU)",
+            "Hosted service (SaaS): Allowed",
+            "Modification: Allowed, you own derivatives"
+          ],
+          "warnings": [
+            "EXCLUDES EU, UK, and South Korea — users in these territories have no license to use this model",
+            "Cannot use outputs to train non-Hunyuan AI models",
+            "Above 100M MAU requires separate Tencent approval"
+          ]
+        },
         "category": "image_generation",
         "source": {
           "type": "huggingface",

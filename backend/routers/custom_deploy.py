@@ -37,6 +37,24 @@ def _check_cache_quick(model_key: str) -> bool:
         return False
 
 
+def _record_license_acceptance(model_key: str, license_name: str):
+    """Record that the user accepted a model's license in the user registry."""
+    try:
+        from backend.services.model_registry import get_registry, _save
+        from datetime import datetime, timezone
+
+        registry = get_registry()
+        acceptances = registry.setdefault("license_acceptances", {})
+        acceptances[model_key] = {
+            "license_name": license_name,
+            "accepted_at": datetime.now(timezone.utc).isoformat(),
+        }
+        _save()
+        logger.info("Recorded license acceptance for %s (%s)", model_key, license_name)
+    except Exception as e:
+        logger.warning("Failed to record license acceptance for %s: %s", model_key, e)
+
+
 # ── Catalog ───────────────────────────────────────────────────────────────
 
 @router.get("/catalog")
@@ -111,6 +129,7 @@ def list_catalog():
             "license": model["license"],
             "requires_hf_auth": model.get("requires_hf_auth", False),
             "hf_license_url": model.get("hf_license_url"),
+            "license_agreement": model.get("license_agreement"),
             "version": model.get("version"),
             "last_updated": model.get("last_updated"),
             "requirements": model["requirements"],
@@ -332,6 +351,7 @@ class DeployRequest(BaseModel):
     instance_type: str | None = None
     hf_token: str | None = None  # For gated models — stored encrypted in Secrets Manager
     build_only: bool = False  # Build mode: cache weights after load, don't expect inference
+    license_accepted: bool = False  # User confirmed license agreement before deploying
 
 
 _deploy_status: dict = {}  # model_key → {"stage": str, "progress": str, "error": str}
@@ -361,6 +381,15 @@ async def deploy_model(body: DeployRequest):
     model = get_catalog_model(body.model_key)
     if not model:
         raise HTTPException(404, detail=f"Unknown model: {body.model_key}")
+
+    # Enforce license agreement acceptance before deployment
+    license_info = model.get("license_agreement", {})
+    if license_info.get("required") and not body.license_accepted:
+        raise HTTPException(400, detail="License agreement must be accepted before deploying this model.")
+
+    # Record license acceptance in user registry
+    if body.license_accepted:
+        _record_license_acceptance(body.model_key, license_info.get("license_name", model.get("license", "")))
 
     # Smart token flow: only ask for token if gated AND no token stored yet
     if model.get("requires_hf_auth") and not body.hf_token and not has_hf_token():

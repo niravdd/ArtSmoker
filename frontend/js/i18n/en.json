@@ -970,7 +970,12 @@
     "async_ready_toast": "{{model}} image ready — check Pending Jobs",
     "async_no_jobs": "No async jobs yet. Self-hosted models generate images in the background.",
     "async_clear_completed": "Clear completed",
-    "async_footer": "Self-hosted models generate asynchronously. Images appear in the Gallery when complete. Stale or unfinished jobs are automatically cleaned up after 24 hours — either while the app is running, or on next startup."
+    "async_footer": "Self-hosted models generate asynchronously. Images appear in the Gallery when complete. Stale or unfinished jobs are automatically cleaned up after 24 hours — either while the app is running, or on next startup.",
+    "license_title": "License Agreement",
+    "license_key_terms": "Key Terms",
+    "license_read_full": "Read full license",
+    "license_agree_checkbox": "I have read and agree to the license terms",
+    "license_continue": "Continue to Deploy"
   },
   "voice_input": {
     "record": "Record voice input",

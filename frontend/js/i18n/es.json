@@ -950,7 +950,12 @@
     "async_no_jobs": "Aún no hay trabajos asíncronos. Los modelos auto-alojados generan imágenes en segundo plano.",
     "async_clear_completed": "Limpiar completados",
     "async_footer": "Los modelos auto-alojados generan de forma asíncrona. Las imágenes aparecen en la galería cuando se completan. Los trabajos obsoletos o incompletos se limpian automáticamente después de 24 horas — mientras la aplicación está en ejecución o en el próximo inicio.",
-    "refresh_status": "Actualizar estado"
+    "refresh_status": "Actualizar estado",
+    "license_title": "Acuerdo de licencia",
+    "license_key_terms": "Condiciones principales",
+    "license_read_full": "Leer licencia completa",
+    "license_agree_checkbox": "He leído y acepto los términos de la licencia",
+    "license_continue": "Continuar con el despliegue"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

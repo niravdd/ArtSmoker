@@ -950,7 +950,12 @@
     "async_no_jobs": "아직 비동기 작업이 없습니다. 셀프 호스팅 모델은 백그라운드에서 이미지를 생성합니다.",
     "async_clear_completed": "완료된 항목 지우기",
     "async_footer": "자체 호스팅 모델은 비동기적으로 생성됩니다. 완료된 이미지는 갤러리에 표시됩니다. 오래되거나 미완성된 작업은 24시간 후 자동으로 정리됩니다 — 앱 실행 중이거나 다음 시작 시.",
-    "refresh_status": "상태 새로고침"
+    "refresh_status": "상태 새로고침",
+    "license_title": "라이선스 계약",
+    "license_key_terms": "주요 조건",
+    "license_read_full": "전체 라이선스 읽기",
+    "license_agree_checkbox": "라이선스 조건을 읽고 동의합니다",
+    "license_continue": "배포 계속"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

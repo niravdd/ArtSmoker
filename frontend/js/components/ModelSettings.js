@@ -1468,6 +1468,82 @@
             });
         },
 
+        _showLicenseAgreement(modelLabel, licenseAgreement) {
+            return new Promise((resolve) => {
+                const la = licenseAgreement;
+                const termsHtml = (la.key_terms || []).map(term =>
+                    `<li class="flex items-start gap-2">
+                        <span class="text-emerald-400 mt-0.5 flex-shrink-0">&#10003;</span>
+                        <span>${term}</span>
+                    </li>`
+                ).join('');
+                const warningsHtml = (la.warnings || []).length > 0
+                    ? `<div class="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 space-y-1.5">
+                        <p class="text-[10px] font-semibold text-red-400 uppercase tracking-wider">Restrictions &amp; Warnings</p>
+                        <ul class="space-y-1.5 text-xs text-red-300">
+                            ${la.warnings.map(w => `<li class="flex items-start gap-2"><span class="text-red-400 mt-0.5 flex-shrink-0">&#9888;</span><span>${w}</span></li>`).join('')}
+                        </ul>
+                    </div>`
+                    : '';
+
+                const backdrop = document.createElement('div');
+                backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+                backdrop.innerHTML = `
+                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
+                        <h3 class="text-sm font-semibold text-brand-text">${t('custom_models.license_title')}</h3>
+                        <div class="text-xs text-brand-text-muted space-y-3">
+                            <div class="flex items-center gap-2">
+                                <span class="font-medium text-brand-text">${modelLabel}</span>
+                                <span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 border border-brand-border/30">${la.license_name}</span>
+                            </div>
+                            <div class="p-3 rounded-lg bg-brand-bg/60 border border-brand-border/50">
+                                <p class="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('custom_models.license_key_terms')}</p>
+                                <ul class="space-y-1.5 text-xs">${termsHtml}</ul>
+                            </div>
+                            ${warningsHtml}
+                            <a href="${la.license_url}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-brand-accent hover:underline text-xs">
+                                ${t('custom_models.license_read_full')} &#8599;
+                            </a>
+                        </div>
+                        <label class="license-agree-label flex items-start gap-2.5 cursor-pointer p-3 rounded-lg border border-brand-border hover:border-brand-accent/30 transition-colors">
+                            <input type="checkbox" class="license-agree-checkbox mt-0.5 accent-brand-accent" />
+                            <span class="text-xs text-brand-text">${t('custom_models.license_agree_checkbox')}</span>
+                        </label>
+                        <div class="flex gap-2 justify-end pt-1">
+                            <button class="license-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('prompt_designer.cancel')}</button>
+                            <button class="license-continue btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium opacity-40 cursor-not-allowed" disabled>${t('custom_models.license_continue')}</button>
+                        </div>
+                    </div>`;
+
+                const checkbox = backdrop.querySelector('.license-agree-checkbox');
+                const continueBtn = backdrop.querySelector('.license-continue');
+
+                checkbox.addEventListener('change', () => {
+                    if (checkbox.checked) {
+                        continueBtn.disabled = false;
+                        continueBtn.classList.remove('opacity-40', 'cursor-not-allowed');
+                    } else {
+                        continueBtn.disabled = true;
+                        continueBtn.classList.add('opacity-40', 'cursor-not-allowed');
+                    }
+                });
+
+                backdrop.querySelector('.license-cancel').addEventListener('click', () => {
+                    backdrop.remove();
+                    resolve(false);
+                });
+                continueBtn.addEventListener('click', () => {
+                    backdrop.remove();
+                    resolve(true);
+                });
+                backdrop.addEventListener('click', (e) => {
+                    if (e.target === backdrop) { backdrop.remove(); resolve(false); }
+                });
+
+                document.body.appendChild(backdrop);
+            });
+        },
+
         _askHfToken(licenseUrl) {
             return new Promise((resolve) => {
                 const licenseLink = licenseUrl
@@ -1525,6 +1601,7 @@
                 const data = await resp.json();
                 const models = data.models || [];
                 this._customModelsLoaded = true;
+                this._catalogModels = models;
 
                 if (models.length === 0) {
                     container.innerHTML = `<p class="text-xs text-brand-text-muted">${t('custom_models.no_models')}</p>`;
@@ -1725,6 +1802,21 @@
         },
 
         async _deployCustomModel(modelKey, needsAuth, modal, isRedeploy = false, licenseUrl = '') {
+            // Show license agreement before proceeding (skip for redeploys — already accepted)
+            let licenseAccepted = false;
+            if (!isRedeploy) {
+                const catalogModel = (this._catalogModels || []).find(m => m.key === modelKey);
+                const licenseAgreement = catalogModel?.license_agreement;
+                if (licenseAgreement?.required) {
+                    const accepted = await this._showLicenseAgreement(
+                        catalogModel.label || modelKey,
+                        licenseAgreement
+                    );
+                    if (!accepted) return;
+                    licenseAccepted = true;
+                }
+            }
+
             let hfToken = null;
 
             if (needsAuth) {
@@ -1773,7 +1865,7 @@
                 const url = isRedeploy ? `/api/custom-models/redeploy/${modelKey}` : '/api/custom-models/deploy';
                 const body = isRedeploy
                     ? { endpoint_type: endpointType, instance_type: selectedInstance, hf_token: hfToken }
-                    : { model_key: modelKey, endpoint_type: endpointType, instance_type: selectedInstance, hf_token: hfToken };
+                    : { model_key: modelKey, endpoint_type: endpointType, instance_type: selectedInstance, hf_token: hfToken, license_accepted: licenseAccepted };
 
                 const resp = await fetch(url, {
                     method: 'POST',

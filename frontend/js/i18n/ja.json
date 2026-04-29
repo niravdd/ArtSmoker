@@ -950,7 +950,12 @@
     "async_no_jobs": "非同期ジョブはまだありません。セルフホストモデルはバックグラウンドで画像を生成します。",
     "async_clear_completed": "完了済みをクリア",
     "async_footer": "自己ホストモデルは非同期で生成します。完了した画像はギャラリーに表示されます。未完了のジョブは24時間後に自動的にクリーンアップされます — アプリの実行中、または次回起動時に。",
-    "refresh_status": "ステータス更新"
+    "refresh_status": "ステータス更新",
+    "license_title": "ライセンス契約",
+    "license_key_terms": "主要条件",
+    "license_read_full": "ライセンス全文を読む",
+    "license_agree_checkbox": "ライセンス条件を読み、同意します",
+    "license_continue": "デプロイに進む"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

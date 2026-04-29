@@ -950,7 +950,12 @@
     "async_no_jobs": "暂无异步任务。自托管模型在后台生成图像。",
     "async_clear_completed": "清除已完成",
     "async_footer": "自托管模型异步生成。完成的图像会出现在图库中。过期或未完成的任务将在24小时后自动清理 — 在应用运行期间或下次启动时。",
-    "refresh_status": "刷新状态"
+    "refresh_status": "刷新状态",
+    "license_title": "许可协议",
+    "license_key_terms": "主要条款",
+    "license_read_full": "阅读完整许可",
+    "license_agree_checkbox": "我已阅读并同意许可条款",
+    "license_continue": "继续部署"
   },
   "prompt_designer": {
     "title": "Prompt Designer",
