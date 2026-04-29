@@ -93,31 +93,57 @@ def list_catalog():
         if _deploy_status[key].get("stage") in ("preparing", "downloading", "uploading", "deploying"):
             deployed_keys.add(key)
 
-    # Build mapping: catalog_key → deployed instance key + endpoint name.
-    # Deployed models use instance-specific keys like "flux2_dev_g6e_4xlarge_4ebe"
-    # but the catalog uses base keys like "flux2_dev". Match by prefix.
-    catalog_to_deployed = {}
+    # Build mapping: catalog_key → LIST of deployed instances.
+    # Each catalog model can have multiple deployments on different instances.
+    catalog_to_deployed: dict[str, list] = {}
     for dk in deployed_keys:
         for ck in catalog:
             if dk == ck or dk.startswith(ck + "_"):
-                ep_name = registry.get("image_models", {}).get(dk, {}).get("deployment", {}).get("endpoint_name", "")
+                ep_name = ""
+                instance_type = ""
+                deploy_label = ""
+                for section in ("image_models", "video_models", "post_processing", "utility_models"):
+                    entry = registry.get(section, {}).get(dk, {})
+                    if entry:
+                        ep_name = entry.get("deployment", {}).get("endpoint_name", "")
+                        instance_type = entry.get("deployment", {}).get("instance_type", "")
+                        deploy_label = entry.get("label", dk)
+                        break
                 if ep_name:
-                    catalog_to_deployed[ck] = {"deployed_key": dk, "endpoint_name": ep_name}
+                    catalog_to_deployed.setdefault(ck, []).append({
+                        "deployed_key": dk,
+                        "endpoint_name": ep_name,
+                        "instance_type": instance_type,
+                        "label": deploy_label,
+                    })
                 break
 
     for key, model in catalog.items():
         if model.get("hidden"):
             continue
-        deployed_info = catalog_to_deployed.get(key)
-        endpoint_name = deployed_info["endpoint_name"] if deployed_info else f"artsmoker-{key.replace('_', '-')}"
+        deployed_instances = catalog_to_deployed.get(key, [])
 
-        # Only check Amazon SageMaker for models we know are deployed
-        if deployed_info:
-            status = check_endpoint_status(endpoint_name)
-            deploy_progress = _deploy_status.get(key, _deploy_status.get(deployed_info["deployed_key"], {}))
-        else:
-            status = {"status": "NotFound"}
-            deploy_progress = _deploy_status.get(key, {})
+        # Build per-instance status for each deployment
+        instances_data = []
+        for inst in deployed_instances:
+            status = check_endpoint_status(inst["endpoint_name"])
+            deploy_progress = _deploy_status.get(inst["deployed_key"], {})
+            instances_data.append({
+                "deployed_key": inst["deployed_key"],
+                "endpoint_name": inst["endpoint_name"],
+                "instance_type": inst["instance_type"],
+                "label": inst["label"],
+                "status": status.get("status", "NotFound"),
+                "warming_up": status.get("warming_up", False),
+                "warmup_detail": status.get("warmup_detail", ""),
+                "instance_count": status.get("instance_count", 0),
+                "deploy_progress": deploy_progress.get("progress", ""),
+                "deploy_stage": deploy_progress.get("stage", ""),
+            })
+
+        # Top-level status: use first instance for backward compat, or NotFound
+        first = instances_data[0] if instances_data else None
+        deploy_progress = _deploy_status.get(key, {})
 
         result.append({
             "key": key,
@@ -134,13 +160,14 @@ def list_catalog():
             "last_updated": model.get("last_updated"),
             "requirements": model["requirements"],
             "pricing": model["pricing"],
-            "deployment_status": status.get("status", "NotFound"),
-            "warming_up": status.get("warming_up", False),
-            "warmup_detail": status.get("warmup_detail", ""),
-            "instance_count": status.get("instance_count", 0),
-            "deploy_progress": deploy_progress.get("progress", ""),
-            "deploy_stage": deploy_progress.get("stage", ""),
-            "endpoint_name": endpoint_name if status.get("status") != "NotFound" else None,
+            "deployment_status": first["status"] if first else "NotFound",
+            "warming_up": first["warming_up"] if first else False,
+            "warmup_detail": first["warmup_detail"] if first else "",
+            "instance_count": first["instance_count"] if first else 0,
+            "deploy_progress": deploy_progress.get("progress", first["deploy_progress"] if first else ""),
+            "deploy_stage": deploy_progress.get("stage", first["deploy_stage"] if first else ""),
+            "endpoint_name": first["endpoint_name"] if first else None,
+            "deployed_instances": instances_data,
             "user_added": model.get("_user_added", False),
             "bundle": _get_bundle_info(key),
             "has_cache": _check_cache_quick(key),

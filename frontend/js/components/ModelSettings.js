@@ -1719,20 +1719,40 @@
                                     </div>
                                 </div>
                                 <div class="flex items-center gap-2 flex-shrink-0">
-                                    <span class="text-[10px] font-medium ${statusColor}">${statusText}</span>
-                                    ${idle
-                                        ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>
-                                           <button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>
-                                           <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${t('custom_models.deploy_another_hint')}">${t('custom_models.deploy_another')}</button>`
-                                        : active
-                                        ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>
-                                           <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${t('custom_models.deploy_another_hint')}">${t('custom_models.deploy_another')}</button>`
+                                    ${!deployed && !deploying && !warmingUp && !scalingUp && !failed
+                                        ? `<span class="text-[10px] text-brand-text-muted/50">${t('custom_models.not_deployed')}</span>
+                                           <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
                                         : (deploying || warmingUp || scalingUp)
-                                        ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
-                                        : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
+                                        ? `<span class="text-[10px] text-amber-400">${m.deploy_progress || t('custom_models.deploying')}</span>`
+                                        : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${t('custom_models.deploy_another_hint')}">${t('custom_models.deploy_another')}</button>`
                                     }
                                 </div>
-                            </div>`;
+                            </div>
+                            ${(m.deployed_instances || []).length > 0 ? `
+                            <div class="ml-5 mt-1 mb-2 space-y-1">
+                                <div class="text-[9px] text-brand-text-muted/50 mb-1">${(m.deployed_instances || []).length} deployed instance${(m.deployed_instances || []).length > 1 ? 's' : ''}:</div>
+                                ${(m.deployed_instances || []).map(inst => {
+                                    const iActive = inst.status === 'InService' && !inst.warming_up && inst.instance_count > 0;
+                                    const iIdle = inst.status === 'InService' && !inst.warming_up && !iActive;
+                                    const iWarm = inst.status === 'InService' && inst.warming_up;
+                                    const iDot = iActive ? 'bg-emerald-400' : iIdle ? 'bg-blue-400' : iWarm ? 'bg-cyan-400 animate-pulse' : 'bg-brand-text-muted/30';
+                                    const iColor = iActive ? 'text-emerald-400' : iIdle ? 'text-blue-400' : iWarm ? 'text-cyan-400' : 'text-brand-text-muted/50';
+                                    const iStatusTxt = iActive ? t('custom_models.active') : iIdle ? 'Inactive' : iWarm ? t('custom_models.warming_up') : inst.status;
+                                    const instLabel = inst.instance_type || '';
+                                    const deployTimestamp = inst.label?.match(/\(([^)]+)\)/)?.[1] || '';
+                                    return `
+                                    <div class="flex items-center gap-2 p-2 rounded bg-brand-bg/30 border border-brand-border/50">
+                                        <div class="w-1.5 h-1.5 rounded-full ${iDot} flex-shrink-0"></div>
+                                        <span class="text-[10px] text-brand-text font-medium">${instLabel}</span>
+                                        ${deployTimestamp ? `<span class="text-[9px] text-brand-text-muted/40">(${deployTimestamp})</span>` : ''}
+                                        <span class="text-[10px] ${iColor}">${iStatusTxt}</span>
+                                        <div class="ml-auto flex gap-1.5">
+                                            <button class="ms-cm-teardown btn text-[9px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10" data-model="${inst.deployed_key}">${t('custom_models.remove')}</button>
+                                            ${iIdle ? `<button class="ms-cm-redeploy btn text-[9px] px-2 py-0.5 rounded border border-brand-border/50 text-brand-text-muted/60 hover:bg-white/5" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
+                                        </div>
+                                    </div>`;
+                                }).join('')}
+                            </div>` : ''}`;
                     }
                     html += '</div></details>';  // close category
                     });
