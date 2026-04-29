@@ -472,7 +472,13 @@
     "models_selected": "modèles sélectionnés",
     "models_count": "modèles",
     "select_at_least_one_model": "Sélectionnez au moins un modèle",
-    "prompt_language_hint": "Écrivez en français ou en anglais — les deux fonctionnent."
+    "prompt_language_hint": "Écrivez en français ou en anglais — les deux fonctionnent.",
+    "step1_game_asset": "Décrivez votre asset de jeu",
+    "step1_character": "Décrivez votre personnage",
+    "step1_environment": "Décrivez votre scène",
+    "step1_banner": "Décrivez votre scène de bannière",
+    "step1_icon": "Décrivez votre icône",
+    "step1_photo": "Décrivez votre photo"
   },
   "lang": {
     "en": "Anglais",

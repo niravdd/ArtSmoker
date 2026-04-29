@@ -22,13 +22,13 @@
         photorealistic: "A woman standing at a rain-soaked city intersection at night, neon signs reflecting in puddles, shot on a 35mm lens with shallow depth of field...",
     };
 
-    const _ASSET_STEP_LABELS = {
-        game_asset: "Describe your game asset",
-        character: "Describe your character",
-        environment: "Describe your scene",
-        marketing_banner: "Describe your banner scene",
-        icon: "Describe your icon",
-        photorealistic: "Describe your photo",
+    const _ASSET_STEP_LABEL_KEYS = {
+        game_asset: "image_studio.step1_game_asset",
+        character: "image_studio.step1_character",
+        environment: "image_studio.step1_environment",
+        marketing_banner: "image_studio.step1_banner",
+        icon: "image_studio.step1_icon",
+        photorealistic: "image_studio.step1_photo",
     };
 
     class PromptEditor {
@@ -436,7 +436,8 @@
             // Update Step 1 label
             const step1Label = this.container.querySelector('.step1-label');
             if (step1Label) {
-                step1Label.textContent = _ASSET_STEP_LABELS[type] || _ASSET_STEP_LABELS.game_asset;
+                const labelKey = _ASSET_STEP_LABEL_KEYS[type] || _ASSET_STEP_LABEL_KEYS.game_asset;
+                step1Label.textContent = typeof t !== 'undefined' ? t(labelKey) : type;
             }
         }
 

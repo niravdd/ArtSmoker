@@ -266,7 +266,13 @@
     "select_models": "Select models...",
     "models_selected": "models selected",
     "models_count": "models",
-    "select_at_least_one_model": "Select at least one model"
+    "select_at_least_one_model": "Select at least one model",
+    "step1_game_asset": "Describe your game asset",
+    "step1_character": "Describe your character",
+    "step1_environment": "Describe your scene",
+    "step1_banner": "Describe your banner scene",
+    "step1_icon": "Describe your icon",
+    "step1_photo": "Describe your photo"
   },
   "video_studio": {
     "title": "Video Studio",

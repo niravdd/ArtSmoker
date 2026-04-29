@@ -472,7 +472,13 @@
     "models_selected": "개 모델 선택됨",
     "models_count": "개 모델",
     "select_at_least_one_model": "최소 하나의 모델을 선택하세요",
-    "prompt_language_hint": "한국어 또는 영어로 작성하세요 — 둘 다 가능합니다."
+    "prompt_language_hint": "한국어 또는 영어로 작성하세요 — 둘 다 가능합니다.",
+    "step1_game_asset": "게임 에셋을 설명하세요",
+    "step1_character": "캐릭터를 설명하세요",
+    "step1_environment": "장면을 설명하세요",
+    "step1_banner": "배너 장면을 설명하세요",
+    "step1_icon": "아이콘을 설명하세요",
+    "step1_photo": "사진을 설명하세요"
   },
   "lang": {
     "en": "영어",
