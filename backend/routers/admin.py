@@ -668,46 +668,48 @@ async def auto_register_image_models(region: str):
 
     # Classify image models by purpose and format family based on model_id keywords.
     def _classify_image_model(model_id: str, provider: str, input_modalities: list[str]):
-        """Determine model_purpose and format_family from model_id and provider."""
+        """Determine model_purpose, format_family, prompt_limit, base_price, optimal_prompt_words from model_id and provider."""
         mid = model_id.lower()
         has_image_input = "IMAGE" in input_modalities
 
         # Stability AI services — classify by model ID keywords
         if provider == "Stability AI":
             if "inpaint" in mid:
-                return "inpainting", "stability_inpaint", 10000, 0.07
+                return "inpainting", "stability_inpaint", 10000, 0.07, 0
             if "outpaint" in mid:
-                return "outpainting", "stability_outpaint", 10000, 0.06
+                return "outpainting", "stability_outpaint", 10000, 0.06, 0
             if "erase" in mid:
-                return "erase", "stability_erase", 0, 0.07
+                return "erase", "stability_erase", 0, 0.07, 0
             if "search-replace" in mid or "search_replace" in mid:
-                return "search_replace", "stability_search_replace", 10000, 0.07
+                return "search_replace", "stability_search_replace", 10000, 0.07, 0
             if "search-recolor" in mid or "recolor" in mid:
-                return "search_recolor", "stability_search_recolor", 10000, 0.07
+                return "search_recolor", "stability_search_recolor", 10000, 0.07, 0
             if "control-sketch" in mid:
-                return "control_sketch", "stability_control", 10000, 0.07
+                return "control_sketch", "stability_control", 10000, 0.07, 0
             if "control-structure" in mid:
-                return "control_structure", "stability_control", 10000, 0.07
+                return "control_structure", "stability_control", 10000, 0.07, 0
             if "style-guide" in mid:
-                return "style_guide", "stability_control", 10000, 0.07
+                return "style_guide", "stability_control", 10000, 0.07, 0
             if "style-transfer" in mid:
-                return "style_transfer", "stability_style_transfer", 10000, 0.08
+                return "style_transfer", "stability_style_transfer", 10000, 0.08, 0
             if "remove-background" in mid:
-                return "remove_background", "stability_remove_bg", 0, 0.07
+                return "remove_background", "stability_remove_bg", 0, 0.07, 0
             if "creative-upscale" in mid:
-                return "upscale_creative", "stability_upscale", 10000, 0.60
+                return "upscale_creative", "stability_upscale", 10000, 0.60, 0
             if "conservative-upscale" in mid:
-                return "upscale_conservative", "stability_upscale", 10000, 0.40
+                return "upscale_conservative", "stability_upscale", 10000, 0.40, 0
             if "fast-upscale" in mid:
-                return "upscale_fast", "stability_upscale", 0, 0.03
-            # Default: text-to-image
-            return "text_to_image", "stability_text_to_image", 2000, 0.08
+                return "upscale_fast", "stability_upscale", 0, 0.03, 0
+            # Default: text-to-image (SD 3.5, Stable Image Ultra/Core)
+            opw = 120 if "sd3" in mid or "3.5" in mid else 100
+            return "text_to_image", "stability_text_to_image", 2000, 0.08, opw
 
-        # Amazon models
+        # Amazon models (Nova Canvas, Titan Image)
         if provider == "Amazon":
-            return "text_to_image", "amazon_text_to_image", 900, 0.06
+            opw = 40 if "titan" in mid else 80
+            return "text_to_image", "amazon_text_to_image", 900, 0.06, opw
 
-        return "text_to_image", None, 900, None
+        return "text_to_image", None, 900, None, 80
 
     def _classify_video_model(model_id: str, provider: str, input_modalities: list[str]):
         """Determine format_family and pricing for video models."""
@@ -904,7 +906,7 @@ async def auto_register_image_models(region: str):
 
         # ── Image models ─────────────────────────────────────────────
         # Classify the model
-        purpose, family, prompt_limit, base_price = _classify_image_model(model_id, provider, inp)
+        purpose, family, prompt_limit, base_price, optimal_words = _classify_image_model(model_id, provider, inp)
         if not family:
             logger.warning("Unknown provider '%s' for model %s — skipping", provider, model_id)
             continue
@@ -929,6 +931,8 @@ async def auto_register_image_models(region: str):
                     backfill["streaming_supported"] = m.get("responseStreamingSupported", False)
                 if not existing_cfg.get("customizations_supported"):
                     backfill["customizations_supported"] = m.get("customizationsSupported", [])
+                if not existing_cfg.get("optimal_prompt_words") and optimal_words:
+                    backfill["optimal_prompt_words"] = optimal_words
 
                 regions = existing_cfg.get("available_regions", [existing_cfg.get("region", "")])
                 if region not in regions:
@@ -1019,6 +1023,8 @@ async def auto_register_image_models(region: str):
             "customizations_supported": m.get("customizationsSupported", []),
             "extra_body": {},
         }
+        if optimal_words:
+            config["optimal_prompt_words"] = optimal_words
 
         add_image_model(key, config)
         registered.append({"key": key, "model_id": model_id, "label": config["label"],
