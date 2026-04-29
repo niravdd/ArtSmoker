@@ -959,7 +959,8 @@
     "deploy_another": "+ 추가 배포",
     "deploy_another_hint": "다른 인스턴스에 추가 사본 배포",
     "advanced": "고급",
-    "add_model_advanced_hint": "고급: 사용자 정의 HuggingFace 모델 추가. 수동 구성이 필요할 수 있습니다."
+    "add_model_advanced_hint": "고급: 사용자 정의 HuggingFace 모델 추가. 수동 구성이 필요할 수 있습니다.",
+    "instance_inactive": "비활성 — 작업이 제출되면 활성화됩니다"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

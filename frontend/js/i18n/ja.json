@@ -959,7 +959,8 @@
     "deploy_another": "+ もう1つデプロイ",
     "deploy_another_hint": "別のインスタンスに追加コピーをデプロイ",
     "advanced": "上級",
-    "add_model_advanced_hint": "上級：カスタム HuggingFace モデルを追加。手動設定が必要な場合があります。"
+    "add_model_advanced_hint": "上級：カスタム HuggingFace モデルを追加。手動設定が必要な場合があります。",
+    "instance_inactive": "非アクティブ — ジョブが送信されると起動します"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

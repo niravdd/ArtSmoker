@@ -979,7 +979,8 @@
     "deploy_another": "+ Deploy Another",
     "deploy_another_hint": "Deploy an additional copy on a different instance",
     "advanced": "Advanced",
-    "add_model_advanced_hint": "Advanced: add a custom HuggingFace model. May require manual configuration."
+    "add_model_advanced_hint": "Advanced: add a custom HuggingFace model. May require manual configuration.",
+    "instance_inactive": "Inactive — activates when jobs are submitted"
   },
   "voice_input": {
     "record": "Record voice input",

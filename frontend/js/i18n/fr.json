@@ -959,7 +959,8 @@
     "deploy_another": "+ Déployer un autre",
     "deploy_another_hint": "Déployer une copie supplémentaire sur une autre instance",
     "advanced": "Avancé",
-    "add_model_advanced_hint": "Avancé : ajouter un modèle HuggingFace personnalisé. Peut nécessiter une configuration manuelle."
+    "add_model_advanced_hint": "Avancé : ajouter un modèle HuggingFace personnalisé. Peut nécessiter une configuration manuelle.",
+    "instance_inactive": "Inactif — s'active lorsque des tâches sont soumises"
   },
   "prompt_designer": {
     "title": "Prompt Designer",
