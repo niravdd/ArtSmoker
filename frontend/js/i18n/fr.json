@@ -929,7 +929,7 @@
     "async_ready_toast": "Image {{model}} prête — voir les tâches en attente",
     "async_no_jobs": "Aucune tâche asynchrone pour le moment. Les modèles auto-hébergés génèrent les images en arrière-plan.",
     "async_clear_completed": "Effacer les terminées",
-    "async_footer": "Les modèles auto-hébergés génèrent de manière asynchrone. Les images apparaissent dans la galerie une fois terminées.",
+    "async_footer": "Les modèles auto-hébergés génèrent de manière asynchrone. Les images apparaissent dans la galerie une fois terminées. Les tâches obsolètes ou inachevées sont automatiquement nettoyées après 24 heures.",
     "refresh_status": "Actualiser le statut"
   },
   "prompt_designer": {

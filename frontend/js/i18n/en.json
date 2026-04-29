@@ -961,7 +961,7 @@
     "async_ready_toast": "{{model}} image ready — check Pending Jobs",
     "async_no_jobs": "No async jobs yet. Self-hosted models generate images in the background.",
     "async_clear_completed": "Clear completed",
-    "async_footer": "Self-hosted models generate asynchronously. Images appear in the Gallery when complete."
+    "async_footer": "Self-hosted models generate asynchronously. Images appear in the Gallery when complete. Stale or unfinished jobs are automatically cleaned up after 24 hours."
   },
   "voice_input": {
     "record": "Record voice input",
