@@ -1742,11 +1742,11 @@
                                         return `
                                         <div class="flex items-center gap-2 p-2 rounded bg-black/10 border border-brand-border/20">
                                             <div class="w-1.5 h-1.5 rounded-full ${iDot} flex-shrink-0"></div>
-                                            <span class="text-[10px] text-cyan-300/80 truncate" title="${inst.label}">${inst.label}</span>
-                                            <span class="text-[9px] ${iColor} flex-shrink-0">${iStatusTxt}</span>
+                                            <span class="text-[11px] text-cyan-300/80 truncate" title="${inst.label}">${inst.label}</span>
+                                            <span class="text-[10px] ${iColor} flex-shrink-0">${iStatusTxt}</span>
                                             <div class="ml-auto flex gap-1.5 flex-shrink-0">
-                                                <button class="ms-cm-teardown btn text-[9px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10" data-model="${inst.deployed_key}">${t('custom_models.remove')}</button>
-                                                ${iIdle ? `<button class="ms-cm-redeploy btn text-[9px] px-2.5 py-0.5 rounded border border-brand-accent/30 text-brand-accent/80 hover:bg-brand-accent/10 hover:text-brand-accent" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
+                                                <button class="ms-cm-teardown btn text-[10px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10" data-model="${inst.deployed_key}">${t('custom_models.remove')}</button>
+                                                ${iIdle ? `<button class="ms-cm-redeploy btn text-[10px] px-2.5 py-0.5 rounded border border-brand-accent/30 text-brand-accent/80 hover:bg-brand-accent/10 hover:text-brand-accent" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
                                             </div>
                                         </div>`;
                                     }).join('')}
