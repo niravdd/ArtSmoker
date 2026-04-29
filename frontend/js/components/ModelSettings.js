@@ -1703,33 +1703,35 @@
                         const statusDot = active ? 'bg-emerald-400' : idle ? 'bg-blue-400' : warmingUp ? 'bg-cyan-400 animate-pulse' : (deploying || scalingUp) ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
 
                         html += `
-                            <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${deployed ? '' : failed ? 'border-red-500/20' : ''} flex items-center gap-3">
-                                <div class="flex-shrink-0 w-2 h-2 rounded-full ${statusDot}" title="${statusText}"></div>
-                                <div class="flex-1 min-w-0">
-                                    <div class="flex items-center gap-2 flex-wrap">
-                                        <span class="text-xs font-semibold text-brand-text">${m.label}</span>
-                                        ${authBadge}${licenseBadge}${userBadge}
+                            <div class="rounded-lg bg-brand-bg/40 border border-brand-border ${failed ? 'border-red-500/20' : ''}">
+                                <div class="p-3 flex items-center gap-3">
+                                    <div class="flex-shrink-0 w-2 h-2 rounded-full ${statusDot}" title="${statusText}"></div>
+                                    <div class="flex-1 min-w-0">
+                                        <div class="flex items-center gap-2 flex-wrap">
+                                            <span class="text-xs font-semibold text-brand-text">${m.label}</span>
+                                            ${authBadge}${licenseBadge}${userBadge}
+                                        </div>
+                                        <p class="text-[10px] text-brand-text-muted mt-0.5 truncate">${m.description}</p>
+                                        <div class="flex gap-3 mt-1 text-[10px] text-brand-text-muted/60">
+                                            <span>${m.provider}</span>
+                                            <span>${m.requirements?.recommended_instance || '?'}</span>
+                                            <span>~$${m.pricing?.estimated_cost_per_image?.toFixed(2) || m.pricing?.estimated_cost_per_video?.toFixed(2) || '?'}/unit</span>
+                                            <span>${m.requirements?.min_vram_gb || '?'}GB VRAM</span>
+                                        </div>
                                     </div>
-                                    <p class="text-[10px] text-brand-text-muted mt-0.5 truncate">${m.description}</p>
-                                    <div class="flex gap-3 mt-1 text-[10px] text-brand-text-muted/60">
-                                        <span>${m.provider}</span>
-                                        <span>${m.requirements?.recommended_instance || '?'}</span>
-                                        <span>~$${m.pricing?.estimated_cost_per_image?.toFixed(2) || m.pricing?.estimated_cost_per_video?.toFixed(2) || '?'}/unit</span>
-                                        <span>${m.requirements?.min_vram_gb || '?'}GB VRAM</span>
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        ${!deployed && !deploying && !warmingUp && !scalingUp && !failed
+                                            ? `<span class="text-[10px] text-brand-text-muted/50">${t('custom_models.not_deployed')}</span>
+                                               <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
+                                            : (deploying || warmingUp || scalingUp)
+                                            ? `<span class="text-[10px] text-amber-400">${m.deploy_progress || t('custom_models.deploying')}</span>`
+                                            : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${t('custom_models.deploy_another_hint')}">${t('custom_models.deploy_another')}</button>`
+                                        }
                                     </div>
-                                </div>
-                                <div class="flex items-center gap-2 flex-shrink-0">
-                                    ${!deployed && !deploying && !warmingUp && !scalingUp && !failed
-                                        ? `<span class="text-[10px] text-brand-text-muted/50">${t('custom_models.not_deployed')}</span>
-                                           <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
-                                        : (deploying || warmingUp || scalingUp)
-                                        ? `<span class="text-[10px] text-amber-400">${m.deploy_progress || t('custom_models.deploying')}</span>`
-                                        : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${t('custom_models.deploy_another_hint')}">${t('custom_models.deploy_another')}</button>`
-                                    }
                                 </div>
                                 ${(m.deployed_instances || []).length > 0 ? `
-                                <div class="mt-2 pt-2 border-t border-brand-border/30 space-y-1.5">
-                                    <div class="text-[9px] text-brand-text-muted/50">${(m.deployed_instances || []).length} deployed instance${(m.deployed_instances || []).length > 1 ? 's' : ''}:</div>
+                                <div class="px-3 pb-3 pt-0 space-y-1.5 border-t border-brand-border/20 mt-0">
+                                    <div class="text-[9px] text-brand-text-muted/50 pt-2">${(m.deployed_instances || []).length} deployed instance${(m.deployed_instances || []).length > 1 ? 's' : ''}:</div>
                                     ${(m.deployed_instances || []).map(inst => {
                                         const iActive = inst.status === 'InService' && !inst.warming_up && inst.instance_count > 0;
                                         const iIdle = inst.status === 'InService' && !inst.warming_up && !iActive;
@@ -1738,10 +1740,10 @@
                                         const iColor = iActive ? 'text-emerald-400' : iIdle ? 'text-blue-400' : iWarm ? 'text-cyan-400' : 'text-brand-text-muted/50';
                                         const iStatusTxt = iActive ? t('custom_models.active') : iIdle ? t('custom_models.instance_inactive') : iWarm ? t('custom_models.warming_up') : inst.status;
                                         return `
-                                        <div class="flex items-center gap-2 p-2 rounded bg-brand-bg/20 border border-brand-border/30">
+                                        <div class="flex items-center gap-2 p-2 rounded bg-black/10 border border-brand-border/20">
                                             <div class="w-1.5 h-1.5 rounded-full ${iDot} flex-shrink-0"></div>
-                                            <span class="text-[10px] text-brand-text font-medium truncate max-w-[280px]" title="${inst.label}">${inst.label}</span>
-                                            <span class="text-[10px] ${iColor} flex-shrink-0">${iStatusTxt}</span>
+                                            <span class="text-[10px] text-brand-text font-medium truncate" title="${inst.label}">${inst.label}</span>
+                                            <span class="text-[9px] ${iColor} flex-shrink-0">${iStatusTxt}</span>
                                             <div class="ml-auto flex gap-1.5 flex-shrink-0">
                                                 <button class="ms-cm-teardown btn text-[9px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10" data-model="${inst.deployed_key}">${t('custom_models.remove')}</button>
                                                 ${iIdle ? `<button class="ms-cm-redeploy btn text-[9px] px-2 py-0.5 rounded border border-brand-border/50 text-brand-text-muted/60 hover:bg-white/5" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
