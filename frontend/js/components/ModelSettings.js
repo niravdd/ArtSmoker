@@ -1727,32 +1727,29 @@
                                         : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${t('custom_models.deploy_another_hint')}">${t('custom_models.deploy_another')}</button>`
                                     }
                                 </div>
-                            </div>
-                            ${(m.deployed_instances || []).length > 0 ? `
-                            <div class="ml-5 mt-1 mb-2 space-y-1">
-                                <div class="text-[9px] text-brand-text-muted/50 mb-1">${(m.deployed_instances || []).length} deployed instance${(m.deployed_instances || []).length > 1 ? 's' : ''}:</div>
-                                ${(m.deployed_instances || []).map(inst => {
-                                    const iActive = inst.status === 'InService' && !inst.warming_up && inst.instance_count > 0;
-                                    const iIdle = inst.status === 'InService' && !inst.warming_up && !iActive;
-                                    const iWarm = inst.status === 'InService' && inst.warming_up;
-                                    const iDot = iActive ? 'bg-emerald-400' : iIdle ? 'bg-blue-400' : iWarm ? 'bg-cyan-400 animate-pulse' : 'bg-brand-text-muted/30';
-                                    const iColor = iActive ? 'text-emerald-400' : iIdle ? 'text-blue-400' : iWarm ? 'text-cyan-400' : 'text-brand-text-muted/50';
-                                    const iStatusTxt = iActive ? t('custom_models.active') : iIdle ? 'Inactive' : iWarm ? t('custom_models.warming_up') : inst.status;
-                                    const instLabel = inst.instance_type || '';
-                                    const deployTimestamp = inst.label?.match(/\(([^)]+)\)/)?.[1] || '';
-                                    return `
-                                    <div class="flex items-center gap-2 p-2 rounded bg-brand-bg/30 border border-brand-border/50">
-                                        <div class="w-1.5 h-1.5 rounded-full ${iDot} flex-shrink-0"></div>
-                                        <span class="text-[10px] text-brand-text font-medium">${instLabel}</span>
-                                        ${deployTimestamp ? `<span class="text-[9px] text-brand-text-muted/40">(${deployTimestamp})</span>` : ''}
-                                        <span class="text-[10px] ${iColor}">${iStatusTxt}</span>
-                                        <div class="ml-auto flex gap-1.5">
-                                            <button class="ms-cm-teardown btn text-[9px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10" data-model="${inst.deployed_key}">${t('custom_models.remove')}</button>
-                                            ${iIdle ? `<button class="ms-cm-redeploy btn text-[9px] px-2 py-0.5 rounded border border-brand-border/50 text-brand-text-muted/60 hover:bg-white/5" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
-                                        </div>
-                                    </div>`;
-                                }).join('')}
-                            </div>` : ''}`;
+                                ${(m.deployed_instances || []).length > 0 ? `
+                                <div class="mt-2 pt-2 border-t border-brand-border/30 space-y-1.5">
+                                    <div class="text-[9px] text-brand-text-muted/50">${(m.deployed_instances || []).length} deployed instance${(m.deployed_instances || []).length > 1 ? 's' : ''}:</div>
+                                    ${(m.deployed_instances || []).map(inst => {
+                                        const iActive = inst.status === 'InService' && !inst.warming_up && inst.instance_count > 0;
+                                        const iIdle = inst.status === 'InService' && !inst.warming_up && !iActive;
+                                        const iWarm = inst.status === 'InService' && inst.warming_up;
+                                        const iDot = iActive ? 'bg-emerald-400' : iIdle ? 'bg-blue-400' : iWarm ? 'bg-cyan-400 animate-pulse' : 'bg-brand-text-muted/30';
+                                        const iColor = iActive ? 'text-emerald-400' : iIdle ? 'text-blue-400' : iWarm ? 'text-cyan-400' : 'text-brand-text-muted/50';
+                                        const iStatusTxt = iActive ? t('custom_models.active') : iIdle ? 'Inactive' : iWarm ? t('custom_models.warming_up') : inst.status;
+                                        return `
+                                        <div class="flex items-center gap-2 p-2 rounded bg-brand-bg/20 border border-brand-border/30">
+                                            <div class="w-1.5 h-1.5 rounded-full ${iDot} flex-shrink-0"></div>
+                                            <span class="text-[10px] text-brand-text font-medium truncate max-w-[280px]" title="${inst.label}">${inst.label}</span>
+                                            <span class="text-[10px] ${iColor} flex-shrink-0">${iStatusTxt}</span>
+                                            <div class="ml-auto flex gap-1.5 flex-shrink-0">
+                                                <button class="ms-cm-teardown btn text-[9px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10" data-model="${inst.deployed_key}">${t('custom_models.remove')}</button>
+                                                ${iIdle ? `<button class="ms-cm-redeploy btn text-[9px] px-2 py-0.5 rounded border border-brand-border/50 text-brand-text-muted/60 hover:bg-white/5" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : ''}
+                                            </div>
+                                        </div>`;
+                                    }).join('')}
+                                </div>` : ''}
+                            </div>`;
                     }
                     html += '</div></details>';  // close category
                     });
