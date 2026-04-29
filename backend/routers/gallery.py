@@ -170,10 +170,13 @@ async def get_batch(batch_id: str):
         async_status = meta.get("async_status")
         # Only set png_path if the image actually exists (not pending/failed async)
         has_image = (store.generated_asset_dir(meta["id"]) / "asset.png").exists()
+        # Cache-bust: append version number so browser reloads after inpainting/editing
+        current_ver = meta.get("current_version", 1)
+        cache_bust = f"?v={current_ver}" if current_ver > 1 else ""
         variant = {
             "id": meta["id"],
             "variant_index": meta.get("variant_index", 0),
-            "png_path": f"/api/gallery/{meta['id']}/png" if has_image else "",
+            "png_path": f"/api/gallery/{meta['id']}/png{cache_bust}" if has_image else "",
             "svg_path": svg_url if has_image else None,
             "png_filename": meta.get("png_filename", f"{meta['id']}.png"),
             "svg_filename": meta.get("svg_filename"),

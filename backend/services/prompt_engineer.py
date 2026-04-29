@@ -151,26 +151,16 @@ _MODEL_INSTRUCTIONS = {
         "Keep prompts short (480 char limit). Focus on subject and style.\n"
         "NEVER use negation words — use the NEGATIVE line instead."
     ),
-    # Stable Diffusion 3.5 Large prompt best practices:
-    # - Supports much longer prompts (2000 chars) — use the space for rich detail
-    # - Quality boosters improve output: 'masterpiece', 'best quality', 'highly detailed'
-    # - Style tokens are effective: 'digital painting', 'concept art', 'artstation'
-    # - Supports weighted emphasis via natural language (not CLIP weighting syntax)
-    # - Negative prompts are very effective for cleanup
     "sd35_large": (
-        "Stable Diffusion 3.5 Large supports rich, detailed prompts up to 2000 chars.\n"
-        "USE quality boosters: 'masterpiece, best quality, highly detailed, sharp focus'.\n"
-        "USE style tokens: 'digital painting', 'concept art', 'trending on artstation',\n"
-        "'illustration', '8k resolution', 'unreal engine render', etc.\n"
-        "Detailed descriptors work well: describe materials, textures, lighting precisely.\n"
-        "Negative prompts are very effective — use the NEGATIVE line for quality cleanup.\n"
-        "Common useful negatives: 'blurry, low quality, deformed, ugly, bad anatomy'."
+        "Stable Diffusion 3.5 Large responds well to rich, natural language descriptions up to 2000 chars.\n"
+        "Excels at: material textures, lighting setups, atmospheric detail, compositional precision.\n"
+        "Write naturally — do not use fixed quality prefix tokens. Let quality emerge from specific, vivid description.\n"
+        "Negative prompts are effective — use the NEGATIVE line for quality cleanup."
     ),
     "stable_image_ultra": (
-        "Stable Image Ultra supports rich, detailed prompts up to 2000 chars.\n"
-        "USE quality boosters: 'masterpiece, best quality, highly detailed, sharp focus,\n"
-        "professional photography, 8k uhd'.\n"
-        "Photorealistic prompts excel: describe lighting, materials, atmosphere in detail.\n"
+        "Stable Image Ultra responds well to natural language descriptions up to 2000 chars.\n"
+        "Excels at: photorealistic rendering, lighting, materials, atmospheric depth.\n"
+        "Write naturally — do not use fixed quality prefix tokens. Let quality emerge from specific, vivid description.\n"
         "Negative prompts are effective — use the NEGATIVE line for quality cleanup."
     ),
 }
