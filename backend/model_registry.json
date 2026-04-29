@@ -2763,7 +2763,9 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "prompt_guidance": "Nova Reel generates video from descriptive captions — describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) — the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
+      "optimal_prompt_words": 50
     },
     "nova_reel_v1_1": {
       "label": "Nova Reel v1.1",
@@ -2793,7 +2795,9 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "prompt_guidance": "Nova Reel generates video from descriptive captions — describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) — the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
+      "optimal_prompt_words": 50
     },
     "ray_v2_0": {
       "label": "Ray v2.0",
@@ -2822,7 +2826,9 @@
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/luma.ray-v2:0",
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
-      "customizations_supported": []
+      "customizations_supported": [],
+      "prompt_guidance": "Ray v2.0 excels at natural language understanding — describe what you want to see with rich detail.\nHandles physics, human expressions, object interactions, and creative/whimsical concepts with high realism.\nWrite in flowing natural language, like a screenplay direction — include subject, action, mood, lighting, camera.\nCamera movements from natural descriptions (no fixed keywords needed): 'slow dolly forward', 'orbit left', 'tracking shot'.\nSupports up to 5000 characters — use the space for vivid scene-setting and emotional tone.\nStronger with creative concepts than rigid technical specifications.\nDurations: 5s or 9s. Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 21:9, 9:21.",
+      "optimal_prompt_words": 60
     }
   },
   "video_settings": {

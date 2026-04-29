@@ -432,16 +432,16 @@ def _enhance_video_prompt(prompt: str, model_key: str) -> dict:
 
     model_config = get_video_model(model_key)
     prompt_limit = model_config.get("prompt_limit", 512) if model_config else 512
-    family = model_config.get("format_family", "") if model_config else ""
-
-    if "luma" in family:
-        model_guidance = "- This model supports up to 5000 characters. Be richly descriptive."
-    else:
-        model_guidance = "- Keep it concise. This model has a 512 character limit per shot."
+    optimal_words = model_config.get("optimal_prompt_words", 50) if model_config else 50
+    model_guidance = model_config.get("prompt_guidance", "") if model_config else ""
+    if not model_guidance:
+        family = model_config.get("format_family", "") if model_config else ""
+        model_guidance = "Richly descriptive, up to 5000 characters." if "luma" in family else "Concise descriptive caption, 512 character limit."
 
     system_prompt = get_template('video_enhance_prompt').format(
         prompt_limit=prompt_limit,
         model_guidance=model_guidance,
+        optimal_length=f"{optimal_words} words",
     )
 
     try:

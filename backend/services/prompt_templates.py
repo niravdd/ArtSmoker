@@ -265,19 +265,22 @@ Output ONLY valid JSON (no markdown, no code fences):
         "label": "Video Prompt Enhancement",
         "description": "Enhances a user prompt with camera movements, lighting, and temporal cues for video generation. The user's prompt is sent as the user message; this template is the system instruction.",
         "used_by": "Video Studio — AI-enhance prompt toggle",
-        "variables": ["{prompt_limit}", "{model_guidance}"],
+        "variables": ["{prompt_limit}", "{model_guidance}", "{optimal_length}"],
         "model": "fast LLM (Sonnet)",
         "text": """You are a video generation prompt engineer. Enhance the user's prompt for AI video generation.
 
-Guidelines:
-- Add specific camera movements (pan, zoom, dolly, tracking shot, aerial view)
-- Include lighting and atmosphere details (golden hour, dramatic shadows, ambient glow)
-- Add temporal cues for smooth motion (gradual, continuous, smooth transition)
-- Keep the core intent and subject of the original prompt
-- If the user mentions things to avoid, weave avoidance into the prompt naturally since video models have no negative prompt support
-- Maximum {prompt_limit} characters for the enhanced prompt
-- For game assets: emphasize clean motion, consistent style, looping-friendly if short
+=== MODEL-SPECIFIC GUIDANCE ===
 {model_guidance}
+
+=== ENHANCEMENT RULES ===
+1. PRESERVE the user's core intent, subject, and action — enhance, don't replace.
+2. Add ONE clear camera movement appropriate to the scene (dolly, pan, track, aerial, arc, zoom, etc.).
+3. Add lighting and atmosphere (golden hour, overcast, neon glow, volumetric fog).
+4. Add temporal quality cues (smooth, gradual, cinematic motion, fluid).
+5. If the user mentions things to avoid, weave avoidance into positive descriptions naturally — video models have no negative prompt support.
+6. Write as a descriptive caption of a video that already exists — NOT as a command.
+7. Target approximately {optimal_length}. Maximum {prompt_limit} characters.
+8. Use specific sensory adjectives (weathered, luminous, cascading) not generic ones (beautiful, amazing, nice).
 
 Output format (exactly two lines):
 ENHANCED: <the enhanced prompt>

@@ -712,14 +712,14 @@ async def auto_register_image_models(region: str):
         return "text_to_image", None, 900, None, 80
 
     def _classify_video_model(model_id: str, provider: str, input_modalities: list[str]):
-        """Determine format_family and pricing for video models."""
+        """Determine format_family, pricing, and optimal_prompt_words for video models."""
         mid = model_id.lower()
         has_image_input = "IMAGE" in input_modalities
         if "nova-reel" in mid:
-            return "text_to_video", "nova_reel", 512, 0.08, has_image_input
+            return "text_to_video", "nova_reel", 512, 0.08, has_image_input, 50
         if "ray" in mid or "luma" in mid:
-            return "text_to_video", "luma_ray", 5000, 1.50, has_image_input
-        return "text_to_video", None, 512, None, has_image_input
+            return "text_to_video", "luma_ray", 5000, 1.50, has_image_input, 60
+        return "text_to_video", None, 512, None, has_image_input, 50
 
     def _register_chat_model(m: dict, region: str, registry: dict, registered: list):
         """Register a text LLM into the chat_models registry section."""
@@ -823,7 +823,7 @@ async def auto_register_image_models(region: str):
 
         # ── Video models ─────────────────────────────────────────────
         if is_video:
-            purpose, family, prompt_limit, base_price, has_img_input = _classify_video_model(model_id, provider, inp)
+            purpose, family, prompt_limit, base_price, has_img_input, video_opw = _classify_video_model(model_id, provider, inp)
             if not family:
                 logger.warning("Unknown video provider '%s' for model %s — skipping", provider, model_id)
                 continue
@@ -896,6 +896,7 @@ async def auto_register_image_models(region: str):
                 "model_lifecycle": m.get("modelLifecycle", {}).get("status", ""),
                 "streaming_supported": m.get("responseStreamingSupported", False),
                 "customizations_supported": m.get("customizationsSupported", []),
+                "optimal_prompt_words": video_opw,
             }
             add_video_model(key, config)
             existing_video_by_model_id[model_id] = key
