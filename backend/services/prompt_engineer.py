@@ -118,6 +118,14 @@ _ASSET_TYPE_CONTEXT: dict[AssetType, str] = {
         "Leading lines, natural framing. Horizon at upper or lower third.\n"
         "Environmental storytelling through details. Mood-setting lighting (time of day, weather)."
     ),
+    AssetType.PHOTOREALISTIC: (
+        "INTENT: Photorealistic image that looks like a real photograph.\n"
+        "Use photography language: describe as if directing a photographer or describing a real photo.\n"
+        "Reference camera behavior: depth of field, focal length feel, natural motion blur, lens flare.\n"
+        "Natural imperfections: skin texture, fabric wrinkles, environmental weathering, light scatter.\n"
+        "Describe real lighting conditions (golden hour, overcast, studio softbox) not rendering terms.\n"
+        "Avoid: illustration/painting/art terminology, rendering engine jargon (PBR, subsurface scattering), quality prefix tokens."
+    ),
 }
 
 # ── Prompt templates ──────────────────────────────────────────────────────

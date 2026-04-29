@@ -84,6 +84,7 @@
     "asset_type_icon": "Icon",
     "asset_type_banner": "Marketing Banner",
     "asset_type_environment": "Environment",
+    "asset_type_photo": "Photorealistic",
     "prompt_placeholder": "Describe the image you want to generate...",
     "enhance_prompt": "AI-enhance prompt",
     "generate": "Generate",

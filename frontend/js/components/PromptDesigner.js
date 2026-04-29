@@ -100,6 +100,7 @@
                 { value: 'icon', label: _t('image_studio.asset_type_icon') },
                 { value: 'character', label: _t('image_studio.asset_type_character') },
                 { value: 'environment', label: _t('image_studio.asset_type_environment') },
+                { value: 'photorealistic', label: _t('image_studio.asset_type_photo') },
             ];
             const assetOptions = assetTypes.map(a =>
                 `<option value="${a.value}" ${a.value === assetType ? 'selected' : ''}>${a.label}</option>`

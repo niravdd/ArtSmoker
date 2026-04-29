@@ -10,6 +10,7 @@ class AssetType(str, Enum):
     ICON = "icon"
     CHARACTER = "character"
     ENVIRONMENT = "environment"
+    PHOTOREALISTIC = "photorealistic"
 
 
 class ImageModel(str, Enum):

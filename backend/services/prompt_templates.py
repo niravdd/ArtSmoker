@@ -473,14 +473,17 @@ Asset types:
 - game_asset: A single isolated object, item, or prop on a transparent background. No scene, no people. Examples: a sword, a treasure chest, a potion bottle, a tree, a crystal.
 - character: The PERSON or CREATURE is clearly the STAR of the image — the prompt is primarily about THEM (their appearance, outfit, pose, expression). A scene may be mentioned as backdrop, but the character is the focal point. Examples: "a warrior holding a sword", "a female sailor", "a cute fox", "a wizard casting a spell".
 - environment: A scene, landscape, location, or setting. People or creatures may APPEAR in the scene, but the SCENE ITSELF is the subject — the composition is about the place, the atmosphere, the view. If the prompt describes a wide shot, a location "shown from outside", or focuses on the setting more than any individual, it's an environment. Examples: "a medieval village at sunset", "a train on tracks with mountains", "a woman piloting a train shown from outside with a village backdrop", "a busy marketplace with vendors".
+- photorealistic: The user wants a result that looks like a real photograph — not illustration, painting, or stylized art. Cues: mentions "photo", "photograph", "realistic", "real", "DSLR", "camera", "shot on", "candid", or describes real-world scenes with an expectation of photographic realism. Also classify as photorealistic when the prompt describes real people in real settings without any art style mentioned.
 - marketing_banner: A wide cinematic scene for promotional use. Only if the user explicitly mentions banner, promotional, marketing, or advertisement.
 - icon: A simple bold symbol for UI use. Only if the user mentions icon or button.
 
-KEY DISTINCTION: If the prompt describes a PERSON but the composition is about the SCENE (wide shot, shown from outside, backdrop focus, multiple elements described equally), classify as "environment" not "character". Only classify as "character" when the person IS the primary subject the viewer should focus on.
+KEY DISTINCTIONS:
+- If the prompt describes a PERSON but the composition is about the SCENE (wide shot, shown from outside, backdrop focus, multiple elements described equally), classify as "environment" not "character". Only classify as "character" when the person IS the primary subject the viewer should focus on.
+- If the prompt describes real people in everyday or real-world settings without mentioning an art style, prefer "photorealistic" over "character" or "environment".
 
 Respond with ONLY this JSON (no markdown fences):
 {{
-  "recommended": "game_asset" | "character" | "environment" | "marketing_banner" | "icon",
+  "recommended": "game_asset" | "character" | "environment" | "photorealistic" | "marketing_banner" | "icon",
   "reason": "One sentence explaining why",
   "confidence": "high" | "medium" | "low"
 }}""",

@@ -14,6 +14,7 @@
         { value: 'icon', labelKey: 'image_studio.asset_type_icon' },
         { value: 'character', labelKey: 'image_studio.asset_type_character' },
         { value: 'environment', labelKey: 'image_studio.asset_type_environment' },
+        { value: 'photorealistic', labelKey: 'image_studio.asset_type_photo' },
     ];
 
     // Fallback models — used only if API fetch fails on first render.
