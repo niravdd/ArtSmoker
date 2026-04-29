@@ -1802,6 +1802,20 @@
         },
 
         async _deployCustomModel(modelKey, needsAuth, modal, isRedeploy = false, licenseUrl = '') {
+            // Helper to reset deploy button if user cancels at any step
+            const _resetDeployBtn = () => {
+                const btn = modal?.querySelector(`.ms-cm-deploy[data-model="${modelKey}"]`);
+                if (btn) {
+                    btn.textContent = t('custom_models.deploy');
+                    btn.className = 'ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white';
+                    const statusEl = btn.closest('.flex')?.querySelector('.text-amber-400');
+                    if (statusEl) {
+                        statusEl.textContent = t('custom_models.not_deployed');
+                        statusEl.className = 'text-[10px] text-brand-text-muted/50';
+                    }
+                }
+            };
+
             // Show license agreement before proceeding (skip for redeploys — already accepted)
             let licenseAccepted = false;
             if (!isRedeploy) {
@@ -1812,7 +1826,7 @@
                         catalogModel.label || modelKey,
                         licenseAgreement
                     );
-                    if (!accepted) return;
+                    if (!accepted) { _resetDeployBtn(); return; }
                     licenseAccepted = true;
                 }
             }
@@ -1830,12 +1844,12 @@
                     } else {
                         // No token stored yet — ask the user
                         hfToken = await this._askHfToken(licenseUrl);
-                        if (!hfToken) return;
+                        if (!hfToken) { _resetDeployBtn(); return; }
                     }
                 } catch {
                     // Can't check token status — ask the user just in case
                     hfToken = await this._askHfToken(licenseUrl);
-                    if (!hfToken) return;
+                    if (!hfToken) { _resetDeployBtn(); return; }
                 }
             }
 
@@ -1855,7 +1869,7 @@
 
             // Build instance selector + deployment type dialog
             const deployConfig = await this._showDeployDialog(modelKey, instanceOptions, recommendedInstance, minVram);
-            if (!deployConfig) return; // User cancelled
+            if (!deployConfig) { _resetDeployBtn(); return; } // User cancelled
 
             const { instanceType: selectedInstance, endpointType } = deployConfig;
 
