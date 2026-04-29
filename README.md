@@ -23,12 +23,13 @@ Creative teams and game studios want to use AI for asset generation, but face re
 
 ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean creative interface — purpose-built for game asset production, with applicability across other creative industries such as advertising, e-commerce, publishing, and digital media where AI-generated visual content is valuable.
 
-- **Artists describe what they need** in plain language — ArtSmoker handles prompt composition, negative prompt extraction, model-specific formatting, and style application behind the scenes
+- **Artists describe what they need** in plain language — ArtSmoker handles prompt decomposition, enhancement, model-specific optimisation, and style application behind the scenes. A guided Prompt Designer lets users fine-tune individual visual elements (subject, scene, lighting, colours) with lock/vary controls for genuinely distinct creative options
 - **Style-aware generation** — upload your game's existing art, and ArtSmoker's vision models learn your visual identity. Every generated asset matches your game's look and feel
 - **All Bedrock models, all regions** — fully configurable. Choose your text-to-image models, video models, and regions. The system discovers available models dynamically via the Bedrock API
+- **Self-hosted open-source models — 1-click deploy** — browse a curated catalog of pre-tested models (HunyuanImage 3.0, FLUX.2, and more), pick a GPU instance, and deploy to Amazon SageMaker with one click. Everything is handled: inference packaging, quantisation, CUDA configuration, auto-scaling, and job tracking. Every catalog model is validated end-to-end before shipping
 - **Self-deployed, self-billed** — runs on your own infrastructure, uses your own AWS account. No shared endpoints, no third-party data access, no surprise bills from external services
 
-Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering & chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (image editing), Nova Reel, Luma AI Ray (video generation), plus 80+ LLMs from 16 providers for Chat Studio.
+**Amazon Bedrock models**: Claude Sonnet/Opus (prompt engineering & chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI services (image editing), Nova Reel, Luma AI Ray (video generation), and 80+ LLMs from 16 providers for Chat Studio. **Self-hosted models**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, and more via Amazon SageMaker — with an extensible catalog for adding new models.
 
 **[Get started now — jump to Prerequisites & Installation ▸](#get-started)**
 
@@ -64,9 +65,9 @@ ArtSmoker works in two modes — **standalone** (no art style or theme setup nee
 
 No style or theme setup needed — open the 2D Image Studio, Video Studio, or Type Studio and start creating immediately.
 
-1. **Describe what you need** — type a prompt like "hospital building" or "fire mage character", or use voice input. The AI automatically enhances your prompt with proper composition directives, negative prompts, and model-specific formatting.
-2. **Choose your models and settings** — multi-select from all available text-to-image models (Bedrock + self-hosted), pick dimensions, quality tier, and region. Check multiple models for side-by-side comparison, or select one for focused generation. Cost estimate updates live.
-3. **Get multiple options** — the system generates up to 5 distinctly different creative concepts, each with up to 5 seed variations (25 images total). Pick the one you like.
+1. **Describe what you need** — type a prompt like "hospital building" or "fire mage character", or use voice input. The AI decomposes your idea into visual components, enhances it with model-specific optimisations, and respects your creative intent through smart lock/vary controls. Write in any language — non-English prompts are auto-translated.
+2. **Choose your models and settings** — multi-select from all available text-to-image models (Amazon Bedrock + self-hosted on SageMaker), pick dimensions, quality tier, and region. Check multiple models for side-by-side comparison, or select one for focused generation. Cost estimate updates live.
+3. **Get genuinely different options** — the system generates up to 5 distinctly different creative concepts (varying outfit, mood, lighting, composition — not just camera angle), each with up to 5 seed variations (25 images total). User-specified details are locked; AI-inferred details are varied boldly.
 4. **Edit and refine** — use inpainting, outpainting, erase, search & replace, or recolor directly in the Asset Viewer. Each edit creates a new version — the original is always preserved.
 5. **Download game-ready files** — PNG with transparent background + SVG, named descriptively (e.g. `hospital-building_opt2_var3.png`). Videos export as MP4.
 
@@ -86,8 +87,8 @@ For teams that want every generated asset to match an existing art style — upl
 
 - 🎨 **Style Library** — Upload art, AI learns your visual identity
 - 🖼️ **2D Image Studio** — Generate images with options x variations, guided 3-step prompt workflow
-- 🎨 **Prompt Designer** — AI decomposes your prompt into editable visual components (subject, scene, lighting, colors) with smart asset type classification
-- 🎬 **Video Studio** — Text-to-video with Nova Reel & Luma Ray, multi-shot, image-to-video
+- 🎨 **Prompt Designer** — AI decomposes your prompt into editable visual components (subject, scene, lighting, colours) with lock/vary toggles per field, style integration, and smart asset type classification. Photorealistic, Character, Environment, and more
+- 🎬 **Video Studio** — Text-to-video with model-specific prompt guidance (Nova Reel camera controls, Luma Ray natural language), multi-shot, image-to-video
 - ✍️ **Type Studio** — AI-designed text overlays with font picker
 - 💬 **Chat Studio** — Multi-model LLM chat with streaming, markdown, code highlighting, vision, sessions, context compaction
 - 📁 **Unified Gallery** — Browse images + videos, media filter, search, download, delete
@@ -100,7 +101,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 - 🌐 **8-Language i18n** — Full UI translation (EN, JA, ZH, KO, HI, RU, FR, ES), auto-detect non-English prompts, bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
-- 🔧 **Self-Hosted Models** — Deploy open-source models (FLUX.2, FLUX.1, etc.) on Amazon SageMaker from an extensible catalog. BnB NF4 quantization on GPU, S3 model cache for fast cold starts (~4 min), auto-scales to zero ($0 idle), resilient fallback chain (cache → re-quantize → HuggingFace), async generation with Pending Jobs panel
+- 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (HunyuanImage 3.0, FLUX.2, FLUX.1, and more), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
 - 🔄 **Auto-Update** — Version-gated git pull on startup, self-restart on update, 24h periodic check (`ARTSMOKER_AUTO_UPDATE=false` to disable)
 
 ### 📝 1.2 Screenshots

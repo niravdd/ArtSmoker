@@ -25,18 +25,19 @@
 
 ArtSmoker 是一个自托管的 Web 应用程序，以简洁的创意界面封装 Amazon Bedrock。专为游戏资产制作而构建，同时适用于广告、电子商务、出版和数字媒体等其他 AI 生成视觉内容有价值的创意行业。
 
-- **艺术家只需用自然语言描述需求** —— ArtSmoker 在幕后处理提示词组合、负面提示词提取、模型特定格式化和风格应用
+- **艺术家只需用自然语言描述需求** —— ArtSmoker 在幕后处理提示词分解、增强、模型特定优化和风格应用。引导式 Prompt Designer 让用户通过锁定/变化控制微调各个视觉元素（主体、场景、光照、颜色），生成真正不同的创意选项
 - **风格感知生成** —— 上传您游戏的现有美术作品，ArtSmoker 的视觉模型会学习您的视觉标识。每个生成的资产都会匹配您游戏的外观和风格
 - **所有 Bedrock 模型，所有区域** —— 完全可配置。选择您的文生图模型、视频模型和区域。系统通过 Bedrock API 动态发现可用模型
+- **自托管开源模型 —— 一键部署** —— 浏览精选的预测试模型目录（HunyuanImage 3.0、FLUX.2 等），选择 GPU 实例，一键部署到 Amazon SageMaker。一切均已处理：推理打包、量化、CUDA 配置、自动缩放和任务跟踪。目录中的每个模型在发布前均已端到端验证
 - **自部署，自计费** —— 在您自己的基础设施上运行，使用您自己的 AWS 账户。没有共享端点，没有第三方数据访问，没有来自外部服务的意外账单
 
-基于 Amazon Bedrock 构建：Claude Sonnet/Opus（提示词工程和聊天）、Nova Canvas、Titan Image、Stable Diffusion 3.5 Large、Stable Image Ultra、Stability AI（图像编辑）、Nova Reel、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。
+**Amazon Bedrock 模型**：Claude Sonnet/Opus（提示词工程和聊天）、Nova Canvas、Titan Image、Stable Diffusion 3.5 Large、Stable Image Ultra、Stability AI 服务（图像编辑）、Nova Reel、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。**自托管模型**：HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1 等，通过 Amazon SageMaker —— 附带可扩展目录以添加新模型。
 
 **[立即开始 —— 跳转至前置条件和安装 ▸](#get-started)**
 
-### Language / 言語 / 语言 / 언어 / Langue / Idioma
+### Language / 言語 / 语言 / 언어 / हिन्दी / Язык / Langue / Idioma
 
-ArtSmoker 支持 6 种语言。通过顶部导航栏的语言按钮（EN | JA | ZH | KO | FR | ES）切换 UI 语言。您的选择会自动保存。
+ArtSmoker 支持 8 种语言。通过顶部导航栏的语言按钮（EN | 日 | 中 | 한 | हिं | РУ | FR | ES）切换 UI 语言。您的选择会自动保存。
 
 | 语言 | README |
 |------|--------|
@@ -44,11 +45,13 @@ ArtSmoker 支持 6 种语言。通过顶部导航栏的语言按钮（EN | JA | 
 | 日本語 (Japanese) | [README.ja.md](README.ja.md) |
 | 中文 | 本文档 |
 | 한국어 (Korean) | [README.ko.md](README.ko.md) |
+| हिन्दी (Hindi) | [README.hi.md](README.hi.md) |
+| Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français (French) | [README.fr.md](README.fr.md) |
 | Español (Spanish) | [README.es.md](README.es.md) |
 
 **多语言提示词支持：**
-- 非英语提示词（日语、中文、韩语、法语、西班牙语）会被自动检测，并在生成前翻译为英语
+- 非英语提示词（日语、中文、韩语、印地语、俄语、法语、西班牙语等）会被自动检测，并在生成前翻译为英语
 - 提示词区域会显示双语预览：可在原始文本和英语翻译之间切换，查看模型将接收的确切内容
 - 原始提示词、检测到的语言和英语翻译都会保存在资产元数据中
 - 文件名由翻译后的英语提示词生成（例如："病院の建物" → `hospital-building_opt1_var1.png`）
@@ -64,9 +67,9 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 无需风格或主题设置 —— 打开 2D Image Studio、Video Studio 或 Type Studio 即可立即开始创作。
 
-1. **描述您的需求** —— 输入如 "hospital building" 或 "fire mage character" 的提示词，或使用语音输入。AI 会自动用恰当的构图指令、负面提示词和模型特定格式增强您的提示词。
-2. **选择模型和设置** —— 从所有可用的文生图模型（Bedrock + 自托管）中多选，设定尺寸、质量等级和区域。勾选多个模型进行并排比较，或选择一个进行专注生成。成本估算随选择实时更新。
-3. **获取多个选项** —— 系统生成最多 5 个不同的创意概念，每个概念最多 5 个种子变体（共 25 张图像）。选择您喜欢的那个。
+1. **描述您的需求** —— 输入如 "hospital building" 或 "fire mage character" 的提示词，或使用语音输入。AI 将您的想法分解为视觉组件，使用模型特定的优化进行增强，并通过智能锁定/变化控制尊重您的创意意图。支持任何语言输入 —— 非英语提示词会自动翻译。
+2. **选择模型和设置** —— 从所有可用的文生图模型（Amazon Bedrock + SageMaker 自托管）中多选，设定尺寸、质量等级和区域。勾选多个模型进行并排比较，或选择一个进行专注生成。成本估算随选择实时更新。
+3. **获取真正不同的选项** —— 系统生成最多 5 个明显不同的创意概念（变化服装、情绪、光照、构图 —— 而非仅仅改变相机角度），每个概念最多 5 个种子变体（共 25 张图像）。用户指定的细节被锁定；AI 推断的细节被大胆变化。
 4. **编辑和精调** —— 直接在 Asset Viewer 中使用局部重绘、扩展绘制、擦除、搜索替换或重新着色。每次编辑创建新版本 —— 原始图像始终保留。
 5. **下载游戏可用文件** —— 透明背景的 PNG + SVG，带有描述性命名（例如 `hospital-building_opt2_var3.png`）。视频导出为 MP4。
 
@@ -85,9 +88,9 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 ### 📝 1.1 功能一览
 
 - 🎨 **Style Library** —— 上传美术作品，AI 学习您的视觉标识
-- 🖼️ **2D Image Studio** —— 引导式3步工作流生成图像
-- 🎨 **Prompt Designer** —— AI将提示词分解为可编辑的视觉组件（主体、场景、光照、颜色），智能资产类型分类
-- 🎬 **Video Studio** —— Nova Reel 和 Luma Ray 文生视频、多镜头、图生视频
+- 🖼️ **2D Image Studio** —— 以选项 x 变体生成图像，引导式 3 步提示词工作流
+- 🎨 **Prompt Designer** —— AI 将提示词分解为可编辑的视觉组件（主体、场景、光照、颜色），每个字段可锁定/变化切换，风格集成，智能资产类型分类。Photorealistic、Character、Environment 等
+- 🎬 **Video Studio** —— 模型特定的提示词引导（Nova Reel 摄像机控制、Luma Ray 自然语言），多镜头、图生视频
 - ✍️ **Type Studio** —— 带字体选择器的 AI 设计文字叠加
 - 💬 **Chat Studio** —— 支持流式输出、Markdown、代码高亮、视觉、会话、上下文压缩的多模型 LLM 聊天
 - 📁 **统一画廊** —— 浏览图像和视频、媒体过滤、搜索、下载、删除
@@ -98,9 +101,9 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 - 📝 **Prompt Templates** —— 19 个可编辑的 LLM 指令提示词、AI 辅助优化、变量验证和自动修复
 - 📦 **资产版本管理** —— 带版本历史（v1、v2、...）和版本导航的就地编辑
 - 💰 **成本追踪** —— 每请求、每会话、每资产的预估 AWS 支出 —— 发送至 PulseBoard 遥测
-- 🌐 **6 语言 i18n** —— 完整 UI 翻译（EN、JA、ZH、KO、FR、ES），自动检测非英语提示词，双语预览
+- 🌐 **8 语言 i18n** —— 完整 UI 翻译（EN、JA、ZH、KO、HI、RU、FR、ES），自动检测非英语提示词，双语预览
 - 🔍 **自定义模型支持** —— 自动发现微调、导入和已部署的自定义 Bedrock 模型
-- 🔧 **自托管模型** — 从可扩展目录部署开源模型（FLUX.2、FLUX.1等）到Amazon SageMaker。GPU上BnB NF4量化，S3模型缓存实现快速冷启动（约4分钟），自动缩容至零（空闲时$0），弹性回退链（缓存→重新量化→HuggingFace），通过待处理任务面板进行异步生成
+- 🔧 **自托管模型 —— 一键部署** —— 浏览精选的预测试开源模型目录（HunyuanImage 3.0、FLUX.2、FLUX.1 等），选择 GPU 实例，点击 Deploy。ArtSmoker 处理一切：打包推理处理器、配置量化、选择正确的 CUDA 工具包、设置自动缩放、注册 CloudWatch 告警、以及连接异步任务跟踪。目录中每个模型从冷启动到生成到画廊交付均经过端到端验证。支持 BF16 + FlashInfer 获得最佳质量，NF4 实现成本效率，多 GPU 自动检测，自动缩容至零（空闲时 $0），同一模型无需重新配置即可在不同实例类型上运行
 - 🔄 **Auto-Update** —— 启动时版本门控 git pull、更新后自动重启、24 小时定期检查（`ARTSMOKER_AUTO_UPDATE=false` 禁用）
 
 ### 📝 1.2 屏幕截图
@@ -327,7 +330,7 @@ aws sts get-caller-identity
 | AI (聊天) | 通过 Bedrock ConverseStream 的 16 个供应商 80 多个 LLM |
 | AI (视频) | Nova Reel v1.0/v1.1（最长 2 分钟）、Luma AI Ray v2（最长 9 秒） |
 | AI (语音) | Nova Sonic（通过双向流式传输的语音转文字） |
-| i18n | 自定义 t() 函数、817 个键 × 6 种语言、反向查找 DOM 翻译 |
+| i18n | 自定义 t() 函数、817 个键 × 8 种语言、反向查找 DOM 翻译 |
 | SVG 转换 | vtracer（主要）、potrace（备选）、Pillow（最后手段） |
 | 文字渲染 | Pillow（阴影、描边、发光效果） |
 | 存储 | 本地文件系统（兼容 S3 的接口） |

@@ -25,18 +25,19 @@ Les équipes créatives et les studios de jeux veulent utiliser l'IA pour la gé
 
 ArtSmoker est une application web auto-hébergée qui enveloppe Amazon Bedrock dans une interface créative épurée. Conçu spécifiquement pour la production d'assets de jeux vidéo, il est également applicable à d'autres industries créatives telles que la publicité, le e-commerce, l'édition et les médias numériques où le contenu visuel généré par l'IA a de la valeur.
 
-- **Les artistes décrivent simplement ce dont ils ont besoin** en langage naturel — ArtSmoker gère la composition des prompts, l'extraction des prompts négatifs, le formatage spécifique aux modèles et l'application des styles en coulisses
+- **Les artistes décrivent simplement ce dont ils ont besoin** en langage naturel — ArtSmoker gère la décomposition des prompts, l'amélioration, l'optimisation spécifique aux modèles et l'application des styles en coulisses. Un Prompt Designer guidé permet aux utilisateurs d'affiner individuellement les éléments visuels (sujet, scène, éclairage, couleurs) avec des contrôles verrouiller/varier pour des options créatives véritablement distinctes
 - **Génération guidée par le style** — téléchargez l'art existant de votre jeu, et les modèles de vision d'ArtSmoker apprennent votre identité visuelle. Chaque asset généré correspond à l'apparence et à l'atmosphère de votre jeu
 - **Tous les modèles Bedrock, toutes les régions** — entièrement configurable. Choisissez vos modèles text-to-image, modèles vidéo et régions. Le système découvre dynamiquement les modèles disponibles via l'API Bedrock
+- **Modèles open source auto-hébergés — déploiement en 1 clic** — parcourez un catalogue organisé de modèles pré-testés (HunyuanImage 3.0, FLUX.2, et plus), choisissez une instance GPU, et déployez sur Amazon SageMaker en un clic. Tout est pris en charge : empaquetage de l'inférence, quantification, configuration CUDA, mise à l'échelle automatique et suivi des tâches. Chaque modèle du catalogue est validé de bout en bout avant publication
 - **Auto-déployé, auto-facturé** — fonctionne sur votre propre infrastructure, utilise votre propre compte AWS. Pas d'endpoints partagés, pas d'accès tiers aux données, pas de factures surprises de services externes
 
-Construit sur Amazon Bedrock : Claude Sonnet/Opus (ingénierie de prompts et chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (édition d'images), Nova Reel, Luma AI Ray (génération vidéo), plus 80+ LLM de 16 fournisseurs pour Chat Studio.
+**Modèles Amazon Bedrock** : Claude Sonnet/Opus (ingénierie de prompts et chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, services Stability AI (édition d'images), Nova Reel, Luma AI Ray (génération vidéo), plus 80+ LLM de 16 fournisseurs pour Chat Studio. **Modèles auto-hébergés** : HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, et plus via Amazon SageMaker — avec un catalogue extensible pour ajouter de nouveaux modèles.
 
 **[Commencer maintenant — aller aux prérequis et installation ▸](#get-started)**
 
-### Language / 言語 / 语言 / 언어 / Langue / Idioma
+### Language / 言語 / 语言 / 언어 / हिन्दी / Язык / Langue / Idioma
 
-ArtSmoker prend en charge 6 langues. Changez la langue de l'interface via les boutons de langue dans la barre de navigation supérieure (EN | JA | ZH | KO | FR | ES). Votre sélection est automatiquement sauvegardée.
+ArtSmoker prend en charge 8 langues. Changez la langue de l'interface via les boutons de langue dans la barre de navigation supérieure (EN | 日 | 中 | 한 | हिं | РУ | FR | ES). Votre sélection est automatiquement sauvegardée.
 
 | Langue | README |
 |--------|--------|
@@ -44,11 +45,13 @@ ArtSmoker prend en charge 6 langues. Changez la langue de l'interface via les bo
 | 日本語 (Japanese) | [README.ja.md](README.ja.md) |
 | 中文 (Chinese) | [README.zh.md](README.zh.md) |
 | 한국어 (Korean) | [README.ko.md](README.ko.md) |
+| हिन्दी (Hindi) | [README.hi.md](README.hi.md) |
+| Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français | Ce document |
 | Español (Spanish) | [README.es.md](README.es.md) |
 
 **Prise en charge multilingue des prompts :**
-- Les prompts non anglais (japonais, chinois, coréen, français, espagnol) sont automatiquement détectés et traduits en anglais avant la génération
+- Les prompts non anglais (japonais, chinois, coréen, hindi, russe, français, espagnol, et plus) sont automatiquement détectés et traduits en anglais avant la génération
 - Un aperçu bilingue apparaît dans la zone de prompt : basculez entre votre texte original et la traduction anglaise pour voir exactement ce que le modèle recevra
 - Le prompt original, la langue détectée et la traduction anglaise sont tous conservés dans les métadonnées de l'asset
 - Les noms de fichiers sont générés à partir du prompt traduit en anglais (par exemple « un bâtiment d'hôpital » → `hospital-building_opt1_var1.png`)
@@ -64,9 +67,9 @@ ArtSmoker fonctionne en deux modes — **autonome** (aucune configuration de sty
 
 Aucune configuration de style ou de thème nécessaire — ouvrez le 2D Image Studio, le Video Studio ou le Type Studio et commencez à créer immédiatement.
 
-1. **Décrivez ce dont vous avez besoin** — saisissez un prompt comme « hospital building » ou « fire mage character », ou utilisez l'entrée vocale. L'IA améliore automatiquement votre prompt avec les directives de composition appropriées, les prompts négatifs et le formatage spécifique au modèle.
-2. **Choisissez vos modèles et paramètres** — multi-sélection parmi tous les modèles text-to-image disponibles (Bedrock + auto-hébergés), choisissez les dimensions, le niveau de qualité et la région. Cochez plusieurs modèles pour une comparaison côte à côte, ou un seul pour une génération ciblée. L'estimation des coûts se met à jour en temps réel.
-3. **Obtenez plusieurs options** — le système génère jusqu'à 5 concepts créatifs distincts, chacun avec jusqu'à 5 variations de seed (25 images au total). Choisissez celle qui vous plaît.
+1. **Décrivez ce dont vous avez besoin** — saisissez un prompt comme « hospital building » ou « fire mage character », ou utilisez l'entrée vocale. L'IA décompose votre idée en composants visuels, l'améliore avec des optimisations spécifiques au modèle, et respecte votre intention créative grâce à des contrôles intelligents verrouiller/varier. Écrivez dans n'importe quelle langue — les prompts non anglais sont traduits automatiquement.
+2. **Choisissez vos modèles et paramètres** — multi-sélection parmi tous les modèles text-to-image disponibles (Amazon Bedrock + auto-hébergés sur SageMaker), choisissez les dimensions, le niveau de qualité et la région. Cochez plusieurs modèles pour une comparaison côte à côte, ou un seul pour une génération ciblée. L'estimation des coûts se met à jour en temps réel.
+3. **Obtenez des options véritablement différentes** — le système génère jusqu'à 5 concepts créatifs distinctement différents (variant la tenue, l'ambiance, l'éclairage, la composition — pas seulement l'angle de caméra), chacun avec jusqu'à 5 variations de seed (25 images au total). Les détails spécifiés par l'utilisateur sont verrouillés ; les détails inférés par l'IA sont variés audacieusement.
 4. **Éditez et affinez** — utilisez l'inpainting, l'outpainting, l'effacement, la recherche et remplacement ou la recoloration directement dans l'Asset Viewer. Chaque modification crée une nouvelle version — l'original est toujours préservé.
 5. **Téléchargez des fichiers prêts pour le jeu** — PNG avec fond transparent + SVG, nommés de manière descriptive (par exemple `hospital-building_opt2_var3.png`). Les vidéos s'exportent en MP4.
 
@@ -85,9 +88,9 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 ### 📝 1.1 Aperçu des fonctionnalités
 
 - 🎨 **Style Library** — Téléchargez votre art, l'IA apprend votre identité visuelle
-- 🖼️ **2D Image Studio** — Génération d'images avec workflow guidé en 3 étapes
-- 🎨 **Prompt Designer** — L'IA décompose votre prompt en composants visuels éditables (sujet, scène, éclairage, couleurs) avec classification intelligente du type d'asset
-- 🎬 **Video Studio** — Text-to-video avec Nova Reel & Luma Ray, multi-shot, image-to-video
+- 🖼️ **2D Image Studio** — Génération d'images avec options x variations, workflow guidé en 3 étapes
+- 🎨 **Prompt Designer** — L'IA décompose votre prompt en composants visuels éditables (sujet, scène, éclairage, couleurs) avec bascules verrouiller/varier par champ, intégration du style et classification intelligente du type d'asset. Photorealistic, Character, Environment, et plus
+- 🎬 **Video Studio** — Text-to-video avec guidance de prompt spécifique au modèle (contrôles caméra Nova Reel, langage naturel Luma Ray), multi-shot, image-to-video
 - ✍️ **Type Studio** — Superpositions de texte conçues par l'IA avec sélecteur de polices
 - 💬 **Chat Studio** — Chat LLM multi-modèle avec streaming, Markdown, coloration syntaxique, vision, sessions, compactage de contexte
 - 📁 **Galerie unifiée** — Parcourez images + vidéos, filtre par média, recherche, téléchargement, suppression
@@ -98,9 +101,9 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 - 📝 **Prompt Templates** — 19 prompts directifs LLM éditables, amélioration assistée par l'IA, validation de variables avec correction automatique
 - 📦 **Versionnement des assets** — Édition sur place avec historique des versions (v1, v2, ...) et navigation entre versions
 - 💰 **Suivi des coûts** — Dépenses AWS estimées par requête, par session, par asset — envoyées à la télémétrie PulseBoard
-- 🌐 **i18n en 6 langues** — Traduction complète de l'UI (EN, JA, ZH, KO, FR, ES), détection automatique des prompts non anglais, aperçu bilingue
+- 🌐 **i18n en 8 langues** — Traduction complète de l'UI (EN, JA, ZH, KO, HI, RU, FR, ES), détection automatique des prompts non anglais, aperçu bilingue
 - 🔍 **Support des modèles personnalisés** — Découverte automatique des modèles Bedrock fine-tunés, importés et déployés
-- 🔧 **Modèles auto-hébergés** — Déployez des modèles open source (FLUX.2, FLUX.1, etc.) sur Amazon SageMaker depuis un catalogue extensible. Quantification BnB NF4 sur GPU, cache de modèle S3 pour démarrage rapide (~4 min), mise à l'échelle automatique à zéro (0$ en veille), chaîne de secours résiliente (cache → re-quantification → HuggingFace), génération asynchrone avec panneau des tâches en attente
+- 🔧 **Modèles auto-hébergés — Déploiement en 1 clic** — Parcourez un catalogue organisé de modèles open source pré-testés (HunyuanImage 3.0, FLUX.2, FLUX.1, et plus), choisissez une instance GPU, et cliquez sur Deploy. ArtSmoker gère tout : empaquetage du gestionnaire d'inférence, configuration de la quantification, sélection du bon toolkit CUDA, mise en place de l'auto-scaling, enregistrement des alarmes CloudWatch, et câblage du suivi asynchrone des tâches. Chaque modèle du catalogue est validé de bout en bout — du démarrage à froid à la génération jusqu'à la livraison en galerie. Supporte BF16 + FlashInfer pour la meilleure qualité, NF4 pour l'efficacité des coûts, détection automatique multi-GPU, mise à l'échelle automatique à zéro (0$ en veille), et le même modèle fonctionne sur différents types d'instances sans reconfiguration
 - 🔄 **Auto-Update** — Git pull avec contrôle de version au démarrage, redémarrage automatique après mise à jour, vérification périodique toutes les 24h (`ARTSMOKER_AUTO_UPDATE=false` pour désactiver)
 
 ### 📝 1.2 Captures d'écran
@@ -327,7 +330,7 @@ Pour les permissions IAM détaillées, les instructions d'installation, les opti
 | IA (Chat) | 80+ LLM de 16 fournisseurs via Bedrock ConverseStream |
 | IA (Vidéo) | Nova Reel v1.0/v1.1 (jusqu'à 2 min), Luma AI Ray v2 (jusqu'à 9 s) |
 | IA (Voix) | Nova Sonic (voix vers texte via streaming bidirectionnel) |
-| i18n | Fonction t() personnalisée, 817 clés × 6 langues, traduction DOM par recherche inversée |
+| i18n | Fonction t() personnalisée, 817 clés × 8 langues, traduction DOM par recherche inversée |
 | Conversion SVG | vtracer (principal), potrace (fallback), Pillow (dernier recours) |
 | Rendu texte | Pillow (ombre, contour, effets de lueur) |
 | Stockage | Système de fichiers local (interface compatible S3) |
