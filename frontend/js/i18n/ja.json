@@ -287,7 +287,7 @@
     "asset_type_banner": "マーケティングバナー",
     "asset_type_character": "キャラクター",
     "asset_type_environment": "背景・環境",
-    "asset_type_photo": "フォトリアリスティック",
+    "asset_type_photo": "フォトリアリスティック画像",
     "asset_type_game": "ゲームアセット",
     "asset_type_icon": "アイコン",
     "attempt_label": "試行 {{num}}",

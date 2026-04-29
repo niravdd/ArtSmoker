@@ -9,12 +9,12 @@
     'use strict';
 
     const ASSET_TYPES = [
+        { value: 'photorealistic', labelKey: 'image_studio.asset_type_photo' },
+        { value: 'character', labelKey: 'image_studio.asset_type_character' },
+        { value: 'environment', labelKey: 'image_studio.asset_type_environment' },
         { value: 'game_asset', labelKey: 'image_studio.asset_type_game' },
         { value: 'marketing_banner', labelKey: 'image_studio.asset_type_banner' },
         { value: 'icon', labelKey: 'image_studio.asset_type_icon' },
-        { value: 'character', labelKey: 'image_studio.asset_type_character' },
-        { value: 'environment', labelKey: 'image_studio.asset_type_environment' },
-        { value: 'photorealistic', labelKey: 'image_studio.asset_type_photo' },
     ];
 
     // Fallback models — used only if API fetch fails on first render.
@@ -2403,7 +2403,7 @@
             return document.getElementById('gen-style')?.value || '';
         },
         _getAssetType() {
-            return document.getElementById('gen-asset-type')?.value || 'game_asset';
+            return document.getElementById('gen-asset-type')?.value || 'photorealistic';
         },
 
         _checkAssetTypeMismatch(prompt, assetType) {

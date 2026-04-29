@@ -26,7 +26,7 @@
         icon: 'Icon',
         character: 'Character',
         environment: 'Environment',
-        photorealistic: 'Photorealistic',
+        photorealistic: 'Photorealistic Image',
         type_studio: 'Type Studio',
         type_studio_composite: 'Type Studio',
     };

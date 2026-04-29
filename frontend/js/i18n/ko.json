@@ -287,7 +287,7 @@
     "asset_type_banner": "마케팅 배너",
     "asset_type_character": "캐릭터",
     "asset_type_environment": "환경",
-    "asset_type_photo": "사진 같은",
+    "asset_type_photo": "사진 같은 이미지",
     "asset_type_game": "게임 에셋",
     "asset_type_icon": "아이콘",
     "attempt_label": "시도 {{num}}",

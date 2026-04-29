@@ -287,7 +287,7 @@
     "asset_type_banner": "Banner publicitario",
     "asset_type_character": "Personaje",
     "asset_type_environment": "Entorno",
-    "asset_type_photo": "Fotorrealista",
+    "asset_type_photo": "Imagen fotorrealista",
     "asset_type_game": "Recurso de juego",
     "asset_type_icon": "Icono",
     "attempt_label": "Intento {{num}}",

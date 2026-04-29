@@ -277,7 +277,7 @@
             // Prompt Designer button — opens Designer (with or without prompt)
             this._btnDesigner?.addEventListener('click', async () => {
                 const text = this._textareaEl.value.trim();
-                let assetType = this.opts.assetType || 'game_asset';
+                let assetType = this.opts.assetType || 'photorealistic';
 
                 // Asset type classification — only once per prompt session
                 if (text && !this._assetTypeConfirmed) {
@@ -428,7 +428,7 @@
         }
 
         _updateAssetContext() {
-            const type = this.opts.assetType || 'game_asset';
+            const type = this.opts.assetType || 'photorealistic';
             // Update placeholder
             if (this._textareaEl) {
                 this._textareaEl.placeholder = _ASSET_PLACEHOLDERS[type] || _ASSET_PLACEHOLDERS.game_asset;

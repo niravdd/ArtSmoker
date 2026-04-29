@@ -24,12 +24,12 @@
 
     // Asset types list — must match backend AssetType enum and ImageStudio's ASSET_TYPES
     const ASSET_TYPES = [
+        { value: 'photorealistic', labelKey: 'image_studio.asset_type_photo' },
+        { value: 'character', labelKey: 'image_studio.asset_type_character' },
+        { value: 'environment', labelKey: 'image_studio.asset_type_environment' },
         { value: 'game_asset', labelKey: 'image_studio.asset_type_game' },
         { value: 'marketing_banner', labelKey: 'image_studio.asset_type_banner' },
         { value: 'icon', labelKey: 'image_studio.asset_type_icon' },
-        { value: 'character', labelKey: 'image_studio.asset_type_character' },
-        { value: 'environment', labelKey: 'image_studio.asset_type_environment' },
-        { value: 'photorealistic', labelKey: 'image_studio.asset_type_photo' },
     ];
 
     window.PromptDesigner = {
@@ -106,7 +106,7 @@
             const body = this._modal?.querySelector('.pd-body');
             if (!body) return;
 
-            const assetType = this._opts?.assetType || 'game_asset';
+            const assetType = this._opts?.assetType || 'photorealistic';
             const curStyleId = this._opts?.styleId || '';
             const assetOptions = ASSET_TYPES.map(a =>
                 `<option value="${a.value}" ${a.value === assetType ? 'selected' : ''}>${_t(a.labelKey)}</option>`
@@ -131,6 +131,7 @@
                     <div>
                         <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Describe your idea</label>
                         <textarea id="pd-prompt-input" class="input w-full text-sm" rows="3" placeholder="e.g. A fierce tiger, a cozy cabin in the woods, a futuristic spaceship..." autofocus></textarea>
+                        <p class="text-[9px] text-brand-text-muted/50 mt-0.5 ${typeof i18n !== 'undefined' && i18n.getLang() === 'en' ? 'hidden' : ''}">${_t('image_studio.prompt_language_hint')}</p>
                     </div>
                     <button id="pd-decompose-btn" class="w-full py-2.5 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white text-sm font-medium transition-colors">
                         🎨 Decompose & Design
@@ -379,7 +380,7 @@
                 </div>` : '';
 
             // Asset Type + Art Style selector row
-            const curAssetType = this._opts?.assetType || 'game_asset';
+            const curAssetType = this._opts?.assetType || 'photorealistic';
             const curStyleId = this._opts?.styleId || '';
             const assetOptions = ASSET_TYPES.map(a =>
                 `<option value="${a.value}" ${a.value === curAssetType ? 'selected' : ''}>${_t(a.labelKey)}</option>`
