@@ -955,7 +955,11 @@
     "license_key_terms": "主要条件",
     "license_read_full": "ライセンス全文を読む",
     "license_agree_checkbox": "ライセンス条件を読み、同意します",
-    "license_continue": "デプロイに進む"
+    "license_continue": "デプロイに進む",
+    "deploy_another": "+ もう1つデプロイ",
+    "deploy_another_hint": "別のインスタンスに追加コピーをデプロイ",
+    "advanced": "上級",
+    "add_model_advanced_hint": "上級：カスタム HuggingFace モデルを追加。手動設定が必要な場合があります。"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

@@ -955,7 +955,11 @@
     "license_key_terms": "주요 조건",
     "license_read_full": "전체 라이선스 읽기",
     "license_agree_checkbox": "라이선스 조건을 읽고 동의합니다",
-    "license_continue": "배포 계속"
+    "license_continue": "배포 계속",
+    "deploy_another": "+ 추가 배포",
+    "deploy_another_hint": "다른 인스턴스에 추가 사본 배포",
+    "advanced": "고급",
+    "add_model_advanced_hint": "고급: 사용자 정의 HuggingFace 모델 추가. 수동 구성이 필요할 수 있습니다."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

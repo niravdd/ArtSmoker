@@ -208,8 +208,8 @@
                                     <button id="ms-cm-hf-token" class="btn btn-sm text-xs flex items-center gap-1 border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 rounded-lg px-3 py-1.5" title="Manage your shared HuggingFace token for gated models">
                                         🔑 HF Token
                                     </button>
-                                    <button id="ms-cm-add" class="btn btn-sm text-xs flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5">
-                                        + ${t('custom_models.add_model') || 'Add Model'}
+                                    <button id="ms-cm-add" class="btn btn-sm text-xs flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5" title="${t('custom_models.add_model_advanced_hint')}">
+                                        + ${t('custom_models.add_model')} <span class="text-[8px] opacity-50">(${t('custom_models.advanced')})</span>
                                     </button>
                                     <button id="ms-cm-refresh" class="btn btn-secondary btn-sm text-xs flex items-center gap-1">
                                         🔄 ${t('custom_models.refresh_status') || 'Refresh Status'}
@@ -1722,9 +1722,11 @@
                                     <span class="text-[10px] font-medium ${statusColor}">${statusText}</span>
                                     ${idle
                                         ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>
-                                           <button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>`
+                                           <button class="ms-cm-redeploy btn btn-sm text-[10px] px-3 py-1 rounded border border-brand-border text-brand-text-muted hover:bg-white/5" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>
+                                           <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${t('custom_models.deploy_another_hint')}">${t('custom_models.deploy_another')}</button>`
                                         : active
-                                        ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>`
+                                        ? `<button class="ms-cm-teardown btn btn-sm text-[10px] px-3 py-1 rounded border border-red-500/30 text-red-400 hover:bg-red-500/10" data-model="${m.key}">${t('custom_models.remove')}</button>
+                                           <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${t('custom_models.deploy_another_hint')}">${t('custom_models.deploy_another')}</button>`
                                         : (deploying || warmingUp || scalingUp)
                                         ? `<span class="text-[10px] text-amber-400">${t('custom_models.please_wait')}</span>`
                                         : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`

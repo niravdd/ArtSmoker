@@ -975,7 +975,11 @@
     "license_key_terms": "मुख्य शर्तें",
     "license_read_full": "पूर्ण लाइसेंस पढ़ें",
     "license_agree_checkbox": "मैंने लाइसेंस शर्तें पढ़ ली हैं और उनसे सहमत हूँ",
-    "license_continue": "डिप्लॉय जारी रखें"
+    "license_continue": "डिप्लॉय जारी रखें",
+    "deploy_another": "+ एक और डिप्लॉय",
+    "deploy_another_hint": "एक अलग इंस्टेंस पर अतिरिक्त कॉपी डिप्लॉय करें",
+    "advanced": "उन्नत",
+    "add_model_advanced_hint": "उन्नत: कस्टम HuggingFace मॉडल जोड़ें। मैन्युअल कॉन्फ़िगरेशन की आवश्यकता हो सकती है।"
   },
   "voice_input": {
     "record": "वॉइस इनपुट रिकॉर्ड करें",

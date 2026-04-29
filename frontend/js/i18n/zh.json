@@ -955,7 +955,11 @@
     "license_key_terms": "主要条款",
     "license_read_full": "阅读完整许可",
     "license_agree_checkbox": "我已阅读并同意许可条款",
-    "license_continue": "继续部署"
+    "license_continue": "继续部署",
+    "deploy_another": "+ 部署另一个",
+    "deploy_another_hint": "在不同实例上部署额外副本",
+    "advanced": "高级",
+    "add_model_advanced_hint": "高级：添加自定义 HuggingFace 模型。可能需要手动配置。"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

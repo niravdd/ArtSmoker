@@ -975,7 +975,11 @@
     "license_key_terms": "Основные условия",
     "license_read_full": "Прочитать полную лицензию",
     "license_agree_checkbox": "Я прочитал(а) и принимаю условия лицензии",
-    "license_continue": "Продолжить развёртывание"
+    "license_continue": "Продолжить развёртывание",
+    "deploy_another": "+ Развернуть ещё",
+    "deploy_another_hint": "Развернуть дополнительную копию на другом инстансе",
+    "advanced": "Расширенный",
+    "add_model_advanced_hint": "Расширенный: добавить пользовательскую модель HuggingFace. Может потребоваться ручная настройка."
   },
   "voice_input": {
     "record": "Голосовой ввод",

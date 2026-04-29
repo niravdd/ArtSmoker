@@ -955,7 +955,11 @@
     "license_key_terms": "Conditions principales",
     "license_read_full": "Lire la licence complète",
     "license_agree_checkbox": "J'ai lu et j'accepte les conditions de la licence",
-    "license_continue": "Continuer le déploiement"
+    "license_continue": "Continuer le déploiement",
+    "deploy_another": "+ Déployer un autre",
+    "deploy_another_hint": "Déployer une copie supplémentaire sur une autre instance",
+    "advanced": "Avancé",
+    "add_model_advanced_hint": "Avancé : ajouter un modèle HuggingFace personnalisé. Peut nécessiter une configuration manuelle."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

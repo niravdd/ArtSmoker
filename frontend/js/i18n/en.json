@@ -975,7 +975,11 @@
     "license_key_terms": "Key Terms",
     "license_read_full": "Read full license",
     "license_agree_checkbox": "I have read and agree to the license terms",
-    "license_continue": "Continue to Deploy"
+    "license_continue": "Continue to Deploy",
+    "deploy_another": "+ Deploy Another",
+    "deploy_another_hint": "Deploy an additional copy on a different instance",
+    "advanced": "Advanced",
+    "add_model_advanced_hint": "Advanced: add a custom HuggingFace model. May require manual configuration."
   },
   "voice_input": {
     "record": "Record voice input",
