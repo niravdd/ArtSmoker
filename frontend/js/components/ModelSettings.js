@@ -1804,17 +1804,20 @@
         },
 
         async _deployCustomModel(modelKey, needsAuth, modal, isRedeploy = false, licenseUrl = '') {
-            // Helper to reset deploy button if user cancels at any step
+            // Helper to reset all deploy buttons for this model if user cancels at any step
             const _resetDeployBtn = () => {
-                const btn = modal?.querySelector(`.ms-cm-deploy[data-model="${modelKey}"]`);
-                if (btn) {
-                    btn.textContent = t('custom_models.deploy');
-                    btn.className = 'ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white';
-                    const statusEl = btn.closest('.flex')?.querySelector('.text-amber-400');
-                    if (statusEl) {
-                        statusEl.textContent = t('custom_models.not_deployed');
-                        statusEl.className = 'text-[10px] text-brand-text-muted/50';
-                    }
+                modal?.querySelectorAll(`.ms-cm-deploy[data-model="${modelKey}"]`).forEach(btn => {
+                    // Restore original label — "Deploy" for undeployed, "+ Deploy Another" for deployed
+                    const isDeployAnother = btn.title === t('custom_models.deploy_another_hint');
+                    btn.textContent = isDeployAnother ? t('custom_models.deploy_another') : t('custom_models.deploy');
+                    btn.disabled = false;
+                    btn.className = 'ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30';
+                });
+                // Reset any "Preparing deployment..." status text back to original
+                const statusEl = modal?.querySelector(`.ms-cm-deploy[data-model="${modelKey}"]`)?.closest('.flex')?.querySelector('.text-amber-400');
+                if (statusEl) {
+                    statusEl.textContent = statusEl.dataset.originalText || '';
+                    statusEl.className = 'text-[10px] text-brand-text-muted/50';
                 }
             };
 
