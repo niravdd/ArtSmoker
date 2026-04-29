@@ -877,6 +877,43 @@ def _track_completion(job: dict, duration_seconds: float, compute_cost: float):
 # ── S3 Cleanup & Persistence ────────────────────────────────────────────
 
 _JOBS_S3_PREFIX = "artsmoker/async-jobs/"
+_lifecycle_ensured: set[str] = set()
+
+
+def _ensure_s3_lifecycle(bucket: str):
+    """Ensure S3 lifecycle rule exists for async-jobs auto-cleanup (1 day).
+
+    Runs at most once per bucket per server session. Idempotent — checks
+    if the rule already exists before adding.
+    """
+    if bucket in _lifecycle_ensured:
+        return
+    _lifecycle_ensured.add(bucket)
+    try:
+        import boto3
+        from backend.config import settings
+        s3 = boto3.client("s3", region_name=settings.aws_region_models)
+        rule_id = "artsmoker-async-jobs-cleanup"
+        try:
+            existing = s3.get_bucket_lifecycle_configuration(Bucket=bucket)
+            rules = existing.get("Rules", [])
+        except Exception:
+            rules = []
+        if any(r.get("ID") == rule_id for r in rules):
+            return
+        rules.append({
+            "ID": rule_id,
+            "Filter": {"Prefix": _JOBS_S3_PREFIX},
+            "Status": "Enabled",
+            "Expiration": {"Days": 1},
+        })
+        s3.put_bucket_lifecycle_configuration(
+            Bucket=bucket,
+            LifecycleConfiguration={"Rules": rules},
+        )
+        logger.info("S3 lifecycle: %s/%s auto-expires after 1 day", bucket, _JOBS_S3_PREFIX)
+    except Exception as exc:
+        logger.debug("S3 lifecycle setup: %s", exc)
 
 
 def _cleanup_s3(job: dict, s3):
@@ -927,6 +964,7 @@ def _persist_job_to_s3(job: dict):
         bucket = get_deployment_s3_bucket()
         if not bucket:
             return
+        _ensure_s3_lifecycle(bucket)
 
         # Persist everything needed to resume polling after server restart:
         # - S3 output location (where to poll for the result)

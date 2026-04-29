@@ -929,7 +929,7 @@
     "async_ready_toast": "Imagen de {{model}} lista — ver Trabajos pendientes",
     "async_no_jobs": "Aún no hay trabajos asíncronos. Los modelos auto-alojados generan imágenes en segundo plano.",
     "async_clear_completed": "Limpiar completados",
-    "async_footer": "Los modelos auto-alojados generan de forma asíncrona. Las imágenes aparecen en la galería cuando se completan. Los trabajos obsoletos o incompletos se limpian automáticamente después de 24 horas.",
+    "async_footer": "Los modelos auto-alojados generan de forma asíncrona. Las imágenes aparecen en la galería cuando se completan. Los trabajos obsoletos o incompletos se limpian automáticamente después de 24 horas — mientras la aplicación está en ejecución o en el próximo inicio.",
     "refresh_status": "Actualizar estado"
   },
   "prompt_designer": {

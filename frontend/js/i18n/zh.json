@@ -929,7 +929,7 @@
     "async_ready_toast": "{{model}} 图像已完成 — 查看待处理任务",
     "async_no_jobs": "暂无异步任务。自托管模型在后台生成图像。",
     "async_clear_completed": "清除已完成",
-    "async_footer": "自托管模型异步生成。完成的图像会出现在图库中。过期或未完成的任务将在24小时后自动清理。",
+    "async_footer": "自托管模型异步生成。完成的图像会出现在图库中。过期或未完成的任务将在24小时后自动清理 — 在应用运行期间或下次启动时。",
     "refresh_status": "刷新状态"
   },
   "prompt_designer": {

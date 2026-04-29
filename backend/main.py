@@ -361,6 +361,7 @@ async def lifespan(app: FastAPI):
                 logger.info("Async jobs: %d loaded, %d resumed from S3", loaded, resumed)
         except Exception as exc:
             logger.debug("Async jobs resume: %s", exc)
+
     threading.Thread(target=_resume_async_jobs, daemon=True, name="async-resume").start()
 
     # Verify auto-scaling for deployed custom model endpoints.

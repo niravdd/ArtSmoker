@@ -2881,11 +2881,11 @@
                             </button>
                         </div>
                     </div>
+                    <div class="px-4 py-2 text-[10px] text-brand-text-muted/70 border-b border-brand-border bg-brand-bg/30">
+                        ${t('custom_models.async_footer')}
+                    </div>
                     <div class="flex-1 overflow-auto p-4 space-y-2">
                         ${jobsHtml}
-                    </div>
-                    <div class="px-5 py-3 border-t border-brand-border text-[10px] text-brand-text-muted">
-                        ${t('custom_models.async_footer')}
                     </div>
                 </div>`;
 
