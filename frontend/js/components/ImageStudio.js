@@ -1657,7 +1657,6 @@
                 dialog.remove();
                 this._skipPreCheck = true;
                 this._handleGenerate();
-                setTimeout(() => { if (cb && wasChecked) cb.checked = true; }, 500);
             });
 
             // Rewrite prompt for the current model

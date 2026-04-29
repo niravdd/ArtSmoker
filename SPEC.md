@@ -176,6 +176,7 @@ ArtSmoker/
 │   │   ├── browse.py              # Server-side file/S3 browser + S3 bucket creation
 │   │   ├── typestudio.py          # Type Studio: text overlay, font serving, AI layout
 │   │   ├── chat.py                # Chat Studio: LLM chat streaming, sessions, export, context compaction
+│   │   ├── custom_deploy.py       # Custom model deploy/teardown/status/redeploy API (SageMaker)
 │   │   └── admin.py               # Model registry admin API + Bedrock discovery (image + video + chat) + video settings
 │   ├── services/
 │   │   ├── model_registry.py      # Model registry manager: loads/saves model_registry.json, provides config to system
@@ -192,11 +193,19 @@ ArtSmoker/
 │   │   ├── prompt_translator.py   # Auto-detect language (Unicode heuristic + LLM fallback), translate to English
 │   │   ├── prompt_templates.py    # Editable LLM directive prompts: load, save, validate variables, reset, enhance
 │   │   ├── pulseboard.py          # Zero-dependency PulseBoard client SDK (copied from PulseBoard project)
-│   │   └── bedrock_client.py      # Shared Bedrock client: invoke_llm (with system prompt), invoke_image_model (generic)
+│   │   ├── bedrock_client.py      # Shared Bedrock client: invoke_llm (with system prompt), invoke_image_model (generic)
+│   │   ├── sagemaker_deployer.py  # SageMaker endpoint lifecycle: create, teardown, readiness, auto-scaling
+│   │   ├── sagemaker_invoker.py   # SageMaker inference: invoke_endpoint_async/realtime, S3 input upload
+│   │   ├── async_jobs.py          # Async job tracker: S3 poller, resubmission, persistence, lifecycle
+│   │   ├── custom_models.py       # Custom model catalog: reads custom_model_catalog from registry
+│   │   ├── model_detector.py      # HuggingFace model auto-detection: infers library, loader, config from repo
+│   │   └── auto_update.py         # Version-gated git pull, registry self-healing on startup
 │   ├── models/
 │   │   ├── style_profile.py       # StyleProfile, AnalyzedStyle, Create/Update models
 │   │   ├── generation_request.py  # GenerationRequest, AssetType, ImageModel enums
 │   │   └── generation_result.py   # GenerationResult, OptionResult, VariantResult, GalleryItem
+│   ├── sagemaker_handlers/
+│   │   └── inference.py           # Universal SageMaker handler (packaged in model.tar.gz for endpoints)
 │   ├── storage/
 │   │   └── local_store.py         # Local filesystem storage (S3-compatible interface)
 │   └── requirements.txt
@@ -236,6 +245,12 @@ ArtSmoker/
 │   ├── generated/                 # Output image assets (PNG + SVG + metadata + versions)
 │   ├── video/                     # Video assets (MP4 + thumbnails + job metadata)
 │   └── chat/                      # Chat sessions (JSON per session)
+├── api-samples/                   # Standalone API client examples (Python, Node.js, Go, Rust)
+│   ├── imageGen_python.py         # Full-featured Python client with style management + generation
+│   ├── imageGen_node.js           # Node.js equivalent
+│   ├── imageGen_go.go             # Go equivalent
+│   ├── imageGen_rust.rs           # Rust equivalent
+│   └── skill.md                   # AI IDE integration guide (references SPEC.md + /docs)
 ├── .gitattributes                 # Marks generated SVGs as binary (secret scanner false-positive prevention)
 ├── .github/
 │   └── secret_scanning.yml        # Excludes data/ and *.svg from GitHub secret scanning
@@ -741,7 +756,10 @@ If there is only one option, the options row is hidden. If there is only one var
 | Stability Remove BG | `us.stability.stable-image-remove-background-v1:0` | us-west-2 | Background removal |
 | Stability Upscale | `us.stability.stable-creative-upscale-v1:0` | us-west-2 | Image upscaling |
 | Stable Diffusion 3.5 Large | `stability.sd3-5-large-v1:0` | us-west-2 | Image generation (Stability AI) |
+| Stable Image Core 1.0 | `stability.stable-image-core-v1:1` | us-west-2 | Image generation (Stability AI fast) |
 | Stable Image Ultra | `stability.stable-image-ultra-v1:1` | us-west-2 | Image generation (Stability AI premium) |
+| Nova Reel v1.1 | `amazon.nova-reel-v1:1` | us-east-1 | Video generation (Amazon) |
+| Luma Ray v2.0 | `luma.ray-v2:0` | us-west-2 | Video generation (Luma AI) |
 | Nova Sonic | `amazon.nova-2-sonic-v1:0` | us-east-1 | Speech-to-text |
 
 > Note: Claude and Stability AI post-processing model IDs use **US inference profiles** (`us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, `us.stability.stable-image-remove-background-v1:0`, `us.stability.stable-creative-upscale-v1:0`) rather than full versioned model IDs. Stable Diffusion 3.5 Large and Stable Image Ultra use **direct model IDs** (not inference profiles).
@@ -1192,6 +1210,8 @@ Uses an LLM to determine the best asset type for a prompt. Key distinction: a pe
 | POST | `/api/video/revise` | Re-generate with modified prompt, linked to original video in metadata. Inherits settings from the original job. |
 | DELETE | `/api/video/{video_id}` | Delete video (local files). |
 
+**Prompt enhancement:** When "Enhance prompt" is enabled, the `video_enhance_prompt` template adds camera movements, lighting, and temporal cues. The template receives `{model_guidance}` from the video model's `prompt_guidance` field in the registry (or a sensible default: "Richly descriptive, up to 5000 characters" for Luma Ray, "Concise descriptive caption, 512 character limit" for Nova Reel). `{optimal_length}` comes from the model's `optimal_prompt_words` field. Video models have no negative prompt support — avoidance terms are woven into positive descriptions naturally.
+
 ### 5.8 Chat Studio
 
 A full-featured LLM chat interface running on the user's own AWS account. 80+ models from 16 providers, all discovered automatically via Sync from AWS.
@@ -1362,6 +1382,18 @@ This combination solves the cold-start-from-zero problem: TargetTracking alone c
 - **UI:** The Custom Models dialog shows a "Deploy Another" button (visible when at least one instance is already deployed). Deployed instances are listed in an expandable section within each catalog model card, with per-instance status indicator, Remove button, and Redeploy button. Instance rows use fixed-width columns for visual alignment.
 - **License:** License acceptance is required once per catalog model (not per instance). The acceptance is recorded in `model_registry.user.json` under `license_acceptances` with the model key and timestamp.
 
+**Model dropdown visibility (image-options / video-options):** Custom-hosted models appear in the Image Studio and Video Studio dropdowns based on a `model_ready` flag persisted in the user registry. This flag means "validated at least once" — set to `True` after the first successful model load, cleared only on teardown or redeploy. Dropdown behavior by state:
+
+| State | Listed in dropdown | Accepts jobs |
+|---|---|---|
+| First deploy (never loaded) | No — hidden until model loads successfully | No |
+| Warm & active (instances running) | Yes | Yes — immediate inference |
+| Scaled to zero (idle, 0 instances) | Yes | Yes — SageMaker queues in backlog, backlog alarm triggers scale-out |
+| Scaling out (provisioning) | Yes | Yes — jobs continue queuing |
+| Teardown / redeploy | No — `model_ready` cleared | No |
+
+This ensures users can always submit async jobs to models they've previously validated, even when instances are idle. The `HasBacklogWithoutCapacity` CloudWatch alarm automatically scales from zero when jobs land in the backlog.
+
 **Cold start times** (FLUX.2 dev on g6e.4xlarge):
 - Fresh build (no cache): ~6 min (HF download + NF4 quantize on GPU)
 - From S3 cache (preserved=true): ~4 min (S3 download + direct NF4 load for transformer, HF fallback for text encoder)
@@ -1414,7 +1446,7 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 
 **Gallery integration:** Full metadata (prompt, model, style snapshot, options/variations structure) is saved at submission time. The gallery entry is created immediately with a `pending` status. On completion, the PNG and SVG are written in-place and status flips to `complete`. On failure, status flips to `failed` with an error message.
 
-**Invocation timeout:** `InvocationTimeoutSeconds` is set per-request based on the model's `typical_latency_seconds` from the catalog, ensuring long-running models (e.g., HunyuanImage at 120s) are not prematurely timed out by SageMaker.
+**Invocation timeout:** `InvocationTimeoutSeconds` is set per-request as `min(3600, max(900, typical_latency_seconds × 2))` from the catalog. The 3600-second cap is a SageMaker hard limit for async invocations. Models with `typical_latency_seconds > 300` get an extended timeout; others use SageMaker's default.
 
 **Cost tracking:** Compute cost is calculated as `(duration_seconds / 3600) × hourly_rate`, where `hourly_rate` comes from the instance type pricing in the catalog. Duration is capped at the model's invocation timeout. This cost is added to the request's cost accumulator alongside any LLM prompt-enhancement costs.
 
@@ -1499,7 +1531,7 @@ Templates are organized by the feature they serve:
 
 | Template | File | Purpose | Variables | Model Used |
 |----------|------|---------|-----------|------------|
-| `video_enhance_prompt` | `video.py` | Enhance a user prompt with camera movements, lighting, temporal cues, and avoidance language (since video models have no negative prompt). | `{prompt}`, `{prompt_limit}` | Sonnet |
+| `video_enhance_prompt` | `video.py` | Enhance a user prompt with camera movements, lighting, temporal cues, and avoidance language (since video models have no negative prompt). | `{prompt}`, `{prompt_limit}`, `{model_guidance}`, `{optimal_length}` | Sonnet |
 
 ### 7.6 Type Studio Templates
 

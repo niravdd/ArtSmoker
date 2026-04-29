@@ -240,24 +240,73 @@ async def get_instance_options(model_key: str):
     needs_bf16 = model_dtype == "bfloat16"
     recommended = model.get("requirements", {}).get("recommended_instance", "")
 
-    # Query account quotas
+    # Query account quotas — capture both value and quota code for all instances
     import boto3
+    from backend.services.sagemaker_deployer import _get_region
+    region = _get_region()
+    quotas: dict[str, int] = {}       # instance_type → current quota value
+    quota_codes: dict[str, str] = {}  # instance_type → QuotaCode (for requesting increases)
     try:
-        sq = boto3.client("service-quotas", region_name="us-west-2")
-        quotas = {}
+        sq = boto3.client("service-quotas", region_name=region)
         paginator = sq.get_paginator("list_service_quotas")
         for page in paginator.paginate(ServiceCode="sagemaker"):
             for q in page.get("Quotas", []):
                 name = q.get("QuotaName", "")
                 if "endpoint" in name.lower() and "usage" in name.lower():
-                    value = int(q.get("Value", 0))
-                    if value > 0:
-                        # Extract instance type from quota name (e.g., "ml.g5.xlarge for endpoint usage")
-                        instance = name.replace(" for endpoint usage", "").strip()
-                        quotas[instance] = value
+                    instance = name.replace(" for endpoint usage", "").strip()
+                    quotas[instance] = int(q.get("Value", 0))
+                    quota_codes[instance] = q.get("QuotaCode", "")
     except Exception as e:
         logger.warning("Failed to query service quotas: %s", e)
-        quotas = {}
+
+    # Query pending/recent quota requests for context
+    quota_requests: dict[str, dict] = {}  # instance_type → most recent request info
+    try:
+        req_paginator = sq.get_paginator("list_requested_service_quota_change_history_by_quota")
+        for qcode_instance, qcode in quota_codes.items():
+            if quotas.get(qcode_instance, 0) > 0:
+                continue  # Already have quota, no need to check requests
+            try:
+                for page in req_paginator.paginate(ServiceCode="sagemaker", QuotaCode=qcode):
+                    for req in page.get("RequestedQuotas", []):
+                        status = req.get("Status", "")
+                        if status in ("PENDING", "CASE_OPENED", "CASE_CLOSED", "APPROVED"):
+                            existing = quota_requests.get(qcode_instance)
+                            if not existing or req.get("Created", "") > existing.get("created", ""):
+                                quota_requests[qcode_instance] = {
+                                    "request_id": req.get("Id", ""),
+                                    "case_id": req.get("CaseId"),
+                                    "status": status,
+                                    "desired_value": req.get("DesiredValue", 0),
+                                    "created": str(req.get("Created", "")),
+                                    "last_updated": str(req.get("LastUpdated", "")),
+                                }
+            except Exception:
+                pass
+    except Exception as e:
+        logger.debug("Failed to query quota request history: %s", e)
+
+    # Count how many endpoints already use each instance type
+    instance_usage: dict[str, int] = {}
+    try:
+        sm = boto3.client("sagemaker", region_name=region)
+        ep_paginator = sm.get_paginator("list_endpoints")
+        for page in ep_paginator.paginate(NameContains="artsmoker", StatusEquals="InService"):
+            for ep in page.get("Endpoints", []):
+                try:
+                    cfg = sm.describe_endpoint_config(
+                        EndpointConfigName=sm.describe_endpoint(
+                            EndpointName=ep["EndpointName"]
+                        )["EndpointConfigName"]
+                    )
+                    for pv in cfg.get("ProductionVariants", []):
+                        it = pv.get("InstanceType", "")
+                        if it:
+                            instance_usage[it] = instance_usage.get(it, 0) + 1
+                except Exception:
+                    pass
+    except Exception as e:
+        logger.debug("Failed to count endpoint instance usage: %s", e)
 
     allowed_instances = model.get("requirements", {}).get("allowed_instances")
 
@@ -276,10 +325,9 @@ async def get_instance_options(model_key: str):
         supports_bf16 = specs.get("bf16", True)
         cost = specs.get("cost_per_hour_usd", 0)
         quota = quotas.get(instance_type, 0)
-
-        # Skip if no quota
-        if quota <= 0:
-            continue
+        in_use = instance_usage.get(instance_type, 0)
+        available = max(0, quota - in_use)
+        needs_quota = available <= 0
 
         # Skip if bf16 needed but not supported
         if needs_bf16 and not supports_bf16:
@@ -339,7 +387,7 @@ async def get_instance_options(model_key: str):
         else:
             speed_note = f"{speed_tier} — {gpus}× {specs['gpu_type']}"
 
-        options.append({
+        opt = {
             "instance_type": instance_type,
             "gpus": gpus,
             "gpu_type": specs.get("gpu_type", ""),
@@ -348,14 +396,28 @@ async def get_instance_options(model_key: str):
             "ram_gb": specs.get("ram_gb", 0),
             "cost_per_hour_usd": cost,
             "quota": quota,
+            "quota_in_use": in_use,
+            "quota_available": available,
             "viability": viability,
             "speed_note": speed_note,
             "is_recommended": instance_type == recommended,
-        })
+            "needs_quota": needs_quota,
+        }
+        if needs_quota:
+            opt["quota_code"] = quota_codes.get(instance_type, "")
+            if quota > 0 and in_use >= quota:
+                opt["quota_reason"] = "all_in_use"
+            else:
+                opt["quota_reason"] = "no_quota"
+            req_info = quota_requests.get(instance_type)
+            if req_info:
+                opt["quota_request"] = req_info
+        options.append(opt)
 
-    # Sort: recommended first, then by viability (recommended > viable > doubtful), then by cost
+    # Sort: available first, then recommended, then viability, then cost
     viability_order = {"recommended": 0, "viable": 1, "doubtful": 2}
     options.sort(key=lambda o: (
+        1 if o["needs_quota"] else 0,
         0 if o["is_recommended"] else 1,
         viability_order.get(o["viability"], 9),
         o["cost_per_hour_usd"],
@@ -366,8 +428,79 @@ async def get_instance_options(model_key: str):
         "model_label": model.get("label", model_key),
         "min_vram_gb": model_vram,
         "recommended_instance": recommended,
+        "region": region,
         "options": options,
     }
+
+
+# ── Quota Request ─────────────────────────────────────────────────────────
+
+class QuotaRequestBody(BaseModel):
+    instance_type: str
+    quota_code: str
+    desired_value: int = 1
+
+
+@router.post("/quota-request")
+async def request_quota_increase(body: QuotaRequestBody):
+    """Submit a service quota increase request for a SageMaker endpoint instance type."""
+    import boto3
+    from backend.services.sagemaker_deployer import _get_region
+    region = _get_region()
+
+    sq = boto3.client("service-quotas", region_name=region)
+
+    # First check current quota — it may already be sufficient
+    try:
+        current = sq.get_service_quota(ServiceCode="sagemaker", QuotaCode=body.quota_code)
+        current_val = int(current["Quota"].get("Value", 0))
+        if current_val >= body.desired_value:
+            return {
+                "status": "already_sufficient",
+                "message": f"Quota for {body.instance_type} is already {current_val} (requested {body.desired_value}).",
+                "current_quota": current_val,
+            }
+    except Exception:
+        pass
+
+    # Check for existing pending request
+    try:
+        history_paginator = sq.get_paginator("list_requested_service_quota_change_history_by_quota")
+        for page in history_paginator.paginate(ServiceCode="sagemaker", QuotaCode=body.quota_code):
+            for req in page.get("RequestedQuotas", []):
+                if req.get("Status") in ("PENDING", "CASE_OPENED"):
+                    return {
+                        "status": "already_pending",
+                        "message": f"A quota request for {body.instance_type} is already pending (Case: {req.get('CaseId', 'N/A')}).",
+                        "case_id": req.get("CaseId"),
+                        "request_id": req.get("Id"),
+                        "created": str(req.get("Created", "")),
+                    }
+    except Exception:
+        pass
+
+    # Submit the request
+    try:
+        resp = sq.request_service_quota_increase(
+            ServiceCode="sagemaker",
+            QuotaCode=body.quota_code,
+            DesiredValue=float(body.desired_value),
+        )
+        req = resp.get("RequestedQuota", {})
+        logger.info("Quota increase requested: %s → %d for %s (case: %s)",
+                     body.instance_type, body.desired_value,
+                     req.get("Id", "?"), req.get("CaseId", "auto"))
+        return {
+            "status": "submitted",
+            "message": f"Quota increase requested for {body.instance_type} in {region}. AWS typically processes GPU requests within 1-3 business days.",
+            "request_id": req.get("Id", ""),
+            "case_id": req.get("CaseId"),
+            "desired_value": body.desired_value,
+            "region": region,
+        }
+    except Exception as e:
+        logger.error("Quota request failed for %s: %s", body.instance_type, e)
+        raise HTTPException(502, detail=f"Failed to submit quota request: {e}")
 
 
 # ── Deploy ────────────────────────────────────────────────────────────────

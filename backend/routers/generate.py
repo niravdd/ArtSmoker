@@ -756,6 +756,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
     from backend.services.model_registry import (
         get_enabled_image_model_keys_sorted,
         get_image_model_label,
+        get_image_model,
     )
     from backend.services.prompt_engineer import (
         generate_concept_prompts,
@@ -772,6 +773,11 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
         model_keys = [k for k in all_keys if k in body.selected_models]
     else:
         model_keys = all_keys
+
+    # Sort: custom-hosted (async) first so their SageMaker submissions
+    # happen immediately, triggering scale-out while Bedrock models run.
+    model_keys.sort(key=lambda k: 0 if get_image_model(k).get("model_source") == "custom_hosted" else 1)
+
     n_models = len(model_keys)
 
     if n_models == 0:
