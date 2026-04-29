@@ -86,7 +86,7 @@
     "asset_type_environment": "Environment",
     "asset_type_photo": "Photorealistic",
     "prompt_placeholder": "Describe the image you want to generate...",
-    "prompt_language_hint": "Write in your language or English — both work.",
+    "prompt_language_hint": "",
     "enhance_prompt": "AI-enhance prompt",
     "generate": "Generate",
     "reset": "Reset",
