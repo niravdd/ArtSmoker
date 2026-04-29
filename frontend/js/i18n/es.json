@@ -116,7 +116,18 @@
     "zoom_fit": "Ajustar",
     "zoom_fit_title": "Ajustar a la vista",
     "zoom_in_title": "Acercar",
-    "zoom_out_title": "Alejar"
+    "zoom_out_title": "Alejar",
+    "edit_mode_hint_erase": "Pinta sobre lo que quieras eliminar. La IA rellenará con un fondo correspondiente.",
+    "edit_mode_hint_inpaint": "Pinta sobre el área, luego describe qué debe REEMPLAZARLO. Usa el modo Eliminar para simplemente borrar.",
+    "edit_mode_hint_outpaint": "Extiende la imagen más allá de sus bordes. La IA genera nuevo contenido para continuar la escena.",
+    "edit_mode_hint_recolor": "Describe un objeto a encontrar, luego su nuevo color. No es necesario pintar una máscara.",
+    "edit_mode_hint_replace": "Describe un objeto a encontrar, luego con qué reemplazarlo. No es necesario pintar una máscara.",
+    "edit_prompt_outpaint_full": "¿Qué debería aparecer en el área extendida? (opcional — dejar vacío para auto-continuación)",
+    "edit_prompt_placeholder_erase": "Opcional — dejar vacío para auto-rellenar, o describir el fondo",
+    "edit_prompt_placeholder_inpaint": "Describe qué generar aquí — ej. pared de ladrillo, ventana abierta, campo de hierba…",
+    "edit_prompt_placeholder_outpaint": "Opcional — describir el paisaje extendido, o dejar vacío",
+    "edit_prompt_placeholder_recolor": "Nuevo color o apariencia — ej. rojo brillante, bronce envejecido…",
+    "edit_prompt_placeholder_replace": "Con qué reemplazarlo — ej. un arco de piedra, un auto rojo…"
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",
@@ -275,7 +286,7 @@
     "asset_type": "Tipo de recurso",
     "asset_type_banner": "Banner publicitario",
     "asset_type_character": "Personaje",
-    "asset_type_environment": ""asset_type_environment": "Entorno",
+    "asset_type_environment": "Entorno",
     "asset_type_photo": "Fotorrealista",
     "asset_type_game": "Recurso de juego",
     "asset_type_icon": "Icono",
@@ -460,7 +471,8 @@
     "select_models": "Seleccionar modelos...",
     "models_selected": "modelos seleccionados",
     "models_count": "modelos",
-    "select_at_least_one_model": "Seleccione al menos un modelo"
+    "select_at_least_one_model": "Seleccione al menos un modelo",
+    "prompt_language_hint": "Escribe en español o en inglés — ambos funcionan."
   },
   "lang": {
     "en": "English",

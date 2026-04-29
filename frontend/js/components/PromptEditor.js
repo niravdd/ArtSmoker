@@ -151,6 +151,7 @@
                                 <span class="char-count text-xs text-brand-text-muted tabular-nums">0</span>
                             </div>
                         </div>
+                        <p class="text-[9px] text-brand-text-muted/50 mt-0.5">${typeof t !== 'undefined' ? t('image_studio.prompt_language_hint') : 'Write in your language or English — both work.'}</p>
                     </div>
 
                     <!-- Translation preview (shown when non-English detected) -->

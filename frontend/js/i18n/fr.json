@@ -116,7 +116,18 @@
     "zoom_fit": "Ajuster",
     "zoom_fit_title": "Ajuster à la vue",
     "zoom_in_title": "Zoom avant",
-    "zoom_out_title": "Zoom arrière"
+    "zoom_out_title": "Zoom arrière",
+    "edit_mode_hint_erase": "Peignez sur ce que vous voulez supprimer. L'IA remplira avec un arrière-plan correspondant.",
+    "edit_mode_hint_inpaint": "Peignez la zone, puis décrivez ce qui doit la REMPLACER. Utilisez le mode Supprimer pour simplement effacer.",
+    "edit_mode_hint_outpaint": "Étendez l'image au-delà de ses bords. L'IA génère du nouveau contenu pour continuer la scène.",
+    "edit_mode_hint_recolor": "Décrivez un objet à trouver, puis sa nouvelle couleur. Pas besoin de peindre un masque.",
+    "edit_mode_hint_replace": "Décrivez un objet à trouver, puis par quoi le remplacer. Pas besoin de peindre un masque.",
+    "edit_prompt_outpaint_full": "Que devrait apparaître dans la zone étendue ? (optionnel — laisser vide pour auto-continuation)",
+    "edit_prompt_placeholder_erase": "Optionnel — laisser vide pour remplissage auto, ou décrire l'arrière-plan",
+    "edit_prompt_placeholder_inpaint": "Décrivez ce qu'il faut générer ici — ex. mur de briques, fenêtre ouverte, champ d'herbe…",
+    "edit_prompt_placeholder_outpaint": "Optionnel — décrire le paysage étendu, ou laisser vide",
+    "edit_prompt_placeholder_recolor": "Nouvelle couleur ou apparence — ex. rouge vif, bronze patiné…",
+    "edit_prompt_placeholder_replace": "Ce qui doit le remplacer — ex. une arche en pierre, une voiture rouge…"
   },
   "chat_studio": {
     "attach_image": "Joindre une image (pour les modèles de vision)",
@@ -275,7 +286,7 @@
     "asset_type": "Type de ressource",
     "asset_type_banner": "Bannière marketing",
     "asset_type_character": "Personnage",
-    "asset_type_environment": ""asset_type_environment": "Environnement",
+    "asset_type_environment": "Environnement",
     "asset_type_photo": "Photoréaliste",
     "asset_type_game": "Ressource de jeu",
     "asset_type_icon": "Icône",
@@ -460,7 +471,8 @@
     "select_models": "Sélectionner les modèles...",
     "models_selected": "modèles sélectionnés",
     "models_count": "modèles",
-    "select_at_least_one_model": "Sélectionnez au moins un modèle"
+    "select_at_least_one_model": "Sélectionnez au moins un modèle",
+    "prompt_language_hint": "Écrivez en français ou en anglais — les deux fonctionnent."
   },
   "lang": {
     "en": "Anglais",

@@ -116,7 +116,18 @@
     "zoom_fit": "フィット",
     "zoom_fit_title": "画面に合わせる",
     "zoom_in_title": "拡大",
-    "zoom_out_title": "縮小"
+    "zoom_out_title": "縮小",
+    "edit_mode_hint_erase": "消したい部分を塗りつぶしてください。AIが背景に合わせて補完します。",
+    "edit_mode_hint_inpaint": "領域を塗りつぶし、置き換える内容を説明してください。オブジェクトを単純に消すには削除モードを使用してください。",
+    "edit_mode_hint_outpaint": "画像の端を超えて拡張します。AIがシーンの続きを生成します。",
+    "edit_mode_hint_recolor": "見つけるオブジェクトを説明し、次に新しい色を指定します。マスクの描画は不要です。",
+    "edit_mode_hint_replace": "見つけるオブジェクトを説明し、次に置き換えるものを指定します。マスクの描画は不要です。",
+    "edit_prompt_outpaint_full": "拡張領域に何を表示しますか？（オプション — 空欄で自動継続）",
+    "edit_prompt_placeholder_erase": "オプション — 空欄で自動補完、または背景を説明",
+    "edit_prompt_placeholder_inpaint": "ここに生成する内容を説明 — 例：レンガの壁、開いた窓、草原…",
+    "edit_prompt_placeholder_outpaint": "オプション — 拡張する風景を説明、または空欄のまま",
+    "edit_prompt_placeholder_recolor": "新しい色や外観 — 例：鮮やかな赤、風化したブロンズ…",
+    "edit_prompt_placeholder_replace": "置き換えるもの — 例：石のアーチ、赤い車…"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",
@@ -275,7 +286,7 @@
     "asset_type": "アセットタイプ",
     "asset_type_banner": "マーケティングバナー",
     "asset_type_character": "キャラクター",
-    "asset_type_environment": ""asset_type_environment": "背景・環境",
+    "asset_type_environment": "背景・環境",
     "asset_type_photo": "フォトリアリスティック",
     "asset_type_game": "ゲームアセット",
     "asset_type_icon": "アイコン",
@@ -460,7 +471,8 @@
     "select_models": "モデルを選択...",
     "models_selected": "モデル選択済み",
     "models_count": "モデル",
-    "select_at_least_one_model": "少なくとも1つのモデルを選択してください"
+    "select_at_least_one_model": "少なくとも1つのモデルを選択してください",
+    "prompt_language_hint": "日本語または英語で書いてください — どちらでも大丈夫です。"
   },
   "lang": {
     "en": "英語",

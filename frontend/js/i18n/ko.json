@@ -116,7 +116,18 @@
     "zoom_fit": "맞춤",
     "zoom_fit_title": "화면에 맞춤",
     "zoom_in_title": "확대",
-    "zoom_out_title": "축소"
+    "zoom_out_title": "축소",
+    "edit_mode_hint_erase": "제거할 부분을 칠하세요. AI가 배경에 맞게 채워줍니다.",
+    "edit_mode_hint_inpaint": "영역을 칠한 후 대체할 내용을 설명하세요. 단순히 객체를 지우려면 제거 모드를 사용하세요.",
+    "edit_mode_hint_outpaint": "이미지를 가장자리 너머로 확장합니다. AI가 장면을 이어서 생성합니다.",
+    "edit_mode_hint_recolor": "찾을 객체를 설명한 후 새 색상을 지정하세요. 마스크 그리기가 필요 없습니다.",
+    "edit_mode_hint_replace": "찾을 객체를 설명한 후 대체할 내용을 지정하세요. 마스크 그리기가 필요 없습니다.",
+    "edit_prompt_outpaint_full": "확장 영역에 무엇이 나타나야 하나요? (선택사항 — 비워두면 자동 연속)",
+    "edit_prompt_placeholder_erase": "선택사항 — 비워두면 자동 채우기, 또는 배경을 설명하세요",
+    "edit_prompt_placeholder_inpaint": "여기에 생성할 내용을 설명하세요 — 예: 벽돌 벽, 열린 창문, 잔디밭…",
+    "edit_prompt_placeholder_outpaint": "선택사항 — 확장할 풍경을 설명하거나 비워두세요",
+    "edit_prompt_placeholder_recolor": "새 색상 또는 외관 — 예: 밝은 빨간색, 풍화된 청동…",
+    "edit_prompt_placeholder_replace": "대체할 내용 — 예: 돌 아치, 빨간 자동차…"
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",
@@ -275,7 +286,7 @@
     "asset_type": "에셋 유형",
     "asset_type_banner": "마케팅 배너",
     "asset_type_character": "캐릭터",
-    "asset_type_environment": ""asset_type_environment": "환경",
+    "asset_type_environment": "환경",
     "asset_type_photo": "사진 같은",
     "asset_type_game": "게임 에셋",
     "asset_type_icon": "아이콘",
@@ -460,7 +471,8 @@
     "select_models": "모델 선택...",
     "models_selected": "개 모델 선택됨",
     "models_count": "개 모델",
-    "select_at_least_one_model": "최소 하나의 모델을 선택하세요"
+    "select_at_least_one_model": "최소 하나의 모델을 선택하세요",
+    "prompt_language_hint": "한국어 또는 영어로 작성하세요 — 둘 다 가능합니다."
   },
   "lang": {
     "en": "영어",

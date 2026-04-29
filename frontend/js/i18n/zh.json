@@ -116,7 +116,18 @@
     "zoom_fit": "适应",
     "zoom_fit_title": "适应视图",
     "zoom_in_title": "放大",
-    "zoom_out_title": "缩小"
+    "zoom_out_title": "缩小",
+    "edit_mode_hint_erase": "涂抹要移除的区域。AI会用匹配的背景填充。",
+    "edit_mode_hint_inpaint": "涂抹区域，然后描述应该替换的内容。要简单删除对象，请使用移除模式。",
+    "edit_mode_hint_outpaint": "将图像扩展到边缘之外。AI会生成新内容来延续场景。",
+    "edit_mode_hint_recolor": "描述要找到的对象，然后指定新颜色。无需绘制蒙版。",
+    "edit_mode_hint_replace": "描述要找到的对象，然后描述替换内容。无需绘制蒙版。",
+    "edit_prompt_outpaint_full": "扩展区域应该出现什么？（可选 — 留空自动延续）",
+    "edit_prompt_placeholder_erase": "可选 — 留空自动填充，或描述背景",
+    "edit_prompt_placeholder_inpaint": "描述要在此处生成的内容 — 例如：砖墙、打开的窗户、草地…",
+    "edit_prompt_placeholder_outpaint": "可选 — 描述扩展的景色，或留空",
+    "edit_prompt_placeholder_recolor": "新颜色或外观 — 例如：亮红色、风化的青铜…",
+    "edit_prompt_placeholder_replace": "替换内容 — 例如：石拱门、红色汽车…"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",
@@ -275,7 +286,7 @@
     "asset_type": "素材类型",
     "asset_type_banner": "营销横幅",
     "asset_type_character": "角色",
-    "asset_type_environment": ""asset_type_environment": "场景环境",
+    "asset_type_environment": "场景环境",
     "asset_type_photo": "照片级真实",
     "asset_type_game": "游戏素材",
     "asset_type_icon": "图标",
@@ -460,7 +471,8 @@
     "select_models": "选择模型...",
     "models_selected": "个模型已选择",
     "models_count": "个模型",
-    "select_at_least_one_model": "请至少选择一个模型"
+    "select_at_least_one_model": "请至少选择一个模型",
+    "prompt_language_hint": "用中文或英文书写 — 两者都可以。"
   },
   "lang": {
     "en": "英语",
