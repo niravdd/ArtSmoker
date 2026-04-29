@@ -19,6 +19,7 @@
         environment: "A misty Japanese garden at dawn, stone lanterns lining a curved path through moss-covered rocks, cherry blossoms drifting in still air...",
         marketing_banner: "An epic dragon soaring over a burning medieval castle, dramatic storm clouds and lightning, armies clashing below...",
         icon: "A golden shield with a dragon emblem, simple bold design...",
+        photorealistic: "A woman standing at a rain-soaked city intersection at night, neon signs reflecting in puddles, shot on a 35mm lens with shallow depth of field...",
     };
 
     const _ASSET_STEP_LABELS = {
@@ -27,6 +28,7 @@
         environment: "Describe your scene",
         marketing_banner: "Describe your banner scene",
         icon: "Describe your icon",
+        photorealistic: "Describe your photo",
     };
 
     class PromptEditor {
@@ -330,11 +332,22 @@
                         this._textareaEl.value = prompt;
                         this._updateCharCount();
                     },
-                    onApply: (designerData, varyFlags) => {
+                    onApply: (designerData, varyFlags, selectorState) => {
                         this._originalText = text || this._textareaEl.value;
                         this._designerData = designerData;
                         this._decomposedData = designerData;
                         this._varyFlags = varyFlags || null;
+                        // Sync asset type and style back from the Designer selectors
+                        if (selectorState) {
+                            if (selectorState.assetType) {
+                                this.opts.assetType = selectorState.assetType;
+                                if (this.opts.onAssetTypeChange) this.opts.onAssetTypeChange(selectorState.assetType);
+                            }
+                            if (selectorState.styleId !== undefined) {
+                                this.opts.styleId = selectorState.styleId;
+                                if (this.opts.onStyleChange) this.opts.onStyleChange(selectorState.styleId);
+                            }
+                        }
                         this._composeFromDesigner(designerData);
                     },
                 });

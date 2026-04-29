@@ -422,6 +422,13 @@
                                 sel.dispatchEvent(new Event('change'));
                             }
                         },
+                        onStyleChange: (newStyleId) => {
+                            const sel = document.getElementById('gen-style');
+                            if (sel) {
+                                sel.value = newStyleId;
+                                sel.dispatchEvent(new Event('change'));
+                            }
+                        },
                     });
                 } catch (err) {
                     console.error('Failed to create PromptEditor:', err);

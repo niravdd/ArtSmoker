@@ -22,11 +22,22 @@
         return key.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
     }
 
+    // Asset types list — must match backend AssetType enum and ImageStudio's ASSET_TYPES
+    const ASSET_TYPES = [
+        { value: 'game_asset', labelKey: 'image_studio.asset_type_game' },
+        { value: 'marketing_banner', labelKey: 'image_studio.asset_type_banner' },
+        { value: 'icon', labelKey: 'image_studio.asset_type_icon' },
+        { value: 'character', labelKey: 'image_studio.asset_type_character' },
+        { value: 'environment', labelKey: 'image_studio.asset_type_environment' },
+        { value: 'photorealistic', labelKey: 'image_studio.asset_type_photo' },
+    ];
+
     window.PromptDesigner = {
         _modal: null,
         _data: null,
         _onApply: null,
         _activeTab: 'subject',
+        _stylesList: null,  // cached styles from API
 
         /**
          * Open the Prompt Designer modal.
@@ -37,6 +48,9 @@
             this._onApply = opts.onApply || null;
             this._onPromptSet = opts.onPromptSet || null;
             this._opts = opts;
+
+            // Pre-fetch styles for the selector row (non-blocking cache)
+            this._fetchStyles();
 
             const newPrompt = (prompt || '').trim();
 
@@ -93,24 +107,26 @@
             if (!body) return;
 
             const assetType = this._opts?.assetType || 'game_asset';
-            // Must match backend AssetType enum and Image Studio's ASSET_TYPES
-            const assetTypes = [
-                { value: 'game_asset', label: _t('image_studio.asset_type_game') },
-                { value: 'marketing_banner', label: _t('image_studio.asset_type_banner') },
-                { value: 'icon', label: _t('image_studio.asset_type_icon') },
-                { value: 'character', label: _t('image_studio.asset_type_character') },
-                { value: 'environment', label: _t('image_studio.asset_type_environment') },
-                { value: 'photorealistic', label: _t('image_studio.asset_type_photo') },
-            ];
-            const assetOptions = assetTypes.map(a =>
-                `<option value="${a.value}" ${a.value === assetType ? 'selected' : ''}>${a.label}</option>`
+            const curStyleId = this._opts?.styleId || '';
+            const assetOptions = ASSET_TYPES.map(a =>
+                `<option value="${a.value}" ${a.value === assetType ? 'selected' : ''}>${_t(a.labelKey)}</option>`
             ).join('');
+            const styles = this._stylesList || [];
+            const styleOptions = [`<option value="">${_t('image_studio.style_none') || 'None (standalone mode)'}</option>`]
+                .concat(styles.map(s => `<option value="${s.id}" ${s.id === curStyleId ? 'selected' : ''}>${s.name}</option>`))
+                .join('');
 
             body.innerHTML = `
                 <div class="px-5 py-4 space-y-4">
-                    <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Asset Type</label>
-                        <select id="pd-asset-type" class="input text-xs w-full">${assetOptions}</select>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Asset Type</label>
+                            <select id="pd-asset-type" class="input text-xs w-full">${assetOptions}</select>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Art Style</label>
+                            <select id="pd-style" class="input text-xs w-full">${styleOptions}</select>
+                        </div>
                     </div>
                     <div>
                         <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Describe your idea</label>
@@ -142,12 +158,14 @@
 
                 this._originalPrompt = prompt;
 
-                // Update asset type from dropdown
+                // Update asset type and style from dropdowns
                 const selectedAsset = body.querySelector('#pd-asset-type')?.value;
                 if (selectedAsset && this._opts) {
                     this._opts.assetType = selectedAsset;
                     if (this._opts.onAssetTypeChange) this._opts.onAssetTypeChange(selectedAsset);
                 }
+                const selectedStyle = body.querySelector('#pd-style')?.value;
+                if (this._opts) this._opts.styleId = selectedStyle || '';
 
                 // Show loading in the decompose button
                 const btn = body.querySelector('#pd-decompose-btn');
@@ -196,6 +214,24 @@
                         <button class="btn btn-sm mt-4 px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted" onclick="PromptDesigner.close()">Close</button>
                     </div>`;
             }
+        },
+
+        async _redecompose() {
+            if (!this._originalPrompt) return;
+            // Show loading spinner in the content area
+            const body = this._modal?.querySelector('.pd-body');
+            if (body) {
+                body.innerHTML = `
+                    <div class="text-center py-12">
+                        <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
+                        <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
+                        <p class="text-sm text-brand-text-muted">${_t('prompt_designer.analyzing')}</p>
+                        <p class="text-[10px] text-brand-text-muted/50 mt-1">Updating with new settings...</p>
+                    </div>`;
+            }
+            // Reset vary flags so new decomposition gets fresh source-based flags
+            this._varyFlags = null;
+            await this._decompose(this._originalPrompt);
         },
 
         close() {
@@ -342,6 +378,28 @@
                     <p class="text-[11px] text-brand-text/70 italic bg-black/10 rounded-lg px-3 py-2 line-clamp-2">${this._esc(this._originalPrompt)}</p>
                 </div>` : '';
 
+            // Asset Type + Art Style selector row
+            const curAssetType = this._opts?.assetType || 'game_asset';
+            const curStyleId = this._opts?.styleId || '';
+            const assetOptions = ASSET_TYPES.map(a =>
+                `<option value="${a.value}" ${a.value === curAssetType ? 'selected' : ''}>${_t(a.labelKey)}</option>`
+            ).join('');
+            const styles = this._stylesList || [];
+            const styleOptions = [`<option value="">${_t('image_studio.style_none') || 'None (standalone mode)'}</option>`]
+                .concat(styles.map(s => `<option value="${s.id}" ${s.id === curStyleId ? 'selected' : ''}>${s.name}</option>`))
+                .join('');
+            const selectorRow = `
+                <div class="mx-5 mt-2 mb-1 flex items-center gap-3">
+                    <div class="flex items-center gap-1.5 min-w-0">
+                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">Type</label>
+                        <select id="pd-asset-type-sel" class="text-[11px] bg-black/20 border border-brand-border/50 rounded px-2 py-1 text-brand-text focus:border-brand-accent/50 focus:outline-none">${assetOptions}</select>
+                    </div>
+                    <div class="flex items-center gap-1.5 min-w-0 flex-1">
+                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">Style</label>
+                        <select id="pd-style-sel" class="text-[11px] bg-black/20 border border-brand-border/50 rounded px-2 py-1 text-brand-text focus:border-brand-accent/50 focus:outline-none truncate w-full">${styleOptions}</select>
+                    </div>
+                </div>`;
+
             // Live preview (constructed from current fields — no LLM, instant)
             const previewBar = `
                 <div class="mx-5 mb-2">
@@ -370,7 +428,7 @@
                 </div>`;
 
             const body = this._modal?.querySelector('.pd-body');
-            if (body) body.innerHTML = originalPromptBar + translationBanner + tabBar + tabContent + previewBar + actionBar + infoFooter;
+            if (body) body.innerHTML = originalPromptBar + selectorRow + translationBanner + tabBar + tabContent + previewBar + actionBar + infoFooter;
 
             // Attach events
             this._modal?.querySelectorAll('.pd-tab').forEach(btn => {
@@ -428,6 +486,16 @@
                 });
             });
 
+            // Asset Type / Style selector change → re-decompose
+            this._modal?.querySelector('#pd-asset-type-sel')?.addEventListener('change', (e) => {
+                if (this._opts) this._opts.assetType = e.target.value;
+                this._redecompose();
+            });
+            this._modal?.querySelector('#pd-style-sel')?.addEventListener('change', (e) => {
+                if (this._opts) this._opts.styleId = e.target.value;
+                this._redecompose();
+            });
+
             // Live preview: update on any field change
             this._modal?.querySelectorAll('.pd-input').forEach(input => {
                 input.addEventListener('input', () => {
@@ -448,7 +516,10 @@
 
         _save() {
             if (this._onApply) {
-                this._onApply(this._data, this._varyFlags);
+                this._onApply(this._data, this._varyFlags, {
+                    assetType: this._opts?.assetType,
+                    styleId: this._opts?.styleId,
+                });
             }
             this.close();
             window.showToast?.(_t('prompt_designer.saved'), 'success');
@@ -466,6 +537,15 @@
                 }
             }
             return flags;
+        },
+
+        async _fetchStyles() {
+            if (this._stylesList) return this._stylesList;
+            try {
+                const data = await (typeof API !== 'undefined' ? API.styles.list() : fetch('/api/styles/').then(r => r.json()));
+                this._stylesList = Array.isArray(data) ? data : [];
+            } catch { this._stylesList = []; }
+            return this._stylesList;
         },
 
         _esc(str) {
