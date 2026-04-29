@@ -267,12 +267,12 @@
     "models_selected": "models selected",
     "models_count": "models",
     "select_at_least_one_model": "Select at least one model",
-    "step1_game_asset": "Describe your game asset",
-    "step1_character": "Describe your character",
-    "step1_environment": "Describe your scene",
-    "step1_banner": "Describe your banner scene",
-    "step1_icon": "Describe your icon",
-    "step1_photo": "Describe your photo"
+    "step1_game_asset": "Describe the game asset you want to create",
+    "step1_character": "Describe the character you want to create",
+    "step1_environment": "Describe the scene you want to create",
+    "step1_banner": "Describe the banner scene you want to create",
+    "step1_icon": "Describe the icon you want to create",
+    "step1_photo": "Describe the photo you want to create"
   },
   "video_studio": {
     "title": "Video Studio",

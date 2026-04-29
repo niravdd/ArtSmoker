@@ -214,7 +214,7 @@ from pydantic import BaseModel as _BaseModel
 class DecomposeRequest(_BaseModel):
     prompt: str
     style_id: str | None = None
-    asset_type: str = "game_asset"
+    asset_type: str = "photorealistic"
     image_model: str = ""
 
 

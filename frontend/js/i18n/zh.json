@@ -473,12 +473,12 @@
     "models_count": "个模型",
     "select_at_least_one_model": "请至少选择一个模型",
     "prompt_language_hint": "用中文或英文书写 — 两者都可以。",
-    "step1_game_asset": "描述您的游戏资产",
-    "step1_character": "描述您的角色",
-    "step1_environment": "描述您的场景",
-    "step1_banner": "描述您的横幅场景",
-    "step1_icon": "描述您的图标",
-    "step1_photo": "描述您的照片"
+    "step1_game_asset": "描述您想要创建的游戏资产",
+    "step1_character": "描述您想要创建的角色",
+    "step1_environment": "描述您想要创建的场景",
+    "step1_banner": "描述您想要创建的横幅场景",
+    "step1_icon": "描述您想要创建的图标",
+    "step1_photo": "描述您想要创建的照片"
   },
   "lang": {
     "en": "英语",

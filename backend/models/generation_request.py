@@ -48,7 +48,7 @@ class GenerationRequest(BaseModel):
     pre_composed: bool = False  # If True, prompt was already AI-composed — skip refinement
     moderation_original: str | None = None  # Pre-moderation-rewrite prompt
     style_id: str | None = None
-    asset_type: AssetType = AssetType.GAME_ASSET
+    asset_type: AssetType = AssetType.PHOTOREALISTIC
     image_model: str = "nova_canvas"  # Any valid registry key (not limited to ImageModel enum)
     quality: str | None = None  # Quality tier override (e.g. "standard", "premium"). None = model's default.
     region: str | None = None  # Override region for the model (None = use model's default)
@@ -82,5 +82,5 @@ class GenerationRequest(BaseModel):
 class PromptRefineRequest(BaseModel):
     prompt: str
     style_id: str | None = None
-    asset_type: AssetType = AssetType.GAME_ASSET
+    asset_type: AssetType = AssetType.PHOTOREALISTIC
     image_model: str | None = None

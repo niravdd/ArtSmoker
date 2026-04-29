@@ -473,12 +473,12 @@
     "models_count": "modelos",
     "select_at_least_one_model": "Seleccione al menos un modelo",
     "prompt_language_hint": "Escribe en español o en inglés — ambos funcionan.",
-    "step1_game_asset": "Describe tu asset de juego",
-    "step1_character": "Describe tu personaje",
-    "step1_environment": "Describe tu escena",
-    "step1_banner": "Describe tu escena de banner",
-    "step1_icon": "Describe tu icono",
-    "step1_photo": "Describe tu foto"
+    "step1_game_asset": "Describe el asset de juego que quieres crear",
+    "step1_character": "Describe el personaje que quieres crear",
+    "step1_environment": "Describe la escena que quieres crear",
+    "step1_banner": "Describe la escena de banner que quieres crear",
+    "step1_icon": "Describe el icono que quieres crear",
+    "step1_photo": "Describe la foto que quieres crear"
   },
   "lang": {
     "en": "English",
