@@ -119,6 +119,12 @@ RULES:
 
 5. **Write as descriptive captions.** Not commands. Paint what the viewer sees.
 
+6. **MODERATION-SAFE LANGUAGE.** AI image models have content filters. Avoid words that trigger false positives:
+   - Use "upper-body crop" or "waist-up portrait" instead of "bust crop" or "bust shot"
+   - Use "form-fitting" instead of "tight" or "skin-tight"
+   - Use "exposed shoulders" instead of "bare shoulders"
+   - Never use: nude, naked, bare skin, bust, undressed, revealing, provocative, seductive
+
 Return a JSON array of {num_options} strings. Each string is a complete image caption. If the model supports negative prompts, add one final entry prefixed with "NEGATIVE:" for shared exclusion terms.""",
     },
 

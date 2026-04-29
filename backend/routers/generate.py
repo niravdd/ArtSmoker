@@ -854,7 +854,8 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                     prompts = generate_concept_prompts(
                         body.prompt, style_profile, body.asset_type,
                         num_options=n_opts, image_model=mk,
-                        recomposed_prompt=all_models_recomposed)
+                        decomposed_data=all_models_decomposed,
+                        vary_fields=body.vary_fields)
                     concept_prompts[mk] = prompts
                     negative_prompts[mk] = [get_last_negative_prompt()] * n_opts
                 logger.info("Model-optimized: %s got %d concept(s)", mk, len(concept_prompts[mk]))
@@ -873,7 +874,8 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
             else:
                 shared_prompts = generate_concept_prompts(
                     body.prompt, style_profile, body.asset_type, num_options=n_opts,
-                    recomposed_prompt=all_models_recomposed)
+                    decomposed_data=all_models_decomposed,
+                    vary_fields=body.vary_fields)
                 shared_negatives = [get_last_negative_prompt()] * n_opts
 
             # Pad if fewer prompts returned than requested
