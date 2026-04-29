@@ -14,12 +14,14 @@
     'use strict';
 
     const SUPPORTED_LANGS = [
-        { code: 'en', label: 'English', flag: 'EN' },
-        { code: 'ja', label: '日本語', flag: 'JA' },
-        { code: 'zh', label: '中文', flag: 'ZH' },
-        { code: 'ko', label: '한국어', flag: 'KO' },
-        { code: 'fr', label: 'Français', flag: 'FR' },
-        { code: 'es', label: 'Español', flag: 'ES' },
+        { code: 'en', label: 'English', flag: 'EN', tooltip: 'English' },
+        { code: 'ja', label: '日本語', flag: '日', tooltip: '日本語 (Japanese)' },
+        { code: 'zh', label: '中文', flag: '中', tooltip: '中文 (Chinese)' },
+        { code: 'ko', label: '한국어', flag: '한', tooltip: '한국어 (Korean)' },
+        { code: 'hi', label: 'हिन्दी', flag: 'हिं', tooltip: 'हिन्दी (Hindi)' },
+        { code: 'ru', label: 'Русский', flag: 'РУ', tooltip: 'Русский (Russian)' },
+        { code: 'fr', label: 'Français', flag: 'FR', tooltip: 'Français (French)' },
+        { code: 'es', label: 'Español', flag: 'ES', tooltip: 'Español (Spanish)' },
     ];
 
     const STORAGE_KEY = 'artsmoker_lang';

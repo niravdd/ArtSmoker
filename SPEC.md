@@ -109,7 +109,7 @@ Browser (Vanilla JS + Tailwind CSS)
     +-- Video Studio: text-to-video generation (async, S3-backed)
     +-- Chat Studio: multi-model LLM chat with streaming, sessions, vision
     +-- Type Studio: text overlay system (on-image + standalone)
-    +-- i18n: 6 languages (EN, JA, ZH, KO, FR, ES) with language switcher
+    +-- i18n: 8 languages (EN, JA, ZH, KO, FR, ES, HI, RU) with language switcher
     +-- Unified gallery: images + videos with filtering and export
     |
     v
@@ -140,6 +140,13 @@ AI Pipeline (Amazon Bedrock)
     +-- Nova Reel v1.0/v1.1    — Video generation (text-to-video, image-to-video, multi-shot)
     +-- Luma AI Ray v2.0       — Video generation (text-to-video, flexible aspect ratios)
     +-- Nova Sonic              — Speech-to-text transcription (bidirectional streaming)
+    |
+    v
+Self-Hosted (Amazon SageMaker)
+    |
+    +-- HunyuanImage 3.0 (BF16) — 80B MoE text-to-image (g7e.12xlarge, FlashInfer)
+    +-- HunyuanImage 3.0 (NF4)  — Quantized variant (g7e.2xlarge)
+    +-- FLUX.2 dev (NF4)        — Image generation (g6e.4xlarge)
     |
     v
 Storage (Local filesystem + S3)
@@ -201,12 +208,14 @@ ArtSmoker/
 │   │   ├── app.js                 # Main app logic, routing, showConfirm(), language switcher
 │   │   ├── i18n/
 │   │   │   ├── i18n.js            # Core: t() function, language switching, reverse lookup, translateView()
-│   │   │   ├── en.json            # English (base) — 817 translation keys
+│   │   │   ├── en.json            # English (base) — 817+ translation keys
 │   │   │   ├── ja.json            # Japanese
 │   │   │   ├── zh.json            # Simplified Chinese
 │   │   │   ├── ko.json            # Korean
 │   │   │   ├── fr.json            # French
-│   │   │   └── es.json            # Spanish
+│   │   │   ├── es.json            # Spanish
+│   │   │   ├── hi.json            # Hindi
+│   │   │   └── ru.json            # Russian
 │   │   ├── components/
 │   │   │   ├── StyleLibrary.js    # Style profile browser + uploader
 │   │   │   ├── ImageStudio.js     # 2D Image Studio: two-tier generation UI (options + variations)
@@ -215,6 +224,7 @@ ArtSmoker/
 │   │   │   ├── TypeStudio.js      # Type Studio: text overlay system (on-image + standalone)
 │   │   │   ├── VoiceInput.js      # Voice recording + transcription
 │   │   │   ├── PromptEditor.js    # Text input with inline LLM refinement
+│   │   │   ├── PromptDesigner.js  # Visual decomposition editor with Lock/Vary toggles per field
 │   │   │   ├── Gallery.js         # Unified gallery: images + videos, media filter, type filter
 │   │   │   ├── AssetViewer.js     # Full-size image preview + zoom/pan + edit + versioning
 │   │   │   └── ModelSettings.js   # Model registry admin UI: 7 tabs (Image/Video/Chat/Type/Shared Studio, Templates, JSON)
@@ -281,7 +291,7 @@ A style profile captures the visual DNA of a game's art:
      - **High cohesion**: All images share the same style — the Phase 2 prompt extracts a unified style profile.
      - **Medium cohesion**: Structural patterns are shared but themes differ — the Phase 2 prompt extracts design language and production standards.
      - **Low cohesion**: Diverse styles — the Phase 2 prompt focuses on what IS consistent (quality standards, sizing conventions, composition patterns).
-   - **Phase 2 — Full analysis (Claude Opus, vision)**: The cohesion assessment from Phase 1 is fed to Claude Opus alongside the (sampled) reference images, guiding it to analyze appropriately for the collection type. This means diverse collections get useful hints about production patterns, not a diluted "colorful game art" generic description.
+   - **Phase 2 — Full analysis (Claude Opus, vision)**: The cohesion assessment from Phase 1 is fed to Claude Opus alongside the (sampled) reference images, guiding it to analyze appropriately for the collection type. This means diverse collections get useful hints about production patterns, not a diluted "colorful game art" generic description. Image format is detected from magic bytes (JPEG/PNG/GIF/WebP) rather than hardcoded, ensuring correct MIME types in Bedrock Converse API calls. The `palette` field is coerced from dict to list when the LLM returns a dict instead of the expected hex-string list.
    - The analysis prompt is specifically designed for game assets on transparent backgrounds — it asks for material-specific rendering details (how stone, wood, metal are rendered), proportion system, and shadow/lighting specifics. The analysis is **context-aware** — Claude sees both the images AND the user's existing `generation_hints` (passed as "Artist's Guidance") so it understands the user's intent.
    - The cohesion check adds ~$0.01 per analysis (Sonnet with 8 images is very cheap).
 5. Claude Sonnet 4.6 distils the analysis into a concise `generation_hints` paragraph (max 200 words) via `generate_hints(style_id, analyzed_style, user_hints)`, also receiving the user's guidance as context. The hints cover 8 dimensions: perspective, rendering with material specifics, color palette by material, proportions, edge treatment, shadow/lighting, detail level, and background — specific enough that generated assets should visually blend with existing reference images.
@@ -328,9 +338,27 @@ The generation system produces images across two dimensions:
 User prompt: "hospital building"
          |
          v
+    [Decomposition — Claude Sonnet/Opus]
+    Always runs (even when user skips Prompt Designer). Produces structured
+    `decomposed_data` with {value, source} tagged fields per attribute.
+    Source is "user" (sacred/locked — preserved exactly) or "inferred"
+    (variable — may be freely varied across concepts). Style guidance is
+    baked into decomposition, not re-injected later.
+         |
+         v
+    [Prompt Designer — optional interactive step]
+    Visual editor with Lock/Vary toggles (locked/fixed or randomise)
+    per decomposed field. Asset Type + Style selectors sync with main
+    page and trigger re-decompose on change.
+         |
+         v
     [Concept Generation — Claude Opus 4.6 (complex)]
-    If num_options > 1: generate_concept_prompts() produces N distinctly
-    different enhanced prompts as a JSON array of prompt strings.
+    Uses locked/variable sections instead of flat recomposed text.
+    Locked fields are preserved verbatim; variable fields are creatively
+    varied across concepts. `optimal_prompt_words` per model controls
+    target length (30-80 words for HunyuanImage, 80 for Nova Canvas,
+    120 for SD 3.5 Large). If num_options > 1: generate_concept_prompts()
+    produces N distinctly different enhanced prompts as a JSON array.
     If num_options == 1: refine_prompt() (Claude Sonnet, fast) produces
     a single enhanced prompt. Marketing banners use refine_marketing_prompt()
     (Claude Opus, complex).
@@ -344,6 +372,7 @@ User prompt: "hospital building"
     - Titan Image v2: concise captions, 480 chars
     - SD 3.5 Large: quality boosters (masterpiece, best quality), style tokens, 2000 chars
     - Stable Image Ultra: photorealistic quality boosters, 2000 chars
+    - HunyuanImage: concise descriptive prompts (30-80 words), CoT reasoning model
     Negative prompt parsed by _parse_negative_prompt() and passed through pipeline.
          |
          v
@@ -407,6 +436,7 @@ The active limit is passed to all prompt refinement functions (`refine_prompt()`
 | Titan Image v2 | Concise caption | Shorter descriptive phrases, 480 char limit |
 | Stable Diffusion 3.5 Large | Rich caption with boosters | Quality boosters (masterpiece, best quality), style tokens (concept art, artstation), 2000 char limit |
 | Stable Image Ultra | Photorealistic caption | Photorealistic quality boosters, cinematic lighting descriptors, 2000 char limit |
+| HunyuanImage 3.0 | Concise descriptive | Short prompts (30-80 words) for CoT reasoning model, no quality boosters needed |
 
 **Negative prompt support**: All four image models receive a negative prompt parameter alongside the main prompt. Negative prompts are extracted through multiple mechanisms:
 
@@ -481,6 +511,7 @@ Each `AssetType` has detailed structural directives in `prompt_engineer.py` cove
 
 | Asset Type | Key Directives |
 |---|---|
+| `photorealistic` | **OUTPUT**: Photorealistic image (default asset type). **COMPOSITION**: Natural, photograph-like framing — subject fills frame with contextually appropriate background. **FRAMING**: Real-world camera perspective (eye-level, shallow DoF for portraits, wide for landscapes). **TECHNICAL**: Photorealistic lighting, natural skin tones, realistic materials and textures, lens-appropriate bokeh. **DO NOT**: Stylize, cartoonify, or add illustrated/painted aesthetics. Avoid obvious AI artifacts (extra fingers, impossible geometry). |
 | `game_asset` | **OUTPUT**: In-game sprite/tile/object. **COMPOSITION**: Single object, centered, isolated on transparent background. **FRAMING**: Straight-on or style's canonical perspective, fill 70-80% of frame. **TECHNICAL**: Clean sharp edges, consistent lighting (top-left default), no ground shadows. **DO NOT**: Include text, UI, multiple objects, or scene backgrounds. |
 | `marketing_banner` | **OUTPUT**: Promotional banner. **COMPOSITION**: Full-scene illustration, reserve left/right third as text-safe zone (must be empty for post-production overlay), strong focal point opposite. **FRAMING**: Wide/cinematic feel, camera pulled back. **TECHNICAL**: Rich saturated colors, dramatic lighting, depth-of-field. **NO TEXT** — do not render any text, letters, words, or typography; the text-safe zone must remain empty. **DO NOT**: Make it sparse or icon-like. Marketing prompt template also strips text requests from the user prompt and instructs Claude to ignore title/text mentions. |
 | `icon` | **OUTPUT**: App/UI/button icon. **COMPOSITION**: Single bold recognizable symbol, centered with 15% padding. **FRAMING**: Front-facing or slight 3/4 tilt. **TECHNICAL**: Must read at 64x64, high contrast, 3-5 colors, bold shapes. **DO NOT**: Add complexity, fine detail, or scene context. |
@@ -552,7 +583,7 @@ Clean, modern single-page application served as static files mounted at `/` by F
 
 **DOM caching router**: Views survive navigation. Each view's DOM is cached and shown/hidden instead of destroyed/recreated on route changes. `window.resetView(route)` destroys the cache for a specific view to force a fresh start.
 
-**No-cache middleware**: During development, frontend static files are served with no-cache headers to ensure changes are reflected immediately.
+**No-cache middleware**: During development, frontend static files are served with no-cache headers to ensure changes are reflected immediately. Gallery images use versioned cache-busting (`?v=N`) to force browser re-fetch after in-place edits (inpaint, erase, etc.).
 
 **Client-side error logging**: All toast errors/warnings and unhandled JS errors are sent to `POST /api/log` and logged server-side with a `[CLIENT]` prefix for unified debugging.
 
@@ -818,7 +849,7 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 
 All sections are collapsible with Show All / Hide All toggles. Clicking "Model Settings" in any studio opens the modal to the relevant tab. The modal is 72rem wide.
 
-**Searchable model dropdowns:** All model selection dropdowns (Image Studio, Chat Studio, LLM categories) support type-to-filter search. Models are grouped by provider with section headers. Typing narrows the list in real-time; clearing the search restores the full grouped list.
+**Searchable model dropdowns:** All model selection dropdowns (Image Studio, Chat Studio, LLM categories) support type-to-filter search. Models are grouped by provider with section headers. Typing narrows the list in real-time; clearing the search restores the full grouped list. All dropdowns expand to dynamic width when open (content-driven, not fixed). The Chat Studio model dropdown uses a custom scrollable container with max-height (replacing the native `<select>` which showed all models at once).
 
 **Custom Models tab:** Uses a two-level hierarchy — models are organized by Studio (Image, Video, Post-processing) and then by Category within each studio. Each model card shows deployment status, instance type, warm-up state, and action buttons (Deploy/Teardown/Redeploy).
 
@@ -1030,17 +1061,17 @@ Fields:
 The image generation pipeline transforms the user's idea through four stages:
 
 1. **User Prompt** — the user's raw text input (Step 1 textarea). Always preserved, never overwritten by the system.
-2. **Decomposed Data** — structured JSON with `subject`, `scene`, `composition`, `lighting`, `style` (including color palette). This is the intermediate representation produced by `/api/refine-prompt/decompose` and edited in the Prompt Designer (Step 2). Stored in metadata as `decomposed_data`.
-3. **Recomposed Prompt** — flat text rebuilt from the decomposed components by `/api/refine-prompt/recompose`. This is the primary input to the enhancement pipeline. Shown in the Step 2 read-only textarea. Stored in metadata as `recomposed_prompt`. Model-specific prompt guidance is **not** applied at this stage.
-4. **Enhanced AI Prompt** — model-specific optimized prompt generated by the LLM from the recomposed prompt + model guidance + style directives. This is what actually gets sent to the image model. Stored in metadata as `enhanced_prompt`. Each option gets its own enhanced prompt (via `generate_concept_prompts` for N×M mode).
+2. **Decomposed Data** — structured JSON with `subject`, `scene`, `composition`, `lighting`, `style` (including color palette). Each field is a `{value, source}` tagged object where `source` is `"user"` (sacred/locked — preserved exactly across concepts) or `"inferred"` (variable — may be freely varied). Style guidance is baked into decomposition, not re-injected later. This is the intermediate representation produced by `/api/refine-prompt/decompose` and edited in the Prompt Designer (Step 2). Stored in metadata as `decomposed_data`. Decomposition always runs (even when the user skips Prompt Designer), providing structured data for concept generation.
+3. **Recomposed Prompt** — flat text rebuilt from the decomposed components by `/api/refine-prompt/recompose`, now split into locked (user-sourced) and variable (inferred) sections for concept generation. Stored in metadata as `recomposed_prompt`. Model-specific prompt guidance is **not** applied at this stage.
+4. **Enhanced AI Prompt** — model-specific optimized prompt generated by the LLM from the locked/variable sections + model guidance. Target length controlled by `optimal_prompt_words` per model (30-80 for HunyuanImage, 80 for Nova Canvas, 120 for SD 3.5 Large). This is what actually gets sent to the image model. Stored in metadata as `enhanced_prompt`. Each option gets its own enhanced prompt (via `generate_concept_prompts` for N×M mode).
 
 All three derived levels (`decomposed_data`, `recomposed_prompt`, `enhanced_prompt`) are persisted to `metadata.json` alongside the original `prompt`.
 
 **Generation flows:**
 
-- **1×1 (single option, single variation)**: decompose → recompose → enhance (1 enhanced prompt) → 1 image
-- **N×M (multiple options/variations)**: decompose → recompose → enhance (N enhanced prompts via `generate_concept_prompts`) → N options × M variations (different seeds per variation)
-- **Skip Steps 2/3**: Generate auto-enhances the user prompt server-side (decompose + recompose + enhance happen internally)
+- **1×1 (single option, single variation)**: decompose → recompose (locked/variable) → enhance (1 enhanced prompt) → 1 image
+- **N×M (multiple options/variations)**: decompose → recompose (locked/variable) → enhance (N enhanced prompts via `generate_concept_prompts`, locked sections preserved, variable sections varied) → N options × M variations (different seeds per variation)
+- **Skip Steps 2/3**: Generate auto-enhances the user prompt server-side (decompose + recompose + enhance happen internally — decompose always runs even when Prompt Designer is skipped)
 
 **Prompt Designer flow:**
 
@@ -1050,21 +1081,26 @@ The 2D Image Studio uses a guided 3-step workflow:
 
 2. **Step 2 — Prompt Designer** *(optional)* (Decomposed Data → Recomposed Prompt): Clicking the Prompt Designer button:
    - Runs LLM asset type classification first — if mismatch detected (e.g., scene prompt + Game Asset), a dialog suggests switching
-   - Sends prompt to `/api/refine-prompt/decompose` — LLM decomposes into structured JSON:
+   - Sends prompt to `/api/refine-prompt/decompose` — LLM decomposes into structured JSON with `{value, source}` tagged fields:
      ```json
      {
-       "subject": { "description": "...", "clothing": "...", "accessories": "...", "expression_pose": "...", "details": "..." },
-       "scene": { "setting": "...", "background": "...", "props": "...", "time_of_day": "..." },
-       "composition": { "camera_angle": "...", "framing": "...", "depth_of_field": "..." },
-       "lighting": { "key_light": "...", "fill_rim": "...", "mood": "..." },
-       "style": { "art_style": "...", "quality": "...", "color_palette": [{"name": "Admiral Navy", "hex": "#1B2A4A", "usage": "jacket and cap"}] }
+       "subject": {
+         "description": {"value": "young female warrior", "source": "user"},
+         "clothing": {"value": "leather armor with silver trim", "source": "inferred"},
+         ...
+       },
+       "scene": { "setting": {"value": "...", "source": "..."}, ... },
+       "composition": { "camera_angle": {"value": "...", "source": "..."}, ... },
+       "lighting": { "key_light": {"value": "...", "source": "..."}, ... },
+       "style": { "art_style": {"value": "...", "source": "..."}, "color_palette": [...] }
      }
      ```
-   - Displayed in a tabbed modal (Subject | Scene | Composition | Lighting | Style & Colors)
-   - Each field is editable — users can modify individual decomposed components
+   - Displayed in a tabbed modal (Subject | Scene | Composition | Lighting | Style & Colors) with **Asset Type** and **Style** selectors at the top that sync with the main page and trigger re-decompose on change
+   - Each field is editable with **Lock/Vary toggles** (locked/fixed or randomise) per field. Locked fields (`source: "user"`) are preserved verbatim across concepts; variable fields (`source: "inferred"`) are freely varied. Default is Randomise for inferred fields; editing a field does not auto-lock it
    - Color palette shown as named swatches with hex values and usage descriptions
-   - Style Library hints are incorporated if a style is selected
-   - "Generate Enhanced Prompt" → sends edited components to `/api/refine-prompt/recompose` → recomposed prompt shown in Step 2, then enhanced with model guidance → Enhanced AI Prompt appears in Step 3
+   - Style Library hints are incorporated if a style is selected — baked into decomposition
+   - Info footer explains the lock/vary behavior below the action buttons
+   - "Generate Enhanced Prompt" → sends edited components to `/api/refine-prompt/recompose` → recomposed prompt (with locked/variable sections) shown in Step 2, then enhanced with model guidance → Enhanced AI Prompt appears in Step 3
 
 3. **Step 3 — Enhanced Prompt Preview** *(optional)* (Enhanced AI Prompt): Shows the model-specific enhanced prompt that the image model will receive. Generated from the recomposed prompt + model guidance. Editable before generating.
 
@@ -1074,6 +1110,7 @@ The 2D Image Studio uses a guided 3-step workflow:
 - Each model can have `prompt_guidance` in its registry invoke config — LLM instructions for writing prompts optimized for that model's architecture
 - Models declare `supports_negative_prompt: true/false` — templates conditionally include/skip NEGATIVE: line. FLUX models skip negative prompts entirely; the LLM focuses all effort on the positive caption
 - FLUX.2 guidance targets 60-100 word concise prompts (not verbose 300+ word descriptions that dilute signal)
+- HunyuanImage 3.0 guidance targets 30-80 word concise prompts — the model has internal CoT reasoning, so shorter prompts with clear intent outperform verbose descriptions
 - The `image_refine_single` and `prompt_recompose` templates pass `{model_specific_instructions}` so the LLM adapts per model
 
 **Asset type classification** (`/api/refine-prompt/classify-asset-type`):
@@ -1211,7 +1248,7 @@ A full-featured LLM chat interface running on the user's own AWS account. 80+ mo
 | GET | `/api/custom-models/catalog/{key}` | Get detailed info for a specific model from the catalog. |
 | POST | `/api/custom-models/deploy` | Deploy a model. For HuggingFace: uploads handler to S3 → creates Amazon SageMaker endpoint (container pulls from HF). For others: download → S3 → endpoint. Body: `{model_key, endpoint_type ("async"/"realtime"), instance_type (optional)}`. |
 | GET | `/api/custom-models/status/{key}` | Check Amazon SageMaker endpoint deployment status (Creating, InService, Failed, etc.). Includes 15-minute warm-up awareness — InService does not mean ready (model download may still be in progress). |
-| DELETE | `/api/custom-models/teardown/{key}` | Delete Amazon SageMaker endpoint + Secrets Manager token. Optional `?delete_s3=true` to also remove S3 artifacts. |
+| DELETE | `/api/custom-models/teardown/{key}` | Full cleanup: deletes endpoint, endpoint config, model, auto-scaling policies + scalable target, CloudWatch alarms, registry entries, in-memory async jobs, and S3-persisted async jobs (`artsmoker/async-jobs/*.json`). Optional `?delete_s3=true` to also remove S3 model artifacts. |
 | POST | `/api/custom-models/redeploy/{key}` | Tear down and redeploy. For updates/patches. |
 | GET | `/api/custom-models/hf-token-status` | Check whether a HuggingFace token is stored in Secrets Manager. Returns `{has_token, secret_name}`. |
 | POST | `/api/custom-models/hf-token` | Store or update the HuggingFace token. Encrypted in AWS Secrets Manager (`artsmoker/hf-token`). Shared across all gated models. Body: `{token}`. |
@@ -1259,6 +1296,17 @@ Studios (Image, Video, Post-processing)
 }
 ```
 
+**GPU auto-detection:** The inference handler detects GPU count at runtime and selects the optimal strategy:
+- **2+ GPUs** → `device_map="auto"` (naive pipeline parallelism — more memory, not more speed)
+- **1 GPU + `block_swap_blocks > 0`** → CPU-first sliding window offload (block swap)
+- **1 GPU + no swap** → direct `.to("cuda")`
+
+The same catalog entry works on any instance type — no per-instance configuration needed.
+
+**FlashInfer support (Blackwell SM 12.0):** On g7e instances (NVIDIA Blackwell B200), FlashInfer fused MoE kernels dramatically reduce inference time. Requirements: `torch+cu129`, pre-compiled `flashinfer-jit-cache` wheels (no nvcc/JIT needed), `FLASHINFER_CUDA_ARCH_LIST=12.0f` for SM120 cache lookup, `FLASHINFER_DISABLE_JIT=1` to prevent fallback to nvcc. BF16 + FlashInfer on g7e.12xlarge: **68s/image** (vs 19 min for INT8 with BnB dequantization overhead). Speed comes from FlashInfer fused kernels, not from extra GPUs.
+
+**NVMe instance families:** Instances with local NVMe storage (g7e, p5, p5e, p6) reject the `VolumeSizeInGB` parameter — SageMaker auto-mounts their NVMe. The deployer skips this parameter for these families.
+
 **Memory optimizations** (catalog-driven per model): The invoke config controls four memory strategies applied at model load time:
 - `enable_model_cpu_offload` — offloads inactive pipeline stages to CPU (recommended default)
 - `enable_sequential_cpu_offload` — aggressive per-layer offloading for very large models
@@ -1275,7 +1323,7 @@ Each model's catalog entry specifies which optimizations to enable. The inferenc
 
 **Deployment types:**
 - **Async** (scale-to-zero): `AsyncInferenceConfig` with S3 output. Scales to zero instances when idle ($0 cost). Cold start from zero: 5-15 minutes (includes HF model download on first start). Input uploaded to S3, output polled from S3.
-- **Realtime** (always-on): Standard endpoint with `InitialInstanceCount=1`. Instant inference. Costs ~$1.41/hr continuously (ml.g5.xlarge).
+- **Realtime** (always-on): Standard endpoint with `InitialInstanceCount=1`. Instant inference. Costs ~$1.21/hr continuously (ml.g5.xlarge). Instance pricing: g5.2xlarge $1.51/hr, g6e.4xlarge $3.76/hr, g7e.12xlarge $10.36/hr.
 
 **Auto-scaling** (async endpoints): Dual scaling policy for true scale-to-zero:
 - **TargetTracking** — scales in to zero instances when no requests arrive (zero-cost idle)
@@ -1300,14 +1348,18 @@ This combination solves the cold-start-from-zero problem: TargetTracking alone c
 4. If fails → log error, component skipped → `model_cpu_offload` prevents OOM
 
 **Auto-scaling:** Registered after model readiness confirmed (not at endpoint InService — model may still be loading). Checks AWS for existing policies on startup to avoid redundant API calls. Configuration:
-- Scale-to-zero: TargetTracking on `ApproximateBacklogSizePerInstance`, 600s (10 min) idle cooldown
+- Scale-to-zero: TargetTracking on `ApproximateBacklogSizePerInstance`, cooldown derived from `typical_latency_seconds` in the catalog (`max(600, typical * 2)`) — prevents instances from being killed mid-inference. The catalog key lookup strips the hash suffix from endpoint names (e.g., `_620a`) via prefix match.
 - Scale-from-zero: StepScaling on `HasBacklogWithoutCapacity` alarm, 60s cooldown for fast response
-- Instance recommendations: `allowed_instances` field in catalog requirements filters instance dropdown (e.g., FLUX.2 limited to g6e.4xlarge+, FLUX.1 limited to g5.xlarge-4xlarge)
+- Instance recommendations: `allowed_instances` field in catalog requirements filters instance dropdown (e.g., FLUX.2 limited to g6e.4xlarge+, HunyuanImage limited to g7e.2xlarge+)
 
 **Cold start times** (FLUX.2 dev on g6e.4xlarge):
 - Fresh build (no cache): ~6 min (HF download + NF4 quantize on GPU)
 - From S3 cache (preserved=true): ~4 min (S3 download + direct NF4 load for transformer, HF fallback for text encoder)
 - Inference: ~80s/image at 1024x1024, 40 steps on GPU fast path
+
+**Cold start times** (HunyuanImage 3.0 BF16 on g7e.12xlarge):
+- Fresh build: ~10 min (80B model download from HuggingFace)
+- Inference: ~68s/image with FlashInfer fused MoE kernels (vs ~19 min with INT8 BnB dequantization)
 
 **Amazon SageMaker IAM requirements:**
 ```
@@ -1331,9 +1383,10 @@ s3://your-bucket/
 ├── artsmoker/video/{job_id}/         ← Video generation output (MP4, thumbnails)
 ├── artsmoker/custom-models/{key}/    ← Handler code (HF models) or weights + handler (non-HF)
 │   └── code/inference.py             ← Universal inference handler (bundled)
-└── artsmoker/custom-models/
-    ├── inference-input/{endpoint}/    ← Async inference input payloads
-    └── inference-output/{key}/        ← Async inference results
+├── artsmoker/custom-models/
+│   ├── inference-input/{endpoint}/   ← Async inference input payloads
+│   └── inference-output/{key}/       ← Async inference results
+└── artsmoker/async-jobs/*.json       ← Persisted async job state (1-day S3 lifecycle expiry)
 ```
 
 ### 5.11 Async Jobs (Self-Hosted Model Generation)
@@ -1345,15 +1398,17 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 | GET | `/api/generate/async-jobs` | List all active and recent async jobs. Returns job ID, model key, status (pending/complete/failed), submission time, prompt, and full generation metadata. |
 | POST | `/api/generate/async-jobs/clear` | Clear completed/failed jobs from the tracking list. Active jobs are preserved. |
 
-**S3 persistence:** Jobs are persisted to `artsmoker/async-jobs/` in the S3 bucket. Job state survives server restarts — on startup, the system reloads active jobs from S3 and resumes polling.
+**S3 persistence:** Jobs are persisted to `artsmoker/async-jobs/` in the S3 bucket. Job state survives server restarts — on startup, the system reloads active jobs from S3 and resumes polling. An S3 lifecycle rule (1-day expiry) is set lazily on first persist to auto-cleanup stale job files.
 
 **Background poller:** A background thread checks S3 every 10 seconds (while jobs are active) for completed inference outputs. When output appears, it downloads the result, decodes the image, and writes it to the local gallery. Frontend polls at 5-second intervals for fast UI updates.
 
 **Gallery integration:** Full metadata (prompt, model, style snapshot, options/variations structure) is saved at submission time. The gallery entry is created immediately with a `pending` status. On completion, the PNG and SVG are written in-place and status flips to `complete`. On failure, status flips to `failed` with an error message.
 
-**Cost tracking:** Compute cost is calculated as `(duration_seconds / 3600) × hourly_rate`, where `hourly_rate` comes from the instance type pricing in the catalog. Duration is capped at 15 minutes (the Amazon SageMaker async invocation timeout). This cost is added to the request's cost accumulator alongside any LLM prompt-enhancement costs.
+**Invocation timeout:** `InvocationTimeoutSeconds` is set per-request based on the model's `typical_latency_seconds` from the catalog, ensuring long-running models (e.g., HunyuanImage at 120s) are not prematurely timed out by SageMaker.
 
-**Frontend (Pending Jobs button):** A button in Image Studio shows the count of active async jobs. Clicking opens a panel listing each job with model name, prompt excerpt, elapsed time, and status. Smart polling: the frontend polls `/api/generate/async-jobs` only when at least one job is active — stops polling when all jobs resolve. On completion, the gallery thumbnail live-replaces the pending placeholder.
+**Cost tracking:** Compute cost is calculated as `(duration_seconds / 3600) × hourly_rate`, where `hourly_rate` comes from the instance type pricing in the catalog. Duration is capped at the model's invocation timeout. This cost is added to the request's cost accumulator alongside any LLM prompt-enhancement costs.
+
+**Frontend (Pending Jobs button):** A button in Image Studio shows the count of active async jobs. Clicking opens a panel listing each job with model name, prompt excerpt, elapsed time, and status. The dialog shows a cleanup info header explaining 24-hour auto-cleanup of stale jobs. Smart polling: the frontend polls `/api/generate/async-jobs` only when at least one job is active — stops polling when all jobs resolve. On completion, the gallery thumbnail live-replaces the pending placeholder.
 
 **Job resubmission:** SageMaker async endpoints silently drop queued jobs when instances scale to zero. The poller detects stale jobs (pending >15 min with no S3 output and endpoint at 0 instances) and resubmits them using the original S3 input file. The resubmission call itself triggers the `HasBacklogWithoutCapacity` CloudWatch alarm, forcing scale-from-zero. Max 3 resubmission attempts per job with 60-second cooldown between attempts. `endpoint_name` is stored per job and resolved via registry on resubmission (handles endpoint redeployment). All resubmission state persists to S3 (survives server restart).
 
@@ -1901,7 +1956,7 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 17. **Test Model Settings**: Click "Model Settings" in any studio sidebar — verify it opens to the relevant tab. Tabs: Image Studio, Video Studio, Chat Studio, Type Studio, Shared Studio, Prompt Templates, Registry JSON. All sections should be collapsible with Show All / Hide All toggles. LLM categories and post-processing should show dropdown model pickers (not raw text fields). Try Sync from AWS — verify image, video, and chat models are discovered.
 17. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Test the rewrite option in each dialog — verify the rewritten prompt appears in the enhanced prompt area (not the original textarea) with the amber disclaimer. Verify the original prompt is preserved. Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears with specific issues, model switch, and rewrite options.
 18. **Test Chat Studio**: Navigate to Chat Studio, select a model and region, type a message. Verify streaming response with markdown rendering and code highlighting. Test: create/rename/delete sessions, vision (paste an image), context compaction (fill context then compact), export as Markdown, fork from a message, regenerate a response.
-19. **Test i18n**: Click a language button (JA, ZH, KO, FR, ES) in the nav bar. Verify all UI text switches to the selected language. Switch back to EN. Verify prompts in non-English languages show the bilingual preview (Original/English tabs) in Image Studio and Video Studio.
+19. **Test i18n**: Click a language button (JA, ZH, KO, FR, ES, HI, RU) in the nav bar. Language buttons show native script (日, 中, 한, हिं, РУ) with bilingual tooltips. Verify all UI text switches to the selected language. Switch back to EN. Verify prompts in non-English languages show the bilingual preview (Original/English tabs) in Image Studio and Video Studio.
 20. **Test prompt templates**: Open Model Settings → Prompt Templates. Verify two-level navigation: "View All" opens groups, "Expand editors" opens text boxes. Edit a template, remove a required variable — verify "Fix & Save" offers to auto-insert it. Test "Enhance with AI" and "Reset to Default".
 21. **Test custom confirmation dialogs**: Click "Sync from AWS" — verify a styled modal appears (not a browser confirm popup). Same for delete operations.
 22. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`, `/api/chat/*`, `/api/video/*`).
@@ -2038,19 +2093,21 @@ The generation cost depends on the image model chosen and the options×variation
 
 ## 15. Internationalization (i18n)
 
-ArtSmoker supports 6 languages: English (base), Japanese, Simplified Chinese, Korean, French, and Spanish.
+ArtSmoker supports 8 languages: English (base), Japanese, Simplified Chinese, Korean, French, Spanish, Hindi, and Russian.
 
 ### 15.1 Architecture
 
 ```
 frontend/js/i18n/
 ├── i18n.js          # Core: t() function, JSON loader, DOM updater, reverse lookup
-├── en.json          # English (base) — 817 keys, source of truth
-├── ja.json          # Japanese — 817 keys
-├── zh.json          # Simplified Chinese — 817 keys
-├── ko.json          # Korean — 817 keys
-├── fr.json          # French — 817 keys
-└── es.json          # Spanish — 817 keys
+├── en.json          # English (base) — 817+ keys, source of truth
+├── ja.json          # Japanese — 817+ keys
+├── zh.json          # Simplified Chinese — 817+ keys
+├── ko.json          # Korean — 817+ keys
+├── fr.json          # French — 817+ keys
+├── es.json          # Spanish — 817+ keys
+├── hi.json          # Hindi — 817+ keys
+└── ru.json          # Russian — 817+ keys
 ```
 
 **Key design decisions:**
@@ -2061,7 +2118,7 @@ frontend/js/i18n/
 - `I18n.translateView(container)` post-renders component HTML using a reverse lookup (English text → key → translated text)
 - Language selection persisted in `localStorage` (`artsmoker_lang` key)
 - On language change: all cached views cleared and re-rendered in the new language
-- CJK font support: Noto Sans JP/SC/KR loaded via Google Fonts CDN
+- CJK/Devanagari/Cyrillic font support: Noto Sans JP/SC/KR/Devanagari loaded via Google Fonts CDN
 
 ### 15.2 Prompt Translation Pipeline
 
@@ -2111,7 +2168,7 @@ When a user types a non-English prompt, a translation preview bar appears with:
 
 ### 15.4 UI String Translation
 
-- 775 translation keys across 16 categories (nav, common, image_studio, video_studio, etc.)
+- 800+ translation keys across 16 categories (nav, common, image_studio, video_studio, etc.)
 - Components use `t('key')` in template literals: `${t('image_studio.title')}`
 - Confirm dialogs, toast messages, tooltips, placeholders all translated
 - Technical terms stay in English: AI, LLM, SVG, PNG, S3, AWS, Bedrock, API
@@ -2120,7 +2177,7 @@ When a user types a non-English prompt, a translation preview bar appears with:
 ### 15.5 Adding a New Language
 
 1. Copy `frontend/js/i18n/en.json` to `frontend/js/i18n/{code}.json`
-2. Translate all 775 values (keep keys identical)
+2. Translate all values (keep keys identical)
 3. Add the language to `SUPPORTED_LANGS` in `frontend/js/i18n/i18n.js`
 4. Add the language code to `SUPPORTED_LANGS` in `backend/services/prompt_translator.py`
 5. Add CJK font if needed in `frontend/index.html` (Google Fonts link)

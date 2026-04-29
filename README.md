@@ -32,9 +32,9 @@ Built on Amazon Bedrock: Claude Sonnet/Opus (prompt engineering & chat), Nova Ca
 
 **[Get started now — jump to Prerequisites & Installation ▸](#get-started)**
 
-### Language / 言語 / 语言 / 언어 / Langue / Idioma
+### Language / 言語 / 语言 / 언어 / हिन्दी / Язык / Langue / Idioma
 
-ArtSmoker supports 6 languages. Switch the UI language using the language buttons in the top navigation bar (EN | JA | ZH | KO | FR | ES). Your selection is saved automatically.
+ArtSmoker supports 8 languages. Switch the UI language using the language buttons in the top navigation bar (EN | 日 | 中 | 한 | हिं | РУ | FR | ES). Your selection is saved automatically.
 
 | Language | README |
 |----------|--------|
@@ -42,11 +42,13 @@ ArtSmoker supports 6 languages. Switch the UI language using the language button
 | 日本語 (Japanese) | [README.ja.md](README.ja.md) |
 | 中文 (Chinese) | [README.zh.md](README.zh.md) |
 | 한국어 (Korean) | [README.ko.md](README.ko.md) |
+| हिन्दी (Hindi) | [README.hi.md](README.hi.md) |
+| Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français (French) | [README.fr.md](README.fr.md) |
 | Español (Spanish) | [README.es.md](README.es.md) |
 
 **Multi-lingual prompt support:**
-- Non-English prompts are automatically detected (Japanese, Chinese, Korean, French, Spanish) and translated to English before generation
+- Non-English prompts are automatically detected (Japanese, Chinese, Korean, Hindi, Russian, French, Spanish, and more) and translated to English before generation
 - A bilingual preview appears in the prompt area: toggle between your original text and the English translation to see exactly what the model will receive
 - The original prompt, detected language, and English translation are all preserved in the asset metadata
 - File names are generated from the translated English prompt (so "病院の建物" → `hospital-building_opt1_var1.png`)
@@ -96,7 +98,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 📝 **Prompt Templates** — 19 editable LLM directive prompts, AI-assisted refinement, variable validation with auto-fix
 - 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...) and version navigation
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
-- 🌐 **6-Language i18n** — Full UI translation (EN, JA, ZH, KO, FR, ES), auto-detect non-English prompts, bilingual preview
+- 🌐 **8-Language i18n** — Full UI translation (EN, JA, ZH, KO, HI, RU, FR, ES), auto-detect non-English prompts, bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
 - 🔧 **Self-Hosted Models** — Deploy open-source models (FLUX.2, FLUX.1, etc.) on Amazon SageMaker from an extensible catalog. BnB NF4 quantization on GPU, S3 model cache for fast cold starts (~4 min), auto-scales to zero ($0 idle), resilient fallback chain (cache → re-quantize → HuggingFace), async generation with Pending Jobs panel
 - 🔄 **Auto-Update** — Version-gated git pull on startup, self-restart on update, 24h periodic check (`ARTSMOKER_AUTO_UPDATE=false` to disable)

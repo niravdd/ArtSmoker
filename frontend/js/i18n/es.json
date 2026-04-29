@@ -487,7 +487,9 @@
     "ja": "日本語",
     "ko": "한국어",
     "label": "Idioma",
-    "zh": "中文"
+    "zh": "中文",
+    "hi": "हिन्दी",
+    "ru": "Русский"
   },
   "model_settings": {
     "close_editor": "Cerrar editor",

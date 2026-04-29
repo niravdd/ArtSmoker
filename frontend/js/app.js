@@ -299,7 +299,7 @@
             const active = l.code === current;
             return `<button class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${active
                 ? 'bg-brand-accent text-white'
-                : 'text-brand-text-muted hover:text-brand-text hover:bg-white/5'}" data-lang="${l.code}" title="${l.label}">${l.flag}</button>`;
+                : 'text-brand-text-muted hover:text-brand-text hover:bg-white/5'}" data-lang="${l.code}" title="${l.tooltip || l.label}">${l.flag}</button>`;
         }).join('');
 
         container.addEventListener('click', (e) => {
