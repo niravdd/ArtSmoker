@@ -1005,10 +1005,12 @@ def check_endpoint_status(endpoint_name: str) -> dict:
                 _deregister_auto_scaling_during_load(endpoint_name)
 
         elif status == "InService" and instance_count == 0:
-            # Scaled to zero — clear readiness cache so next scale-out starts fresh.
-            if _model_readiness.get(endpoint_name, {}).get("ready"):
-                _model_readiness.pop(endpoint_name, None)
-                _readiness_monitors.discard(endpoint_name)
+            # Scaled to zero — clear in-memory readiness so next scale-out
+            # re-scans logs, but do NOT clear registry model_ready flag.
+            # model_ready in the registry means "validated at least once" and
+            # persists until teardown/redeploy so the dropdown keeps listing it.
+            _model_readiness.pop(endpoint_name, None)
+            _readiness_monitors.discard(endpoint_name)
 
         result = {
             "endpoint_name": endpoint_name,

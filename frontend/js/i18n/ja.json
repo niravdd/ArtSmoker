@@ -988,6 +988,27 @@
     "original_prompt": "元のプロンプト",
     "english_prompt": "英語（デザインに使用）",
     "no_decomposed_data": "この生成にはプロンプト分解データがありません。",
-    "no_decomposed_data_sub": "プロンプトデザイナーのデータは、このツールを使用した新しい生成にのみ保存されます。"
+    "no_decomposed_data_sub": "プロンプトデザイナーのデータは、このツールを使用した新しい生成にのみ保存されます。",
+    "describe_idea": "アイデアを説明してください",
+    "describe_placeholder": "例：猛々しいトラ、森の中の居心地の良い小屋、未来的な宇宙船...",
+    "decompose_btn": "🎨 分解＆デザイン",
+    "decompose_hint": "AIがアイデアを編集可能な要素（被写体、シーン、構図、照明、スタイル）に分解します。",
+    "empty_tabs_hint": "上にプロンプトを入力してフィールドを表示",
+    "enter_prompt_first": "まずプロンプトを入力してください",
+    "analyzing_btn": "⏳ 分析中...",
+    "updating_settings": "新しい設定で更新中...",
+    "prompt_preview": "プロンプトプレビュー",
+    "preview_subtitle": "（上記のフィールドから構成）",
+    "original_prompt_label": "元のプロンプト",
+    "toggle_fixed": "📌 固定",
+    "toggle_randomise": "🎲 ランダム",
+    "toggle_fixed_title": "この要素はすべてのオプションで同じです。クリックでバリエーションを許可。",
+    "toggle_randomise_title": "この要素は各オプションで異なります。クリックで固定。",
+    "footer_randomise": "🎲 ランダム",
+    "footer_randomise_default": "（デフォルト）",
+    "footer_randomise_desc": "各オプションでこの要素に異なるクリエイティブな表現が適用されます。",
+    "footer_fixed": "📌 固定",
+    "footer_fixed_desc": "この要素はすべてのオプションで同一に保たれます。プロンプトで指定した項目は自動的に固定されます。",
+    "footer_edit_hint": "フィールドを自由に編集し、ランダムまたは固定を選択できます。単一オプション（1×1）の場合、すべてのフィールドがそのまま使用されます。"
   }
 }

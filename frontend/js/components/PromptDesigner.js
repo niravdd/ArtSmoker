@@ -120,25 +120,25 @@
                 <div class="px-5 py-4 space-y-4">
                     <div class="grid grid-cols-2 gap-3">
                         <div>
-                            <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Asset Type</label>
+                            <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">${_t('image_studio.asset_type')}</label>
                             <select id="pd-asset-type" class="input text-xs w-full">${assetOptions}</select>
                         </div>
                         <div>
-                            <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Art Style</label>
+                            <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">${_t('image_studio.style')}</label>
                             <select id="pd-style" class="input text-xs w-full">${styleOptions}</select>
                         </div>
                     </div>
                     <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">Describe your idea</label>
-                        <textarea id="pd-prompt-input" class="input w-full text-sm" rows="3" placeholder="e.g. A fierce tiger, a cozy cabin in the woods, a futuristic spaceship..." autofocus></textarea>
+                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1.5">${_t('prompt_designer.describe_idea')}</label>
+                        <textarea id="pd-prompt-input" class="input w-full text-sm" rows="3" placeholder="${_t('prompt_designer.describe_placeholder')}" autofocus></textarea>
                         <p class="text-[9px] text-brand-text-muted/50 mt-0.5 ${typeof i18n !== 'undefined' && i18n.getLang() === 'en' ? 'hidden' : ''}">${_t('image_studio.prompt_language_hint')}</p>
                     </div>
                     <button id="pd-decompose-btn" class="w-full py-2.5 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white text-sm font-medium transition-colors">
-                        🎨 Decompose & Design
+                        ${_t('prompt_designer.decompose_btn')}
                     </button>
                 </div>
                 <div class="px-5 pb-4">
-                    <p class="text-[10px] text-brand-text-muted/40 text-center">The AI will break down your idea into editable components: subject, scene, composition, lighting, and style.</p>
+                    <p class="text-[10px] text-brand-text-muted/40 text-center">${_t('prompt_designer.decompose_hint')}</p>
                 </div>
                 <div class="flex border-b border-brand-border opacity-30 pointer-events-none">
                     ${TABS.map(tab => `<div class="flex-1 py-2.5 text-[11px] font-medium text-brand-text-muted/30 text-center">
@@ -147,7 +147,7 @@
                     </div>`).join('')}
                 </div>
                 <div class="px-5 py-8 text-center text-brand-text-muted/20 text-xs">
-                    Enter a prompt above to populate these fields
+                    ${_t('prompt_designer.empty_tabs_hint')}
                 </div>
                 <div class="flex items-center justify-end px-5 py-3 border-t border-brand-border bg-black/10">
                     <button class="pd-cancel text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${_t('prompt_designer.cancel')}</button>
@@ -155,7 +155,7 @@
 
             body.querySelector('#pd-decompose-btn')?.addEventListener('click', async () => {
                 const prompt = body.querySelector('#pd-prompt-input')?.value.trim();
-                if (!prompt) { window.showToast?.('Enter a prompt first', 'warning'); return; }
+                if (!prompt) { window.showToast?.(_t('prompt_designer.enter_prompt_first'), 'warning'); return; }
 
                 this._originalPrompt = prompt;
 
@@ -170,7 +170,7 @@
 
                 // Show loading in the decompose button
                 const btn = body.querySelector('#pd-decompose-btn');
-                if (btn) { btn.disabled = true; btn.textContent = '⏳ Analyzing...'; }
+                if (btn) { btn.disabled = true; btn.textContent = _t('prompt_designer.analyzing_btn'); }
 
                 await this._decompose(prompt);
             });
@@ -211,7 +211,7 @@
                 const body = this._modal?.querySelector('.pd-body');
                 if (body) body.innerHTML = `
                     <div class="text-center py-8">
-                        <p class="text-red-400 text-sm">Failed to decompose prompt: ${err.message}</p>
+                        <p class="text-red-400 text-sm">${_t('prompt_designer.failed')}: ${err.message}</p>
                         <button class="btn btn-sm mt-4 px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted" onclick="PromptDesigner.close()">Close</button>
                     </div>`;
             }
@@ -227,7 +227,7 @@
                         <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
                         <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
                         <p class="text-sm text-brand-text-muted">${_t('prompt_designer.analyzing')}</p>
-                        <p class="text-[10px] text-brand-text-muted/50 mt-1">Updating with new settings...</p>
+                        <p class="text-[10px] text-brand-text-muted/50 mt-1">${_t('prompt_designer.updating_settings')}</p>
                     </div>`;
             }
             // Reset vary flags so new decomposition gets fresh source-based flags
@@ -323,10 +323,10 @@
                     if (!value) continue;
                     const flagKey = `${tab.key}.${field}`;
                     const isLocked = (this._varyFlags || {})[flagKey] === 'lock';
-                    const toggleLabel = isLocked ? '🔒 Fixed' : '🎲 Randomise';
+                    const toggleLabel = isLocked ? _t('prompt_designer.toggle_fixed') : _t('prompt_designer.toggle_randomise');
                     const toggleTitle = isLocked
-                        ? 'This element stays the same across all options. Click to allow variation.'
-                        : 'This element will be different in each option. Click to keep it fixed.';
+                        ? _t('prompt_designer.toggle_fixed_title')
+                        : _t('prompt_designer.toggle_randomise_title');
                     const toggleBg = isLocked ? 'bg-amber-500/15 text-amber-400' : 'bg-brand-accent/10 text-brand-accent';
                     fields += `
                         <div class="pd-field group">
@@ -375,7 +375,7 @@
             // Original prompt (always visible at top of content)
             const originalPromptBar = this._originalPrompt ? `
                 <div class="mx-5 mt-3 mb-1">
-                    <label class="block text-[9px] text-brand-text-muted uppercase tracking-wider mb-1">Original Prompt</label>
+                    <label class="block text-[9px] text-brand-text-muted uppercase tracking-wider mb-1">${_t('prompt_designer.original_prompt_label')}</label>
                     <p class="text-[11px] text-brand-text/70 italic bg-black/10 rounded-lg px-3 py-2 line-clamp-2">${this._esc(this._originalPrompt)}</p>
                 </div>` : '';
 
@@ -390,13 +390,13 @@
                 .concat(styles.map(s => `<option value="${s.id}" ${s.id === curStyleId ? 'selected' : ''}>${s.name}</option>`))
                 .join('');
             const selectorRow = `
-                <div class="mx-5 mt-2 mb-1 flex items-center gap-3">
+                <div class="mx-5 mt-3 mb-2 flex items-center gap-4">
                     <div class="flex items-center gap-1.5 min-w-0">
-                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">Type</label>
+                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">${_t('image_studio.asset_type')}</label>
                         <select id="pd-asset-type-sel" class="text-[11px] bg-black/20 border border-brand-border/50 rounded px-2 py-1 text-brand-text focus:border-brand-accent/50 focus:outline-none">${assetOptions}</select>
                     </div>
                     <div class="flex items-center gap-1.5 min-w-0 flex-1">
-                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">Style</label>
+                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">${_t('image_studio.style')}</label>
                         <select id="pd-style-sel" class="text-[11px] bg-black/20 border border-brand-border/50 rounded px-2 py-1 text-brand-text focus:border-brand-accent/50 focus:outline-none truncate w-full">${styleOptions}</select>
                     </div>
                 </div>`;
@@ -405,7 +405,7 @@
             const previewBar = `
                 <div class="mx-5 mb-2">
                     <div class="flex items-center justify-between mb-1">
-                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">Prompt Preview <span class="text-brand-text-muted/40">(constructed from fields above)</span></label>
+                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('prompt_designer.prompt_preview')} <span class="text-brand-text-muted/40">${_t('prompt_designer.preview_subtitle')}</span></label>
                         <span id="pd-preview-stats" class="text-[9px] text-brand-text-muted/40 font-mono"></span>
                     </div>
                     <p id="pd-live-preview" class="text-[10px] text-brand-text/60 bg-black/10 rounded-lg px-3 py-2.5 max-h-32 overflow-y-auto font-mono leading-relaxed"></p>
@@ -422,9 +422,9 @@
             const infoFooter = `
                 <div class="px-5 py-2.5 bg-black/5">
                     <p class="text-[10.5px] text-brand-text-muted/80 leading-loose">
-                        <span class="text-brand-accent font-medium">🎲 Randomise</span> <span class="text-brand-text-muted/50">(default)</span> — each generated option gets a different creative take on this element.<br>
-                        <span class="text-amber-400 font-medium">🔒 Fixed</span> — this element stays identical across all options.<br>
-                        Edit any field freely and choose whether it should be randomised or fixed. With a single option (1×1), all fields are used as-is.
+                        <span class="text-brand-accent font-medium">${_t('prompt_designer.footer_randomise')}</span> <span class="text-brand-text-muted/50">${_t('prompt_designer.footer_randomise_default')}</span> — ${_t('prompt_designer.footer_randomise_desc')}<br>
+                        <span class="text-amber-400 font-medium">${_t('prompt_designer.footer_fixed')}</span> — ${_t('prompt_designer.footer_fixed_desc')}<br>
+                        ${_t('prompt_designer.footer_edit_hint')}
                     </p>
                 </div>`;
 
@@ -469,10 +469,10 @@
                     const current = this._varyFlags[key] || 'vary';
                     const next = current === 'lock' ? 'vary' : 'lock';
                     this._varyFlags[key] = next;
-                    btn.innerHTML = next === 'lock' ? '🔒 Fixed' : '🎲 Randomise';
+                    btn.innerHTML = next === 'lock' ? _t('prompt_designer.toggle_fixed') : _t('prompt_designer.toggle_randomise');
                     btn.title = next === 'lock'
-                        ? 'This element stays the same across all options. Click to allow variation.'
-                        : 'This element will be different in each option. Click to keep it fixed.';
+                        ? _t('prompt_designer.toggle_fixed_title')
+                        : _t('prompt_designer.toggle_randomise_title');
                     btn.className = btn.className.replace(/bg-\S+\s*text-\S+/g, '');
                     btn.classList.add(
                         ...(next === 'lock'

@@ -147,7 +147,7 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
     }
     typical_latency = model_config.get("invoke", {}).get("typical_latency_seconds", 0)
     if typical_latency > 300:
-        invoke_kwargs["InvocationTimeoutSeconds"] = max(900, typical_latency * 2)
+        invoke_kwargs["InvocationTimeoutSeconds"] = min(3600, max(900, typical_latency * 2))
     response = sm_runtime.invoke_endpoint_async(**invoke_kwargs)
 
     output_location = response.get("OutputLocation")

@@ -367,16 +367,24 @@ def get_image_model_options(region: str | None = Query(default=None)):
         if cfg.get("model_purpose") != "text_to_image":
             continue  # Only text-to-image models for the generation dropdown
 
-        # Custom-hosted models: only show if endpoint is InService AND warmed up
-        # (InService just means container started — model may still be downloading)
+        # Custom-hosted models: show if endpoint exists and model has been
+        # validated at least once (model_ready in registry). This covers:
+        #   - Scaled to zero: listed (async jobs queue in SageMaker backlog)
+        #   - Scaling out: listed (jobs already queuing)
+        #   - First deploy, never loaded: hidden until first successful load
+        #   - Teardown/redeploy: hidden (model_ready cleared)
         if cfg.get("model_source") == "custom_hosted":
             try:
                 from backend.services.sagemaker_deployer import check_endpoint_status
                 ep_name = cfg.get("deployment", {}).get("endpoint_name", "")
-                if ep_name:
-                    ep_status = check_endpoint_status(ep_name)
-                    if ep_status.get("status") != "InService" or ep_status.get("warming_up"):
-                        continue  # Not ready — don't list
+                if not ep_name:
+                    continue
+                ep_status = check_endpoint_status(ep_name)
+                if ep_status.get("status") not in ("InService", "Updating"):
+                    continue  # Not deployed or failed
+                model_ready_ever = cfg.get("deployment", {}).get("model_ready", False)
+                if not model_ready_ever and ep_status.get("warming_up"):
+                    continue  # First deploy, never validated — hide until loaded
             except Exception:
                 continue
 
@@ -487,15 +495,20 @@ def get_video_model_options():
 
     models = []
     for key, cfg in sorted(enabled.items(), key=lambda x: (x[1].get("provider", ""), x[1].get("label", x[0]))):
-        # Custom-hosted models: only show if endpoint is InService
+        # Custom-hosted models: show if validated at least once (model_ready).
+        # Hide only during first deploy (never loaded) or if endpoint is gone.
         if cfg.get("model_source") == "custom_hosted":
             try:
                 from backend.services.sagemaker_deployer import check_endpoint_status
                 ep_name = cfg.get("deployment", {}).get("endpoint_name", "")
-                if ep_name:
-                    ep_status = check_endpoint_status(ep_name)
-                    if ep_status.get("status") != "InService" or ep_status.get("warming_up"):
-                        continue
+                if not ep_name:
+                    continue
+                ep_status = check_endpoint_status(ep_name)
+                if ep_status.get("status") not in ("InService", "Updating"):
+                    continue
+                model_ready_ever = cfg.get("deployment", {}).get("model_ready", False)
+                if not model_ready_ever and ep_status.get("warming_up"):
+                    continue
             except Exception:
                 continue
 

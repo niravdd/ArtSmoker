@@ -1352,6 +1352,16 @@ This combination solves the cold-start-from-zero problem: TargetTracking alone c
 - Scale-from-zero: StepScaling on `HasBacklogWithoutCapacity` alarm, 60s cooldown for fast response
 - Instance recommendations: `allowed_instances` field in catalog requirements filters instance dropdown (e.g., FLUX.2 limited to g6e.4xlarge+, HunyuanImage limited to g7e.2xlarge+)
 
+**Multi-instance deployment (Deploy Another):** A single catalog model can be deployed on multiple instances simultaneously. Each deployment gets a unique endpoint name with a different hash suffix (e.g., `flux2-dev-nf4_620a`, `flux2-dev-nf4_b3f1`). This enables running the same model on different instance types for cost/performance comparison, or running multiple copies for higher throughput.
+
+- **API:** The catalog response includes a `deployed_instances[]` array per model (1:many mapping). Each entry contains `deployed_key`, `endpoint_name`, `instance_type`, `label`, `status`, `warming_up`, `warmup_detail`, `instance_count`, `deploy_progress`, and `deploy_stage`. Top-level `deployment_status` and `endpoint_name` use the first instance for backward compatibility.
+- **Deploy:** POST `/api/custom-models/deploy` with the same `model_key` creates a new endpoint with a fresh hash suffix. The deployer generates the unique suffix from `uuid4().hex[:4]` and registers the new instance in `model_registry.user.json` under `image_models.{catalog_key}_{hash}`.
+- **Teardown:** DELETE `/api/custom-models/teardown/{deployed_key}` targets a specific deployed instance by its `deployed_key` (e.g., `flux2-dev-nf4_620a`). Each instance is torn down independently — removing one does not affect others.
+- **Redeploy:** POST `/api/custom-models/redeploy/{deployed_key}` tears down and redeploys a specific instance.
+- **Image Models dropdown:** Each deployment appears as a separate entry in the model selector with its instance type and deploy timestamp, so users can target a specific deployment for inference.
+- **UI:** The Custom Models dialog shows a "Deploy Another" button (visible when at least one instance is already deployed). Deployed instances are listed in an expandable section within each catalog model card, with per-instance status indicator, Remove button, and Redeploy button. Instance rows use fixed-width columns for visual alignment.
+- **License:** License acceptance is required once per catalog model (not per instance). The acceptance is recorded in `model_registry.user.json` under `license_acceptances` with the model key and timestamp.
+
 **Cold start times** (FLUX.2 dev on g6e.4xlarge):
 - Fresh build (no cache): ~6 min (HF download + NF4 quantize on GPU)
 - From S3 cache (preserved=true): ~4 min (S3 download + direct NF4 load for transformer, HF fallback for text encoder)

@@ -988,6 +988,27 @@
     "original_prompt": "Prompt original",
     "english_prompt": "Inglés (usado para diseño)",
     "no_decomposed_data": "No hay datos de descomposición de prompt disponibles para esta generación.",
-    "no_decomposed_data_sub": "Los datos del Diseñador de prompts solo se guardan para nuevas generaciones que usan esta herramienta."
+    "no_decomposed_data_sub": "Los datos del Diseñador de prompts solo se guardan para nuevas generaciones que usan esta herramienta.",
+    "describe_idea": "Describe tu idea",
+    "describe_placeholder": "Ej.: un tigre feroz, una cabaña acogedora en el bosque, una nave espacial futurista...",
+    "decompose_btn": "🎨 Descomponer y diseñar",
+    "decompose_hint": "La IA descompondrá tu idea en elementos editables: sujeto, escena, composición, iluminación y estilo.",
+    "empty_tabs_hint": "Ingresa un prompt arriba para completar los campos",
+    "enter_prompt_first": "Primero ingresa un prompt",
+    "analyzing_btn": "⏳ Analizando...",
+    "updating_settings": "Actualizando con nueva configuración...",
+    "prompt_preview": "Vista previa del prompt",
+    "preview_subtitle": "(construido a partir de los campos anteriores)",
+    "original_prompt_label": "Prompt original",
+    "toggle_fixed": "📌 Fijo",
+    "toggle_randomise": "🎲 Aleatorio",
+    "toggle_fixed_title": "Este elemento permanece igual en todas las opciones. Haz clic para permitir variaciones.",
+    "toggle_randomise_title": "Este elemento será diferente en cada opción. Haz clic para fijarlo.",
+    "footer_randomise": "🎲 Aleatorio",
+    "footer_randomise_default": "(predeterminado)",
+    "footer_randomise_desc": "cada opción generada recibe una interpretación creativa diferente de este elemento.",
+    "footer_fixed": "📌 Fijo",
+    "footer_fixed_desc": "este elemento permanece idéntico en todas las opciones. Los elementos especificados en tu prompt se fijan automáticamente.",
+    "footer_edit_hint": "Edita cualquier campo libremente y elige aleatorio o fijo. Con una sola opción (1×1), todos los campos se usan tal cual."
   }
 }

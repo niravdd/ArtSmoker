@@ -988,6 +988,27 @@
     "original_prompt": "原始提示词",
     "english_prompt": "英语（用于设计）",
     "no_decomposed_data": "此生成没有可用的提示词分解数据。",
-    "no_decomposed_data_sub": "提示词设计器数据仅为使用此工具的新生成保存。"
+    "no_decomposed_data_sub": "提示词设计器数据仅为使用此工具的新生成保存。",
+    "describe_idea": "描述你的创意",
+    "describe_placeholder": "例如：一只猛虎、森林中温馨的小屋、一艘未来宇宙飞船...",
+    "decompose_btn": "🎨 分解并设计",
+    "decompose_hint": "AI将把你的创意分解为可编辑的组件：主体、场景、构图、光照和风格。",
+    "empty_tabs_hint": "在上方输入提示词以填充字段",
+    "enter_prompt_first": "请先输入提示词",
+    "analyzing_btn": "⏳ 分析中...",
+    "updating_settings": "正在使用新设置更新...",
+    "prompt_preview": "提示词预览",
+    "preview_subtitle": "（由上方字段构成）",
+    "original_prompt_label": "原始提示词",
+    "toggle_fixed": "📌 固定",
+    "toggle_randomise": "🎲 随机",
+    "toggle_fixed_title": "此元素在所有选项中保持不变。点击以允许变化。",
+    "toggle_randomise_title": "此元素在每个选项中不同。点击以固定。",
+    "footer_randomise": "🎲 随机",
+    "footer_randomise_default": "（默认）",
+    "footer_randomise_desc": "每个生成选项会对此元素进行不同的创意处理。",
+    "footer_fixed": "📌 固定",
+    "footer_fixed_desc": "此元素在所有选项中保持一致。您在提示词中指定的项目会自动固定。",
+    "footer_edit_hint": "自由编辑任何字段，选择随机或固定。单一选项（1×1）时，所有字段按原样使用。"
   }
 }

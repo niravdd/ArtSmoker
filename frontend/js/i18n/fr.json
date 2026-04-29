@@ -988,6 +988,27 @@
     "original_prompt": "Prompt original",
     "english_prompt": "Anglais (utilisé pour le design)",
     "no_decomposed_data": "Aucune donnée de décomposition de prompt disponible pour cette génération.",
-    "no_decomposed_data_sub": "Les données du Concepteur de prompts ne sont sauvegardées que pour les nouvelles générations utilisant cet outil."
+    "no_decomposed_data_sub": "Les données du Concepteur de prompts ne sont sauvegardées que pour les nouvelles générations utilisant cet outil.",
+    "describe_idea": "Décrivez votre idée",
+    "describe_placeholder": "Ex. : un tigre féroce, un chalet douillet en forêt, un vaisseau spatial futuriste...",
+    "decompose_btn": "🎨 Décomposer & Concevoir",
+    "decompose_hint": "L'IA décomposera votre idée en éléments modifiables : sujet, scène, composition, éclairage et style.",
+    "empty_tabs_hint": "Entrez un prompt ci-dessus pour remplir les champs",
+    "enter_prompt_first": "Entrez d'abord un prompt",
+    "analyzing_btn": "⏳ Analyse en cours...",
+    "updating_settings": "Mise à jour avec les nouveaux paramètres...",
+    "prompt_preview": "Aperçu du prompt",
+    "preview_subtitle": "(construit à partir des champs ci-dessus)",
+    "original_prompt_label": "Prompt original",
+    "toggle_fixed": "📌 Fixe",
+    "toggle_randomise": "🎲 Aléatoire",
+    "toggle_fixed_title": "Cet élément reste identique dans toutes les options. Cliquez pour autoriser les variations.",
+    "toggle_randomise_title": "Cet élément sera différent dans chaque option. Cliquez pour le fixer.",
+    "footer_randomise": "🎲 Aléatoire",
+    "footer_randomise_default": "(par défaut)",
+    "footer_randomise_desc": "chaque option générée reçoit une interprétation créative différente de cet élément.",
+    "footer_fixed": "📌 Fixe",
+    "footer_fixed_desc": "cet élément reste identique dans toutes les options. Les éléments spécifiés dans votre prompt sont automatiquement fixés.",
+    "footer_edit_hint": "Modifiez librement les champs et choisissez aléatoire ou fixe. Avec une seule option (1×1), tous les champs sont utilisés tels quels."
   }
 }
