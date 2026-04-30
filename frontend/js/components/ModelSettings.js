@@ -765,30 +765,33 @@
                 btn.disabled = true;
                 btn.innerHTML = '<span class="spinner-sm"></span> ' + t('model_settings.syncing');
 
+                // Show progress overlay (dismissible — sync continues in background)
+                const overlay = this._showSyncProgress();
+
                 try {
                     const result = await API.admin.refreshAll();
-                    const customMsg = result.total_custom > 0 ? `\nCustom/imported models: ${result.total_custom}` : '';
-                    const disabledMsg = result.disabled?.length ? `\nDisabled (no longer available): ${result.disabled.length}` : '';
-                    const chatCount = result.per_region ? Object.values(result.per_region).reduce((s, r) => s + (r.new || 0), 0) : 0;
+                    const customMsg = result.total_custom > 0 ? `\n${t('model_settings.sync_custom_count', {count: result.total_custom})}` : '';
+                    const disabledMsg = result.disabled?.length ? `\n${t('model_settings.sync_disabled_count', {count: result.disabled.length})}` : '';
 
-                    // Reload the modal with fresh data first
                     this._registry = await API.admin.getModels();
                     const imgCount = Object.keys(this._registry.image_models || {}).length;
                     const vidCount = Object.keys(this._registry.video_models || {}).length;
                     const chatModels = Object.keys(this._registry.chat_models || {}).length;
 
+                    // Close progress overlay and refresh modal
+                    overlay?.remove();
                     modal.remove();
                     this._renderModal();
 
-                    // Show completion summary
                     await window.showConfirm(
                         t('model_settings.sync_scanned', {count: result.regions_scanned}), {
                         title: t('model_settings.sync_complete'),
-                        detail: `New models discovered: ${result.total_new}\nExisting models updated: ${result.total_updated}${customMsg}${disabledMsg}\n\nRegistry totals:\n  Image models: ${imgCount}\n  Video models: ${vidCount}\n  Chat/LLM models: ${chatModels}\n  Errors: ${result.errors || 0}`,
+                        detail: `${t('model_settings.sync_new')}: ${result.total_new}\n${t('model_settings.sync_updated')}: ${result.total_updated}${customMsg}${disabledMsg}\n\n${t('model_settings.sync_totals')}:\n  ${t('model_settings.sync_image')}: ${imgCount}\n  ${t('model_settings.sync_video')}: ${vidCount}\n  ${t('model_settings.sync_chat')}: ${chatModels}\n  ${t('model_settings.sync_errors')}: ${result.errors || 0}`,
                         confirmLabel: t('common.ok'),
                         cancelLabel: '',
                     });
                 } catch (err) {
+                    overlay?.remove();
                     await window.showConfirm(t('model_settings.sync_failed_msg'), {
                         title: t('model_settings.sync_failed'),
                         detail: err.message || t('common.unknown'),
@@ -1363,6 +1366,73 @@
                     }
                 });
             });
+        },
+
+        _showSyncProgress() {
+            const overlay = document.createElement('div');
+            overlay.className = 'fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
+            overlay.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-sm font-semibold text-brand-text">${t('model_settings.sync_progress_title')}</h3>
+                        <button class="sync-dismiss text-brand-text-muted hover:text-brand-text text-lg leading-none" title="${t('model_settings.sync_dismiss')}">&times;</button>
+                    </div>
+                    <p class="text-[10px] text-brand-text-muted">${t('model_settings.sync_progress_hint')}</p>
+                    <div class="bg-black/20 rounded-lg p-3 space-y-2">
+                        <p class="sync-msg text-xs text-brand-accent font-medium">${t('model_settings.syncing')}...</p>
+                        <div class="sync-counts text-[10px] text-brand-text-muted flex gap-4"></div>
+                        <div class="sync-log text-[10px] text-brand-text-muted/50 max-h-40 overflow-y-auto font-mono space-y-0.5"></div>
+                    </div>
+                </div>`;
+            document.body.appendChild(overlay);
+
+            overlay.querySelector('.sync-dismiss')?.addEventListener('click', () => overlay.remove());
+
+            // Connect to SSE for real-time progress
+            let sse;
+            try {
+                sse = new EventSource('/api/sync-progress');
+                sse.onmessage = (e) => {
+                    try {
+                        const d = JSON.parse(e.data);
+                        if (d.ready || d.message === 'done') { sse.close(); return; }
+                        const msgEl = overlay.querySelector('.sync-msg');
+                        if (msgEl) msgEl.textContent = d.message;
+                        const countsEl = overlay.querySelector('.sync-counts');
+                        if (countsEl && d.models) {
+                            const parts = [];
+                            if (d.models.image) parts.push(`🖼 ${d.models.image} ${t('model_settings.sync_image').toLowerCase()}`);
+                            if (d.models.chat) parts.push(`💬 ${d.models.chat} ${t('model_settings.sync_chat').toLowerCase()}`);
+                            if (d.models.video) parts.push(`🎬 ${d.models.video} ${t('model_settings.sync_video').toLowerCase()}`);
+                            if (parts.length) countsEl.textContent = parts.join('  ·  ');
+                        }
+                        const logEl = overlay.querySelector('.sync-log');
+                        if (logEl && d.message) {
+                            const prev = logEl.firstChild;
+                            if (prev && prev.dataset.active) {
+                                prev.dataset.active = '';
+                                prev.textContent = prev.textContent.replace(/^⟳ /, '✓ ');
+                                prev.classList.remove('text-brand-accent');
+                                prev.classList.add('text-brand-text-muted/40');
+                            }
+                            const line = document.createElement('div');
+                            line.textContent = '⟳ ' + d.message;
+                            line.dataset.active = '1';
+                            line.classList.add('text-brand-accent');
+                            logEl.prepend(line);
+                        }
+                    } catch {}
+                };
+                sse.onerror = () => { sse.close(); };
+            } catch {}
+
+            // Clean up SSE when overlay is removed
+            const observer = new MutationObserver(() => {
+                if (!document.body.contains(overlay)) { sse?.close(); observer.disconnect(); }
+            });
+            observer.observe(document.body, { childList: true });
+
+            return overlay;
         },
 
         _showDeployDialog(modelKey, instanceOptions, recommendedInstance, minVram, deployRegion) {
