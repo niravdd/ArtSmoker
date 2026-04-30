@@ -997,6 +997,7 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
         "available_regions": [deploy_region],
         "enabled": True,
         "model_source": "custom_hosted",
+        "catalog_key": model_key,
         "format_family": f"sagemaker_{deployment['endpoint_type']}",
         "last_updated": catalog_entry.get("last_updated", ""),
         "deployment": {
@@ -1007,7 +1008,7 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
         },
         "base_price_usd": catalog_entry["pricing"].get("estimated_cost_per_image",
                           catalog_entry["pricing"].get("estimated_cost_per_video", 0)),
-        "invoke": invoke,  # Full invocation config from catalog
+        "invoke": invoke,  # Snapshot from catalog at deploy time
     }
 
     if category == "image_generation":

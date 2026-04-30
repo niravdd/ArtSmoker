@@ -128,6 +128,28 @@ def _deep_merge_runtime(runtime: dict) -> int:
             _registry[key] = value
             count += 1
 
+    # Enrich custom-hosted models with latest catalog invoke config.
+    # The deployed instance stores a snapshot of invoke at deploy time, but
+    # catalog fixes (typical_latency, prompt_guidance, optimal_prompt_words)
+    # should flow through automatically. Catalog invoke is the base,
+    # deployed instance invoke overrides specific fields.
+    catalog_models = _registry.get("custom_model_catalog", {}).get("models", {})
+    for section in MODEL_SECTIONS:
+        for model_key, model_data in _registry.get(section, {}).items():
+            if not isinstance(model_data, dict):
+                continue
+            if model_data.get("model_source") != "custom_hosted":
+                continue
+            cat_key = model_data.get("catalog_key", "")
+            if not cat_key or cat_key not in catalog_models:
+                continue
+            catalog_invoke = catalog_models[cat_key].get("invoke", {})
+            if catalog_invoke:
+                # Deployed snapshot is base, catalog overrides with latest fixes
+                merged_invoke = dict(model_data.get("invoke", {}))
+                merged_invoke.update(catalog_invoke)
+                model_data["invoke"] = merged_invoke
+
     return count
 
 
