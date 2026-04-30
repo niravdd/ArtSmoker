@@ -200,10 +200,12 @@ def promote_to_base():
                 if not isinstance(model_data, dict):
                     continue
                 promoted = {k: v for k, v in model_data.items() if k not in _USER_ONLY_FIELDS}
-                # Skip stale entries: not in base and no regions (orphan from old duplicates)
+                # Custom-hosted deployed instances are user-specific — never promote
+                if promoted.get("model_source") == "custom_hosted":
+                    continue
+                # Skip stale entries not already in base and with no regions
                 if model_key not in base_section and not promoted.get("available_regions"):
-                    if promoted.get("model_source") != "custom_hosted":
-                        continue
+                    continue
                 if model_key in base_section and isinstance(base_section[model_key], dict):
                     base_section[model_key].update(promoted)
                     for field in _USER_ONLY_FIELDS:
@@ -215,12 +217,14 @@ def promote_to_base():
                 if k not in merged[section]:
                     del base_section[k]
 
-            # Clean up: remove entries with no regions (deprecated/stale)
-            # and deduplicate entries sharing the same model_id
+            # Clean up: remove custom_hosted (user-specific) and regionless
+            # (deprecated) entries from base, then deduplicate by model_id
             if section in ("image_models", "video_models", "chat_models"):
                 for k in list(base_section.keys()):
                     v = base_section[k]
                     if v.get("model_source") == "custom_hosted":
+                        del base_section[k]
+                        logger.debug("Cleanup: removed %s.%s (custom_hosted — user-specific)", section, k)
                         continue
                     if not v.get("available_regions"):
                         del base_section[k]
@@ -268,8 +272,8 @@ def promote_to_base():
         except Exception:
             pass
 
-    # Per-model: only write user-only fields for models that exist in the
-    # (deduped) base, plus custom deployments that are user-only by nature
+    # Per-model: write user-only fields for foundation models,
+    # and FULL entries for custom-hosted models (they don't exist in base)
     for section in MODEL_SECTIONS:
         merged_section = merged.get(section, {})
         base_section = base.get(section, {})
@@ -277,14 +281,16 @@ def promote_to_base():
         for model_key, model_data in merged_section.items():
             if not isinstance(model_data, dict):
                 continue
+            # Custom-hosted models: write full entry (base doesn't have them)
+            if model_data.get("model_source") == "custom_hosted":
+                user_section[model_key] = model_data
+                continue
+            # Foundation models: write only override fields
             user_fields = {}
             for field in _USER_ONLY_FIELDS:
                 if field in model_data:
                     user_fields[field] = model_data[field]
-            if not user_fields:
-                continue
-            # Write if model exists in base OR has deployment (custom model)
-            if model_key in base_section or "deployment" in user_fields:
+            if user_fields and model_key in base_section:
                 user_section[model_key] = user_fields
         if user_section:
             user_output[section] = user_section
