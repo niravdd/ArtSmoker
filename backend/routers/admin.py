@@ -177,6 +177,20 @@ async def reload_registry():
     return {"status": "reloaded", "image_models": image_count, "chat_models": chat_count}
 
 
+@router.post("/models/promote")
+async def promote_registry():
+    """Promote discovered data from user registry to git-tracked base.
+
+    Copies model definitions, regions, pricing to model_registry.json.
+    Rewrites model_registry.user.json to contain only user-specific
+    overrides (enabled/disabled, deployment config, video settings).
+    Run after Sync to make discoveries available to all users via git push.
+    """
+    from backend.services.model_registry import promote_to_base
+    result = promote_to_base()
+    return {"status": "promoted", **result}
+
+
 # ── Prompt Templates ──────────────────────────────────────────────────────
 
 @router.get("/templates")
@@ -603,8 +617,9 @@ def _model_family_key(model_id: str) -> str:
     # Strip date suffixes
     key = _re.sub(r'-\d{8}$', '', key)
 
-    # Claude: group all minor versions (opus-4, opus-4-1, opus-4-5, opus-4-6 → opus-4)
-    key = _re.sub(r'(claude-(?:opus|sonnet|haiku)-\d+)-\d+', r'\1', key)
+    # Claude: keep major.minor (opus-4-5, opus-4-6, opus-4-7 are distinct models).
+    # Only group patch versions: opus-4-6-v1 and opus-4-6-v2 → opus-4-6
+    key = _re.sub(r'(claude-(?:opus|sonnet|haiku)-\d+-\d+)-\d+', r'\1', key)
 
     # Llama: group context variants (llama3-1-70b, llama3-2-90b keep as-is, but strip -instruct)
     key = _re.sub(r'-instruct$', '', key)
@@ -784,10 +799,8 @@ async def auto_register_image_models(region: str):
                 existing["label"] = new_name
                 existing["lifecycle"] = new_lifecycle
                 existing["inference_types"] = inference_types
-                # Update the key to reflect the new model
-                new_key = model_id.split(".")[-1].split(":")[0].replace("-", "_")
-                if new_key != existing_key:
-                    chat_models[new_key] = chat_models.pop(existing_key)
+                # Keep the existing key — renaming causes conflicts between
+                # base and user registry files on reload.
             return
 
         has_vision = "IMAGE" in inp
@@ -912,7 +925,7 @@ async def auto_register_image_models(region: str):
                 "optimal_prompt_words": video_opw,
             }
             add_video_model(key, config)
-            existing_video_by_model_id[model_id] = key
+            existing_video_by_model_id.setdefault(model_id, []).append(key)
             registered.append({"key": key, "model_id": model_id, "label": config["label"],
                               "region": region, "purpose": purpose, "media": "video"})
             logger.info("Auto-registered video: %s (%s) in %s", key, model_id, region)
@@ -1041,6 +1054,8 @@ async def auto_register_image_models(region: str):
             config["optimal_prompt_words"] = optimal_words
 
         add_image_model(key, config)
+        existing_by_model_id.setdefault(model_id, []).append(key)
+        existing_by_model_id.setdefault(effective_model_id, []).append(key)
         registered.append({"key": key, "model_id": model_id, "label": config["label"],
                           "region": region, "purpose": purpose})
         logger.info("Auto-registered: %s (%s) purpose=%s in %s", key, model_id, purpose, region)
@@ -1216,15 +1231,24 @@ async def refresh_all_regions():
     track_model_settings_refresh()
 
     from backend.services.model_registry import get_registry, _save
+    from backend.main import _server_state
+
+    def _progress(msg):
+        _server_state["sync_message"] = msg
+        _server_state.setdefault("sync_log", []).append(msg)
 
     # Silence per-model save logs during bulk Sync (save once at the end)
     _save._silent = True
+    _server_state["sync_in_progress"] = True
+    _server_state["sync_log"] = []
 
     try:
         # Step 1: Discover regions from AWS
+        _progress("Discovering Amazon Bedrock regions...")
         all_regions = _get_bedrock_regions()
 
         # Step 2: Persist regions + fetch pricing data
+        _progress(f"Found {len(all_regions)} regions. Fetching model pricing...")
         registry = get_registry()
         registry["bedrock_regions"] = all_regions
         logger.debug("Stored %d Bedrock regions in registry", len(all_regions))
@@ -1245,6 +1269,7 @@ async def refresh_all_regions():
             registry["chat_models"][key]["available_regions"] = []
 
         # Step 3: Scan each region for foundation + custom + imported models
+        _progress(f"Scanning {len(all_regions)} regions for available models...")
 
         results = {}
         total_new = 0
@@ -1252,7 +1277,8 @@ async def refresh_all_regions():
         total_custom = 0
         errors = 0
 
-        for region in all_regions:
+        for idx, region in enumerate(all_regions):
+            _progress(f"Scanning region {idx + 1}/{len(all_regions)}: {region}...")
             try:
                 result = await auto_register_image_models(region)
                 results[region] = {
@@ -1261,9 +1287,12 @@ async def refresh_all_regions():
                 }
                 total_new += result["new_count"]
                 total_updated += result["updated_count"]
+                region_total = result["new_count"] + result["updated_count"]
+                _progress(f"Done {region} — {region_total} model{'s' if region_total != 1 else ''} found")
             except Exception as exc:
                 results[region] = {"error": str(exc)[:100]}
                 errors += 1
+                _progress(f"Skipped {region} ({str(exc)[:40]})")
 
             # Discover custom + imported models in this region
             try:
@@ -1277,6 +1306,7 @@ async def refresh_all_regions():
                 logger.warning("Custom model discovery failed in %s: %s", region, exc)
 
         # Step 4: Prune — check which Bedrock models are still available.
+        _progress("Finalizing — checking model availability...")
         # After Step 3, each model's available_regions reflects what was discovered.
         # Models with empty available_regions (not found in any region) get disabled.
         # Custom-hosted models are EXEMPT — they don't use Bedrock regions.
@@ -1284,12 +1314,26 @@ async def refresh_all_regions():
         disabled = []
         for key, cfg in list(registry.get("image_models", {}).items()):
             if cfg.get("model_source") == "custom_hosted":
-                continue  # Custom models don't have Bedrock regions — never prune them
+                continue
             regions = cfg.get("available_regions", [])
-            if not regions and cfg.get("enabled"):
+            if not regions and cfg.get("enabled", True):
                 update_image_model(key, {"enabled": False})
                 disabled.append(key)
-                logger.debug("Disabled model %s — no longer found in any region", key)
+                logger.debug("Disabled image model %s — no longer found in any region", key)
+        for key, cfg in list(registry.get("chat_models", {}).items()):
+            regions = cfg.get("available_regions", [])
+            if not regions and cfg.get("enabled", True):
+                registry["chat_models"][key]["enabled"] = False
+                disabled.append(key)
+                logger.debug("Disabled chat model %s — no longer found in any region", key)
+        for key, cfg in list(registry.get("video_models", {}).items()):
+            if cfg.get("model_source") == "custom_hosted":
+                continue
+            regions = cfg.get("available_regions", [])
+            if not regions and cfg.get("enabled", True):
+                registry["video_models"][key]["enabled"] = False
+                disabled.append(key)
+                logger.debug("Disabled video model %s — no longer found in any region", key)
 
         # Stamp as discovered — written to .user.json (gitignored) so fresh clones still trigger auto-Sync
         from datetime import datetime, timezone
@@ -1298,11 +1342,19 @@ async def refresh_all_regions():
 
     finally:
         _save._silent = False
+        _server_state["sync_in_progress"] = False
+        _server_state["sync_message"] = ""
 
     # Single save at the end — all changes accumulated in memory during Sync
     _save()
-    logger.info("Sync complete: %d new, %d updated across %d regions (%d errors)",
-                total_new, total_updated, len(all_regions), errors)
+
+    # Auto-promote: copy discovered data to git-tracked base file,
+    # rewrite user file to only user-specific overrides
+    from backend.services.model_registry import promote_to_base
+    promote_result = promote_to_base()
+    logger.info("Sync complete: %d new, %d updated across %d regions (%d errors). Promoted %d base models, %d user overrides.",
+                total_new, total_updated, len(all_regions), errors,
+                promote_result["base_models"], promote_result["user_overrides"])
 
     return {
         "regions_scanned": len(all_regions),
@@ -1312,6 +1364,7 @@ async def refresh_all_regions():
         "disabled": disabled,
         "errors": errors,
         "per_region": results,
+        "promoted": promote_result,
     }
 
 

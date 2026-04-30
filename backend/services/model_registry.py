@@ -9,7 +9,7 @@ a dynamic, configurable registry.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -85,7 +85,8 @@ def _deep_merge_runtime(runtime: dict) -> int:
 
     for key, value in runtime.items():
         if key == "_last_updated":
-            continue  # Skip the save timestamp (stale), but keep _meta and others
+            _registry["last_updated"] = value
+            continue
 
         if key in MODEL_SECTIONS and isinstance(value, dict) and isinstance(_registry.get(key), dict):
             # Deep merge: model-by-model
@@ -160,12 +161,147 @@ def _save():
     for k, v in existing_meta.items():
         if k not in output:
             output[k] = v
-    output["_last_updated"] = datetime.utcnow().isoformat()
+    output["_last_updated"] = datetime.now(timezone.utc).isoformat()
     _USER_PREFS_PATH.write_text(json.dumps(output, indent=2, default=str))
     if not _save._silent:
         logger.info("Model registry saved.")
 
 _save._silent = False
+
+# Fields per model that are user-specific and should NOT be promoted to the base file
+_USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready"}
+# Top-level sections that are user-specific
+_USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances"}
+
+
+def promote_to_base():
+    """Promote discovered data from in-memory registry to model_registry.json.
+
+    Copies model definitions, regions, pricing, and capabilities to the
+    git-tracked base file. Strips user-only fields (enabled, deployment).
+    Then rewrites model_registry.user.json to contain only user-specific
+    overrides (enabled/disabled, deployment config, video settings, metadata).
+
+    Call this after a Sync to make discoveries available to all users via git.
+    """
+    base = json.loads(_REGISTRY_PATH.read_text())
+    merged = dict(_registry)
+
+    MODEL_SECTIONS = {"image_models", "video_models", "chat_models", "post_processing",
+                      "utility_models", "categories"}
+
+    # Step 1: Update base file with discovered data (strip user-only fields)
+    for section in list(merged.keys()):
+        if section in _USER_ONLY_SECTIONS:
+            continue
+        if section in MODEL_SECTIONS and isinstance(merged.get(section), dict):
+            base_section = base.setdefault(section, {})
+            for model_key, model_data in merged[section].items():
+                if not isinstance(model_data, dict):
+                    continue
+                promoted = {k: v for k, v in model_data.items() if k not in _USER_ONLY_FIELDS}
+                # Skip stale entries: not in base and no regions (orphan from old duplicates)
+                if model_key not in base_section and not promoted.get("available_regions"):
+                    if promoted.get("model_source") != "custom_hosted":
+                        continue
+                if model_key in base_section and isinstance(base_section[model_key], dict):
+                    base_section[model_key].update(promoted)
+                    for field in _USER_ONLY_FIELDS:
+                        base_section[model_key].pop(field, None)
+                else:
+                    base_section[model_key] = promoted
+            # Remove models from base that no longer exist in merged
+            for k in list(base_section.keys()):
+                if k not in merged[section]:
+                    del base_section[k]
+
+            # Clean up: remove entries with no regions (deprecated/stale)
+            # and deduplicate entries sharing the same model_id
+            if section in ("image_models", "video_models", "chat_models"):
+                for k in list(base_section.keys()):
+                    v = base_section[k]
+                    if v.get("model_source") == "custom_hosted":
+                        continue
+                    if not v.get("available_regions"):
+                        del base_section[k]
+                        logger.debug("Cleanup: removed %s.%s (no available regions — deprecated)", section, k)
+
+                model_id_map: dict[str, list[str]] = {}
+                for k, v in base_section.items():
+                    mid = v.get("model_id", "")
+                    if mid:
+                        model_id_map.setdefault(mid, []).append(k)
+                for mid, keys in model_id_map.items():
+                    if len(keys) <= 1:
+                        continue
+                    all_regions = set()
+                    canonical = keys[0]
+                    best_regions = 0
+                    for k in keys:
+                        regions = base_section[k].get("available_regions", [])
+                        all_regions.update(regions)
+                        if len(regions) > best_regions:
+                            best_regions = len(regions)
+                            canonical = k
+                    base_section[canonical]["available_regions"] = sorted(all_regions)
+                    for k in keys:
+                        if k != canonical:
+                            del base_section[k]
+                            logger.debug("Dedup: removed %s.%s (duplicate of %s)", section, k, canonical)
+        else:
+            base[section] = merged.get(section, base.get(section))
+
+    base["last_updated"] = datetime.now(timezone.utc).isoformat()
+    _REGISTRY_PATH.write_text(json.dumps(base, indent=2, default=str))
+    logger.info("Promoted discovered data to model_registry.json")
+
+    # Step 2: Rewrite user file with only user-specific overrides
+    user_output = {}
+
+    # Preserve user-only top-level sections
+    if _USER_PREFS_PATH.exists():
+        try:
+            existing_user = json.loads(_USER_PREFS_PATH.read_text())
+            for k in _USER_ONLY_SECTIONS:
+                if k in existing_user:
+                    user_output[k] = existing_user[k]
+        except Exception:
+            pass
+
+    # Per-model: only write user-only fields for models that exist in the
+    # (deduped) base, plus custom deployments that are user-only by nature
+    for section in MODEL_SECTIONS:
+        merged_section = merged.get(section, {})
+        base_section = base.get(section, {})
+        user_section = {}
+        for model_key, model_data in merged_section.items():
+            if not isinstance(model_data, dict):
+                continue
+            user_fields = {}
+            for field in _USER_ONLY_FIELDS:
+                if field in model_data:
+                    user_fields[field] = model_data[field]
+            if not user_fields:
+                continue
+            # Write if model exists in base OR has deployment (custom model)
+            if model_key in base_section or "deployment" in user_fields:
+                user_section[model_key] = user_fields
+        if user_section:
+            user_output[section] = user_section
+
+    # Preserve video_settings and license_acceptances from merged
+    for k in ("video_settings", "license_acceptances"):
+        if k in merged:
+            user_output[k] = merged[k]
+
+    user_output["_last_updated"] = datetime.now(timezone.utc).isoformat()
+    _USER_PREFS_PATH.write_text(json.dumps(user_output, indent=2, default=str))
+    logger.info("Cleaned user overrides in model_registry.user.json")
+
+    return {
+        "base_models": sum(len(base.get(s, {})) for s in MODEL_SECTIONS if isinstance(base.get(s), dict)),
+        "user_overrides": sum(len(user_output.get(s, {})) for s in MODEL_SECTIONS if isinstance(user_output.get(s), dict)),
+    }
 
 
 def _save_user_pref(section: str, key: str, field: str, value):
@@ -695,7 +831,7 @@ def get_image_model(key: str) -> dict:
 
 def get_enabled_image_models() -> dict:
     """Get all enabled image models."""
-    return {k: v for k, v in _registry.get("image_models", {}).items() if v.get("enabled")}
+    return {k: v for k, v in _registry.get("image_models", {}).items() if v.get("enabled", True)}
 
 
 _STRICTNESS_ORDER = {"moderate": 0, "strict": 1, "very_strict": 2}
@@ -825,7 +961,7 @@ def get_video_model(key: str) -> dict:
 
 def get_enabled_video_models() -> dict:
     """Get all enabled video models."""
-    return {k: v for k, v in _registry.get("video_models", {}).items() if v.get("enabled")}
+    return {k: v for k, v in _registry.get("video_models", {}).items() if v.get("enabled", True)}
 
 
 def get_video_model_keys_sorted() -> list[str]:

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-04-08T02:45:29.208801+00:00",
+  "last_updated": "2026-04-30T07:35:01.931574+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -41,10 +41,11 @@
       "model_id": "amazon.nova-canvas-v1:0",
       "region": "us-east-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "eu-west-1",
+        "us-east-1"
       ],
       "provider": "Amazon",
-      "enabled": true,
       "model_purpose": "text_to_image",
       "format_family": "amazon_text_to_image",
       "prompt_limit": 900,
@@ -96,9 +97,11 @@
       "label": "Amazon Titan Image v2",
       "model_id": "amazon.titan-image-generator-v2:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Amazon",
-      "enabled": true,
       "model_purpose": "text_to_image",
       "format_family": "amazon_text_to_image",
       "prompt_limit": 480,
@@ -146,9 +149,10 @@
       "label": "Stable Diffusion 3.5 Large",
       "model_id": "stability.sd3-5-large-v1:0",
       "region": "us-west-2",
-      "available_regions": [],
+      "available_regions": [
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "text_to_image",
       "format_family": "stability_text_to_image",
       "prompt_limit": 2000,
@@ -173,9 +177,10 @@
       "label": "Stable Image Ultra",
       "model_id": "stability.stable-image-ultra-v1:1",
       "region": "us-west-2",
-      "available_regions": [],
+      "available_regions": [
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "text_to_image",
       "format_family": "stability_text_to_image",
       "prompt_limit": 2000,
@@ -199,9 +204,10 @@
       "label": "Stable Image Core 1.0",
       "model_id": "stability.stable-image-core-v1:1",
       "region": "us-west-2",
-      "available_regions": [],
+      "available_regions": [
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "text_to_image",
       "format_family": "stability_text_to_image",
       "prompt_limit": 2000,
@@ -225,9 +231,12 @@
       "label": "Stable Image Creative Upscale",
       "model_id": "us.stability.stable-creative-upscale-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "upscale_creative",
       "format_family": "stability_upscale",
       "prompt_limit": 10000,
@@ -254,9 +263,12 @@
       "label": "Stable Image Remove Background",
       "model_id": "us.stability.stable-image-remove-background-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "remove_background",
       "format_family": "stability_remove_bg",
       "prompt_limit": 0,
@@ -283,9 +295,12 @@
       "label": "Stable Image Control Sketch",
       "model_id": "us.stability.stable-image-control-sketch-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "control_sketch",
       "format_family": "stability_control",
       "prompt_limit": 10000,
@@ -312,9 +327,12 @@
       "label": "Stable Image Conservative Upscale",
       "model_id": "us.stability.stable-conservative-upscale-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "upscale_conservative",
       "format_family": "stability_upscale",
       "prompt_limit": 10000,
@@ -341,9 +359,12 @@
       "label": "Stable Image Search and Recolor",
       "model_id": "us.stability.stable-image-search-recolor-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "search_recolor",
       "format_family": "stability_search_recolor",
       "prompt_limit": 10000,
@@ -370,9 +391,12 @@
       "label": "Stable Image Fast Upscale",
       "model_id": "us.stability.stable-fast-upscale-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "upscale_fast",
       "format_family": "stability_upscale",
       "prompt_limit": 0,
@@ -399,9 +423,12 @@
       "label": "Stable Image Erase Object",
       "model_id": "us.stability.stable-image-erase-object-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "erase",
       "format_family": "stability_erase",
       "prompt_limit": 0,
@@ -428,9 +455,12 @@
       "label": "Stable Image Control Structure",
       "model_id": "us.stability.stable-image-control-structure-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "control_structure",
       "format_family": "stability_control",
       "prompt_limit": 10000,
@@ -457,9 +487,12 @@
       "label": "Stable Image Outpaint",
       "model_id": "us.stability.stable-outpaint-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "outpainting",
       "format_family": "stability_outpaint",
       "prompt_limit": 10000,
@@ -486,9 +519,12 @@
       "label": "Stable Image Inpaint",
       "model_id": "us.stability.stable-image-inpaint-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "inpainting",
       "format_family": "stability_inpaint",
       "prompt_limit": 10000,
@@ -515,9 +551,12 @@
       "label": "Stable Image Style Guide",
       "model_id": "us.stability.stable-image-style-guide-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "style_guide",
       "format_family": "stability_control",
       "prompt_limit": 10000,
@@ -544,9 +583,12 @@
       "label": "Stable Image Style Transfer",
       "model_id": "us.stability.stable-style-transfer-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "style_transfer",
       "format_family": "stability_style_transfer",
       "prompt_limit": 10000,
@@ -573,9 +615,12 @@
       "label": "Stable Image Search and Replace",
       "model_id": "us.stability.stable-image-search-replace-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Stability AI",
-      "enabled": true,
       "model_purpose": "search_replace",
       "format_family": "stability_search_replace",
       "prompt_limit": 10000,
@@ -597,884 +642,390 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "model_source": "foundation"
+    },
+    "flux1_dev_g5_2xlarge_17b8": {
+      "label": "FLUX.1 [dev] (17Apr 07:43)",
+      "model_id": "sagemaker:artsmoker-flux1-dev-g5-2xlarge-17b8",
+      "provider": "Black Forest Labs",
+      "region": "us-west-2",
+      "available_regions": [],
+      "model_source": "custom_hosted",
+      "format_family": "sagemaker_async",
+      "last_updated": "2024-08-01",
+      "base_price_usd": 0.06,
+      "invoke": {
+        "library": "diffusers",
+        "loader_class": "FluxPipeline",
+        "torch_dtype": "bfloat16",
+        "enable_sequential_cpu_offload": true,
+        "enable_vae_slicing": true,
+        "predictor_type": "text_to_image",
+        "input_fields": {
+          "prompt": {
+            "type": "string",
+            "required": true
+          },
+          "width": {
+            "type": "int",
+            "default": 1024
+          },
+          "height": {
+            "type": "int",
+            "default": 1024
+          },
+          "num_inference_steps": {
+            "type": "int",
+            "default": 28
+          },
+          "guidance_scale": {
+            "type": "float",
+            "default": 3.5
+          },
+          "seed": {
+            "type": "int",
+            "required": false
+          }
+        },
+        "output_type": "base64_png",
+        "supports_negative_prompt": false,
+        "max_prompt_length": 2000,
+        "typical_latency_seconds": 180,
+        "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
+        "max_concurrent_invocations": 1
+      },
+      "model_purpose": "text_to_image",
+      "prompt_limit": 2000,
+      "moderation_strictness": "none"
+    },
+    "flux2_dev_g6e_4xlarge_0be3": {
+      "label": "FLUX.2 [dev] (21Apr 17:25)",
+      "model_id": "sagemaker:artsmoker-flux2-dev-g6e-4xlarge-0be3",
+      "provider": "Black Forest Labs",
+      "region": "us-west-2",
+      "available_regions": [],
+      "model_source": "custom_hosted",
+      "format_family": "sagemaker_async",
+      "last_updated": "2026-04-20",
+      "base_price_usd": 0.87,
+      "invoke": {
+        "library": "diffusers",
+        "loader_class": "Flux2Pipeline",
+        "torch_dtype": "bfloat16",
+        "enable_vae_slicing": true,
+        "predictor_type": "text_to_image",
+        "input_fields": {
+          "prompt": {
+            "type": "string",
+            "required": true
+          },
+          "width": {
+            "type": "int",
+            "default": 1024
+          },
+          "height": {
+            "type": "int",
+            "default": 1024
+          },
+          "num_inference_steps": {
+            "type": "int",
+            "default": 40
+          },
+          "guidance_scale": {
+            "type": "float",
+            "default": 4.0
+          },
+          "seed": {
+            "type": "int",
+            "required": false
+          }
+        },
+        "output_type": "base64_png",
+        "supports_negative_prompt": false,
+        "max_prompt_length": 2000,
+        "typical_latency_seconds": 3600,
+        "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder \u2014 understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60\u2013100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') \u2014 describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2\u20133 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good \u2014 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
+        "max_concurrent_invocations": 1,
+        "quantization_components": [
+          {
+            "name": "transformer",
+            "class": "Flux2Transformer2DModel",
+            "module": "diffusers",
+            "subfolder": "transformer",
+            "quantization": "nf4"
+          },
+          {
+            "name": "text_encoder",
+            "class": "Mistral3ForConditionalGeneration",
+            "module": "transformers",
+            "subfolder": "text_encoder",
+            "quantization": "nf4"
+          }
+        ]
+      },
+      "model_purpose": "text_to_image",
+      "prompt_limit": 2000,
+      "moderation_strictness": "none"
+    },
+    "hunyuan_image_3_0_instruct_nf4_5edf": {
+      "label": "HunyuanImage 3.0 Instruct (NF4) (23Apr 13:15)",
+      "model_id": "sagemaker:artsmoker-hunyuan-image-3-0-instruct-nf4-5edf",
+      "provider": "Tencent",
+      "region": "us-west-2",
+      "available_regions": [],
+      "model_source": "custom_hosted",
+      "format_family": "sagemaker_async",
+      "last_updated": "2026-04-22",
+      "base_price_usd": 0.29,
+      "invoke": {
+        "library": "autoregressive",
+        "loader_class": "AutoModelForCausalLM",
+        "generate_method": "generate_image",
+        "trust_remote_code": true,
+        "torch_dtype": "auto",
+        "attn_implementation": "sdpa",
+        "moe_impl": "eager",
+        "moe_drop_tokens": true,
+        "predictor_type": "autoregressive_image",
+        "output_type": "base64_png",
+        "supports_negative_prompt": false,
+        "max_prompt_length": 2000,
+        "block_swap_blocks": 0,
+        "bot_task": "think_recaption",
+        "quantization_type": "pre_quantized_nf4",
+        "input_fields": {
+          "prompt": {
+            "type": "string",
+            "required": true
+          },
+          "width": {
+            "type": "int",
+            "default": 1024
+          },
+          "height": {
+            "type": "int",
+            "default": 1024
+          },
+          "num_inference_steps": {
+            "type": "int",
+            "default": 50
+          },
+          "guidance_scale": {
+            "type": "float",
+            "default": 5.0
+          },
+          "seed": {
+            "type": "int",
+            "optional": true
+          }
+        },
+        "supported_sizes": [
+          {
+            "w": 512,
+            "h": 512,
+            "label": "512 \u00d7 512"
+          },
+          {
+            "w": 768,
+            "h": 768,
+            "label": "768 \u00d7 768"
+          },
+          {
+            "w": 1024,
+            "h": 1024,
+            "label": "1024 \u00d7 1024"
+          },
+          {
+            "w": 1024,
+            "h": 576,
+            "label": "1024 \u00d7 576 (16:9)"
+          },
+          {
+            "w": 576,
+            "h": 1024,
+            "label": "576 \u00d7 1024 (9:16)"
+          },
+          {
+            "w": 1280,
+            "h": 720,
+            "label": "1280 \u00d7 720 (16:9)"
+          },
+          {
+            "w": 720,
+            "h": 1280,
+            "label": "720 \u00d7 1280 (9:16)"
+          },
+          {
+            "w": 1536,
+            "h": 1536,
+            "label": "1536 \u00d7 1536"
+          },
+          {
+            "w": 2048,
+            "h": 1024,
+            "label": "2048 \u00d7 1024 (2:1)"
+          },
+          {
+            "w": 1024,
+            "h": 2048,
+            "label": "1024 \u00d7 2048 (1:2)"
+          },
+          {
+            "w": 2048,
+            "h": 2048,
+            "label": "2048 \u00d7 2048"
+          }
+        ],
+        "typical_latency_seconds": 240,
+        "max_concurrent_invocations": 1,
+        "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don\u2019t over-engineer \u2014 the model\u2019s internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30\u201380 words. Describe what you want to see.\n- DO NOT use negative prompts \u2014 not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048\u00d72048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions",
+        "image_size_format": "HxW"
+      },
+      "model_purpose": "text_to_image",
+      "prompt_limit": 2000,
+      "moderation_strictness": "none"
+    },
+    "hunyuan_image_3_0_instruct_bf16_182c": {
+      "label": "HunyuanImage 3.0 Instruct (BF16) \u2014 HQ (24Apr 21:38)",
+      "model_id": "sagemaker:artsmoker-hunyuan-image-3-0-instruct-bf16-182c",
+      "provider": "Tencent",
+      "region": "us-west-2",
+      "available_regions": [],
+      "model_source": "custom_hosted",
+      "format_family": "sagemaker_async",
+      "last_updated": "2026-04-23",
+      "base_price_usd": 1.14,
+      "invoke": {
+        "library": "autoregressive",
+        "loader_class": "AutoModelForCausalLM",
+        "generate_method": "generate_image",
+        "trust_remote_code": true,
+        "torch_dtype": "auto",
+        "attn_implementation": "sdpa",
+        "moe_impl": "flashinfer",
+        "moe_drop_tokens": true,
+        "predictor_type": "autoregressive_image",
+        "output_type": "base64_png",
+        "supports_negative_prompt": false,
+        "max_prompt_length": 2000,
+        "block_swap_blocks": 0,
+        "bot_task": "think_recaption",
+        "input_fields": {
+          "prompt": {
+            "type": "string",
+            "required": true
+          },
+          "width": {
+            "type": "int",
+            "default": 1024
+          },
+          "height": {
+            "type": "int",
+            "default": 1024
+          },
+          "num_inference_steps": {
+            "type": "int",
+            "default": 50
+          },
+          "guidance_scale": {
+            "type": "float",
+            "default": 5.0
+          },
+          "seed": {
+            "type": "int",
+            "optional": true
+          }
+        },
+        "supported_sizes": [
+          {
+            "w": 512,
+            "h": 512,
+            "label": "512 \u00d7 512"
+          },
+          {
+            "w": 768,
+            "h": 768,
+            "label": "768 \u00d7 768"
+          },
+          {
+            "w": 1024,
+            "h": 1024,
+            "label": "1024 \u00d7 1024"
+          },
+          {
+            "w": 1024,
+            "h": 576,
+            "label": "1024 \u00d7 576 (16:9)"
+          },
+          {
+            "w": 576,
+            "h": 1024,
+            "label": "576 \u00d7 1024 (9:16)"
+          },
+          {
+            "w": 1280,
+            "h": 720,
+            "label": "1280 \u00d7 720 (16:9)"
+          },
+          {
+            "w": 720,
+            "h": 1280,
+            "label": "720 \u00d7 1280 (9:16)"
+          },
+          {
+            "w": 1536,
+            "h": 1536,
+            "label": "1536 \u00d7 1536"
+          },
+          {
+            "w": 2048,
+            "h": 1024,
+            "label": "2048 \u00d7 1024 (2:1)"
+          },
+          {
+            "w": 1024,
+            "h": 2048,
+            "label": "1024 \u00d7 2048 (1:2)"
+          },
+          {
+            "w": 2048,
+            "h": 2048,
+            "label": "2048 \u00d7 2048"
+          }
+        ],
+        "typical_latency_seconds": 600,
+        "max_concurrent_invocations": 1,
+        "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer \u2014 the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30\u201380 words. Describe what you want to see.\n- DO NOT use negative prompts \u2014 not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048\u00d72048.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
+        "image_size_format": "HxW"
+      },
+      "model_purpose": "text_to_image",
+      "prompt_limit": 2000,
+      "moderation_strictness": "none"
     },
     "titan_image_inpaint": {
-      "label": "Titan Image Generator G1 v2 Inpainting",
-      "model_id": "amazon.titan-image-generator-v2:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Amazon",
-      "enabled": true,
-      "model_purpose": "inpainting",
-      "format_family": "amazon_inpainting",
-      "prompt_limit": 480,
-      "moderation_strictness": "strict",
-      "base_price_usd": 0.01,
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v2:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [
-        "FINE_TUNING"
-      ],
-      "model_source": "foundation"
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ]
     },
     "titan_image_outpaint": {
-      "label": "Titan Image Generator G1 v2 Outpainting",
-      "model_id": "amazon.titan-image-generator-v2:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Amazon",
-      "enabled": true,
-      "model_purpose": "outpainting",
-      "format_family": "amazon_outpainting",
-      "prompt_limit": 480,
-      "moderation_strictness": "strict",
-      "base_price_usd": 0.01,
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v2:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [
-        "FINE_TUNING"
-      ],
-      "model_source": "foundation"
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ]
     },
     "nova_canvas_inpaint": {
-      "label": "Nova Canvas Inpainting",
-      "model_id": "amazon.nova-canvas-v1:0",
-      "region": "us-east-1",
       "available_regions": [
-        "ap-northeast-1"
-      ],
-      "provider": "Amazon",
-      "enabled": true,
-      "model_purpose": "inpainting",
-      "format_family": "amazon_inpainting",
-      "prompt_limit": 900,
-      "moderation_strictness": "very_strict",
-      "base_price_usd": 0.06,
-      "extra_body": {
-        "imageGenerationConfig": {
-          "quality": "premium"
-        }
-      },
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-canvas-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [
-        "FINE_TUNING"
-      ],
-      "model_source": "foundation"
+        "ap-northeast-1",
+        "eu-west-1",
+        "us-east-1"
+      ]
     },
     "nova_canvas_outpaint": {
-      "label": "Nova Canvas Outpainting",
-      "model_id": "amazon.nova-canvas-v1:0",
-      "region": "us-east-1",
       "available_regions": [
-        "ap-northeast-1"
-      ],
-      "provider": "Amazon",
-      "enabled": true,
-      "model_purpose": "outpainting",
-      "format_family": "amazon_outpainting",
-      "prompt_limit": 900,
-      "moderation_strictness": "very_strict",
-      "base_price_usd": 0.06,
-      "extra_body": {
-        "imageGenerationConfig": {
-          "quality": "premium"
-        }
-      },
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-canvas-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [
-        "FINE_TUNING"
-      ],
-      "model_source": "foundation"
-    },
-    "stable_creative_upscale_v1_us_east_1": {
-      "label": "Stable Image Creative Upscale",
-      "model_id": "us.stability.stable-creative-upscale-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "upscale_creative",
-      "format_family": "stability_upscale",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.6,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-creative-upscale-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_image_remove_background_v1_us_east_1": {
-      "label": "Stable Image Remove Background",
-      "model_id": "us.stability.stable-image-remove-background-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "remove_background",
-      "format_family": "stability_remove_bg",
-      "prompt_limit": 0,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-remove-background-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_image_control_sketch_v1_us_east_1": {
-      "label": "Stable Image Control Sketch",
-      "model_id": "us.stability.stable-image-control-sketch-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "control_sketch",
-      "format_family": "stability_control",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-sketch-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_conservative_upscale_v1_us_east_1": {
-      "label": "Stable Image Conservative Upscale",
-      "model_id": "us.stability.stable-conservative-upscale-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "upscale_conservative",
-      "format_family": "stability_upscale",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.4,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-conservative-upscale-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_image_search_recolor_v1_us_east_1": {
-      "label": "Stable Image Search and Recolor",
-      "model_id": "us.stability.stable-image-search-recolor-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "search_recolor",
-      "format_family": "stability_search_recolor",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-recolor-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_fast_upscale_v1_us_east_1": {
-      "label": "Stable Image Fast Upscale",
-      "model_id": "us.stability.stable-fast-upscale-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "upscale_fast",
-      "format_family": "stability_upscale",
-      "prompt_limit": 0,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.03,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-fast-upscale-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_image_erase_object_v1_us_east_1": {
-      "label": "Stable Image Erase Object",
-      "model_id": "us.stability.stable-image-erase-object-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "erase",
-      "format_family": "stability_erase",
-      "prompt_limit": 0,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-erase-object-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_image_control_structure_v1_us_east_1": {
-      "label": "Stable Image Control Structure",
-      "model_id": "us.stability.stable-image-control-structure-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "control_structure",
-      "format_family": "stability_control",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-structure-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_outpaint_v1_us_east_1": {
-      "label": "Stable Image Outpaint",
-      "model_id": "us.stability.stable-outpaint-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "outpainting",
-      "format_family": "stability_outpaint",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.06,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-outpaint-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_image_inpaint_v1_us_east_1": {
-      "label": "Stable Image Inpaint",
-      "model_id": "us.stability.stable-image-inpaint-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "inpainting",
-      "format_family": "stability_inpaint",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-inpaint-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_image_style_guide_v1_us_east_1": {
-      "label": "Stable Image Style Guide",
-      "model_id": "us.stability.stable-image-style-guide-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "style_guide",
-      "format_family": "stability_control",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-style-guide-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_style_transfer_v1_us_east_1": {
-      "label": "Stable Image Style Transfer",
-      "model_id": "us.stability.stable-style-transfer-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "style_transfer",
-      "format_family": "stability_style_transfer",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.08,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-style-transfer-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_image_search_replace_v1_us_east_1": {
-      "label": "Stable Image Search and Replace",
-      "model_id": "us.stability.stable-image-search-replace-v1:0",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "search_replace",
-      "format_family": "stability_search_replace",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-replace-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "extra_body": {},
-      "model_source": "foundation"
-    },
-    "stable_creative_upscale_v1_us_west_2": {
-      "label": "Stable Image Creative Upscale",
-      "model_id": "us.stability.stable-creative-upscale-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "upscale_creative",
-      "format_family": "stability_upscale",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.6,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-creative-upscale-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_image_remove_background_v1_us_west_2": {
-      "label": "Stable Image Remove Background",
-      "model_id": "us.stability.stable-image-remove-background-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "remove_background",
-      "format_family": "stability_remove_bg",
-      "prompt_limit": 0,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-remove-background-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_image_control_sketch_v1_us_west_2": {
-      "label": "Stable Image Control Sketch",
-      "model_id": "us.stability.stable-image-control-sketch-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "control_sketch",
-      "format_family": "stability_control",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-sketch-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_conservative_upscale_v1_us_west_2": {
-      "label": "Stable Image Conservative Upscale",
-      "model_id": "us.stability.stable-conservative-upscale-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "upscale_conservative",
-      "format_family": "stability_upscale",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.4,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-conservative-upscale-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_image_search_recolor_v1_us_west_2": {
-      "label": "Stable Image Search and Recolor",
-      "model_id": "us.stability.stable-image-search-recolor-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "search_recolor",
-      "format_family": "stability_search_recolor",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-recolor-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_fast_upscale_v1_us_west_2": {
-      "label": "Stable Image Fast Upscale",
-      "model_id": "us.stability.stable-fast-upscale-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "upscale_fast",
-      "format_family": "stability_upscale",
-      "prompt_limit": 0,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.03,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-fast-upscale-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_image_erase_object_v1_us_west_2": {
-      "label": "Stable Image Erase Object",
-      "model_id": "us.stability.stable-image-erase-object-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "erase",
-      "format_family": "stability_erase",
-      "prompt_limit": 0,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-erase-object-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_image_control_structure_v1_us_west_2": {
-      "label": "Stable Image Control Structure",
-      "model_id": "us.stability.stable-image-control-structure-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "control_structure",
-      "format_family": "stability_control",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-control-structure-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_outpaint_v1_us_west_2": {
-      "label": "Stable Image Outpaint",
-      "model_id": "us.stability.stable-outpaint-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "outpainting",
-      "format_family": "stability_outpaint",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.06,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-outpaint-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_image_inpaint_v1_us_west_2": {
-      "label": "Stable Image Inpaint",
-      "model_id": "us.stability.stable-image-inpaint-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "inpainting",
-      "format_family": "stability_inpaint",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-inpaint-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_image_style_guide_v1_us_west_2": {
-      "label": "Stable Image Style Guide",
-      "model_id": "us.stability.stable-image-style-guide-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "style_guide",
-      "format_family": "stability_control",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-style-guide-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_style_transfer_v1_us_west_2": {
-      "label": "Stable Image Style Transfer",
-      "model_id": "us.stability.stable-style-transfer-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "style_transfer",
-      "format_family": "stability_style_transfer",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.08,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-style-transfer-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
-    },
-    "stable_image_search_replace_v1_us_west_2": {
-      "label": "Stable Image Search and Replace",
-      "model_id": "us.stability.stable-image-search-replace-v1:0",
-      "region": "us-west-2",
-      "available_regions": [],
-      "provider": "Stability AI",
-      "enabled": true,
-      "model_purpose": "search_replace",
-      "format_family": "stability_search_replace",
-      "prompt_limit": 10000,
-      "moderation_strictness": "moderate",
-      "base_price_usd": 0.07,
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/stability.stable-image-search-replace-v1:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [],
-      "model_source": "foundation"
+        "ap-northeast-1",
+        "eu-west-1",
+        "us-east-1"
+      ]
     }
   },
   "post_processing": {
@@ -1482,36 +1033,31 @@
       "label": "Remove Background",
       "model_id": "us.stability.stable-image-remove-background-v1:0",
       "region": "us-west-2",
-      "provider": "Stability AI",
-      "enabled": true
+      "provider": "Stability AI"
     },
     "upscale_conservative": {
       "label": "Conservative Upscale",
       "model_id": "us.stability.stable-conservative-upscale-v1:0",
       "region": "us-west-2",
-      "enabled": true,
       "provider": "Stability AI"
     },
     "upscale_fast": {
       "label": "Fast Upscale",
       "model_id": "us.stability.stable-fast-upscale-v1:0",
       "region": "us-west-2",
-      "enabled": true,
       "provider": "Stability AI"
     },
     "upscale_creative": {
       "label": "Creative Upscale",
       "model_id": "us.stability.stable-creative-upscale-v1:0",
       "region": "us-west-2",
-      "provider": "Stability AI",
-      "enabled": true
+      "provider": "Stability AI"
     },
     "upscale": {
       "label": "Creative Upscale",
       "model_id": "stability.stable-creative-upscale-v1:0",
       "region": "us-west-2",
       "provider": "Stability AI",
-      "enabled": true,
       "purpose": "upscale_creative",
       "base_price_usd": 0.6
     }
@@ -2743,7 +2289,6 @@
         "us-east-1"
       ],
       "provider": "Amazon",
-      "enabled": true,
       "model_purpose": "text_to_video",
       "format_family": "nova_reel",
       "prompt_limit": 512,
@@ -2764,7 +2309,7 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "model_source": "foundation",
-      "prompt_guidance": "Nova Reel generates video from descriptive captions — describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) — the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
+      "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
       "optimal_prompt_words": 50
     },
     "nova_reel_v1_1": {
@@ -2775,7 +2320,6 @@
         "us-east-1"
       ],
       "provider": "Amazon",
-      "enabled": true,
       "model_purpose": "text_to_video",
       "format_family": "nova_reel",
       "prompt_limit": 512,
@@ -2796,7 +2340,7 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "model_source": "foundation",
-      "prompt_guidance": "Nova Reel generates video from descriptive captions — describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) — the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
+      "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
       "optimal_prompt_words": 50
     },
     "ray_v2_0": {
@@ -2807,7 +2351,6 @@
         "us-west-2"
       ],
       "provider": "Luma AI",
-      "enabled": true,
       "model_purpose": "text_to_video",
       "format_family": "luma_ray",
       "prompt_limit": 5000,
@@ -2827,7 +2370,7 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "prompt_guidance": "Ray v2.0 excels at natural language understanding — describe what you want to see with rich detail.\nHandles physics, human expressions, object interactions, and creative/whimsical concepts with high realism.\nWrite in flowing natural language, like a screenplay direction — include subject, action, mood, lighting, camera.\nCamera movements from natural descriptions (no fixed keywords needed): 'slow dolly forward', 'orbit left', 'tracking shot'.\nSupports up to 5000 characters — use the space for vivid scene-setting and emotional tone.\nStronger with creative concepts than rigid technical specifications.\nDurations: 5s or 9s. Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 21:9, 9:21.",
+      "prompt_guidance": "Ray v2.0 excels at natural language understanding \u2014 describe what you want to see with rich detail.\nHandles physics, human expressions, object interactions, and creative/whimsical concepts with high realism.\nWrite in flowing natural language, like a screenplay direction \u2014 include subject, action, mood, lighting, camera.\nCamera movements from natural descriptions (no fixed keywords needed): 'slow dolly forward', 'orbit left', 'tracking shot'.\nSupports up to 5000 characters \u2014 use the space for vivid scene-setting and emotional tone.\nStronger with creative concepts than rigid technical specifications.\nDurations: 5s or 9s. Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 21:9, 9:21.",
       "optimal_prompt_words": 60
     }
   },
@@ -2844,10 +2387,17 @@
       "model_id": "google.gemma-3-4b-it",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Google",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/google.gemma-3-4b-it",
       "has_vision": true,
@@ -2863,10 +2413,17 @@
       "model_id": "nvidia.nemotron-nano-12b-v2",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "NVIDIA",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-nano-12b-v2",
       "has_vision": true,
@@ -2879,7 +2436,39 @@
     },
     "claude_sonnet_4_20250514_v1": {
       "label": "Claude Sonnet 4",
-      "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "model_id": "us.anthropic.claude-sonnet-4-20250514-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-20250514-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "LEGACY"
+    },
+    "claude_haiku_4_5_20251001_v1": {
+      "label": "Claude Haiku 4.5",
+      "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
       "region": "ap-northeast-1",
       "available_regions": [
         "ap-northeast-1",
@@ -2901,26 +2490,6 @@
         "us-west-2"
       ],
       "provider": "Anthropic",
-      "enabled": true,
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "claude_haiku_4_5_20251001_v1": {
-      "label": "Claude Haiku 4.5",
-      "model_id": "us.anthropic.claude-haiku-4-5-20251001-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1"
-      ],
-      "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-haiku-4-5-20251001-v1:0",
       "has_vision": true,
@@ -2936,10 +2505,16 @@
       "model_id": "qwen.qwen3-235b-a22b-2507-v1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-2",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Qwen",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-235b-a22b-2507-v1:0",
       "has_vision": false,
@@ -2955,10 +2530,17 @@
       "model_id": "openai.gpt-oss-safeguard-120b",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "OpenAI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-safeguard-120b",
       "has_vision": false,
@@ -2974,10 +2556,17 @@
       "model_id": "google.gemma-3-27b-it",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Google",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/google.gemma-3-27b-it",
       "has_vision": true,
@@ -2991,14 +2580,13 @@
     "5": {
       "label": "MiniMax M2.5",
       "model_id": "minimax.minimax-m2.5",
-      "region": "ap-northeast-1",
+      "region": "us-west-2",
       "available_regions": [
-        "ap-northeast-1"
+        "us-west-2"
       ],
       "provider": "MiniMax",
-      "enabled": true,
       "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/minimax.minimax-m2.5",
+      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/minimax.minimax-m2.5",
       "has_vision": false,
       "streaming_supported": true,
       "max_context_tokens": 128000,
@@ -3013,10 +2601,19 @@
       "model_id": "openai.gpt-oss-120b-1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "OpenAI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-120b-1:0",
       "has_vision": false,
@@ -3032,10 +2629,17 @@
       "model_id": "qwen.qwen3-vl-235b-a22b",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Qwen",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-vl-235b-a22b",
       "has_vision": true,
@@ -3051,10 +2655,17 @@
       "model_id": "qwen.qwen3-next-80b-a3b",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Qwen",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-next-80b-a3b",
       "has_vision": false,
@@ -3070,10 +2681,17 @@
       "model_id": "deepseek.v3.2",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "DeepSeek",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/deepseek.v3.2",
       "has_vision": false,
@@ -3089,10 +2707,17 @@
       "model_id": "zai.glm-4.7",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Z.AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-4.7",
       "has_vision": false,
@@ -3108,10 +2733,17 @@
       "model_id": "nvidia.nemotron-nano-3-30b",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "NVIDIA",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-nano-3-30b",
       "has_vision": false,
@@ -3127,10 +2759,17 @@
       "model_id": "minimax.minimax-m2",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "MiniMax",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/minimax.minimax-m2",
       "has_vision": false,
@@ -3146,10 +2785,19 @@
       "model_id": "zai.glm-4.7-flash",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Z.AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-4.7-flash",
       "has_vision": false,
@@ -3165,10 +2813,17 @@
       "model_id": "mistral.voxtral-mini-3b-2507",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.voxtral-mini-3b-2507",
       "has_vision": false,
@@ -3184,10 +2839,15 @@
       "model_id": "qwen.qwen3-coder-480b-a35b-v1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Qwen",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-coder-480b-a35b-v1:0",
       "has_vision": false,
@@ -3203,10 +2863,23 @@
       "model_id": "amazon.nova-2-lite-v1:0:256k",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
       ],
       "provider": "Amazon",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-2-lite-v1:0:256k",
       "has_vision": true,
@@ -3222,10 +2895,17 @@
       "model_id": "google.gemma-3-12b-it",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Google",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/google.gemma-3-12b-it",
       "has_vision": true,
@@ -3241,10 +2921,17 @@
       "model_id": "mistral.magistral-small-2509",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.magistral-small-2509",
       "has_vision": true,
@@ -3260,10 +2947,15 @@
       "model_id": "moonshot.kimi-k2-thinking",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Moonshot AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/moonshot.kimi-k2-thinking",
       "has_vision": false,
@@ -3279,10 +2971,15 @@
       "model_id": "mistral.mistral-large-3-675b-instruct",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.mistral-large-3-675b-instruct",
       "has_vision": true,
@@ -3298,10 +2995,25 @@
       "model_id": "us.twelvelabs.pegasus-1-2-v1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
       ],
       "provider": "TwelveLabs",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/twelvelabs.pegasus-1-2-v1:0",
       "has_vision": false,
@@ -3317,10 +3029,19 @@
       "model_id": "mistral.devstral-2-123b",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.devstral-2-123b",
       "has_vision": false,
@@ -3336,10 +3057,19 @@
       "model_id": "minimax.minimax-m2.1",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "MiniMax",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/minimax.minimax-m2.1",
       "has_vision": false,
@@ -3355,10 +3085,15 @@
       "model_id": "deepseek.v3-v1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "DeepSeek",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/deepseek.v3-v1:0",
       "has_vision": false,
@@ -3374,10 +3109,17 @@
       "model_id": "mistral.ministral-3-3b-instruct",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.ministral-3-3b-instruct",
       "has_vision": true,
@@ -3412,7 +3154,6 @@
         "us-west-2"
       ],
       "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-4-5-20251101-v1:0",
       "has_vision": true,
@@ -3428,10 +3169,19 @@
       "model_id": "qwen.qwen3-coder-30b-a3b-v1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Qwen",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-coder-30b-a3b-v1:0",
       "has_vision": false,
@@ -3447,10 +3197,19 @@
       "model_id": "nvidia.nemotron-super-3-120b",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "NVIDIA",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-super-3-120b",
       "has_vision": false,
@@ -3466,10 +3225,19 @@
       "model_id": "qwen.qwen3-32b-v1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Qwen",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-32b-v1:0",
       "has_vision": false,
@@ -3485,10 +3253,17 @@
       "model_id": "mistral.ministral-3-14b-instruct",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.ministral-3-14b-instruct",
       "has_vision": true,
@@ -3504,10 +3279,17 @@
       "model_id": "nvidia.nemotron-nano-9b-v2",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "NVIDIA",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-nano-9b-v2",
       "has_vision": false,
@@ -3523,10 +3305,17 @@
       "model_id": "mistral.ministral-3-8b-instruct",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.ministral-3-8b-instruct",
       "has_vision": true,
@@ -3542,10 +3331,17 @@
       "model_id": "mistral.voxtral-small-24b-2507",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.voxtral-small-24b-2507",
       "has_vision": false,
@@ -3561,10 +3357,17 @@
       "model_id": "zai.glm-5",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Z.AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-5",
       "has_vision": false,
@@ -3580,10 +3383,17 @@
       "model_id": "openai.gpt-oss-safeguard-20b",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "OpenAI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-safeguard-20b",
       "has_vision": false,
@@ -3599,10 +3409,19 @@
       "model_id": "openai.gpt-oss-20b-1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "OpenAI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-20b-1:0",
       "has_vision": false,
@@ -3618,10 +3437,12 @@
       "model_id": "amazon.rerank-v1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ca-central-1",
+        "eu-central-1",
+        "us-west-2"
       ],
       "provider": "Amazon",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.rerank-v1:0",
       "has_vision": false,
@@ -3637,10 +3458,22 @@
       "model_id": "amazon.nova-pro-v1:0:300k",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
       ],
       "provider": "Amazon",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0:300k",
       "has_vision": true,
@@ -3656,10 +3489,23 @@
       "model_id": "amazon.nova-lite-v1:0:300k",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
       ],
       "provider": "Amazon",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0:300k",
       "has_vision": true,
@@ -3676,10 +3522,21 @@
       "model_id": "amazon.nova-micro-v1:0:128k",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
       ],
       "provider": "Amazon",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-micro-v1:0:128k",
       "has_vision": false,
@@ -3694,9 +3551,23 @@
       "label": "Claude 3 Haiku",
       "model_id": "anthropic.claude-3-haiku-20240307-v1:0:200k",
       "region": "ap-northeast-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-3-haiku-20240307-v1:0:200k",
       "has_vision": true,
@@ -3708,29 +3579,48 @@
       ]
     },
     "claude_3_5_sonnet_20240620_v1": {
-      "label": "Claude 3.5 Sonnet",
-      "model_id": "anthropic.claude-3-5-sonnet-20241022-v2:0:200k",
+      "label": "Claude 3.5 Sonnet v2",
+      "model_id": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
       "region": "ap-northeast-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ],
       "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0:200k",
+      "model_arn": "arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
       "has_vision": true,
       "streaming_supported": true,
       "max_context_tokens": 128000,
       "customizations_supported": [],
       "inference_types": [
-        "ON_DEMAND"
-      ]
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE"
     },
     "claude_3_sonnet_20240229_v1": {
       "label": "Claude 3 Sonnet",
       "model_id": "anthropic.claude-3-sonnet-20240229-v1:0:200k",
       "region": "ap-northeast-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0:200k",
       "has_vision": true,
@@ -3743,9 +3633,11 @@
       "label": "Claude 3.7 Sonnet",
       "model_id": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
       "region": "ap-northeast-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-south-1",
+        "eu-west-2"
+      ],
       "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-3-7-sonnet-20250219-v1:0",
       "has_vision": true,
@@ -3760,9 +3652,14 @@
       "label": "Rerank 3.5",
       "model_id": "cohere.rerank-v3-5:0",
       "region": "ap-northeast-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-northeast-1",
+        "ca-central-1",
+        "eu-central-1",
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Cohere",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/cohere.rerank-v3-5:0",
       "has_vision": false,
@@ -3777,9 +3674,14 @@
       "label": "Llama 3 8B Instruct",
       "model_id": "meta.llama3-8b-instruct-v1:0",
       "region": "ap-south-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-south-1",
+        "ca-central-1",
+        "eu-west-2",
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/meta.llama3-8b-instruct-v1:0",
       "has_vision": false,
@@ -3794,9 +3696,14 @@
       "label": "Llama 3 70B Instruct",
       "model_id": "meta.llama3-70b-instruct-v1:0",
       "region": "ap-south-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-south-1",
+        "ca-central-1",
+        "eu-west-2",
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/meta.llama3-70b-instruct-v1:0",
       "has_vision": false,
@@ -3811,9 +3718,18 @@
       "label": "Mistral 7B Instruct",
       "model_id": "mistral.mistral-7b-instruct-v0:2",
       "region": "ap-south-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-south-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/mistral.mistral-7b-instruct-v0:2",
       "has_vision": false,
@@ -3828,9 +3744,18 @@
       "label": "Mixtral 8x7B Instruct",
       "model_id": "mistral.mixtral-8x7b-instruct-v0:1",
       "region": "ap-south-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-south-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/mistral.mixtral-8x7b-instruct-v0:1",
       "has_vision": false,
@@ -3845,9 +3770,18 @@
       "label": "Mistral Large (24.02)",
       "model_id": "mistral.mistral-large-2402-v1:0",
       "region": "ap-south-1",
-      "available_regions": [],
+      "available_regions": [
+        "ap-south-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/mistral.mistral-large-2402-v1:0",
       "has_vision": false,
@@ -3862,9 +3796,12 @@
       "label": "Qwen3 Coder Next",
       "model_id": "qwen.qwen3-coder-next",
       "region": "ap-southeast-2",
-      "available_regions": [],
+      "available_regions": [
+        "ap-southeast-2",
+        "eu-west-2",
+        "us-east-1"
+      ],
       "provider": "Qwen",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-southeast-2::foundation-model/qwen.qwen3-coder-next",
       "has_vision": false,
@@ -3879,9 +3816,16 @@
       "label": "Pixtral Large (25.02)",
       "model_id": "us.mistral.pixtral-large-2502-v1:0",
       "region": "eu-central-1",
-      "available_regions": [],
+      "available_regions": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:eu-central-1::foundation-model/mistral.pixtral-large-2502-v1:0",
       "has_vision": true,
@@ -3896,9 +3840,15 @@
       "label": "Llama 3.2 1B Instruct",
       "model_id": "meta.llama3-2-1b-instruct-v1:0:128k",
       "region": "eu-central-1",
-      "available_regions": [],
+      "available_regions": [
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-2-1b-instruct-v1:0:128k",
       "has_vision": false,
@@ -3913,9 +3863,15 @@
       "label": "Llama 3.2 3B Instruct",
       "model_id": "meta.llama3-2-3b-instruct-v1:0:128k",
       "region": "eu-central-1",
-      "available_regions": [],
+      "available_regions": [
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-2-3b-instruct-v1:0:128k",
       "has_vision": false,
@@ -3930,9 +3886,13 @@
       "label": "Palmyra X5",
       "model_id": "us.writer.palmyra-x5-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
       "provider": "Writer",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/writer.palmyra-x5-v1:0",
       "has_vision": false,
@@ -3947,9 +3907,13 @@
       "label": "Palmyra X4",
       "model_id": "us.writer.palmyra-x4-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
       "provider": "Writer",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/writer.palmyra-x4-v1:0",
       "has_vision": false,
@@ -3964,9 +3928,12 @@
       "label": "Writer Palmyra Vision 7B",
       "model_id": "writer.palmyra-vision-7b",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Writer",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/writer.palmyra-vision-7b",
       "has_vision": true,
@@ -3981,9 +3948,13 @@
       "label": "Nova 2 Pro Preview",
       "model_id": "us.amazon.nova-2-pro-preview-20251202-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
       "provider": "Amazon",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-2-pro-preview-20251202-v1:0",
       "has_vision": true,
@@ -3994,30 +3965,16 @@
         "INFERENCE_PROFILE"
       ]
     },
-    "titan_tg1_large": {
-      "label": "Titan Text Large",
-      "model_id": "amazon.titan-tg1-large",
-      "region": "us-east-1",
-      "available_regions": [],
-      "provider": "Amazon",
-      "enabled": true,
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-tg1-large",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
     "nova_premier_v1": {
       "label": "Nova Premier",
       "model_id": "amazon.nova-premier-v1:0:1000k",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Amazon",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-premier-v1:0:1000k",
       "has_vision": true,
@@ -4030,9 +3987,10 @@
       "label": "Jamba 1.5 Large",
       "model_id": "ai21.jamba-1-5-large-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1"
+      ],
       "provider": "AI21 Labs",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/ai21.jamba-1-5-large-v1:0",
       "has_vision": false,
@@ -4047,9 +4005,10 @@
       "label": "Jamba 1.5 Mini",
       "model_id": "ai21.jamba-1-5-mini-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1"
+      ],
       "provider": "AI21 Labs",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/ai21.jamba-1-5-mini-v1:0",
       "has_vision": false,
@@ -4064,9 +4023,12 @@
       "label": "Claude 3.5 Haiku",
       "model_id": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0",
       "has_vision": false,
@@ -4081,9 +4043,11 @@
       "label": "Command R",
       "model_id": "cohere.command-r-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Cohere",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/cohere.command-r-v1:0",
       "has_vision": false,
@@ -4098,9 +4062,11 @@
       "label": "Command R+",
       "model_id": "cohere.command-r-plus-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
       "provider": "Cohere",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/cohere.command-r-plus-v1:0",
       "has_vision": false,
@@ -4115,9 +4081,12 @@
       "label": "DeepSeek-R1",
       "model_id": "us.deepseek.r1-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "DeepSeek",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/deepseek.r1-v1:0",
       "has_vision": false,
@@ -4132,9 +4101,12 @@
       "label": "Llama 3.1 8B Instruct",
       "model_id": "meta.llama3-1-8b-instruct-v1:0:128k",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-2::foundation-model/meta.llama3-1-8b-instruct-v1:0:128k",
       "has_vision": false,
@@ -4149,9 +4121,12 @@
       "label": "Llama 3.1 70B Instruct",
       "model_id": "meta.llama3-1-70b-instruct-v1:0:128k",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-2::foundation-model/meta.llama3-1-70b-instruct-v1:0:128k",
       "has_vision": false,
@@ -4166,9 +4141,12 @@
       "label": "Llama 3.2 11B Instruct",
       "model_id": "meta.llama3-2-11b-instruct-v1:0:128k",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-2-11b-instruct-v1:0:128k",
       "has_vision": true,
@@ -4183,9 +4161,12 @@
       "label": "Llama 3.2 90B Instruct",
       "model_id": "meta.llama3-2-90b-instruct-v1:0:128k",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-2-90b-instruct-v1:0:128k",
       "has_vision": true,
@@ -4200,9 +4181,12 @@
       "label": "Llama 3.3 70B Instruct",
       "model_id": "meta.llama3-3-70b-instruct-v1:0:128k",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-3-70b-instruct-v1:0:128k",
       "has_vision": false,
@@ -4217,9 +4201,13 @@
       "label": "Llama 4 Scout 17B Instruct",
       "model_id": "meta.llama4-scout-17b-instruct-v1:0:128k",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-west-1::foundation-model/meta.llama4-scout-17b-instruct-v1:0:128k",
       "has_vision": true,
@@ -4234,9 +4222,13 @@
       "label": "Llama 4 Maverick 17B Instruct",
       "model_id": "meta.llama4-maverick-17b-instruct-v1:0:128k",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-west-1::foundation-model/meta.llama4-maverick-17b-instruct-v1:0:128k",
       "has_vision": true,
@@ -4251,9 +4243,10 @@
       "label": "Mistral Small (24.02)",
       "model_id": "mistral.mistral-small-2402-v1:0",
       "region": "us-east-1",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-1"
+      ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/mistral.mistral-small-2402-v1:0",
       "has_vision": false,
@@ -4268,9 +4261,11 @@
       "label": "Llama 3.1 405B Instruct",
       "model_id": "us.meta.llama3-1-405b-instruct-v1:0",
       "region": "us-east-2",
-      "available_regions": [],
+      "available_regions": [
+        "us-east-2",
+        "us-west-2"
+      ],
       "provider": "Meta",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-east-2::foundation-model/meta.llama3-1-405b-instruct-v1:0",
       "has_vision": false,
@@ -4285,9 +4280,10 @@
       "label": "Mistral Large (24.07)",
       "model_id": "mistral.mistral-large-2407-v1:0",
       "region": "us-west-2",
-      "available_regions": [],
+      "available_regions": [
+        "us-west-2"
+      ],
       "provider": "Mistral AI",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/mistral.mistral-large-2407-v1:0",
       "has_vision": false,
@@ -4303,10 +4299,25 @@
       "model_id": "us.anthropic.claude-sonnet-4-6",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
       ],
       "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-6",
       "has_vision": true,
@@ -4323,30 +4334,27 @@
       "model_id": "us.anthropic.claude-opus-4-6-v1",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
       ],
       "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-4-6-v1",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "ACTIVE"
-    },
-    "claude_3_5_sonnet_20241022_v2": {
-      "label": "Claude 3.5 Sonnet v2",
-      "model_id": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
-      "region": "ap-northeast-1",
-      "available_regions": [],
-      "provider": "Anthropic",
-      "enabled": true,
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
       "has_vision": true,
       "streaming_supported": true,
       "max_context_tokens": 128000,
@@ -4361,10 +4369,25 @@
       "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
       "region": "ap-northeast-1",
       "available_regions": [
-        "ap-northeast-1"
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
       ],
       "provider": "Anthropic",
-      "enabled": true,
       "model_source": "foundation",
       "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
       "has_vision": true,
@@ -4375,6 +4398,83 @@
         "INFERENCE_PROFILE"
       ],
       "lifecycle": "ACTIVE"
+    },
+    "claude_opus_4_7": {
+      "label": "Claude Opus 4.7",
+      "model_id": "us.anthropic.claude-opus-4-7",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-opus-4-7",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE"
+    },
+    "claude_opus_4_1_20250805_v1": {
+      "label": "Claude Opus 4.1",
+      "model_id": "us.anthropic.claude-opus-4-1-20250805-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-opus-4-1-20250805-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE"
+    },
+    "claude_opus_4_20250514_v1": {
+      "label": "Claude Opus 4",
+      "model_id": "us.anthropic.claude-opus-4-20250514-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-opus-4-20250514-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "LEGACY"
     }
   },
   "custom_model_catalog": {
@@ -4452,7 +4552,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 5,
-          "prompt_guidance": "FLUX.1 schnell uses natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
+          "prompt_guidance": "FLUX.1 schnell uses natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
           "max_concurrent_invocations": 1,
           "optimal_prompt_words": 50
         },
@@ -4556,7 +4656,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 180,
-          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
+          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
           "max_concurrent_invocations": 1,
           "optimal_prompt_words": 70
         },
@@ -4622,7 +4722,7 @@
             "ml.g6e.8xlarge",
             "ml.g6e.12xlarge"
           ],
-          "_note": "32B model on g6e.4xlarge (1× L40S 48 GB VRAM, 128 GB RAM). BnB NF4 quantization requires CUDA — no device_map override (loads layer-by-layer to GPU, peak ~13 GB). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB total. With preserved NF4 cache: S3 download + direct GPU load = ~2 min cold start."
+          "_note": "32B model on g6e.4xlarge (1\u00d7 L40S 48 GB VRAM, 128 GB RAM). BnB NF4 quantization requires CUDA \u2014 no device_map override (loads layer-by-layer to GPU, peak ~13 GB). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB total. With preserved NF4 cache: S3 download + direct GPU load = ~2 min cold start."
         },
         "invoke": {
           "library": "diffusers",
@@ -4660,43 +4760,43 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 180,
-          "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder — understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60–100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') — describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2–3 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good — 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
+          "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder \u2014 understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60\u2013100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') \u2014 describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2\u20133 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good \u2014 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
           "max_concurrent_invocations": 1,
           "supported_sizes": [
             {
               "w": 512,
               "h": 512,
-              "label": "512 × 512"
+              "label": "512 \u00d7 512"
             },
             {
               "w": 768,
               "h": 768,
-              "label": "768 × 768"
+              "label": "768 \u00d7 768"
             },
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 × 1024"
+              "label": "1024 \u00d7 1024"
             },
             {
               "w": 1024,
               "h": 576,
-              "label": "1024 × 576 (16:9)"
+              "label": "1024 \u00d7 576 (16:9)"
             },
             {
               "w": 576,
               "h": 1024,
-              "label": "576 × 1024 (9:16)"
+              "label": "576 \u00d7 1024 (9:16)"
             },
             {
               "w": 1280,
               "h": 720,
-              "label": "1280 × 720 (16:9)"
+              "label": "1280 \u00d7 720 (16:9)"
             },
             {
               "w": 720,
               "h": 1280,
-              "label": "720 × 1280 (9:16)"
+              "label": "720 \u00d7 1280 (9:16)"
             }
           ],
           "quantization_components": [
@@ -4884,7 +4984,7 @@
       },
       "codeformer": {
         "label": "CodeFormer (Face Restoration)",
-        "description": "AI face restoration — fixes AI-generated face artifacts.",
+        "description": "AI face restoration \u2014 fixes AI-generated face artifacts.",
         "category": "post_processing",
         "studio": "image",
         "provider": "Shangchen Zhou et al.",
@@ -4900,7 +5000,7 @@
             "Redistribution: Allowed with license notice"
           ],
           "warnings": [
-            "Commercial use is NOT permitted — research use only"
+            "Commercial use is NOT permitted \u2014 research use only"
           ]
         },
         "source": {
@@ -4953,7 +5053,7 @@
       },
       "depth_anything_v2": {
         "label": "Depth Anything v2",
-        "description": "Monocular depth estimation — generates depth maps for 3D effects.",
+        "description": "Monocular depth estimation \u2014 generates depth maps for 3D effects.",
         "category": "utility",
         "studio": "image",
         "provider": "DepthAnything Team",
@@ -5020,7 +5120,7 @@
       },
       "sam2": {
         "label": "Segment Anything 2 (SAM 2)",
-        "description": "Smart object segmentation by Meta — click to select objects precisely.",
+        "description": "Smart object segmentation by Meta \u2014 click to select objects precisely.",
         "category": "utility",
         "studio": "image",
         "provider": "Meta AI",
@@ -5096,7 +5196,7 @@
       },
       "stable_video_diffusion": {
         "label": "Stable Video Diffusion (SVD-XT)",
-        "description": "Image-to-video by Stability AI — 25 frames from a single image.",
+        "description": "Image-to-video by Stability AI \u2014 25 frames from a single image.",
         "category": "video_generation",
         "studio": "video",
         "provider": "Stability AI",
@@ -5184,8 +5284,8 @@
         }
       },
       "hunyuan_image_3_0_instruct_bf16": {
-        "label": "HunyuanImage 3.0 Instruct (BF16) — HQ",
-        "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision — zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Chain-of-thought reasoning auto-enhances prompts.",
+        "label": "HunyuanImage 3.0 Instruct (BF16) \u2014 HQ",
+        "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision \u2014 zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Chain-of-thought reasoning auto-enhances prompts.",
         "provider": "Tencent",
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
@@ -5200,7 +5300,7 @@
             "Modification: Allowed, you own derivatives"
           ],
           "warnings": [
-            "EXCLUDES EU, UK, and South Korea — users in these territories have no license to use this model",
+            "EXCLUDES EU, UK, and South Korea \u2014 users in these territories have no license to use this model",
             "Cannot use outputs to train non-Hunyuan AI models",
             "Above 100M MAU requires separate Tencent approval"
           ]
@@ -5268,82 +5368,82 @@
             {
               "w": 512,
               "h": 512,
-              "label": "512 × 512"
+              "label": "512 \u00d7 512"
             },
             {
               "w": 768,
               "h": 768,
-              "label": "768 × 768"
+              "label": "768 \u00d7 768"
             },
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 × 1024"
+              "label": "1024 \u00d7 1024"
             },
             {
               "w": 1024,
               "h": 576,
-              "label": "1024 × 576 (16:9)"
+              "label": "1024 \u00d7 576 (16:9)"
             },
             {
               "w": 576,
               "h": 1024,
-              "label": "576 × 1024 (9:16)"
+              "label": "576 \u00d7 1024 (9:16)"
             },
             {
               "w": 1280,
               "h": 720,
-              "label": "1280 × 720 (16:9)"
+              "label": "1280 \u00d7 720 (16:9)"
             },
             {
               "w": 720,
               "h": 1280,
-              "label": "720 × 1280 (9:16)"
+              "label": "720 \u00d7 1280 (9:16)"
             },
             {
               "w": 1536,
               "h": 1536,
-              "label": "1536 × 1536"
+              "label": "1536 \u00d7 1536"
             },
             {
               "w": 2048,
               "h": 1024,
-              "label": "2048 × 1024 (2:1)"
+              "label": "2048 \u00d7 1024 (2:1)"
             },
             {
               "w": 1024,
               "h": 2048,
-              "label": "1024 × 2048 (1:2)"
+              "label": "1024 \u00d7 2048 (1:2)"
             },
             {
               "w": 1920,
               "h": 1080,
-              "label": "1920 × 1080 (16:9 Full HD)"
+              "label": "1920 \u00d7 1080 (16:9 Full HD)"
             },
             {
               "w": 1080,
               "h": 1920,
-              "label": "1080 × 1920 (9:16 Full HD)"
+              "label": "1080 \u00d7 1920 (9:16 Full HD)"
             },
             {
               "w": 2048,
               "h": 1152,
-              "label": "2048 × 1152 (16:9)"
+              "label": "2048 \u00d7 1152 (16:9)"
             },
             {
               "w": 1152,
               "h": 2048,
-              "label": "1152 × 2048 (9:16)"
+              "label": "1152 \u00d7 2048 (9:16)"
             },
             {
               "w": 2048,
               "h": 2048,
-              "label": "2048 × 2048"
+              "label": "2048 \u00d7 2048"
             }
           ],
           "typical_latency_seconds": 120,
           "max_concurrent_invocations": 1,
-          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer — the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer \u2014 the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30\u201380 words. Describe what you want to see.\n- DO NOT use negative prompts \u2014 not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048\u00d72048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" \u2014 the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) \u2014 use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
           "image_size_format": "HxW",
           "optimal_prompt_words": 55
         },
@@ -5380,7 +5480,7 @@
       },
       "hunyuan_image_3_0_instruct_nf4": {
         "label": "HunyuanImage 3.0 Instruct (NF4)",
-        "description": "Tencent’s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Chain-of-thought reasoning auto-enhances prompts.",
+        "description": "Tencent\u2019s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Chain-of-thought reasoning auto-enhances prompts.",
         "provider": "Tencent",
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
@@ -5395,7 +5495,7 @@
             "Modification: Allowed, you own derivatives"
           ],
           "warnings": [
-            "EXCLUDES EU, UK, and South Korea — users in these territories have no license to use this model",
+            "EXCLUDES EU, UK, and South Korea \u2014 users in these territories have no license to use this model",
             "Cannot use outputs to train non-Hunyuan AI models",
             "Above 100M MAU requires separate Tencent approval"
           ]
@@ -5465,62 +5565,62 @@
             {
               "w": 512,
               "h": 512,
-              "label": "512 × 512"
+              "label": "512 \u00d7 512"
             },
             {
               "w": 768,
               "h": 768,
-              "label": "768 × 768"
+              "label": "768 \u00d7 768"
             },
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 × 1024"
+              "label": "1024 \u00d7 1024"
             },
             {
               "w": 1024,
               "h": 576,
-              "label": "1024 × 576 (16:9)"
+              "label": "1024 \u00d7 576 (16:9)"
             },
             {
               "w": 576,
               "h": 1024,
-              "label": "576 × 1024 (9:16)"
+              "label": "576 \u00d7 1024 (9:16)"
             },
             {
               "w": 1280,
               "h": 720,
-              "label": "1280 × 720 (16:9)"
+              "label": "1280 \u00d7 720 (16:9)"
             },
             {
               "w": 720,
               "h": 1280,
-              "label": "720 × 1280 (9:16)"
+              "label": "720 \u00d7 1280 (9:16)"
             },
             {
               "w": 1536,
               "h": 1536,
-              "label": "1536 × 1536"
+              "label": "1536 \u00d7 1536"
             },
             {
               "w": 2048,
               "h": 1024,
-              "label": "2048 × 1024 (2:1)"
+              "label": "2048 \u00d7 1024 (2:1)"
             },
             {
               "w": 1024,
               "h": 2048,
-              "label": "1024 × 2048 (1:2)"
+              "label": "1024 \u00d7 2048 (1:2)"
             },
             {
               "w": 2048,
               "h": 2048,
-              "label": "2048 × 2048"
+              "label": "2048 \u00d7 2048"
             }
           ],
           "typical_latency_seconds": 240,
           "max_concurrent_invocations": 1,
-          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer — the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions",
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer \u2014 the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30\u201380 words. Describe what you want to see.\n- DO NOT use negative prompts \u2014 not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048\u00d72048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" \u2014 the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) \u2014 use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions",
           "image_size_format": "HxW",
           "optimal_prompt_words": 55
         },
@@ -5989,5 +6089,72 @@
         "bf16": false
       }
     }
-  }
+  },
+  "last_synced_summary": "18 new, 135 updated across 33 regions",
+  "regions_not_opted_in": [
+    {
+      "region": "af-south-1",
+      "reason": "502: Failed to list models in af-south-1: An error occurred (UnrecognizedClientException) when calli"
+    },
+    {
+      "region": "ap-east-2",
+      "reason": "502: Failed to list models in ap-east-2: An error occurred (UnrecognizedClientException) when callin"
+    },
+    {
+      "region": "ap-south-2",
+      "reason": "502: Failed to list models in ap-south-2: An error occurred (UnrecognizedClientException) when calli"
+    },
+    {
+      "region": "ap-southeast-3",
+      "reason": "502: Failed to list models in ap-southeast-3: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ap-southeast-4",
+      "reason": "502: Failed to list models in ap-southeast-4: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ap-southeast-5",
+      "reason": "502: Failed to list models in ap-southeast-5: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ap-southeast-6",
+      "reason": "502: Failed to list models in ap-southeast-6: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ap-southeast-7",
+      "reason": "502: Failed to list models in ap-southeast-7: An error occurred (UnrecognizedClientException) when c"
+    },
+    {
+      "region": "ca-west-1",
+      "reason": "502: Failed to list models in ca-west-1: An error occurred (UnrecognizedClientException) when callin"
+    },
+    {
+      "region": "eu-central-2",
+      "reason": "502: Failed to list models in eu-central-2: An error occurred (UnrecognizedClientException) when cal"
+    },
+    {
+      "region": "eu-south-1",
+      "reason": "502: Failed to list models in eu-south-1: An error occurred (UnrecognizedClientException) when calli"
+    },
+    {
+      "region": "eu-south-2",
+      "reason": "502: Failed to list models in eu-south-2: An error occurred (UnrecognizedClientException) when calli"
+    },
+    {
+      "region": "il-central-1",
+      "reason": "502: Failed to list models in il-central-1: An error occurred (UnrecognizedClientException) when cal"
+    },
+    {
+      "region": "me-central-1",
+      "reason": "502: Failed to list models in me-central-1: An error occurred (UnrecognizedClientException) when cal"
+    },
+    {
+      "region": "me-south-1",
+      "reason": "timed out"
+    },
+    {
+      "region": "mx-central-1",
+      "reason": "502: Failed to list models in mx-central-1: An error occurred (UnrecognizedClientException) when cal"
+    }
+  ]
 }

@@ -285,7 +285,7 @@ async def lifespan(app: FastAPI):
                     for key, cfg in list(registry.get("image_models", {}).items()):
                         if cfg.get("model_source") == "custom_hosted":
                             continue
-                        if not cfg.get("available_regions") and cfg.get("enabled"):
+                        if not cfg.get("available_regions") and cfg.get("enabled", True):
                             update_image_model(key, {"enabled": False})
 
                     # Stamp
