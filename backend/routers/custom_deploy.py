@@ -611,9 +611,10 @@ async def deploy_model(body: DeployRequest):
                     "error": "",
                 }
                 try:
-                    from backend.services.telemetry import track_custom_model_deploy
+                    from backend.services.telemetry import track_custom_model_deploy, track_first_custom_deploy
                     track_custom_model_deploy(model=key, endpoint_type=body.endpoint_type,
                                              instance=body.instance_type or "")
+                    track_first_custom_deploy(model=key, instance=body.instance_type or "")
                 except Exception:
                     pass
 

@@ -57,7 +57,7 @@ async def generate_video(req: VideoGenerateRequest):
     """
     from backend.services.video_generator import start_video_generation
     from backend.services.bedrock_client import invoke_llm
-    from backend.services.telemetry import track_video_generation, track_video_cost
+    from backend.services.telemetry import track_video_generation, track_video_cost, track_first_generation
     from backend.services.model_registry import get_video_model
     import base64
 
@@ -106,6 +106,7 @@ async def generate_video(req: VideoGenerateRequest):
     # Track total cost: LLM enhancement (actual from cost_tracker) + estimated video model cost
     llm_cost = get_total_cost()
     total_estimated_cost = round(estimated_video_cost + llm_cost, 4)
+    track_first_generation(model=req.model_key, studio="video")
     track_video_generation(model=req.model_key, duration_seconds=dur,
                            task_type=req.task_type or "")
     track_video_cost(cost_usd=total_estimated_cost, model=req.model_key)

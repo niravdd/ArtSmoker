@@ -1077,7 +1077,8 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
         ))
 
     # Telemetry: one generate event per model (not per task)
-    from backend.services.telemetry import track_image_generation
+    from backend.services.telemetry import track_image_generation, track_first_generation
+    track_first_generation(model=model_keys[0] if model_keys else "", asset_type=body.asset_type.value if body.asset_type else "", studio="image")
     for mk in model_keys:
         model_opts = [o for o in options if o.image_model == mk]
         model_variants = sum(len(o.variants) for o in model_opts)
@@ -1239,7 +1240,8 @@ async def generate_asset_stream(body: GenerationRequest):
     """
     # Track telemetry — action event (no cost — cost sent separately via image_studio.cost)
     if not body.all_models:
-        from backend.services.telemetry import track_image_generation
+        from backend.services.telemetry import track_image_generation, track_first_generation
+        track_first_generation(model=body.image_model or "", asset_type=body.asset_type.value if body.asset_type else "", studio="image")
         track_image_generation(
             model=body.image_model or "",
             num_options=body.num_options,

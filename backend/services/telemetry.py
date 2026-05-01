@@ -240,3 +240,51 @@ def track_custom_model_invoke(model: str = "", cost_usd: float = 0, latency_ms: 
 def track_custom_model_teardown(model: str = ""):
     studio = _resolve_custom_studio(model)
     _track(f"{studio}.custom.teardown", model=model)
+
+
+# ── Adoption Funnel Events ───────────────────────────────────────────
+# Track first-time milestones in the user journey from install to active use.
+# Each milestone fires ONCE per install (tracked via local flag file).
+
+_milestones_fired: set[str] = set()
+
+
+def _track_milestone(milestone: str, **props):
+    """Fire a milestone event once per install. No-op on repeats."""
+    if milestone in _milestones_fired:
+        return
+    # Check persistent flag
+    from pathlib import Path
+    flag_dir = Path("data/.telemetry")
+    flag_file = flag_dir / f"{milestone}.done"
+    if flag_file.exists():
+        _milestones_fired.add(milestone)
+        return
+    # Fire and persist
+    _track(f"adoption.{milestone}", **props)
+    _milestones_fired.add(milestone)
+    try:
+        flag_dir.mkdir(parents=True, exist_ok=True)
+        flag_file.write_text("")
+    except Exception:
+        pass
+
+
+def track_first_sync(regions: int = 0, image_models: int = 0, chat_models: int = 0):
+    """First successful Sync — user connected ArtSmoker to their AWS account."""
+    _track_milestone("first_sync", regions=regions, image_models=image_models, chat_models=chat_models)
+
+
+def track_sync_complete(regions: int = 0, new_models: int = 0, updated_models: int = 0, errors: int = 0):
+    """Every Sync completion — shows active usage patterns (not a milestone)."""
+    _track("adoption.sync_complete", regions=regions, new_models=new_models, updated_models=updated_models, errors=errors)
+
+
+def track_first_generation(model: str = "", asset_type: str = "", studio: str = "image"):
+    """First image/video ever generated — user actually used the tool."""
+    _track_milestone("first_generation", model=model, asset_type=asset_type, studio=studio)
+
+
+def track_first_custom_deploy(model: str = "", instance: str = ""):
+    """First custom model deployment — user is self-hosting."""
+    _track_milestone("first_custom_deploy", model=model, instance=instance)

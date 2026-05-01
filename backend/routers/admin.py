@@ -1356,6 +1356,15 @@ async def refresh_all_regions():
                 total_new, total_updated, len(all_regions), errors,
                 promote_result["base_models"], promote_result["user_overrides"])
 
+    # Telemetry: track sync completion + first-sync milestone
+    from backend.services.telemetry import track_sync_complete, track_first_sync
+    registry = get_registry()
+    img_count = sum(1 for v in registry.get("image_models", {}).values() if v.get("model_purpose") == "text_to_image")
+    chat_count = len(registry.get("chat_models", {}))
+    track_sync_complete(regions=len(all_regions), new_models=total_new, updated_models=total_updated, errors=errors)
+    if total_new > 0:
+        track_first_sync(regions=len(all_regions), image_models=img_count, chat_models=chat_count)
+
     return {
         "regions_scanned": len(all_regions),
         "total_new": total_new,
