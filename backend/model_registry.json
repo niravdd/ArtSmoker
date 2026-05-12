@@ -5294,6 +5294,110 @@
             "loguru"
           ]
         }
+      },
+      "triposg": {
+        "label": "TripoSG",
+        "description": "Image-to-3D mesh generation. Produces high-quality GLB meshes from a single image in ~60 seconds.",
+        "category": "post_processing",
+        "studio": "image",
+        "provider": "VAST AI",
+        "license": "MIT",
+        "requires_hf_auth": false,
+        "license_agreement": {
+          "required": true,
+          "license_name": "MIT License",
+          "license_url": "https://opensource.org/licenses/MIT",
+          "key_terms": [
+            "MIT open source license",
+            "Commercial use: Unrestricted",
+            "Modification and redistribution: Allowed"
+          ],
+          "warnings": []
+        },
+        "source": {
+          "type": "huggingface",
+          "repo_id": "VAST-AI/TripoSG"
+        },
+        "secondary_sources": {
+          "rmbg": {
+            "type": "huggingface",
+            "repo_id": "briaai/RMBG-1.4"
+          }
+        },
+        "requirements": {
+          "min_vram_gb": 32,
+          "recommended_instance": "ml.g6e.xlarge",
+          "disk_gb": 60,
+          "allowed_instances": [
+            "ml.g6e.xlarge",
+            "ml.g6e.2xlarge",
+            "ml.g6e.4xlarge",
+            "ml.g7e.2xlarge",
+            "ml.g7e.4xlarge"
+          ]
+        },
+        "invoke": {
+          "library": "image_to_3d",
+          "predictor_type": "image_to_3d",
+          "torch_dtype": "float16",
+          "input_fields": {
+            "image": {
+              "type": "base64_png",
+              "required": true
+            },
+            "num_inference_steps": {
+              "type": "int",
+              "default": 50
+            },
+            "guidance_scale": {
+              "type": "float",
+              "default": 7.0
+            },
+            "seed": {
+              "type": "int",
+              "required": false
+            },
+            "faces": {
+              "type": "int",
+              "default": 50000
+            }
+          },
+          "output_type": "base64_glb",
+          "typical_latency_seconds": 60,
+          "max_concurrent_invocations": 1
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.05,
+          "instance_cost_per_hour": {
+            "ml.g6e.xlarge": 1.86,
+            "ml.g6e.2xlarge": 2.35
+          }
+        },
+        "version": "1.0",
+        "last_updated": "2026-04-29",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "diffusers>=0.30.0,<0.38.0",
+            "transformers>=4.40.0,<4.52.0",
+            "accelerate>=1.0.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "huggingface-hub>=0.20.0,<1.0.0",
+            "trimesh",
+            "opencv-python-headless",
+            "scikit-image",
+            "einops",
+            "jaxtyping",
+            "typeguard",
+            "omegaconf",
+            "scipy"
+          ]
+        }
       }
     },
     "bundles": {
@@ -5324,7 +5428,8 @@
       "flux1_schnell",
       "flux2_dev",
       "sdxl_turbo",
-      "stable_video_diffusion"
+      "stable_video_diffusion",
+      "triposg"
     ],
     "requirement_templates": {
       "_description": "Default python requirements by library type. Models reference these instead of hardcoding versions. Update these when DLC or package versions change.",

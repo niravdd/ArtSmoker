@@ -1283,10 +1283,82 @@ def _load_autoregressive(model_dir):
     }
 
 
+def _load_image_to_3d(model_dir):
+    """Load an image-to-3D mesh generation pipeline.
+
+    Supports any diffusers-compatible 3D pipeline that takes an image and
+    produces a mesh. Currently loads from bundled code packages shipped
+    alongside inference.py in the model.tar.gz.
+
+    Also loads a background removal model (RMBG) as preprocessing —
+    the 3D model expects clean foreground objects on white background.
+    """
+    import sys
+
+    # Add bundled packages to path (shipped inside model.tar.gz as code/triposg/)
+    code_dir = os.path.join(model_dir, "code")
+    if code_dir not in sys.path:
+        sys.path.insert(0, code_dir)
+
+    hf_repo = _get_env("ARTSMOKER_HF_REPO")
+    hf_token = _get_env("HUGGING_FACE_HUB_TOKEN") or None
+    dtype = _get_torch_dtype()
+
+    # Download model weights to local directory, then load pipeline from there.
+    # TripoSG uses custom pipeline code (not in diffusers) — loading from a local
+    # path with the triposg package on sys.path avoids diffusers' remote code checks.
+    logger.info("Downloading image-to-3D model weights from %s", hf_repo)
+    from huggingface_hub import snapshot_download
+    local_path = snapshot_download(repo_id=hf_repo, token=hf_token)
+    logger.info("Weights downloaded to %s", local_path)
+
+    from triposg import TripoSGPipeline
+    pipe = TripoSGPipeline.from_pretrained(
+        local_path,
+        torch_dtype=dtype,
+    )
+    pipe.to("cuda")
+    logger.info("Image-to-3D pipeline loaded on GPU")
+
+    # Load RMBG (background removal) for preprocessing
+    rmbg_model = None
+    rmbg_transform = None
+    try:
+        secondary_sources = _config.get("secondary_sources", {})
+        rmbg_repo = secondary_sources.get("rmbg", {}).get("repo_id", "briaai/RMBG-1.4")
+        if not rmbg_repo:
+            rmbg_repo = "briaai/RMBG-1.4"
+
+        from transformers import AutoModelForImageSegmentation
+        import torchvision.transforms as T
+
+        rmbg_model = AutoModelForImageSegmentation.from_pretrained(
+            rmbg_repo, trust_remote_code=True, token=hf_token,
+        )
+        rmbg_model.to("cuda").eval()
+
+        rmbg_transform = T.Compose([
+            T.Resize((1024, 1024)),
+            T.ToTensor(),
+            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+        ])
+        logger.info("RMBG background removal model loaded from %s", rmbg_repo)
+    except Exception as e:
+        logger.warning("RMBG load failed (will skip background removal): %s", e)
+
+    return {
+        "library": "image_to_3d",
+        "pipe": pipe,
+        "rmbg_model": rmbg_model,
+        "rmbg_transform": rmbg_transform,
+    }
+
+
 _LOADERS = {
     "diffusers": _load_diffusers,
     "transformers": _load_transformers,
     "autoregressive": _load_autoregressive,
+    "image_to_3d": _load_image_to_3d,
     "realesrgan": _load_realesrgan,
     "codeformer": _load_codeformer,
 }
@@ -1521,10 +1593,120 @@ def _predict_autoregressive_image(input_data, model_dict):
         raise RuntimeError(f"Unexpected output type: {type(image)}")
 
 
+def _predict_image_to_3d(input_data, model_dict):
+    """Generate a 3D mesh (GLB) from an input image.
+
+    Pipeline:
+      1. Decode base64 input image
+      2. Remove background using RMBG (produces alpha mask)
+      3. Composite foreground onto white background
+      4. Run 3D generation pipeline
+      5. Optionally decimate mesh to target face count
+      6. Export as GLB and return base64-encoded
+    """
+    import trimesh
+
+    pipe = model_dict["pipe"]
+    rmbg_model = model_dict.get("rmbg_model")
+    rmbg_transform = model_dict.get("rmbg_transform")
+
+    # 1. Decode input image
+    img = _decode_image(input_data["image"]).convert("RGB")
+    logger.info("Input image: %dx%d", img.width, img.height)
+
+    # 2. Remove background if RMBG is available
+    if rmbg_model is not None and rmbg_transform is not None:
+        logger.info("Removing background with RMBG...")
+        orig_size = img.size
+        input_tensor = rmbg_transform(img).unsqueeze(0).to("cuda")
+        with torch.no_grad():
+            output = rmbg_model(input_tensor)
+            # RMBG models return varying structures — extract the mask tensor
+            if isinstance(output, (list, tuple)):
+                preds = output[-1]
+                if isinstance(preds, (list, tuple)):
+                    preds = preds[0]
+            else:
+                preds = output
+            if not isinstance(preds, torch.Tensor):
+                preds = torch.tensor(preds)
+            preds = preds.sigmoid()
+        # Resize mask back to original image size
+        if preds.dim() == 2:
+            preds = preds.unsqueeze(0).unsqueeze(0)
+        elif preds.dim() == 3:
+            preds = preds.unsqueeze(0)
+        mask = torch.nn.functional.interpolate(
+            preds, size=(orig_size[1], orig_size[0]), mode="bilinear", align_corners=False
+        )
+        mask_np = (mask.squeeze().cpu().numpy() * 255).astype(np.uint8)
+
+        # 3. Composite onto white background
+        img_rgba = img.copy()
+        img_rgba.putalpha(Image.fromarray(mask_np))
+        # White background composite
+        white_bg = Image.new("RGBA", orig_size, (255, 255, 255, 255))
+        white_bg.paste(img_rgba, mask=img_rgba.split()[3])
+        img = white_bg.convert("RGB")
+        logger.info("Background removed, composited on white")
+    else:
+        logger.info("No RMBG model — using input image as-is")
+
+    # 4. Run 3D generation
+    steps = input_data.get("num_inference_steps", 50)
+    guidance = input_data.get("guidance_scale", 7.0)
+    seed = input_data.get("seed")
+    generator = torch.Generator("cuda").manual_seed(seed) if seed is not None else None
+
+    logger.info("Running image-to-3D: steps=%d, guidance=%.1f, seed=%s", steps, guidance, seed)
+
+    import time as _t
+    t0 = _t.time()
+    output = pipe(
+        image=img,
+        num_inference_steps=steps,
+        guidance_scale=guidance,
+        generator=generator,
+    )
+    elapsed = _t.time() - t0
+    logger.info("3D generation complete in %.1fs", elapsed)
+
+    # Extract mesh from output
+    if hasattr(output, "meshes") and output.meshes:
+        mesh = output.meshes[0]
+    elif isinstance(output, tuple) and len(output) >= 2:
+        mesh = output[1][0] if output[1] else None
+    else:
+        raise RuntimeError("Pipeline returned no mesh")
+
+    if mesh is None or (hasattr(mesh, "vertices") and len(mesh.vertices) == 0):
+        raise RuntimeError("Pipeline returned an empty mesh")
+
+    logger.info("Mesh: %d vertices, %d faces", len(mesh.vertices), len(mesh.faces))
+
+    # 5. Optionally decimate to target face count
+    target_faces = input_data.get("faces", 50000)
+    if len(mesh.faces) > target_faces:
+        logger.info("Decimating mesh from %d to %d faces", len(mesh.faces), target_faces)
+        try:
+            mesh = mesh.simplify_quadric_decimation(target_faces)
+            logger.info("Decimated to %d faces", len(mesh.faces))
+        except Exception as e:
+            logger.warning("Decimation failed (keeping original): %s", e)
+
+    # 6. Export as GLB
+    glb_data = mesh.export(file_type="glb")
+    b64_glb = base64.b64encode(glb_data).decode("utf-8")
+    logger.info("GLB export: %.1f KB", len(glb_data) / 1024)
+
+    return b64_glb
+
+
 _PREDICTORS = {
     "text_to_image": _predict_text_to_image,
     "autoregressive_image": _predict_autoregressive_image,
     "image_to_video": _predict_image_to_video,
+    "image_to_3d": _predict_image_to_3d,
     "image_upscale": _predict_image_upscale,
     "background_removal": _predict_background_removal,
     "depth_estimation": _predict_depth_estimation,
@@ -1683,4 +1865,8 @@ def output_fn(prediction, accept="application/json"):
     """Format output as JSON."""
     if isinstance(prediction, str) and prediction.startswith("{"):
         return prediction  # Already JSON (e.g., video frames)
+    # Route output format by predictor type
+    predictor_type = _get_env("PREDICTOR_TYPE", "text_to_image")
+    if predictor_type == "image_to_3d":
+        return json.dumps({"mesh": prediction, "format": "base64_glb"})
     return json.dumps({"image": prediction, "format": "base64_png"})

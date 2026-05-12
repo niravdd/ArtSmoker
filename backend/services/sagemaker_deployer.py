@@ -212,6 +212,10 @@ def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
         catalog_model = get_catalog_model(model_key)
         if catalog_model:
             invoke_config = catalog_model.get("invoke", {})
+            # Include secondary_sources in invoke config so handler can resolve them
+            if catalog_model.get("secondary_sources"):
+                invoke_config = dict(invoke_config)
+                invoke_config["secondary_sources"] = catalog_model["secondary_sources"]
             # Strip fields not needed by the handler (same list as INVOKE_CONFIG env var)
             invoke_for_file = {k: v for k, v in invoke_config.items() if k not in (
                 "prompt_guidance", "supported_sizes",
@@ -219,6 +223,27 @@ def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
             config_path = code_dir / "invoke_config.json"
             config_path.write_text(json.dumps(invoke_for_file, indent=2, default=str))
             logger.info("Wrote invoke_config.json (%d bytes) to model.tar.gz", config_path.stat().st_size)
+
+        # Bundle custom Python packages referenced by the model.
+        # These are pre-packaged in backend/sagemaker_handlers/bundled_packages/<name>/
+        # and get included alongside inference.py so they're importable on the container.
+        bundled_packages_dir = handlers_dir / "bundled_packages"
+        if catalog_model and bundled_packages_dir.is_dir():
+            library = catalog_model.get("invoke", {}).get("library", "")
+            # Determine which packages to bundle based on library type
+            # image_to_3d → bundle 'triposg' package
+            _library_to_packages = {
+                "image_to_3d": ["triposg"],
+            }
+            packages_to_bundle = _library_to_packages.get(library, [])
+            for pkg_name in packages_to_bundle:
+                pkg_src = bundled_packages_dir / pkg_name
+                if pkg_src.is_dir():
+                    pkg_dest = code_dir / pkg_name
+                    shutil.copytree(str(pkg_src), str(pkg_dest))
+                    pkg_files = sum(1 for _ in pkg_dest.rglob("*.py"))
+                    logger.info("Bundled package '%s' (%d .py files) into model.tar.gz",
+                                pkg_name, pkg_files)
 
         # Create model.tar.gz — Amazon SageMaker requires this format
         tar_path = temp_dir / "model.tar.gz"
@@ -474,7 +499,7 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     config_name = f"{endpoint_name}-config"
     disk_gb = model.get("requirements", {}).get("disk_gb", 0)
     # Instances with NVMe local storage reject VolumeSizeInGB
-    _nvme_families = ("g7e", "p5", "p5e", "p5en", "p6")
+    _nvme_families = ("g6e", "g7e", "p5", "p5e", "p5en", "p6")
     has_nvme = any(f"ml.{fam}." in instance for fam in _nvme_families)
     variant_config = {
         "VariantName": "primary",
