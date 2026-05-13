@@ -1316,12 +1316,12 @@ def _load_image_to_3d(model_dir):
     logger.info("Model weights downloaded in %.0fs to %s", dl_time, local_path)
 
     t0 = _time.time()
-    logger.info("Loading image-to-3D pipeline to GPU (dtype=%s)...", dtype)
+    # Load in fp32 — the VAE mesh extraction uses fp32 linear layers internally
+    # and mixing fp16/fp32 causes dtype mismatches. Model is ~8GB in fp32,
+    # well within the 44GB L40S VRAM.
+    logger.info("Loading image-to-3D pipeline to GPU (fp32 — VAE requires full precision)...")
     from triposg import TripoSGPipeline
-    pipe = TripoSGPipeline.from_pretrained(
-        local_path,
-        torch_dtype=dtype,
-    )
+    pipe = TripoSGPipeline.from_pretrained(local_path)
     pipe.to("cuda")
     load_time = _time.time() - t0
     logger.info("Image-to-3D pipeline loaded on GPU in %.0fs", load_time)
