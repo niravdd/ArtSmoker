@@ -1305,44 +1305,42 @@ def _load_image_to_3d(model_dir):
     dtype = _get_torch_dtype()
 
     # Download model weights to local directory, then load pipeline from there.
-    # TripoSG uses custom pipeline code (not in diffusers) — loading from a local
-    # path with the triposg package on sys.path avoids diffusers' remote code checks.
-    logger.info("Downloading image-to-3D model weights from %s", hf_repo)
+    # Uses custom pipeline code (bundled in model.tar.gz) — loading from a local
+    # path with the package on sys.path avoids diffusers' remote code validation.
+    import time as _time
+    t0 = _time.time()
+    logger.info("Downloading image-to-3D model weights from %s ...", hf_repo)
     from huggingface_hub import snapshot_download
     local_path = snapshot_download(repo_id=hf_repo, token=hf_token)
-    logger.info("Weights downloaded to %s", local_path)
+    dl_time = _time.time() - t0
+    logger.info("Model weights downloaded in %.0fs to %s", dl_time, local_path)
 
+    t0 = _time.time()
+    logger.info("Loading image-to-3D pipeline to GPU (dtype=%s)...", dtype)
     from triposg import TripoSGPipeline
     pipe = TripoSGPipeline.from_pretrained(
         local_path,
         torch_dtype=dtype,
     )
     pipe.to("cuda")
-    logger.info("Image-to-3D pipeline loaded on GPU")
+    load_time = _time.time() - t0
+    logger.info("Image-to-3D pipeline loaded on GPU in %.0fs", load_time)
 
     # Load RMBG (background removal) for preprocessing
     rmbg_model = None
-    rmbg_transform = None
     try:
         secondary_sources = _config.get("secondary_sources", {})
         rmbg_repo = secondary_sources.get("rmbg", {}).get("repo_id", "briaai/RMBG-1.4")
         if not rmbg_repo:
             rmbg_repo = "briaai/RMBG-1.4"
 
+        logger.info("Downloading RMBG model from %s...", rmbg_repo)
         from transformers import AutoModelForImageSegmentation
-        import torchvision.transforms as T
-
         rmbg_model = AutoModelForImageSegmentation.from_pretrained(
             rmbg_repo, trust_remote_code=True, token=hf_token,
         )
         rmbg_model.to("cuda").eval()
-
-        rmbg_transform = T.Compose([
-            T.Resize((1024, 1024)),
-            T.ToTensor(),
-            T.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-        ])
-        logger.info("RMBG background removal model loaded from %s", rmbg_repo)
+        logger.info("RMBG background removal model loaded on GPU")
     except Exception as e:
         logger.warning("RMBG load failed (will skip background removal): %s", e)
 
@@ -1350,7 +1348,6 @@ def _load_image_to_3d(model_dir):
         "library": "image_to_3d",
         "pipe": pipe,
         "rmbg_model": rmbg_model,
-        "rmbg_transform": rmbg_transform,
     }
 
 
@@ -1608,43 +1605,47 @@ def _predict_image_to_3d(input_data, model_dict):
 
     pipe = model_dict["pipe"]
     rmbg_model = model_dict.get("rmbg_model")
-    rmbg_transform = model_dict.get("rmbg_transform")
 
     # 1. Decode input image
     img = _decode_image(input_data["image"]).convert("RGB")
     logger.info("Input image: %dx%d", img.width, img.height)
 
     # 2. Remove background if RMBG is available
-    if rmbg_model is not None and rmbg_transform is not None:
+    if rmbg_model is not None:
         logger.info("Removing background with RMBG...")
-        orig_size = img.size
-        input_tensor = rmbg_transform(img).unsqueeze(0).to("cuda")
+        orig_size = img.size  # (W, H)
+        orig_np = np.array(img)
+
+        # Preprocess: resize to 1024x1024, normalize with RMBG-specific values
+        input_tensor = torch.tensor(orig_np, dtype=torch.float32).permute(2, 0, 1)
+        input_tensor = torch.nn.functional.interpolate(
+            input_tensor.unsqueeze(0), size=[1024, 1024], mode="bilinear"
+        )
+        input_tensor = torch.divide(input_tensor, 255.0)
+        from torchvision.transforms.functional import normalize as tv_normalize
+        input_tensor = tv_normalize(input_tensor, [0.5, 0.5, 0.5], [1.0, 1.0, 1.0])
+        input_tensor = input_tensor.to("cuda")
+
         with torch.no_grad():
             output = rmbg_model(input_tensor)
-            # RMBG models return varying structures — extract the mask tensor
-            if isinstance(output, (list, tuple)):
-                preds = output[-1]
-                if isinstance(preds, (list, tuple)):
-                    preds = preds[0]
-            else:
-                preds = output
-            if not isinstance(preds, torch.Tensor):
-                preds = torch.tensor(preds)
-            preds = preds.sigmoid()
+
+        # Extract mask: RMBG returns nested structure, mask is at [0][0]
+        result = output[0][0]
         # Resize mask back to original image size
-        if preds.dim() == 2:
-            preds = preds.unsqueeze(0).unsqueeze(0)
-        elif preds.dim() == 3:
-            preds = preds.unsqueeze(0)
-        mask = torch.nn.functional.interpolate(
-            preds, size=(orig_size[1], orig_size[0]), mode="bilinear", align_corners=False
-        )
-        mask_np = (mask.squeeze().cpu().numpy() * 255).astype(np.uint8)
+        result = torch.squeeze(torch.nn.functional.interpolate(
+            result, size=[orig_size[1], orig_size[0]], mode="bilinear"
+        ), 0)
+        # Normalize to 0-255
+        ma, mi = torch.max(result), torch.min(result)
+        result = (result - mi) / (ma - mi)
+        mask_np = (result * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+        mask_np = np.squeeze(mask_np)
+        logger.info("RMBG mask: shape=%s, range=[%d, %d]", mask_np.shape, mask_np.min(), mask_np.max())
 
         # 3. Composite onto white background
+        pil_mask = Image.fromarray(mask_np)
         img_rgba = img.copy()
-        img_rgba.putalpha(Image.fromarray(mask_np))
-        # White background composite
+        img_rgba.putalpha(pil_mask)
         white_bg = Image.new("RGBA", orig_size, (255, 255, 255, 255))
         white_bg.paste(img_rgba, mask=img_rgba.split()[3])
         img = white_bg.convert("RGB")
