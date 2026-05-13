@@ -1668,6 +1668,11 @@ def _predict_image_to_3d(input_data, model_dict):
         num_inference_steps=steps,
         guidance_scale=guidance,
         generator=generator,
+        # Use hierarchical decoder (not flash) — flash requires diso CUDA package.
+        # Hierarchical with depth 7 uses 128³ grid → fast CPU marching cubes.
+        use_flash_decoder=False,
+        dense_octree_depth=7,
+        hierarchical_octree_depth=8,
     )
     elapsed = _t.time() - t0
     logger.info("3D generation complete in %.1fs", elapsed)
