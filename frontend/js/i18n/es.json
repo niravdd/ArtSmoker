@@ -109,7 +109,7 @@
     "svg_not_available": "SVG no disponible para este recurso.",
     "three_d_tab": "Modelo 3D",
     "three_d_unsupported": "La generación de modelos 3D solo está disponible para los tipos Asset de juego y Personaje.",
-    "three_d_not_deployed": "El modelo de generación 3D no está desplegado. Despliega TripoSG desde Modelos personalizados.",
+    "three_d_not_deployed": "No hay un modelo de generación 3D desplegado. Ve a Configuración de modelos → Modelos personalizados → sección Generación 3D y despliega un modelo.",
     "three_d_open_settings": "Abrir modelos personalizados",
     "three_d_quality": "Calidad",
     "three_d_quality_fast": "Rápida (~15s, archivo más pequeño)",
@@ -186,7 +186,8 @@
     "edit_prompt_placeholder_inpaint": "Describe qué generar aquí — ej. pared de ladrillo, ventana abierta, campo de hierba…",
     "edit_prompt_placeholder_outpaint": "Opcional — describir el paisaje extendido, o dejar vacío",
     "edit_prompt_placeholder_recolor": "Nuevo color o apariencia — ej. rojo brillante, bronce envejecido…",
-    "edit_prompt_placeholder_replace": "Con qué reemplazarlo — ej. un arco de piedra, un auto rojo…"
+    "edit_prompt_placeholder_replace": "Con qué reemplazarlo — ej. un arco de piedra, un auto rojo…",
+    "three_d_viewer_hint": "Arrastra para orbitar, desplaza para zoom, clic derecho para mover"
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",

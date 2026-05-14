@@ -109,7 +109,7 @@
     "svg_not_available": "이 에셋에는 SVG를 사용할 수 없습니다.",
     "three_d_tab": "3D 모델",
     "three_d_unsupported": "3D 모델 생성은 게임 에셋과 캐릭터 유형에서만 사용할 수 있습니다.",
-    "three_d_not_deployed": "3D 생성 모델이 배포되지 않았습니다. 커스텀 모델에서 TripoSG를 배포하세요.",
+    "three_d_not_deployed": "3D 생성 모델이 배포되지 않았습니다. 모델 설정 → 커스텀 모델 → 3D 생성 섹션에서 모델을 배포하세요.",
     "three_d_open_settings": "커스텀 모델 열기",
     "three_d_quality": "품질",
     "three_d_quality_fast": "빠름 (~15초, 작은 파일)",
@@ -186,7 +186,8 @@
     "edit_prompt_placeholder_inpaint": "여기에 생성할 내용을 설명하세요 — 예: 벽돌 벽, 열린 창문, 잔디밭…",
     "edit_prompt_placeholder_outpaint": "선택사항 — 확장할 풍경을 설명하거나 비워두세요",
     "edit_prompt_placeholder_recolor": "새 색상 또는 외관 — 예: 밝은 빨간색, 풍화된 청동…",
-    "edit_prompt_placeholder_replace": "대체할 내용 — 예: 돌 아치, 빨간 자동차…"
+    "edit_prompt_placeholder_replace": "대체할 내용 — 예: 돌 아치, 빨간 자동차…",
+    "three_d_viewer_hint": "드래그하여 회전, 스크롤하여 줌, 우클릭하여 팬"
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",

@@ -109,7 +109,7 @@
     "svg_not_available": "このアセットのSVGはありません。",
     "three_d_tab": "3Dモデル",
     "three_d_unsupported": "3Dモデル生成はゲームアセットとキャラクタータイプのみ対応しています。",
-    "three_d_not_deployed": "3D生成モデルがデプロイされていません。カスタムモデルからTripoSGをデプロイしてください。",
+    "three_d_not_deployed": "3D生成モデルがデプロイされていません。モデル設定 → カスタムモデル → 3Dジェネレーション セクションからモデルをデプロイしてください。",
     "three_d_open_settings": "カスタムモデルを開く",
     "three_d_quality": "品質",
     "three_d_quality_fast": "高速（約15秒、小さいファイル）",
@@ -186,7 +186,8 @@
     "edit_prompt_placeholder_inpaint": "ここに生成する内容を説明 — 例：レンガの壁、開いた窓、草原…",
     "edit_prompt_placeholder_outpaint": "オプション — 拡張する風景を説明、または空欄のまま",
     "edit_prompt_placeholder_recolor": "新しい色や外観 — 例：鮮やかな赤、風化したブロンズ…",
-    "edit_prompt_placeholder_replace": "置き換えるもの — 例：石のアーチ、赤い車…"
+    "edit_prompt_placeholder_replace": "置き換えるもの — 例：石のアーチ、赤い車…",
+    "three_d_viewer_hint": "ドラッグで回転、スクロールでズーム、右クリックでパン"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",

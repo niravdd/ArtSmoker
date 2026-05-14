@@ -1680,10 +1680,20 @@
 
         _render3DComplete(container, data) {
             const fileSize = data.file_size ? this._formatBytes(data.file_size) : '—';
+            const glbUrl = data.download_url || '#';
             container.innerHTML = `
                 <div class="space-y-4">
-                    <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-                        <p class="text-sm text-emerald-400 font-medium">${t('asset_viewer.three_d_complete')}</p>
+                    <div class="rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 320px;">
+                        <model-viewer
+                            src="${glbUrl}"
+                            alt="3D Model"
+                            camera-controls
+                            touch-action="pan-y"
+                            auto-rotate
+                            shadow-intensity="0.5"
+                            environment-image="neutral"
+                            style="width: 100%; height: 100%; --poster-color: transparent;"
+                        ></model-viewer>
                     </div>
                     <div class="grid grid-cols-3 gap-4 text-center">
                         <div>
@@ -1699,13 +1709,14 @@
                             <p class="font-medium">${data.faces ? data.faces.toLocaleString() : '—'}</p>
                         </div>
                     </div>
-                    <div class="text-center">
-                        <a href="${data.download_url || '#'}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
+                    <div class="flex items-center justify-center gap-3">
+                        <a href="${glbUrl}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
                             ${t('asset_viewer.three_d_download')}
                         </a>
+                        <p class="text-[9px] text-brand-text-muted">${t('asset_viewer.three_d_viewer_hint')}</p>
                     </div>
                 </div>`;
         },

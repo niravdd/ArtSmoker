@@ -109,7 +109,7 @@
     "svg_not_available": "此素材暂无 SVG 版本。",
     "three_d_tab": "3D 模型",
     "three_d_unsupported": "3D 模型生成仅适用于游戏资产和角色类型。",
-    "three_d_not_deployed": "3D 生成模型尚未部署。请从自定义模型中部署 TripoSG 以启用此功能。",
+    "three_d_not_deployed": "尚未部署3D生成模型。请前往 模型设置 → 自定义模型 → 3D生成 部分，部署模型以启用此功能。",
     "three_d_open_settings": "打开自定义模型",
     "three_d_quality": "质量",
     "three_d_quality_fast": "快速（约15秒，较小文件）",
@@ -186,7 +186,8 @@
     "edit_prompt_placeholder_inpaint": "描述要在此处生成的内容 — 例如：砖墙、打开的窗户、草地…",
     "edit_prompt_placeholder_outpaint": "可选 — 描述扩展的景色，或留空",
     "edit_prompt_placeholder_recolor": "新颜色或外观 — 例如：亮红色、风化的青铜…",
-    "edit_prompt_placeholder_replace": "替换内容 — 例如：石拱门、红色汽车…"
+    "edit_prompt_placeholder_replace": "替换内容 — 例如：石拱门、红色汽车…",
+    "three_d_viewer_hint": "拖动旋转，滚轮缩放，右键平移"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",

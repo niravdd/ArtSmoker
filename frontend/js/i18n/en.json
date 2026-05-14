@@ -746,7 +746,7 @@
     "svg_error_inline": "SVG not available for this asset.",
     "three_d_tab": "3D Model",
     "three_d_unsupported": "3D model generation is available for Game Asset and Character asset types only.",
-    "three_d_not_deployed": "3D generation model is not deployed. Deploy TripoSG from Custom Models to enable this feature.",
+    "three_d_not_deployed": "No 3D generation model is deployed. Go to Model Settings → Custom Models → 3D Generation section, and deploy a model to enable this feature.",
     "three_d_open_settings": "Open Custom Models",
     "three_d_quality": "Quality",
     "three_d_quality_fast": "Fast (~15s, smaller file)",
@@ -802,7 +802,8 @@
     "meta_3d_params": "Parameters",
     "meta_3d_file": "Output",
     "meta_copy": "Copy",
-    "meta_copied": "Copied!"
+    "meta_copied": "Copied!",
+    "three_d_viewer_hint": "Drag to orbit, scroll to zoom, right-click to pan"
   },
   "model_settings": {
     "title": "Model Settings",
