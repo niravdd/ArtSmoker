@@ -200,10 +200,10 @@ def _get_all_bundles_info() -> list:
     for key, bundle in get_all_bundles().items():
         result.append({
             "key": key,
-            "label": bundle["label"],
-            "description": bundle["description"],
-            "models": bundle["models"],
-            "instance": bundle["recommended_instance"],
+            "label": bundle.get("label", key),
+            "description": bundle.get("description", ""),
+            "models": bundle.get("models", []),
+            "instance": bundle.get("requirements", {}).get("recommended_instance", ""),
         })
     return result
 
