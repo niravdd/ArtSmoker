@@ -1520,7 +1520,7 @@
                         </div>`;
                     container.querySelector('.av-3d-open-settings')?.addEventListener('click', () => {
                         this.close();
-                        window.ModelSettings?.open?.();
+                        window.ModelSettings?.open?.('custom-models');
                     });
                     return;
                 }
