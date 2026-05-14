@@ -193,7 +193,7 @@ _save._silent = False
 # Fields per model that are user-specific and should NOT be promoted to the base file
 _USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready"}
 # Top-level sections that are user-specific
-_USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances"}
+_USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances", "three_d_defaults"}
 
 
 def promote_to_base():

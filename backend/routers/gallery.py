@@ -379,3 +379,13 @@ async def get_asset_svg(asset_id: str):
     meta = _get_meta(asset_id)
     filename = (meta or {}).get("svg_filename", f"{asset_id}.svg")
     return FileResponse(path, media_type="image/svg+xml", filename=filename)
+
+
+@router.get("/{asset_id}/3d/{version}")
+async def get_asset_3d(asset_id: str, version: int):
+    """Serve a GLB (3D model) file for a generated asset."""
+    filename = f"asset_3d_v{version}.glb"
+    path = store.get_generated_file_path(asset_id, filename)
+    if path is None:
+        raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
+    return FileResponse(path, media_type="model/gltf-binary", filename=f"{asset_id}_3d_v{version}.glb")
