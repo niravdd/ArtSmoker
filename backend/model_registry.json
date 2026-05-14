@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-05-14T06:52:58.926113+00:00",
+  "last_updated": "2026-05-14T07:54:14.474974+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -5669,7 +5669,7 @@
         "total_vram_gb": 48,
         "ram_gb": 64,
         "vcpus": 8,
-        "cost_per_hour_usd": 5.22,
+        "cost_per_hour_usd": 2.8,
         "compute_capability": 8.9,
         "bf16": true
       },
