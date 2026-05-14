@@ -1440,66 +1440,37 @@
                 const available = instanceOptions.filter(o => !o.needs_quota);
                 const needsQuota = instanceOptions.filter(o => o.needs_quota);
 
-                // Build instance options HTML
+                // Build instance dropdown with ALL options — available first, then needs-quota
                 let instanceHtml = '';
                 let quotaHtml = '';
-                if (available.length === 0 && needsQuota.length === 0) {
+                const allOptions = [...available, ...needsQuota];
+
+                if (allOptions.length === 0) {
                     instanceHtml = `<div class="text-xs text-red-400 py-3 space-y-2">
                         <p class="font-medium">${t('custom_models.no_instances')}</p>
                         <p class="text-brand-text-muted">${t('custom_models.no_instances_hint')}</p>
                     </div>`;
-                } else if (available.length === 0) {
-                    instanceHtml = `<div class="text-xs text-amber-400 py-2">
-                        <p class="font-medium">${t('custom_models.no_available_instances')}</p>
-                        <p class="text-brand-text-muted text-[10px] mt-1">${t('custom_models.quota_region_note').replace('{{region}}', deployRegion || 'unknown')}</p>
-                    </div>`;
                 } else {
-                    const viabilityColors = { recommended: 'text-emerald-400', viable: 'text-cyan-400', doubtful: 'text-amber-400' };
-                    const viabilityLabels = { recommended: 'Recommended', viable: 'Viable', doubtful: 'Doubtful' };
-                    instanceHtml = available.map((opt, i) => {
-                        const label = viabilityLabels[opt.viability] || '';
-                        const isRec = opt.is_recommended;
+                    instanceHtml = allOptions.map(opt => {
+                        const isRec = opt.is_recommended && !opt.needs_quota;
                         const costStr = `$${opt.cost_per_hour_usd.toFixed(2)}`;
-                        const usageNote = opt.quota > 1 ? ` (${opt.quota_available}/${opt.quota} avail)` : '';
-                        return `<option value="${opt.instance_type}" ${isRec ? 'selected' : ''} data-cost="${opt.cost_per_hour_usd}">
-                            ${opt.instance_type} — ${opt.gpus}× ${opt.gpu_type} (${opt.total_vram_gb}GB) — ${costStr}/hr ${isRec ? '★' : ''} [${label}] ${opt.speed_note}${usageNote}
+                        const quotaTag = opt.needs_quota
+                            ? (opt.quota_reason === 'all_in_use' ? ' ⚠ IN USE' : ' ⚠ NO QUOTA')
+                            : '';
+                        const usageNote = !opt.needs_quota && opt.quota > 1 ? ` (${opt.quota_available}/${opt.quota} avail)` : '';
+                        return `<option value="${opt.instance_type}" ${isRec ? 'selected' : ''} data-cost="${opt.cost_per_hour_usd}" data-needs-quota="${opt.needs_quota}" data-quota-code="${opt.quota_code || ''}" data-quota="${opt.quota || 0}">
+                            ${opt.instance_type} — ${opt.gpus}× ${opt.gpu_type} (${opt.total_vram_gb}GB) — ${costStr}/hr ${isRec ? '★' : ''}${opt.speed_note}${usageNote}${quotaTag}
                         </option>`;
                     }).join('');
                 }
 
-                // Build quota request section for instances that need quota
-                if (needsQuota.length > 0) {
-                    const rows = needsQuota.map(opt => {
-                        const reason = opt.quota_reason === 'all_in_use'
-                            ? t('custom_models.quota_all_in_use').replace('{{used}}', opt.quota_in_use).replace('{{quota}}', opt.quota)
-                            : t('custom_models.quota_none');
-                        const pending = opt.quota_request;
-                        let statusHtml = '';
-                        if (pending) {
-                            const caseStr = pending.case_id ? ` (Case: ${pending.case_id})` : '';
-                            statusHtml = `<span class="text-cyan-400 text-[10px]">${t('custom_models.quota_pending')}${caseStr}</span>`;
-                        } else {
-                            statusHtml = `<button class="quota-request-btn text-[10px] px-2 py-0.5 rounded bg-brand-accent/20 text-brand-accent hover:bg-brand-accent/30"
-                                data-instance="${opt.instance_type}" data-code="${opt.quota_code}" data-desired="${(opt.quota || 0) + 1}">
-                                ${t('custom_models.quota_request_btn')}
-                            </button>`;
-                        }
-                        return `<div class="flex items-center justify-between py-1.5 border-b border-brand-border/30 last:border-0">
-                            <div>
-                                <span class="text-[11px] text-brand-text">${opt.instance_type}</span>
-                                <span class="text-[10px] text-brand-text-muted ml-1.5">${opt.gpus}× ${opt.gpu_type} (${opt.total_vram_gb}GB) — $${opt.cost_per_hour_usd.toFixed(2)}/hr</span>
-                                <span class="text-[9px] text-brand-text-muted/60 ml-1">${reason}</span>
-                            </div>
-                            <div>${statusHtml}</div>
-                        </div>`;
-                    }).join('');
-                    quotaHtml = `
-                        <div class="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20">
-                            <p class="text-[10px] text-amber-400 font-medium mb-1">${t('custom_models.quota_needed_title')}</p>
-                            <p class="text-[9px] text-brand-text-muted mb-2">${t('custom_models.quota_needed_desc').replace('{{region}}', deployRegion || 'unknown')}</p>
-                            ${rows}
-                        </div>`;
-                }
+                // Quota section — shown dynamically when a needs-quota instance is selected
+                quotaHtml = `
+                    <div class="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 hidden" id="deploy-quota-section">
+                        <p class="text-[10px] text-amber-400 font-medium mb-1">${t('custom_models.quota_needed_title')}</p>
+                        <p class="text-[9px] text-brand-text-muted mb-2">${t('custom_models.quota_needed_desc').replace('{{region}}', deployRegion || 'unknown')}</p>
+                        <div id="deploy-quota-row" class="flex items-center justify-between py-1.5"></div>
+                    </div>`;
 
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
@@ -1509,7 +1480,7 @@
 
                         <div>
                             <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('custom_models.instance')}</label>
-                            ${available.length > 0 ? `<select class="deploy-instance input w-full text-xs">${instanceHtml}</select>` : instanceHtml}
+                            ${allOptions.length > 0 ? `<select class="deploy-instance input w-full text-xs">${instanceHtml}</select>` : instanceHtml}
                             <p class="deploy-instance-info text-[10px] text-brand-text-muted mt-1"></p>
                             ${quotaHtml}
                         </div>
@@ -1536,7 +1507,7 @@
 
                         <div class="flex gap-2 justify-end pt-2">
                             <button class="deploy-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
-                            <button class="deploy-confirm btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium" ${available.length === 0 ? 'disabled' : ''}>${t('custom_models.deploy')}</button>
+                            <button class="deploy-confirm btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium" ${allOptions.length === 0 ? 'disabled' : ''}>${t('custom_models.deploy')}</button>
                         </div>
                     </div>`;
 
@@ -1545,14 +1516,50 @@
                 const infoEl = backdrop.querySelector('.deploy-instance-info');
                 const alwaysOnCost = backdrop.querySelector('.deploy-always-on-cost');
 
+                const quotaSection = backdrop.querySelector('#deploy-quota-section');
+                const quotaRow = backdrop.querySelector('#deploy-quota-row');
+                const deployBtn = backdrop.querySelector('.deploy-confirm');
+
                 const updateInfo = () => {
-                    const sel = instanceSelect.options[instanceSelect.selectedIndex];
-                    const cost = parseFloat(sel?.dataset.cost || 0);
+                    const sel = instanceSelect?.options[instanceSelect.selectedIndex];
+                    if (!sel) return;
+                    const cost = parseFloat(sel.dataset.cost || 0);
+                    const needsQ = sel.dataset.needsQuota === 'true';
+                    const qCode = sel.dataset.quotaCode || '';
+                    const qVal = parseInt(sel.dataset.quota || '0');
+
                     if (infoEl && cost > 0) {
                         infoEl.textContent = `Est. ~$${cost.toFixed(2)}/hr when running`;
                     }
                     if (alwaysOnCost && cost > 0) {
                         alwaysOnCost.textContent = `Model stays loaded. Costs ~$${cost.toFixed(2)}/hr continuously, even when idle.`;
+                    }
+
+                    // Show/hide quota section based on selected instance
+                    if (quotaSection) {
+                        if (needsQ) {
+                            quotaSection.classList.remove('hidden');
+                            if (quotaRow) {
+                                const inst = sel.value;
+                                quotaRow.innerHTML = `
+                                    <div>
+                                        <span class="text-[11px] text-brand-text">${inst}</span>
+                                        <span class="text-[9px] text-brand-text-muted/60 ml-1">${qVal > 0 ? t('custom_models.quota_all_in_use').replace('{{used}}', qVal).replace('{{quota}}', qVal) : t('custom_models.quota_none')}</span>
+                                    </div>
+                                    <button class="quota-request-btn text-[10px] px-2 py-0.5 rounded bg-brand-accent/20 text-brand-accent hover:bg-brand-accent/30"
+                                        data-instance="${inst}" data-code="${qCode}" data-desired="${qVal + 1}">
+                                        ${t('custom_models.quota_request_btn')}
+                                    </button>`;
+                            }
+                        } else {
+                            quotaSection.classList.add('hidden');
+                        }
+                    }
+
+                    // Enable/disable deploy button
+                    if (deployBtn) {
+                        deployBtn.disabled = needsQ;
+                        deployBtn.classList.toggle('opacity-50', needsQ);
                     }
                 };
                 instanceSelect?.addEventListener('change', updateInfo);
@@ -1572,40 +1579,40 @@
                     if (e.target === backdrop) { backdrop.remove(); resolve(null); }
                 });
 
-                // Quota request button handlers
-                backdrop.querySelectorAll('.quota-request-btn').forEach(btn => {
-                    btn.addEventListener('click', async () => {
-                        const inst = btn.dataset.instance;
-                        const code = btn.dataset.code;
-                        const desired = parseInt(btn.dataset.desired) || 1;
-                        btn.disabled = true;
-                        btn.textContent = t('custom_models.quota_requesting');
-                        try {
-                            const resp = await fetch('/api/custom-models/quota-request', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ instance_type: inst, quota_code: code, desired_value: desired }),
-                            });
-                            const data = await resp.json();
-                            if (resp.ok) {
-                                const msg = data.status === 'already_pending'
-                                    ? t('custom_models.quota_already_pending')
-                                    : data.status === 'already_sufficient'
-                                    ? t('custom_models.quota_already_sufficient')
-                                    : t('custom_models.quota_submitted');
-                                btn.outerHTML = `<span class="text-[10px] text-emerald-400">${msg}</span>`;
-                                window.showToast?.(data.message, 'success');
-                            } else {
-                                btn.textContent = t('custom_models.quota_request_btn');
-                                btn.disabled = false;
-                                window.showToast?.(data.detail || t('custom_models.quota_failed'), 'error');
-                            }
-                        } catch (e) {
+                // Quota request button handler (event delegation for dynamically rendered buttons)
+                backdrop.addEventListener('click', async (e) => {
+                    const btn = e.target.closest('.quota-request-btn');
+                    if (!btn) return;
+                    const inst = btn.dataset.instance;
+                    const code = btn.dataset.code;
+                    const desired = parseInt(btn.dataset.desired) || 1;
+                    btn.disabled = true;
+                    btn.textContent = t('custom_models.quota_requesting');
+                    try {
+                        const resp = await fetch('/api/custom-models/quota-request', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ instance_type: inst, quota_code: code, desired_value: desired }),
+                        });
+                        const data = await resp.json();
+                        if (resp.ok) {
+                            const msg = data.status === 'already_pending'
+                                ? t('custom_models.quota_already_pending')
+                                : data.status === 'already_sufficient'
+                                ? t('custom_models.quota_already_sufficient')
+                                : t('custom_models.quota_submitted');
+                            btn.outerHTML = `<span class="text-[10px] text-emerald-400">${msg}</span>`;
+                            window.showToast?.(data.message, 'success');
+                        } else {
                             btn.textContent = t('custom_models.quota_request_btn');
                             btn.disabled = false;
-                            window.showToast?.(t('custom_models.quota_failed'), 'error');
+                            window.showToast?.(data.detail || t('custom_models.quota_failed'), 'error');
                         }
-                    });
+                    } catch (err) {
+                        btn.textContent = t('custom_models.quota_request_btn');
+                        btn.disabled = false;
+                        window.showToast?.(t('custom_models.quota_failed'), 'error');
+                    }
                 });
 
                 document.body.appendChild(backdrop);
