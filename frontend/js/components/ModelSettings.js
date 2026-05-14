@@ -2071,10 +2071,25 @@
                 if (resp.ok) {
                     const result = await resp.json();
                     window.showToast?.(result.message || t('custom_models.deploy_started'), 'success');
+                    // Immediately update UI to show deploying state (before catalog refresh)
+                    modal?.querySelectorAll(`.ms-cm-deploy[data-model="${modelKey}"]`).forEach(btn => {
+                        btn.textContent = t('custom_models.deploying');
+                        btn.disabled = true;
+                        btn.className = 'btn btn-sm text-[10px] px-3 py-1 rounded bg-amber-500/20 border border-amber-500/30 text-amber-400 cursor-wait';
+                        const row = btn.closest('.flex');
+                        if (row) {
+                            row.querySelectorAll('.text-brand-text-muted\\/50').forEach(el => {
+                                if (el.textContent.includes(t('custom_models.not_deployed')) || el.textContent.includes('Preparing')) {
+                                    el.textContent = t('custom_models.deploying');
+                                    el.className = 'text-[10px] font-medium text-amber-400 animate-pulse';
+                                }
+                            });
+                        }
+                    });
                     // Start polling deployment progress
                     this._pollDeployProgress(modelKey, modal);
                     this._customModelsLoaded = false;
-                    this._loadCustomModels(modal);
+                    setTimeout(() => this._loadCustomModels(modal), 5000);
                 } else {
                     const err = await resp.json();
                     const detail = typeof err.detail === 'string' ? err.detail : err.detail?.message || 'Deployment failed';
