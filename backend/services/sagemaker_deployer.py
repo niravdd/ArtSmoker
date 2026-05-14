@@ -1801,6 +1801,9 @@ def _get_model_environment(model_key: str, model: dict,
         ),
         # CUDA memory management
         "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+        # MMS response size limit — default is 6.5 MB, insufficient for 3D meshes
+        # (GLB files can be 10-50 MB). Set to 100 MB for all models.
+        "MMS_MAX_RESPONSE_SIZE": "104857600",
         # Single MMS worker — large models (FLUX.2) need all available RAM/VRAM.
         # Multiple workers compete for resources and cause OOM or worker kills.
         "SAGEMAKER_MODEL_SERVER_WORKERS": "1",

@@ -5331,9 +5331,7 @@
           "allowed_instances": [
             "ml.g6e.xlarge",
             "ml.g6e.2xlarge",
-            "ml.g6e.4xlarge",
-            "ml.g7e.2xlarge",
-            "ml.g7e.4xlarge"
+            "ml.g6e.4xlarge"
           ]
         },
         "invoke": {
@@ -5359,7 +5357,7 @@
             },
             "faces": {
               "type": "int",
-              "default": 50000
+              "default": 200000
             }
           },
           "output_type": "base64_glb",
@@ -5395,7 +5393,8 @@
             "jaxtyping",
             "typeguard",
             "omegaconf",
-            "scipy"
+            "scipy",
+            "fast_simplification"
           ]
         }
       }
