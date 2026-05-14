@@ -314,147 +314,7 @@
                 ].filter(Boolean).join('');
             }
 
-            container.innerHTML = `
-                ${meta.original_language_prompt ? `
-                <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_original_prompt')} <span class="text-[9px] text-brand-accent font-normal">(${this._esc(meta.original_language || '?')})</span></label>
-                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.original_language_prompt)}</p>
-                </div>
-                <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_original_prompt')} <span class="text-[9px] text-emerald-400/70 font-normal">(English)</span></label>
-                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.original_prompt || meta.prompt)}</p>
-                </div>` : meta.original_prompt ? `
-                <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_original_prompt')}</label>
-                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.original_prompt)}</p>
-                </div>` : ''}
-                <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${isTypeStudio ? t('asset_viewer.meta_text_content') : (meta.original_prompt ? t('asset_viewer.meta_enhanced') : t('common.prompt'))}</label>
-                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap">${this._esc(meta.prompt || 'N/A')}</p>
-                </div>
-                ${!isTypeStudio && meta.recomposed_prompt ? `
-                <div>
-                    <label class="block text-xs text-indigo-400/80 uppercase tracking-wider mb-1">Recomposed Prompt</label>
-                    <p class="p-3 rounded-lg bg-indigo-950/10 border border-indigo-500/20 whitespace-pre-wrap text-brand-text-muted text-sm">${this._esc(meta.recomposed_prompt)}</p>
-                </div>` : ''}
-                ${meta.decomposed_data && Object.keys(meta.decomposed_data).length > 0 ? `
-                <div>
-                    <label class="block text-xs text-amber-400/80 uppercase tracking-wider mb-1">Prompt Decomposition</label>
-                    <div class="p-3 rounded-lg bg-amber-950/10 border border-amber-500/20 text-xs text-brand-text/70 space-y-2">
-                        ${this._renderDecomposed(meta.decomposed_data)}
-                    </div>
-                </div>` : ''}
-                ${!isTypeStudio && meta.enhanced_prompt ? `
-                <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_generation_prompt')}</label>
-                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${this._esc(meta.enhanced_prompt)}</p>
-                </div>` : ''}
-                ${meta.negative_prompt ? `
-                <div>
-                    <label class="block text-xs text-amber-400/80 uppercase tracking-wider mb-1">${t('asset_viewer.meta_negative_exclusions')}</label>
-                    <p class="p-3 rounded-lg bg-amber-950/20 border border-amber-900/20 whitespace-pre-wrap text-amber-300/70 italic text-sm">${this._esc(meta.negative_prompt)}</p>
-                </div>` : ''}
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_style')}</label>
-                        <p class="font-medium">${this._esc(meta.style_snapshot?.name || meta.style_id || t('common.none'))}</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_type')}</label>
-                        <p class="font-medium">${typeLabel}</p>
-                    </div>
-                    ${modelLabel ? `<div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_model')}</label>
-                        <p class="font-medium">${modelLabel}</p>
-                    </div>` : ''}
-                    <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_dimensions')}</label>
-                        <p class="font-medium">${meta.width || '?'} x ${meta.height || '?'}</p>
-                    </div>
-                    ${meta.seed != null ? `<div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_seed')}</label>
-                        <p class="font-medium font-mono text-xs">${meta.seed}</p>
-                    </div>` : ''}
-                    <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_created')}</label>
-                        <p class="font-medium">${createdAt}</p>
-                    </div>
-                </div>
-                ${(meta.ip_owned || meta.ip_licensed) ? `
-                <div class="p-2 rounded-lg bg-brand-accent/10 border border-brand-accent/20 text-xs">
-                    <span class="font-medium">${t('asset_viewer.meta_ip_declaration')}</span>
-                    ${meta.ip_owned ? ' ' + t('asset_viewer.meta_ip_owner') : ''}${meta.ip_licensed ? ' ' + t('asset_viewer.meta_ip_licensed') : ''}
-                </div>` : ''}
-                <div class="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                    <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_batch')}</label>
-                        <p class="font-mono text-xs text-brand-text-muted">${this._esc(meta.batch_id || meta.id)}</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_option_var')}</label>
-                        <p class="font-medium">${(meta.option_index ?? 0) + 1} / ${(meta.variant_index ?? 0) + 1}</p>
-                    </div>
-                    <div>
-                        <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_filename')}</label>
-                        <p class="font-mono text-xs">${this._esc(meta.png_filename || 'N/A')}</p>
-                    </div>
-                </div>
-                ${meta.style_snapshot?.generation_hints ? `
-                <div>
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_style_hints')}</label>
-                    <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-xs text-brand-text-muted">${this._esc(meta.style_snapshot.generation_hints)}</p>
-                </div>` : ''}
-                ${meta.type === 'type-studio' ? `
-                <div class="border-t border-brand-border pt-4 mt-2">
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">${t('asset_viewer.meta_type_studio_details')}</label>
-                    ${meta.source_image_id ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('asset_viewer.meta_source_image')}</span> ${this._esc(meta.source_image_id)}</p>` : '<p class="text-sm mb-1 text-brand-text-muted">' + t('asset_viewer.meta_standalone_text') + '</p>'}
-                    ${meta.style_note ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('asset_viewer.meta_style_note')}</span> ${this._esc(meta.style_note)}</p>` : ''}
-                    ${meta.lines ? `
-                    <div class="mt-2 space-y-1">
-                        ${meta.lines.map((l, i) => `
-                            <div class="text-sm p-2 rounded bg-brand-bg/40">
-                                <span class="text-brand-text-muted">${t('asset_viewer.meta_line', {num: i+1})}</span> "${this._esc(l.text)}"
-                                <span class="text-brand-text-muted/60 text-xs ml-2">${l.font || t('common.default')} / ${l.position || 'center'}</span>
-                            </div>
-                        `).join('')}
-                    </div>` : ''}
-                </div>` : ''}
-                ${meta.edit_history?.length ? `
-                <div class="border-t border-brand-border pt-4 mt-2">
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">
-                        ${t('asset_viewer.meta_edit_history')} (${meta.edit_count || meta.edit_history.length} edit${meta.edit_history.length > 1 ? 's' : ''})
-                    </label>
-                    ${meta.original_prompt ? `
-                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.meta_original_prompt_label')} "${this._esc(meta.original_prompt)}"</p>` : ''}
-                    ${meta.original_image_model ? `
-                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.meta_originally_generated')} ${this._esc(meta.original_image_model)}</p>` : ''}
-                    <div class="space-y-2">
-                        ${meta.edit_history.map((edit, i) => `
-                        <div class="p-2 rounded bg-brand-bg/40 border-l-2 ${i === meta.edit_history.length - 1 ? 'border-emerald-400' : 'border-brand-border'}">
-                            <div class="flex items-center justify-between text-[10px] text-brand-text-muted mb-1">
-                                <span class="font-semibold">#${i + 1} ${this._esc(edit.edit_type || '?')}</span>
-                                <span>${edit.timestamp ? window.formatTimestamp(edit.timestamp) : ''}</span>
-                            </div>
-                            <p class="text-xs">${this._esc(edit.model_label || edit.edit_model || '')}</p>
-                            ${edit.original_language_prompts?.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5"><span class="text-[9px] text-brand-accent">(${edit.original_language || '?'})</span> "${this._esc(edit.original_language_prompts.prompt)}"</p>` : ''}
-                            ${edit.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5">${edit.original_language_prompts?.prompt ? '<span class="text-[9px] text-emerald-400/70">(en)</span> ' : ''}"${this._esc(edit.prompt)}"</p>` : ''}
-                            ${edit.negative_prompt ? `<p class="text-[10px] text-amber-300/60 italic mt-0.5">${t('asset_viewer.meta_negative_label')} ${this._esc(edit.negative_prompt)}</p>` : ''}
-                            ${edit.mask_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_mask_label')} "${this._esc(edit.mask_prompt)}"</p>` : ''}
-                            ${edit.extra_params?.search_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_find_label')} "${this._esc(edit.extra_params.search_prompt)}"</p>` : ''}
-                            ${edit.extra_params?.select_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_select_label')} "${this._esc(edit.extra_params.select_prompt)}"</p>` : ''}
-                            ${edit.replaced_original ? '<span class="text-[9px] text-amber-400/50">' + t('asset_viewer.meta_replaced_original') + '</span>' : '<span class="text-[9px] text-emerald-400/50">' + t('asset_viewer.meta_saved_as_new') + '</span>'}
-                        </div>
-                        `).join('')}
-                    </div>
-                </div>` : ''}
-                ${meta.edit_type && !meta.edit_history?.length ? `
-                <div class="border-t border-brand-border pt-4 mt-2">
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_edit_info')}</label>
-                    <p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_type_label')}</span> ${this._esc(meta.edit_type)}</p>
-                    <p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_model_label')}</span> ${this._esc(meta.model_label || meta.edit_model || '')}</p>
-                    ${meta.source_image_id ? `<p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_source_label')}</span> ${this._esc(meta.source_image_id)}</p>` : ''}
-                </div>` : ''}
-            `;
+            this._populateMetadata(container, meta);
 
             // Show/hide contextual buttons based on asset type
             const isTS = meta.type === 'type-studio';
@@ -481,6 +341,450 @@
 
             // Populate 3D tab based on asset type
             this._update3DContent();
+        },
+
+        _populateMetadata(container, meta) {
+            const createdAt = meta.created_at ? window.formatTimestamp(meta.created_at) : 'N/A';
+            const isTypeStudio = meta.type === 'type-studio';
+            const modelLabel = meta.model_label || MODEL_LABELS[meta.image_model] || meta.image_model || '';
+            const typeLabel = TYPE_LABELS[meta.asset_type] || meta.asset_type || 'N/A';
+            const styleName = meta.style_snapshot?.name || meta.style_id || '';
+
+            // Helper: copy button snippet
+            const escAttr = (s) => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const copyBtn = (text) => `<button class="av-copy-btn ml-2 px-1.5 py-0.5 rounded text-[9px] text-brand-text-muted hover:text-brand-accent hover:bg-brand-accent/10 border border-transparent hover:border-brand-accent/20 transition-colors" data-copy="${escAttr(text)}" title="${t('asset_viewer.meta_copy')}">${t('asset_viewer.meta_copy')}</button>`;
+
+            // Helper: collapsible section
+            const section = (id, label, content, defaultOpen = false, extraClass = '') => {
+                if (!content) return '';
+                return `
+                <div class="av-meta-section ${extraClass}">
+                    <button class="av-meta-section-header flex items-center justify-between w-full text-left py-2 border-b border-brand-border/50" data-section="${id}">
+                        <span class="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">${label}</span>
+                        <span class="av-section-arrow text-brand-text-muted text-xs transition-transform ${defaultOpen ? '' : '-rotate-90'}">▼</span>
+                    </button>
+                    <div class="av-meta-section-body py-3 space-y-3 ${defaultOpen ? '' : 'hidden'}" data-body="${id}">
+                        ${content}
+                    </div>
+                </div>`;
+            };
+
+            // ── Section 1: Prompt Lineage ──────────────────────────────────
+            let promptLineage = '';
+
+            // User's Prompt (with language badge if translated)
+            if (meta.original_language_prompt) {
+                promptLineage += `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label class="text-xs text-brand-text-muted font-medium">${t('asset_viewer.meta_user_prompt')}</label>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(meta.original_language || '?')}</span>
+                            ${copyBtn(meta.original_language_prompt)}
+                        </div>
+                        <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-sm">${this._esc(meta.original_language_prompt)}</p>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label class="text-xs text-brand-text-muted font-medium">${t('asset_viewer.meta_user_prompt')}</label>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">EN</span>
+                            ${copyBtn(meta.original_prompt || meta.prompt)}
+                        </div>
+                        <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-sm">${this._esc(meta.original_prompt || meta.prompt)}</p>
+                    </div>`;
+            } else if (meta.original_prompt) {
+                promptLineage += `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label class="text-xs text-brand-text-muted font-medium">${t('asset_viewer.meta_user_prompt')}</label>
+                            ${copyBtn(meta.original_prompt)}
+                        </div>
+                        <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-sm">${this._esc(meta.original_prompt)}</p>
+                    </div>`;
+            }
+
+            // Moderation Rewrite
+            if (meta.moderation_original) {
+                promptLineage += `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label class="text-xs text-amber-400 font-medium">${t('asset_viewer.meta_moderation_rewrite')}</label>
+                            ${copyBtn(meta.moderation_original)}
+                        </div>
+                        <p class="text-[10px] text-amber-300/70 mb-1">${t('asset_viewer.meta_moderation_note')}</p>
+                        <p class="p-3 rounded-lg bg-amber-950/10 border border-amber-500/20 whitespace-pre-wrap text-sm text-amber-200/80">${this._esc(meta.moderation_original)}</p>
+                    </div>`;
+            }
+
+            // AI Enhanced Prompt
+            if (!isTypeStudio && meta.enhanced_prompt) {
+                promptLineage += `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label class="text-xs text-brand-text-muted font-medium">${t('asset_viewer.meta_enhanced_prompt')}</label>
+                            ${copyBtn(meta.enhanced_prompt)}
+                        </div>
+                        <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-sm text-brand-text-muted">${this._esc(meta.enhanced_prompt)}</p>
+                    </div>`;
+            }
+
+            // Final Prompt Sent (only show if different from enhanced)
+            if (!isTypeStudio && meta.prompt && meta.prompt !== meta.enhanced_prompt) {
+                promptLineage += `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label class="text-xs text-brand-text-muted font-medium">${t('asset_viewer.meta_final_prompt')}</label>
+                            ${copyBtn(meta.prompt)}
+                        </div>
+                        <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-sm">${this._esc(meta.prompt)}</p>
+                    </div>`;
+            } else if (isTypeStudio && meta.prompt) {
+                promptLineage += `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label class="text-xs text-brand-text-muted font-medium">${t('asset_viewer.meta_text_content')}</label>
+                            ${copyBtn(meta.prompt)}
+                        </div>
+                        <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-sm">${this._esc(meta.prompt)}</p>
+                    </div>`;
+            }
+
+            // Negative Prompt
+            if (meta.negative_prompt) {
+                promptLineage += `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label class="text-xs text-amber-400/80 font-medium">${t('asset_viewer.meta_negative_exclusions')}</label>
+                            ${copyBtn(meta.negative_prompt)}
+                        </div>
+                        <p class="p-3 rounded-lg bg-amber-950/20 border border-amber-900/20 whitespace-pre-wrap text-amber-300/70 italic text-sm">${this._esc(meta.negative_prompt)}</p>
+                    </div>`;
+            }
+
+            // ── Section 2: Prompt Design ──────────────────────────────────
+            let promptDesign = '';
+            if (!isTypeStudio && meta.recomposed_prompt) {
+                promptDesign += `
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <label class="text-xs text-indigo-400/80 font-medium">${t('asset_viewer.meta_recomposed')}</label>
+                            ${copyBtn(meta.recomposed_prompt)}
+                        </div>
+                        <p class="p-3 rounded-lg bg-indigo-950/10 border border-indigo-500/20 whitespace-pre-wrap text-brand-text-muted text-sm">${this._esc(meta.recomposed_prompt)}</p>
+                    </div>`;
+            }
+            if (meta.decomposed_data && Object.keys(meta.decomposed_data).length > 0) {
+                promptDesign += `
+                    <div>
+                        <label class="text-xs text-amber-400/80 font-medium mb-1 block">${t('asset_viewer.meta_decomposition')}</label>
+                        <div class="p-3 rounded-lg bg-amber-950/10 border border-amber-500/20 text-xs text-brand-text/70 space-y-2">
+                            ${this._renderDecomposed(meta.decomposed_data)}
+                        </div>
+                    </div>`;
+            }
+
+            // ── Section 3: Generation Details ──────────────────────────────
+            let genDetails = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">`;
+            if (modelLabel) {
+                genDetails += `<div>
+                    <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_model')}</label>
+                    <p class="font-medium text-sm">${this._esc(modelLabel)}</p>
+                </div>`;
+            }
+            genDetails += `<div>
+                <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_type')}</label>
+                <p class="font-medium text-sm">${typeLabel}</p>
+            </div>`;
+            if (styleName) {
+                genDetails += `<div>
+                    <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_style')}</label>
+                    <p class="font-medium text-sm">${this._esc(styleName)}</p>
+                </div>`;
+            }
+            genDetails += `<div>
+                <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_dimensions')}</label>
+                <p class="font-medium text-sm">${meta.width || '?'} x ${meta.height || '?'}</p>
+            </div>`;
+            if (meta.quality) {
+                genDetails += `<div>
+                    <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_quality')}</label>
+                    <p class="font-medium text-sm">${this._esc(meta.quality)}</p>
+                </div>`;
+            }
+            if (meta.region) {
+                genDetails += `<div>
+                    <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_region')}</label>
+                    <p class="font-medium text-sm">${this._esc(meta.region)}</p>
+                </div>`;
+            }
+            if (meta.seed != null) {
+                genDetails += `<div>
+                    <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_seed')}</label>
+                    <p class="font-medium font-mono text-xs">${meta.seed}</p>
+                </div>`;
+            }
+            genDetails += `<div>
+                <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_created')}</label>
+                <p class="font-medium text-sm">${createdAt}</p>
+            </div>`;
+            genDetails += `<div>
+                <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_batch')}</label>
+                <p class="font-mono text-[10px] text-brand-text-muted">${this._esc(meta.batch_id || meta.id)}</p>
+            </div>`;
+            // Option/Variation with totals
+            const optDisplay = `${(meta.option_index ?? 0) + 1} / ${(meta.variant_index ?? 0) + 1}`;
+            const optTotal = (meta.num_options && meta.num_variations) ? ` of ${meta.num_options} × ${meta.num_variations}` : '';
+            genDetails += `<div>
+                <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_options_variations')}</label>
+                <p class="font-medium text-sm">${optDisplay}${optTotal}</p>
+            </div>`;
+            if (meta.all_models) {
+                genDetails += `<div>
+                    <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_all_models')}</label>
+                    <p class="font-medium text-sm"><span class="px-1.5 py-0.5 rounded text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${t('asset_viewer.meta_all_models')}</span></p>
+                </div>`;
+            }
+            if (meta.estimated_image_cost_usd != null) {
+                genDetails += `<div>
+                    <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_cost')}</label>
+                    <p class="font-medium text-sm">~$${meta.estimated_image_cost_usd.toFixed(4)}</p>
+                </div>`;
+            }
+            genDetails += `</div>`;
+
+            // ── Section 4: Post-Processing ─────────────────────────────────
+            let postProcessing = '';
+            const hasPostProc = meta.remove_background || meta.generate_svg || meta.upscale || meta.upscaled;
+            if (hasPostProc || (meta.cost_history && meta.cost_history.length > 0)) {
+                let ppContent = '<div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">';
+                if (meta.remove_background) {
+                    ppContent += `<div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span class="text-sm">${t('asset_viewer.meta_bg_removed')}</span>
+                    </div>`;
+                }
+                if (meta.generate_svg) {
+                    ppContent += `<div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span class="text-sm">${t('asset_viewer.meta_svg_generated')}</span>
+                    </div>`;
+                }
+                if (meta.upscale || meta.upscaled) {
+                    ppContent += `<div class="flex items-center gap-2">
+                        <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+                        <span class="text-sm">${t('asset_viewer.meta_upscaled')}</span>
+                    </div>`;
+                }
+                ppContent += '</div>';
+
+                // Cost breakdown from cost_history
+                if (meta.cost_history && meta.cost_history.length > 0) {
+                    ppContent += `<div class="mt-3 border-t border-brand-border/30 pt-2">
+                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('asset_viewer.meta_cost_breakdown')}</label>
+                        <div class="space-y-1">
+                            ${meta.cost_history.map(c => `
+                                <div class="flex justify-between text-xs text-brand-text-muted">
+                                    <span>${this._esc(c.label || c.type || '?')}</span>
+                                    <span class="font-mono">~$${(c.cost_usd || c.cost || 0).toFixed(4)}</span>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+                }
+                postProcessing = ppContent;
+            }
+
+            // ── Section 5: 3D Model ────────────────────────────────────────
+            let threeDContent = '';
+            const currentVer = this._currentVersion || meta.current_version || (meta.versions?.length || 1);
+            const threeDData = meta.three_d?.[`v${currentVer}`] || meta.three_d?.v1;
+            if (threeDData) {
+                threeDContent = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">`;
+                if (threeDData.generated_at) {
+                    threeDContent += `<div>
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_generated')}</label>
+                        <p>${window.formatTimestamp(threeDData.generated_at)}</p>
+                    </div>`;
+                }
+                if (threeDData.model_key) {
+                    threeDContent += `<div>
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_model')}</label>
+                        <p>${this._esc(threeDData.model_key)}</p>
+                    </div>`;
+                }
+                if (threeDData.params) {
+                    const p = threeDData.params;
+                    const paramStr = [
+                        p.steps ? `steps: ${p.steps}` : '',
+                        p.guidance ? `guidance: ${p.guidance}` : '',
+                        p.mesh_resolution ? `depth: ${p.mesh_resolution}` : '',
+                        p.max_faces ? `faces: ${p.max_faces}` : '',
+                    ].filter(Boolean).join(', ');
+                    threeDContent += `<div class="col-span-2 sm:col-span-3">
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_params')}</label>
+                        <p class="font-mono text-xs">${this._esc(paramStr)}</p>
+                    </div>`;
+                }
+                if (threeDData.size_bytes || threeDData.vertices || threeDData.faces) {
+                    threeDContent += `<div class="col-span-2 sm:col-span-3">
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_file')}</label>
+                        <p class="text-xs">${threeDData.size_bytes ? this._formatBytes(threeDData.size_bytes) : ''}${threeDData.vertices ? ` / ${threeDData.vertices.toLocaleString()} vertices` : ''}${threeDData.faces ? ` / ${threeDData.faces.toLocaleString()} faces` : ''}</p>
+                    </div>`;
+                }
+                threeDContent += `</div>`;
+            }
+
+            // ── Section 6: Style ───────────────────────────────────────────
+            let styleContent = '';
+            if (meta.style_snapshot) {
+                if (meta.style_snapshot.description) {
+                    styleContent += `<p class="text-sm text-brand-text-muted">${this._esc(meta.style_snapshot.description)}</p>`;
+                }
+                if (meta.style_snapshot.generation_hints) {
+                    styleContent += `
+                        <div>
+                            <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('asset_viewer.meta_style_hints')}</label>
+                            <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-xs text-brand-text-muted">${this._esc(meta.style_snapshot.generation_hints)}</p>
+                        </div>`;
+                }
+            }
+
+            // ── Section 7: IP Declaration ──────────────────────────────────
+            let ipContent = '';
+            if (meta.ip_owned || meta.ip_licensed) {
+                ipContent = `<div class="p-2 rounded-lg bg-brand-accent/10 border border-brand-accent/20 text-xs">
+                    <span class="font-medium">${t('asset_viewer.meta_ip_declaration')}</span>
+                    ${meta.ip_owned ? ' ' + t('asset_viewer.meta_ip_owner') : ''}${meta.ip_licensed ? ' ' + t('asset_viewer.meta_ip_licensed') : ''}
+                </div>`;
+            }
+
+            // ── Section 8: Edit History ────────────────────────────────────
+            let editHistoryContent = '';
+            if (meta.edit_history?.length) {
+                editHistoryContent = `
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">
+                        ${t('asset_viewer.meta_edit_history')} (${meta.edit_count || meta.edit_history.length} edit${meta.edit_history.length > 1 ? 's' : ''})
+                    </label>
+                    ${meta.original_prompt ? `
+                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.meta_original_prompt_label')} "${this._esc(meta.original_prompt)}"</p>` : ''}
+                    ${meta.original_image_model ? `
+                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.meta_originally_generated')} ${this._esc(meta.original_image_model)}</p>` : ''}
+                    <div class="space-y-2">
+                        ${meta.edit_history.map((edit, i) => `
+                        <div class="p-2 rounded bg-brand-bg/40 border-l-2 ${i === meta.edit_history.length - 1 ? 'border-emerald-400' : 'border-brand-border'}">
+                            <div class="flex items-center justify-between text-[10px] text-brand-text-muted mb-1">
+                                <span class="font-semibold">#${i + 1} ${this._esc(edit.edit_type || '?')}</span>
+                                <span>${edit.timestamp ? window.formatTimestamp(edit.timestamp) : ''}</span>
+                            </div>
+                            <p class="text-xs">${this._esc(edit.model_label || edit.edit_model || '')}</p>
+                            ${edit.original_language_prompts?.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5"><span class="text-[9px] text-brand-accent">(${edit.original_language || '?'})</span> "${this._esc(edit.original_language_prompts.prompt)}"</p>` : ''}
+                            ${edit.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5">${edit.original_language_prompts?.prompt ? '<span class="text-[9px] text-emerald-400/70">(en)</span> ' : ''}"${this._esc(edit.prompt)}"</p>` : ''}
+                            ${edit.negative_prompt ? `<p class="text-[10px] text-amber-300/60 italic mt-0.5">${t('asset_viewer.meta_negative_label')} ${this._esc(edit.negative_prompt)}</p>` : ''}
+                            ${edit.mask_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_mask_label')} "${this._esc(edit.mask_prompt)}"</p>` : ''}
+                            ${edit.extra_params?.search_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_find_label')} "${this._esc(edit.extra_params.search_prompt)}"</p>` : ''}
+                            ${edit.extra_params?.select_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_select_label')} "${this._esc(edit.extra_params.select_prompt)}"</p>` : ''}
+                            ${edit.replaced_original ? '<span class="text-[9px] text-amber-400/50">' + t('asset_viewer.meta_replaced_original') + '</span>' : '<span class="text-[9px] text-emerald-400/50">' + t('asset_viewer.meta_saved_as_new') + '</span>'}
+                        </div>
+                        `).join('')}
+                    </div>`;
+            } else if (meta.edit_type) {
+                editHistoryContent = `
+                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_edit_info')}</label>
+                    <p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_type_label')}</span> ${this._esc(meta.edit_type)}</p>
+                    <p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_model_label')}</span> ${this._esc(meta.model_label || meta.edit_model || '')}</p>
+                    ${meta.source_image_id ? `<p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_source_label')}</span> ${this._esc(meta.source_image_id)}</p>` : ''}`;
+            }
+
+            // ── Section 9: File Info ───────────────────────────────────────
+            let fileInfoContent = `<div class="space-y-1 text-sm">`;
+            if (meta.png_filename) {
+                fileInfoContent += `<div class="flex items-center gap-2">
+                    <span class="text-brand-text-muted text-[10px] uppercase w-10">PNG</span>
+                    <span class="font-mono text-xs">${this._esc(meta.png_filename)}</span>
+                </div>`;
+            }
+            if (meta.svg_filename) {
+                fileInfoContent += `<div class="flex items-center gap-2">
+                    <span class="text-brand-text-muted text-[10px] uppercase w-10">SVG</span>
+                    <span class="font-mono text-xs">${this._esc(meta.svg_filename)}</span>
+                </div>`;
+            }
+            if (threeDData?.glb_file) {
+                fileInfoContent += `<div class="flex items-center gap-2">
+                    <span class="text-brand-text-muted text-[10px] uppercase w-10">GLB</span>
+                    <span class="font-mono text-xs">${this._esc(threeDData.glb_file)}</span>
+                </div>`;
+            }
+            fileInfoContent += `</div>`;
+
+            // ── Type Studio section (special) ──────────────────────────────
+            let typeStudioContent = '';
+            if (isTypeStudio) {
+                typeStudioContent = `
+                    ${meta.source_image_id ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('asset_viewer.meta_source_image')}</span> ${this._esc(meta.source_image_id)}</p>` : '<p class="text-sm mb-1 text-brand-text-muted">' + t('asset_viewer.meta_standalone_text') + '</p>'}
+                    ${meta.style_note ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('asset_viewer.meta_style_note')}</span> ${this._esc(meta.style_note)}</p>` : ''}
+                    ${meta.lines ? `
+                    <div class="mt-2 space-y-1">
+                        ${meta.lines.map((l, i) => `
+                            <div class="text-sm p-2 rounded bg-brand-bg/40">
+                                <span class="text-brand-text-muted">${t('asset_viewer.meta_line', {num: i+1})}</span> "${this._esc(l.text)}"
+                                <span class="text-brand-text-muted/60 text-xs ml-2">${l.font || t('common.default')} / ${l.position || 'center'}</span>
+                            </div>
+                        `).join('')}
+                    </div>` : ''}`;
+            }
+
+            // ── Assemble all sections ──────────────────────────────────────
+            container.innerHTML = `
+                <div class="space-y-4">
+                    ${promptLineage ? section('prompts', t('asset_viewer.meta_prompt_lineage'), promptLineage, true) : ''}
+                    ${promptDesign ? section('design', t('asset_viewer.meta_prompt_design'), promptDesign, false) : ''}
+                    <div class="av-meta-section">
+                        <div class="py-2 border-b border-brand-border/50">
+                            <span class="text-xs font-semibold uppercase tracking-wider text-brand-text-muted">${t('asset_viewer.meta_generation_details')}</span>
+                        </div>
+                        <div class="py-3">
+                            ${genDetails}
+                        </div>
+                    </div>
+                    ${postProcessing ? section('postproc', t('asset_viewer.meta_post_processing'), postProcessing, true) : ''}
+                    ${threeDContent ? section('threed', t('asset_viewer.meta_three_d_section'), threeDContent, true) : ''}
+                    ${styleContent ? section('style', t('asset_viewer.meta_style_section'), styleContent, false) : ''}
+                    ${ipContent ? section('ip', t('asset_viewer.meta_ip_declaration'), ipContent, true) : ''}
+                    ${editHistoryContent ? section('edithist', t('asset_viewer.meta_edit_history'), editHistoryContent, true) : ''}
+                    ${isTypeStudio ? section('typestudio', t('asset_viewer.meta_type_studio_details'), typeStudioContent, true) : ''}
+                    ${section('fileinfo', t('asset_viewer.meta_file_info'), fileInfoContent, false)}
+                </div>
+            `;
+
+            // Attach section toggle handlers
+            container.querySelectorAll('.av-meta-section-header').forEach(header => {
+                header.addEventListener('click', () => {
+                    const sectionId = header.dataset.section;
+                    const body = container.querySelector(`[data-body="${sectionId}"]`);
+                    const arrow = header.querySelector('.av-section-arrow');
+                    if (body) {
+                        body.classList.toggle('hidden');
+                        if (arrow) arrow.classList.toggle('-rotate-90');
+                    }
+                });
+            });
+
+            // Attach copy button handlers
+            container.querySelectorAll('.av-copy-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const text = btn.dataset.copy;
+                    navigator.clipboard.writeText(text).then(() => {
+                        const orig = btn.textContent;
+                        btn.textContent = t('asset_viewer.meta_copied');
+                        btn.classList.add('text-emerald-400');
+                        setTimeout(() => {
+                            btn.textContent = orig;
+                            btn.classList.remove('text-emerald-400');
+                        }, 1500);
+                    });
+                });
+            });
         },
 
         _updateVersionBar(meta) {
