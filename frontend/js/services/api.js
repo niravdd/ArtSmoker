@@ -443,5 +443,24 @@
                 });
             },
         },
+
+        /** 3D Model Generation */
+        threeD: {
+            check() {
+                return request('/api/generate/3d/available');
+            },
+            defaults() {
+                return request('/api/generate/3d/defaults');
+            },
+            saveDefaults(data) {
+                return request('/api/generate/3d/defaults', { method: 'PUT', body: data });
+            },
+            generate(data) {
+                return request('/api/generate/3d/', { method: 'POST', body: data });
+            },
+            status(jobId) {
+                return request(`/api/generate/3d/status/${encodeURIComponent(jobId)}`);
+            },
+        },
     };
 })();

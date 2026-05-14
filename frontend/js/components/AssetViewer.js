@@ -58,6 +58,7 @@
         },
 
         close() {
+            this._stop3DPolling();
             if (this._overlay) {
                 this._overlay.remove();
                 this._overlay = null;
@@ -138,6 +139,7 @@
                         <button class="tab" data-tab="edit">${t('asset_viewer.edit_tab')}</button>
                         <button class="tab" data-tab="svg">${t('asset_viewer.svg_tab')} <span id="av-tab-svg-version" class="text-[9px] opacity-60"></span></button>
                         <button class="tab" data-tab="meta">${t('asset_viewer.metadata_tab')} <span id="av-tab-meta-version" class="text-[9px] opacity-60"></span></button>
+                        <button class="tab" data-tab="3d">${t('asset_viewer.three_d_tab')}</button>
                     </div>
 
                     <!-- Version bar (shared across all tabs, populated when metadata loads) -->
@@ -249,6 +251,16 @@
                         <!-- Metadata tab (initially shows loading, updated when API responds) -->
                         <div class="tab-panel hidden" data-panel="meta">
                             <div id="asset-meta-content" class="space-y-4 text-sm">
+                                <div class="flex items-center gap-2 text-brand-text-muted py-8 justify-center">
+                                    <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
+                                    ${t('asset_viewer.loading_metadata')}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3D Model tab -->
+                        <div class="tab-panel hidden" data-panel="3d">
+                            <div id="av-3d-content" class="space-y-4 text-sm">
                                 <div class="flex items-center gap-2 text-brand-text-muted py-8 justify-center">
                                     <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
                                     ${t('asset_viewer.loading_metadata')}
@@ -466,6 +478,9 @@
 
             // Populate shared version bar if versions exist
             this._updateVersionBar(meta);
+
+            // Populate 3D tab based on asset type
+            this._update3DContent();
         },
 
         _updateVersionBar(meta) {
@@ -526,6 +541,10 @@
                     if (pngBadge) pngBadge.textContent = versions.length > 1 ? `(${vLabel})` : '';
                     if (svgBadge) svgBadge.textContent = versions.length > 1 ? `(${vLabel})` : '';
                     if (metaBadge) metaBadge.textContent = versions.length > 1 ? `(${vLabel})` : '';
+
+                    // Refresh 3D tab state for the selected version
+                    this._currentVersion = version;
+                    this._update3DContent();
 
                     // Update metadata tab to show this version's info
                     const metaContent = this._overlay?.querySelector('#asset-meta-content');
@@ -668,6 +687,9 @@
 
             // ── Edit tab (Inpaint/Outpaint/Erase) ──────────────────────
             this._initEditTab();
+
+            // ── 3D Model tab ───────────────────────────────────────────
+            this._init3DTab();
 
             // Reload in 2D Image Studio
             this._overlay.querySelector('.btn-reload')?.addEventListener('click', async () => {
@@ -1155,6 +1177,272 @@
                 panY = Math.max((cH - iH) / 2, 0);
                 updateTransform();
             });
+        },
+
+        _init3DTab() {
+            this._3dPollTimer = null;
+            this._3dJobId = null;
+            this._currentVersion = null;
+        },
+
+        async _update3DContent() {
+            const container = this._overlay?.querySelector('#av-3d-content');
+            if (!container) return;
+
+            const meta = this._meta;
+            if (!meta) {
+                container.innerHTML = `<p class="text-brand-text-muted text-center py-8">${t('asset_viewer.loading_metadata')}</p>`;
+                return;
+            }
+
+            // Only supported for game_asset and character types
+            const assetType = meta.asset_type;
+            if (assetType !== 'game_asset' && assetType !== 'character') {
+                container.innerHTML = `
+                    <div class="text-center py-8">
+                        <p class="text-brand-text-muted">${t('asset_viewer.three_d_unsupported')}</p>
+                    </div>`;
+                return;
+            }
+
+            // Check if 3D generation is available (model deployed)
+            try {
+                const availability = await API.threeD.check();
+                if (!availability || !availability.available) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 space-y-3">
+                            <p class="text-brand-text-muted">${t('asset_viewer.three_d_not_deployed')}</p>
+                            <button class="btn btn-sm btn-secondary av-3d-open-settings">${t('asset_viewer.three_d_open_settings')}</button>
+                        </div>`;
+                    container.querySelector('.av-3d-open-settings')?.addEventListener('click', () => {
+                        this.close();
+                        window.ModelSettings?.open?.();
+                    });
+                    return;
+                }
+
+                // Check if 3D already exists for current version
+                if (availability.existing) {
+                    this._render3DComplete(container, availability.existing);
+                    return;
+                }
+
+                // Show generation form
+                this._render3DForm(container);
+            } catch (err) {
+                container.innerHTML = `<p class="text-red-400 text-center py-8">${t('asset_viewer.three_d_failed')}: ${this._esc(err.message)}</p>`;
+            }
+        },
+
+        _render3DForm(container) {
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_version_note')}</p>
+
+                    <!-- Quality preset -->
+                    <div>
+                        <label class="text-xs text-brand-text-muted mb-1 block">${t('asset_viewer.three_d_quality')}</label>
+                        <select id="av-3d-quality" class="input text-sm w-full max-w-xs">
+                            <option value="fast">${t('asset_viewer.three_d_quality_fast')}</option>
+                            <option value="standard" selected>${t('asset_viewer.three_d_quality_standard')}</option>
+                            <option value="high">${t('asset_viewer.three_d_quality_high')}</option>
+                        </select>
+                    </div>
+
+                    <!-- Seed -->
+                    <div>
+                        <label class="text-xs text-brand-text-muted mb-1 block">${t('asset_viewer.three_d_seed')}</label>
+                        <input id="av-3d-seed" type="number" class="input text-sm w-full max-w-xs" placeholder="${t('asset_viewer.three_d_seed_placeholder')}" />
+                    </div>
+
+                    <!-- Advanced (collapsible) -->
+                    <details class="border border-brand-border rounded-lg">
+                        <summary class="px-3 py-2 text-xs text-brand-text-muted cursor-pointer hover:text-brand-text">${t('asset_viewer.three_d_advanced')}</summary>
+                        <div class="px-3 pb-3 pt-1 space-y-3">
+                            <div>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_steps')}</label>
+                                <input id="av-3d-steps" type="range" min="20" max="100" value="50" class="w-48" />
+                                <span id="av-3d-steps-label" class="text-[10px] text-brand-text-muted ml-2">50</span>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_guidance')}</label>
+                                <input id="av-3d-guidance" type="range" min="1" max="20" step="0.5" value="7.5" class="w-48" />
+                                <span id="av-3d-guidance-label" class="text-[10px] text-brand-text-muted ml-2">7.5</span>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_faces')}</label>
+                                <select id="av-3d-faces" class="input text-xs w-48">
+                                    <option value="0">${t('asset_viewer.three_d_faces_unlimited')}</option>
+                                    <option value="50000">50,000</option>
+                                    <option value="100000" selected>100,000</option>
+                                    <option value="200000">200,000</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_depth')}</label>
+                                <select id="av-3d-depth" class="input text-xs w-48">
+                                    <option value="128">${t('asset_viewer.three_d_depth_low')}</option>
+                                    <option value="256" selected>${t('asset_viewer.three_d_depth_medium')}</option>
+                                    <option value="512">${t('asset_viewer.three_d_depth_high')}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </details>
+
+                    <!-- Generate button -->
+                    <div class="flex items-center gap-3">
+                        <button id="av-3d-generate" class="btn btn-primary btn-sm">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
+                            </svg>
+                            ${t('asset_viewer.three_d_generate')}
+                        </button>
+                    </div>
+                    <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_async_note')}</p>
+                </div>
+            `;
+
+            // Quality preset auto-fills advanced fields
+            const qualityPresets = {
+                fast: { steps: 30, guidance: 5, faces: 50000, depth: 128 },
+                standard: { steps: 50, guidance: 7.5, faces: 100000, depth: 256 },
+                high: { steps: 80, guidance: 12, faces: 200000, depth: 512 },
+            };
+
+            const qualitySelect = container.querySelector('#av-3d-quality');
+            const stepsInput = container.querySelector('#av-3d-steps');
+            const stepsLabel = container.querySelector('#av-3d-steps-label');
+            const guidanceInput = container.querySelector('#av-3d-guidance');
+            const guidanceLabel = container.querySelector('#av-3d-guidance-label');
+            const facesSelect = container.querySelector('#av-3d-faces');
+            const depthSelect = container.querySelector('#av-3d-depth');
+
+            qualitySelect?.addEventListener('change', () => {
+                const preset = qualityPresets[qualitySelect.value];
+                if (!preset) return;
+                if (stepsInput) { stepsInput.value = preset.steps; stepsLabel.textContent = preset.steps; }
+                if (guidanceInput) { guidanceInput.value = preset.guidance; guidanceLabel.textContent = preset.guidance; }
+                if (facesSelect) facesSelect.value = preset.faces;
+                if (depthSelect) depthSelect.value = preset.depth;
+            });
+
+            stepsInput?.addEventListener('input', () => { if (stepsLabel) stepsLabel.textContent = stepsInput.value; });
+            guidanceInput?.addEventListener('input', () => { if (guidanceLabel) guidanceLabel.textContent = guidanceInput.value; });
+
+            // Generate button
+            container.querySelector('#av-3d-generate')?.addEventListener('click', () => this._submit3DGeneration());
+        },
+
+        async _submit3DGeneration() {
+            const container = this._overlay?.querySelector('#av-3d-content');
+            const btn = container?.querySelector('#av-3d-generate');
+            if (!btn || btn.disabled) return;
+
+            btn.disabled = true;
+            btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
+
+            const payload = {
+                asset_id: this._item?.id,
+                version: this._currentVersion || undefined,
+                quality: container.querySelector('#av-3d-quality')?.value || 'standard',
+                seed: parseInt(container.querySelector('#av-3d-seed')?.value, 10) || undefined,
+                steps: parseInt(container.querySelector('#av-3d-steps')?.value, 10) || 50,
+                guidance: parseFloat(container.querySelector('#av-3d-guidance')?.value) || 7.5,
+                max_faces: parseInt(container.querySelector('#av-3d-faces')?.value, 10) || 0,
+                mesh_resolution: parseInt(container.querySelector('#av-3d-depth')?.value, 10) || 256,
+            };
+
+            try {
+                const result = await API.threeD.generate(payload);
+                this._3dJobId = result.job_id;
+                window.showToast?.(t('asset_viewer.three_d_pending'), 'info');
+                this._render3DPending(container, result.job_id);
+                this._start3DPolling(result.job_id);
+            } catch (err) {
+                window.showToast?.(t('asset_viewer.three_d_failed') + ': ' + err.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> ${t('asset_viewer.three_d_generate')}`;
+            }
+        },
+
+        _render3DPending(container, jobId) {
+            container.innerHTML = `
+                <div class="text-center py-8 space-y-3">
+                    <div class="loading-spinner w-6 h-6 border-2 border-brand-accent/20 border-t-brand-accent rounded-full mx-auto"></div>
+                    <p class="text-brand-text-muted">${t('asset_viewer.three_d_pending')}</p>
+                    <p class="text-[10px] text-brand-text-dim font-mono">${this._esc(jobId)}</p>
+                </div>`;
+        },
+
+        _render3DComplete(container, data) {
+            const fileSize = data.file_size ? this._formatBytes(data.file_size) : '—';
+            container.innerHTML = `
+                <div class="space-y-4">
+                    <div class="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
+                        <p class="text-sm text-emerald-400 font-medium">${t('asset_viewer.three_d_complete')}</p>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4 text-center">
+                        <div>
+                            <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_file_size')}</p>
+                            <p class="font-medium">${fileSize}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_vertices')}</p>
+                            <p class="font-medium">${data.vertices ? data.vertices.toLocaleString() : '—'}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_faces_count')}</p>
+                            <p class="font-medium">${data.faces ? data.faces.toLocaleString() : '—'}</p>
+                        </div>
+                    </div>
+                    <div class="text-center">
+                        <a href="${data.download_url || '#'}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                            </svg>
+                            ${t('asset_viewer.three_d_download')}
+                        </a>
+                    </div>
+                </div>`;
+        },
+
+        _start3DPolling(jobId) {
+            this._stop3DPolling();
+            this._3dPollTimer = setInterval(async () => {
+                try {
+                    const status = await API.threeD.status(jobId);
+                    if (status.status === 'complete') {
+                        this._stop3DPolling();
+                        window.showToast?.(t('asset_viewer.three_d_complete'), 'success');
+                        const container = this._overlay?.querySelector('#av-3d-content');
+                        if (container) this._render3DComplete(container, status.result);
+                    } else if (status.status === 'failed') {
+                        this._stop3DPolling();
+                        window.showToast?.(t('asset_viewer.three_d_failed'), 'error');
+                        const container = this._overlay?.querySelector('#av-3d-content');
+                        if (container) {
+                            container.innerHTML = `
+                                <div class="text-center py-8 space-y-3">
+                                    <p class="text-red-400">${t('asset_viewer.three_d_failed')}</p>
+                                    <p class="text-[10px] text-brand-text-dim">${this._esc(status.error || '')}</p>
+                                </div>`;
+                        }
+                    }
+                } catch (_) {}
+            }, 5000);
+        },
+
+        _stop3DPolling() {
+            if (this._3dPollTimer) {
+                clearInterval(this._3dPollTimer);
+                this._3dPollTimer = null;
+            }
+        },
+
+        _formatBytes(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
         },
 
         _esc(str) {
