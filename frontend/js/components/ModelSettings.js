@@ -1772,12 +1772,13 @@
                 const studioOrder = ['image', 'video', 'other'];
                 const categoryLabels = {
                     image_generation: t('custom_models.cat_image_generation'),
+                    '3d_generation': t('custom_models.cat_3d_generation'),
                     post_processing: t('custom_models.cat_post_processing'),
                     utility: t('custom_models.cat_utility'),
                     video_generation: t('custom_models.cat_video_generation'),
                     other: t('custom_models.other'),
                 };
-                const categoryOrder = ['image_generation', 'post_processing', 'utility', 'video_generation', 'other'];
+                const categoryOrder = ['image_generation', '3d_generation', 'post_processing', 'utility', 'video_generation', 'other'];
                 const _studioColors = ['text-brand-accent', 'text-cyan-400', 'text-amber-400'];
                 const _catColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400', 'text-amber-400'];
 

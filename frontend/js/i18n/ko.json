@@ -1002,6 +1002,7 @@
     "video_studio": "Video Studio",
     "other": "기타",
     "cat_image_generation": "이미지 생성",
+    "cat_3d_generation": "3D 생성",
     "cat_post_processing": "후처리",
     "cat_utility": "유틸리티 & 합성",
     "cat_video_generation": "동영상 생성",

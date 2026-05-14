@@ -4553,7 +4553,8 @@
             "basicsr==1.4.2",
             "opencv-python-headless>=4.8.0"
           ]
-        }
+        },
+        "bundle": "image_enhancement"
       },
       "rmbg_2": {
         "label": "RMBG-2.0 (Background Removal)",
@@ -4622,7 +4623,8 @@
             "accelerate>=1.6.0,<2.0.0",
             "huggingface-hub>=0.34.0,<1.0.0"
           ]
-        }
+        },
+        "bundle": "image_enhancement"
       },
       "codeformer": {
         "label": "CodeFormer (Face Restoration)",
@@ -4691,7 +4693,8 @@
           "model": [
             "opencv-python-headless>=4.8.0"
           ]
-        }
+        },
+        "bundle": "image_enhancement"
       },
       "depth_anything_v2": {
         "label": "Depth Anything v2",
@@ -5298,7 +5301,7 @@
       "triposg": {
         "label": "TripoSG",
         "description": "Image-to-3D mesh generation. Produces high-quality GLB meshes from a single image in ~60 seconds.",
-        "category": "post_processing",
+        "category": "3d_generation",
         "studio": "image",
         "provider": "VAST AI",
         "license": "MIT",
@@ -5420,6 +5423,25 @@
         ],
         "recommended_instance": "ml.g5.xlarge",
         "total_vram_gb": 10
+      },
+      "image_enhancement": {
+        "label": "Image Enhancement",
+        "description": "Background removal, 4x upscaling, and face restoration \u2014 deployed together on one endpoint.",
+        "models": [
+          "real_esrgan",
+          "rmbg_2",
+          "codeformer"
+        ],
+        "requirements": {
+          "min_vram_gb": 4,
+          "recommended_instance": "ml.g5.xlarge",
+          "allowed_instances": [
+            "ml.g5.xlarge",
+            "ml.g5.2xlarge",
+            "ml.g5.4xlarge",
+            "ml.g6e.xlarge"
+          ]
+        }
       }
     },
     "dedicated_models": [

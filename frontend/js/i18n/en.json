@@ -1044,6 +1044,7 @@
     "video_studio": "Video Studio",
     "other": "Other",
     "cat_image_generation": "Image Generation",
+    "cat_3d_generation": "3D Generation",
     "cat_post_processing": "Post Processing",
     "cat_utility": "Utility & Composition",
     "cat_video_generation": "Video Generation",
