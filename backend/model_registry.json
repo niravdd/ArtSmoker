@@ -5325,6 +5325,18 @@
           "rmbg": {
             "type": "huggingface",
             "repo_id": "briaai/RMBG-1.4"
+          },
+          "mv_adapter": {
+            "type": "huggingface",
+            "repo_id": "huanngzh/mv-adapter"
+          },
+          "sdxl_base": {
+            "type": "huggingface",
+            "repo_id": "stabilityai/stable-diffusion-xl-base-1.0"
+          },
+          "sdxl_vae": {
+            "type": "huggingface",
+            "repo_id": "madebyollin/sdxl-vae-fp16-fix"
           }
         },
         "requirements": {
@@ -5400,7 +5412,14 @@
             "typeguard",
             "omegaconf",
             "scipy",
-            "fast_simplification"
+            "fast_simplification",
+            "peft",
+            "kornia",
+            "open3d",
+            "spandrel==0.4.1",
+            "xatlas",
+            "ninja",
+            "nvdiffrast @ git+https://github.com/NVlabs/nvdiffrast.git"
           ]
         }
       }

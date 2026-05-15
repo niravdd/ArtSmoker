@@ -233,7 +233,7 @@ def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
             # Determine which packages to bundle based on library type
             # image_to_3d → bundle 'triposg' package
             _library_to_packages = {
-                "image_to_3d": ["triposg"],
+                "image_to_3d": ["triposg", "mvadapter"],
             }
             packages_to_bundle = _library_to_packages.get(library, [])
             for pkg_name in packages_to_bundle:

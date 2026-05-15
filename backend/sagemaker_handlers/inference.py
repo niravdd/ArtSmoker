@@ -1292,6 +1292,13 @@ def _load_image_to_3d(model_dir):
 
     Also loads a background removal model (RMBG) as preprocessing —
     the 3D model expects clean foreground objects on white background.
+
+    VRAM-adaptive loading strategy:
+      - High VRAM (>=40 GB, e.g. g6e): Load ALL models simultaneously
+        (TripoSG + SDXL/MV-Adapter + TexturePipeline) for fastest throughput.
+      - Low VRAM (<40 GB, e.g. g5 24GB): Load only TripoSG + RMBG at startup.
+        MV-Adapter and TexturePipeline are loaded on-demand during prediction,
+        with memory freed between phases.
     """
     import sys
 
@@ -1344,11 +1351,87 @@ def _load_image_to_3d(model_dir):
     except Exception as e:
         logger.warning("RMBG load failed (will skip background removal): %s", e)
 
+    # Detect VRAM for adaptive loading strategy
+    vram_gb = 0
+    high_vram = False
+    if torch.cuda.is_available():
+        props = torch.cuda.get_device_properties(0)
+        vram_gb = (getattr(props, 'total_memory', 0) or getattr(props, 'total_mem', 0)) / (1024**3)
+        high_vram = vram_gb >= 40  # g6e (48GB) vs g5 (24GB)
+    logger.info("VRAM: %.1f GB — texture pipeline strategy: %s",
+                vram_gb, "preloaded" if high_vram else "on-demand")
+
+    # Attempt to load MV-Adapter + TexturePipeline on high-VRAM instances
+    mv_pipe = None
+    texture_pipe = None
+    texture_available = False
+
+    if high_vram:
+        try:
+            mv_pipe, texture_pipe = _load_texture_models(code_dir, hf_token)
+            texture_available = True
+            logger.info("MV-Adapter + TexturePipeline preloaded (high VRAM mode)")
+        except Exception as e:
+            logger.warning("Texture pipeline preload failed (will try on-demand): %s", e)
+    else:
+        # Check if mvadapter package is available (installed) without loading models
+        try:
+            import mvadapter  # noqa: F401
+            texture_available = True
+            logger.info("MV-Adapter package available — texture will be loaded on-demand per inference")
+        except ImportError:
+            logger.info("MV-Adapter package not available — will produce untextured meshes")
+
     return {
         "library": "image_to_3d",
         "pipe": pipe,
         "rmbg_model": rmbg_model,
+        "mv_pipe": mv_pipe,
+        "texture_pipe": texture_pipe,
+        "texture_available": texture_available,
+        "high_vram": high_vram,
+        "vram_gb": vram_gb,
+        "code_dir": code_dir,
+        "hf_token": hf_token,
     }
+
+
+def _load_texture_models(code_dir, hf_token):
+    """Load MV-Adapter (multi-view generation) and TexturePipeline models.
+
+    Called either at startup (high VRAM) or on-demand during prediction (low VRAM).
+    Returns (mv_pipe, texture_pipe) tuple.
+    """
+    import time as _time
+
+    # Load SDXL + MV-Adapter for multi-view generation
+    t0 = _time.time()
+    logger.info("Loading MV-Adapter (SDXL + adapter weights)...")
+    from mvadapter.pipelines.pipeline_mvadapter import prepare_pipeline
+    mv_pipe = prepare_pipeline(
+        base_model="stabilityai/stable-diffusion-xl-base-1.0",
+        vae_model="madebyollin/sdxl-vae-fp16-fix",
+        adapter_path="huanngzh/mv-adapter",
+        num_views=6,
+        device="cuda",
+        dtype=torch.float16,
+    )
+    mv_time = _time.time() - t0
+    logger.info("MV-Adapter loaded in %.0fs", mv_time)
+
+    # Load TexturePipeline (projection + blending, no heavy model weights)
+    t0 = _time.time()
+    logger.info("Loading TexturePipeline...")
+    from mvadapter.pipelines.pipeline_texture import TexturePipeline
+    texture_pipe = TexturePipeline(
+        upscaler_ckpt_path=None,  # Skip upscaling for now (saves VRAM)
+        inpaint_ckpt_path=None,   # Use basic inpainting
+        device="cuda",
+    )
+    tex_time = _time.time() - t0
+    logger.info("TexturePipeline loaded in %.0fs", tex_time)
+
+    return mv_pipe, texture_pipe
 
 
 _LOADERS = {
@@ -1591,23 +1674,44 @@ def _predict_autoregressive_image(input_data, model_dict):
 
 
 def _predict_image_to_3d(input_data, model_dict):
-    """Generate a 3D mesh (GLB) from an input image.
+    """Generate a textured 3D mesh (GLB) from an input image.
 
-    Pipeline:
-      1. Decode base64 input image
-      2. Remove background using RMBG (produces alpha mask)
-      3. Composite foreground onto white background
-      4. Run 3D generation pipeline
-      5. Optionally decimate mesh to target face count
-      6. Export as GLB and return base64-encoded
+    Pipeline (3 phases):
+      Phase 1: TripoSG geometry generation
+        1. Decode base64 input image
+        2. Remove background using RMBG (produces alpha mask)
+        3. Composite foreground onto white background
+        4. Run TripoSG → untextured mesh
+        5. Optionally decimate mesh to target face count
+
+      Phase 2: MV-Adapter multi-view generation
+        6. Render mesh normals/positions as control signals
+        7. Generate 6 multi-view images via SDXL + MV-Adapter
+
+      Phase 3: TexturePipeline texture baking
+        8. Project multi-view images onto mesh UV
+        9. Export as textured GLB
+
+    Fallback: If Phase 2 or 3 fails (missing models, OOM, any error),
+    returns the untextured GLB from Phase 1 (which already works).
+
+    VRAM management on low-VRAM instances (g5, 24GB):
+      - Phase 1: TripoSG (8GB) + RMBG (0.5GB) on GPU. Unload after.
+      - Phase 2: Load SDXL + MV-Adapter (9GB fp16). Generate views. Unload.
+      - Phase 3: Load nvdiffrast + texture pipeline. Bake. Export.
     """
     import trimesh
+    import tempfile
+    import time as _t
 
     pipe = model_dict["pipe"]
     rmbg_model = model_dict.get("rmbg_model")
+    high_vram = model_dict.get("high_vram", False)
+    texture_available = model_dict.get("texture_available", False)
 
     # 1. Decode input image
     img = _decode_image(input_data["image"]).convert("RGB")
+    source_image = img.copy()  # Keep original for MV-Adapter reference
     logger.info("Input image: %dx%d", img.width, img.height)
 
     # 2. Remove background if RMBG is available
@@ -1653,15 +1757,16 @@ def _predict_image_to_3d(input_data, model_dict):
     else:
         logger.info("No RMBG model — using input image as-is")
 
-    # 4. Run 3D generation
+    # ═══════════════════════════════════════════════════════════════════════
+    # Phase 1: TripoSG geometry generation
+    # ═══════════════════════════════════════════════════════════════════════
     steps = input_data.get("num_inference_steps", 50)
     guidance = input_data.get("guidance_scale", 7.0)
     seed = input_data.get("seed")
     generator = torch.Generator("cuda").manual_seed(seed) if seed is not None else None
 
-    logger.info("Running image-to-3D: steps=%d, guidance=%.1f, seed=%s", steps, guidance, seed)
+    logger.info("Phase 1: TripoSG geometry — steps=%d, guidance=%.1f, seed=%s", steps, guidance, seed)
 
-    import time as _t
     t0 = _t.time()
     output = pipe(
         image=img,
@@ -1669,13 +1774,13 @@ def _predict_image_to_3d(input_data, model_dict):
         guidance_scale=guidance,
         generator=generator,
         # Use hierarchical decoder (not flash) — flash requires diso CUDA package.
-        # Hierarchical with depth 7 uses 128³ grid → fast CPU marching cubes.
+        # Hierarchical with depth 7 uses 128^3 grid -> fast CPU marching cubes.
         use_flash_decoder=False,
         dense_octree_depth=7,
         hierarchical_octree_depth=8,
     )
     elapsed = _t.time() - t0
-    logger.info("3D generation complete in %.1fs", elapsed)
+    logger.info("Phase 1 complete in %.1fs", elapsed)
 
     # Extract mesh from output
     if hasattr(output, "meshes") and output.meshes:
@@ -1695,7 +1800,6 @@ def _predict_image_to_3d(input_data, model_dict):
     if target_faces > 0 and len(mesh.faces) > target_faces:
         logger.info("Decimating mesh from %d to %d faces", len(mesh.faces), target_faces)
         try:
-            ratio = target_faces / len(mesh.faces)
             mesh = mesh.simplify_quadric_decimation(face_count=target_faces)
             logger.info("Decimated to %d faces", len(mesh.faces))
         except TypeError:
@@ -1708,31 +1812,259 @@ def _predict_image_to_3d(input_data, model_dict):
         except Exception as e:
             logger.warning("Decimation failed (keeping original): %s", e)
 
-    # 6. Compute vertex normals and assign a default material for proper rendering
+    # Fix normals early — needed for both untextured and textured paths
     try:
         mesh.fix_normals()
     except Exception:
         pass
-    # Assign a neutral grey PBR material so 3D viewers render with proper lighting
-    from trimesh.visual.material import PBRMaterial
-    mesh.visual = trimesh.visual.TextureVisuals(
-        material=PBRMaterial(
-            baseColorFactor=[200, 200, 200, 255],
-            metallicFactor=0.1,
-            roughnessFactor=0.7,
-            doubleSided=True,
-        )
-    )
+
     vertex_count = len(mesh.vertices)
     face_count = len(mesh.faces)
-    logger.info("Mesh ready: %d vertices, %d faces", vertex_count, face_count)
+    logger.info("Phase 1 mesh: %d vertices, %d faces", vertex_count, face_count)
 
-    # 7. Export as GLB with normals included
-    glb_data = mesh.export(file_type="glb", include_normals=True)
+    # ═══════════════════════════════════════════════════════════════════════
+    # Phase 2 + 3: Texture generation (MV-Adapter + TexturePipeline)
+    # Falls back to untextured GLB if anything fails.
+    # ═══════════════════════════════════════════════════════════════════════
+    textured_glb_data = None
+    if texture_available:
+        try:
+            textured_glb_data = _generate_texture(
+                mesh, source_image, model_dict, input_data
+            )
+        except Exception as tex_err:
+            logger.warning("Phase 2/3 texture generation failed — falling back to untextured: %s", tex_err)
+            import traceback
+            logger.debug("Texture error traceback:\n%s", traceback.format_exc())
+            textured_glb_data = None
+            # Ensure GPU memory is freed after texture failure
+            import gc
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+
+    # ═══════════════════════════════════════════════════════════════════════
+    # Export final GLB
+    # ═══════════════════════════════════════════════════════════════════════
+    if textured_glb_data is not None:
+        # Textured GLB from Phase 3
+        glb_data = textured_glb_data
+        logger.info("Exporting TEXTURED GLB: %.1f KB", len(glb_data) / 1024)
+    else:
+        # Fallback: untextured GLB with neutral PBR material
+        from trimesh.visual.material import PBRMaterial
+        mesh.visual = trimesh.visual.TextureVisuals(
+            material=PBRMaterial(
+                baseColorFactor=[200, 200, 200, 255],
+                metallicFactor=0.1,
+                roughnessFactor=0.7,
+                doubleSided=True,
+            )
+        )
+        glb_data = mesh.export(file_type="glb", include_normals=True)
+        logger.info("Exporting UNTEXTURED GLB (fallback): %.1f KB", len(glb_data) / 1024)
+
     b64_glb = base64.b64encode(glb_data).decode("utf-8")
-    logger.info("GLB export: %.1f KB", len(glb_data) / 1024)
-
     return json.dumps({"mesh": b64_glb, "format": "base64_glb", "vertices": vertex_count, "faces": face_count})
+
+
+def _generate_texture(mesh, source_image, model_dict, input_data):
+    """Run Phase 2 (MV-Adapter) + Phase 3 (TexturePipeline) to produce textured GLB.
+
+    This function encapsulates the entire texture generation process so that
+    any failure is caught cleanly by the caller and falls back to untextured.
+
+    Args:
+        mesh: trimesh.Trimesh from Phase 1
+        source_image: Original input PIL Image (for MV-Adapter reference)
+        model_dict: Model dictionary from _load_image_to_3d
+        input_data: Original request input data
+
+    Returns:
+        bytes: GLB file data with baked texture, or raises on failure.
+    """
+    import tempfile
+    import time as _t
+
+    high_vram = model_dict.get("high_vram", False)
+    mv_pipe = model_dict.get("mv_pipe")
+    texture_pipe = model_dict.get("texture_pipe")
+    code_dir = model_dict.get("code_dir", "")
+    hf_token = model_dict.get("hf_token")
+
+    temp_dir = tempfile.mkdtemp(prefix="artsmoker_texture_")
+
+    try:
+        # Save mesh to temp file for the texture pipeline
+        import trimesh as _trimesh
+        mesh_path = os.path.join(temp_dir, "geometry.glb")
+        mesh.export(mesh_path, file_type="glb", include_normals=True)
+        logger.info("Phase 2: Saved geometry to %s", mesh_path)
+
+        # On low VRAM: unload TripoSG + RMBG before loading MV-Adapter
+        if not high_vram:
+            logger.info("Low VRAM mode: unloading TripoSG + RMBG for Phase 2...")
+            triposg_pipe = model_dict.get("pipe")
+            rmbg = model_dict.get("rmbg_model")
+            if triposg_pipe is not None:
+                triposg_pipe.to("cpu")
+            if rmbg is not None:
+                rmbg.to("cpu")
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
+            if torch.cuda.is_available():
+                freed = torch.cuda.memory_reserved(0) / (1024**3)
+                logger.info("Freed GPU memory: reserved=%.1f GB", freed)
+
+        # ═══════════════════════════════════════════════════════════════════
+        # Phase 2: MV-Adapter multi-view generation
+        # ═══════════════════════════════════════════════════════════════════
+        t0 = _t.time()
+        logger.info("Phase 2: MV-Adapter multi-view generation...")
+
+        # Load MV-Adapter on-demand if not preloaded (low VRAM path)
+        if mv_pipe is None:
+            logger.info("Loading MV-Adapter on-demand...")
+            mv_pipe, texture_pipe = _load_texture_models(code_dir, hf_token)
+
+        from mvadapter.utils.mesh_utils import (
+            get_orthogonal_camera, load_mesh, render, NVDiffRastContextWrapper
+        )
+
+        # Set up cameras for 6 orthogonal views
+        cameras = get_orthogonal_camera(
+            elevation_deg=[0, 0, 0, 0, 89.99, -89.99],
+            distance=[1.8] * 6,
+            left=-0.55, right=0.55, bottom=-0.55, top=0.55,
+            azimuth_deg=[-90, 0, 90, 180, 90, 90],
+            device="cuda",
+        )
+
+        # Render mesh normals/positions as control signals for MV-Adapter
+        ctx = NVDiffRastContextWrapper(device="cuda", context_type="cuda")
+        mesh_obj = load_mesh(mesh_path, rescale=True, device="cuda")
+        render_out = render(
+            ctx, mesh_obj, cameras,
+            height=768, width=768,
+            render_attr=False,
+            normal_background=0.0,
+        )
+
+        # Concatenate position + normal maps as control image (6 views, 6 channels)
+        control_images = torch.cat([
+            (render_out.pos + 0.5).clamp(0, 1),
+            (render_out.normal / 2 + 0.5).clamp(0, 1),
+        ], dim=-1).permute(0, 3, 1, 2)  # (6, 6, H, W)
+
+        # Generate multi-view images conditioned on geometry + reference image
+        mv_result = mv_pipe(
+            "high quality",
+            height=768, width=768,
+            num_inference_steps=15,
+            guidance_scale=3.0,
+            num_images_per_prompt=6,
+            control_image=control_images,
+            control_conditioning_scale=1.0,
+            reference_image=source_image,
+            reference_conditioning_scale=1.0,
+            negative_prompt="watermark, ugly, deformed, noisy, blurry",
+        )
+        mv_images = mv_result.images
+        elapsed_p2 = _t.time() - t0
+        logger.info("Phase 2 complete in %.1fs — generated %d multi-view images", elapsed_p2, len(mv_images))
+
+        # Save multi-view images as a packed grid (6 images side by side)
+        mv_grid = _make_mv_grid(mv_images)
+        mv_grid_path = os.path.join(temp_dir, "mv_grid.png")
+        mv_grid.save(mv_grid_path)
+        logger.info("Saved multi-view grid: %dx%d", mv_grid.width, mv_grid.height)
+
+        # On low VRAM: unload MV-Adapter before Phase 3
+        if not high_vram:
+            logger.info("Low VRAM mode: unloading MV-Adapter for Phase 3...")
+            del mv_pipe
+            model_dict["mv_pipe"] = None
+            import gc
+            gc.collect()
+            torch.cuda.empty_cache()
+
+        # ═══════════════════════════════════════════════════════════════════
+        # Phase 3: TexturePipeline texture baking
+        # ═══════════════════════════════════════════════════════════════════
+        t0 = _t.time()
+        logger.info("Phase 3: Texture baking...")
+
+        from mvadapter.pipelines.pipeline_texture import TexturePipeline, ModProcessConfig
+
+        # Use existing texture_pipe if preloaded, otherwise it was loaded in Phase 2
+        if texture_pipe is None:
+            texture_pipe = TexturePipeline(
+                upscaler_ckpt_path=None,
+                inpaint_ckpt_path=None,
+                device="cuda",
+            )
+
+        tex_output = texture_pipe(
+            mesh_path=mesh_path,
+            save_dir=temp_dir,
+            save_name="textured",
+            uv_unwarp=True,
+            uv_size=2048,  # 2K texture (4K too large for response)
+            rgb_path=mv_grid_path,
+            camera_azimuth_deg=[0, 90, 180, 270, 180, 180],
+            camera_elevation_deg=[0, 0, 0, 0, 89.99, -89.99],
+        )
+        elapsed_p3 = _t.time() - t0
+        logger.info("Phase 3 complete in %.1fs", elapsed_p3)
+
+        # Read the textured GLB output
+        textured_path = tex_output.shaded_model_save_path
+        if textured_path and os.path.exists(textured_path):
+            with open(textured_path, "rb") as f:
+                glb_data = f.read()
+            logger.info("Textured GLB: %.1f KB from %s", len(glb_data) / 1024, textured_path)
+        else:
+            raise RuntimeError(f"TexturePipeline did not produce output (path={textured_path})")
+
+        # On low VRAM: reload TripoSG + RMBG back to GPU for next inference
+        if not high_vram:
+            logger.info("Low VRAM mode: reloading TripoSG + RMBG to GPU...")
+            triposg_pipe = model_dict.get("pipe")
+            rmbg = model_dict.get("rmbg_model")
+            if triposg_pipe is not None:
+                triposg_pipe.to("cuda")
+            if rmbg is not None:
+                rmbg.to("cuda")
+
+        return glb_data
+
+    finally:
+        # Clean up temp directory
+        import shutil
+        try:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+        except Exception:
+            pass
+
+
+def _make_mv_grid(images):
+    """Create a horizontal grid of PIL images (packed side by side).
+
+    The TexturePipeline expects a single image with 6 views concatenated
+    horizontally (N*W, H). This is the standard MV-Adapter output format.
+    """
+    if not images:
+        raise ValueError("No images to grid")
+    widths = [img.width for img in images]
+    height = images[0].height
+    total_width = sum(widths)
+    grid = Image.new("RGB", (total_width, height))
+    x_offset = 0
+    for img in images:
+        grid.paste(img, (x_offset, 0))
+        x_offset += img.width
+    return grid
 
 
 _PREDICTORS = {
