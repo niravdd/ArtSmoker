@@ -31,7 +31,7 @@ ArtSmoker 是一个自托管的 Web 应用程序，以简洁的创意界面封�
 - **所有 Bedrock 模型，所有区域** —— 完全可配置。选择您的文生图模型、视频模型和区域。系统通过 Bedrock API 动态发现可用模型
 - **自托管开源模型 —— 一键部署** —— 浏览精选的预测试模型目录（HunyuanImage 3.0、FLUX.2 等），选择 GPU 实例，一键部署到 Amazon SageMaker。一切均已处理：推理打包、量化、CUDA 配置、自动缩放和任务跟踪。目录中的每个模型在发布前均已端到端验证
 - **一键图像转 3D** —— 从任意 2D 游戏资产或角色图像直接生成带纹理的 3D 模型（GLB）。多视图合成和纹理烘焙生成可直接导入 Unity、Unreal 或 Blender 的游戏引擎可用网格 —— 无需手动建模
-- **自部署，自计费** —— 在您自己的基础设施上运行，使用您自己的 AWS 账户。没有共享端点，没有第三方数据访问，没有来自外部服务的意外账单
+- **您的 AWS 账户，您的 IP** —— 一切运行在您自己的私有 AWS 账户中。所有作品、提示词、风格和生成的资产都保留在您的隔离环境内 —— 没有数据流向第三方服务。您对自己的创意 IP 拥有完全的所有权和控制权
 
 **Amazon Bedrock 模型**：Claude Sonnet/Opus（提示词工程和聊天）、Nova Canvas、Titan Image、Stable Diffusion 3.5 Large、Stable Image Ultra、Stability AI 服务（图像编辑）、Nova Reel、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。**自托管模型**：HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG 等，通过 Amazon SageMaker —— 附带可扩展目录以添加新模型。
 
