@@ -1401,8 +1401,27 @@ def _load_texture_models(code_dir, hf_token):
 
     Called either at startup (high VRAM) or on-demand during prediction (low VRAM).
     Returns (mv_pipe, texture_pipe) tuple.
+    Raises ImportError if critical dependencies (nvdiffrast) are unavailable.
     """
     import time as _time
+    import subprocess
+
+    # nvdiffrast needs CUDA compilation — try runtime install if not present
+    try:
+        import nvdiffrast
+    except ImportError:
+        logger.info("nvdiffrast not installed — attempting runtime compilation...")
+        try:
+            subprocess.check_call(
+                ["pip", "install", "--quiet", "--no-build-isolation",
+                 "git+https://github.com/NVlabs/nvdiffrast.git"],
+                timeout=180,
+            )
+            import nvdiffrast
+            logger.info("nvdiffrast compiled and installed successfully")
+        except Exception as e:
+            logger.warning("nvdiffrast compilation failed: %s — texture generation unavailable", e)
+            raise ImportError(f"nvdiffrast unavailable: {e}")
 
     # Load SDXL + MV-Adapter for multi-view generation
     t0 = _time.time()

@@ -31,7 +31,7 @@ ArtSmoker est une application web auto-hébergée qui enveloppe Amazon Bedrock d
 - **Modèles open source auto-hébergés — déploiement en 1 clic** — parcourez un catalogue organisé de modèles pré-testés (HunyuanImage 3.0, FLUX.2, et plus), choisissez une instance GPU, et déployez sur Amazon SageMaker en un clic. Tout est pris en charge : empaquetage de l'inférence, quantification, configuration CUDA, mise à l'échelle automatique et suivi des tâches. Chaque modèle du catalogue est validé de bout en bout avant publication
 - **Auto-déployé, auto-facturé** — fonctionne sur votre propre infrastructure, utilise votre propre compte AWS. Pas d'endpoints partagés, pas d'accès tiers aux données, pas de factures surprises de services externes
 
-**Modèles Amazon Bedrock** : Claude Sonnet/Opus (ingénierie de prompts et chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, services Stability AI (édition d'images), Nova Reel, Luma AI Ray (génération vidéo), plus 80+ LLM de 16 fournisseurs pour Chat Studio. **Modèles auto-hébergés** : HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, et plus via Amazon SageMaker — avec un catalogue extensible pour ajouter de nouveaux modèles.
+**Modèles Amazon Bedrock** : Claude Sonnet/Opus (ingénierie de prompts et chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, services Stability AI (édition d'images), Nova Reel, Luma AI Ray (génération vidéo), plus 80+ LLM de 16 fournisseurs pour Chat Studio. **Modèles auto-hébergés** : HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG, et plus via Amazon SageMaker — avec un catalogue extensible pour ajouter de nouveaux modèles.
 
 **[Commencer maintenant — aller aux prérequis et installation ▸](#get-started)**
 
@@ -103,7 +103,8 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 - 💰 **Suivi des coûts** — Dépenses AWS estimées par requête, par session, par asset — envoyées à la télémétrie PulseBoard
 - 🌐 **i18n en 8 langues** — Traduction complète de l'UI (EN, JA, ZH, KO, HI, RU, FR, ES), détection automatique des prompts non anglais, aperçu bilingue
 - 🔍 **Support des modèles personnalisés** — Découverte automatique des modèles Bedrock fine-tunés, importés et déployés
-- 🔧 **Modèles auto-hébergés — Déploiement en 1 clic** — Parcourez un catalogue organisé de modèles open source pré-testés (HunyuanImage 3.0, FLUX.2, FLUX.1, et plus), choisissez une instance GPU, et cliquez sur Deploy. ArtSmoker gère tout : empaquetage du gestionnaire d'inférence, configuration de la quantification, sélection du bon toolkit CUDA, mise en place de l'auto-scaling, enregistrement des alarmes CloudWatch, et câblage du suivi asynchrone des tâches. Chaque modèle du catalogue est validé de bout en bout — du démarrage à froid à la génération jusqu'à la livraison en galerie. Supporte BF16 + FlashInfer pour la meilleure qualité, NF4 pour l'efficacité des coûts, détection automatique multi-GPU, mise à l'échelle automatique à zéro (0$ en veille), et le même modèle fonctionne sur différents types d'instances sans reconfiguration
+- 🔧 **Modèles auto-hébergés — Déploiement en 1 clic** — Parcourez un catalogue organisé de modèles open source pré-testés (HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, et plus), choisissez une instance GPU, et cliquez sur Deploy. ArtSmoker gère tout : empaquetage du gestionnaire d'inférence, configuration de la quantification, sélection du bon toolkit CUDA, mise en place de l'auto-scaling, enregistrement des alarmes CloudWatch, et câblage du suivi asynchrone des tâches. Chaque modèle du catalogue est validé de bout en bout — du démarrage à froid à la génération jusqu'à la livraison en galerie. Supporte BF16 + FlashInfer pour la meilleure qualité, NF4 pour l'efficacité des coûts, détection automatique multi-GPU, mise à l'échelle automatique à zéro (0$ en veille), et le même modèle fonctionne sur différents types d'instances sans reconfiguration
+- 🧊 **Génération Image-to-3D** — Convertissez n'importe quelle image Game Asset ou Character en un maillage 3D texturé (GLB) en un clic. La synthèse multi-vues + le baking de textures produit des assets prêts pour les moteurs de jeu. Visionneuse 3D interactive avec orbite/zoom/panoramique
 - 🔄 **Auto-Update** — Git pull avec contrôle de version au démarrage, redémarrage automatique après mise à jour, vérification périodique toutes les 24h (`ARTSMOKER_AUTO_UPDATE=false` pour désactiver)
 
 ### 📝 1.2 Captures d'écran
@@ -240,6 +241,27 @@ Cela compte à chaque étape :
 - **Bouton « Preview Enhanced Prompt »** — Quand vous cliquez sur Compose, l'IA utilise le type d'asset pour reformuler votre brief en un prompt de génération détaillé, combinant vos mots avec les directives de style et les directives du type d'asset. Votre intention explicite prévaut toujours sur les paramètres par défaut du style. Vous pouvez examiner la version composée avant de générer.
 - **Génération de concepts** — Lors de la génération d'options multiples, l'IA crée N interprétations de design différentes qui respectent toutes les règles structurelles du type d'asset. Une option Character a toujours une silhouette lisible ; une option Marketing Banner a toujours une zone de texte sans texte rendu.
 - **Le résultat** — Deux images du même prompt mais de types d'assets différents ne se ressembleront en rien. Un Game Asset « warrior » est un sprite de personnage unique centré. Un Marketing Banner « warrior » est une scène de bataille épique avec une zone propre pour la superposition du titre.
+
+### 📝 1.8 Génération de modèles 3D (Image-to-3D)
+
+Générez des maillages 3D prêts pour la production à partir de n'importe quelle image 2D — directement dans l'Asset Viewer. Sélectionnez une image **Game Asset** ou **Character**, ouvrez l'onglet **3D Model**, et cliquez sur Generate.
+
+**Fonctionnement :**
+
+1. **Extraction de géométrie** — un transformeur à flux rectifié (TripoSG, 1,5 milliard de paramètres) convertit une seule image 2D en un maillage 3D haute fidélité en utilisant une représentation par champ de distance signée (SDF)
+2. **Synthèse multi-vues** — 6 vues orthogonales cohérentes sont générées à partir de l'image source à l'aide de MV-Adapter avec SDXL, conditionnées sur les cartes de normales et de position du maillage
+3. **Baking de textures** — les images multi-vues sont projetées sur le maillage avec dépliage UV, inpainting des coutures et upscaling optionnel pour produire un GLB entièrement texturé
+
+**Sortie :** Format GLB standard avec texture intégrée — s'importe directement dans Unity, Unreal Engine, Blender et d'autres moteurs de jeu. La visionneuse 3D interactive d'ArtSmoker supporte l'orbite, le zoom et le panoramique pour une inspection immédiate.
+
+**Infrastructure :** Se déploie via le même flux Custom Models en 1 clic. Fonctionne sur `ml.g5.2xlarge` (24 Go, $1.51/h) avec chargement séquentiel des modèles, ou `ml.g6e` (48 Go) avec tous les modèles chargés simultanément. Mise à l'échelle à zéro en veille — $0 entre les tâches.
+
+| Métrique | Valeur |
+|----------|--------|
+| Temps de génération | 60 à 90 secondes par asset |
+| Qualité du maillage | 200K–450K faces, normales de sommets complètes |
+| Résolution de texture | Jusqu'à 4K atlas UV |
+| Types d'assets supportés | Game Asset, Character |
 
 <a id="get-started"></a>
 

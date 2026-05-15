@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-05-15T05:35:24.139716+00:00",
+  "last_updated": "2026-05-15T07:34:11.805521+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -5418,8 +5418,7 @@
             "open3d",
             "spandrel==0.4.1",
             "xatlas",
-            "ninja",
-            "nvdiffrast @ git+https://github.com/NVlabs/nvdiffrast.git"
+            "ninja"
           ]
         }
       }

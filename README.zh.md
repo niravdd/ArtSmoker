@@ -31,7 +31,7 @@ ArtSmoker 是一个自托管的 Web 应用程序，以简洁的创意界面封�
 - **自托管开源模型 —— 一键部署** —— 浏览精选的预测试模型目录（HunyuanImage 3.0、FLUX.2 等），选择 GPU 实例，一键部署到 Amazon SageMaker。一切均已处理：推理打包、量化、CUDA 配置、自动缩放和任务跟踪。目录中的每个模型在发布前均已端到端验证
 - **自部署，自计费** —— 在您自己的基础设施上运行，使用您自己的 AWS 账户。没有共享端点，没有第三方数据访问，没有来自外部服务的意外账单
 
-**Amazon Bedrock 模型**：Claude Sonnet/Opus（提示词工程和聊天）、Nova Canvas、Titan Image、Stable Diffusion 3.5 Large、Stable Image Ultra、Stability AI 服务（图像编辑）、Nova Reel、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。**自托管模型**：HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1 等，通过 Amazon SageMaker —— 附带可扩展目录以添加新模型。
+**Amazon Bedrock 模型**：Claude Sonnet/Opus（提示词工程和聊天）、Nova Canvas、Titan Image、Stable Diffusion 3.5 Large、Stable Image Ultra、Stability AI 服务（图像编辑）、Nova Reel、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。**自托管模型**：HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG 等，通过 Amazon SageMaker —— 附带可扩展目录以添加新模型。
 
 **[立即开始 —— 跳转至前置条件和安装 ▸](#get-started)**
 
@@ -103,7 +103,8 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 - 💰 **成本追踪** —— 每请求、每会话、每资产的预估 AWS 支出 —— 发送至 PulseBoard 遥测
 - 🌐 **8 语言 i18n** —— 完整 UI 翻译（EN、JA、ZH、KO、HI、RU、FR、ES），自动检测非英语提示词，双语预览
 - 🔍 **自定义模型支持** —— 自动发现微调、导入和已部署的自定义 Bedrock 模型
-- 🔧 **自托管模型 —— 一键部署** —— 浏览精选的预测试开源模型目录（HunyuanImage 3.0、FLUX.2、FLUX.1 等），选择 GPU 实例，点击 Deploy。ArtSmoker 处理一切：打包推理处理器、配置量化、选择正确的 CUDA 工具包、设置自动缩放、注册 CloudWatch 告警、以及连接异步任务跟踪。目录中每个模型从冷启动到生成到画廊交付均经过端到端验证。支持 BF16 + FlashInfer 获得最佳质量，NF4 实现成本效率，多 GPU 自动检测，自动缩容至零（空闲时 $0），同一模型无需重新配置即可在不同实例类型上运行
+- 🔧 **自托管模型 —— 一键部署** —— 浏览精选的预测试开源模型目录（HunyuanImage 3.0、FLUX.2、FLUX.1、TripoSG 等），选择 GPU 实例，点击 Deploy。ArtSmoker 处理一切：打包推理处理器、配置量化、选择正确的 CUDA 工具包、设置自动缩放、注册 CloudWatch 告警、以及连接异步任务跟踪。目录中每个模型从冷启动到生成到画廊交付均经过端到端验证。支持 BF16 + FlashInfer 获得最佳质量，NF4 实现成本效率，多 GPU 自动检测，自动缩容至零（空闲时 $0），同一模型无需重新配置即可在不同实例类型上运行
+- 🧊 **图像到 3D 生成** —— 将任何 Game Asset 或 Character 图像一键转换为带纹理的 3D 网格（GLB）。多视角合成 + 纹理烘焙生成游戏引擎可用的资产。交互式 3D 查看器支持轨道旋转/缩放/平移
 - 🔄 **Auto-Update** —— 启动时版本门控 git pull、更新后自动重启、24 小时定期检查（`ARTSMOKER_AUTO_UPDATE=false` 禁用）
 
 ### 📝 1.2 屏幕截图
@@ -240,6 +241,27 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 - **"Preview Enhanced Prompt" 按钮** —— 点击 Compose 时，AI 使用资产类型将您的简短描述重构为详细的生成提示词，将您的文字与风格指南和资产类型指令结合。您的明确意图始终优先于风格默认值。您可以在生成前查看组合版本。
 - **概念生成** —— 生成多个选项时，AI 创建 N 个不同的设计诠释，全部遵循资产类型的结构规则。Character 选项始终具有可读的轮廓；Marketing Banner 选项始终具有无渲染文字的文本安全区。
 - **结果** —— 来自相同提示词但不同资产类型的两张图像看起来完全不同。Game Asset 的 "warrior" 是居中的单个角色精灵。Marketing Banner 的 "warrior" 是带有标题叠加干净区域的史诗战斗场景。
+
+### 📝 1.8 3D 模型生成（图像到 3D）
+
+从任意 2D 图像生成生产就绪的 3D 网格 —— 直接在 Asset Viewer 中操作。选择一张 **Game Asset** 或 **Character** 图像，打开 **3D Model** 标签页，点击 Generate。
+
+**工作原理：**
+
+1. **几何提取** —— 整流流变换器（TripoSG，15 亿参数）使用符号距离场（SDF）表示将单张 2D 图像转换为高保真 3D 网格
+2. **多视角合成** —— 使用 MV-Adapter 和 SDXL，基于网格的法线贴图和位置贴图从源图像生成 6 个一致的正交视角
+3. **纹理烘焙** —— 多视角图像通过 UV 展开、接缝修复和可选的超分辨率投射到网格上，生成带完整纹理的 GLB
+
+**输出：** 标准 GLB 格式，内嵌纹理 —— 可直接导入 Unity、Unreal Engine、Blender 及其他游戏引擎。ArtSmoker 的交互式 3D 查看器支持轨道旋转、缩放和平移，可即时检查。
+
+**基础设施：** 通过相同的一键 Custom Models 流程部署。在 `ml.g5.2xlarge`（24 GB，$1.51/小时）上顺序加载模型，或在 `ml.g6e`（48 GB）上同时加载所有模型。空闲时缩容至零 —— 作业间成本为 $0。
+
+| 指标 | 数值 |
+|------|------|
+| 生成时间 | 每个资产 60-90 秒 |
+| 网格质量 | 20 万-45 万面，完整顶点法线 |
+| 纹理分辨率 | 最高 4K UV 图集 |
+| 支持的资产类型 | Game Asset、Character |
 
 <a id="get-started"></a>
 

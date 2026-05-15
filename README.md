@@ -101,7 +101,8 @@ For teams that want every generated asset to match an existing art style — upl
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 - 🌐 **8-Language i18n** — Full UI translation (EN, JA, ZH, KO, HI, RU, FR, ES), auto-detect non-English prompts, bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
-- 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (HunyuanImage 3.0, FLUX.2, FLUX.1, and more), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
+- 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, and more), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
+- 🧊 **Image-to-3D Generation** — Convert any Game Asset or Character image into a textured 3D mesh (GLB) with one click. Multi-view synthesis + texture baking produces game-engine-ready assets. Interactive 3D viewer with orbit/zoom/pan
 - 🔄 **Auto-Update** — Version-gated git pull on startup, self-restart on update, 24h periodic check (`ARTSMOKER_AUTO_UPDATE=false` to disable)
 
 ### 📝 1.2 Screenshots
@@ -237,6 +238,27 @@ This matters at every stage:
 - **"Preview Enhanced Prompt" button** — When you click Compose, the AI uses the asset type to reshape your brief into a detailed generation prompt, combining your words with style guidelines and asset type directives. Your explicit intent always overrides style defaults. You can review the composed version before generating.
 - **Concept generation** — When generating multiple options, the AI creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
 - **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with a clean zone for headline overlay.
+
+### 📝 1.8 3D Model Generation (Image-to-3D)
+
+Generate production-ready 3D meshes from any 2D image — directly in the Asset Viewer. Select a **Game Asset** or **Character** image, open the **3D Model** tab, and click Generate.
+
+**How it works:**
+
+1. **Geometry extraction** — a rectified flow transformer (TripoSG, 1.5B parameters) converts a single 2D image into a high-fidelity 3D mesh using signed distance field (SDF) representation
+2. **Multi-view synthesis** — 6 consistent orthogonal views are generated from the source image using MV-Adapter with SDXL, conditioned on the mesh's normal and position maps
+3. **Texture baking** — the multi-view images are projected onto the mesh with UV unwrapping, seam inpainting, and optional upscaling to produce a fully textured GLB
+
+**Output:** Standard GLB format with embedded texture — imports directly into Unity, Unreal Engine, Blender, and other game engines. The interactive 3D viewer in ArtSmoker supports orbit, zoom, and pan for immediate inspection.
+
+**Infrastructure:** Deploys via the same 1-click Custom Models flow. Runs on `ml.g5.2xlarge` (24 GB, $1.51/hr) with sequential model loading, or `ml.g6e` (48 GB) with all models loaded simultaneously. Scale-to-zero when idle — $0 cost between jobs.
+
+| Metric | Value |
+|--------|-------|
+| Generation time | 60–90 seconds per asset |
+| Mesh quality | 200K–450K faces, full vertex normals |
+| Texture resolution | Up to 4K UV atlas |
+| Supported asset types | Game Asset, Character |
 
 <a id="get-started"></a>
 

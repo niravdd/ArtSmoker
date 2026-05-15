@@ -31,7 +31,7 @@ ArtSmoker는 Amazon Bedrock을 깔끔한 크리에이티브 인터페이스로 �
 - **셀프 호스팅 오픈소스 모델 — 원클릭 배포** — 사전 테스트된 모델의 큐레이션 카탈로그(HunyuanImage 3.0, FLUX.2 등)를 탐색하고, GPU 인스턴스를 선택한 후 원클릭으로 Amazon SageMaker에 배포합니다. 추론 패키징, 양자화, CUDA 구성, 오토 스케일링, 작업 추적까지 모든 것이 처리됩니다. 카탈로그의 모든 모델은 출시 전 엔드투엔드로 검증되었습니다
 - **자체 배포, 자체 과금** — 자체 인프라에서 실행하고 자체 AWS 계정을 사용합니다. 공유 엔드포인트 없음, 서드파티 데이터 접근 없음, 외부 서비스로부터의 예상치 못한 청구 없음
 
-**Amazon Bedrock 모델**: Claude Sonnet/Opus(프롬프트 엔지니어링 및 채팅), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI 서비스(이미지 편집), Nova Reel, Luma AI Ray(동영상 생성), 그리고 Chat Studio용 16개 제공업체의 80개 이상의 LLM. **셀프 호스팅 모델**: HunyuanImage 3.0(BF16/NF4), FLUX.2, FLUX.1 등, Amazon SageMaker 경유 — 새 모델을 추가할 수 있는 확장 가능한 카탈로그 포함.
+**Amazon Bedrock 모델**: Claude Sonnet/Opus(프롬프트 엔지니어링 및 채팅), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI 서비스(이미지 편집), Nova Reel, Luma AI Ray(동영상 생성), 그리고 Chat Studio용 16개 제공업체의 80개 이상의 LLM. **셀프 호스팅 모델**: HunyuanImage 3.0(BF16/NF4), FLUX.2, FLUX.1, TripoSG 등, Amazon SageMaker 경유 — 새 모델을 추가할 수 있는 확장 가능한 카탈로그 포함.
 
 **[지금 시작하기 — 사전 요구사항 및 설치로 이동 ▸](#get-started)**
 
@@ -103,7 +103,8 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 - 💰 **비용 추적** — 요청, 세션, 에셋별 추정 AWS 비용 — PulseBoard 텔레메트리에 전송
 - 🌐 **8개 언어 i18n** — 완전한 UI 번역(EN, JA, ZH, KO, HI, RU, FR, ES), 비영어 프롬프트 자동 감지, 이중 언어 미리보기
 - 🔍 **커스텀 모델 지원** — 파인튜닝, 임포트, 배포된 커스텀 Bedrock 모델 자동 검색
-- 🔧 **셀프 호스팅 모델 — 원클릭 배포** — 사전 테스트된 오픈소스 모델(HunyuanImage 3.0, FLUX.2, FLUX.1 등)의 큐레이션 카탈로그를 탐색하고, GPU 인스턴스를 선택한 후 Deploy를 클릭합니다. ArtSmoker가 추론 핸들러 패키징, 양자화 구성, 올바른 CUDA 툴킷 선택, 오토 스케일링 설정, CloudWatch 알람 등록, 비동기 작업 추적 연결까지 모든 것을 처리합니다. 카탈로그의 모든 모델은 콜드 스타트부터 생성, 갤러리 전달까지 엔드투엔드로 검증되었습니다. 최고 품질을 위한 BF16 + FlashInfer, 비용 효율을 위한 NF4, 멀티 GPU 자동 감지, 제로로 자동 스케일링(유휴 시 $0), 동일 모델이 재구성 없이 다른 인스턴스 유형에서 실행
+- 🔧 **셀프 호스팅 모델 — 원클릭 배포** — 사전 테스트된 오픈소스 모델(HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG 등)의 큐레이션 카탈로그를 탐색하고, GPU 인스턴스를 선택한 후 Deploy를 클릭합니다. ArtSmoker가 추론 핸들러 패키징, 양자화 구성, 올바른 CUDA 툴킷 선택, 오토 스케일링 설정, CloudWatch 알람 등록, 비동기 작업 추적 연결까지 모든 것을 처리합니다. 카탈로그의 모든 모델은 콜드 스타트부터 생성, 갤러리 전달까지 엔드투엔드로 검증되었습니다. 최고 품질을 위한 BF16 + FlashInfer, 비용 효율을 위한 NF4, 멀티 GPU 자동 감지, 제로로 자동 스케일링(유휴 시 $0), 동일 모델이 재구성 없이 다른 인스턴스 유형에서 실행
+- 🧊 **이미지-투-3D 생성** — 모든 Game Asset 또는 Character 이미지를 원클릭으로 텍스처가 입혀진 3D 메시(GLB)로 변환합니다. 멀티뷰 합성 + 텍스처 베이킹으로 게임 엔진에 바로 사용할 수 있는 에셋을 생성합니다. 인터랙티브 3D 뷰어에서 오빗/줌/팬 조작 가능
 - 🔄 **Auto-Update** — 시작 시 버전 게이트 git pull, 업데이트 시 자동 재시작, 24시간 주기 확인(`ARTSMOKER_AUTO_UPDATE=false`로 비활성화)
 
 ### 📝 1.2 스크린샷
@@ -240,6 +241,27 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 - **"Preview Enhanced Prompt" 버튼** — Compose를 클릭하면 AI가 에셋 유형을 사용하여 간단한 설명을 상세한 생성 프롬프트로 재구성하며, 사용자의 말을 스타일 가이드라인과 에셋 유형 지시와 결합합니다. 사용자의 명시적 의도는 항상 스타일 기본값보다 우선합니다. 생성 전에 구성된 버전을 확인할 수 있습니다.
 - **컨셉 생성** — 여러 옵션을 생성할 때, AI는 에셋 유형의 구조 규칙을 모두 준수하는 N개의 서로 다른 디자인 해석을 생성합니다. Character 옵션은 항상 읽기 쉬운 실루엣을 가지며, Marketing Banner 옵션은 항상 렌더링된 텍스트가 없는 텍스트 안전 영역을 갖습니다.
 - **결과** — 동일한 프롬프트에서 서로 다른 에셋 유형의 두 이미지는 전혀 다르게 보입니다. Game Asset의 "warrior"는 중앙에 배치된 단일 캐릭터 스프라이트. Marketing Banner의 "warrior"는 헤드라인 오버레이를 위한 깨끗한 영역이 있는 에픽 전투 장면입니다.
+
+### 📝 1.8 3D 모델 생성 (이미지-투-3D)
+
+임의의 2D 이미지에서 프로덕션 대응 3D 메시를 생성합니다 — Asset Viewer에서 직접 수행. **Game Asset** 또는 **Character** 이미지를 선택하고, **3D Model** 탭을 열어 Generate를 클릭합니다.
+
+**작동 방식:**
+
+1. **지오메트리 추출** — 정류 플로우 트랜스포머(TripoSG, 15억 파라미터)가 SDF(부호 거리장) 표현을 사용하여 단일 2D 이미지를 고충실도 3D 메시로 변환
+2. **멀티뷰 합성** — MV-Adapter와 SDXL을 사용하여 메시의 노멀 맵과 포지션 맵을 기반으로 소스 이미지에서 6개의 일관된 직교 뷰를 생성
+3. **텍스처 베이킹** — 멀티뷰 이미지가 UV 언래핑, 솔기 인페인팅, 선택적 업스케일링을 통해 메시에 투영되어 완전히 텍스처가 입혀진 GLB를 생성
+
+**출력:** 텍스처가 내장된 표준 GLB 포맷 — Unity, Unreal Engine, Blender 및 기타 게임 엔진에 직접 임포트 가능. ArtSmoker의 인터랙티브 3D 뷰어는 오빗, 줌, 팬을 지원하여 즉시 확인할 수 있습니다.
+
+**인프라:** 동일한 원클릭 Custom Models 플로우로 배포. `ml.g5.2xlarge`(24 GB, $1.51/시간)에서 순차적 모델 로딩, 또는 `ml.g6e`(48 GB)에서 모든 모델 동시 로딩. 유휴 시 제로로 스케일 — 작업 사이 비용 $0.
+
+| 지표 | 값 |
+|------|-----|
+| 생성 시간 | 에셋당 60-90초 |
+| 메시 품질 | 20만-45만 면, 완전한 버텍스 노멀 |
+| 텍스처 해상도 | 최대 4K UV 아틀라스 |
+| 지원 에셋 유형 | Game Asset, Character |
 
 <a id="get-started"></a>
 
