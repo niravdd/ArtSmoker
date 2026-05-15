@@ -1406,16 +1406,30 @@ def _load_texture_models(code_dir, hf_token):
     import time as _time
     import subprocess
 
-    # nvdiffrast needs CUDA compilation — try runtime install if not present
+    # nvdiffrast needs CUDA compilation via torch.utils.cpp_extension.
+    # It's not pip-installable in isolated builds (needs PyTorch in the build env).
+    # We compile at runtime with --no-build-isolation so it finds torch + CUDA.
     try:
         import nvdiffrast
     except ImportError:
-        logger.info("nvdiffrast not installed — attempting runtime compilation...")
+        logger.info("nvdiffrast not installed — compiling with CUDA (this takes ~60s)...")
         try:
+            # Ensure build tools are present
             subprocess.check_call(
-                ["pip", "install", "--quiet", "--no-build-isolation",
+                ["pip", "install", "--quiet", "setuptools", "wheel"],
+                timeout=30,
+            )
+            # Set CUDA_HOME if not set (needed for torch CUDAExtension)
+            if not os.environ.get("CUDA_HOME"):
+                for cuda_path in ["/usr/local/cuda", "/opt/conda/pkgs/cuda-toolkit"]:
+                    if os.path.isdir(cuda_path):
+                        os.environ["CUDA_HOME"] = cuda_path
+                        break
+            # Compile nvdiffrast using PyTorch's CUDAExtension (no build isolation)
+            subprocess.check_call(
+                ["pip", "install", "--no-build-isolation", "--no-deps",
                  "git+https://github.com/NVlabs/nvdiffrast.git"],
-                timeout=180,
+                timeout=300,
             )
             import nvdiffrast
             logger.info("nvdiffrast compiled and installed successfully")
