@@ -1691,12 +1691,20 @@ def _predict_image_to_3d(input_data, model_dict):
     logger.info("Mesh: %d vertices, %d faces", len(mesh.vertices), len(mesh.faces))
 
     # 5. Optionally decimate to target face count
-    target_faces = input_data.get("faces", 50000)
-    if len(mesh.faces) > target_faces:
+    target_faces = input_data.get("faces", 200000)
+    if target_faces > 0 and len(mesh.faces) > target_faces:
         logger.info("Decimating mesh from %d to %d faces", len(mesh.faces), target_faces)
         try:
-            mesh = mesh.simplify_quadric_decimation(target_faces)
+            ratio = target_faces / len(mesh.faces)
+            mesh = mesh.simplify_quadric_decimation(face_count=target_faces)
             logger.info("Decimated to %d faces", len(mesh.faces))
+        except TypeError:
+            try:
+                ratio = target_faces / len(mesh.faces)
+                mesh = mesh.simplify_quadric_decimation(ratio)
+                logger.info("Decimated to %d faces (ratio mode)", len(mesh.faces))
+            except Exception as e:
+                logger.warning("Decimation failed (keeping original): %s", e)
         except Exception as e:
             logger.warning("Decimation failed (keeping original): %s", e)
 

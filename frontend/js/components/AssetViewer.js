@@ -1767,7 +1767,11 @@
                                 </div>`;
                         }
                     }
-                } catch (_) {}
+                } catch (err) {
+                    // Job not found (server restarted) — stop polling and refresh 3D state
+                    this._stop3DPolling();
+                    this._update3DContent();
+                }
             }, 5000);
         },
 
