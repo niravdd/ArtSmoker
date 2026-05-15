@@ -1708,11 +1708,21 @@ def _predict_image_to_3d(input_data, model_dict):
         except Exception as e:
             logger.warning("Decimation failed (keeping original): %s", e)
 
-    # 6. Compute vertex normals (required for proper lighting in 3D viewers)
+    # 6. Compute vertex normals and assign a default material for proper rendering
     try:
         mesh.fix_normals()
     except Exception:
         pass
+    # Assign a neutral grey PBR material so 3D viewers render with proper lighting
+    if not hasattr(mesh.visual, 'material') or mesh.visual.material is None:
+        from trimesh.visual.material import PBRMaterial
+        mesh.visual = trimesh.visual.TextureVisuals(
+            material=PBRMaterial(
+                baseColorFactor=[200, 200, 200, 255],
+                metallicFactor=0.1,
+                roughnessFactor=0.7,
+            )
+        )
     vertex_count = len(mesh.vertices)
     face_count = len(mesh.faces)
     logger.info("Mesh ready: %d vertices, %d faces", vertex_count, face_count)
