@@ -1525,9 +1525,32 @@
                     return;
                 }
 
-                // Check if 3D already exists for current version
-                if (availability.existing) {
-                    this._render3DComplete(container, availability.existing);
+                // Check if 3D already exists for current version (from metadata or file)
+                const ver = this._currentVersion || 1;
+                const existing3D = meta.three_d?.[`v${ver}`];
+                if (!existing3D) {
+                    // Also check if the GLB file exists via the gallery endpoint
+                    try {
+                        const glbResp = await fetch(`/api/gallery/${encodeURIComponent(meta.id)}/3d/${ver}`, { method: 'HEAD' });
+                        if (glbResp.ok) {
+                            const size = parseInt(glbResp.headers.get('content-length') || '0');
+                            this._render3DComplete(container, {
+                                download_url: `/api/gallery/${encodeURIComponent(meta.id)}/3d/${ver}`,
+                                file_size: size,
+                                vertices: 0,
+                                faces: 0,
+                            });
+                            return;
+                        }
+                    } catch {}
+                }
+                if (existing3D) {
+                    this._render3DComplete(container, {
+                        download_url: `/api/gallery/${encodeURIComponent(meta.id)}/3d/${ver}`,
+                        file_size: existing3D.size_bytes || 0,
+                        vertices: existing3D.vertices || 0,
+                        faces: existing3D.faces || 0,
+                    });
                     return;
                 }
 
