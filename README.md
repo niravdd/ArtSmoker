@@ -107,11 +107,25 @@ For teams that want every generated asset to match an existing art style — upl
 
 ### 📝 1.2 Screenshots
 
-**2D Image Studio** — Settings on the left with multi-select model dropdown, 3-step prompt workflow on the right, model comparison results below. Multi-model mode generates across selected models simultaneously with per-model prompt optimization.
+**2D Image Studio** — Settings on the left with multi-select model dropdown, asset type, dimensions, and post-processing options. 3-step prompt workflow on the right with Prompt Designer and Generate Enhanced Prompt buttons. IP declaration and cost estimate at the bottom.
 
-![2D Image Studio — Settings, prompt, and generated results](docs/images/image-studio-top.png)
+![2D Image Studio — Settings, prompt workflow, and generation controls](docs/images/image-studio-top.png)
 
-![2D Image Studio — Model comparison, post-processing options, and full preview](docs/images/image-studio-bottom.png)
+**2D Image Studio — Generation Results** — Enhanced prompt shown above, multi-model comparison results below. Each model generates independently with per-model prompt optimization. Results display model name, dimensions, and generation cost.
+
+![2D Image Studio — Enhanced prompt and generation results](docs/images/image-studio-results.png)
+
+**2D Image Studio — Model Comparison** — Side-by-side comparison grid across all selected models (7 models shown). Variations of the selected option displayed below. Post-processing toggles (Remove Background, Convert to SVG, Upscale) on the left.
+
+![2D Image Studio — Multi-model comparison grid with variations](docs/images/image-studio-comparison.png)
+
+**Prompt Designer** — AI decomposes your prompt into editable visual components (Subject, Scene, Composition, Lighting, Style & Colors). Each field can be individually edited with lock/vary controls for genuinely distinct creative options.
+
+![Prompt Designer — Structured visual decomposition with editable fields](docs/images/prompt-designer-top.png)
+
+**Prompt Designer — Color Palette** — Named color palettes with hex swatches, style keywords, and quality level controls. The AI learns your visual identity and applies it consistently across all generations.
+
+![Prompt Designer — Color palette, style keywords, and quality controls](docs/images/prompt-designer-bottom.png)
 
 **Style Library** — Upload your game's existing art, AI analyzes the visual style and produces a metadata-rich prompt guide. Reference images are displayed with the full AI analysis and JSON style profile.
 
@@ -123,9 +137,17 @@ For teams that want every generated asset to match an existing art style — upl
 
 ![Gallery — Generated assets grid with filters](docs/images/gallery.png)
 
-**Asset Viewer & Image Editing** — Full-size preview with zoom/pan, Edit tab for inpainting (mask paint + prompt), version history, and PNG/SVG download.
+**Asset Viewer** — Full-size preview with tabbed interface (PNG, Edit, SVG, Metadata, 3D Model). Download PNG and SVG directly. Transparent background compositing shown with checkerboard pattern.
 
-![Asset Viewer — Image editing with inpainting](docs/images/asset-viewer-edit.png)
+![Asset Viewer — Full-size preview with download options](docs/images/asset-viewer.png)
+
+**Asset Viewer — Image Editing** — Edit tab with inpainting: paint a mask over the area to change, describe what you want, select an editing model, and apply. Version history preserved — originals are never overwritten.
+
+![Asset Viewer — Inpainting with mask and prompt](docs/images/asset-viewer-edit.png)
+
+**3D Model Generation** — Convert any Game Asset or Character image into a textured 3D mesh (GLB). Configure marching cubes resolution, foreground ratio, and generation parameters directly in the Asset Viewer's 3D Model tab.
+
+![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
 
 **Video Studio** — Settings on the left (model, generation mode, duration, region, cost estimate), prompt on the right. Supports Nova Reel (single shot, multi-shot auto/manual up to 2 minutes) and Luma AI Ray (aspect ratios, looping).
 

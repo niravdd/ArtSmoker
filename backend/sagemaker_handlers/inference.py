@@ -1419,6 +1419,7 @@ def _load_texture_models(code_dir, hf_token):
         import nvdiffrast
     except ImportError:
         import boto3 as _boto3
+        from botocore.exceptions import ClientError as _BotoClientError
         _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
         _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
 
@@ -1434,7 +1435,7 @@ def _load_texture_models(code_dir, hf_token):
                 import nvdiffrast
                 installed = True
                 logger.info("nvdiffrast installed from S3 cache")
-            except _boto3.exceptions.ClientError:
+            except _BotoClientError:
                 logger.info("No cached nvdiffrast wheel in S3 — will compile from source")
             except Exception as e:
                 logger.info("S3 cache failed (%s) — will compile from source", e)

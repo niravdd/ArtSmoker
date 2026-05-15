@@ -109,11 +109,25 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 
 ### 📝 1.2 スクリーンショット
 
-**2D Image Studio** — 左側にマルチセレクトモデルドロップダウン付きの設定、右側に3ステッププロンプトワークフロー、下部にモデル比較結果。マルチモデルモードは選択したモデルで同時に生成し、モデルごとのプロンプト最適化を行います。
+**2D Image Studio** — 左側にマルチセレクトモデルドロップダウン、アセットタイプ、サイズ、後処理オプション付きの設定。右側にPrompt DesignerとGenerate Enhanced Promptボタンを含む3ステッププロンプトワークフロー。下部にIP宣言とコスト見積もり。
 
-![2D Image Studio — 設定、プロンプト、生成結果](docs/images/image-studio-top.png)
+![2D Image Studio — 設定、プロンプトワークフロー、生成コントロール](docs/images/image-studio-top.png)
 
-![2D Image Studio — モデル比較、後処理オプション、フルプレビュー](docs/images/image-studio-bottom.png)
+**2D Image Studio — 生成結果** — 上部にエンハンスドプロンプト、下部にマルチモデル比較結果。各モデルはモデルごとのプロンプト最適化で独立して生成。結果にはモデル名、サイズ、生成コストが表示されます。
+
+![2D Image Studio — エンハンスドプロンプトと生成結果](docs/images/image-studio-results.png)
+
+**2D Image Studio — モデル比較** — 選択したすべてのモデル（7モデル表示）の横並び比較グリッド。選択したオプションのバリエーションが下部に表示。左側に後処理トグル（背景削除、SVG変換、アップスケール）。
+
+![2D Image Studio — マルチモデル比較グリッドとバリエーション](docs/images/image-studio-comparison.png)
+
+**Prompt Designer** — AIがプロンプトを編集可能なビジュアルコンポーネント（被写体、シーン、構図、ライティング、スタイル＆カラー）に分解。各フィールドはロック/バリエーションコントロールで個別に編集可能で、真に異なるクリエイティブオプションを生成します。
+
+![Prompt Designer — 編集可能フィールド付きの構造化ビジュアル分解](docs/images/prompt-designer-top.png)
+
+**Prompt Designer — カラーパレット** — 16進カラースウォッチ付きの名前付きカラーパレット、スタイルキーワード、品質レベルコントロール。AIがビジュアルアイデンティティを学習し、すべての生成に一貫して適用します。
+
+![Prompt Designer — カラーパレット、スタイルキーワード、品質コントロール](docs/images/prompt-designer-bottom.png)
 
 **Style Library** — ゲームの既存アートをアップロードし、AIがビジュアルスタイルを分析してメタデータリッチなプロンプトガイドを生成。リファレンス画像は完全なAI分析とJSONスタイルプロファイルとともに表示されます。
 
@@ -125,9 +139,17 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 
 ![ギャラリー — フィルター付き生成アセットグリッド](docs/images/gallery.png)
 
-**Asset Viewer & 画像編集** — ズーム/パン付きフルサイズプレビュー、インペインティング（マスクペイント＋プロンプト）用の編集タブ、バージョン履歴、PNG/SVGダウンロード。
+**Asset Viewer** — タブ付きインターフェース（PNG、編集、SVG、メタデータ、3Dモデル）のフルサイズプレビュー。PNGとSVGを直接ダウンロード可能。チェッカーボードパターンで透明背景の合成を表示。
 
-![Asset Viewer — インペインティングによる画像編集](docs/images/asset-viewer-edit.png)
+![Asset Viewer — ダウンロードオプション付きフルサイズプレビュー](docs/images/asset-viewer.png)
+
+**Asset Viewer — 画像編集** — インペインティング機能付き編集タブ：変更したい部分にマスクをペイントし、望む内容を記述し、編集モデルを選択して適用。バージョン履歴が保持され、オリジナルは上書きされません。
+
+![Asset Viewer — マスクとプロンプトによるインペインティング](docs/images/asset-viewer-edit.png)
+
+**3Dモデル生成** — 任意のGame AssetまたはCharacter画像をテクスチャ付き3Dメッシュ（GLB）に変換。Asset Viewerの3Dモデルタブで、マーチングキューブ解像度、前景比率、生成パラメータを直接設定。
+
+![3Dモデル生成 — Asset Viewer内の設定と生成](docs/images/3d-model-generation.png)
 
 **Video Studio** — 左側に設定（モデル、生成モード、長さ、リージョン、コスト見積もり）、右側にプロンプト。Nova Reel（シングルショット、最大2分のマルチショット自動/手動）とLuma AI Ray（アスペクト比、ループ）に対応。
 

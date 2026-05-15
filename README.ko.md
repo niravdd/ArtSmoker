@@ -109,11 +109,25 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 
 ### 📝 1.2 스크린샷
 
-**2D Image Studio** — 왼쪽에 멀티 선택 모델 드롭다운이 있는 설정, 오른쪽에 3단계 프롬프트 워크플로우, 하단에 모델 비교 결과. 멀티 모델 모드는 선택된 모델에서 동시에 생성하며 모델별 프롬프트 최적화를 수행합니다.
+**2D Image Studio** — 왼쪽에 멀티 선택 모델 드롭다운, 에셋 타입, 크기, 후처리 옵션이 있는 설정. 오른쪽에 Prompt Designer와 Generate Enhanced Prompt 버튼이 포함된 3단계 프롬프트 워크플로우. 하단에 IP 선언과 비용 추정.
 
-![2D Image Studio — 설정, 프롬프트, 생성 결과](docs/images/image-studio-top.png)
+![2D Image Studio — 설정, 프롬프트 워크플로우, 생성 컨트롤](docs/images/image-studio-top.png)
 
-![2D Image Studio — 모델 비교, 후처리 옵션, 전체 미리보기](docs/images/image-studio-bottom.png)
+**2D Image Studio — 생성 결과** — 상단에 강화된 프롬프트, 하단에 멀티 모델 비교 결과. 각 모델은 모델별 프롬프트 최적화로 독립적으로 생성. 결과에 모델명, 크기, 생성 비용이 표시됩니다.
+
+![2D Image Studio — 강화된 프롬프트와 생성 결과](docs/images/image-studio-results.png)
+
+**2D Image Studio — 모델 비교** — 선택한 모든 모델(7개 모델 표시)의 나란히 비교 그리드. 선택한 옵션의 배리에이션이 하단에 표시. 왼쪽에 후처리 토글(배경 제거, SVG 변환, 업스케일).
+
+![2D Image Studio — 멀티 모델 비교 그리드와 배리에이션](docs/images/image-studio-comparison.png)
+
+**Prompt Designer** — AI가 프롬프트를 편집 가능한 비주얼 컴포넌트(주체, 씬, 구도, 조명, 스타일 및 색상)로 분해. 각 필드는 잠금/변형 컨트롤로 개별 편집 가능하여 진정으로 다른 크리에이티브 옵션을 생성합니다.
+
+![Prompt Designer — 편집 가능 필드가 포함된 구조화된 비주얼 분해](docs/images/prompt-designer-top.png)
+
+**Prompt Designer — 컬러 팔레트** — 16진수 색상 스와치가 포함된 이름 지정 컬러 팔레트, 스타일 키워드, 품질 레벨 컨트롤. AI가 비주얼 아이덴티티를 학습하고 모든 생성에 일관되게 적용합니다.
+
+![Prompt Designer — 컬러 팔레트, 스타일 키워드, 품질 컨트롤](docs/images/prompt-designer-bottom.png)
 
 **Style Library** — 게임의 기존 아트를 업로드하고, AI가 비주얼 스타일을 분석하여 메타데이터가 풍부한 프롬프트 가이드를 생성합니다. 레퍼런스 이미지는 완전한 AI 분석 및 JSON 스타일 프로필과 함께 표시됩니다.
 
@@ -125,9 +139,17 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 
 ![갤러리 — 필터가 포함된 생성 에셋 그리드](docs/images/gallery.png)
 
-**Asset Viewer 및 이미지 편집** — 줌/팬이 포함된 전체 크기 미리보기, 인페인팅(마스크 페인트 + 프롬프트)용 편집 탭, 버전 히스토리, PNG/SVG 다운로드.
+**Asset Viewer** — 탭 인터페이스(PNG, 편집, SVG, 메타데이터, 3D 모델)가 포함된 전체 크기 미리보기. PNG와 SVG를 직접 다운로드 가능. 체커보드 패턴으로 투명 배경 합성을 표시.
 
-![Asset Viewer — 인페인팅을 통한 이미지 편집](docs/images/asset-viewer-edit.png)
+![Asset Viewer — 다운로드 옵션이 포함된 전체 크기 미리보기](docs/images/asset-viewer.png)
+
+**Asset Viewer — 이미지 편집** — 인페인팅 기능이 포함된 편집 탭: 변경할 영역에 마스크를 페인트하고, 원하는 내용을 설명하고, 편집 모델을 선택하여 적용. 버전 히스토리가 보존됩니다 — 원본은 절대 덮어쓰이지 않습니다.
+
+![Asset Viewer — 마스크와 프롬프트를 사용한 인페인팅](docs/images/asset-viewer-edit.png)
+
+**3D 모델 생성** — 모든 Game Asset 또는 Character 이미지를 텍스처가 입혀진 3D 메시(GLB)로 변환. Asset Viewer의 3D 모델 탭에서 마칭 큐브 해상도, 전경 비율, 생성 파라미터를 직접 설정.
+
+![3D 모델 생성 — Asset Viewer에서의 설정 및 생성](docs/images/3d-model-generation.png)
 
 **Video Studio** — 왼쪽에 설정(모델, 생성 모드, 길이, 리전, 비용 추정), 오른쪽에 프롬프트. Nova Reel(싱글 숏, 최대 2분 멀티숏 자동/수동)과 Luma AI Ray(종횡비, 루핑)를 지원합니다.
 

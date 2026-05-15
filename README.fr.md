@@ -109,11 +109,25 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 
 ### 📝 1.2 Captures d'écran
 
-**2D Image Studio** — Paramètres à gauche avec liste déroulante multi-sélection de modèles, workflow de prompt en 3 étapes à droite, résultats de comparaison des modèles en dessous. Le mode multi-modèle génère sur les modèles sélectionnés simultanément avec optimisation des prompts par modèle.
+**2D Image Studio** — Paramètres à gauche avec liste déroulante multi-sélection de modèles, type d'asset, dimensions et options de post-traitement. Workflow de prompt en 3 étapes à droite avec les boutons Prompt Designer et Generate Enhanced Prompt. Déclaration IP et estimation des coûts en bas.
 
-![2D Image Studio — Paramètres, prompt et résultats générés](docs/images/image-studio-top.png)
+![2D Image Studio — Paramètres, workflow de prompt et contrôles de génération](docs/images/image-studio-top.png)
 
-![2D Image Studio — Comparaison de modèles, options de post-traitement et aperçu complet](docs/images/image-studio-bottom.png)
+**2D Image Studio — Résultats de génération** — Le prompt amélioré est affiché au-dessus, les résultats de comparaison multi-modèle en dessous. Chaque modèle génère indépendamment avec une optimisation du prompt spécifique à chaque modèle. Les résultats affichent le nom du modèle, les dimensions et le coût de génération.
+
+![2D Image Studio — Prompt amélioré et résultats de génération](docs/images/image-studio-results.png)
+
+**2D Image Studio — Comparaison de modèles** — Grille de comparaison côte à côte de tous les modèles sélectionnés (7 modèles affichés). Les variations de l'option sélectionnée sont affichées en dessous. Bascules de post-traitement à gauche (Supprimer l'arrière-plan, Convertir en SVG, Agrandir).
+
+![2D Image Studio — Grille de comparaison multi-modèle avec variations](docs/images/image-studio-comparison.png)
+
+**Prompt Designer** — L'IA décompose votre prompt en composants visuels éditables (Sujet, Scène, Composition, Éclairage, Style et Couleurs). Chaque champ peut être édité individuellement avec des contrôles verrouiller/varier pour des options créatives véritablement distinctes.
+
+![Prompt Designer — Décomposition visuelle structurée avec champs éditables](docs/images/prompt-designer-top.png)
+
+**Prompt Designer — Palette de couleurs** — Palettes de couleurs nommées avec échantillons hexadécimaux, mots-clés de style et contrôles de niveau de qualité. L'IA apprend votre identité visuelle et l'applique de manière cohérente à toutes les générations.
+
+![Prompt Designer — Palette de couleurs, mots-clés de style et contrôles de qualité](docs/images/prompt-designer-bottom.png)
 
 **Style Library** — Téléchargez l'art existant de votre jeu, l'IA analyse le style visuel et produit un guide de prompts riche en métadonnées. Les images de référence sont affichées avec l'analyse IA complète et le profil de style JSON.
 
@@ -125,9 +139,17 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 
 ![Galerie — Grille d'assets générés avec filtres](docs/images/gallery.png)
 
-**Asset Viewer et édition d'images** — Aperçu en taille réelle avec zoom/panoramique, onglet Édition pour l'inpainting (peinture de masque + prompt), historique des versions et téléchargement PNG/SVG.
+**Asset Viewer** — Aperçu en taille réelle avec interface à onglets (PNG, Édition, SVG, Métadonnées, Modèle 3D). Téléchargement direct des PNG et SVG. Compositing sur fond transparent affiché avec motif en damier.
 
-![Asset Viewer — Édition d'image avec inpainting](docs/images/asset-viewer-edit.png)
+![Asset Viewer — Aperçu en taille réelle avec options de téléchargement](docs/images/asset-viewer.png)
+
+**Asset Viewer — Édition d'images** — Onglet Édition avec inpainting : peignez un masque sur la zone à modifier, décrivez ce que vous souhaitez, sélectionnez un modèle d'édition et appliquez. L'historique des versions est préservé — les originaux ne sont jamais écrasés.
+
+![Asset Viewer — Inpainting avec masque et prompt](docs/images/asset-viewer-edit.png)
+
+**Génération de modèle 3D** — Convertissez n'importe quelle image Game Asset ou Character en un maillage 3D texturé (GLB). Configurez la résolution des marching cubes, le ratio de premier plan et les paramètres de génération directement dans l'onglet Modèle 3D de l'Asset Viewer.
+
+![Génération de modèle 3D — Paramètres et génération dans l'Asset Viewer](docs/images/3d-model-generation.png)
 
 **Video Studio** — Paramètres à gauche (modèle, mode de génération, durée, région, estimation des coûts), prompt à droite. Prend en charge Nova Reel (plan unique, multi-shot auto/manuel jusqu'à 2 minutes) et Luma AI Ray (rapports d'aspect, boucle).
 

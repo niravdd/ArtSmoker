@@ -109,11 +109,25 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 ### 📝 1.2 屏幕截图
 
-**2D Image Studio** —— 左侧为带多选模型下拉菜单的设置，右侧为3步提示词工作流，下方为模型比较结果。多模型模式在选定的模型上同时生成，并进行每个模型的提示词优化。
+**2D Image Studio** —— 左侧为设置区域，包含多选模型下拉菜单、资产类型、尺寸和后处理选项。右侧为 3 步提示词工作流，带有 Prompt Designer 和 Generate Enhanced Prompt 按钮。底部为 IP 声明和成本估算。
 
-![2D Image Studio — 设置、提示词和生成结果](docs/images/image-studio-top.png)
+![2D Image Studio — 设置、提示词工作流和生成控制](docs/images/image-studio-top.png)
 
-![2D Image Studio — 模型比较、后处理选项和完整预览](docs/images/image-studio-bottom.png)
+**2D Image Studio — 生成结果** —— 上方显示增强提示词，下方为多模型比较结果。每个模型独立生成，并进行模型专属的提示词优化。结果显示模型名称、尺寸和生成成本。
+
+![2D Image Studio — 增强提示词和生成结果](docs/images/image-studio-results.png)
+
+**2D Image Studio — 模型比较** —— 所有选定模型的并排比较网格（展示 7 个模型）。所选选项的变体显示在下方。左侧为后处理切换开关（移除背景、转换为 SVG、放大）。
+
+![2D Image Studio — 多模型比较网格与变体](docs/images/image-studio-comparison.png)
+
+**Prompt Designer** —— AI 将提示词分解为可编辑的视觉组件（主体、场景、构图、光照、风格与颜色）。每个字段可通过锁定/变化控制单独编辑，生成真正不同的创意选项。
+
+![Prompt Designer — 带可编辑字段的结构化视觉分解](docs/images/prompt-designer-top.png)
+
+**Prompt Designer — 色彩调板** —— 带十六进制色样的命名色彩调板、风格关键词和质量级别控制。AI 学习您的视觉标识，并在所有生成中一致应用。
+
+![Prompt Designer — 色彩调板、风格关键词和质量控制](docs/images/prompt-designer-bottom.png)
 
 **Style Library** —— 上传您游戏的现有美术作品，AI 分析视觉风格并生成元数据丰富的提示词指南。参考图像与完整的 AI 分析和 JSON 风格档案一同显示。
 
@@ -125,9 +139,17 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 ![画廊 — 带过滤器的生成资产网格](docs/images/gallery.png)
 
-**Asset Viewer 和图像编辑** —— 带缩放/平移的全尺寸预览、局部重绘（蒙版绘制 + 提示词）编辑选项卡、版本历史和 PNG/SVG 下载。
+**Asset Viewer** —— 带选项卡界面（PNG、编辑、SVG、元数据、3D 模型）的全尺寸预览。直接下载 PNG 和 SVG。棋盘格图案展示透明背景合成效果。
 
-![Asset Viewer — 局部重绘图像编辑](docs/images/asset-viewer-edit.png)
+![Asset Viewer — 带下载选项的全尺寸预览](docs/images/asset-viewer.png)
+
+**Asset Viewer — 图像编辑** —— 编辑选项卡的局部重绘功能：在需要更改的区域绘制蒙版，描述想要的效果，选择编辑模型并应用。保留版本历史 —— 原始图像永远不会被覆盖。
+
+![Asset Viewer — 蒙版和提示词局部重绘](docs/images/asset-viewer-edit.png)
+
+**3D 模型生成** —— 将任何 Game Asset 或 Character 图像转换为带纹理的 3D 网格（GLB）。在 Asset Viewer 的 3D 模型选项卡中直接配置行进立方体分辨率、前景比例和生成参数。
+
+![3D 模型生成 — Asset Viewer 中的设置和生成](docs/images/3d-model-generation.png)
 
 **Video Studio** —— 左侧为设置（模型、生成模式、时长、区域、成本估算），右侧为提示词。支持 Nova Reel（单镜头、最长 2 分钟的多镜头自动/手动）和 Luma AI Ray（宽高比、循环）。
 
