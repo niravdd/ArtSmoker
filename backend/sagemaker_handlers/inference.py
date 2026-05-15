@@ -1406,36 +1406,83 @@ def _load_texture_models(code_dir, hf_token):
     import time as _time
     import subprocess
 
-    # nvdiffrast needs CUDA compilation via torch.utils.cpp_extension.
-    # It's not pip-installable in isolated builds (needs PyTorch in the build env).
-    # We compile at runtime with --no-build-isolation so it finds torch + CUDA.
+    # ── Ensure nvdiffrast is available (CUDA-compiled library) ──
+    # Strategy:
+    #   1. Try import (already installed from a previous warm start)
+    #   2. Try S3 cached wheel (compiled on a previous cold start, uploaded to user's S3)
+    #   3. Compile from source (~60s) and cache the wheel to S3 for future cold starts
+    # This ensures ANY user deploying TripoSG gets nvdiffrast working automatically.
+    _texture_cache_prefix = "artsmoker/custom-models/texture-deps"
+    _nvdiffrast_wheel_key = f"{_texture_cache_prefix}/nvdiffrast-cp312-linux_x86_64.whl"
+
     try:
         import nvdiffrast
     except ImportError:
-        logger.info("nvdiffrast not installed — compiling with CUDA (this takes ~60s)...")
-        try:
-            # Ensure build tools are present
-            subprocess.check_call(
-                ["pip", "install", "--quiet", "setuptools", "wheel"],
-                timeout=30,
-            )
-            # Set CUDA_HOME if not set (needed for torch CUDAExtension)
-            if not os.environ.get("CUDA_HOME"):
-                for cuda_path in ["/usr/local/cuda", "/opt/conda/pkgs/cuda-toolkit"]:
-                    if os.path.isdir(cuda_path):
-                        os.environ["CUDA_HOME"] = cuda_path
-                        break
-            # Compile nvdiffrast using PyTorch's CUDAExtension (no build isolation)
-            subprocess.check_call(
-                ["pip", "install", "--no-build-isolation", "--no-deps",
-                 "git+https://github.com/NVlabs/nvdiffrast.git"],
-                timeout=300,
-            )
-            import nvdiffrast
-            logger.info("nvdiffrast compiled and installed successfully")
-        except Exception as e:
-            logger.warning("nvdiffrast compilation failed: %s — texture generation unavailable", e)
-            raise ImportError(f"nvdiffrast unavailable: {e}")
+        import boto3 as _boto3
+        _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+        _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+
+        installed = False
+
+        # Step 2: Try S3 cached wheel
+        if _bucket:
+            try:
+                _wheel_path = "/tmp/nvdiffrast_cached.whl"
+                logger.info("Checking S3 for pre-compiled nvdiffrast wheel (s3://%s/%s)...", _bucket, _nvdiffrast_wheel_key)
+                _s3.download_file(_bucket, _nvdiffrast_wheel_key, _wheel_path)
+                subprocess.check_call(["pip", "install", "--quiet", "--no-deps", _wheel_path], timeout=60)
+                import nvdiffrast
+                installed = True
+                logger.info("nvdiffrast installed from S3 cache")
+            except _boto3.exceptions.ClientError:
+                logger.info("No cached nvdiffrast wheel in S3 — will compile from source")
+            except Exception as e:
+                logger.info("S3 cache failed (%s) — will compile from source", e)
+
+        # Step 3: Compile from source
+        if not installed:
+            logger.info("Compiling nvdiffrast from source (requires CUDA toolkit, ~60-120s)...")
+            try:
+                subprocess.check_call(["pip", "install", "--quiet", "setuptools", "wheel", "ninja"], timeout=60)
+                # Ensure CUDA_HOME is set for torch.utils.cpp_extension
+                if not os.environ.get("CUDA_HOME"):
+                    for p in ["/usr/local/cuda", "/opt/conda", "/usr/local/cuda-12.4", "/usr/local/cuda-12"]:
+                        if os.path.isfile(os.path.join(p, "bin", "nvcc")):
+                            os.environ["CUDA_HOME"] = p
+                            logger.info("Set CUDA_HOME=%s", p)
+                            break
+                subprocess.check_call(
+                    ["pip", "install", "--no-build-isolation", "--no-deps",
+                     "git+https://github.com/NVlabs/nvdiffrast.git"],
+                    timeout=300,
+                    env={**os.environ},
+                )
+                import nvdiffrast
+                installed = True
+                logger.info("nvdiffrast compiled and installed successfully")
+
+                # Cache the compiled wheel to S3 for future cold starts
+                if _bucket:
+                    try:
+                        import glob
+                        _wheel_dir = "/tmp/nvdiffrast_wheel_export"
+                        os.makedirs(_wheel_dir, exist_ok=True)
+                        subprocess.check_call(
+                            ["pip", "wheel", "--no-build-isolation", "--no-deps",
+                             "--wheel-dir", _wheel_dir,
+                             "git+https://github.com/NVlabs/nvdiffrast.git"],
+                            timeout=300,
+                            env={**os.environ},
+                        )
+                        wheels = glob.glob(os.path.join(_wheel_dir, "nvdiffrast*.whl"))
+                        if wheels:
+                            _s3.upload_file(wheels[0], _bucket, _nvdiffrast_wheel_key)
+                            logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s", _bucket, _nvdiffrast_wheel_key)
+                    except Exception as cache_err:
+                        logger.warning("Failed to cache nvdiffrast wheel to S3: %s", cache_err)
+            except Exception as e:
+                logger.error("nvdiffrast compilation failed: %s", e)
+                raise ImportError(f"nvdiffrast unavailable — texture generation requires CUDA compilation: {e}")
 
     # Load SDXL + MV-Adapter for multi-view generation
     t0 = _time.time()
