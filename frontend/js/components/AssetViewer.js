@@ -1525,34 +1525,33 @@
                     return;
                 }
 
-                // Check if 3D already exists for current version (from metadata or file)
+                // Check if 3D already exists for current version
                 const ver = this._currentVersion || 1;
-                const existing3D = meta.three_d?.[`v${ver}`];
-                if (!existing3D) {
-                    // Also check if the GLB file exists via the gallery endpoint
-                    try {
-                        const glbResp = await fetch(`/api/gallery/${encodeURIComponent(meta.id)}/3d/${ver}`, { method: 'HEAD' });
-                        if (glbResp.ok) {
-                            const size = parseInt(glbResp.headers.get('content-length') || '0');
-                            this._render3DComplete(container, {
-                                download_url: `/api/gallery/${encodeURIComponent(meta.id)}/3d/${ver}`,
-                                file_size: size,
-                                vertices: 0,
-                                faces: 0,
-                            });
-                            return;
-                        }
-                    } catch {}
-                }
+                const glbUrl = `/api/gallery/${encodeURIComponent(meta.id)}/3d/${ver}`;
+                const existing3D = meta.three_d_versions?.find(v => v.version === ver)
+                    || meta.three_d?.[`v${ver}`];
                 if (existing3D) {
                     this._render3DComplete(container, {
-                        download_url: `/api/gallery/${encodeURIComponent(meta.id)}/3d/${ver}`,
+                        download_url: existing3D.glb_url || glbUrl,
                         file_size: existing3D.size_bytes || 0,
                         vertices: existing3D.vertices || 0,
                         faces: existing3D.faces || 0,
                     });
                     return;
                 }
+                // Fallback: check if GLB file exists via a quick fetch
+                try {
+                    const checkResp = await fetch(glbUrl, { method: 'GET', headers: { 'Range': 'bytes=0-0' } });
+                    if (checkResp.ok || checkResp.status === 206) {
+                        this._render3DComplete(container, {
+                            download_url: glbUrl,
+                            file_size: parseInt(checkResp.headers.get('content-range')?.split('/')?.pop() || '0'),
+                            vertices: 0,
+                            faces: 0,
+                        });
+                        return;
+                    }
+                } catch {}
 
                 // Show generation form
                 this._render3DForm(container);
