@@ -20,6 +20,7 @@ Les équipes créatives et les studios de jeux veulent utiliser l'IA pour la gé
 - **L'ingénierie de prompts est difficile** — composer des prompts efficaces avec les bons prompts négatifs, les directives de style et le formatage spécifique à chaque modèle demande une expertise que la plupart des artistes n'ont pas
 - **Les équipes ne construisent/entraînent pas leurs propres modèles** — elles ont besoin d'accéder aux nombreux modèles déjà disponibles sur Bedrock, via un outil qu'elles peuvent réellement utiliser
 - **L'édition d'images est inaccessible** — l'inpainting, l'outpainting, la recherche et remplacement, et le transfert de style nécessitent tous des connaissances API
+- **Le passage 2D-vers-3D est un pipeline séparé** — obtenir un modèle 3D texturé prêt pour le moteur de jeu à partir d'un concept 2D nécessite habituellement de la modélisation manuelle, du dépliage UV et de la peinture de textures — ou des outils tiers coûteux
 
 ### 📝 La solution
 
@@ -29,6 +30,7 @@ ArtSmoker est une application web auto-hébergée qui enveloppe Amazon Bedrock d
 - **Génération guidée par le style** — téléchargez l'art existant de votre jeu, et les modèles de vision d'ArtSmoker apprennent votre identité visuelle. Chaque asset généré correspond à l'apparence et à l'atmosphère de votre jeu
 - **Tous les modèles Bedrock, toutes les régions** — entièrement configurable. Choisissez vos modèles text-to-image, modèles vidéo et régions. Le système découvre dynamiquement les modèles disponibles via l'API Bedrock
 - **Modèles open source auto-hébergés — déploiement en 1 clic** — parcourez un catalogue organisé de modèles pré-testés (HunyuanImage 3.0, FLUX.2, et plus), choisissez une instance GPU, et déployez sur Amazon SageMaker en un clic. Tout est pris en charge : empaquetage de l'inférence, quantification, configuration CUDA, mise à l'échelle automatique et suivi des tâches. Chaque modèle du catalogue est validé de bout en bout avant publication
+- **Image vers 3D en un clic** — générez un modèle 3D texturé (GLB) directement à partir de n'importe quel asset 2D ou image de personnage. La synthèse multi-vues et le baking de textures produisent des meshes prêts pour le moteur de jeu, importables directement dans Unity, Unreal ou Blender — sans modélisation manuelle
 - **Auto-déployé, auto-facturé** — fonctionne sur votre propre infrastructure, utilise votre propre compte AWS. Pas d'endpoints partagés, pas d'accès tiers aux données, pas de factures surprises de services externes
 
 **Modèles Amazon Bedrock** : Claude Sonnet/Opus (ingénierie de prompts et chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, services Stability AI (édition d'images), Nova Reel, Luma AI Ray (génération vidéo), plus 80+ LLM de 16 fournisseurs pour Chat Studio. **Modèles auto-hébergés** : HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG, et plus via Amazon SageMaker — avec un catalogue extensible pour ajouter de nouveaux modèles.

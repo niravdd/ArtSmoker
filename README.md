@@ -18,6 +18,7 @@ Creative teams and game studios want to use AI for asset generation, but face re
 - **Prompt engineering is hard** — composing effective prompts with proper negative prompts, style directives, and model-specific formatting takes expertise most artists don't have
 - **Teams don't build/train their own models** — they need access to the many models already available on Bedrock, through something they can actually use
 - **Image editing is inaccessible** — inpainting, outpainting, search & replace, and style transfer all require API knowledge
+- **2D-to-3D is a separate pipeline** — getting from a 2D concept to a game-engine-ready textured 3D model normally requires manual modeling, UV unwrapping, and texture painting — or expensive third-party tools
 
 ### 📝 The Solution
 
@@ -27,9 +28,10 @@ ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean 
 - **Style-aware generation** — upload your game's existing art, and ArtSmoker's vision models learn your visual identity. Every generated asset matches your game's look and feel
 - **All Bedrock models, all regions** — fully configurable. Choose your text-to-image models, video models, and regions. The system discovers available models dynamically via the Bedrock API
 - **Self-hosted open-source models — 1-click deploy** — browse a curated catalog of pre-tested models (HunyuanImage 3.0, FLUX.2, and more), pick a GPU instance, and deploy to Amazon SageMaker with one click. Everything is handled: inference packaging, quantisation, CUDA configuration, auto-scaling, and job tracking. Every catalog model is validated end-to-end before shipping
+- **Image-to-3D in one click** — generate a textured 3D model (GLB) directly from any 2D game asset or character image. Multi-view synthesis and texture baking produce game-engine-ready meshes that import directly into Unity, Unreal, or Blender — no manual modeling required
 - **Self-deployed, self-billed** — runs on your own infrastructure, uses your own AWS account. No shared endpoints, no third-party data access, no surprise bills from external services
 
-**Amazon Bedrock models**: Claude Sonnet/Opus (prompt engineering & chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI services (image editing), Nova Reel, Luma AI Ray (video generation), and 80+ LLMs from 16 providers for Chat Studio. **Self-hosted models**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, and more via Amazon SageMaker — with an extensible catalog for adding new models.
+**Amazon Bedrock models**: Claude Sonnet/Opus (prompt engineering & chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI services (image editing), Nova Reel, Luma AI Ray (video generation), and 80+ LLMs from 16 providers for Chat Studio. **Self-hosted models**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG (image-to-3D), and more via Amazon SageMaker — with an extensible catalog for adding new models.
 
 **[Get started now — jump to Prerequisites & Installation ▸](#get-started)**
 
