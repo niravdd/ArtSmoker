@@ -1707,7 +1707,7 @@
                 <div class="space-y-4">
                     <div class="rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 320px;">
                         <model-viewer
-                            src="${glbUrl}"
+                            src="${glbUrl}?t=${Date.now()}"
                             alt="3D Model"
                             camera-controls
                             touch-action="pan-y"
