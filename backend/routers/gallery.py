@@ -384,8 +384,10 @@ async def get_asset_svg(asset_id: str):
 @router.get("/{asset_id}/3d/{version}")
 async def get_asset_3d(asset_id: str, version: int):
     """Serve a GLB (3D model) file for a generated asset."""
-    filename = f"asset_3d_v{version}.glb"
-    path = store.get_generated_file_path(asset_id, filename)
+    # Try versioned file first, then fall back to latest (asset_3d.glb)
+    path = store.get_generated_file_path(asset_id, f"asset_3d_v{version}.glb")
+    if path is None:
+        path = store.get_generated_file_path(asset_id, "asset_3d.glb")
     if path is None:
         raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
-    return FileResponse(path, media_type="model/gltf-binary", filename=f"{asset_id}_3d_v{version}.glb")
+    return FileResponse(path, media_type="model/gltf-binary", filename=f"{asset_id}_3d.glb")

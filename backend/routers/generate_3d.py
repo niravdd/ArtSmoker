@@ -320,12 +320,22 @@ async def get_3d_status(job_id: str):
         version = job["version"]
         asset_id = job["asset_id"]
 
-        # Save GLB file
-        glb_filename = f"asset_3d_v{version}.glb"
+        # Save GLB file — "asset_3d.glb" is always the latest version.
+        # Previous versions are renamed to "asset_3d_v{N}.glb" when a new one is generated.
         asset_dir = store.generated_asset_dir(asset_id)
         asset_dir.mkdir(parents=True, exist_ok=True)
-        glb_path = asset_dir / glb_filename
-        glb_path.write_bytes(glb_bytes)
+        glb_latest = asset_dir / "asset_3d.glb"
+        # If a GLB already exists, rename it to its version number before overwriting
+        if glb_latest.exists():
+            meta_existing = store.load_generation_metadata(asset_id) or {}
+            existing_versions = meta_existing.get("three_d_versions", [])
+            if existing_versions:
+                prev_ver = existing_versions[-1].get("version", 1)
+                prev_path = asset_dir / f"asset_3d_v{prev_ver}.glb"
+                if not prev_path.exists():
+                    glb_latest.rename(prev_path)
+        glb_latest.write_bytes(glb_bytes)
+        glb_filename = "asset_3d.glb"
 
         # Extract mesh stats from output if available
         vertices = output_data.get("vertices", 0)
