@@ -1700,12 +1700,21 @@ def _predict_image_to_3d(input_data, model_dict):
         except Exception as e:
             logger.warning("Decimation failed (keeping original): %s", e)
 
-    # 6. Export as GLB
-    glb_data = mesh.export(file_type="glb")
+    # 6. Compute vertex normals (required for proper lighting in 3D viewers)
+    try:
+        mesh.fix_normals()
+    except Exception:
+        pass
+    vertex_count = len(mesh.vertices)
+    face_count = len(mesh.faces)
+    logger.info("Mesh ready: %d vertices, %d faces", vertex_count, face_count)
+
+    # 7. Export as GLB with normals included
+    glb_data = mesh.export(file_type="glb", include_normals=True)
     b64_glb = base64.b64encode(glb_data).decode("utf-8")
     logger.info("GLB export: %.1f KB", len(glb_data) / 1024)
 
-    return b64_glb
+    return json.dumps({"mesh": b64_glb, "format": "base64_glb", "vertices": vertex_count, "faces": face_count})
 
 
 _PREDICTORS = {
@@ -1870,9 +1879,5 @@ def predict_fn(input_data, model_dict):
 def output_fn(prediction, accept="application/json"):
     """Format output as JSON."""
     if isinstance(prediction, str) and prediction.startswith("{"):
-        return prediction  # Already JSON (e.g., video frames)
-    # Route output format by predictor type
-    predictor_type = _get_env("PREDICTOR_TYPE", "text_to_image")
-    if predictor_type == "image_to_3d":
-        return json.dumps({"mesh": prediction, "format": "base64_glb"})
+        return prediction  # Already JSON (e.g., 3D mesh with stats, video frames)
     return json.dumps({"image": prediction, "format": "base64_png"})

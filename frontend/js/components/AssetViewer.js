@@ -1712,9 +1712,11 @@
                             camera-controls
                             touch-action="pan-y"
                             auto-rotate
-                            shadow-intensity="0.5"
+                            shadow-intensity="0.3"
+                            exposure="2"
                             environment-image="neutral"
-                            style="width: 100%; height: 100%; --poster-color: transparent;"
+                            tone-mapping="commerce"
+                            style="width: 100%; height: 100%; --poster-color: transparent; background: linear-gradient(160deg, #2a2d35 0%, #1a1d25 100%);"
                         ></model-viewer>
                     </div>
                     <div class="grid grid-cols-3 gap-4 text-center">
