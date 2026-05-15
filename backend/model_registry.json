@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-05-14T07:54:14.474974+00:00",
+  "last_updated": "2026-05-15T05:35:24.139716+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -5328,10 +5328,13 @@
           }
         },
         "requirements": {
-          "min_vram_gb": 32,
-          "recommended_instance": "ml.g6e.xlarge",
+          "min_vram_gb": 16,
+          "recommended_instance": "ml.g5.2xlarge",
           "disk_gb": 60,
           "allowed_instances": [
+            "ml.g5.xlarge",
+            "ml.g5.2xlarge",
+            "ml.g5.4xlarge",
             "ml.g6e.xlarge",
             "ml.g6e.2xlarge",
             "ml.g6e.4xlarge"
