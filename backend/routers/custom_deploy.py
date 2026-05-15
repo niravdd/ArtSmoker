@@ -1019,7 +1019,7 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
             "prompt_limit": invoke.get("max_prompt_length", 2048),
             "moderation_strictness": "none",
         }
-    elif category == "post_processing":
+    elif category in ("post_processing", "3d_generation"):
         registry.setdefault("post_processing", {})[registry_key] = {
             **entry,
             "purpose": model_key,
