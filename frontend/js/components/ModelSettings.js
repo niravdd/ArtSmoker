@@ -1843,7 +1843,7 @@
                         const idle = isInService && !m.warming_up && !active;
                         const warmingUp = isInService && m.warming_up;
                         const scalingUp = m.deployment_status === 'Updating' && (m.instance_count === 0 || m.instance_count === undefined);
-                        const deploying = !scalingUp && (m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying' || (m.deploy_progress && m.deploy_stage !== 'failed'));
+                        const deploying = !scalingUp && !isInService && (m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying' || (m.deploy_progress && m.deploy_stage !== 'failed'));
                         const failed = m.deployment_status === 'Failed' || m.deploy_stage === 'failed';
                         const deployed = active || idle;
                         const cacheHint = m.has_cache ? 'Cached — faster startup' : 'Cold start on activation';

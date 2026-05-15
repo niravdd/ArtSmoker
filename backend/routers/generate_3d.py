@@ -78,10 +78,9 @@ async def check_3d_available():
 
     dep = cfg.get("deployment", {})
     endpoint_name = dep.get("endpoint_name")
-    model_ready = dep.get("model_ready", False)
     enabled = cfg.get("enabled", True)
 
-    available = bool(endpoint_name and model_ready and enabled)
+    available = bool(endpoint_name and enabled)
     return {
         "available": available,
         "model_key": model_key,
@@ -135,11 +134,10 @@ async def generate_3d(body: ThreeDGenerateRequest):
 
     dep = cfg.get("deployment", {})
     endpoint_name = dep.get("endpoint_name")
-    model_ready = dep.get("model_ready", False)
     enabled = cfg.get("enabled", True)
 
-    if not endpoint_name or not model_ready or not enabled:
-        raise HTTPException(400, detail="3D generation model is not ready. Check deployment status.")
+    if not endpoint_name or not enabled:
+        raise HTTPException(400, detail="3D generation model is not deployed. Deploy from Custom Models first.")
 
     # Read the source image
     if body.version == 1:
