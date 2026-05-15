@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-05-15T07:34:11.805521+00:00",
+  "last_updated": "2026-05-15T07:38:30.136324+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -5412,7 +5412,6 @@
             "typeguard",
             "omegaconf",
             "scipy",
-            "fast_simplification",
             "peft",
             "kornia",
             "open3d",
