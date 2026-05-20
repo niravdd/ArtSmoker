@@ -57,11 +57,11 @@ class TexturePipelineOutput:
 
 
 class TexturePipeline:
-    def __init__(self, upscaler_ckpt_path: str, inpaint_ckpt_path: str, device: str):
+    def __init__(self, upscaler_ckpt_path: str, inpaint_ckpt_path: str, device: str, context_type: str = "cuda"):
         self.device = device
-        self.ctx = NVDiffRastContextWrapper(device=self.device)
+        self.ctx = NVDiffRastContextWrapper(device=self.device, context_type=context_type)
         self.cam_proj = CameraProjection(
-            pb_backend="torch-cuda", bg_remover=None, device=self.device
+            pb_backend="torch-cuda", bg_remover=None, device=self.device, context_type=context_type
         )
         if upscaler_ckpt_path is not None:
             self.upscaler = ModelLoader().load_from_file(upscaler_ckpt_path)
@@ -70,7 +70,7 @@ class TexturePipeline:
             self.inpainter = ModelLoader().load_from_file(inpaint_ckpt_path)
             self.inpainter.to(self.device).eval()
 
-        self.smart_painter = SmartPainter(self.device)
+        self.smart_painter = SmartPainter(self.device, context_type=context_type)
 
     def load_packed_images(self, packed_image_path: Optional[str]) -> List[Image.Image]:
         if packed_image_path is None:

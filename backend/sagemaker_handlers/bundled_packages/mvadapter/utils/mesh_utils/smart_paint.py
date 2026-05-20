@@ -35,12 +35,12 @@ from .uv import (
 
 
 class SmartPainter:
-    def __init__(self, device: str):
+    def __init__(self, device: str, context_type: str = "cuda"):
         self.device = device
         self.cam_proj = CameraProjection(
-            pb_backend="torch-cuda", bg_remover=None, device=device
+            pb_backend="torch-cuda", bg_remover=None, device=device, context_type=context_type
         )
-        self.ctx = NVDiffRastContextWrapper(device=self.device)
+        self.ctx = NVDiffRastContextWrapper(device=self.device, context_type=context_type)
 
     def __call__(
         self,

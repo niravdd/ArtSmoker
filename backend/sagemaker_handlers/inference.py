@@ -1488,15 +1488,23 @@ def _load_texture_models(code_dir, hf_token):
     # Load SDXL + MV-Adapter for multi-view generation
     t0 = _time.time()
     logger.info("Loading MV-Adapter (SDXL + adapter weights)...")
-    from mvadapter.pipelines.pipeline_mvadapter import prepare_pipeline
-    mv_pipe = prepare_pipeline(
-        base_model="stabilityai/stable-diffusion-xl-base-1.0",
-        vae_model="madebyollin/sdxl-vae-fp16-fix",
-        adapter_path="huanngzh/mv-adapter",
-        num_views=6,
-        device="cuda",
-        dtype=torch.float16,
+    from diffusers import AutoencoderKL
+    from mvadapter.pipelines.pipeline_mvadapter_i2mv_sdxl import MVAdapterI2MVSDXLPipeline
+
+    _vae = AutoencoderKL.from_pretrained(
+        "madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16
     )
+    mv_pipe = MVAdapterI2MVSDXLPipeline.from_pretrained(
+        "stabilityai/stable-diffusion-xl-base-1.0",
+        vae=_vae,
+        torch_dtype=torch.float16,
+    )
+    mv_pipe.init_custom_adapter(num_views=6)
+    mv_pipe.load_custom_adapter(
+        "huanngzh/mv-adapter",
+        weight_name="mvadapter_i2mv_sdxl.safetensors",
+    )
+    mv_pipe.to("cuda")
     mv_time = _time.time() - t0
     logger.info("MV-Adapter loaded in %.0fs", mv_time)
 
@@ -2108,7 +2116,10 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         else:
             raise RuntimeError(f"TexturePipeline did not produce output (path={textured_path})")
 
-        # On low VRAM: reload TripoSG + RMBG back to GPU for next inference
+        return glb_data
+
+    finally:
+        # On low VRAM: always reload TripoSG + RMBG back to GPU for next inference
         if not high_vram:
             logger.info("Low VRAM mode: reloading TripoSG + RMBG to GPU...")
             triposg_pipe = model_dict.get("pipe")
@@ -2117,10 +2128,6 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                 triposg_pipe.to("cuda")
             if rmbg is not None:
                 rmbg.to("cuda")
-
-        return glb_data
-
-    finally:
         # Clean up temp directory
         import shutil
         try:
@@ -2256,7 +2263,7 @@ def input_fn(request_body, content_type="application/json"):
         data = json.loads(request_body)
         # Log input summary (not the full prompt — could be long)
         prompt_len = len(data.get("prompt", ""))
-        logger.info("Input: prompt=%d chars, size=%dx%d, steps=%s, guidance=%s, seed=%s",
+        logger.info("Input: prompt=%d chars, size=%sx%s, steps=%s, guidance=%s, seed=%s",
                      prompt_len, data.get("width", "?"), data.get("height", "?"),
                      data.get("num_inference_steps", "?"), data.get("guidance_scale", "?"),
                      data.get("seed", "?"))
