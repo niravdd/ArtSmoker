@@ -2057,16 +2057,16 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
 
         # Generate multi-view images conditioned on geometry + reference image
         mv_result = mv_pipe(
-            "high quality",
+            "best quality, sharp textures, vivid colors, detailed surface materials, game asset",
             height=768, width=768,
-            num_inference_steps=15,
-            guidance_scale=3.0,
+            num_inference_steps=30,
+            guidance_scale=5.0,
             num_images_per_prompt=6,
             control_image=control_images,
             control_conditioning_scale=1.0,
             reference_image=source_image,
-            reference_conditioning_scale=1.0,
-            negative_prompt="watermark, ugly, deformed, noisy, blurry",
+            reference_conditioning_scale=1.5,
+            negative_prompt="washed out, pale, flat lighting, low contrast, watermark, ugly, deformed, noisy, blurry, white, overexposed",
         )
         mv_images = mv_result.images
         elapsed_p2 = _t.time() - t0
