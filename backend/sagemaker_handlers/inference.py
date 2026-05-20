@@ -1466,19 +1466,26 @@ def _load_texture_models(code_dir, hf_token):
                 if _bucket:
                     try:
                         import glob
-                        _wheel_dir = "/tmp/nvdiffrast_wheel_export"
-                        os.makedirs(_wheel_dir, exist_ok=True)
-                        subprocess.check_call(
-                            ["pip", "wheel", "--no-build-isolation", "--no-deps",
-                             "--wheel-dir", _wheel_dir,
-                             "git+https://github.com/NVlabs/nvdiffrast.git"],
-                            timeout=300,
-                            env={**os.environ},
-                        )
-                        wheels = glob.glob(os.path.join(_wheel_dir, "nvdiffrast*.whl"))
-                        if wheels:
-                            _s3.upload_file(wheels[0], _bucket, _nvdiffrast_wheel_key)
-                            logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s", _bucket, _nvdiffrast_wheel_key)
+                        # Find the wheel pip already built during install (in its ephemeral cache)
+                        _pip_cache_wheels = glob.glob("/tmp/pip-ephem-wheel-cache-*/wheels/**/nvdiffrast*.whl", recursive=True)
+                        if _pip_cache_wheels:
+                            _s3.upload_file(_pip_cache_wheels[0], _bucket, _nvdiffrast_wheel_key)
+                            logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s (from pip cache)", _bucket, _nvdiffrast_wheel_key)
+                        else:
+                            # Fallback: build a wheel explicitly
+                            _wheel_dir = "/tmp/nvdiffrast_wheel_export"
+                            os.makedirs(_wheel_dir, exist_ok=True)
+                            subprocess.check_call(
+                                ["pip", "wheel", "--no-build-isolation", "--no-deps",
+                                 "--wheel-dir", _wheel_dir,
+                                 "git+https://github.com/NVlabs/nvdiffrast.git"],
+                                timeout=300,
+                                env={**os.environ},
+                            )
+                            wheels = glob.glob(os.path.join(_wheel_dir, "nvdiffrast*.whl"))
+                            if wheels:
+                                _s3.upload_file(wheels[0], _bucket, _nvdiffrast_wheel_key)
+                                logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s", _bucket, _nvdiffrast_wheel_key)
                     except Exception as cache_err:
                         logger.warning("Failed to cache nvdiffrast wheel to S3: %s", cache_err)
             except Exception as e:
