@@ -259,6 +259,18 @@ def uv_parameterize_uvatlas(
 
 
 ### Pack All ###
+def _repair_mesh_trimesh(mesh):
+    """Lightweight manifold repair using trimesh (no pymeshlab dependency)."""
+    mesh.merge_vertices()
+    mesh.remove_degenerate_faces()
+    mesh.remove_duplicate_faces()
+    mesh.remove_unreferenced_vertices()
+    trimesh.repair.fix_winding(mesh)
+    trimesh.repair.fix_normals(mesh)
+    trimesh.repair.fill_holes(mesh)
+    return mesh
+
+
 def process_raw(mesh_path, save_path, preprocess=True, device="cpu"):
     scene = trimesh.load(mesh_path, force="mesh", process=False)
     if isinstance(scene, trimesh.Trimesh):
@@ -270,25 +282,12 @@ def process_raw(mesh_path, save_path, preprocess=True, device="cpu"):
     else:
         raise ValueError(f"Unknown mesh type at {mesh_path}.")
 
+    if preprocess:
+        mesh = _repair_mesh_trimesh(mesh)
+
     vertices = mesh.vertices
     faces = mesh.faces
-
-    mesh_post_process_options = {
-        "mincomponentRatio": 0.02,
-        "targetfacenum": 50000,
-        "maxholesize": 100,
-        "stepsmoothnum": 10,
-        "verbose": False,
-    }
-
-    if preprocess:
-        v_pos, t_pos_idx, normals = process_mesh(
-            vertices=vertices,
-            faces=faces,
-            **mesh_post_process_options,
-        )
-    else:
-        v_pos, t_pos_idx, normals = vertices, faces, mesh.vertex_normals
+    v_pos, t_pos_idx, normals = vertices, faces, mesh.vertex_normals
 
     v_tex_np = (
         uv_parameterize_uvatlas(v_pos, t_pos_idx).reshape(-1, 2).astype(np.float32)
