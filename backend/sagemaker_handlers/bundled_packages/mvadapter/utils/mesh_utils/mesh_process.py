@@ -118,7 +118,12 @@ def fix_hole(ms, maxholesize=30, verbose=False):
     m = ms.current_mesh()
     if verbose:
         print("... Initial face number is %d ... " % m.face_number())
-    ms.meshing_close_holes(maxholesize=maxholesize)
+    if hasattr(ms, 'meshing_close_holes'):
+        ms.meshing_close_holes(maxholesize=maxholesize)
+    elif hasattr(ms, 'close_holes'):
+        ms.close_holes(maxholesize=maxholesize)
+    else:
+        pass
     if verbose:
         print("... Fixed hole face number is %d ... " % m.face_number())
         print("Fix holes done!\n ")
@@ -262,8 +267,10 @@ def uv_parameterize_uvatlas(
 def _repair_mesh_trimesh(mesh):
     """Fallback manifold repair using trimesh when pymeshlab is unavailable."""
     mesh.merge_vertices()
-    mesh.remove_degenerate_faces()
-    mesh.remove_duplicate_faces()
+    mask = mesh.nondegenerate_faces()
+    mesh.update_faces(mask)
+    unique = mesh.unique_faces()
+    mesh.update_faces(unique)
     mesh.remove_unreferenced_vertices()
     trimesh.repair.fix_winding(mesh)
     trimesh.repair.fix_normals(mesh)
