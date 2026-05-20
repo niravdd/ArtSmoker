@@ -187,7 +187,9 @@
     "edit_prompt_placeholder_outpaint": "Opcional — describir el paisaje extendido, o dejar vacío",
     "edit_prompt_placeholder_recolor": "Nuevo color o apariencia — ej. rojo brillante, bronce envejecido…",
     "edit_prompt_placeholder_replace": "Con qué reemplazarlo — ej. un arco de piedra, un auto rojo…",
-    "three_d_viewer_hint": "Arrastra para orbitar, desplaza para zoom, clic derecho para mover"
+    "three_d_viewer_hint": "Arrastra para orbitar, desplaza para zoom, clic derecho para mover",
+    "three_d_regenerate": "Regenerar",
+    "three_d_regenerating": "Regenerando..."
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",

@@ -187,7 +187,9 @@
     "edit_prompt_placeholder_outpaint": "可选 — 描述扩展的景色，或留空",
     "edit_prompt_placeholder_recolor": "新颜色或外观 — 例如：亮红色、风化的青铜…",
     "edit_prompt_placeholder_replace": "替换内容 — 例如：石拱门、红色汽车…",
-    "three_d_viewer_hint": "拖动旋转，滚轮缩放，右键平移"
+    "three_d_viewer_hint": "拖动旋转，滚轮缩放，右键平移",
+    "three_d_regenerate": "重新生成",
+    "three_d_regenerating": "重新生成中..."
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",

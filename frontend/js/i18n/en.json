@@ -768,6 +768,8 @@
     "three_d_async_note": "3D generation runs asynchronously. The model will be ready in ~30-60 seconds.",
     "three_d_pending": "Submitted — waiting for model to process...",
     "three_d_complete": "3D model ready",
+    "three_d_regenerate": "Regenerate",
+    "three_d_regenerating": "Regenerating...",
     "three_d_download": "Download GLB",
     "three_d_file_size": "File size",
     "three_d_vertices": "Vertices",

@@ -803,7 +803,9 @@
     "meta_3d_file": "आउटपुट",
     "meta_copy": "कॉपी",
     "meta_copied": "कॉपी हो गया!",
-    "three_d_viewer_hint": "खींचकर घुमाएँ, स्क्रॉल करके ज़ूम करें, राइट-क्लिक करके पैन करें"
+    "three_d_viewer_hint": "खींचकर घुमाएँ, स्क्रॉल करके ज़ूम करें, राइट-क्लिक करके पैन करें",
+    "three_d_regenerate": "पुनर्जनन",
+    "three_d_regenerating": "पुनर्जनन हो रहा है..."
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",

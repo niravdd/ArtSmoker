@@ -1487,6 +1487,7 @@
             this._3dPollTimer = null;
             this._3dJobId = null;
             this._currentVersion = null;
+            if (!window._3dActiveJobs) window._3dActiveJobs = {};
         },
 
         async _update3DContent() {
@@ -1531,6 +1532,12 @@
                 const existing3D = meta.three_d_versions?.find(v => v.version === ver)
                     || meta.three_d?.[`v${ver}`];
                 if (existing3D) {
+                    // Check if a regeneration job is active for this asset
+                    const activeJobId = window._3dActiveJobs?.[meta.id];
+                    if (activeJobId && !this._3dPollTimer) {
+                        this._3dJobId = activeJobId;
+                        this._start3DPolling(activeJobId);
+                    }
                     this._render3DComplete(container, {
                         download_url: existing3D.glb_url || glbUrl,
                         file_size: existing3D.size_bytes || 0,
@@ -1681,6 +1688,7 @@
             try {
                 const result = await API.threeD.generate(payload);
                 this._3dJobId = result.job_id;
+                window._3dActiveJobs[payload.asset_id] = result.job_id;
                 window.showToast?.(t('asset_viewer.three_d_pending'), 'info');
                 this._render3DPending(container, result.job_id);
                 this._start3DPolling(result.job_id);
@@ -1703,6 +1711,11 @@
         _render3DComplete(container, data) {
             const fileSize = data.file_size ? this._formatBytes(data.file_size) : '—';
             const glbUrl = data.download_url || '#';
+            const regenInProgress = this._3dJobId && this._3dPollTimer;
+            const regenBtnClass = regenInProgress ? 'btn btn-sm btn-secondary opacity-60 cursor-not-allowed' : 'btn btn-sm btn-secondary';
+            const regenBtnLabel = regenInProgress
+                ? `<span class="spinner-sm mr-1"></span> ${t('asset_viewer.three_d_regenerating')}`
+                : `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('asset_viewer.three_d_regenerate')}`;
             container.innerHTML = `
                 <div class="space-y-4">
                     <div class="rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 320px;">
@@ -1740,9 +1753,17 @@
                             </svg>
                             ${t('asset_viewer.three_d_download')}
                         </a>
-                        <p class="text-[9px] text-brand-text-muted">${t('asset_viewer.three_d_viewer_hint')}</p>
+                        <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5" ${regenInProgress ? 'disabled' : ''}>
+                            ${regenBtnLabel}
+                        </button>
                     </div>
+                    <p class="text-[9px] text-brand-text-muted text-center">${t('asset_viewer.three_d_viewer_hint')}</p>
                 </div>`;
+
+            container.querySelector('#av-3d-regenerate')?.addEventListener('click', () => {
+                if (this._3dJobId && this._3dPollTimer) return;
+                this._render3DForm(container);
+            });
         },
 
         _start3DPolling(jobId) {
@@ -1752,11 +1773,17 @@
                     const status = await API.threeD.status(jobId);
                     if (status.status === 'complete') {
                         this._stop3DPolling();
+                        this._3dJobId = null;
+                        const assetId = this._item?.id;
+                        if (assetId) delete window._3dActiveJobs[assetId];
                         window.showToast?.(t('asset_viewer.three_d_complete'), 'success');
                         const container = this._overlay?.querySelector('#av-3d-content');
-                        if (container) this._render3DComplete(container, status.result);
+                        if (container) this._render3DComplete(container, status.result || status);
                     } else if (status.status === 'failed') {
                         this._stop3DPolling();
+                        this._3dJobId = null;
+                        const assetId = this._item?.id;
+                        if (assetId) delete window._3dActiveJobs[assetId];
                         window.showToast?.(t('asset_viewer.three_d_failed'), 'error');
                         const container = this._overlay?.querySelector('#av-3d-content');
                         if (container) {
@@ -1764,12 +1791,16 @@
                                 <div class="text-center py-8 space-y-3">
                                     <p class="text-red-400">${t('asset_viewer.three_d_failed')}</p>
                                     <p class="text-[10px] text-brand-text-dim">${this._esc(status.error || '')}</p>
+                                    <button id="av-3d-retry" class="btn btn-sm btn-secondary">${t('asset_viewer.three_d_regenerate')}</button>
                                 </div>`;
+                            container.querySelector('#av-3d-retry')?.addEventListener('click', () => this._render3DForm(container));
                         }
                     }
                 } catch (err) {
-                    // Job not found (server restarted) — stop polling and refresh 3D state
                     this._stop3DPolling();
+                    this._3dJobId = null;
+                    const assetId = this._item?.id;
+                    if (assetId) delete window._3dActiveJobs[assetId];
                     this._update3DContent();
                 }
             }, 5000);
