@@ -766,7 +766,7 @@
     "three_d_generate": "3D मॉडल बनाएँ",
     "three_d_generating": "बन रहा है...",
     "three_d_async_note": "3D निर्माण अतुल्यकालिक रूप से चलता है। मॉडल ~30-60 सेकंड में तैयार होगा।",
-    "three_d_pending": "सबमिट किया गया — मॉडल प्रसंस्करण की प्रतीक्षा में...",
+    "three_d_pending": "3D मॉडल निर्माण जारी",
     "three_d_complete": "3D मॉडल तैयार",
     "three_d_download": "GLB डाउनलोड करें",
     "three_d_file_size": "फ़ाइल का आकार",
@@ -805,7 +805,10 @@
     "meta_copied": "प्रतिलिपि हो गई!",
     "three_d_viewer_hint": "खींचकर घुमाएँ, स्क्रॉल करके ज़ूम करें, राइट-क्लिक करके पैन करें",
     "three_d_regenerate": "पुनः बनाएँ",
-    "three_d_regenerating": "पुनः बन रहा है..."
+    "three_d_regenerating": "पुनः बन रहा है...",
+    "three_d_pending_title": "आपका 3D मॉडल बन रहा है...",
+    "three_d_pending_subtitle": "आमतौर पर 60-90 सेकंड लगते हैं। आप यह व्यूअर बंद कर सकते हैं — तैयार होने पर मॉडल स्वयं दिखेगा।",
+    "three_d_job_id": "कार्य"
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",

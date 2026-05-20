@@ -1701,10 +1701,13 @@
 
         _render3DPending(container, jobId) {
             container.innerHTML = `
-                <div class="text-center py-8 space-y-3">
+                <div class="text-center py-8 space-y-4">
                     <div class="loading-spinner w-6 h-6 border-2 border-brand-accent/20 border-t-brand-accent rounded-full mx-auto"></div>
-                    <p class="text-brand-text-muted">${t('asset_viewer.three_d_pending')}</p>
-                    <p class="text-[10px] text-brand-text-dim font-mono">${this._esc(jobId)}</p>
+                    <div>
+                        <p class="text-brand-text">${t('asset_viewer.three_d_pending_title')}</p>
+                        <p class="text-[10px] text-brand-text-muted mt-1">${t('asset_viewer.three_d_pending_subtitle')}</p>
+                    </div>
+                    <p class="text-[9px] text-brand-text-dim font-mono">${t('asset_viewer.three_d_job_id')}: ${this._esc(jobId)}</p>
                 </div>`;
         },
 

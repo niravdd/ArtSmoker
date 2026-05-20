@@ -129,7 +129,7 @@
     "three_d_generate": "生成 3D 模型",
     "three_d_generating": "生成中...",
     "three_d_async_note": "3D 生成为异步操作。模型将在约30-60秒内完成。",
-    "three_d_pending": "已提交 — 等待模型处理中...",
+    "three_d_pending": "3D模型生成中",
     "three_d_complete": "3D 模型已就绪",
     "three_d_download": "下载 GLB",
     "three_d_file_size": "文件大小",
@@ -189,7 +189,10 @@
     "edit_prompt_placeholder_replace": "替换内容 — 例如：石拱门、红色汽车…",
     "three_d_viewer_hint": "拖动旋转，滚轮缩放，右键平移",
     "three_d_regenerate": "重新生成",
-    "three_d_regenerating": "重新生成中..."
+    "three_d_regenerating": "重新生成中...",
+    "three_d_pending_title": "正在生成您的3D模型...",
+    "three_d_pending_subtitle": "通常需要60-90秒。您可以关闭此查看器 — 模型准备好后会自动显示。",
+    "three_d_job_id": "任务"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",

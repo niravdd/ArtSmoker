@@ -129,7 +129,7 @@
     "three_d_generate": "Generar modelo 3D",
     "three_d_generating": "Generando...",
     "three_d_async_note": "La generación 3D se ejecuta de forma asíncrona. El modelo estará listo en ~30-60 segundos.",
-    "three_d_pending": "Enviado — esperando procesamiento del modelo...",
+    "three_d_pending": "Generación de modelo 3D en progreso",
     "three_d_complete": "Modelo 3D listo",
     "three_d_download": "Descargar GLB",
     "three_d_file_size": "Tamaño del archivo",
@@ -189,7 +189,10 @@
     "edit_prompt_placeholder_replace": "Con qué reemplazarlo — ej. un arco de piedra, un auto rojo…",
     "three_d_viewer_hint": "Arrastra para orbitar, desplaza para zoom, clic derecho para mover",
     "three_d_regenerate": "Regenerar",
-    "three_d_regenerating": "Regenerando..."
+    "three_d_regenerating": "Regenerando...",
+    "three_d_pending_title": "Generando su modelo 3D...",
+    "three_d_pending_subtitle": "Esto suele tardar 60–90 segundos. Puede cerrar este visor — el modelo aparecerá cuando esté listo.",
+    "three_d_job_id": "Tarea"
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",

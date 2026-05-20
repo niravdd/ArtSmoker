@@ -129,7 +129,7 @@
     "three_d_generate": "3D 모델 생성",
     "three_d_generating": "생성 중...",
     "three_d_async_note": "3D 생성은 비동기로 실행됩니다. 약 30-60초 후 준비됩니다.",
-    "three_d_pending": "제출됨 — 모델 처리 대기 중...",
+    "three_d_pending": "3D 모델 생성 중",
     "three_d_complete": "3D 모델 완성",
     "three_d_download": "GLB 다운로드",
     "three_d_file_size": "파일 크기",
@@ -189,7 +189,10 @@
     "edit_prompt_placeholder_replace": "대체할 내용 — 예: 돌 아치, 빨간 자동차…",
     "three_d_viewer_hint": "드래그하여 회전, 스크롤하여 줌, 우클릭하여 팬",
     "three_d_regenerate": "재생성",
-    "three_d_regenerating": "재생성 중..."
+    "three_d_regenerating": "재생성 중...",
+    "three_d_pending_title": "3D 모델을 생성하고 있습니다...",
+    "three_d_pending_subtitle": "일반적으로 60~90초 소요됩니다. 이 뷰어를 닫아도 됩니다 — 모델이 준비되면 표시됩니다.",
+    "three_d_job_id": "작업"
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",
