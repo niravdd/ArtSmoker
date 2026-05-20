@@ -2108,7 +2108,8 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             save_dir=temp_dir,
             save_name="textured",
             uv_unwarp=True,
-            uv_size=2048,  # 2K texture (4K too large for response)
+            preprocess_mesh=True,
+            uv_size=2048,
             rgb_path=mv_grid_path,
             camera_azimuth_deg=[0, 90, 180, 270, 180, 180],
             camera_elevation_deg=[0, 0, 0, 0, 89.99, -89.99],

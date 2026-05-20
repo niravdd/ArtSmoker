@@ -1,14 +1,9 @@
 import numpy as np
 import open3d as o3d
+import pymeshlab
 import torch
 import trimesh
-
-try:
-    import pymeshlab
-    from pymeshlab import Percentage
-except ImportError:
-    pymeshlab = None
-    Percentage = None
+from pymeshlab import Percentage
 
 
 ### Mesh Utils ###
