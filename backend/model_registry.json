@@ -5417,7 +5417,8 @@
             "open3d",
             "spandrel==0.4.1",
             "xatlas",
-            "ninja"
+            "ninja",
+            "gltflib"
           ]
         }
       }

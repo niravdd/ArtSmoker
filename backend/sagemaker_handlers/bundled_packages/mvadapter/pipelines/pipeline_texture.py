@@ -403,7 +403,7 @@ class TexturePipeline:
                 mesh_path,
                 shaded_model_save_path,
                 texture=mod_uv_image["rgb"],
-                backend="trimesh",
+                backend="gltflib",
                 task_id=save_name,
             )
         pbr_model_save_path = None
@@ -416,7 +416,7 @@ class TexturePipeline:
                 metallic_roughness_texture=mod_uv_image["orm"],
                 normal_texture=mod_uv_image["normal"],
                 normal_strength=normal_strength,
-                backend="trimesh",
+                backend="gltflib",
                 task_id=save_name,
             )
 
