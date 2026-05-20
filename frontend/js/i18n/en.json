@@ -768,7 +768,7 @@
     "three_d_async_note": "3D generation runs asynchronously. The model will be ready in ~30-60 seconds.",
     "three_d_pending": "3D model generation in progress",
     "three_d_pending_title": "Generating your 3D model...",
-    "three_d_pending_subtitle": "This typically takes 60–90 seconds. You can close this viewer — the model will appear when ready.",
+    "three_d_pending_subtitle": "You may close this viewer and check back shortly.",
     "three_d_job_id": "Job",
     "three_d_complete": "3D model ready",
     "three_d_regenerate": "Regenerate",

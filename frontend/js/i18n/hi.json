@@ -807,7 +807,7 @@
     "three_d_regenerate": "पुनः बनाएँ",
     "three_d_regenerating": "पुनः बन रहा है...",
     "three_d_pending_title": "आपका 3D मॉडल बन रहा है...",
-    "three_d_pending_subtitle": "आमतौर पर 60-90 सेकंड लगते हैं। आप यह व्यूअर बंद कर सकते हैं — तैयार होने पर मॉडल स्वयं दिखेगा।",
+    "three_d_pending_subtitle": "आप यह व्यूअर बंद करके कुछ देर बाद पुनः देख सकते हैं।",
     "three_d_job_id": "कार्य"
   },
   "model_settings": {

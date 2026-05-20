@@ -191,7 +191,7 @@
     "three_d_regenerate": "재생성",
     "three_d_regenerating": "재생성 중...",
     "three_d_pending_title": "3D 모델을 생성하고 있습니다...",
-    "three_d_pending_subtitle": "일반적으로 60~90초 소요됩니다. 이 뷰어를 닫아도 됩니다 — 모델이 준비되면 표시됩니다.",
+    "three_d_pending_subtitle": "뷰어를 닫고 잠시 후 다시 확인해 주세요.",
     "three_d_job_id": "작업"
   },
   "chat_studio": {

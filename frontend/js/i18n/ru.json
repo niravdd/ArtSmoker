@@ -807,7 +807,7 @@
     "three_d_regenerate": "Перегенерация",
     "three_d_regenerating": "Перегенерация...",
     "three_d_pending_title": "Создаём вашу 3D-модель...",
-    "three_d_pending_subtitle": "Обычно это занимает 60–90 секунд. Вы можете закрыть окно — модель появится автоматически.",
+    "three_d_pending_subtitle": "Вы можете закрыть окно и проверить через некоторое время.",
     "three_d_job_id": "Задача"
   },
   "model_settings": {

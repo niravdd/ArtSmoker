@@ -191,7 +191,7 @@
     "three_d_regenerate": "再生成",
     "three_d_regenerating": "再生成中...",
     "three_d_pending_title": "3Dモデルを生成しています...",
-    "three_d_pending_subtitle": "通常60〜90秒かかります。このビューアを閉じても大丈夫です — 完了後にモデルが表示されます。",
+    "three_d_pending_subtitle": "このビューアを閉じて、しばらくしてからご確認ください。",
     "three_d_job_id": "ジョブ"
   },
   "chat_studio": {

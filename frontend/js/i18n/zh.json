@@ -191,7 +191,7 @@
     "three_d_regenerate": "重新生成",
     "three_d_regenerating": "重新生成中...",
     "three_d_pending_title": "正在生成您的3D模型...",
-    "three_d_pending_subtitle": "通常需要60-90秒。您可以关闭此查看器 — 模型准备好后会自动显示。",
+    "three_d_pending_subtitle": "您可以关闭查看器，稍后再来查看。",
     "three_d_job_id": "任务"
   },
   "chat_studio": {

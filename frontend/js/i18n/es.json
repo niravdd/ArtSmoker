@@ -191,7 +191,7 @@
     "three_d_regenerate": "Regenerar",
     "three_d_regenerating": "Regenerando...",
     "three_d_pending_title": "Generando su modelo 3D...",
-    "three_d_pending_subtitle": "Esto suele tardar 60–90 segundos. Puede cerrar este visor — el modelo aparecerá cuando esté listo.",
+    "three_d_pending_subtitle": "Puede cerrar este visor y volver a comprobarlo en unos minutos.",
     "three_d_job_id": "Tarea"
   },
   "chat_studio": {
