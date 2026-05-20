@@ -2191,6 +2191,15 @@ def model_fn(model_dir):
     """
     global _model, _config
     library = _get_env("INFERENCE_LIBRARY", "diffusers")
+
+    # Install system libraries needed by pymeshlab (OpenGL) on headless containers
+    if library == "image_to_3d":
+        import subprocess as _sp
+        try:
+            _sp.check_call(["apt-get", "update", "-qq"], timeout=30, stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+            _sp.check_call(["apt-get", "install", "-y", "-qq", "libopengl0", "libgl1"], timeout=60, stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
+        except Exception:
+            pass
     model_key = _get_env("MODEL_KEY", "unknown")
 
     # Log environment and versions for diagnostics
