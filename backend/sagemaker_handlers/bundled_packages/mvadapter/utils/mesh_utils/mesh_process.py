@@ -6,10 +6,10 @@ import trimesh
 
 try:
     from pymeshlab import Percentage
-except ImportError:
+except (ImportError, AttributeError):
     try:
         from pymeshlab import PercentageValue as Percentage
-    except ImportError:
+    except (ImportError, AttributeError):
         Percentage = lambda x: x
 
 
