@@ -1431,7 +1431,7 @@ def _load_texture_models(code_dir, hf_token):
                 _wheel_path = "/tmp/nvdiffrast_cached.whl"
                 logger.info("Checking S3 for pre-compiled nvdiffrast wheel (s3://%s/%s)...", _bucket, _nvdiffrast_wheel_key)
                 _s3.download_file(_bucket, _nvdiffrast_wheel_key, _wheel_path)
-                subprocess.check_call(["pip", "install", "--quiet", "--no-deps", _wheel_path], timeout=60)
+                subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "--force-reinstall", _wheel_path], timeout=60)
                 import nvdiffrast
                 installed = True
                 logger.info("nvdiffrast installed from S3 cache")
@@ -1504,7 +1504,7 @@ def _load_texture_models(code_dir, hf_token):
         "huanngzh/mv-adapter",
         weight_name="mvadapter_i2mv_sdxl.safetensors",
     )
-    mv_pipe.to("cuda")
+    mv_pipe.to(device="cuda", dtype=torch.float16)
     mv_time = _time.time() - t0
     logger.info("MV-Adapter loaded in %.0fs", mv_time)
 
