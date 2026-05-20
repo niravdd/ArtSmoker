@@ -5419,7 +5419,7 @@
             "xatlas",
             "ninja",
             "gltflib",
-            "pymeshlab"
+            "pymeshlab>=2023.12"
           ]
         }
       }
