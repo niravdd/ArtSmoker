@@ -1512,6 +1512,8 @@ def _load_texture_models(code_dir, hf_token):
         weight_name="mvadapter_i2mv_sdxl.safetensors",
     )
     mv_pipe.to(device="cuda", dtype=torch.float16)
+    # cond_encoder is not a registered pipeline component — cast explicitly
+    mv_pipe.cond_encoder.to(device="cuda", dtype=torch.float16)
     mv_time = _time.time() - t0
     logger.info("MV-Adapter loaded in %.0fs", mv_time)
 
