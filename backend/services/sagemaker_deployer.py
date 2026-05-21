@@ -1126,7 +1126,23 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
         sm.delete_endpoint(EndpointName=endpoint_name)
         deleted.append(f"endpoint:{endpoint_name}")
     except Exception as e:
-        logger.warning("Failed to delete endpoint %s: %s", endpoint_name, e)
+        if "in-progress" in str(e).lower() or "cannot update" in str(e).lower():
+            import time as _time
+            logger.info("Endpoint %s is updating — waiting to retry deletion...", endpoint_name)
+            for _attempt in range(10):
+                _time.sleep(30)
+                try:
+                    desc = sm.describe_endpoint(EndpointName=endpoint_name)
+                    if desc["EndpointStatus"] == "InService":
+                        sm.delete_endpoint(EndpointName=endpoint_name)
+                        deleted.append(f"endpoint:{endpoint_name}")
+                        break
+                except Exception:
+                    break
+            else:
+                logger.warning("Failed to delete endpoint %s after retries: %s", endpoint_name, e)
+        else:
+            logger.warning("Failed to delete endpoint %s: %s", endpoint_name, e)
 
     try:
         sm.delete_endpoint_config(EndpointConfigName=config_name)
