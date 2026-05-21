@@ -318,41 +318,32 @@ async def get_3d_status(job_id: str):
         version = job["version"]
         asset_id = job["asset_id"]
 
-        # Save GLB file — "asset_3d.glb" is always the latest version.
-        # Previous versions are renamed to "asset_3d_v{N}.glb" when a new one is generated.
+        # Save GLB file — always overwrites the current version (no history)
         asset_dir = store.generated_asset_dir(asset_id)
         asset_dir.mkdir(parents=True, exist_ok=True)
-        glb_latest = asset_dir / "asset_3d.glb"
-        # If a GLB already exists, rename it to its version number before overwriting
-        if glb_latest.exists():
-            meta_existing = store.load_generation_metadata(asset_id) or {}
-            existing_versions = meta_existing.get("three_d_versions", [])
-            if existing_versions:
-                prev_ver = existing_versions[-1].get("version", 1)
-                prev_path = asset_dir / f"asset_3d_v{prev_ver}.glb"
-                if not prev_path.exists():
-                    glb_latest.rename(prev_path)
-        glb_latest.write_bytes(glb_bytes)
-        glb_filename = "asset_3d.glb"
+        glb_path = asset_dir / "asset_3d.glb"
+        glb_path.write_bytes(glb_bytes)
+
+        # Clean up any old versioned files
+        for old in asset_dir.glob("asset_3d_v*.glb"):
+            old.unlink(missing_ok=True)
 
         # Extract mesh stats from output if available
         vertices = output_data.get("vertices", 0)
         faces = output_data.get("faces", 0)
 
-        # Update asset metadata
+        # Update asset metadata — single entry, replaced on regenerate
         meta = store.load_generation_metadata(asset_id) or {}
-        three_d_versions = meta.get("three_d_versions", [])
-        three_d_versions.append({
+        meta["three_d_versions"] = [{
             "version": version,
-            "glb_filename": glb_filename,
+            "glb_filename": "asset_3d.glb",
             "glb_url": f"/api/gallery/{asset_id}/3d/{version}",
             "size_bytes": len(glb_bytes),
             "vertices": vertices,
             "faces": faces,
             "params": job["params"],
             "created_at": datetime.utcnow().isoformat(),
-        })
-        meta["three_d_versions"] = three_d_versions
+        }]
         meta["has_3d"] = True
         store.save_generation_metadata(asset_id, meta)
 
