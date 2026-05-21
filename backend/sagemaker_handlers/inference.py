@@ -1415,13 +1415,14 @@ def _load_texture_models(code_dir, hf_token):
     _texture_cache_prefix = "artsmoker/custom-models/texture-deps"
     _nvdiffrast_wheel_key = f"{_texture_cache_prefix}/nvdiffrast-cp312-linux_x86_64.whl"
 
+    import boto3 as _boto3
+    _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+    _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+
     try:
         import nvdiffrast
     except ImportError:
-        import boto3 as _boto3
         from botocore.exceptions import ClientError as _BotoClientError
-        _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
-        _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
 
         installed = False
 
@@ -1517,13 +1518,52 @@ def _load_texture_models(code_dir, hf_token):
     mv_time = _time.time() - t0
     logger.info("MV-Adapter loaded in %.0fs", mv_time)
 
-    # Load TexturePipeline (projection + blending, no heavy model weights)
+    # Download quality models (RealESRGAN upscaler + LaMa inpainter)
+    _upscaler_url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth"
+    _inpaint_url = "https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt"
+    _upscaler_s3_key = f"{_texture_cache_prefix}/RealESRGAN_x2plus.pth"
+    _inpaint_s3_key = f"{_texture_cache_prefix}/big-lama.pt"
+    _upscaler_path = "/tmp/RealESRGAN_x2plus.pth"
+    _inpaint_path = "/tmp/big-lama.pt"
+
+    import urllib.request as _urlreq
+
+    for _local, _s3k, _url, _name in [
+        (_upscaler_path, _upscaler_s3_key, _upscaler_url, "RealESRGAN x2"),
+        (_inpaint_path, _inpaint_s3_key, _inpaint_url, "LaMa inpainter"),
+    ]:
+        if not os.path.exists(_local):
+            # Try S3 cache first
+            if _bucket:
+                try:
+                    _s3.download_file(_bucket, _s3k, _local)
+                    logger.info("%s loaded from S3 cache", _name)
+                    continue
+                except Exception:
+                    pass
+            # Download from GitHub
+            logger.info("Downloading %s from GitHub...", _name)
+            try:
+                _urlreq.urlretrieve(_url, _local)
+                logger.info("%s downloaded (%.1f MB)", _name, os.path.getsize(_local) / (1024*1024))
+                # Cache to S3
+                if _bucket:
+                    try:
+                        _s3.upload_file(_local, _bucket, _s3k)
+                        logger.info("Cached %s to S3", _name)
+                    except Exception:
+                        pass
+            except Exception as _dl_err:
+                logger.warning("Failed to download %s: %s", _name, _dl_err)
+                _local = None
+
+    # Load TexturePipeline with upscaler + inpainter for maximum quality
     t0 = _time.time()
-    logger.info("Loading TexturePipeline...")
+    logger.info("Loading TexturePipeline (with RealESRGAN upscaler + LaMa inpainter)...")
     from mvadapter.pipelines.pipeline_texture import TexturePipeline
     texture_pipe = TexturePipeline(
-        upscaler_ckpt_path=None,  # Skip upscaling for now (saves VRAM)
-        inpaint_ckpt_path=None,   # Use basic inpainting
+        upscaler_ckpt_path=_upscaler_path if os.path.exists(_upscaler_path) else None,
+        inpaint_ckpt_path=_inpaint_path if os.path.exists(_inpaint_path) else None,
         device="cuda",
     )
     tex_time = _time.time() - t0
@@ -2145,6 +2185,16 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                 device="cuda",
             )
 
+        # Maximum quality config: upscale views 2x + view-based inpainting for occlusions
+        _has_upscaler = hasattr(texture_pipe, 'upscaler') and texture_pipe.upscaler is not None
+        _has_inpainter = hasattr(texture_pipe, 'inpainter') and texture_pipe.inpainter is not None
+        _rgb_config = ModProcessConfig(
+            view_upscale=_has_upscaler,
+            view_upscale_factor=2,
+            inpaint_mode="view" if _has_inpainter else "uv",
+        )
+        logger.info("Phase 3 config: upscale=%s, inpaint=%s", _has_upscaler, _rgb_config.inpaint_mode)
+
         tex_output = texture_pipe(
             mesh_path=mesh_path,
             save_dir=temp_dir,
@@ -2153,6 +2203,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             preprocess_mesh=True,
             uv_size=4096,
             rgb_path=mv_grid_path,
+            rgb_process_config=_rgb_config,
             view_masks_path=mv_masks_path,
             view_inpaint_include_occlusion_boundary=True,
             poisson_reprojection=True,
