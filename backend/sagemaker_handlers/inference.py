@@ -2156,8 +2156,10 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             view_masks_path=mv_masks_path,
             view_inpaint_include_occlusion_boundary=True,
             poisson_reprojection=True,
-            camera_azimuth_deg=[0, 90, 180, 270, 180, 180],
+            camera_azimuth_deg=[0, 90, 180, 270, 270, 270],
             camera_elevation_deg=[0, 0, 0, 0, 89.99, -89.99],
+            camera_distance=1.8,
+            camera_ortho_scale=1.1,
         )
         elapsed_p3 = _t.time() - t0
         logger.info("Phase 3 complete in %.1fs", elapsed_p3)
