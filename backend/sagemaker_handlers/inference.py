@@ -2255,15 +2255,30 @@ def model_fn(model_dir):
     # Install system libraries needed by pymeshlab (OpenGL) on headless containers
     if library == "image_to_3d":
         import subprocess as _sp
+        _opengl_installed = False
+        # Try apt-get first (Debian-based DLC)
         try:
-            _sp.run(["apt-get", "update", "-qq"], timeout=30, capture_output=True)
-            result = _sp.run(["apt-get", "install", "-y", "-qq", "libopengl0", "libgl1-mesa-glx"], timeout=60, capture_output=True)
+            _sp.run(["apt-get", "update", "-qq"], timeout=60, capture_output=True)
+            result = _sp.run(["apt-get", "install", "-y", "-qq", "libopengl0", "libgl1-mesa-glx", "libglib2.0-0"], timeout=120, capture_output=True)
             if result.returncode == 0:
-                logger.info("Installed libopengl0 + libgl1-mesa-glx")
+                logger.info("Installed OpenGL libs via apt-get")
+                _opengl_installed = True
             else:
-                logger.warning("apt-get install failed (rc=%d): %s", result.returncode, result.stderr.decode()[:200])
-        except Exception as _apt_err:
-            logger.warning("apt-get failed: %s", _apt_err)
+                logger.info("apt-get failed (rc=%d), trying conda...", result.returncode)
+        except Exception as _e:
+            logger.info("apt-get unavailable (%s), trying conda...", _e)
+        # Fallback: try conda (conda-based DLC)
+        if not _opengl_installed:
+            try:
+                result = _sp.run(["conda", "install", "-y", "-q", "-c", "conda-forge", "mesalib", "libgl-cos7-x86_64"],
+                                 timeout=120, capture_output=True)
+                if result.returncode == 0:
+                    logger.info("Installed OpenGL libs via conda")
+                    _opengl_installed = True
+                else:
+                    logger.warning("conda install also failed — pymeshlab plugins will be limited (trimesh fallback active)")
+            except Exception as _e2:
+                logger.warning("conda unavailable — pymeshlab plugins will be limited: %s", _e2)
     model_key = _get_env("MODEL_KEY", "unknown")
 
     # Log environment and versions for diagnostics

@@ -5419,7 +5419,8 @@
             "xatlas",
             "ninja",
             "gltflib",
-            "pymeshlab>=2023.12"
+            "pymeshlab>=2023.12",
+            "fast-simplification"
           ]
         }
       }
