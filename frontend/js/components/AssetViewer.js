@@ -1527,6 +1527,7 @@
                         file_size: existing3D.size_bytes || 0,
                         vertices: existing3D.vertices || 0,
                         faces: existing3D.faces || 0,
+                        created_at: existing3D.created_at || null,
                     });
                     return;
                 }
@@ -1748,7 +1749,7 @@
                             </button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-3 gap-4 text-center">
+                    <div class="grid grid-cols-4 gap-3 text-center">
                         <div>
                             <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_file_size')}</p>
                             <p class="font-medium">${fileSize}</p>
@@ -1760,6 +1761,10 @@
                         <div>
                             <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_faces_count')}</p>
                             <p class="font-medium">${data.faces ? data.faces.toLocaleString() : '—'}</p>
+                        </div>
+                        <div>
+                            <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_created')}</p>
+                            <p class="font-medium text-[11px]">${data.created_at ? new Date(data.created_at).toLocaleString([], {dateStyle: 'short', timeStyle: 'short'}) : '—'}</p>
                         </div>
                     </div>
                     <div class="flex items-center justify-center gap-3">

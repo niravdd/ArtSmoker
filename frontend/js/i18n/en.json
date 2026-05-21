@@ -777,6 +777,7 @@
     "three_d_file_size": "File size",
     "three_d_vertices": "Vertices",
     "three_d_faces_count": "Faces",
+    "three_d_created": "Created",
     "three_d_not_generated": "No 3D model has been generated for this version.",
     "three_d_failed": "3D generation failed",
     "three_d_version_note": "Generates from the currently selected image version.",
