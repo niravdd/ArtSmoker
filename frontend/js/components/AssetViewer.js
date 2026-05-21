@@ -1510,29 +1510,13 @@
                 return;
             }
 
-            // Check if 3D generation is available (model deployed)
+            // Check if 3D already exists for current version — show it regardless of deployment status
             try {
-                const availability = await API.threeD.check();
-                if (!availability || !availability.available) {
-                    container.innerHTML = `
-                        <div class="text-center py-8 space-y-3">
-                            <p class="text-brand-text-muted">${t('asset_viewer.three_d_not_deployed')}</p>
-                            <button class="btn btn-sm btn-secondary av-3d-open-settings">${t('asset_viewer.three_d_open_settings')}</button>
-                        </div>`;
-                    container.querySelector('.av-3d-open-settings')?.addEventListener('click', () => {
-                        this.close();
-                        window.ModelSettings?.open?.('custom-models');
-                    });
-                    return;
-                }
-
-                // Check if 3D already exists for current version
                 const ver = this._currentVersion || 1;
                 const glbUrl = `/api/gallery/${encodeURIComponent(meta.id)}/3d/${ver}`;
                 const existing3D = meta.three_d_versions?.find(v => v.version === ver)
                     || meta.three_d?.[`v${ver}`];
                 if (existing3D) {
-                    // Check if a regeneration job is active for this asset
                     const activeJobId = window._3dActiveJobs?.[meta.id];
                     if (activeJobId && !this._3dPollTimer) {
                         this._3dJobId = activeJobId;
@@ -1546,7 +1530,7 @@
                     });
                     return;
                 }
-                // Fallback: check if GLB file exists via a quick fetch
+                // Fallback: check if GLB file exists on disk
                 try {
                     const checkResp = await fetch(glbUrl, { method: 'GET', headers: { 'Range': 'bytes=0-0' } });
                     if (checkResp.ok || checkResp.status === 206) {
@@ -1559,6 +1543,21 @@
                         return;
                     }
                 } catch {}
+
+                // No existing 3D model — check if generation is available (model deployed)
+                const availability = await API.threeD.check();
+                if (!availability || !availability.available) {
+                    container.innerHTML = `
+                        <div class="text-center py-8 space-y-3">
+                            <p class="text-brand-text-muted">${t('asset_viewer.three_d_not_deployed')}</p>
+                            <button class="btn btn-sm btn-secondary av-3d-open-settings">${t('asset_viewer.three_d_open_settings')}</button>
+                        </div>`;
+                    container.querySelector('.av-3d-open-settings')?.addEventListener('click', () => {
+                        this.close();
+                        window.ModelSettings?.open?.('custom-models');
+                    });
+                    return;
+                }
 
                 // Show generation form
                 this._render3DForm(container);
@@ -1720,9 +1719,9 @@
                 ? `<span class="spinner-sm mr-1"></span> ${t('asset_viewer.three_d_regenerating')}`
                 : `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('asset_viewer.three_d_regenerate')}`;
             container.innerHTML = `
-                <div class="space-y-4">
-                    <div class="rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 320px;">
-                        <model-viewer
+                <div class="space-y-3">
+                    <div class="relative rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 420px;">
+                        <model-viewer id="av-3d-viewer"
                             src="${glbUrl}?t=${Date.now()}"
                             alt="3D Model"
                             camera-controls
@@ -1732,8 +1731,22 @@
                             exposure="2"
                             environment-image="neutral"
                             tone-mapping="commerce"
+                            min-camera-orbit="auto auto 0.5m"
+                            max-camera-orbit="auto auto 10m"
+                            interpolation-decay="100"
                             style="width: 100%; height: 100%; --poster-color: transparent; background: linear-gradient(160deg, #2a2d35 0%, #1a1d25 100%);"
                         ></model-viewer>
+                        <!-- Viewer controls overlay -->
+                        <div class="absolute bottom-2 right-2 flex gap-1">
+                            <button id="av-3d-zoom-in" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="Zoom In">+</button>
+                            <button id="av-3d-zoom-out" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="Zoom Out">−</button>
+                            <button id="av-3d-reset" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white" title="Reset View">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+                            </button>
+                            <button id="av-3d-autorotate" class="w-7 h-7 rounded bg-brand-accent/60 hover:bg-brand-accent/80 flex items-center justify-center text-white" title="Toggle Auto-Rotate">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                            </button>
+                        </div>
                     </div>
                     <div class="grid grid-cols-3 gap-4 text-center">
                         <div>
@@ -1762,6 +1775,40 @@
                     </div>
                     <p class="text-[9px] text-brand-text-muted text-center">${t('asset_viewer.three_d_viewer_hint')}</p>
                 </div>`;
+
+            // Viewer controls
+            const viewer = container.querySelector('#av-3d-viewer');
+            container.querySelector('#av-3d-zoom-in')?.addEventListener('click', () => {
+                if (!viewer) return;
+                const orbit = viewer.getCameraOrbit();
+                orbit.radius = Math.max(0.5, orbit.radius * 0.75);
+                viewer.cameraOrbit = `${orbit.theta}rad ${orbit.phi}rad ${orbit.radius}m`;
+            });
+            container.querySelector('#av-3d-zoom-out')?.addEventListener('click', () => {
+                if (!viewer) return;
+                const orbit = viewer.getCameraOrbit();
+                orbit.radius = Math.min(10, orbit.radius * 1.33);
+                viewer.cameraOrbit = `${orbit.theta}rad ${orbit.phi}rad ${orbit.radius}m`;
+            });
+            container.querySelector('#av-3d-reset')?.addEventListener('click', () => {
+                if (!viewer) return;
+                viewer.cameraOrbit = 'auto auto auto';
+                viewer.cameraTarget = 'auto auto auto';
+                viewer.fieldOfView = 'auto';
+            });
+            container.querySelector('#av-3d-autorotate')?.addEventListener('click', (e) => {
+                if (!viewer) return;
+                const isRotating = viewer.hasAttribute('auto-rotate');
+                if (isRotating) {
+                    viewer.removeAttribute('auto-rotate');
+                    e.currentTarget.classList.remove('bg-brand-accent/60', 'hover:bg-brand-accent/80');
+                    e.currentTarget.classList.add('bg-black/50', 'hover:bg-black/70');
+                } else {
+                    viewer.setAttribute('auto-rotate', '');
+                    e.currentTarget.classList.remove('bg-black/50', 'hover:bg-black/70');
+                    e.currentTarget.classList.add('bg-brand-accent/60', 'hover:bg-brand-accent/80');
+                }
+            });
 
             container.querySelector('#av-3d-regenerate')?.addEventListener('click', () => {
                 if (this._3dJobId && this._3dPollTimer) return;
