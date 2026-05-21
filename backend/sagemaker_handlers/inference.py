@@ -2072,22 +2072,40 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         elapsed_p2 = _t.time() - t0
         logger.info("Phase 2 complete in %.1fs — generated %d multi-view images", elapsed_p2, len(mv_images))
 
+        # Remove background from multi-view images using RMBG
+        # This ensures no background color bleeds into the texture projection
+        rmbg_model = model_dict.get("rmbg_model")
+        if rmbg_model is not None:
+            from torchvision import transforms as _tv_transforms
+            _rmbg_transform = _tv_transforms.Compose([
+                _tv_transforms.Resize((1024, 1024)),
+                _tv_transforms.ToTensor(),
+                _tv_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
+            ])
+            cleaned_images = []
+            for mv_img in mv_images:
+                input_tensor = _rmbg_transform(mv_img).unsqueeze(0).to("cuda")
+                with torch.no_grad():
+                    mask_pred = rmbg_model(input_tensor)[0][0]
+                mask_pred = torch.nn.functional.interpolate(
+                    mask_pred.unsqueeze(0), size=mv_img.size[::-1], mode='bilinear'
+                )[0, 0]
+                mask_np = (mask_pred.cpu().numpy() > 0.5).astype(np.uint8) * 255
+                # Composite on white background using mask
+                mv_np = np.array(mv_img)
+                mask_3c = np.stack([mask_np] * 3, axis=-1) / 255.0
+                white_bg = np.ones_like(mv_np) * 255
+                composited = (mv_np * mask_3c + white_bg * (1 - mask_3c)).astype(np.uint8)
+                cleaned_images.append(Image.fromarray(composited))
+            mv_images = cleaned_images
+            logger.info("Background removed from %d multi-view images", len(mv_images))
+
         # Save multi-view images as a packed grid (6 images side by side)
         mv_grid = _make_mv_grid(mv_images)
         mv_grid_path = os.path.join(temp_dir, "mv_grid.png")
         mv_grid.save(mv_grid_path)
         logger.info("Saved multi-view grid: %dx%d", mv_grid.width, mv_grid.height)
 
-        # Generate foreground masks from the render (geometry silhouette)
-        # render_out.mask is True where geometry is visible — use as projection mask
-        mask_images = []
-        for i in range(render_out.mask.shape[0]):
-            mask_np = (render_out.mask[i].cpu().numpy() * 255).astype(np.uint8)
-            mask_images.append(Image.fromarray(mask_np, mode='L'))
-        mv_masks_grid = _make_mv_grid_masks(mask_images)
-        mv_masks_path = os.path.join(temp_dir, "mv_masks.png")
-        mv_masks_grid.save(mv_masks_path)
-        logger.info("Saved view masks grid: %dx%d", mv_masks_grid.width, mv_masks_grid.height)
 
         # On low VRAM: unload MV-Adapter before Phase 3
         if not high_vram:
@@ -2122,7 +2140,6 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             preprocess_mesh=True,
             uv_size=4096,
             rgb_path=mv_grid_path,
-            view_masks_path=mv_masks_path,
             camera_azimuth_deg=[0, 90, 180, 270, 180, 180],
             camera_elevation_deg=[0, 0, 0, 0, 89.99, -89.99],
         )
