@@ -1810,9 +1810,18 @@
                 }
             });
 
-            container.querySelector('#av-3d-regenerate')?.addEventListener('click', () => {
+            container.querySelector('#av-3d-regenerate')?.addEventListener('click', async () => {
                 if (this._3dJobId && this._3dPollTimer) return;
-                this._render3DForm(container);
+                try {
+                    const availability = await API.threeD.check();
+                    if (!availability || !availability.available) {
+                        window.showToast?.(t('asset_viewer.three_d_not_deployed'), 'warning');
+                        return;
+                    }
+                    this._render3DForm(container);
+                } catch (err) {
+                    window.showToast?.(t('asset_viewer.three_d_not_deployed'), 'warning');
+                }
             });
         },
 
