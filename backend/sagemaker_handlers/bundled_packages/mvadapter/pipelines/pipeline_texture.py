@@ -318,6 +318,7 @@ class TexturePipeline:
                     mesh,
                     cameras,
                     masks=_view_masks_tensor,
+                    iou_rejection_threshold=None if _view_masks_tensor is not None else 0.8,
                     from_scratch=mod_process_config.inpaint_mode != "none",
                     poisson_blending=False,
                     depth_grad_dilation=5,
