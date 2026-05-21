@@ -2057,7 +2057,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
 
         # Generate multi-view images conditioned on geometry + reference image
         mv_result = mv_pipe(
-            "best quality, sharp textures, vivid colors, detailed surface materials, game asset",
+            "best quality, sharp textures, vivid colors, detailed surface materials, game asset, white background, isolated object",
             height=768, width=768,
             num_inference_steps=30,
             guidance_scale=5.0,
@@ -2066,7 +2066,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             control_conditioning_scale=1.0,
             reference_image=source_image,
             reference_conditioning_scale=1.5,
-            negative_prompt="washed out, pale, flat lighting, low contrast, watermark, ugly, deformed, noisy, blurry, white, overexposed",
+            negative_prompt="washed out, pale, flat lighting, low contrast, watermark, ugly, deformed, noisy, blurry, overexposed, colored background, gradient background",
         )
         mv_images = mv_result.images
         elapsed_p2 = _t.time() - t0
@@ -2077,6 +2077,17 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         mv_grid_path = os.path.join(temp_dir, "mv_grid.png")
         mv_grid.save(mv_grid_path)
         logger.info("Saved multi-view grid: %dx%d", mv_grid.width, mv_grid.height)
+
+        # Generate foreground masks from the render (geometry silhouette)
+        # render_out.mask is True where geometry is visible — use as projection mask
+        mask_images = []
+        for i in range(render_out.mask.shape[0]):
+            mask_np = (render_out.mask[i].cpu().numpy() * 255).astype(np.uint8)
+            mask_images.append(Image.fromarray(mask_np, mode='L'))
+        mv_masks_grid = _make_mv_grid_masks(mask_images)
+        mv_masks_path = os.path.join(temp_dir, "mv_masks.png")
+        mv_masks_grid.save(mv_masks_path)
+        logger.info("Saved view masks grid: %dx%d", mv_masks_grid.width, mv_masks_grid.height)
 
         # On low VRAM: unload MV-Adapter before Phase 3
         if not high_vram:
@@ -2111,6 +2122,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             preprocess_mesh=True,
             uv_size=4096,
             rgb_path=mv_grid_path,
+            view_masks_path=mv_masks_path,
             camera_azimuth_deg=[0, 90, 180, 270, 180, 180],
             camera_elevation_deg=[0, 0, 0, 0, 89.99, -89.99],
         )
@@ -2160,6 +2172,21 @@ def _make_mv_grid(images):
     grid = Image.new("RGB", (total_width, height))
     x_offset = 0
     for img in images:
+        grid.paste(img, (x_offset, 0))
+        x_offset += img.width
+    return grid
+
+
+def _make_mv_grid_masks(mask_images):
+    """Create a horizontal grid of grayscale mask images (packed side by side)."""
+    if not mask_images:
+        raise ValueError("No masks to grid")
+    widths = [img.width for img in mask_images]
+    height = mask_images[0].height
+    total_width = sum(widths)
+    grid = Image.new("L", (total_width, height))
+    x_offset = 0
+    for img in mask_images:
         grid.paste(img, (x_offset, 0))
         x_offset += img.width
     return grid

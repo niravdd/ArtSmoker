@@ -156,6 +156,8 @@ class TexturePipeline:
         normal_path: Optional[str] = None,
         normal_strength: float = 1.0,
         normal_process_config: ModProcessConfig = ModProcessConfig(),
+        # view masks (foreground masks to exclude background from projection)
+        view_masks_path: Optional[str] = None,
         # inpaint
         uv_inpaint_use_network: bool = False,
         view_inpaint_include_occlusion_boundary: bool = False,
@@ -212,6 +214,15 @@ class TexturePipeline:
             "orm": (orm_path, orm_process_config),
             "normal": (normal_path, normal_process_config),
         }
+        # Load view masks if provided (foreground masks to exclude background)
+        _view_masks_tensor = None
+        if view_masks_path is not None:
+            _mask_images = self.load_packed_images(view_masks_path)
+            if _mask_images:
+                _view_masks_tensor = image_to_tensor(_mask_images, device=self.device)
+                if _view_masks_tensor.ndim == 4:
+                    _view_masks_tensor = _view_masks_tensor.mean(-1)
+
         mod_uv_image, mod_uv_tensor = {}, {}
         for mod_name, (mod_path, mod_process_config) in mod_kwargs.items():
             if mod_path is None:
@@ -301,11 +312,11 @@ class TexturePipeline:
                 )
                 uv_proj[~uv_valid_mask] = torch.as_tensor([0.5, 0.5, 1]).to(uv_proj)
             else:
-                # TODO: tweak depth_grad_dilation
                 cam_proj_out = self.cam_proj(
                     mod_tensor,
                     mesh,
                     cameras,
+                    masks=_view_masks_tensor,
                     from_scratch=mod_process_config.inpaint_mode != "none",
                     poisson_blending=False,
                     depth_grad_dilation=5,
