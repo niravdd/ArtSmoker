@@ -358,6 +358,16 @@ async def get_3d_status(job_id: str):
         logger.info("3D generation complete for asset %s: %d bytes, %d vertices, %d faces",
                     asset_id, len(glb_bytes), vertices, faces)
 
+        # Clean up S3 artifacts (output + input)
+        try:
+            s3.delete_object(Bucket=job["s3_bucket"], Key=job["s3_key"])
+            if job.get("input_location"):
+                inp_parts = job["input_location"].replace("s3://", "").split("/", 1)
+                if len(inp_parts) == 2:
+                    s3.delete_object(Bucket=inp_parts[0], Key=inp_parts[1])
+        except Exception:
+            pass
+
         return {
             "job_id": job_id,
             "status": "complete",
@@ -373,6 +383,15 @@ async def get_3d_status(job_id: str):
         logger.error("Failed to process 3D output for job %s: %s", job_id, exc)
         job["status"] = "failed"
         job["error"] = str(exc)[:500]
+        # Clean up S3 artifacts even on failure
+        try:
+            s3.delete_object(Bucket=job["s3_bucket"], Key=job["s3_key"])
+            if job.get("input_location"):
+                inp_parts = job["input_location"].replace("s3://", "").split("/", 1)
+                if len(inp_parts) == 2:
+                    s3.delete_object(Bucket=inp_parts[0], Key=inp_parts[1])
+        except Exception:
+            pass
         return {
             "job_id": job_id,
             "status": "failed",

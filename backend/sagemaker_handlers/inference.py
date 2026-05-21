@@ -2223,10 +2223,14 @@ def model_fn(model_dir):
     if library == "image_to_3d":
         import subprocess as _sp
         try:
-            _sp.check_call(["apt-get", "update", "-qq"], timeout=30, stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
-            _sp.check_call(["apt-get", "install", "-y", "-qq", "libopengl0", "libgl1"], timeout=60, stdout=_sp.DEVNULL, stderr=_sp.DEVNULL)
-        except Exception:
-            pass
+            _sp.run(["apt-get", "update", "-qq"], timeout=30, capture_output=True)
+            result = _sp.run(["apt-get", "install", "-y", "-qq", "libopengl0", "libgl1-mesa-glx"], timeout=60, capture_output=True)
+            if result.returncode == 0:
+                logger.info("Installed libopengl0 + libgl1-mesa-glx")
+            else:
+                logger.warning("apt-get install failed (rc=%d): %s", result.returncode, result.stderr.decode()[:200])
+        except Exception as _apt_err:
+            logger.warning("apt-get failed: %s", _apt_err)
     model_key = _get_env("MODEL_KEY", "unknown")
 
     # Log environment and versions for diagnostics
