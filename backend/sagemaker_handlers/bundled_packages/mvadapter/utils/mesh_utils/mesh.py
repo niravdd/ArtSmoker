@@ -482,6 +482,7 @@ def replace_mesh_texture_and_save_gltflib(
             index=add_texture(gltf, normal_texture), scale=normal_strength
         )
 
+    gltf.model.materials[0].doubleSided = True
     gltf.model.nodes[0].name = f"mvadapter_node_{task_id}"
     gltf.model.meshes[0].name = f"mvadapter_mesh_{task_id}"
     gltf.model.materials[0].name = f"mvadapter_material_{task_id}"

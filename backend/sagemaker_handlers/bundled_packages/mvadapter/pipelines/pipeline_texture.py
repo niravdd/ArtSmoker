@@ -220,7 +220,8 @@ class TexturePipeline:
             _mask_images = self.load_packed_images(view_masks_path)
             if _mask_images:
                 _view_masks_tensor = image_to_tensor(_mask_images, device=self.device)
-                if _view_masks_tensor.ndim == 4:
+                # Ensure shape is (N, H, W) — reduce channel dim if RGBA/RGB present
+                if _view_masks_tensor.ndim == 4 and _view_masks_tensor.shape[-1] <= 4:
                     _view_masks_tensor = _view_masks_tensor.mean(-1)
 
         mod_uv_image, mod_uv_tensor = {}, {}
