@@ -2035,7 +2035,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             elevation_deg=[0, 0, 0, 0, 89.99, -89.99],
             distance=[1.8] * 6,
             left=-0.55, right=0.55, bottom=-0.55, top=0.55,
-            azimuth_deg=[-90, 0, 90, 180, 90, 90],
+            azimuth_deg=[-90, 0, 90, 180, 180, 180],
             device="cuda",
         )
 
@@ -2057,16 +2057,16 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
 
         # Generate multi-view images conditioned on geometry + reference image
         mv_result = mv_pipe(
-            "best quality, sharp textures, vivid colors, detailed surface materials, game asset, white background, isolated object",
+            "best quality, sharp textures, vivid colors, detailed surface materials, game asset",
             height=768, width=768,
-            num_inference_steps=30,
-            guidance_scale=5.0,
+            num_inference_steps=50,
+            guidance_scale=3.0,
             num_images_per_prompt=6,
             control_image=control_images,
             control_conditioning_scale=1.0,
             reference_image=source_image,
-            reference_conditioning_scale=1.5,
-            negative_prompt="washed out, pale, flat lighting, low contrast, watermark, ugly, deformed, noisy, blurry, overexposed, colored background, gradient background",
+            reference_conditioning_scale=1.0,
+            negative_prompt="watermark, ugly, deformed, noisy, blurry, low quality",
         )
         mv_images = mv_result.images
         elapsed_p2 = _t.time() - t0
@@ -2075,6 +2075,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # Remove background from multi-view images using RMBG
         # This ensures no background color bleeds into the texture projection
         rmbg_model = model_dict.get("rmbg_model")
+        mask_images = []
         if rmbg_model is not None:
             from torchvision import transforms as _tv_transforms
             _rmbg_transform = _tv_transforms.Compose([
@@ -2088,9 +2089,10 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                 with torch.no_grad():
                     mask_pred = rmbg_model(input_tensor)[0][0]
                 mask_pred = torch.nn.functional.interpolate(
-                    mask_pred.unsqueeze(0), size=mv_img.size[::-1], mode='bilinear'
+                    mask_pred.unsqueeze(0).unsqueeze(0), size=mv_img.size[::-1], mode='bilinear'
                 )[0, 0]
                 mask_np = (mask_pred.cpu().numpy() > 0.5).astype(np.uint8) * 255
+                mask_images.append(Image.fromarray(mask_np, mode='L'))
                 # Composite on white background using mask
                 mv_np = np.array(mv_img)
                 mask_3c = np.stack([mask_np] * 3, axis=-1) / 255.0
@@ -2105,6 +2107,13 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         mv_grid_path = os.path.join(temp_dir, "mv_grid.png")
         mv_grid.save(mv_grid_path)
         logger.info("Saved multi-view grid: %dx%d", mv_grid.width, mv_grid.height)
+
+        # Save foreground masks for TexturePipeline projection
+        mv_masks_path = None
+        if mask_images:
+            mv_masks_grid = _make_mv_grid_masks(mask_images)
+            mv_masks_path = os.path.join(temp_dir, "mv_masks.png")
+            mv_masks_grid.save(mv_masks_path)
 
 
         # On low VRAM: unload MV-Adapter before Phase 3
@@ -2140,6 +2149,9 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             preprocess_mesh=True,
             uv_size=4096,
             rgb_path=mv_grid_path,
+            view_masks_path=mv_masks_path,
+            view_inpaint_include_occlusion_boundary=True,
+            poisson_reprojection=True,
             camera_azimuth_deg=[0, 90, 180, 270, 180, 180],
             camera_elevation_deg=[0, 0, 0, 0, 89.99, -89.99],
         )
