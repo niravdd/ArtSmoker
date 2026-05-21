@@ -2087,18 +2087,15 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             for mv_img in mv_images:
                 input_tensor = _rmbg_transform(mv_img).unsqueeze(0).to("cuda")
                 with torch.no_grad():
-                    mask_pred = rmbg_model(input_tensor)[0][0]
-                # mask_pred shape: (C, H, W) — interpolate needs (N, C, H, W)
-                mask_pred = torch.nn.functional.interpolate(
-                    mask_pred.unsqueeze(0), size=(mv_img.height, mv_img.width), mode='bilinear'
-                )
-                mask_pred = torch.squeeze(mask_pred)
-                ma, mi = torch.max(mask_pred), torch.min(mask_pred)
+                    result = rmbg_model(input_tensor)[0][0]
+                result = torch.squeeze(torch.nn.functional.interpolate(
+                    result, size=[mv_img.height, mv_img.width], mode="bilinear"
+                ), 0)
+                ma, mi = torch.max(result), torch.min(result)
                 if ma > mi:
-                    mask_pred = (mask_pred - mi) / (ma - mi)
-                mask_np = (mask_pred.cpu().numpy() > 0.5).astype(np.uint8) * 255
-                if mask_np.ndim == 3:
-                    mask_np = mask_np[0]
+                    result = (result - mi) / (ma - mi)
+                mask_np = (result * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+                mask_np = np.squeeze(mask_np)
                 mask_images.append(Image.fromarray(mask_np, mode='L'))
                 # Composite on white background using mask
                 mv_np = np.array(mv_img)
