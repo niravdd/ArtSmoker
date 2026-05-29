@@ -1842,7 +1842,15 @@
                         if (assetId) delete window._3dActiveJobs[assetId];
                         window.showToast?.(t('asset_viewer.three_d_complete'), 'success');
                         const container = this._overlay?.querySelector('#av-3d-content');
-                        if (container) this._render3DComplete(container, status.result || status);
+                        // Map the status response fields to what _render3DComplete expects
+                        const r = status.result || status;
+                        if (container) this._render3DComplete(container, {
+                            download_url: r.glb_url || r.download_url,
+                            file_size: r.size_bytes || r.file_size || 0,
+                            vertices: r.vertices || 0,
+                            faces: r.faces || 0,
+                            created_at: r.created_at || new Date().toISOString(),
+                        });
                     } else if (status.status === 'failed') {
                         this._stop3DPolling();
                         this._3dJobId = null;

@@ -2094,9 +2094,13 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             device="cuda",
         )
 
-        # Render mesh normals/positions as control signals for MV-Adapter
+        # Render mesh normals/positions as control signals for MV-Adapter.
+        # CRITICAL: front_x_to_y=True must match TexturePipeline's front_x=True
+        # default. Otherwise Phase 2 (geometry render) and Phase 3 (texture
+        # projection) disagree by 90° about which mesh axis is "front", and the
+        # face lands on the side of the head (Janus problem).
         ctx = NVDiffRastContextWrapper(device="cuda", context_type="cuda")
-        mesh_obj = load_mesh(mesh_path, rescale=True, device="cuda")
+        mesh_obj = load_mesh(mesh_path, rescale=True, front_x_to_y=True, device="cuda")
         render_out = render(
             ctx, mesh_obj, cameras,
             height=768, width=768,
