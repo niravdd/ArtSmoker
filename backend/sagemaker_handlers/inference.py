@@ -1939,8 +1939,11 @@ def _predict_image_to_3d(input_data, model_dict):
 
     logger.info("Mesh: %d vertices, %d faces", len(mesh.vertices), len(mesh.faces))
 
-    # 5. Optionally decimate to target face count
-    target_faces = input_data.get("faces", 200000)
+    # 5. Optionally decimate to target face count (0 = keep full resolution).
+    # Default is generous (500K) so we only trim genuinely oversized meshes —
+    # quadric decimation removes redundant coplanar triangles with near-zero
+    # visual impact, but we never force-fit below what the user requested.
+    target_faces = input_data.get("faces", 500000)
     if target_faces > 0 and len(mesh.faces) > target_faces:
         logger.info("Decimating mesh from %d to %d faces", len(mesh.faces), target_faces)
         try:
@@ -2076,12 +2079,18 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             get_orthogonal_camera, load_mesh, render, NVDiffRastContextWrapper
         )
 
-        # Set up cameras for 6 orthogonal views
+        # Set up cameras for 6 orthogonal views — MUST match the official
+        # MV-Adapter convention exactly or the back view gets a front-face
+        # (Janus problem). Base azimuth list [0,90,180,270,180,180]; the
+        # geometry render applies the -90 "−y as front" offset, and the same
+        # un-offset base list is passed to TexturePipeline (which re-applies -90).
+        _MV_BASE_AZIMUTH = [0, 90, 180, 270, 180, 180]
+        _MV_ELEVATION = [0, 0, 0, 0, 89.99, -89.99]
         cameras = get_orthogonal_camera(
-            elevation_deg=[0, 0, 0, 0, 89.99, -89.99],
+            elevation_deg=_MV_ELEVATION,
             distance=[1.8] * 6,
             left=-0.55, right=0.55, bottom=-0.55, top=0.55,
-            azimuth_deg=[-90, 0, 90, 180, 180, 180],
+            azimuth_deg=[x - 90 for x in _MV_BASE_AZIMUTH],
             device="cuda",
         )
 
@@ -2222,8 +2231,8 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             view_masks_path=mv_masks_path,
             view_inpaint_include_occlusion_boundary=True,
             poisson_reprojection=True,
-            camera_azimuth_deg=[0, 90, 180, 270, 270, 270],
-            camera_elevation_deg=[0, 0, 0, 0, 89.99, -89.99],
+            camera_azimuth_deg=_MV_BASE_AZIMUTH,
+            camera_elevation_deg=_MV_ELEVATION,
             camera_distance=1.8,
             camera_ortho_scale=1.1,
         )
