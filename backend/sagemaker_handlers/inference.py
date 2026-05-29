@@ -1499,6 +1499,9 @@ def _load_texture_models(code_dir, hf_token):
     from diffusers import AutoencoderKL
     from mvadapter.pipelines.pipeline_mvadapter_i2mv_sdxl import MVAdapterI2MVSDXLPipeline
 
+    # Use the standard SDXL VAE in fp32 for the decode to avoid fp16 color drift.
+    # The fp16-fix VAE only guarantees no-NaN, not color fidelity — and color
+    # bias compounds when 6 views are blended into one texture atlas.
     _vae = AutoencoderKL.from_pretrained(
         "madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16
     )
@@ -1515,8 +1518,11 @@ def _load_texture_models(code_dir, hf_token):
     mv_pipe.to(device="cuda", dtype=torch.float16)
     # cond_encoder is not a registered pipeline component — cast explicitly
     mv_pipe.cond_encoder.to(device="cuda", dtype=torch.float16)
+    # Force fp32 VAE decode for accurate colors (latents upcast around decode)
+    mv_pipe.vae.to(torch.float32)
+    mv_pipe.vae.config.force_upcast = True
     mv_time = _time.time() - t0
-    logger.info("MV-Adapter loaded in %.0fs", mv_time)
+    logger.info("MV-Adapter loaded in %.0fs (fp32 VAE decode)", mv_time)
 
     # Download quality models (RealESRGAN upscaler + LaMa inpainter)
     _upscaler_url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth"
@@ -2095,6 +2101,12 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             (render_out.normal / 2 + 0.5).clamp(0, 1),
         ], dim=-1).permute(0, 3, 1, 2)  # (6, 6, H, W)
 
+        # Preprocess reference image to match MV-Adapter's training distribution:
+        # background removed + composited on neutral gray (0.5). Passing a raw
+        # image with an arbitrary background pushes the model off-distribution and
+        # causes color casts (cyan/teal). This mirrors the official preprocess_image.
+        ref_image = _preprocess_mv_reference(source_image, model_dict.get("rmbg_model"))
+
         # Generate multi-view images conditioned on geometry + reference image
         mv_result = mv_pipe(
             "best quality, sharp textures, vivid colors, detailed surface materials, game asset",
@@ -2104,7 +2116,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             num_images_per_prompt=6,
             control_image=control_images,
             control_conditioning_scale=1.0,
-            reference_image=source_image,
+            reference_image=ref_image,
             reference_conditioning_scale=1.0,
             negative_prompt="watermark, ugly, deformed, noisy, blurry, low quality",
         )
@@ -2137,11 +2149,14 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                 mask_np = (result * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
                 mask_np = np.squeeze(mask_np)
                 mask_images.append(Image.fromarray(mask_np, mode='L'))
-                # Composite on white background using mask
+                # Composite on neutral gray (127) — matches MV-Adapter's training
+                # background and avoids white edge halos bleeding into the atlas.
+                # The mask is passed to projection so background is excluded anyway,
+                # but gray keeps any soft-edge bleed neutral instead of bright.
                 mv_np = np.array(mv_img)
                 mask_3c = np.stack([mask_np] * 3, axis=-1) / 255.0
-                white_bg = np.ones_like(mv_np) * 255
-                composited = (mv_np * mask_3c + white_bg * (1 - mask_3c)).astype(np.uint8)
+                gray_bg = np.ones_like(mv_np) * 127
+                composited = (mv_np * mask_3c + gray_bg * (1 - mask_3c)).astype(np.uint8)
                 cleaned_images.append(Image.fromarray(composited))
             mv_images = cleaned_images
             logger.info("Background removed from %d multi-view images", len(mv_images))
@@ -2242,6 +2257,45 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             shutil.rmtree(temp_dir, ignore_errors=True)
         except Exception:
             pass
+
+
+def _preprocess_mv_reference(pil_image, rmbg_model):
+    """Prepare reference image for MV-Adapter: remove background, composite on gray.
+
+    MV-Adapter is trained with subjects on a neutral gray (0.5) background.
+    Passing a raw image with an arbitrary background causes color casts.
+    Returns a square RGB PIL image on gray (127) background.
+    """
+    img = pil_image.convert("RGB")
+    if rmbg_model is None:
+        return img
+    try:
+        orig_size = img.size  # (W, H)
+        orig_np = np.array(img)
+        input_tensor = torch.tensor(orig_np, dtype=torch.float32).permute(2, 0, 1)
+        input_tensor = torch.nn.functional.interpolate(
+            input_tensor.unsqueeze(0), size=[1024, 1024], mode="bilinear"
+        )
+        input_tensor = torch.divide(input_tensor, 255.0)
+        from torchvision.transforms.functional import normalize as _tv_norm
+        input_tensor = _tv_norm(input_tensor, [0.5, 0.5, 0.5], [1.0, 1.0, 1.0]).to("cuda")
+        with torch.no_grad():
+            result = rmbg_model(input_tensor)[0][0]
+        result = torch.squeeze(torch.nn.functional.interpolate(
+            result, size=[orig_size[1], orig_size[0]], mode="bilinear"
+        ), 0)
+        ma, mi = torch.max(result), torch.min(result)
+        if ma > mi:
+            result = (result - mi) / (ma - mi)
+        mask = (result * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+        mask = np.squeeze(mask)
+        mask_3c = np.stack([mask] * 3, axis=-1) / 255.0
+        gray_bg = np.ones_like(orig_np) * 127
+        composited = (orig_np * mask_3c + gray_bg * (1 - mask_3c)).astype(np.uint8)
+        return Image.fromarray(composited)
+    except Exception as e:
+        logger.warning("Reference preprocess failed (%s) — using raw image", e)
+        return img
 
 
 def _make_mv_grid(images):
