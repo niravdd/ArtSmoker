@@ -22,6 +22,134 @@ router = APIRouter(prefix="/api/generate/3d", tags=["3d"])
 # In-memory job tracker for 3D generation
 _3d_jobs: dict[str, dict] = {}
 
+# S3 prefix for persisted 3D jobs — kept SEPARATE from the 2D async-jobs prefix
+# (artsmoker/async-jobs/) so the two systems never read each other's records.
+_3D_JOBS_S3_PREFIX = "artsmoker/3d-jobs/"
+
+
+_3d_lifecycle_ensured: set = set()
+
+
+def _ensure_3d_jobs_lifecycle(bucket: str) -> None:
+    """Add a 1-day auto-expiry lifecycle rule for the 3d-jobs prefix.
+
+    Idempotent, runs at most once per bucket per session. Ensures stale,
+    failed, or stuck 3D job records don't accumulate in S3 indefinitely.
+    """
+    if bucket in _3d_lifecycle_ensured:
+        return
+    _3d_lifecycle_ensured.add(bucket)
+    try:
+        s3 = boto3.client("s3", region_name=_get_region())
+        rule_id = "artsmoker-3d-jobs-cleanup"
+        try:
+            existing = s3.get_bucket_lifecycle_configuration(Bucket=bucket)
+            rules = existing.get("Rules", [])
+        except Exception:
+            rules = []
+        if any(r.get("ID") == rule_id for r in rules):
+            return
+        rules.append({
+            "ID": rule_id,
+            "Filter": {"Prefix": _3D_JOBS_S3_PREFIX},
+            "Status": "Enabled",
+            "Expiration": {"Days": 1},
+        })
+        s3.put_bucket_lifecycle_configuration(
+            Bucket=bucket,
+            LifecycleConfiguration={"Rules": rules},
+        )
+        logger.info("S3 lifecycle: %s/%s auto-expires after 1 day", bucket, _3D_JOBS_S3_PREFIX)
+    except Exception as exc:
+        logger.debug("3D jobs lifecycle setup: %s", exc)
+
+
+def _persist_3d_job(job: dict) -> None:
+    """Persist a 3D job to S3 so it survives server restarts.
+
+    Mirrors the 2D async_jobs pattern but under its own prefix. Best-effort:
+    failures are logged and never block the request.
+    """
+    try:
+        bucket = get_deployment_s3_bucket()
+        if not bucket:
+            return
+        _ensure_3d_jobs_lifecycle(bucket)
+        s3 = boto3.client("s3", region_name=_get_region())
+        body = json.dumps(job, default=str).encode()
+        s3.put_object(
+            Bucket=bucket,
+            Key=f"{_3D_JOBS_S3_PREFIX}{job['job_id']}.json",
+            Body=body,
+            ContentType="application/json",
+        )
+    except Exception as e:
+        logger.debug("Failed to persist 3D job %s: %s", job.get("job_id"), e)
+
+
+def _delete_persisted_3d_job(job_id: str) -> None:
+    """Remove a persisted 3D job from S3 (after terminal cleanup)."""
+    try:
+        bucket = get_deployment_s3_bucket()
+        if not bucket:
+            return
+        s3 = boto3.client("s3", region_name=_get_region())
+        s3.delete_object(Bucket=bucket, Key=f"{_3D_JOBS_S3_PREFIX}{job_id}.json")
+    except Exception as e:
+        logger.debug("Failed to delete persisted 3D job %s: %s", job_id, e)
+
+
+def load_persisted_3d_jobs() -> None:
+    """Restore 3D jobs from S3 on startup (called from app startup).
+
+    Loads in-progress jobs into _3d_jobs so they survive a server restart.
+    Prunes stale records: terminal (complete/failed) jobs and stuck jobs
+    (submitted/generating with no update for >2h) are deleted from S3 so
+    they don't accumulate — complements the 1-day S3 lifecycle rule.
+    """
+    try:
+        from datetime import datetime as _dt, timezone as _tz
+        bucket = get_deployment_s3_bucket()
+        if not bucket:
+            return
+        s3 = boto3.client("s3", region_name=_get_region())
+        resp = s3.list_objects_v2(Bucket=bucket, Prefix=_3D_JOBS_S3_PREFIX)
+        loaded, pruned = 0, 0
+        now = _dt.now(_tz.utc)
+        for obj in resp.get("Contents", []):
+            try:
+                body = s3.get_object(Bucket=bucket, Key=obj["Key"])
+                job = json.loads(body["Body"].read())
+            except Exception:
+                continue
+            jid = job.get("job_id")
+            if not jid:
+                continue
+            status = job.get("status", "")
+            # Prune terminal jobs and stuck non-terminal jobs (>2h old).
+            stale = status in ("complete", "failed")
+            if not stale:
+                try:
+                    submitted = job.get("submitted_at", "")
+                    age_h = (now - _dt.fromisoformat(submitted)).total_seconds() / 3600 if submitted else 0
+                    if age_h > 2:
+                        stale = True
+                except Exception:
+                    pass
+            if stale:
+                _delete_persisted_3d_job(jid)
+                # Keep terminal jobs in memory for status lookups; drop stuck ones.
+                if status in ("complete", "failed"):
+                    _3d_jobs[jid] = job
+                pruned += 1
+                continue
+            _3d_jobs[jid] = job
+            loaded += 1
+        if loaded or pruned:
+            logger.info("3D jobs restored: %d active, %d stale pruned", loaded, pruned)
+    except Exception as e:
+        logger.debug("Failed to load persisted 3D jobs: %s", e)
+
 
 def _find_triposg_model() -> tuple[str | None, dict | None]:
     """Find a deployed TripoSG model in the registry."""
@@ -254,6 +382,7 @@ async def generate_3d(body: ThreeDGenerateRequest):
         "submitted_at": datetime.utcnow().isoformat(),
     }
     _3d_jobs[job_id] = job
+    _persist_3d_job(job)  # survive server restart
 
     logger.info("3D generation job %s submitted for asset %s (endpoint: %s)",
                 job_id, body.asset_id, endpoint_name)
@@ -311,6 +440,7 @@ async def get_3d_status(job_id: str):
                 failure_msg = failure_resp["Body"].read().decode("utf-8", errors="replace")
                 job["status"] = "failed"
                 job["error"] = failure_msg[:500]
+                _persist_3d_job(job)
                 return {
                     "job_id": job_id,
                     "status": "failed",
@@ -347,6 +477,7 @@ async def get_3d_status(job_id: str):
         if not glb_b64:
             job["status"] = "failed"
             job["error"] = "No mesh data in model output"
+            _persist_3d_job(job)
             return {
                 "job_id": job_id,
                 "status": "failed",
@@ -399,7 +530,8 @@ async def get_3d_status(job_id: str):
         logger.info("3D generation complete for asset %s: %d bytes, %d vertices, %d faces",
                     asset_id, len(glb_bytes), vertices, faces)
 
-        # Clean up S3 artifacts (output + input)
+        # Persist terminal state, then clean up S3 artifacts (output + input)
+        _persist_3d_job(job)
         try:
             s3.delete_object(Bucket=job["s3_bucket"], Key=job["s3_key"])
             if job.get("input_location"):
@@ -424,6 +556,7 @@ async def get_3d_status(job_id: str):
         logger.error("Failed to process 3D output for job %s: %s", job_id, exc)
         job["status"] = "failed"
         job["error"] = str(exc)[:500]
+        _persist_3d_job(job)
         # Clean up S3 artifacts even on failure
         try:
             s3.delete_object(Bucket=job["s3_bucket"], Key=job["s3_key"])

@@ -1203,17 +1203,20 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
         bucket_name = get_deployment_s3_bucket()
         if bucket_name:
             s3_client = boto3.client("s3", region_name=_get_region())
-            resp = s3_client.list_objects_v2(Bucket=bucket_name, Prefix="artsmoker/async-jobs/")
-            for obj in resp.get("Contents", []):
-                try:
-                    body = s3_client.get_object(Bucket=bucket_name, Key=obj["Key"])
-                    job_data = json.loads(body["Body"].read())
-                    if (model_key in str(job_data.get("model_key", ""))
-                            or endpoint_name in str(job_data.get("endpoint_name", ""))):
-                        s3_client.delete_object(Bucket=bucket_name, Key=obj["Key"])
-                        deleted.append(f"async-job-s3:{obj['Key']}")
-                except Exception:
-                    pass
+            # Clean both the 2D async-jobs and 3D-jobs persisted records that
+            # belong to this model/endpoint.
+            for _prefix in ("artsmoker/async-jobs/", "artsmoker/3d-jobs/"):
+                resp = s3_client.list_objects_v2(Bucket=bucket_name, Prefix=_prefix)
+                for obj in resp.get("Contents", []):
+                    try:
+                        body = s3_client.get_object(Bucket=bucket_name, Key=obj["Key"])
+                        job_data = json.loads(body["Body"].read())
+                        if (model_key in str(job_data.get("model_key", ""))
+                                or endpoint_name in str(job_data.get("endpoint_name", ""))):
+                            s3_client.delete_object(Bucket=bucket_name, Key=obj["Key"])
+                            deleted.append(f"job-s3:{obj['Key']}")
+                    except Exception:
+                        pass
     except Exception as e:
         logger.debug("Async job cleanup during teardown: %s", e)
 

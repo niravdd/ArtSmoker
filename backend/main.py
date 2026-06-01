@@ -361,6 +361,12 @@ async def lifespan(app: FastAPI):
                 logger.info("Async jobs: %d loaded, %d resumed from S3", loaded, resumed)
         except Exception as exc:
             logger.debug("Async jobs resume: %s", exc)
+        # Restore 3D generation jobs (separate tracker, separate S3 prefix)
+        try:
+            from backend.routers.generate_3d import load_persisted_3d_jobs
+            load_persisted_3d_jobs()
+        except Exception as exc:
+            logger.debug("3D jobs resume: %s", exc)
 
     threading.Thread(target=_resume_async_jobs, daemon=True, name="async-resume").start()
 
