@@ -1958,11 +1958,17 @@ def _predict_image_to_3d(input_data, model_dict):
     except Exception as _rot_err:
         logger.warning("Mesh orientation rotation failed: %s", _rot_err)
 
-    # 5. Optionally decimate to target face count (0 = keep full resolution).
-    # Default is generous (500K) so we only trim genuinely oversized meshes —
-    # quadric decimation removes redundant coplanar triangles with near-zero
-    # visual impact, but we never force-fit below what the user requested.
+    # 5. Decimate to target face count. 0 = "maximum quality", but we still
+    # enforce a hard ceiling: the texture pipeline (UV unwrap + projection +
+    # Poisson) crashes the worker on extreme densities (8.6M raw octree-9 faces
+    # crashed it). Cap at 1M to keep fine geometry while staying texture-safe.
+    _TEXTURE_SAFE_MAX_FACES = 1000000
     target_faces = input_data.get("faces", 500000)
+    if target_faces <= 0 or target_faces > _TEXTURE_SAFE_MAX_FACES:
+        if len(mesh.faces) > _TEXTURE_SAFE_MAX_FACES:
+            logger.info("Capping faces to texture-safe max %d (was %d, requested %s)",
+                        _TEXTURE_SAFE_MAX_FACES, len(mesh.faces), target_faces or "unlimited")
+        target_faces = _TEXTURE_SAFE_MAX_FACES
     if target_faces > 0 and len(mesh.faces) > target_faces:
         logger.info("Decimating mesh from %d to %d faces", len(mesh.faces), target_faces)
         try:
