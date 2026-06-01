@@ -1865,6 +1865,11 @@ def _get_model_environment(model_key: str, model: dict,
         env["ARTSMOKER_CACHE_PREFIX"] = f"{S3_MODEL_PREFIX}/{model_key}/model-cache"
         env["ARTSMOKER_CACHE_VERSION"] = model.get("version", "1.0")
 
+    # Texture pipeline diagnostics — uploads intermediate multi-view artifacts
+    # to S3 for inspection. Toggle via ARTSMOKER_TEXTURE_DEBUG on the server.
+    if os.environ.get("ARTSMOKER_TEXTURE_DEBUG") == "1":
+        env["ARTSMOKER_TEXTURE_DEBUG"] = "1"
+
     # NCCL fix for pip-upgraded torch: the DLC Dockerfile has
     # ENV LD_PRELOAD="/usr/local/lib/libnccl.so" baked in, which forces the
     # old NCCL (v2.23) to load before any process starts. When pip upgrades

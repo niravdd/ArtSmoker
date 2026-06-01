@@ -2114,11 +2114,22 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             (render_out.normal / 2 + 0.5).clamp(0, 1),
         ], dim=-1).permute(0, 3, 1, 2)  # (6, 6, H, W)
 
+        # DEBUG: save the geometry normal render per view (shows orientation)
+        if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
+            try:
+                _nrm = (render_out.normal / 2 + 0.5).clamp(0, 1)  # (6, H, W, 3)
+                _nrm_np = (_nrm.cpu().numpy() * 255).astype(np.uint8)
+                _grid = _make_mv_grid([Image.fromarray(_nrm_np[i]) for i in range(_nrm_np.shape[0])])
+                _save_debug_artifact(_grid, "01_geometry_normals")
+            except Exception as _e:
+                logger.warning("Debug normal render save failed: %s", _e)
+
         # Preprocess reference image to match MV-Adapter's training distribution:
         # background removed + composited on neutral gray (0.5). Passing a raw
         # image with an arbitrary background pushes the model off-distribution and
         # causes color casts (cyan/teal). This mirrors the official preprocess_image.
         ref_image = _preprocess_mv_reference(source_image, model_dict.get("rmbg_model"))
+        _save_debug_artifact(ref_image, "02_reference")
 
         # Generate multi-view images conditioned on geometry + reference image
         mv_result = mv_pipe(
@@ -2136,6 +2147,13 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         mv_images = mv_result.images
         elapsed_p2 = _t.time() - t0
         logger.info("Phase 2 complete in %.1fs — generated %d multi-view images", elapsed_p2, len(mv_images))
+
+        # DEBUG: save the raw MV-Adapter views (before RMBG) — the source of truth
+        if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
+            try:
+                _save_debug_artifact(_make_mv_grid(mv_images), "03_raw_views")
+            except Exception as _e:
+                logger.warning("Debug raw views save failed: %s", _e)
 
         # Remove background from multi-view images using RMBG
         # This ensures no background color bleeds into the texture projection
@@ -2179,6 +2197,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         mv_grid_path = os.path.join(temp_dir, "mv_grid.png")
         mv_grid.save(mv_grid_path)
         logger.info("Saved multi-view grid: %dx%d", mv_grid.width, mv_grid.height)
+        _save_debug_artifact(mv_grid, "04_cleaned_views")
 
         # Save foreground masks for TexturePipeline projection
         mv_masks_path = None
@@ -2186,6 +2205,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             mv_masks_grid = _make_mv_grid_masks(mask_images)
             mv_masks_path = os.path.join(temp_dir, "mv_masks.png")
             mv_masks_grid.save(mv_masks_path)
+            _save_debug_artifact(mv_masks_grid.convert("RGB"), "05_masks")
 
 
         # On low VRAM: unload MV-Adapter before Phase 3
@@ -2270,6 +2290,28 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             shutil.rmtree(temp_dir, ignore_errors=True)
         except Exception:
             pass
+
+
+def _save_debug_artifact(pil_image, name):
+    """Upload a diagnostic image to S3 under texture-debug/ for inspection.
+
+    Controlled by ARTSMOKER_TEXTURE_DEBUG env var. Cleaned up after analysis.
+    """
+    if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") != "1":
+        return
+    try:
+        import io as _io, boto3 as _b3
+        _bkt = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+        if not _bkt:
+            return
+        buf = _io.BytesIO()
+        pil_image.save(buf, format="PNG")
+        buf.seek(0)
+        _s3c = _b3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+        _s3c.upload_fileobj(buf, _bkt, f"artsmoker/custom-models/texture-debug/{name}.png")
+        logger.info("Saved debug artifact: %s", name)
+    except Exception as e:
+        logger.warning("Debug artifact save failed (%s): %s", name, e)
 
 
 def _preprocess_mv_reference(pil_image, rmbg_model):
