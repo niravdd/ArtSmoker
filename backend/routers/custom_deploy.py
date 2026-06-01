@@ -778,6 +778,100 @@ async def teardown_model(model_key: str, delete_s3: bool = False):
     return {"status": "deleted", **result}
 
 
+@router.post("/keep-warm/{model_key}")
+async def keep_warm(model_key: str, hours: float = 8.0):
+    """Pin a deployed endpoint warm (MinCapacity=1) for `hours`, then auto-revert.
+
+    Dev-mode only. Keeps one hard-won instance running through dev iteration
+    instead of losing it to scale-in between test jobs. After the window
+    elapses (default 8 hours) the endpoint auto-reverts to normal
+    scale-to-zero autoscaling. A persisted marker makes the revert survive a
+    server restart, so the instance is always eventually released.
+
+    Explicit call → starts a fresh window. Use /reset-warm to revert early.
+    """
+    from backend.services.auto_update import is_dev_mode
+    if not is_dev_mode():
+        raise HTTPException(
+            status_code=403,
+            detail="Keep-warm is a dev-only feature (set ARTSMOKER_DEV_MODE).",
+        )
+    from backend.services.sagemaker_deployer import set_keep_warm
+    try:
+        return set_keep_warm(model_key, hours=hours, extend_window=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/reset-warm/{model_key}")
+async def reset_warm(model_key: str, cooldown_seconds: int | None = None):
+    """Revert a kept-warm endpoint to normal scale-to-zero autoscaling now.
+
+    Dev-mode only. Sets MinCapacity=0 so the idle instance scales in (stops
+    billing), cancels the pending auto-revert timer, and clears the warm
+    marker. `cooldown_seconds` overrides the scale-in cooldown to restore;
+    defaults to the value recorded when keep-warm was set.
+    """
+    from backend.services.auto_update import is_dev_mode
+    if not is_dev_mode():
+        raise HTTPException(
+            status_code=403,
+            detail="Reset-warm is a dev-only feature (set ARTSMOKER_DEV_MODE).",
+        )
+    from backend.services.sagemaker_deployer import reset_warm_mode
+    try:
+        return reset_warm_mode(model_key, cooldown_seconds=cooldown_seconds)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/warm-status/{model_key}")
+async def warm_status(model_key: str):
+    """Report keep-warm state for an endpoint (dev-mode only)."""
+    from backend.services.auto_update import is_dev_mode
+    if not is_dev_mode():
+        return {"dev_mode": False, "warm": False}
+    from backend.services.sagemaker_deployer import resolve_endpoint_name
+    from backend.services.model_registry import get_warm_markers
+    ep = resolve_endpoint_name(model_key)
+    marker = get_warm_markers().get(ep, {}) if ep else {}
+    return {"dev_mode": True, "warm": bool(marker), "endpoint_name": ep, **marker}
+
+
+@router.post("/dev-overlay/{model_key}")
+async def push_overlay(model_key: str):
+    """Push the current handler + bundled packages as a hot-reload overlay.
+
+    Dev-mode only. Packages inference.py and the model's bundled packages and
+    stages them in S3; the warm endpoint applies them on the next inference —
+    no redeploy, no scale-in. Model-agnostic.
+    """
+    from backend.services.auto_update import is_dev_mode
+    if not is_dev_mode():
+        raise HTTPException(
+            status_code=403,
+            detail="Hot-reload overlay is a dev-only feature (set ARTSMOKER_DEV_MODE).",
+        )
+    from backend.services.sagemaker_deployer import push_dev_overlay
+    try:
+        return push_dev_overlay(model_key)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.delete("/dev-overlay/{model_key}")
+async def remove_overlay(model_key: str):
+    """Remove a model's hot-reload overlay; the endpoint reverts to deployed code."""
+    from backend.services.auto_update import is_dev_mode
+    if not is_dev_mode():
+        raise HTTPException(
+            status_code=403,
+            detail="Hot-reload overlay is a dev-only feature (set ARTSMOKER_DEV_MODE).",
+        )
+    from backend.services.sagemaker_deployer import clear_dev_overlay
+    return clear_dev_overlay(model_key)
+
+
 @router.get("/cache/{model_key}")
 async def check_cache(model_key: str):
     """Check if a model has cached weights in S3 (from a previous successful load)."""

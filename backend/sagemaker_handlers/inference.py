@@ -48,6 +48,7 @@ logger = logging.getLogger(__name__)
 
 _model = None
 _config = {}
+_model_dir = None  # Set in model_fn — needed by dev hot-reload to locate code/
 
 # ── S3 Model Cache ───────────────────────────────────────────────────────
 _CACHE_LOCAL_DIR = "/tmp/model-cache"
@@ -340,6 +341,167 @@ def _get_env(key, default=""):
 
 def _get_env_bool(key, default=False):
     return _get_env(key, str(default)).lower() in ("true", "1", "yes")
+
+
+# ── Dev hot-reload (generic code overlay) ──────────────────────────────────
+# On a dev box, the deployer sets ARTSMOKER_DEV_HOTRELOAD=1 and points
+# ARTSMOKER_HOTRELOAD_KEY at an S3 overlay archive (overlay.tar.gz, rooted at
+# "code/"). Before each inference, predict_fn checks that object's ETag. If it
+# changed, we:
+#   1. extract the overlay over <model_dir>/code/ (the real inference.py +
+#      bundled packages like mvadapter/ triposg/),
+#   2. drop the bundled top-level packages from sys.modules so the next
+#      function-level import picks up the new source,
+#   3. re-exec the new inference.py's predictor functions into THIS module's
+#      globals, so the updated _predict_* logic is what runs.
+# The reloaded predictor then runs against the already-loaded (warm) model_dict
+# — no scale-in, no weight reload. Fully model-agnostic: it reloads whatever
+# code/ contains and dispatches by PREDICTOR_TYPE. Prod is unaffected (flag
+# absent). The loader (model_fn) is intentionally NOT re-run — weights stay warm.
+_hotreload_state = {"etag": None}
+
+# Names re-bound into this module's globals when inference.py is overlaid.
+# Limited to the predictor surface (functions + their module-level constants
+# are re-exec'd wholesale, but we only swap callables/dicts, never touch live
+# model state, env, or the cache globals).
+_HOTRELOAD_PROTECTED_GLOBALS = {
+    "_model", "_config", "_model_dir", "_loaded_from_cache",
+    "_all_preserved_from_cache", "_cache_info", "_hotreload_state",
+    "os", "sys", "json", "torch", "np", "Image", "logger", "logging",
+    "importlib", "io", "base64",
+}
+
+
+def _bundled_top_level_packages():
+    """Top-level package names present under <model_dir>/code/ (e.g. mvadapter)."""
+    pkgs = []
+    if not _model_dir:
+        return pkgs
+    code_dir = os.path.join(_model_dir, "code")
+    try:
+        for name in os.listdir(code_dir):
+            p = os.path.join(code_dir, name)
+            if os.path.isdir(p) and os.path.exists(os.path.join(p, "__init__.py")):
+                pkgs.append(name)
+    except Exception:
+        pass
+    return pkgs
+
+
+def _apply_code_overlay(tar_bytes):
+    """Extract an overlay tar (rooted at code/) over <model_dir>/code/.
+
+    Returns True on success. Strips any leading "code/" arc prefix so the
+    files land directly under the container's code directory. Afterwards it
+    removes every __pycache__ and bumps extracted file mtimes, then calls
+    importlib.invalidate_caches() — otherwise Python may reuse a stale .pyc
+    (the tar preserves old mtimes, and same-second writes defeat the cache
+    check), which would silently run the OLD bundled-package bytecode.
+    """
+    import tarfile
+    import importlib as _il
+    code_dir = os.path.join(_model_dir, "code")
+    extracted = []
+    with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as tar:
+        for member in tar.getmembers():
+            name = member.name
+            if name.startswith("code/"):
+                name = name[len("code/"):]
+            if not name or name.startswith("/") or ".." in name.split("/"):
+                continue  # path-traversal guard
+            member.name = name
+            tar.extract(member, path=code_dir)
+            extracted.append(os.path.join(code_dir, name))
+    # Invalidate any cached bytecode for the overlaid files.
+    import time as _time
+    now = _time.time()
+    for root, dirs, files in os.walk(code_dir):
+        if "__pycache__" in dirs:
+            import shutil as _sh
+            _sh.rmtree(os.path.join(root, "__pycache__"), ignore_errors=True)
+            dirs.remove("__pycache__")
+    for path in extracted:
+        try:
+            if os.path.isfile(path):
+                os.utime(path, (now, now))
+        except Exception:
+            pass
+    _il.invalidate_caches()
+    return True
+
+
+def _reload_handler_predictors():
+    """Re-exec the overlaid inference.py and rebind predictor globals.
+
+    Runs the new inference.py in a scratch namespace, then copies its
+    _predict_* functions, helper functions, module constants, and the
+    _PREDICTORS dict into THIS live module's globals — except protected
+    runtime state (model, config, caches, stdlib handles).
+    """
+    code_path = os.path.join(_model_dir, "code", "inference.py")
+    if not os.path.exists(code_path):
+        return False
+    with open(code_path, "r") as f:
+        src = f.read()
+    g = globals()
+    scratch = {"__name__": g.get("__name__", "inference"), "__file__": code_path}
+    # Seed protected runtime objects so the new code's module-level statements
+    # (if any run at import) see consistent state. We exec defs/consts only —
+    # the new file's top-level executable code is the same shape as the running
+    # one, so this is safe in practice for our handler.
+    exec(compile(src, code_path, "exec"), scratch)  # noqa: S102 — dev only
+    swapped = 0
+    for k, v in scratch.items():
+        if k.startswith("__"):
+            continue
+        if k in _HOTRELOAD_PROTECTED_GLOBALS:
+            continue
+        # Only swap functions, the predictor/loader dicts, and constants.
+        if callable(v) or isinstance(v, (dict, int, float, str, list, tuple, bool)):
+            g[k] = v
+            swapped += 1
+    logger.info("Hot-reload: re-bound %d symbols from overlaid inference.py", swapped)
+    return True
+
+
+def _maybe_apply_hotreload():
+    """If a changed dev overlay is staged in S3, apply it. Best-effort.
+
+    Returns True if an overlay was (re)applied this call. Never raises into
+    the inference path.
+    """
+    if _get_env("ARTSMOKER_DEV_HOTRELOAD") != "1" or not _model_dir:
+        return False
+    bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET")
+    key = _get_env("ARTSMOKER_HOTRELOAD_KEY")
+    if not bucket or not key:
+        return False
+    try:
+        import boto3
+        s3 = boto3.client("s3")
+        try:
+            head = s3.head_object(Bucket=bucket, Key=key)
+        except Exception:
+            return False  # no overlay staged
+        etag = head.get("ETag")
+        if etag == _hotreload_state["etag"]:
+            return False  # unchanged since last apply
+        logger.info("Hot-reload: new code overlay detected (etag=%s) — applying", etag)
+        tar_bytes = s3.get_object(Bucket=bucket, Key=key)["Body"].read()
+        _apply_code_overlay(tar_bytes)
+        # Drop bundled top-level packages so the next import is fresh.
+        import sys as _sys
+        for pkg in _bundled_top_level_packages():
+            for mod_name in [m for m in list(_sys.modules) if m == pkg or m.startswith(pkg + ".")]:
+                _sys.modules.pop(mod_name, None)
+            logger.info("Hot-reload: purged package '%s' from sys.modules", pkg)
+        _reload_handler_predictors()
+        _hotreload_state["etag"] = etag
+        logger.info("Hot-reload: overlay applied — warm model reused, predictors refreshed")
+        return True
+    except Exception as e:
+        logger.warning("Hot-reload: overlay apply failed (%s) — using current code", e)
+        return False
 
 
 def _get_torch_dtype():
@@ -2443,7 +2605,8 @@ def model_fn(model_dir):
     For HuggingFace direct pull: fetches auth token from Secrets Manager first,
     then the loader downloads weights from HuggingFace using from_pretrained().
     """
-    global _model, _config
+    global _model, _config, _model_dir
+    _model_dir = model_dir
     library = _get_env("INFERENCE_LIBRARY", "diffusers")
 
     # Install system libraries needed by pymeshlab (OpenGL) on headless containers
@@ -2565,13 +2728,20 @@ def input_fn(request_body, content_type="application/json"):
 
 def predict_fn(input_data, model_dict):
     """Run inference — routes to predictor by PREDICTOR_TYPE env var."""
+    import time as _time
+    t0 = _time.time()
+
+    # Dev hot-reload: if a changed code overlay is staged in S3, apply it
+    # (overwrites code/, purges bundled packages, re-binds predictors) before
+    # dispatch — so updated _predict_* logic AND bundled-package edits run
+    # against the already-warm model. No-op in prod (flag absent).
+    _maybe_apply_hotreload()
+
+    # Resolve the predictor AFTER any reload so we pick up the refreshed dict.
     predictor_type = _get_env("PREDICTOR_TYPE", "text_to_image")
     predictor = _PREDICTORS.get(predictor_type)
     if not predictor:
         raise ValueError(f"Unknown PREDICTOR_TYPE: {predictor_type}. Available: {list(_PREDICTORS.keys())}")
-
-    import time as _time
-    t0 = _time.time()
 
     # Log GPU memory before inference
     if torch.cuda.is_available():

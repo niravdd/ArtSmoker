@@ -104,8 +104,29 @@ def submit_job(
     # Ensure the background poller is running
     _ensure_poller()
 
+    # Dev-box convenience: when running on a dev machine, automatically pin the
+    # endpoint warm so we don't lose a hard-won instance between test jobs.
+    # Non-cumulative (extend_window=False): the first job sets the window; later
+    # jobs re-assert MinCapacity=1 but never push the expiry forward. Best-effort
+    # — never let this break job submission.
+    if endpoint_name:
+        _maybe_auto_keep_warm(model_key, endpoint_name)
+
     logger.info("Async job submitted: %s (%s) → %s", job_id, model_label, output_location)
     return job
+
+
+def _maybe_auto_keep_warm(model_key: str, endpoint_name: str):
+    """On a dev box, auto-pin the endpoint warm (non-cumulative). Best-effort."""
+    try:
+        from backend.services.auto_update import is_dev_mode
+        if not is_dev_mode():
+            return
+        from backend.services.sagemaker_deployer import set_keep_warm, DEFAULT_WARM_HOURS
+        set_keep_warm(model_key, hours=DEFAULT_WARM_HOURS,
+                      endpoint_name=endpoint_name, extend_window=False)
+    except Exception as e:
+        logger.debug("Auto keep-warm skipped for %s: %s", endpoint_name, e)
 
 
 def get_all_jobs() -> list:

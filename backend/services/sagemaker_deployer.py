@@ -25,7 +25,7 @@ import json
 import logging
 import os
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from pathlib import Path
 
 import boto3
@@ -34,6 +34,14 @@ logger = logging.getLogger(__name__)
 
 # S3 prefix for model weights and handler code
 S3_MODEL_PREFIX = "artsmoker/custom-models"
+
+# Custom Python packages bundled into model.tar.gz per inference library.
+# These ship under code/<pkg>/ on the container alongside inference.py.
+# Shared by the deploy packager and the dev hot-reload overlay so both agree
+# on which packages a given model carries. Model-agnostic: keyed by library.
+_LIBRARY_BUNDLED_PACKAGES = {
+    "image_to_3d": ["triposg", "mvadapter"],
+}
 
 
 def _get_region() -> str:
@@ -230,12 +238,9 @@ def upload_handler_to_s3(model_key: str, progress_callback=None) -> str:
         bundled_packages_dir = handlers_dir / "bundled_packages"
         if catalog_model and bundled_packages_dir.is_dir():
             library = catalog_model.get("invoke", {}).get("library", "")
-            # Determine which packages to bundle based on library type
-            # image_to_3d → bundle 'triposg' package
-            _library_to_packages = {
-                "image_to_3d": ["triposg", "mvadapter"],
-            }
-            packages_to_bundle = _library_to_packages.get(library, [])
+            # Determine which packages to bundle based on library type.
+            # Shared map (also used by the dev hot-reload overlay).
+            packages_to_bundle = _LIBRARY_BUNDLED_PACKAGES.get(library, [])
             for pkg_name in packages_to_bundle:
                 pkg_src = bundled_packages_dir / pkg_name
                 if pkg_src.is_dir():
@@ -1112,6 +1117,17 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
         pass
     _auto_scaling_registered.discard(endpoint_name)
 
+    # Cancel any keep-warm revert timer and clear the persisted warm marker
+    # (the endpoint is going away — nothing left to revert or auto-bill).
+    try:
+        _timer = _warm_timers.pop(endpoint_name, None)
+        if _timer is not None:
+            _timer.cancel()
+        from .model_registry import clear_warm_marker
+        clear_warm_marker(endpoint_name)
+    except Exception:
+        pass
+
     try:
         cw = boto3.client("cloudwatch", region_name=region)
         alarms = cw.describe_alarms(AlarmNamePrefix=f"{endpoint_name}-")
@@ -1617,6 +1633,375 @@ def _setup_auto_scaling(endpoint_name: str, scale_in_cooldown: int = 600):
     logger.info("Auto-scaling configured for %s (scale to zero + scale from zero)", endpoint_name)
 
 
+# ── Dev keep-warm (pin an instance during local iteration) ─────────────────
+#
+# A deployed g6e/g5 instance is hard to acquire (capacity scarcity). During dev
+# iteration we don't want to lose it to scale-in between test jobs, nor leave it
+# billing all day. Keep-warm pins MinCapacity=1 for a bounded window (default
+# 8 hours) and schedules an automatic revert to normal scale-to-zero autoscaling.
+# A persisted marker (model_registry.user.json "_warm_mode") lets the revert
+# survive a server restart, so a dev box can never silently bill forever.
+#
+# These functions are gated to dev-mode by the router; they make no change to
+# production behavior on their own.
+
+# In-process revert timers, keyed by endpoint_name → threading.Timer
+_warm_timers: dict = {}
+
+# Default keep-warm window — long enough for a full day of dev iteration,
+# short enough to bound accidental cost. Overridable per call.
+DEFAULT_WARM_HOURS = 8
+
+
+def resolve_endpoint_name(model_key: str) -> str:
+    """Resolve a deployed endpoint name from a model/catalog key.
+
+    Mirrors the registry lookup teardown_endpoint() uses: exact key first,
+    then prefix match (deployed instance keys carry a hash suffix, e.g.
+    "triposg_cd45"). Returns "" if no deployed endpoint is found.
+    """
+    from .model_registry import get_registry
+    reg = get_registry()
+    for section in ["image_models", "video_models", "post_processing", "utility_models"]:
+        entry = reg.get(section, {}).get(model_key, {})
+        ep = entry.get("deployment", {}).get("endpoint_name", "")
+        if ep:
+            return ep
+        for key, entry in reg.get(section, {}).items():
+            if key.startswith(model_key + "_") or key == model_key:
+                ep = entry.get("deployment", {}).get("endpoint_name", "")
+                if ep:
+                    return ep
+    return ""
+
+
+def _set_min_capacity(endpoint_name: str, min_capacity: int):
+    """Update the scalable target's MinCapacity, preserving MaxCapacity=1.
+
+    Requires the scalable target to already exist (registered by
+    _setup_auto_scaling once the model is ready). Raises if it doesn't.
+    """
+    aas = boto3.client("application-autoscaling", region_name=_get_region())
+    resource_id = f"endpoint/{endpoint_name}/variant/primary"
+    # Confirm the scalable target exists — keep-warm only makes sense on a
+    # ready endpoint that already has scale-to-zero autoscaling.
+    resp = aas.describe_scalable_targets(
+        ServiceNamespace="sagemaker",
+        ResourceIds=[resource_id],
+        ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+    )
+    if not resp.get("ScalableTargets"):
+        raise RuntimeError(
+            f"No scalable target for {endpoint_name} — endpoint not ready "
+            "or auto-scaling not yet registered. Wait for the model to load."
+        )
+    aas.register_scalable_target(
+        ServiceNamespace="sagemaker",
+        ResourceId=resource_id,
+        ScalableDimension="sagemaker:variant:DesiredInstanceCount",
+        MinCapacity=min_capacity,
+        MaxCapacity=1,
+    )
+
+
+def set_keep_warm(model_key: str, hours: float = DEFAULT_WARM_HOURS,
+                  endpoint_name: str = "", extend_window: bool = True) -> dict:
+    """Pin an endpoint warm (MinCapacity=1) for `hours`, then auto-revert.
+
+    Sets MinCapacity=1 so SageMaker keeps one instance running and the
+    scale-to-zero policy can't kill it. Persists a warm marker and schedules
+    an automatic revert to normal autoscaling after the window elapses.
+
+    extend_window:
+      True  (explicit /keep-warm call) — (re)set the window to now + hours.
+      False (auto-trigger from a job)  — if a warm marker already exists, keep
+            its original expiry untouched (the window is NOT cumulative; we
+            stick with the first one set). Only create a window if none exists.
+
+    Dev-mode only — the router/caller enforces this.
+    """
+    if not endpoint_name:
+        endpoint_name = resolve_endpoint_name(model_key)
+    if not endpoint_name:
+        raise RuntimeError(f"No deployed endpoint found for {model_key}")
+
+    hours = max(0.05, float(hours))  # floor at 3 minutes; guard against 0/negative
+
+    from .model_registry import get_warm_markers, set_warm_marker
+    existing = get_warm_markers().get(endpoint_name)
+
+    # Non-extending auto-trigger with a live window: re-assert MinCapacity=1
+    # (cheap, idempotent) but leave the original expiry in place.
+    if existing and not extend_window:
+        try:
+            expires = datetime.fromisoformat(existing.get("expires_at", ""))
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            if expires > datetime.now(timezone.utc):
+                _set_min_capacity(endpoint_name, 1)
+                # Ensure a revert timer is armed (e.g., after a restart it may not be).
+                if endpoint_name not in _warm_timers:
+                    _schedule_warm_revert(
+                        endpoint_name,
+                        (expires - datetime.now(timezone.utc)).total_seconds(),
+                    )
+                logger.info("Keep-warm: %s already warm until %s — window unchanged",
+                            endpoint_name, existing.get("expires_at"))
+                return {
+                    "status": "warm",
+                    "endpoint_name": endpoint_name,
+                    "model_key": model_key,
+                    "expires_at": existing.get("expires_at"),
+                    "revert_cooldown_seconds": existing.get("cooldown_seconds"),
+                    "window_unchanged": True,
+                }
+        except Exception:
+            pass  # malformed marker — fall through and set a fresh window
+
+    _set_min_capacity(endpoint_name, 1)
+
+    expires = datetime.now(timezone.utc) + timedelta(hours=hours)
+    expires_iso = expires.isoformat()
+
+    # Cooldown to restore on revert — derive from catalog like the normal path.
+    cooldown = _warm_revert_cooldown(endpoint_name)
+
+    set_warm_marker(endpoint_name, model_key, expires_iso, cooldown)
+    _schedule_warm_revert(endpoint_name, hours * 3600.0)
+
+    logger.info("Keep-warm: %s pinned MinCapacity=1 until %s (%.1fh)",
+                endpoint_name, expires_iso, hours)
+    return {
+        "status": "warm",
+        "endpoint_name": endpoint_name,
+        "model_key": model_key,
+        "hours": hours,
+        "expires_at": expires_iso,
+        "revert_cooldown_seconds": cooldown,
+    }
+
+
+def reset_warm_mode(model_key: str, cooldown_seconds: int | None = None,
+                    endpoint_name: str = "") -> dict:
+    """Revert an endpoint to normal scale-to-zero autoscaling immediately.
+
+    Sets MinCapacity=0 (so the instance scales in once idle), cancels any
+    pending revert timer, and clears the persisted warm marker. Use mid-window
+    to stop billing when you no longer need the warm box.
+    """
+    if not endpoint_name:
+        endpoint_name = resolve_endpoint_name(model_key)
+    if not endpoint_name:
+        raise RuntimeError(f"No deployed endpoint found for {model_key}")
+
+    if cooldown_seconds is None:
+        # Prefer the cooldown recorded when warm was set; fall back to catalog.
+        from .model_registry import get_warm_markers
+        marker = get_warm_markers().get(endpoint_name, {})
+        cooldown_seconds = marker.get("cooldown_seconds") or _warm_revert_cooldown(endpoint_name)
+
+    # Cancel any in-process revert timer.
+    timer = _warm_timers.pop(endpoint_name, None)
+    if timer is not None:
+        try:
+            timer.cancel()
+        except Exception:
+            pass
+
+    _set_min_capacity(endpoint_name, 0)
+    # Re-assert the scale-to-zero target tracking cooldown (idempotent).
+    try:
+        _setup_auto_scaling(endpoint_name, scale_in_cooldown=int(cooldown_seconds))
+    except Exception as e:
+        logger.warning("reset_warm_mode: re-applying autoscaling for %s failed: %s",
+                       endpoint_name, e)
+
+    from .model_registry import clear_warm_marker
+    clear_warm_marker(endpoint_name)
+
+    logger.info("Reset-warm: %s reverted to MinCapacity=0 (scale-in cooldown=%ss)",
+                endpoint_name, cooldown_seconds)
+    return {
+        "status": "normal",
+        "endpoint_name": endpoint_name,
+        "model_key": model_key,
+        "scale_in_cooldown_seconds": int(cooldown_seconds),
+    }
+
+
+def _warm_revert_cooldown(endpoint_name: str) -> int:
+    """Compute the scale-in cooldown to restore on revert (catalog-derived)."""
+    try:
+        from .custom_models import get_catalog
+        catalog = get_catalog()
+        model_key = endpoint_name.replace("artsmoker-", "").replace("-", "_")
+        base_key = "_".join(model_key.rsplit("_", 1)[:-1])
+        model = (catalog.get(model_key) or catalog.get(base_key)
+                 or catalog.get("models", {}).get(model_key)
+                 or catalog.get("models", {}).get(base_key) or {})
+        typical = model.get("invoke", {}).get("typical_latency_seconds", 300)
+        return max(600, typical * 2)
+    except Exception:
+        return 600
+
+
+def _schedule_warm_revert(endpoint_name: str, delay_seconds: float):
+    """Schedule an in-process timer to auto-revert keep-warm after the window.
+
+    Restart-safety does NOT depend on this timer — the persisted marker plus
+    resume_warm_markers() at startup covers a server restart. This timer is the
+    fast path for a long-running process.
+    """
+    import threading
+
+    # Replace any existing timer for this endpoint.
+    existing = _warm_timers.pop(endpoint_name, None)
+    if existing is not None:
+        try:
+            existing.cancel()
+        except Exception:
+            pass
+
+    def _revert():
+        _warm_timers.pop(endpoint_name, None)
+        try:
+            # model_key is informational here; endpoint_name drives the revert.
+            reset_warm_mode("", endpoint_name=endpoint_name)
+            logger.info("Keep-warm window elapsed — auto-reverted %s", endpoint_name)
+        except Exception as e:
+            logger.warning("Auto-revert of keep-warm for %s failed: %s", endpoint_name, e)
+
+    t = threading.Timer(delay_seconds, _revert)
+    t.daemon = True
+    t.name = f"warm-revert-{endpoint_name}"
+    t.start()
+    _warm_timers[endpoint_name] = t
+
+
+def dev_overlay_s3_key(model_key: str) -> str:
+    """S3 key for a model's dev hot-reload overlay archive."""
+    return f"{S3_MODEL_PREFIX}/{model_key}/dev/overlay.tar.gz"
+
+
+def push_dev_overlay(model_key: str) -> dict:
+    """Package the current handler + bundled packages and stage them in S3.
+
+    Builds an overlay.tar.gz with the SAME layout the deploy packager uses
+    (rooted at "code/": inference.py + each bundled package for this model's
+    library), and uploads it to the model's dev overlay key. The warm endpoint's
+    handler detects the new ETag on the next inference and hot-reloads it.
+
+    Model-agnostic: bundles whatever _LIBRARY_BUNDLED_PACKAGES maps the model's
+    library to (empty for models with no bundled packages — then the overlay is
+    just inference.py, which is still a valid hot-reload).
+    """
+    import shutil
+    import tarfile
+
+    bucket = get_deployment_s3_bucket()
+    if not bucket:
+        raise RuntimeError("No S3 bucket configured for dev overlay.")
+
+    handlers_dir = Path(__file__).resolve().parent.parent / "sagemaker_handlers"
+    src_handler = handlers_dir / "inference.py"
+    if not src_handler.exists():
+        raise FileNotFoundError(f"Inference handler not found: {src_handler}")
+
+    # Resolve bundled packages for this model's library.
+    from .custom_models import get_catalog_model
+    catalog_model = get_catalog_model(model_key)
+    library = (catalog_model or {}).get("invoke", {}).get("library", "")
+    packages = _LIBRARY_BUNDLED_PACKAGES.get(library, [])
+
+    temp_dir = Path(tempfile.mkdtemp(prefix=f"artsmoker_overlay_{model_key}_"))
+    try:
+        code_dir = temp_dir / "code"
+        code_dir.mkdir()
+        shutil.copy2(str(src_handler), str(code_dir / "inference.py"))
+
+        bundled_dir = handlers_dir / "bundled_packages"
+        bundled = []
+        for pkg in packages:
+            pkg_src = bundled_dir / pkg
+            if pkg_src.is_dir():
+                shutil.copytree(str(pkg_src), str(code_dir / pkg))
+                bundled.append(pkg)
+
+        tar_path = temp_dir / "overlay.tar.gz"
+        with tarfile.open(str(tar_path), "w:gz") as tar:
+            tar.add(str(code_dir), arcname="code")
+
+        key = dev_overlay_s3_key(model_key)
+        s3 = boto3.client("s3", region_name=_get_region())
+        s3.upload_file(str(tar_path), bucket, key)
+        size = tar_path.stat().st_size
+    finally:
+        import shutil as _sh
+        _sh.rmtree(str(temp_dir), ignore_errors=True)
+
+    logger.info("Dev overlay pushed for %s → s3://%s/%s (%d bytes, packages=%s)",
+                model_key, bucket, key, size, bundled)
+    return {
+        "status": "pushed",
+        "model_key": model_key,
+        "s3_uri": f"s3://{bucket}/{key}",
+        "bytes": size,
+        "bundled_packages": bundled,
+        "note": "Applied on the next inference to the warm endpoint.",
+    }
+
+
+def clear_dev_overlay(model_key: str) -> dict:
+    """Remove a model's dev overlay from S3 (handler reverts to deployed code)."""
+    bucket = get_deployment_s3_bucket()
+    if not bucket:
+        return {"status": "noop", "reason": "no bucket"}
+    key = dev_overlay_s3_key(model_key)
+    try:
+        boto3.client("s3", region_name=_get_region()).delete_object(Bucket=bucket, Key=key)
+    except Exception as e:
+        return {"status": "error", "reason": str(e)}
+    logger.info("Dev overlay cleared for %s (s3://%s/%s)", model_key, bucket, key)
+    return {"status": "cleared", "model_key": model_key, "s3_uri": f"s3://{bucket}/{key}"}
+
+
+def resume_warm_markers():
+    """On server startup, honor persisted keep-warm markers.
+
+    For each marker: if the window already elapsed, revert immediately
+    (prevents billing forever after a crash). Otherwise re-arm the in-process
+    revert timer for the remaining time. Safe to call when no markers exist.
+    """
+    try:
+        from .model_registry import get_warm_markers
+        markers = get_warm_markers()
+    except Exception as e:
+        logger.debug("resume_warm_markers: could not read markers: %s", e)
+        return
+
+    if not markers:
+        return
+
+    now = datetime.now(timezone.utc)
+    for endpoint_name, marker in list(markers.items()):
+        try:
+            expires_at = marker.get("expires_at", "")
+            expires = datetime.fromisoformat(expires_at) if expires_at else now
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+            remaining = (expires - now).total_seconds()
+            model_key = marker.get("model_key", "")
+            if remaining <= 0:
+                logger.info("Keep-warm marker for %s already expired — reverting", endpoint_name)
+                reset_warm_mode(model_key, endpoint_name=endpoint_name)
+            else:
+                logger.info("Keep-warm marker for %s resumed — %.1fh remaining",
+                            endpoint_name, remaining / 3600.0)
+                _schedule_warm_revert(endpoint_name, remaining)
+        except Exception as e:
+            logger.warning("resume_warm_markers: failed for %s: %s", endpoint_name, e)
+
+
 # ── Private helpers ───────────────────────────────────────────────────────
 
 def _get_inference_container(model: dict) -> str:
@@ -1894,6 +2279,19 @@ def _get_model_environment(model_key: str, model: dict,
     # to S3 for inspection. Toggle via ARTSMOKER_TEXTURE_DEBUG on the server.
     if os.environ.get("ARTSMOKER_TEXTURE_DEBUG") == "1":
         env["ARTSMOKER_TEXTURE_DEBUG"] = "1"
+
+    # Dev hot-reload — on a dev box, let the handler check S3 for a code
+    # overlay (overlay.tar.gz) before each inference, so we can push handler +
+    # bundled-package fixes onto a warm instance without redeploying. No effect
+    # in prod (flag absent) and the handler treats it as opt-in.
+    try:
+        from .auto_update import is_dev_mode
+        if is_dev_mode():
+            env["ARTSMOKER_DEV_HOTRELOAD"] = "1"
+            if bucket:
+                env["ARTSMOKER_HOTRELOAD_KEY"] = dev_overlay_s3_key(model_key)
+    except Exception:
+        pass
 
     # NCCL fix for pip-upgraded torch: the DLC Dockerfile has
     # ENV LD_PRELOAD="/usr/local/lib/libnccl.so" baked in, which forces the

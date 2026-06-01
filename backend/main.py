@@ -400,6 +400,14 @@ async def lifespan(app: FastAPI):
                     logger.info("Endpoint %s still warming up — auto-scaling deferred until model ready", ep_name)
         except Exception as exc:
             logger.debug("Auto-scaling verification: %s", exc)
+        # Honor persisted dev keep-warm markers: revert any whose window has
+        # elapsed (so the instance is released even after a server restart),
+        # and re-arm revert timers for those still within their window.
+        try:
+            from backend.services.sagemaker_deployer import resume_warm_markers
+            resume_warm_markers()
+        except Exception as exc:
+            logger.debug("Keep-warm resume: %s", exc)
     threading.Thread(target=_verify_auto_scaling, daemon=True, name="autoscale-verify").start()
 
     # Mark ready only if Sync is not running in background

@@ -193,7 +193,7 @@ _save._silent = False
 # Fields per model that are user-specific and should NOT be promoted to the base file
 _USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready"}
 # Top-level sections that are user-specific
-_USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances", "three_d_defaults"}
+_USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances", "three_d_defaults", "_warm_mode"}
 
 
 def promote_to_base():
@@ -352,6 +352,56 @@ def _save_user_pref(section: str, key: str, field: str, value):
     prefs["_last_updated"] = datetime.utcnow().isoformat()
 
     _USER_PREFS_PATH.write_text(json.dumps(prefs, indent=2, default=str))
+
+
+# ── Dev keep-warm markers (runtime state, persisted in user.json) ─────────
+# Records which endpoints have been pinned warm (MinCapacity=1) and when the
+# warm window expires. Persisting this lets the server auto-revert a warm
+# endpoint after a restart, so a dev box can never silently keep an instance
+# billing forever. Keyed by endpoint_name under the "_warm_mode" section.
+
+def _read_user_prefs_raw() -> dict:
+    if _USER_PREFS_PATH.exists():
+        try:
+            return json.loads(_USER_PREFS_PATH.read_text())
+        except Exception:
+            return {}
+    return {}
+
+
+def set_warm_marker(endpoint_name: str, model_key: str, expires_at: str,
+                    cooldown_seconds: int):
+    """Persist a keep-warm marker for an endpoint (dev-mode only)."""
+    prefs = _read_user_prefs_raw()
+    warm = prefs.setdefault("_warm_mode", {})
+    warm[endpoint_name] = {
+        "model_key": model_key,
+        "expires_at": expires_at,            # ISO8601 UTC; revert after this
+        "cooldown_seconds": cooldown_seconds,  # cooldown to restore on revert
+        "set_at": datetime.now(timezone.utc).isoformat(),
+    }
+    prefs["_last_updated"] = datetime.now(timezone.utc).isoformat()
+    _USER_PREFS_PATH.write_text(json.dumps(prefs, indent=2, default=str))
+    # Keep in-memory registry in sync so get_registry() reflects it.
+    _registry["_warm_mode"] = dict(warm)
+
+
+def clear_warm_marker(endpoint_name: str):
+    """Remove a keep-warm marker (on reset-warm, auto-revert, or teardown)."""
+    prefs = _read_user_prefs_raw()
+    warm = prefs.get("_warm_mode", {})
+    if endpoint_name in warm:
+        del warm[endpoint_name]
+        prefs["_warm_mode"] = warm
+        prefs["_last_updated"] = datetime.now(timezone.utc).isoformat()
+        _USER_PREFS_PATH.write_text(json.dumps(prefs, indent=2, default=str))
+    if isinstance(_registry.get("_warm_mode"), dict):
+        _registry["_warm_mode"].pop(endpoint_name, None)
+
+
+def get_warm_markers() -> dict:
+    """Return all persisted keep-warm markers: {endpoint_name: {...}}."""
+    return _read_user_prefs_raw().get("_warm_mode", {})
 
 
 # ── Format family definitions (code as source of truth) ──────────────────

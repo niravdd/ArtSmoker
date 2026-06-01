@@ -384,6 +384,14 @@ async def generate_3d(body: ThreeDGenerateRequest):
     _3d_jobs[job_id] = job
     _persist_3d_job(job)  # survive server restart
 
+    # Dev-box convenience: auto-pin the endpoint warm (non-cumulative). Shares
+    # the same helper as 2D async jobs. No-op outside dev mode.
+    try:
+        from backend.services.async_jobs import _maybe_auto_keep_warm
+        _maybe_auto_keep_warm(model_key, endpoint_name)
+    except Exception as exc:
+        logger.debug("3D auto keep-warm skipped: %s", exc)
+
     logger.info("3D generation job %s submitted for asset %s (endpoint: %s)",
                 job_id, body.asset_id, endpoint_name)
 
