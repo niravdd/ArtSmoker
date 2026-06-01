@@ -758,7 +758,7 @@
     "three_d_steps": "इन्फ़रेंस चरण",
     "three_d_guidance": "गाइडेंस स्केल",
     "three_d_faces": "अधिकतम फेस",
-    "three_d_faces_unlimited": "असीमित",
+    "three_d_faces_unlimited": "अधिकतम गुणवत्ता (कोई सीमा नहीं)",
     "three_d_depth": "मेश रिज़ॉल्यूशन",
     "three_d_depth_low": "कम (128³)",
     "three_d_depth_medium": "मध्यम (256³)",
@@ -808,7 +808,8 @@
     "three_d_regenerating": "पुनः बन रहा है...",
     "three_d_pending_title": "आपका 3D मॉडल बन रहा है...",
     "three_d_pending_subtitle": "आप यह व्यूअर बंद करके कुछ देर बाद पुनः देख सकते हैं।",
-    "three_d_job_id": "कार्य"
+    "three_d_job_id": "कार्य",
+    "three_d_faces_hint": "अधिक फेस का अर्थ है बेहतर विवरण। \"अधिकतम गुणवत्ता\" मॉडल द्वारा उत्पन्न पूर्ण रिज़ॉल्यूशन बनाए रखती है।"
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",

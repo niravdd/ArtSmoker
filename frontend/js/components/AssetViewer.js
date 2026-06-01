@@ -1609,7 +1609,9 @@
                                     <option value="50000">50,000</option>
                                     <option value="100000" selected>100,000</option>
                                     <option value="200000">200,000</option>
+                                    <option value="300000">300,000</option>
                                 </select>
+                                <p class="text-[9px] text-brand-text-dim mt-1 max-w-[12rem]">${t('asset_viewer.three_d_faces_hint')}</p>
                             </div>
                             <div>
                                 <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_depth')}</label>

@@ -758,7 +758,7 @@
     "three_d_steps": "Шаги инференса",
     "three_d_guidance": "Шкала руководства",
     "three_d_faces": "Макс. полигонов",
-    "three_d_faces_unlimited": "Без ограничений",
+    "three_d_faces_unlimited": "Максимальное качество (без ограничений)",
     "three_d_depth": "Разрешение сетки",
     "three_d_depth_low": "Низкое (128³)",
     "three_d_depth_medium": "Среднее (256³)",
@@ -808,7 +808,8 @@
     "three_d_regenerating": "Перегенерация...",
     "three_d_pending_title": "Создаём вашу 3D-модель...",
     "three_d_pending_subtitle": "Вы можете закрыть окно и проверить через некоторое время.",
-    "three_d_job_id": "Задача"
+    "three_d_job_id": "Задача",
+    "three_d_faces_hint": "Больше граней — выше детализация. «Максимальное качество» сохраняет полное разрешение, которое создаёт модель."
   },
   "model_settings": {
     "title": "Настройки моделей",

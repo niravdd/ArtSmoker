@@ -121,7 +121,7 @@
     "three_d_steps": "Pasos de inferencia",
     "three_d_guidance": "Escala de guía",
     "three_d_faces": "Caras máx.",
-    "three_d_faces_unlimited": "Sin límite",
+    "three_d_faces_unlimited": "Calidad máxima (sin límite)",
     "three_d_depth": "Resolución de malla",
     "three_d_depth_low": "Baja (128³)",
     "three_d_depth_medium": "Media (256³)",
@@ -192,7 +192,8 @@
     "three_d_regenerating": "Regenerando...",
     "three_d_pending_title": "Generando su modelo 3D...",
     "three_d_pending_subtitle": "Puede cerrar este visor y volver a comprobarlo en unos minutos.",
-    "three_d_job_id": "Tarea"
+    "three_d_job_id": "Tarea",
+    "three_d_faces_hint": "Más caras significa mayor detalle. «Calidad máxima» mantiene la resolución completa que produce el modelo."
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",

@@ -121,7 +121,7 @@
     "three_d_steps": "추론 스텝",
     "three_d_guidance": "가이던스 스케일",
     "three_d_faces": "최대 면 수",
-    "three_d_faces_unlimited": "무제한",
+    "three_d_faces_unlimited": "최고 품질 (무제한)",
     "three_d_depth": "메시 해상도",
     "three_d_depth_low": "낮음 (128³)",
     "three_d_depth_medium": "중간 (256³)",
@@ -192,7 +192,8 @@
     "three_d_regenerating": "재생성 중...",
     "three_d_pending_title": "3D 모델을 생성하고 있습니다...",
     "three_d_pending_subtitle": "뷰어를 닫고 잠시 후 다시 확인해 주세요.",
-    "three_d_job_id": "작업"
+    "three_d_job_id": "작업",
+    "three_d_faces_hint": "페이스 수가 많을수록 디테일이 정교해집니다. \"최고 품질\"은 모델이 생성한 전체 해상도를 유지합니다."
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",

@@ -121,7 +121,7 @@
     "three_d_steps": "Étapes d'inférence",
     "three_d_guidance": "Échelle de guidage",
     "three_d_faces": "Faces max.",
-    "three_d_faces_unlimited": "Illimité",
+    "three_d_faces_unlimited": "Qualité maximale (sans limite)",
     "three_d_depth": "Résolution du maillage",
     "three_d_depth_low": "Basse (128³)",
     "three_d_depth_medium": "Moyenne (256³)",
@@ -192,7 +192,8 @@
     "three_d_regenerating": "Régénération...",
     "three_d_pending_title": "Génération de votre modèle 3D...",
     "three_d_pending_subtitle": "Vous pouvez fermer cette fenêtre et revenir dans quelques instants.",
-    "three_d_job_id": "Tâche"
+    "three_d_job_id": "Tâche",
+    "three_d_faces_hint": "Un nombre de faces plus élevé signifie plus de détails. « Qualité maximale » conserve la pleine résolution produite par le modèle."
   },
   "chat_studio": {
     "attach_image": "Joindre une image (pour les modèles de vision)",
