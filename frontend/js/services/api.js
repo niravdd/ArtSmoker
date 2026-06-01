@@ -461,6 +461,9 @@
             status(jobId) {
                 return request(`/api/generate/3d/status/${encodeURIComponent(jobId)}`);
             },
+            activeJob(assetId, version = 1) {
+                return request(`/api/generate/3d/active/${encodeURIComponent(assetId)}?version=${version}`);
+            },
         },
     };
 })();

@@ -266,6 +266,26 @@ async def generate_3d(body: ThreeDGenerateRequest):
     }
 
 
+@router.get("/active/{asset_id}")
+async def get_active_3d_job(asset_id: str, version: int = 1):
+    """Return the in-progress 3D job for an asset+version, if any.
+
+    Lets the frontend show a 'regeneration in progress' state after a page
+    reload (when its in-memory job tracking is gone). Returns the most recent
+    non-finalized job, or {active: false}.
+    """
+    candidates = [
+        j for j in _3d_jobs.values()
+        if j.get("asset_id") == asset_id
+        and j.get("version", 1) == version
+        and j.get("status") not in ("complete", "failed")
+    ]
+    if not candidates:
+        return {"active": False}
+    job = sorted(candidates, key=lambda j: j.get("submitted_at", ""), reverse=True)[0]
+    return {"active": True, "job_id": job["job_id"], "status": job["status"]}
+
+
 @router.get("/status/{job_id}")
 async def get_3d_status(job_id: str):
     """Check status of a 3D generation job."""

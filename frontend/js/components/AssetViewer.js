@@ -1513,7 +1513,18 @@
             // If a regeneration is in progress for THIS asset, show the pending
             // view (not the stale prior model) so the user knows work is ongoing
             // and doesn't re-trigger. Resume polling so it auto-loads when ready.
-            const activeJobId = window._3dActiveJobs?.[meta.id];
+            // Check in-memory first (same session), then the backend (survives
+            // a page reload, since in-memory tracking is wiped on refresh).
+            let activeJobId = window._3dActiveJobs?.[meta.id];
+            if (!activeJobId) {
+                try {
+                    const active = await API.threeD.activeJob(meta.id, this._currentVersion || 1);
+                    if (active && active.active && active.job_id) {
+                        activeJobId = active.job_id;
+                        window._3dActiveJobs[meta.id] = activeJobId;
+                    }
+                } catch {}
+            }
             if (activeJobId) {
                 this._3dJobId = activeJobId;
                 this._render3DPending(container, activeJobId);
