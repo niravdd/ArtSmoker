@@ -1939,6 +1939,18 @@ def _predict_image_to_3d(input_data, model_dict):
 
     logger.info("Mesh: %d vertices, %d faces", len(mesh.vertices), len(mesh.faces))
 
+    # Orientation fix: TripoSG emits the mesh with its FRONT facing the +Y / azimuth-180
+    # camera, but MV-Adapter expects the front to align with the reference image at the
+    # azimuth-0 camera. Diagnostic renders confirmed the front was 180° off (face landed
+    # on the back/side). Rotate 180° about the up (Y) axis so the front faces azimuth 0.
+    try:
+        import trimesh as _tm
+        _rot = _tm.transformations.rotation_matrix(np.pi, [0, 1, 0])
+        mesh.apply_transform(_rot)
+        logger.info("Applied 180° Y-axis rotation to align mesh front with reference")
+    except Exception as _rot_err:
+        logger.warning("Mesh orientation rotation failed: %s", _rot_err)
+
     # 5. Optionally decimate to target face count (0 = keep full resolution).
     # Default is generous (500K) so we only trim genuinely oversized meshes —
     # quadric decimation removes redundant coplanar triangles with near-zero
