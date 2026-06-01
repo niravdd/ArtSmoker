@@ -2118,11 +2118,15 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # default. Otherwise Phase 2 (geometry render) and Phase 3 (texture
         # projection) disagree by 90° about which mesh axis is "front", and the
         # face lands on the side of the head (Janus problem).
+        # Render and generate at 1024 (vs 768) for sharper texture detail,
+        # especially on faces. Render and generation resolution MUST match so
+        # the geometry control images align with the diffused views.
+        _MV_RES = 1024
         ctx = NVDiffRastContextWrapper(device="cuda", context_type="cuda")
         mesh_obj = load_mesh(mesh_path, rescale=True, front_x_to_y=True, device="cuda")
         render_out = render(
             ctx, mesh_obj, cameras,
-            height=768, width=768,
+            height=_MV_RES, width=_MV_RES,
             render_attr=False,
             normal_background=0.0,
         )
@@ -2156,7 +2160,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # appearance detail (facial features) rather than the featureless head mesh.
         mv_result = mv_pipe(
             "best quality, sharp facial features, detailed face, crisp textures, vivid colors, detailed surface materials, game asset",
-            height=768, width=768,
+            height=_MV_RES, width=_MV_RES,
             num_inference_steps=50,
             guidance_scale=3.0,
             num_images_per_prompt=6,

@@ -1510,6 +1510,17 @@
                 return;
             }
 
+            // If a regeneration is in progress for THIS asset, show the pending
+            // view (not the stale prior model) so the user knows work is ongoing
+            // and doesn't re-trigger. Resume polling so it auto-loads when ready.
+            const activeJobId = window._3dActiveJobs?.[meta.id];
+            if (activeJobId) {
+                this._3dJobId = activeJobId;
+                this._render3DPending(container, activeJobId);
+                if (!this._3dPollTimer) this._start3DPolling(activeJobId);
+                return;
+            }
+
             // Check if 3D already exists for current version — show it regardless of deployment status
             try {
                 const ver = this._currentVersion || 1;
@@ -1517,11 +1528,6 @@
                 const existing3D = meta.three_d_versions?.find(v => v.version === ver)
                     || meta.three_d?.[`v${ver}`];
                 if (existing3D) {
-                    const activeJobId = window._3dActiveJobs?.[meta.id];
-                    if (activeJobId && !this._3dPollTimer) {
-                        this._3dJobId = activeJobId;
-                        this._start3DPolling(activeJobId);
-                    }
                     this._render3DComplete(container, {
                         download_url: existing3D.glb_url || glbUrl,
                         file_size: existing3D.size_bytes || 0,
