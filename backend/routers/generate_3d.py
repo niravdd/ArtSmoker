@@ -60,11 +60,30 @@ class ThreeDDefaultsRequest(BaseModel):
 class ThreeDGenerateRequest(BaseModel):
     asset_id: str
     version: int = 1
+    quality: str = "standard"
     steps: int = 50
+    # Frontend sends `guidance` and `max_faces`/`mesh_resolution`; accept those
+    # names as aliases so the user's quality-preset choices actually reach the model.
+    guidance: float | None = None
     guidance_scale: float = 7.0
     seed: int | None = None
+    max_faces: int | None = None
     faces: int = 200000
+    mesh_resolution: int | None = None
     octree_depth: int = 7
+
+    def resolved_guidance(self) -> float:
+        return self.guidance if self.guidance is not None else self.guidance_scale
+
+    def resolved_faces(self) -> int:
+        return self.max_faces if self.max_faces is not None else self.faces
+
+    def resolved_octree_depth(self) -> int:
+        # Frontend mesh_resolution (grid size) → TripoSG octree depth.
+        # 128→7, 256→8, 512→9. Higher = finer geometry (facial detail).
+        if self.mesh_resolution is not None:
+            return {128: 7, 256: 8, 512: 9}.get(self.mesh_resolution, 8)
+        return self.octree_depth
 
 
 # ── Endpoints ─────────────────────────────────────────────────────────────
@@ -151,15 +170,17 @@ async def generate_3d(body: ThreeDGenerateRequest):
     image_bytes = image_path.read_bytes()
     image_b64 = base64.b64encode(image_bytes).decode("utf-8")
 
-    # Build payload
+    # Build payload — use resolved values so the frontend's quality-preset
+    # choices (guidance, max_faces, mesh_resolution) actually reach the model.
+    _octree = body.resolved_octree_depth()
     payload = {
         "image": image_b64,
         "num_inference_steps": body.steps,
-        "guidance_scale": body.guidance_scale,
+        "guidance_scale": body.resolved_guidance(),
         "seed": body.seed,
-        "faces": body.faces,
-        "dense_octree_depth": body.octree_depth,
-        "hierarchical_octree_depth": body.octree_depth + 1,
+        "faces": body.resolved_faces(),
+        "dense_octree_depth": _octree,
+        "hierarchical_octree_depth": _octree + 1,
     }
 
     # Upload payload to S3 for async invocation
@@ -225,10 +246,10 @@ async def generate_3d(body: ThreeDGenerateRequest):
         "s3_key": s3_key,
         "params": {
             "steps": body.steps,
-            "guidance_scale": body.guidance_scale,
+            "guidance_scale": body.resolved_guidance(),
             "seed": body.seed,
-            "faces": body.faces,
-            "octree_depth": body.octree_depth,
+            "faces": body.resolved_faces(),
+            "octree_depth": _octree,
         },
         "submitted_at": datetime.utcnow().isoformat(),
     }

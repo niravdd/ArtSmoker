@@ -1637,7 +1637,7 @@
 
             // Quality preset auto-fills advanced fields
             const qualityPresets = {
-                fast: { steps: 30, guidance: 5, faces: 100000, depth: 256 },
+                fast: { steps: 30, guidance: 5, faces: 100000, depth: 128 },
                 standard: { steps: 50, guidance: 7.5, faces: 300000, depth: 256 },
                 high: { steps: 80, guidance: 12, faces: 0, depth: 512 },
             };

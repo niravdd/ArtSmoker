@@ -1911,6 +1911,14 @@ def _predict_image_to_3d(input_data, model_dict):
 
     logger.info("Phase 1: TripoSG geometry — steps=%d, guidance=%.1f, seed=%s", steps, guidance, seed)
 
+    # Octree depth controls geometry resolution. Higher = finer detail (e.g.
+    # facial structure), at the cost of slower marching cubes. The frontend's
+    # quality preset sends mesh_resolution; we map it to octree depth. Default
+    # 8/9 (was 7/8) for noticeably sharper geometry on heads/faces.
+    _dense_depth = int(input_data.get("dense_octree_depth", 8))
+    _hier_depth = int(input_data.get("hierarchical_octree_depth", _dense_depth + 1))
+    logger.info("Phase 1: octree depth dense=%d hierarchical=%d", _dense_depth, _hier_depth)
+
     t0 = _t.time()
     output = pipe(
         image=img,
@@ -1918,10 +1926,9 @@ def _predict_image_to_3d(input_data, model_dict):
         guidance_scale=guidance,
         generator=generator,
         # Use hierarchical decoder (not flash) — flash requires diso CUDA package.
-        # Hierarchical with depth 7 uses 128^3 grid -> fast CPU marching cubes.
         use_flash_decoder=False,
-        dense_octree_depth=7,
-        hierarchical_octree_depth=8,
+        dense_octree_depth=_dense_depth,
+        hierarchical_octree_depth=_hier_depth,
     )
     elapsed = _t.time() - t0
     logger.info("Phase 1 complete in %.1fs", elapsed)
@@ -2143,9 +2150,12 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         ref_image = _preprocess_mv_reference(source_image, model_dict.get("rmbg_model"))
         _save_debug_artifact(ref_image, "02_reference")
 
-        # Generate multi-view images conditioned on geometry + reference image
+        # Generate multi-view images conditioned on geometry + reference image.
+        # reference_conditioning_scale=1.5 (>default 1.0): TripoSG geometry is
+        # smooth on faces, so we lean more on the reference image to recover
+        # appearance detail (facial features) rather than the featureless head mesh.
         mv_result = mv_pipe(
-            "best quality, sharp textures, vivid colors, detailed surface materials, game asset",
+            "best quality, sharp facial features, detailed face, crisp textures, vivid colors, detailed surface materials, game asset",
             height=768, width=768,
             num_inference_steps=50,
             guidance_scale=3.0,
@@ -2153,8 +2163,8 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             control_image=control_images,
             control_conditioning_scale=1.0,
             reference_image=ref_image,
-            reference_conditioning_scale=1.0,
-            negative_prompt="watermark, ugly, deformed, noisy, blurry, low quality",
+            reference_conditioning_scale=1.5,
+            negative_prompt="watermark, ugly, deformed, noisy, blurry, low quality, faceless, covered face, blank face",
         )
         mv_images = mv_result.images
         elapsed_p2 = _t.time() - t0
