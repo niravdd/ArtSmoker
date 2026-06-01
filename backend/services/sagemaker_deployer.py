@@ -1160,10 +1160,32 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
         try:
             bucket = get_deployment_s3_bucket()
             s3 = boto3.resource("s3", region_name=_get_region())
-            prefix = f"{S3_MODEL_PREFIX}/{model_key}/"
             bucket_obj = s3.Bucket(bucket)
-            bucket_obj.objects.filter(Prefix=prefix).delete()
-            deleted.append(f"s3:{bucket}/{prefix}")
+            # Clean the model artifacts/cache AND the async inference I/O paths.
+            # Async input is keyed by endpoint_name; output is keyed by the
+            # catalog_key (base, e.g. "triposg"). Clean instance key and catalog
+            # key to be safe.
+            catalog_key = ""
+            try:
+                from .model_registry import get_registry as _gr
+                _reg = _gr()
+                for _sec in ["image_models", "video_models", "post_processing", "utility_models"]:
+                    _entry = _reg.get(_sec, {}).get(model_key, {})
+                    if _entry:
+                        catalog_key = _entry.get("catalog_key", "")
+                        break
+            except Exception:
+                pass
+            prefixes = [
+                f"{S3_MODEL_PREFIX}/{model_key}/",
+                f"{S3_MODEL_PREFIX}/inference-input/{endpoint_name}/",
+                f"{S3_MODEL_PREFIX}/inference-output/{model_key}/",
+            ]
+            if catalog_key and catalog_key != model_key:
+                prefixes.append(f"{S3_MODEL_PREFIX}/inference-output/{catalog_key}/")
+            for prefix in prefixes:
+                bucket_obj.objects.filter(Prefix=prefix).delete()
+                deleted.append(f"s3:{bucket}/{prefix}")
         except Exception as e:
             logger.warning("Failed to delete S3 artifacts: %s", e)
 
