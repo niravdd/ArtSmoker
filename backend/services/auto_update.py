@@ -72,7 +72,21 @@ def get_update_status() -> dict:
 
 
 def is_dev_mode() -> bool:
-    return os.environ.get("ARTSMOKER_DEV_MODE", "").lower() in ("true", "1", "yes")
+    """Whether this is a development box (enables hot-reload + keep-warm).
+
+    Resolves from two sources, either of which enables it:
+      1. config Settings.dev_mode — loaded from the gitignored .env file
+         (ARTSMOKER_DEV_MODE), so it persists across server restarts.
+      2. The raw ARTSMOKER_DEV_MODE environment variable — an inline override
+         (e.g. `ARTSMOKER_DEV_MODE=true uvicorn ...`) for one-off sessions.
+    """
+    if os.environ.get("ARTSMOKER_DEV_MODE", "").lower() in ("true", "1", "yes"):
+        return True
+    try:
+        from backend.config import settings
+        return bool(getattr(settings, "dev_mode", False))
+    except Exception:
+        return False
 
 
 # ── Startup Update ───────────────────────────────────────────────────────
