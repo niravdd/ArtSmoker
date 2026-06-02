@@ -1536,11 +1536,24 @@ def _load_image_to_3d(model_dir):
         except Exception as e:
             logger.warning("Texture pipeline preload failed (will try on-demand): %s", e)
     else:
-        # Check if mvadapter package is available (installed) without loading models
+        # Low-VRAM path: we DON'T preload the MV-Adapter weights (VRAM is tight),
+        # but we MUST still compile nvdiffrast HERE at load time. Compiling it
+        # lazily inside predict_fn blocks the worker past MMS's 120s response
+        # watchdog → the worker is rebooted mid-job. model_fn runs under the
+        # generous model-load timeout (no response watchdog), so it's safe here.
+        # The wheel is cached to the user's S3 so later cold starts are instant.
         try:
             import mvadapter  # noqa: F401
             texture_available = True
-            logger.info("MV-Adapter package available — texture will be loaded on-demand per inference")
+            logger.info("MV-Adapter package available — texture models load on-demand per inference")
+            try:
+                _ensure_nvdiffrast()  # compile+cache at LOAD time (not inference)
+                _nvdiffrast_bg["state"] = 1
+                logger.info("nvdiffrast ready (compiled/cached at load) — texture phases enabled")
+            except Exception as e:
+                # Don't fail model load — texture just falls back to untextured,
+                # and the inference-time background guard can retry the compile.
+                logger.warning("nvdiffrast not ready at load (%s) — will retry in background on first texture job", e)
         except ImportError:
             logger.info("MV-Adapter package not available — will produce untextured meshes")
 
@@ -1558,6 +1571,146 @@ def _load_image_to_3d(model_dir):
     }
 
 
+_NVDIFFRAST_WHEEL_PREFIX = "artsmoker/custom-models/texture-deps/nvdiffrast/"
+
+# Background nvdiffrast-compile state (for the inference-time guard). When a
+# compile is kicked off on a worker thread, predict_fn fails the current job
+# FAST (under MMS's 120s response watchdog) rather than blocking; subsequent
+# jobs find nvdiffrast ready. -1=not started, 0=compiling, 1=done, 2=failed.
+_nvdiffrast_bg = {"state": -1, "error": ""}
+_nvdiffrast_bg_lock = None  # lazily created threading.Lock
+
+
+def _ensure_nvdiffrast(blocking: bool = True) -> bool:
+    """Make nvdiffrast importable. Returns True if available now.
+
+    Resolution order (works for ANY end user, no pre-upload required):
+      1. Already importable (warm worker, or installed at load).
+      2. Download a pre-compiled wheel from the user's OWN S3 cache (fast).
+      3. Compile from source (~60-120s) and cache the wheel to that S3 for all
+         future cold starts.
+
+    CRITICAL: compiling takes longer than MMS's 120s inference response timeout.
+    So this MUST run at LOAD time (model_fn — generous load timeout, no response
+    watchdog), NOT inside predict_fn. When called with blocking=False (the
+    inference-time guard), it returns immediately if a compile is needed so the
+    caller can avoid tripping the watchdog.
+
+    The compiled wheel keeps its REAL basename in S3 (pip requires a 5-part
+    wheel filename: name-version-pytag-abitag-platform).
+    """
+    try:
+        import nvdiffrast  # noqa: F401
+        return True
+    except ImportError:
+        pass
+
+    if not blocking:
+        return False  # caller must not block under the response watchdog
+
+    import subprocess
+    import boto3 as _boto3
+    from botocore.exceptions import ClientError as _BotoClientError
+
+    s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+    bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+
+    # Step 2: pre-compiled wheel from the user's S3 cache.
+    if bucket:
+        try:
+            logger.info("Checking S3 for pre-compiled nvdiffrast wheel (s3://%s/%s)...", bucket, _NVDIFFRAST_WHEEL_PREFIX)
+            listing = s3.list_objects_v2(Bucket=bucket, Prefix=_NVDIFFRAST_WHEEL_PREFIX)
+            wheel_objs = [o["Key"] for o in listing.get("Contents", []) if o["Key"].endswith(".whl")]
+            if wheel_objs:
+                wheel_key = wheel_objs[0]
+                wheel_basename = os.path.basename(wheel_key)  # real 5-part name
+                wheel_path = os.path.join("/tmp", wheel_basename)
+                s3.download_file(bucket, wheel_key, wheel_path)
+                subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "--force-reinstall", wheel_path], timeout=120)
+                import nvdiffrast  # noqa: F401
+                logger.info("nvdiffrast installed from S3 cache (%s)", wheel_basename)
+                return True
+            logger.info("No cached nvdiffrast wheel in S3 — will compile from source")
+        except _BotoClientError:
+            logger.info("No cached nvdiffrast wheel in S3 — will compile from source")
+        except Exception as e:
+            logger.info("S3 cache load failed (%s) — will compile from source", e)
+
+    # Step 3: compile from source, then cache the wheel to S3.
+    logger.info("Compiling nvdiffrast from source (requires CUDA toolkit, ~60-120s)...")
+    try:
+        subprocess.check_call(["pip", "install", "--quiet", "setuptools", "wheel", "ninja"], timeout=120)
+        if not os.environ.get("CUDA_HOME"):
+            for p in ["/usr/local/cuda", "/opt/conda", "/usr/local/cuda-12.4", "/usr/local/cuda-12"]:
+                if os.path.isfile(os.path.join(p, "bin", "nvcc")):
+                    os.environ["CUDA_HOME"] = p
+                    logger.info("Set CUDA_HOME=%s", p)
+                    break
+        subprocess.check_call(
+            ["pip", "install", "--no-build-isolation", "--no-deps",
+             "git+https://github.com/NVlabs/nvdiffrast.git"],
+            timeout=600, env={**os.environ},
+        )
+        import nvdiffrast  # noqa: F401
+        logger.info("nvdiffrast compiled and installed successfully")
+
+        if bucket:
+            try:
+                import glob
+                pip_cache_wheels = glob.glob("/tmp/pip-ephem-wheel-cache-*/wheels/**/nvdiffrast*.whl", recursive=True)
+                wheel_src = pip_cache_wheels[0] if pip_cache_wheels else None
+                if not wheel_src:
+                    wheel_dir = "/tmp/nvdiffrast_wheel_export"
+                    os.makedirs(wheel_dir, exist_ok=True)
+                    subprocess.check_call(
+                        ["pip", "wheel", "--no-build-isolation", "--no-deps",
+                         "--wheel-dir", wheel_dir, "git+https://github.com/NVlabs/nvdiffrast.git"],
+                        timeout=600, env={**os.environ},
+                    )
+                    found = glob.glob(os.path.join(wheel_dir, "nvdiffrast*.whl"))
+                    wheel_src = found[0] if found else None
+                if wheel_src:
+                    wkey = _NVDIFFRAST_WHEEL_PREFIX + os.path.basename(wheel_src)
+                    s3.upload_file(wheel_src, bucket, wkey)
+                    logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s", bucket, wkey)
+            except Exception as cache_err:
+                logger.warning("Failed to cache nvdiffrast wheel to S3: %s", cache_err)
+        return True
+    except Exception as e:
+        logger.error("nvdiffrast compilation failed: %s", e)
+        raise ImportError(f"nvdiffrast unavailable — texture generation requires CUDA compilation: {e}")
+
+
+def _ensure_nvdiffrast_background():
+    """Kick off nvdiffrast compile on a daemon thread (idempotent).
+
+    Used by the inference-time guard so the worker isn't blocked past MMS's
+    120s response watchdog. Updates _nvdiffrast_bg so predict_fn can report
+    'preparing, retry shortly' instead of crashing the worker.
+    """
+    import threading
+    global _nvdiffrast_bg_lock
+    if _nvdiffrast_bg_lock is None:
+        _nvdiffrast_bg_lock = threading.Lock()
+    with _nvdiffrast_bg_lock:
+        if _nvdiffrast_bg["state"] in (0, 1):
+            return  # already compiling or done
+        _nvdiffrast_bg["state"] = 0
+
+    def _work():
+        try:
+            _ensure_nvdiffrast(blocking=True)
+            _nvdiffrast_bg["state"] = 1
+            logger.info("Background nvdiffrast compile complete — texture phases now available")
+        except Exception as e:
+            _nvdiffrast_bg["state"] = 2
+            _nvdiffrast_bg["error"] = str(e)
+            logger.error("Background nvdiffrast compile failed: %s", e)
+
+    t = threading.Thread(target=_work, daemon=True, name="nvdiffrast-compile")
+    t.start()
+
+
 def _load_texture_models(code_dir, hf_token):
     """Load MV-Adapter (multi-view generation) and TexturePipeline models.
 
@@ -1568,109 +1721,9 @@ def _load_texture_models(code_dir, hf_token):
     import time as _time
     import subprocess
 
-    # ── Ensure nvdiffrast is available (CUDA-compiled library) ──
-    # Strategy:
-    #   1. Try import (already installed from a previous warm start)
-    #   2. Try S3 cached wheel (compiled on a previous cold start, uploaded to user's S3)
-    #   3. Compile from source (~60s) and cache the wheel to S3 for future cold starts
-    # This ensures ANY user deploying TripoSG gets nvdiffrast working automatically.
-    _texture_cache_prefix = "artsmoker/custom-models/texture-deps"
-    # Store the compiled wheel under a PREFIX using its real basename. pip parses
-    # the wheel FILENAME and requires 5 hyphen-parts
-    # (name-version-pytag-abitag-platform); a name like "nvdiffrast_cached.whl"
-    # or "nvdiffrast-cp312-linux_x86_64.whl" is rejected ("wrong number of
-    # parts") and forces a ~2 min recompile every cold start. We keep the wheel's
-    # true basename (e.g. nvdiffrast-0.4.0-cp312-cp312-linux_x86_64.whl).
-    _nvdiffrast_wheel_prefix = f"{_texture_cache_prefix}/nvdiffrast/"
-
-    import boto3 as _boto3
-    _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
-    _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
-
-    try:
-        import nvdiffrast
-    except ImportError:
-        from botocore.exceptions import ClientError as _BotoClientError
-
-        installed = False
-
-        # Step 2: Try S3 cached wheel. List the prefix and download the wheel
-        # under its REAL basename so pip's filename parser accepts it (a renamed
-        # wheel with the wrong number of hyphen-parts is rejected).
-        if _bucket:
-            try:
-                logger.info("Checking S3 for pre-compiled nvdiffrast wheel (s3://%s/%s)...", _bucket, _nvdiffrast_wheel_prefix)
-                _listing = _s3.list_objects_v2(Bucket=_bucket, Prefix=_nvdiffrast_wheel_prefix)
-                _wheel_objs = [o["Key"] for o in _listing.get("Contents", []) if o["Key"].endswith(".whl")]
-                if not _wheel_objs:
-                    logger.info("No cached nvdiffrast wheel in S3 — will compile from source")
-                else:
-                    _wheel_key = _wheel_objs[0]
-                    _wheel_basename = os.path.basename(_wheel_key)  # real 5-part name
-                    _wheel_path = os.path.join("/tmp", _wheel_basename)
-                    _s3.download_file(_bucket, _wheel_key, _wheel_path)
-                    subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "--force-reinstall", _wheel_path], timeout=60)
-                    import nvdiffrast
-                    installed = True
-                    logger.info("nvdiffrast installed from S3 cache (%s)", _wheel_basename)
-            except _BotoClientError:
-                logger.info("No cached nvdiffrast wheel in S3 — will compile from source")
-            except Exception as e:
-                logger.info("S3 cache failed (%s) — will compile from source", e)
-
-        # Step 3: Compile from source
-        if not installed:
-            logger.info("Compiling nvdiffrast from source (requires CUDA toolkit, ~60-120s)...")
-            try:
-                subprocess.check_call(["pip", "install", "--quiet", "setuptools", "wheel", "ninja"], timeout=60)
-                # Ensure CUDA_HOME is set for torch.utils.cpp_extension
-                if not os.environ.get("CUDA_HOME"):
-                    for p in ["/usr/local/cuda", "/opt/conda", "/usr/local/cuda-12.4", "/usr/local/cuda-12"]:
-                        if os.path.isfile(os.path.join(p, "bin", "nvcc")):
-                            os.environ["CUDA_HOME"] = p
-                            logger.info("Set CUDA_HOME=%s", p)
-                            break
-                subprocess.check_call(
-                    ["pip", "install", "--no-build-isolation", "--no-deps",
-                     "git+https://github.com/NVlabs/nvdiffrast.git"],
-                    timeout=300,
-                    env={**os.environ},
-                )
-                import nvdiffrast
-                installed = True
-                logger.info("nvdiffrast compiled and installed successfully")
-
-                # Cache the compiled wheel to S3 for future cold starts
-                if _bucket:
-                    try:
-                        import glob
-                        # Find the wheel pip already built during install (in its ephemeral cache)
-                        _pip_cache_wheels = glob.glob("/tmp/pip-ephem-wheel-cache-*/wheels/**/nvdiffrast*.whl", recursive=True)
-                        if _pip_cache_wheels:
-                            _wkey = _nvdiffrast_wheel_prefix + os.path.basename(_pip_cache_wheels[0])
-                            _s3.upload_file(_pip_cache_wheels[0], _bucket, _wkey)
-                            logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s (from pip cache)", _bucket, _wkey)
-                        else:
-                            # Fallback: build a wheel explicitly
-                            _wheel_dir = "/tmp/nvdiffrast_wheel_export"
-                            os.makedirs(_wheel_dir, exist_ok=True)
-                            subprocess.check_call(
-                                ["pip", "wheel", "--no-build-isolation", "--no-deps",
-                                 "--wheel-dir", _wheel_dir,
-                                 "git+https://github.com/NVlabs/nvdiffrast.git"],
-                                timeout=300,
-                                env={**os.environ},
-                            )
-                            wheels = glob.glob(os.path.join(_wheel_dir, "nvdiffrast*.whl"))
-                            if wheels:
-                                _wkey = _nvdiffrast_wheel_prefix + os.path.basename(wheels[0])
-                                _s3.upload_file(wheels[0], _bucket, _wkey)
-                                logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s", _bucket, _wkey)
-                    except Exception as cache_err:
-                        logger.warning("Failed to cache nvdiffrast wheel to S3: %s", cache_err)
-            except Exception as e:
-                logger.error("nvdiffrast compilation failed: %s", e)
-                raise ImportError(f"nvdiffrast unavailable — texture generation requires CUDA compilation: {e}")
+    # Ensure nvdiffrast is importable (compile/cache handled by _ensure_nvdiffrast,
+    # which is also called at LOAD time in model_fn so this is normally a no-op here).
+    _ensure_nvdiffrast()
 
     # Load SDXL + MV-Adapter for multi-view generation
     t0 = _time.time()
@@ -2345,6 +2398,24 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # ═══════════════════════════════════════════════════════════════════
         t0 = _t.time()
         logger.info("Phase 2: MV-Adapter multi-view generation...")
+
+        # Watchdog guard: nvdiffrast compile (~2-3 min) exceeds MMS's 120s
+        # inference response timeout. It should already be compiled at load
+        # (model_fn). If it's somehow NOT ready here (e.g. a warm worker that
+        # loaded before this fix, or a load-time compile that failed), DO NOT
+        # compile inline — that would block past the watchdog and reboot the
+        # worker mid-job. Instead kick off a background compile and fail this
+        # job fast with a clear, retryable message (the mesh still returns
+        # untextured via the caller's fallback).
+        if not _ensure_nvdiffrast(blocking=False):
+            _ensure_nvdiffrast_background()
+            st = _nvdiffrast_bg["state"]
+            msg = ("nvdiffrast is being prepared in the background (one-time CUDA "
+                   "compile, ~2-3 min). Texture skipped this run — resubmit shortly.")
+            if st == 2:
+                msg = f"nvdiffrast preparation failed: {_nvdiffrast_bg['error']}"
+            logger.warning("Texture phase deferred: %s", msg)
+            raise RuntimeError(msg)
 
         # Load MV-Adapter on-demand if not preloaded (low VRAM path)
         if mv_pipe is None:
