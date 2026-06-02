@@ -1575,7 +1575,13 @@ def _load_texture_models(code_dir, hf_token):
     #   3. Compile from source (~60s) and cache the wheel to S3 for future cold starts
     # This ensures ANY user deploying TripoSG gets nvdiffrast working automatically.
     _texture_cache_prefix = "artsmoker/custom-models/texture-deps"
-    _nvdiffrast_wheel_key = f"{_texture_cache_prefix}/nvdiffrast-cp312-linux_x86_64.whl"
+    # Store the compiled wheel under a PREFIX using its real basename. pip parses
+    # the wheel FILENAME and requires 5 hyphen-parts
+    # (name-version-pytag-abitag-platform); a name like "nvdiffrast_cached.whl"
+    # or "nvdiffrast-cp312-linux_x86_64.whl" is rejected ("wrong number of
+    # parts") and forces a ~2 min recompile every cold start. We keep the wheel's
+    # true basename (e.g. nvdiffrast-0.4.0-cp312-cp312-linux_x86_64.whl).
+    _nvdiffrast_wheel_prefix = f"{_texture_cache_prefix}/nvdiffrast/"
 
     import boto3 as _boto3
     _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
@@ -1588,16 +1594,25 @@ def _load_texture_models(code_dir, hf_token):
 
         installed = False
 
-        # Step 2: Try S3 cached wheel
+        # Step 2: Try S3 cached wheel. List the prefix and download the wheel
+        # under its REAL basename so pip's filename parser accepts it (a renamed
+        # wheel with the wrong number of hyphen-parts is rejected).
         if _bucket:
             try:
-                _wheel_path = "/tmp/nvdiffrast_cached.whl"
-                logger.info("Checking S3 for pre-compiled nvdiffrast wheel (s3://%s/%s)...", _bucket, _nvdiffrast_wheel_key)
-                _s3.download_file(_bucket, _nvdiffrast_wheel_key, _wheel_path)
-                subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "--force-reinstall", _wheel_path], timeout=60)
-                import nvdiffrast
-                installed = True
-                logger.info("nvdiffrast installed from S3 cache")
+                logger.info("Checking S3 for pre-compiled nvdiffrast wheel (s3://%s/%s)...", _bucket, _nvdiffrast_wheel_prefix)
+                _listing = _s3.list_objects_v2(Bucket=_bucket, Prefix=_nvdiffrast_wheel_prefix)
+                _wheel_objs = [o["Key"] for o in _listing.get("Contents", []) if o["Key"].endswith(".whl")]
+                if not _wheel_objs:
+                    logger.info("No cached nvdiffrast wheel in S3 — will compile from source")
+                else:
+                    _wheel_key = _wheel_objs[0]
+                    _wheel_basename = os.path.basename(_wheel_key)  # real 5-part name
+                    _wheel_path = os.path.join("/tmp", _wheel_basename)
+                    _s3.download_file(_bucket, _wheel_key, _wheel_path)
+                    subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "--force-reinstall", _wheel_path], timeout=60)
+                    import nvdiffrast
+                    installed = True
+                    logger.info("nvdiffrast installed from S3 cache (%s)", _wheel_basename)
             except _BotoClientError:
                 logger.info("No cached nvdiffrast wheel in S3 — will compile from source")
             except Exception as e:
@@ -1632,8 +1647,9 @@ def _load_texture_models(code_dir, hf_token):
                         # Find the wheel pip already built during install (in its ephemeral cache)
                         _pip_cache_wheels = glob.glob("/tmp/pip-ephem-wheel-cache-*/wheels/**/nvdiffrast*.whl", recursive=True)
                         if _pip_cache_wheels:
-                            _s3.upload_file(_pip_cache_wheels[0], _bucket, _nvdiffrast_wheel_key)
-                            logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s (from pip cache)", _bucket, _nvdiffrast_wheel_key)
+                            _wkey = _nvdiffrast_wheel_prefix + os.path.basename(_pip_cache_wheels[0])
+                            _s3.upload_file(_pip_cache_wheels[0], _bucket, _wkey)
+                            logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s (from pip cache)", _bucket, _wkey)
                         else:
                             # Fallback: build a wheel explicitly
                             _wheel_dir = "/tmp/nvdiffrast_wheel_export"
@@ -1647,8 +1663,9 @@ def _load_texture_models(code_dir, hf_token):
                             )
                             wheels = glob.glob(os.path.join(_wheel_dir, "nvdiffrast*.whl"))
                             if wheels:
-                                _s3.upload_file(wheels[0], _bucket, _nvdiffrast_wheel_key)
-                                logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s", _bucket, _nvdiffrast_wheel_key)
+                                _wkey = _nvdiffrast_wheel_prefix + os.path.basename(wheels[0])
+                                _s3.upload_file(wheels[0], _bucket, _wkey)
+                                logger.info("Cached nvdiffrast wheel to S3: s3://%s/%s", _bucket, _wkey)
                     except Exception as cache_err:
                         logger.warning("Failed to cache nvdiffrast wheel to S3: %s", cache_err)
             except Exception as e:
@@ -1979,6 +1996,65 @@ def _predict_autoregressive_image(input_data, model_dict):
         raise RuntimeError(f"Unexpected output type: {type(image)}")
 
 
+def _log_gpu_mem(label):
+    """Log current CUDA allocated/reserved/free so phase transitions are visible."""
+    if not torch.cuda.is_available():
+        return
+    try:
+        alloc = torch.cuda.memory_allocated(0) / (1024 ** 3)
+        reserved = torch.cuda.memory_reserved(0) / (1024 ** 3)
+        free_b, total_b = torch.cuda.mem_get_info(0)
+        free_gb = free_b / (1024 ** 3)
+        total_gb = total_b / (1024 ** 3)
+        logger.info("GPU mem [%s]: alloc=%.2f GB reserved=%.2f GB | driver-free=%.2f GB of %.1f GB",
+                    label, alloc, reserved, free_gb, total_gb)
+    except Exception:
+        pass
+
+
+def _reclaim_cuda_memory(tag=""):
+    """Force the CUDA caching allocator to release cached-but-unused blocks.
+
+    PyTorch's caching allocator keeps freed GPU blocks in a per-process pool
+    (so driver-free stays low even after tensors are released). empty_cache()
+    returns those cached blocks to the driver, making them available for the
+    NEXT large allocation (e.g. SDXL's multi-view UNet forward). gc.collect()
+    first drops any lingering Python references (autograd graphs, cycles) so the
+    allocator actually sees the blocks as free. ipc_collect() reclaims any
+    cross-process handles. Order matters: collect refs → empty cache.
+
+    This is the crux of the high-VRAM OOM fix: Phase 1's dense octree SDF
+    volume leaves ~25+ GB reserved; without this, Phase 2 only sees ~1 GB free.
+    """
+    import gc
+    gc.collect()
+    if torch.cuda.is_available():
+        torch.cuda.empty_cache()
+        try:
+            torch.cuda.ipc_collect()
+        except Exception:
+            pass
+    if tag:
+        _log_gpu_mem(tag)
+
+
+def _move_module_to(module, device):
+    """Move a pipeline or model (and known sub-modules) to a device, best-effort.
+
+    Diffusers pipelines expose .to(device); plain nn.Modules too. Returns True
+    if a move was attempted. Used to park TripoSG/RMBG on CPU between phases on
+    the high-VRAM path (they aren't needed during MV-Adapter/TexturePipeline).
+    """
+    if module is None:
+        return False
+    try:
+        module.to(device)
+        return True
+    except Exception as e:
+        logger.warning("Could not move module to %s: %s", device, e)
+        return False
+
+
 def _predict_image_to_3d(input_data, model_dict):
     """Generate a textured 3D mesh (GLB) from an input image.
 
@@ -2108,6 +2184,19 @@ def _predict_image_to_3d(input_data, model_dict):
 
     logger.info("Mesh: %d vertices, %d faces", len(mesh.vertices), len(mesh.faces))
 
+    # Release Phase 1's GPU working set BEFORE texture phases. TripoSG's dense
+    # octree marching-cubes leaves a large transient SDF volume cached by the
+    # allocator (~25+ GB reserved at octree depth 9/10). The extracted mesh is
+    # CPU-side (numpy/trimesh), so we can drop the pipeline output and reclaim
+    # that cache now. Without this, Phase 2's SDXL multi-view forward OOMs even
+    # on a 44.5 GB GPU (observed: only 1.18 GB driver-free → 3 GB alloc fails).
+    _log_gpu_mem("after Phase 1 (before reclaim)")
+    try:
+        del output
+    except Exception:
+        pass
+    _reclaim_cuda_memory("after Phase 1 reclaim")
+
     # Orientation fix: TripoSG emits the mesh with its FRONT facing the +Y / azimuth-180
     # camera, but MV-Adapter expects the front to align with the reference image at the
     # azimuth-0 camera. Diagnostic renders confirmed the front was 180° off (face landed
@@ -2235,21 +2324,21 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         mesh.export(mesh_path, file_type="glb", include_normals=True)
         logger.info("Phase 2: Saved geometry to %s", mesh_path)
 
-        # On low VRAM: unload TripoSG + RMBG before loading MV-Adapter
-        if not high_vram:
-            logger.info("Low VRAM mode: unloading TripoSG + RMBG for Phase 2...")
-            triposg_pipe = model_dict.get("pipe")
-            rmbg = model_dict.get("rmbg_model")
-            if triposg_pipe is not None:
-                triposg_pipe.to("cpu")
-            if rmbg is not None:
-                rmbg.to("cpu")
-            import gc
-            gc.collect()
-            torch.cuda.empty_cache()
-            if torch.cuda.is_available():
-                freed = torch.cuda.memory_reserved(0) / (1024**3)
-                logger.info("Freed GPU memory: reserved=%.1f GB", freed)
+        # Park TripoSG on CPU before the texture phases — on BOTH VRAM tiers.
+        # TripoSG (~8 GB) is not used again until the next inference, so moving
+        # it off-GPU frees headroom for SDXL's multi-view forward (Phase 2) and
+        # the 4096² UV / render framebuffers (Phase 3). On the high-VRAM (g6e)
+        # path this is the key change: previously TripoSG stayed resident and,
+        # combined with Phase 1's reserved octree cache, left too little free
+        # VRAM for SDXL (3 GB alloc OOM'd with only 1.18 GB free).
+        # NOTE: RMBG stays on GPU — Phase 2 uses it to clean the multi-view
+        # images. (The old low-VRAM code parked RMBG too, which would have
+        # caused a device mismatch when RMBG ran on CUDA tensors in Phase 2.)
+        triposg_pipe = model_dict.get("pipe")
+        if triposg_pipe is not None:
+            logger.info("Parking TripoSG on CPU for texture phases...")
+            _move_module_to(triposg_pipe, "cpu")
+        _reclaim_cuda_memory("after parking TripoSG (before Phase 2)")
 
         # ═══════════════════════════════════════════════════════════════════
         # Phase 2: MV-Adapter multi-view generation
@@ -2402,14 +2491,22 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             _save_debug_artifact(mv_masks_grid.convert("RGB"), "05_masks")
 
 
-        # On low VRAM: unload MV-Adapter before Phase 3
+        # On low VRAM: unload MV-Adapter before Phase 3 (it must be re-loaded
+        # on the next inference). On high VRAM we keep MV-Adapter resident
+        # (preloaded), but still reclaim the allocator cache so Phase 3's
+        # rasterization framebuffers and 4096² UV buffers have room.
         if not high_vram:
             logger.info("Low VRAM mode: unloading MV-Adapter for Phase 3...")
             del mv_pipe
+            mv_pipe = None
             model_dict["mv_pipe"] = None
-            import gc
-            gc.collect()
-            torch.cuda.empty_cache()
+        else:
+            # Drop references to the large Phase 2 tensors before reclaiming.
+            try:
+                del mv_result, control_images, render_out, mesh_obj, ctx
+            except Exception:
+                pass
+        _reclaim_cuda_memory("after Phase 2 (before Phase 3)")
 
         # ═══════════════════════════════════════════════════════════════════
         # Phase 3: TexturePipeline texture baking
@@ -2469,15 +2566,21 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         return glb_data
 
     finally:
-        # On low VRAM: always reload TripoSG + RMBG back to GPU for next inference
-        if not high_vram:
-            logger.info("Low VRAM mode: reloading TripoSG + RMBG to GPU...")
-            triposg_pipe = model_dict.get("pipe")
-            rmbg = model_dict.get("rmbg_model")
-            if triposg_pipe is not None:
-                triposg_pipe.to("cuda")
-            if rmbg is not None:
-                rmbg.to("cuda")
+        # Always restore TripoSG to GPU for the next inference (we parked it on
+        # CPU before Phase 2 on BOTH VRAM tiers). RMBG was never parked, so it
+        # stays on GPU. This runs whether texture generation succeeded or fell
+        # back to untextured — the next job's Phase 1 expects TripoSG on CUDA.
+        # Idempotent: .to("cuda") on an already-CUDA module is a no-op.
+        if torch.cuda.is_available():
+            try:
+                triposg_pipe = model_dict.get("pipe")
+                if triposg_pipe is not None:
+                    logger.info("Restoring TripoSG to GPU for next inference...")
+                    _move_module_to(triposg_pipe, "cuda")
+            except Exception as _restore_err:
+                logger.warning("Failed to restore TripoSG to GPU: %s", _restore_err)
+            # Reclaim any texture-phase cache so the next job starts clean.
+            _reclaim_cuda_memory("after texture phases (cleanup)")
         # Clean up temp directory
         import shutil
         try:
