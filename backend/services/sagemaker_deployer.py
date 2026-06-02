@@ -1925,9 +1925,25 @@ def push_dev_overlay(model_key: str) -> dict:
     if not src_handler.exists():
         raise FileNotFoundError(f"Inference handler not found: {src_handler}")
 
-    # Resolve bundled packages for this model's library.
+    # Resolve bundled packages for this model's library. The arg may be a
+    # DEPLOYED instance key (e.g. "triposg_9c88") which is NOT a catalog key;
+    # map it to its catalog model via the registry's catalog_key field, then
+    # fall back to stripping the hash suffix, then the raw key.
     from .custom_models import get_catalog_model
-    catalog_model = get_catalog_model(model_key)
+    catalog_key = model_key
+    try:
+        from .model_registry import get_registry
+        reg = get_registry()
+        for section in ("image_models", "video_models", "post_processing", "utility_models"):
+            entry = reg.get(section, {}).get(model_key, {})
+            if entry.get("catalog_key"):
+                catalog_key = entry["catalog_key"]
+                break
+    except Exception:
+        pass
+    catalog_model = (get_catalog_model(catalog_key)
+                     or get_catalog_model("_".join(model_key.rsplit("_", 1)[:-1]))
+                     or get_catalog_model(model_key))
     library = (catalog_model or {}).get("invoke", {}).get("library", "")
     packages = _LIBRARY_BUNDLED_PACKAGES.get(library, [])
 
@@ -1949,7 +1965,13 @@ def push_dev_overlay(model_key: str) -> dict:
         with tarfile.open(str(tar_path), "w:gz") as tar:
             tar.add(str(code_dir), arcname="code")
 
-        key = dev_overlay_s3_key(model_key)
+        # The overlay MUST land at the key the running container watches
+        # (ARTSMOKER_HOTRELOAD_KEY, baked from the container's MODEL_KEY at
+        # deploy). MODEL_KEY is the CATALOG key (e.g. "triposg"), not the
+        # deployed instance key ("triposg_9c88"), so push to the catalog-key
+        # path — otherwise the container never sees the overlay.
+        overlay_model_key = catalog_key or model_key
+        key = dev_overlay_s3_key(overlay_model_key)
         s3 = boto3.client("s3", region_name=_get_region())
         s3.upload_file(str(tar_path), bucket, key)
         size = tar_path.stat().st_size

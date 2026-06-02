@@ -449,6 +449,10 @@
             check() {
                 return request('/api/generate/3d/available');
             },
+            /** List all deployed TripoSG instances (for the model chooser). */
+            instances() {
+                return request('/api/generate/3d/instances');
+            },
             defaults() {
                 return request('/api/generate/3d/defaults');
             },

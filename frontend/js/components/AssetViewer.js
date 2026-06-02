@@ -1577,17 +1577,44 @@
                     return;
                 }
 
-                // Show generation form
-                this._render3DForm(container);
+                // Fetch deployed instances for the model chooser (best-effort —
+                // the form works with an empty list, falling back to the
+                // default/newest endpoint server-side).
+                let instances = [];
+                try {
+                    const resp = await API.threeD.instances();
+                    instances = (resp?.instances || []).filter(i => i.available);
+                } catch {}
+
+                // Show generation form (with instance chooser when >1 deployed)
+                this._render3DForm(container, instances);
             } catch (err) {
                 container.innerHTML = `<p class="text-red-400 text-center py-8">${t('asset_viewer.three_d_failed')}: ${this._esc(err.message)}</p>`;
             }
         },
 
-        _render3DForm(container) {
+        _render3DForm(container, instances = []) {
+            // Model chooser — only shown when more than one TripoSG instance is
+            // deployed (mirrors the Image Studio model chooser). With 0 or 1
+            // instance there's nothing to choose, so the server default is used.
+            const showChooser = Array.isArray(instances) && instances.length > 1;
+            const chooserHtml = showChooser ? `
+                    <div>
+                        <label class="text-xs text-brand-text-muted mb-1 block">${t('asset_viewer.three_d_model')}</label>
+                        <select id="av-3d-model" class="input text-sm w-full max-w-xs">
+                            ${instances.map((inst, i) => `
+                                <option value="${this._esc(inst.model_key)}" ${i === 0 ? 'selected' : ''}>
+                                    ${this._esc(inst.label)}${inst.instance_type ? ` · ${this._esc(inst.instance_type.replace('ml.', ''))}` : ''}${inst.model_ready ? '' : ' · ' + t('asset_viewer.three_d_model_warming')}
+                                </option>`).join('')}
+                        </select>
+                        <p class="text-[9px] text-brand-text-dim mt-1 max-w-xs">${t('asset_viewer.three_d_model_hint')}</p>
+                    </div>
+            ` : '';
+
             container.innerHTML = `
                 <div class="space-y-4">
                     <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_version_note')}</p>
+                    ${chooserHtml}
 
                     <!-- Quality preset -->
                     <div>
@@ -1699,6 +1726,8 @@
             const payload = {
                 asset_id: this._item?.id,
                 version: this._currentVersion || undefined,
+                // Chosen TripoSG instance (omitted when there's no chooser → server picks newest)
+                model_key: container.querySelector('#av-3d-model')?.value || undefined,
                 quality: container.querySelector('#av-3d-quality')?.value || 'standard',
                 seed: parseInt(container.querySelector('#av-3d-seed')?.value, 10) || undefined,
                 steps: parseInt(container.querySelector('#av-3d-steps')?.value, 10) || 50,

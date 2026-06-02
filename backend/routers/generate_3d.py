@@ -151,9 +151,16 @@ def load_persisted_3d_jobs() -> None:
         logger.debug("Failed to load persisted 3D jobs: %s", e)
 
 
-def _find_triposg_model() -> tuple[str | None, dict | None]:
-    """Find a deployed TripoSG model in the registry."""
+def _list_triposg_models() -> list[tuple[str, dict]]:
+    """List ALL deployed TripoSG instances in the registry.
+
+    A user can deploy TripoSG on several instance types (e.g. g6e and g5),
+    each a separate registry entry keyed like ``triposg_<hash>``. Returns
+    every entry that is a deployed TripoSG instance, sorted newest-first by
+    deployment timestamp so the most recent endpoint leads any chooser.
+    """
     registry = get_registry()
+    found: list[tuple[str, dict]] = []
     for section in ("image_models", "post_processing"):
         for key, cfg in registry.get(section, {}).items():
             if cfg.get("catalog_key") != "triposg":
@@ -163,8 +170,32 @@ def _find_triposg_model() -> tuple[str | None, dict | None]:
             dep = cfg.get("deployment", {})
             if not dep.get("endpoint_name"):
                 continue
-            return key, cfg
-    return None, None
+            found.append((key, cfg))
+
+    def _created(item: tuple[str, dict]) -> str:
+        # Sort by deployment.created_at (ISO8601); missing → empty sorts last.
+        return item[1].get("deployment", {}).get("created_at", "") or ""
+
+    found.sort(key=_created, reverse=True)
+    return found
+
+
+def _find_triposg_model(model_key: str | None = None) -> tuple[str | None, dict | None]:
+    """Resolve a deployed TripoSG model.
+
+    If ``model_key`` is given, return that specific deployed instance (so the
+    user's chooser selection is honored); otherwise return the newest deployed
+    instance. Returns (None, None) if no match.
+    """
+    models = _list_triposg_models()
+    if not models:
+        return None, None
+    if model_key:
+        for key, cfg in models:
+            if key == model_key:
+                return key, cfg
+        return None, None  # requested instance not found / not a triposg instance
+    return models[0]  # newest
 
 
 def _get_region() -> str:
@@ -188,6 +219,9 @@ class ThreeDDefaultsRequest(BaseModel):
 class ThreeDGenerateRequest(BaseModel):
     asset_id: str
     version: int = 1
+    # Optional: target a specific deployed TripoSG instance (from the chooser).
+    # When omitted, the newest deployed instance is used.
+    model_key: str | None = None
     quality: str = "standard"
     steps: int = 50
     # Frontend sends `guidance` and `max_faces`/`mesh_resolution`; accept those
@@ -235,6 +269,102 @@ async def check_3d_available():
     }
 
 
+def _instance_label(key: str, cfg: dict) -> str:
+    """Human-friendly label for a deployed TripoSG instance chooser option.
+
+    Prefers the registry label (which already carries a deploy timestamp, e.g.
+    "TripoSG (02Jun 12:14)"); otherwise composes one from instance type +
+    created_at so each instance is distinguishable by when it was deployed.
+    """
+    label = cfg.get("label")
+    if label:
+        return label
+    dep = cfg.get("deployment", {})
+    inst = dep.get("instance_type", "")
+    created = dep.get("created_at", "")
+    stamp = ""
+    if created:
+        try:
+            stamp = datetime.fromisoformat(created).strftime("%d%b %H:%M")
+        except Exception:
+            stamp = created[:16]
+    parts = ["TripoSG"]
+    if inst:
+        parts.append(inst.replace("ml.", ""))
+    if stamp:
+        parts.append(f"({stamp})")
+    return " ".join(parts)
+
+
+@router.get("/instances")
+async def list_3d_instances(verify: bool = True):
+    """List all deployed TripoSG instances the user can target.
+
+    Powers the model chooser in the 3D dialog — like the Image Studio model
+    chooser, but scoped to deployed TripoSG endpoints. Newest first. Each entry
+    carries a timestamped label so users can pick a specific endpoint.
+
+    Self-healing: when ``verify`` (default), each entry's endpoint is checked
+    against live SageMaker. Entries whose endpoint no longer exists (NotFound)
+    or has Failed (e.g. a deploy that lost the capacity race) are skipped AND
+    auto-unregistered from the registry, so stale rows don't accumulate. Pass
+    verify=false to skip the AWS round-trips (fast, registry-only).
+    """
+    check_status = None
+    unregister = None
+    if verify:
+        try:
+            from backend.services.sagemaker_deployer import check_endpoint_status
+            from backend.routers.custom_deploy import _unregister_custom_model
+            check_status = check_endpoint_status
+            unregister = _unregister_custom_model
+        except Exception:
+            check_status = None  # fall back to registry-only if imports fail
+            unregister = None
+
+    instances = []
+    stale: list[str] = []
+    for key, cfg in _list_triposg_models():
+        dep = cfg.get("deployment", {})
+        endpoint_name = dep.get("endpoint_name")
+
+        live_status = None
+        if check_status and endpoint_name:
+            try:
+                live_status = check_status(endpoint_name).get("status")
+            except Exception:
+                live_status = None  # network hiccup → don't drop the entry
+            # Drop + unregister endpoints that are gone or failed.
+            if live_status in ("NotFound", "Failed"):
+                stale.append(key)
+                continue
+
+        enabled = cfg.get("enabled", True)
+        ready = bool(dep.get("model_ready") or cfg.get("model_ready"))
+        instances.append({
+            "model_key": key,
+            "endpoint_name": endpoint_name,
+            "instance_type": dep.get("instance_type", ""),
+            "created_at": dep.get("created_at", ""),
+            "status": live_status or ("InService" if ready else "Unknown"),
+            "model_ready": ready,
+            "enabled": bool(enabled),
+            "available": bool(endpoint_name and enabled),
+            "label": _instance_label(key, cfg),
+        })
+
+    # Self-heal: remove stale registry entries (endpoint deleted or failed).
+    if stale and unregister:
+        for key in stale:
+            try:
+                unregister(key)
+                logger.info("Removed stale TripoSG registry entry %s (endpoint gone/failed)", key)
+            except Exception as e:
+                logger.warning("Could not unregister stale TripoSG entry %s: %s", key, e)
+
+    return {"instances": instances, "count": len(instances)}
+
+
 @router.get("/defaults")
 async def get_3d_defaults():
     """Return user's saved default 3D generation parameters."""
@@ -275,8 +405,11 @@ async def save_3d_defaults(body: ThreeDDefaultsRequest):
 @router.post("/")
 async def generate_3d(body: ThreeDGenerateRequest):
     """Submit a 3D generation job (image-to-3D via TripoSG)."""
-    model_key, cfg = _find_triposg_model()
+    # Honor the chooser selection if provided; else use the newest instance.
+    model_key, cfg = _find_triposg_model(body.model_key)
     if not model_key or not cfg:
+        if body.model_key:
+            raise HTTPException(400, detail=f"Selected 3D model instance '{body.model_key}' is not a deployed TripoSG endpoint.")
         raise HTTPException(400, detail="No 3D generation model (TripoSG) is deployed.")
 
     dep = cfg.get("deployment", {})
