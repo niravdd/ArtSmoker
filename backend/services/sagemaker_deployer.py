@@ -2273,10 +2273,24 @@ def _get_model_environment(model_key: str, model: dict,
         # Single MMS worker — large models (FLUX.2) need all available RAM/VRAM.
         # Multiple workers compete for resources and cause OOM or worker kills.
         "SAGEMAKER_MODEL_SERVER_WORKERS": "1",
-        # Container timeout — MMS uses this for BOTH model loading AND invocation.
-        # Must accommodate the full cold-start cycle (download + quantize + load)
-        # plus inference time. Reads from catalog; defaults conservatively.
+        # Container/inference timeout. MMS's default_response_timeout governs how
+        # long a single /invocations request may run before the worker is deemed
+        # unresponsive and rebooted (the request 500s). The HF DLC's prepacked
+        # config.properties hardcodes a default (~11 min observed), so we must
+        # override it explicitly. We set it three ways for robustness across DLC
+        # versions:
+        #   1. SAGEMAKER_MODEL_SERVER_TIMEOUT — sagemaker-inference maps this to
+        #      config.properties default_response_timeout.
+        #   2. SAGEMAKER_MODEL_SERVER_TIMEOUT_SECONDS — the finer-grained key that
+        #      is appended last and takes precedence in newer toolkits.
+        #   3. enable_envvars_config + MMS_DEFAULT_RESPONSE_TIMEOUT — lets MMS read
+        #      the property straight from the env, bypassing the prepacked file.
+        # All set from the catalog (image_to_3d depth-9 geometry alone is ~11 min
+        # on a 4-vCPU instance, so this must be generous).
         "SAGEMAKER_MODEL_SERVER_TIMEOUT": str(_compute_container_timeout(model)),
+        "SAGEMAKER_MODEL_SERVER_TIMEOUT_SECONDS": str(_compute_container_timeout(model)),
+        "MMS_DEFAULT_RESPONSE_TIMEOUT": str(_compute_container_timeout(model)),
+        "MMS_ENABLE_ENVVARS_CONFIG": "true",
     }
 
     # HuggingFace token for gated models
