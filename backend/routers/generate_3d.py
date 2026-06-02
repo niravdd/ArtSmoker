@@ -473,10 +473,16 @@ async def generate_3d(body: ThreeDGenerateRequest):
         "InputLocation": input_location,
     }
 
-    # TripoSG can take several minutes
+    # TripoSG image-to-3D is long-running: at high quality (octree depth 9) the
+    # CPU-bound marching-cubes surface extraction alone takes ~10 min, plus
+    # multi-view generation + texture baking — a full run can be ~16-18 min.
+    # SageMaker async gives the container InvocationTimeoutSeconds to process
+    # each request; if it elapses, the request is recycled (worker restarts,
+    # job lost). ALWAYS set it (the old `> 300` guard skipped it because the
+    # catalog under-reported latency as 60s), with a generous 1800s (30 min)
+    # floor for headroom and the 3600s (1 hr) SageMaker async ceiling.
     typical_latency = cfg.get("invoke", {}).get("typical_latency_seconds", 300)
-    if typical_latency > 300:
-        invoke_kwargs["InvocationTimeoutSeconds"] = min(3600, max(900, typical_latency * 2))
+    invoke_kwargs["InvocationTimeoutSeconds"] = min(3600, max(1800, typical_latency * 2))
 
     try:
         response = sm_runtime.invoke_endpoint_async(**invoke_kwargs)

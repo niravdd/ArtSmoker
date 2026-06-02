@@ -5379,7 +5379,7 @@
             }
           },
           "output_type": "base64_glb",
-          "typical_latency_seconds": 60,
+          "typical_latency_seconds": 900,
           "max_concurrent_invocations": 1
         },
         "pricing": {
