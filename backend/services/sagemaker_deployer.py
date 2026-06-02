@@ -35,6 +35,25 @@ logger = logging.getLogger(__name__)
 # S3 prefix for model weights and handler code
 S3_MODEL_PREFIX = "artsmoker/custom-models"
 
+# SageMaker instance families that ship with local NVMe SSD instance storage.
+# These REJECT the VolumeSizeInGB / attachable-EBS parameter — SageMaker
+# auto-mounts their local NVMe. Setting VolumeSizeInGB on them fails with
+# "VolumeSize parameter is not allowed for the selected Instance type".
+# (Confirmed for g5 via a live deploy error; g6/g6e/g4dn/p4d/p5 all use NVMe.)
+_NVME_INSTANCE_FAMILIES = ("g5", "g6", "g6e", "g4dn", "g7e", "p4d", "p5", "p5e", "p5en", "p6")
+
+
+def _instance_has_local_nvme(instance: str) -> bool:
+    """True if the instance type's family auto-mounts local NVMe (no EBS volume).
+
+    Matches on the family token between 'ml.' and the next '.', so 'ml.g5.xlarge'
+    → 'g5'. Exact-token match avoids false hits (e.g. 'g5' must not match 'g56').
+    """
+    parts = instance.split(".")  # ['ml', 'g5', 'xlarge']
+    family = parts[1] if len(parts) >= 2 and parts[0] == "ml" else ""
+    return family in _NVME_INSTANCE_FAMILIES
+
+
 # Custom Python packages bundled into model.tar.gz per inference library.
 # These ship under code/<pkg>/ on the container alongside inference.py.
 # Shared by the deploy packager and the dev hot-reload overlay so both agree
@@ -503,9 +522,8 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     # Create endpoint config — same pattern: delete old, create fresh
     config_name = f"{endpoint_name}-config"
     disk_gb = model.get("requirements", {}).get("disk_gb", 0)
-    # Instances with NVMe local storage reject VolumeSizeInGB
-    _nvme_families = ("g6e", "g7e", "p5", "p5e", "p5en", "p6")
-    has_nvme = any(f"ml.{fam}." in instance for fam in _nvme_families)
+    # Instances with local NVMe storage reject VolumeSizeInGB (auto-mounted).
+    has_nvme = _instance_has_local_nvme(instance)
     variant_config = {
         "VariantName": "primary",
         "ModelName": sm_model_name,
@@ -653,7 +671,7 @@ def update_endpoint_config(model_key: str) -> dict:
     config_name = f"{endpoint_name}-config"
     max_concurrent = model.get("invoke", {}).get("max_concurrent_invocations", 1)
     disk_gb = model.get("requirements", {}).get("disk_gb", 0)
-    has_nvme = any(f"ml.{fam}." in instance for fam in ("g7e", "p5", "p5e", "p5en", "p6"))
+    has_nvme = _instance_has_local_nvme(instance)
     variant_config = {
         "VariantName": "primary",
         "ModelName": sm_model_name,
