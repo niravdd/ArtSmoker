@@ -1571,7 +1571,11 @@ def _load_image_to_3d(model_dir):
     }
 
 
-_NVDIFFRAST_WHEEL_PREFIX = "artsmoker/custom-models/texture-deps/nvdiffrast/"
+# S3 prefix for cached texture-pipeline dependencies (nvdiffrast wheel,
+# RealESRGAN upscaler, LaMa inpainter). The nvdiffrast wheel lives under a
+# /nvdiffrast/ subfolder of this.
+_TEXTURE_DEPS_PREFIX = "artsmoker/custom-models/texture-deps"
+_NVDIFFRAST_WHEEL_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/nvdiffrast/"
 
 # Background nvdiffrast-compile state (for the inference-time guard). When a
 # compile is kicked off on a worker thread, predict_fn fails the current job
@@ -1759,8 +1763,8 @@ def _load_texture_models(code_dir, hf_token):
     # Download quality models (RealESRGAN upscaler + LaMa inpainter)
     _upscaler_url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth"
     _inpaint_url = "https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt"
-    _upscaler_s3_key = f"{_texture_cache_prefix}/RealESRGAN_x2plus.pth"
-    _inpaint_s3_key = f"{_texture_cache_prefix}/big-lama.pt"
+    _upscaler_s3_key = f"{_TEXTURE_DEPS_PREFIX}/RealESRGAN_x2plus.pth"
+    _inpaint_s3_key = f"{_TEXTURE_DEPS_PREFIX}/big-lama.pt"
     _upscaler_path = "/tmp/RealESRGAN_x2plus.pth"
     _inpaint_path = "/tmp/big-lama.pt"
 
