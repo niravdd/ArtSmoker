@@ -5340,13 +5340,10 @@
           }
         },
         "requirements": {
-          "min_vram_gb": 16,
-          "recommended_instance": "ml.g5.2xlarge",
+          "min_vram_gb": 40,
+          "recommended_instance": "ml.g6e.xlarge",
           "disk_gb": 60,
           "allowed_instances": [
-            "ml.g5.xlarge",
-            "ml.g5.2xlarge",
-            "ml.g5.4xlarge",
             "ml.g6e.xlarge",
             "ml.g6e.2xlarge",
             "ml.g6e.4xlarge"
