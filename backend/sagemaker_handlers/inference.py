@@ -1760,7 +1760,13 @@ def _load_texture_models(code_dir, hf_token):
     mv_time = _time.time() - t0
     logger.info("MV-Adapter loaded in %.0fs (fp32 VAE decode)", mv_time)
 
-    # Download quality models (RealESRGAN upscaler + LaMa inpainter)
+    # Download quality models (RealESRGAN upscaler + LaMa inpainter).
+    # S3 client + bucket: re-established here (they previously lived in the
+    # inline nvdiffrast block that was extracted into _ensure_nvdiffrast()).
+    import boto3 as _boto3
+    _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+    _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+
     _upscaler_url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth"
     _inpaint_url = "https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt"
     _upscaler_s3_key = f"{_TEXTURE_DEPS_PREFIX}/RealESRGAN_x2plus.pth"
