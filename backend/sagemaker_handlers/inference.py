@@ -2937,6 +2937,45 @@ def input_fn(request_body, content_type="application/json"):
     raise ValueError(f"Unsupported content type: {content_type}")
 
 
+def _run_with_heartbeat(predictor, input_data, model_dict, predictor_type):
+    """Run a long predictor on a daemon thread; main thread waits + heartbeats.
+
+    Why: a multi-minute CPU-bound predictor (e.g. image_to_3d octree marching
+    cubes, single-threaded ~10 min) blocks the MMS worker so it can't service
+    SageMaker's /ping health checks → SageMaker marks the container Unhealthy
+    and kills the instance mid-job (confirmed root cause). By running the work
+    on a background thread and waiting via Thread.join(interval) in a loop, the
+    main worker thread stays in a normal interruptible wait (the interpreter can
+    service health/IPC), and we emit a heartbeat log so progress is visible.
+
+    Also surfaces the real failure: the worker thread's exception is captured
+    and re-raised here (instead of the worker silently dying), so any hidden
+    error finally shows a traceback.
+    """
+    import threading
+    import time as _time
+
+    box = {}
+
+    def _work():
+        try:
+            box["result"] = predictor(input_data, model_dict)
+        except BaseException as e:  # noqa: BLE001 — capture everything to re-raise
+            box["error"] = e
+
+    th = threading.Thread(target=_work, name=f"predict-{predictor_type}", daemon=True)
+    t0 = _time.time()
+    th.start()
+    # Wait in short slices so the main thread never blocks uninterruptibly.
+    while th.is_alive():
+        th.join(timeout=15.0)
+        if th.is_alive():
+            logger.info("…still working (%s): %.0fs elapsed", predictor_type, _time.time() - t0)
+    if "error" in box:
+        raise box["error"]
+    return box.get("result")
+
+
 def predict_fn(input_data, model_dict):
     """Run inference — routes to predictor by PREDICTOR_TYPE env var."""
     import time as _time
@@ -2958,11 +2997,23 @@ def predict_fn(input_data, model_dict):
     if torch.cuda.is_available():
         alloc = torch.cuda.memory_allocated(0) / (1024**3)
         reserved = torch.cuda.memory_reserved(0) / (1024**3)
-        logger.info("GPU memory before inference: %.2f GB allocated, %.2f GB reserved (%.1f GB free of 44.5 GB)",
-                     alloc, reserved, 44.5 - reserved)
+        free_gb = (torch.cuda.mem_get_info(0)[0] / (1024**3)) if hasattr(torch.cuda, "mem_get_info") else 0
+        logger.info("GPU memory before inference: %.2f GB allocated, %.2f GB reserved (%.1f GB free)",
+                     alloc, reserved, free_gb)
 
     try:
-        result = predictor(input_data, model_dict)
+        # Long-running predictors (image_to_3d: ~10 min single-threaded octree
+        # marching cubes) block the worker so hard that the container can't
+        # answer SageMaker's /ping health checks → SageMaker marks it Unhealthy
+        # and kills the instance mid-job. Run such predictors on a background
+        # thread and have THIS thread wait with a periodic heartbeat, so the
+        # worker process stays in a normal Python wait (responsive) instead of
+        # buried in a non-yielding native call. Fast predictors run inline.
+        _LONG_RUNNING = {"image_to_3d"}
+        if predictor_type in _LONG_RUNNING:
+            result = _run_with_heartbeat(predictor, input_data, model_dict, predictor_type)
+        else:
+            result = predictor(input_data, model_dict)
         elapsed = _time.time() - t0
 
         # Log GPU memory after inference (peak is during, but this shows post-inference state)
