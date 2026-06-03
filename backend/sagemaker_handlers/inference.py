@@ -360,6 +360,12 @@ def _get_env_bool(key, default=False):
 # absent). The loader (model_fn) is intentionally NOT re-run — weights stay warm.
 _hotreload_state = {"etag": None}
 
+# Writable overlay root. SageMaker mounts /opt/ml/model (the baked code/) as
+# READ-ONLY, so we CANNOT extract there. Instead we extract to /tmp and prepend
+# it to sys.path so its packages shadow the baked ones, and re-exec the overlaid
+# inference.py from here. This is what makes hot-reload actually work on SM.
+_HOTRELOAD_DIR = "/tmp/artsmoker_hotreload/code"
+
 # Names re-bound into this module's globals when inference.py is overlaid.
 # Limited to the predictor surface (functions + their module-level constants
 # are re-exec'd wholesale, but we only swap callables/dicts, never touch live
@@ -373,34 +379,39 @@ _HOTRELOAD_PROTECTED_GLOBALS = {
 
 
 def _bundled_top_level_packages():
-    """Top-level package names present under <model_dir>/code/ (e.g. mvadapter)."""
-    pkgs = []
-    if not _model_dir:
-        return pkgs
-    code_dir = os.path.join(_model_dir, "code")
-    try:
-        for name in os.listdir(code_dir):
-            p = os.path.join(code_dir, name)
-            if os.path.isdir(p) and os.path.exists(os.path.join(p, "__init__.py")):
-                pkgs.append(name)
-    except Exception:
-        pass
-    return pkgs
+    """Top-level package names present in the overlay or baked code/ (e.g. mvadapter)."""
+    pkgs = set()
+    dirs = [_HOTRELOAD_DIR]
+    if _model_dir:
+        dirs.append(os.path.join(_model_dir, "code"))
+    for code_dir in dirs:
+        try:
+            for name in os.listdir(code_dir):
+                p = os.path.join(code_dir, name)
+                if os.path.isdir(p) and os.path.exists(os.path.join(p, "__init__.py")):
+                    pkgs.add(name)
+        except Exception:
+            pass
+    return sorted(pkgs)
 
 
 def _apply_code_overlay(tar_bytes):
-    """Extract an overlay tar (rooted at code/) over <model_dir>/code/.
+    """Extract an overlay tar (rooted at code/) into a WRITABLE /tmp dir.
 
-    Returns True on success. Strips any leading "code/" arc prefix so the
-    files land directly under the container's code directory. Afterwards it
-    removes every __pycache__ and bumps extracted file mtimes, then calls
-    importlib.invalidate_caches() — otherwise Python may reuse a stale .pyc
-    (the tar preserves old mtimes, and same-second writes defeat the cache
-    check), which would silently run the OLD bundled-package bytecode.
+    SageMaker mounts the baked code dir (/opt/ml/model/code) read-only, so we
+    extract to _HOTRELOAD_DIR instead and prepend it to sys.path (front) so its
+    modules shadow the baked ones. Strips any leading "code/" arc prefix.
+    Afterwards removes __pycache__, bumps mtimes, and invalidates import caches
+    so Python doesn't reuse stale bytecode.
     """
     import tarfile
     import importlib as _il
-    code_dir = os.path.join(_model_dir, "code")
+    import shutil as _sh
+    import sys as _sys
+    code_dir = _HOTRELOAD_DIR
+    # Fresh dir each apply so removed files don't linger.
+    _sh.rmtree(code_dir, ignore_errors=True)
+    os.makedirs(code_dir, exist_ok=True)
     extracted = []
     with tarfile.open(fileobj=io.BytesIO(tar_bytes), mode="r:gz") as tar:
         for member in tar.getmembers():
@@ -412,12 +423,15 @@ def _apply_code_overlay(tar_bytes):
             member.name = name
             tar.extract(member, path=code_dir)
             extracted.append(os.path.join(code_dir, name))
+    # Prepend overlay dir to sys.path so its packages take import precedence.
+    if code_dir in _sys.path:
+        _sys.path.remove(code_dir)
+    _sys.path.insert(0, code_dir)
     # Invalidate any cached bytecode for the overlaid files.
     import time as _time
     now = _time.time()
     for root, dirs, files in os.walk(code_dir):
         if "__pycache__" in dirs:
-            import shutil as _sh
             _sh.rmtree(os.path.join(root, "__pycache__"), ignore_errors=True)
             dirs.remove("__pycache__")
     for path in extracted:
@@ -433,12 +447,12 @@ def _apply_code_overlay(tar_bytes):
 def _reload_handler_predictors():
     """Re-exec the overlaid inference.py and rebind predictor globals.
 
-    Runs the new inference.py in a scratch namespace, then copies its
-    _predict_* functions, helper functions, module constants, and the
-    _PREDICTORS dict into THIS live module's globals — except protected
-    runtime state (model, config, caches, stdlib handles).
+    Runs the new inference.py (from the writable overlay dir) in a scratch
+    namespace, then copies its _predict_* functions, helper functions, module
+    constants, and the _PREDICTORS dict into THIS live module's globals —
+    except protected runtime state (model, config, caches, stdlib handles).
     """
-    code_path = os.path.join(_model_dir, "code", "inference.py")
+    code_path = os.path.join(_HOTRELOAD_DIR, "inference.py")
     if not os.path.exists(code_path):
         return False
     with open(code_path, "r") as f:
