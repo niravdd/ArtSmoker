@@ -2783,6 +2783,19 @@ def model_fn(model_dir):
     _model_dir = model_dir
     library = _get_env("INFERENCE_LIBRARY", "diffusers")
 
+    # DIAGNOSTIC: dump the MMS config so we can see the ACTUAL effective
+    # default_response_timeout (the HF DLC writes /etc/sagemaker-mms.properties;
+    # env-var overrides may or may not land there). Reveals the true request
+    # timeout that governs long image_to_3d inferences.
+    try:
+        for _cfgp in ("/etc/sagemaker-mms.properties", "/etc/default-mms.properties"):
+            if os.path.exists(_cfgp):
+                with open(_cfgp) as _cf:
+                    _content = _cf.read()
+                logger.info("=== MMS CONFIG %s ===\n%s\n=== END %s ===", _cfgp, _content, _cfgp)
+    except Exception as _ce:
+        logger.warning("Could not read MMS config: %s", _ce)
+
     # Install system libraries needed by pymeshlab (OpenGL) on headless containers
     if library == "image_to_3d":
         import subprocess as _sp
