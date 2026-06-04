@@ -2539,20 +2539,28 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         _save_debug_artifact(ref_image, "02_reference")
 
         # Generate multi-view images conditioned on geometry + reference image.
-        # reference_conditioning_scale=1.5 (>default 1.0): TripoSG geometry is
-        # smooth on faces, so we lean more on the reference image to recover
-        # appearance detail (facial features) rather than the featureless head mesh.
+        # CROSS-VIEW CONSISTENCY TUNING: the previous reference_conditioning_scale
+        # =1.5 over-weighted the 2D reference vs the 3D geometry control, so each
+        # view independently "imagined" facial detail → the 6 views disagreed on
+        # the face → projection smeared it (eyes/features misplaced). Rebalance
+        # toward geometry-driven coherence:
+        #   - reference_conditioning_scale 1.5 -> 1.0 (official default): let the
+        #     consistent geometry, not the reference, drive cross-view agreement.
+        #   - control_conditioning_scale 1.0 -> 1.2: tighten the geometry control's
+        #     grip so all views register to the same structure.
+        #   - prompt: drop the heavy "sharp facial features / detailed face" push
+        #     that encouraged per-view face invention; keep quality/material cues.
         mv_result = mv_pipe(
-            "best quality, sharp facial features, detailed face, crisp textures, vivid colors, detailed surface materials, game asset",
+            "best quality, crisp textures, vivid colors, detailed surface materials, game asset",
             height=_MV_RES, width=_MV_RES,
             num_inference_steps=50,
             guidance_scale=3.0,
             num_images_per_prompt=6,
             control_image=control_images,
-            control_conditioning_scale=1.0,
+            control_conditioning_scale=1.2,
             reference_image=ref_image,
-            reference_conditioning_scale=1.5,
-            negative_prompt="watermark, ugly, deformed, noisy, blurry, low quality, faceless, covered face, blank face",
+            reference_conditioning_scale=1.0,
+            negative_prompt="watermark, ugly, deformed, noisy, blurry, low quality, inconsistent, distorted face",
         )
         mv_images = mv_result.images
         elapsed_p2 = _t.time() - t0
