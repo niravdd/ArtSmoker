@@ -2635,16 +2635,12 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                 pass
         _reclaim_cuda_memory("after Phase 2 (before Phase 3)")
 
-        # Restore the texture models (upscaler/inpainter) to GPU for Phase 3.
-        # On high VRAM we additionally move MV-Adapter to CPU now — it's done
-        # (multi-views generated) and not used in Phase 3, freeing ~9 GB so the
-        # 4096² UV bake + Poisson has ample room.
-        if high_vram and mv_pipe is not None:
-            try:
-                _move_module_to(mv_pipe, "cpu")
-                logger.info("Parked MV-Adapter on CPU after Phase 2 (free VRAM for Phase 3)")
-            except Exception as _e:
-                logger.warning("Could not park MV-Adapter: %s", _e)
+        # NOTE: We do NOT move MV-Adapter to CPU here. It's an fp16 diffusers
+        # pipeline, and fp16 ops can't run on CPU — diffusers raises, which
+        # previously crashed the worker right after Phase 2. It's also
+        # unnecessary: parking the upscaler/inpainter during Phase 2 already
+        # leaves ~35 GB free, and Phase 3's TexturePipeline loads fine alongside
+        # the resident MV-Adapter on the 44.5 GB L40S.
         if texture_pipe is not None and _parked_tex_models:
             for _attr in _parked_tex_models:
                 _m = getattr(texture_pipe, _attr, None)
@@ -2727,15 +2723,13 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                     _move_module_to(triposg_pipe, "cuda")
             except Exception as _restore_err:
                 logger.warning("Failed to restore TripoSG to GPU: %s", _restore_err)
-            # On the preloaded high-VRAM path, MV-Adapter and the texture models
-            # are reused across jobs and rest on GPU. We parked some of them to
-            # free Phase 2/3 VRAM — restore them so the next job finds them where
-            # it expects. Idempotent; covers success AND fallback paths.
+            # On the preloaded high-VRAM path, the texture models (upscaler/
+            # inpainter) are reused across jobs and rest on GPU. We park them on
+            # CPU during Phase 2 — restore them so the next job finds them where
+            # it expects. (MV-Adapter is NOT parked — fp16 can't go to CPU.)
+            # Idempotent; covers success AND fallback paths.
             if high_vram:
                 try:
-                    _mvp = model_dict.get("mv_pipe")
-                    if _mvp is not None:
-                        _move_module_to(_mvp, "cuda")
                     _tp = model_dict.get("texture_pipe")
                     if _tp is not None:
                         for _attr in ("upscaler", "inpainter"):
