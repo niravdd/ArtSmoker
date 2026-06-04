@@ -1771,6 +1771,17 @@ def _load_texture_models(code_dir, hf_token):
     # Force fp32 VAE decode for accurate colors (latents upcast around decode)
     mv_pipe.vae.to(torch.float32)
     mv_pipe.vae.config.force_upcast = True
+    # VAE slicing + tiling: decode the 6-view batch in chunks/tiles instead of
+    # all at once. The fp32 6-view decode is a major contributor to the Phase 2
+    # VRAM peak (~43.6 GB observed); slicing/tiling cuts that peak substantially
+    # with NO quality loss (same output, just chunked). Lets the 1M-face render
+    # fit on the L40S without lowering face count.
+    try:
+        mv_pipe.enable_vae_slicing()
+        mv_pipe.enable_vae_tiling()
+        logger.info("MV-Adapter VAE slicing + tiling enabled (lower Phase 2 peak)")
+    except Exception as _vae_e:
+        logger.warning("Could not enable VAE slicing/tiling: %s", _vae_e)
     mv_time = _time.time() - t0
     logger.info("MV-Adapter loaded in %.0fs (fp32 VAE decode)", mv_time)
 
@@ -2415,7 +2426,28 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         if triposg_pipe is not None:
             logger.info("Parking TripoSG on CPU for texture phases...")
             _move_module_to(triposg_pipe, "cpu")
-        _reclaim_cuda_memory("after parking TripoSG (before Phase 2)")
+
+        # Park the TexturePipeline's upscaler (RealESRGAN) + inpainter (LaMa) on
+        # CPU during Phase 2. They are ONLY used in Phase 3, but on the preloaded
+        # high-VRAM path they sit resident on GPU, stealing headroom from Phase
+        # 2's peak (MV-Adapter SDXL forward + nvdiffrast render of a 1M-face
+        # mesh spiked to ~43.6 GB and OOM'd on the 44.5 GB L40S). We move them
+        # back to GPU just before Phase 3. Safe: they aren't referenced in
+        # Phase 2.
+        _parked_tex_models = []
+        if texture_pipe is not None:
+            for _attr in ("upscaler", "inpainter"):
+                _m = getattr(texture_pipe, _attr, None)
+                if _m is not None and hasattr(_m, "to"):
+                    try:
+                        _m.to("cpu")
+                        _parked_tex_models.append(_attr)
+                    except Exception as _e:
+                        logger.warning("Could not park texture_pipe.%s: %s", _attr, _e)
+            if _parked_tex_models:
+                logger.info("Parked texture models on CPU for Phase 2: %s", _parked_tex_models)
+
+        _reclaim_cuda_memory("after parking TripoSG + texture models (before Phase 2)")
 
         # ═══════════════════════════════════════════════════════════════════
         # Phase 2: MV-Adapter multi-view generation
@@ -2603,6 +2635,27 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                 pass
         _reclaim_cuda_memory("after Phase 2 (before Phase 3)")
 
+        # Restore the texture models (upscaler/inpainter) to GPU for Phase 3.
+        # On high VRAM we additionally move MV-Adapter to CPU now — it's done
+        # (multi-views generated) and not used in Phase 3, freeing ~9 GB so the
+        # 4096² UV bake + Poisson has ample room.
+        if high_vram and mv_pipe is not None:
+            try:
+                _move_module_to(mv_pipe, "cpu")
+                logger.info("Parked MV-Adapter on CPU after Phase 2 (free VRAM for Phase 3)")
+            except Exception as _e:
+                logger.warning("Could not park MV-Adapter: %s", _e)
+        if texture_pipe is not None and _parked_tex_models:
+            for _attr in _parked_tex_models:
+                _m = getattr(texture_pipe, _attr, None)
+                if _m is not None and hasattr(_m, "to"):
+                    try:
+                        _m.to("cuda")
+                    except Exception as _e:
+                        logger.warning("Could not restore texture_pipe.%s to GPU: %s", _attr, _e)
+            logger.info("Restored texture models to GPU for Phase 3: %s", _parked_tex_models)
+        _reclaim_cuda_memory("after restoring texture models (before Phase 3 bake)")
+
         # ═══════════════════════════════════════════════════════════════════
         # Phase 3: TexturePipeline texture baking
         # ═══════════════════════════════════════════════════════════════════
@@ -2674,6 +2727,24 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                     _move_module_to(triposg_pipe, "cuda")
             except Exception as _restore_err:
                 logger.warning("Failed to restore TripoSG to GPU: %s", _restore_err)
+            # On the preloaded high-VRAM path, MV-Adapter and the texture models
+            # are reused across jobs and rest on GPU. We parked some of them to
+            # free Phase 2/3 VRAM — restore them so the next job finds them where
+            # it expects. Idempotent; covers success AND fallback paths.
+            if high_vram:
+                try:
+                    _mvp = model_dict.get("mv_pipe")
+                    if _mvp is not None:
+                        _move_module_to(_mvp, "cuda")
+                    _tp = model_dict.get("texture_pipe")
+                    if _tp is not None:
+                        for _attr in ("upscaler", "inpainter"):
+                            _m = getattr(_tp, _attr, None)
+                            if _m is not None and hasattr(_m, "to"):
+                                _m.to("cuda")
+                    logger.info("Restored MV-Adapter + texture models to GPU for next inference")
+                except Exception as _re:
+                    logger.warning("Failed to restore texture models to GPU: %s", _re)
             # Reclaim any texture-phase cache so the next job starts clean.
             _reclaim_cuda_memory("after texture phases (cleanup)")
         # Clean up temp directory
