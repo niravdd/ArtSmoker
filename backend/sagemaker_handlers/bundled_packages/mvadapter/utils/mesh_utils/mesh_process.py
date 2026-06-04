@@ -288,17 +288,35 @@ def _repair_mesh_trimesh(mesh, targetfacenum=50000):
     trimesh.repair.fix_winding(mesh)
     trimesh.repair.fix_normals(mesh)
     trimesh.repair.fill_holes(mesh)
-    # Decimate to keep Phase 3 (UV + voxel grid + Poisson) within memory.
-    if targetfacenum and len(mesh.faces) > targetfacenum:
+    # Decimate to keep Phase 3 (Open3D compute_uvatlas + voxel grid + Poisson)
+    # within memory. IMPORTANT: trimesh.simplify_quadric_decimation needs the
+    # 'fast_simplification' package, which is NOT installed on the container —
+    # it raises ModuleNotFoundError and silently no-ops, letting the full ~1M
+    # face mesh reach Open3D's compute_uvatlas (parallel_partitions scales up
+    # and OOM-kills the worker). Use Open3D's tensor-mesh decimation instead
+    # (o3d is always available here — the pipeline uses it throughout).
+    n = len(mesh.faces)
+    if targetfacenum and n > targetfacenum:
         try:
-            mesh = mesh.simplify_quadric_decimation(face_count=targetfacenum)
-        except TypeError:
-            try:
-                mesh = mesh.simplify_quadric_decimation(targetfacenum / max(1, len(mesh.faces)))
-            except Exception:
-                pass
-        except Exception:
-            pass
+            o3m = o3d.t.geometry.TriangleMesh(o3d.core.Device("CPU:0"))
+            o3m.vertex.positions = o3d.core.Tensor(
+                np.asarray(mesh.vertices, dtype=np.float32), o3d.core.float32, o3d.core.Device("CPU:0")
+            )
+            o3m.triangle.indices = o3d.core.Tensor(
+                np.asarray(mesh.faces, dtype=np.int64), o3d.core.int64, o3d.core.Device("CPU:0")
+            )
+            simp = o3m.simplify_quadric_decimation(
+                target_reduction=1.0 - float(targetfacenum) / n
+            )
+            v = simp.vertex.positions.numpy()
+            f = simp.triangle.indices.numpy()
+            mesh = trimesh.Trimesh(vertices=v, faces=f, process=False)
+            trimesh.repair.fix_normals(mesh)
+        except Exception as _e:
+            import logging
+            logging.getLogger("artsmoker").warning(
+                "Open3D decimation failed (%s) — Phase 3 runs on full mesh, may OOM", _e
+            )
     return mesh
 
 
