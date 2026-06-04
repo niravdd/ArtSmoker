@@ -264,8 +264,21 @@ def uv_parameterize_uvatlas(
 
 
 ### Pack All ###
-def _repair_mesh_trimesh(mesh):
-    """Fallback manifold repair using trimesh when pymeshlab is unavailable."""
+def _repair_mesh_trimesh(mesh, targetfacenum=50000):
+    """Fallback manifold repair using trimesh when pymeshlab is unavailable.
+
+    CRITICAL: this also DECIMATES to targetfacenum (matching pymeshlab's
+    process_mesh targetfacenum=50000). When pymeshlab's plugins fail to load
+    (e.g. missing libOpenGL on a headless container), the texture pipeline's
+    built-in decimation is otherwise skipped, so the FULL high-poly mesh (up to
+    1M faces) flows into UV parameterization + the voxel grid. That spikes
+    memory non-deterministically and silently kills the worker in Phase 3
+    (observed: crash right after 'final grids shape = [1024,1024,1024]').
+    Texture quality is unaffected — the texture pipeline was designed to bake
+    onto a ~50K-face mesh (the 4096² UV atlas holds the detail), and the user's
+    high-poly geometry from Phase 1 is a separate output. Decimating here makes
+    Phase 3 stable and deterministic.
+    """
     mesh.merge_vertices()
     mask = mesh.nondegenerate_faces()
     mesh.update_faces(mask)
@@ -275,6 +288,17 @@ def _repair_mesh_trimesh(mesh):
     trimesh.repair.fix_winding(mesh)
     trimesh.repair.fix_normals(mesh)
     trimesh.repair.fill_holes(mesh)
+    # Decimate to keep Phase 3 (UV + voxel grid + Poisson) within memory.
+    if targetfacenum and len(mesh.faces) > targetfacenum:
+        try:
+            mesh = mesh.simplify_quadric_decimation(face_count=targetfacenum)
+        except TypeError:
+            try:
+                mesh = mesh.simplify_quadric_decimation(targetfacenum / max(1, len(mesh.faces)))
+            except Exception:
+                pass
+        except Exception:
+            pass
     return mesh
 
 
