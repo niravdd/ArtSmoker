@@ -2594,7 +2594,15 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # Render and generate at 1024 (vs 768) for sharper texture detail,
         # especially on faces. Render and generation resolution MUST match so
         # the geometry control images align with the diffused views.
-        _MV_RES = 1024
+        # MV-Adapter render+generation resolution. Bumped 1024 -> 1536: the
+        # subject is a FULL-BODY figure, so at 1024² the head occupies only
+        # ~80px → the face is faithful but low-detail (mushy eyes/features) no
+        # matter how good the projection is. 1536² gives the face ~2.25x the
+        # pixels. Safe on VRAM: after parking/evicting TripoSG + texture models,
+        # Phase 2 peaks at ~8.4 GB of the 44.5 GB L40S (measured), so the extra
+        # framebuffer cost fits with wide margin. Render and generation res MUST
+        # match so the geometry-control images align with the diffused views.
+        _MV_RES = 1536
         ctx = NVDiffRastContextWrapper(device="cuda", context_type="cuda")
         mesh_obj = load_mesh(mesh_path, rescale=True, front_x_to_y=True, device="cuda")
         render_out = render(

@@ -367,12 +367,29 @@ class TexturePipeline:
                     )
 
                 if poisson_reprojection:
+                    # Forward the foreground view masks into the Poisson
+                    # reprojection too. Without them, this FINAL UV write falls
+                    # back to "all valid pixels" (the "No view mask provided for
+                    # UV blending" warning) — so background/occluded pixels around
+                    # high-contrast silhouettes (face/neck/hands) bleed into the
+                    # baked texture. Slice the mask stack to match each camera
+                    # subset ([4:5] up/down, [0:4] front/sides/back). iou_rejection
+                    # is disabled (None) since these are re-projections of an
+                    # already-validated bake, not fresh views.
+                    _pb_masks_ud = (
+                        _view_masks_tensor[4:5] if _view_masks_tensor is not None else None
+                    )
+                    _pb_masks_fsb = (
+                        _view_masks_tensor[0:4] if _view_masks_tensor is not None else None
+                    )
                     # up and down
                     mesh.texture = uv_proj
                     uv_proj = self.cam_proj(
                         mod_tensor[4:5],
                         mesh,
                         cameras[4:5],
+                        masks=_pb_masks_ud,
+                        iou_rejection_threshold=None,
                         from_scratch=False,
                         poisson_blending=True,
                         pb_keep_original_border=True,
@@ -390,6 +407,8 @@ class TexturePipeline:
                         mod_tensor[0:4],
                         mesh,
                         cameras[0:4],
+                        masks=_pb_masks_fsb,
+                        iou_rejection_threshold=None,
                         from_scratch=False,
                         poisson_blending=True,
                         pb_keep_original_border=True,
