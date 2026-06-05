@@ -2625,15 +2625,18 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # Render and generate at 1024 (vs 768) for sharper texture detail,
         # especially on faces. Render and generation resolution MUST match so
         # the geometry control images align with the diffused views.
-        # MV-Adapter render+generation resolution. Bumped 1024 -> 1536: the
-        # subject is a FULL-BODY figure, so at 1024² the head occupies only
-        # ~80px → the face is faithful but low-detail (mushy eyes/features) no
-        # matter how good the projection is. 1536² gives the face ~2.25x the
-        # pixels. Safe on VRAM: after parking/evicting TripoSG + texture models,
-        # Phase 2 peaks at ~8.4 GB of the 44.5 GB L40S (measured), so the extra
-        # framebuffer cost fits with wide margin. Render and generation res MUST
+        # MV-Adapter render+generation resolution.
+        # NOTE: 1536 was tried to give the (small, full-body) face more pixels,
+        # but it OOM-KILLED the worker on g6e.xlarge — NOT on VRAM (GPU peaked
+        # ~85%) but on HOST RAM: the fp32 VAE decode of six 1536² views spiked
+        # system RAM to 99.9% of 32 GiB right after the 50 diffusion steps. With
+        # TripoSG already evicted (9.2 GB free), there wasn't enough host
+        # headroom. 1024² is the proven-safe resolution (a full textured GLB
+        # completed there with RAM peaking ~63%). Face detail is pursued via the
+        # Phase-3 RealESRGAN 2x view upscale instead, which is GPU-side and
+        # doesn't touch the host-RAM ceiling. Render and generation res MUST
         # match so the geometry-control images align with the diffused views.
-        _MV_RES = 1536
+        _MV_RES = 1024
         ctx = NVDiffRastContextWrapper(device="cuda", context_type="cuda")
         mesh_obj = load_mesh(mesh_path, rescale=True, front_x_to_y=True, device="cuda")
         render_out = render(
