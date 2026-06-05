@@ -2185,6 +2185,25 @@ def _reload_triposg(model_dict):
     """
     local_path = model_dict.get("triposg_local_path")
     if not local_path:
+        # The model_dict may predate the triposg_local_path key (e.g. it was
+        # built by the baked handler at container start, then a hot-reload
+        # overlay swapped in this newer code but reused the existing dict). The
+        # snapshot is still on disk — re-derive its path from the HF repo. This
+        # is a local cache hit (no network), so it's safe and cheap. CRITICAL:
+        # without this fallback an evicted TripoSG can never be reloaded and the
+        # endpoint is bricked for all subsequent jobs ('NoneType' is not callable
+        # at pipe()).
+        try:
+            from huggingface_hub import snapshot_download
+            hf_repo = _get_env("ARTSMOKER_HF_REPO")
+            hf_token = model_dict.get("hf_token") or _get_env("HUGGING_FACE_HUB_TOKEN") or None
+            if hf_repo:
+                local_path = snapshot_download(repo_id=hf_repo, token=hf_token)
+                model_dict["triposg_local_path"] = local_path
+                logger.info("Re-derived TripoSG snapshot path from HF repo %s", hf_repo)
+        except Exception as _e:
+            logger.warning("Could not re-derive TripoSG snapshot path: %s", _e)
+    if not local_path:
         logger.warning("Cannot reload TripoSG — no cached local path recorded")
         return False
     try:
@@ -2234,7 +2253,19 @@ def _predict_image_to_3d(input_data, model_dict):
     import tempfile
     import time as _t
 
-    pipe = model_dict["pipe"]
+    # Self-heal: if a prior job EVICTED TripoSG (low host-RAM path) and the
+    # reload didn't restore it, pipe is None here → pipe() would raise
+    # 'NoneType is not callable' and brick the endpoint for every job. Rebuild
+    # it before use. (_reload_triposg re-derives the snapshot path from the HF
+    # repo if model_dict lacks it — e.g. a hot-reload overlay reused an older
+    # model_dict.)
+    pipe = model_dict.get("pipe")
+    if pipe is None:
+        logger.warning("TripoSG pipe is None at predict entry — reloading (evicted and not restored)...")
+        if _reload_triposg(model_dict):
+            pipe = model_dict.get("pipe")
+    if pipe is None:
+        raise RuntimeError("TripoSG pipeline unavailable (evict/reload failed) — cannot run Phase 1")
     rmbg_model = model_dict.get("rmbg_model")
     high_vram = model_dict.get("high_vram", False)
     texture_available = model_dict.get("texture_available", False)
