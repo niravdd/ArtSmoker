@@ -1582,6 +1582,11 @@ def _load_image_to_3d(model_dir):
         "vram_gb": vram_gb,
         "code_dir": code_dir,
         "hf_token": hf_token,
+        # Local HF snapshot dir — lets us rebuild TripoSG cheaply (no re-download)
+        # if we EVICT it (rather than CPU-park) to survive low host RAM before
+        # the texture phases. See _reload_triposg / the park-or-evict logic.
+        "triposg_local_path": local_path,
+        "_triposg_evicted": False,
     }
 
 
@@ -2143,6 +2148,61 @@ def _move_module_to(module, device):
         return False
 
 
+def _host_ram_available_gb():
+    """Return available host (system) RAM in GB, or None if it can't be read.
+
+    Used to decide whether parking the fp32 TripoSG pipeline (~8-10 GB) from GPU
+    into host RAM is safe. On g6e.xlarge (only 32 GiB RAM) the box is already
+    ~20 GB full with all models loaded, so moving TripoSG to CPU pushed it over
+    the limit → the Linux OOM-killer SIGKILL'd the worker the instant we parked
+    (no Python traceback, abrupt worker disconnect). On g6e.2xlarge (64 GiB)
+    there's ample headroom. This lets the handler pick park-vs-evict at runtime
+    so the SAME code is safe on either instance.
+    """
+    try:
+        import psutil
+        return psutil.virtual_memory().available / (1024 ** 3)
+    except Exception:
+        try:
+            # Fallback: parse /proc/meminfo (MemAvailable in kB).
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemAvailable:"):
+                        return int(line.split()[1]) / (1024 ** 2)
+        except Exception:
+            pass
+        return None
+
+
+def _reload_triposg(model_dict):
+    """Reload the TripoSG pipeline onto GPU after it was EVICTED (not parked).
+
+    On low-host-RAM instances we free TripoSG entirely before the texture phases
+    (delete the object + reclaim VRAM) instead of parking it on CPU, because the
+    CPU copy would OOM the host. The next inference needs it back on CUDA, so we
+    rebuild it from the locally-cached HF snapshot (already on disk from the
+    initial load — no re-download). ~20s, paid only on low-RAM instances.
+    """
+    local_path = model_dict.get("triposg_local_path")
+    if not local_path:
+        logger.warning("Cannot reload TripoSG — no cached local path recorded")
+        return False
+    try:
+        import time as _time
+        t0 = _time.time()
+        from triposg import TripoSGPipeline
+        pipe = TripoSGPipeline.from_pretrained(local_path)
+        if torch.cuda.is_available():
+            pipe.to("cuda")
+        model_dict["pipe"] = pipe
+        model_dict["_triposg_evicted"] = False
+        logger.info("Reloaded evicted TripoSG to GPU in %.0fs", _time.time() - t0)
+        return True
+    except Exception as e:
+        logger.warning("Failed to reload evicted TripoSG: %s", e)
+        return False
+
+
 def _predict_image_to_3d(input_data, model_dict):
     """Generate a textured 3D mesh (GLB) from an input image.
 
@@ -2422,10 +2482,39 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # NOTE: RMBG stays on GPU — Phase 2 uses it to clean the multi-view
         # images. (The old low-VRAM code parked RMBG too, which would have
         # caused a device mismatch when RMBG ran on CUDA tensors in Phase 2.)
+        # PARK-OR-EVICT: moving the fp32 TripoSG pipeline (~8-10 GB) to CPU needs
+        # that much FREE host RAM. On g6e.xlarge (32 GiB RAM) the box is already
+        # ~20 GB full with all models loaded, so an unconditional CPU-park pushes
+        # it past the limit and the Linux OOM-killer SIGKILLs the worker the
+        # instant we park (observed: abrupt disconnect + 500, NO Python traceback,
+        # right after this log line). On g6e.2xlarge (64 GiB) there's ample room.
+        # So: park to CPU only when host RAM clearly allows it; otherwise EVICT
+        # TripoSG entirely (free GPU + RAM) and reload it from the local snapshot
+        # before the next job. Either way Phase 2 gets its freed VRAM.
+        _PARK_RAM_HEADROOM_GB = 14.0  # ~10 GB fp32 pipe + transfer buffers + margin
         triposg_pipe = model_dict.get("pipe")
         if triposg_pipe is not None:
-            logger.info("Parking TripoSG on CPU for texture phases...")
-            _move_module_to(triposg_pipe, "cpu")
+            _avail_gb = _host_ram_available_gb()
+            if _avail_gb is not None and _avail_gb < _PARK_RAM_HEADROOM_GB:
+                logger.info(
+                    "Host RAM low (%.1f GB free < %.0f GB needed) — EVICTING TripoSG "
+                    "from GPU (will reload before next job) to avoid host OOM...",
+                    _avail_gb, _PARK_RAM_HEADROOM_GB,
+                )
+                try:
+                    _move_module_to(triposg_pipe, "cpu")  # off GPU first
+                except Exception:
+                    pass
+                model_dict["pipe"] = None
+                model_dict["_triposg_evicted"] = True
+                triposg_pipe = None
+                del triposg_pipe
+            else:
+                logger.info(
+                    "Parking TripoSG on CPU for texture phases (%.1f GB host RAM free)...",
+                    _avail_gb if _avail_gb is not None else -1.0,
+                )
+                _move_module_to(triposg_pipe, "cpu")
 
         # Park the TexturePipeline's upscaler (RealESRGAN) + inpainter (LaMa) on
         # CPU during Phase 2. They are ONLY used in Phase 3, but on the preloaded
@@ -2725,10 +2814,17 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # Idempotent: .to("cuda") on an already-CUDA module is a no-op.
         if torch.cuda.is_available():
             try:
-                triposg_pipe = model_dict.get("pipe")
-                if triposg_pipe is not None:
-                    logger.info("Restoring TripoSG to GPU for next inference...")
-                    _move_module_to(triposg_pipe, "cuda")
+                if model_dict.get("_triposg_evicted"):
+                    # Low host-RAM path: TripoSG was freed entirely. Rebuild it
+                    # from the local snapshot (no re-download) so the next job's
+                    # Phase 1 finds it on CUDA.
+                    logger.info("Reloading evicted TripoSG to GPU for next inference...")
+                    _reload_triposg(model_dict)
+                else:
+                    triposg_pipe = model_dict.get("pipe")
+                    if triposg_pipe is not None:
+                        logger.info("Restoring TripoSG to GPU for next inference...")
+                        _move_module_to(triposg_pipe, "cuda")
             except Exception as _restore_err:
                 logger.warning("Failed to restore TripoSG to GPU: %s", _restore_err)
             # On the preloaded high-VRAM path, the texture models (upscaler/
