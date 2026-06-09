@@ -1,0 +1,6 @@
+Vendored from https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1
+Subdir: hy3dpaint/
+Commit: 82920d643c0dc2f7bfd7255f45f62d386edfe60c
+Date: 2026-06-09
+Inference-only subset (excludes assets/, train_examples/, src/, train.py).
+License: Tencent Hunyuan Community License (see upstream).
