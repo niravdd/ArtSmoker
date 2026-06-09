@@ -233,6 +233,9 @@ class ThreeDGenerateRequest(BaseModel):
     faces: int = 200000
     mesh_resolution: int | None = None
     octree_depth: int = 7
+    # Texturing backend: "mvadapter" (default) or "hunyuan" (Hunyuan3D-Paint).
+    # When omitted, the endpoint's server default (ARTSMOKER_TEXTURE_BACKEND) is used.
+    texture_backend: str | None = None
 
     def resolved_guidance(self) -> float:
         return self.guidance if self.guidance is not None else self.guidance_scale
@@ -443,6 +446,9 @@ async def generate_3d(body: ThreeDGenerateRequest):
         "dense_octree_depth": _octree,
         "hierarchical_octree_depth": _octree + 1,
     }
+    # Per-request texturing backend override (else endpoint server default).
+    if body.texture_backend:
+        payload["texture_backend"] = body.texture_backend
 
     # Upload payload to S3 for async invocation
     bucket = get_deployment_s3_bucket()

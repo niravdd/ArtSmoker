@@ -14,11 +14,22 @@
 
 import os
 import cv2
-import bpy
 import math
 import numpy as np
 from io import StringIO
 from typing import Optional, Tuple, Dict, Any
+
+# ARTSMOKER PATCH: bpy (Blender-as-a-module) is a heavy (~1 GB), Python-version-
+# pinned, fragile dependency used ONLY by convert_obj_to_glb() for the final
+# OBJ→GLB step. We do NOT install it on the SageMaker container; instead we call
+# the paint pipeline with save_glb=False and assemble the GLB from the OBJ+PBR
+# maps with trimesh (see _assemble_pbr_glb in inference.py). Guard the import so
+# this module loads without Blender; save_obj_mesh / save_mesh (which write the
+# OBJ + MTL + albedo/metallic/roughness maps) do NOT use bpy and work normally.
+try:
+    import bpy
+except Exception:
+    bpy = None
 
 
 def _safe_extract_attribute(obj: Any, attr_path: str, default: Any = None) -> Any:

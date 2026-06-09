@@ -1537,39 +1537,66 @@ def _load_image_to_3d(model_dir):
     logger.info("VRAM: %.1f GB — texture pipeline strategy: %s",
                 vram_gb, "preloaded" if high_vram else "on-demand")
 
-    # Attempt to load MV-Adapter + TexturePipeline on high-VRAM instances
+    # Texture backend: "mvadapter" (default, original 6-view+TexturePipeline) or
+    # "hunyuan" (Hunyuan3D-Paint). Both are retained; the server default is set
+    # via ARTSMOKER_TEXTURE_BACKEND. The native ops each backend needs are built
+    # HERE at load time (model_fn — no MMS response watchdog), then cached to S3,
+    # exactly like the nvdiffrast pattern, so the first inference never trips the
+    # 120s watchdog compiling.
     mv_pipe = None
     texture_pipe = None
+    paint_pipe = None
     texture_available = False
+    backend = _texture_backend()
+    logger.info("Texture backend (server default): %s", backend)
 
-    if high_vram:
+    if backend == "hunyuan":
+        # Build custom_rasterizer + mesh_inpaint_processor at load time.
         try:
-            mv_pipe, texture_pipe = _load_texture_models(code_dir, hf_token)
+            import hy3dpaint  # noqa: F401  (package presence check; vendored)
+        except Exception:
+            pass  # the dir is on disk; textureGenPipeline imports happen in _load_hunyuan_paint
+        try:
+            _ensure_hunyuan_ops(code_dir, blocking=True)
+            _hunyuan_ops_bg["state"] = 1
+            logger.info("Hunyuan native ops ready (built/cached at load)")
             texture_available = True
-            logger.info("MV-Adapter + TexturePipeline preloaded (high VRAM mode)")
         except Exception as e:
-            logger.warning("Texture pipeline preload failed (will try on-demand): %s", e)
-    else:
-        # Low-VRAM path: we DON'T preload the MV-Adapter weights (VRAM is tight),
-        # but we MUST still compile nvdiffrast HERE at load time. Compiling it
-        # lazily inside predict_fn blocks the worker past MMS's 120s response
-        # watchdog → the worker is rebooted mid-job. model_fn runs under the
-        # generous model-load timeout (no response watchdog), so it's safe here.
-        # The wheel is cached to the user's S3 so later cold starts are instant.
-        try:
-            import mvadapter  # noqa: F401
-            texture_available = True
-            logger.info("MV-Adapter package available — texture models load on-demand per inference")
+            logger.warning("Hunyuan ops not ready at load (%s) — will retry in background on first job", e)
+        # Preload the paint pipe on high-VRAM. Paint (~21 GB) + TripoSG (~16 GB)
+        # ~= 37 GB at idle, fits the 44.5 GB L40S; the proven meta-eviction frees
+        # TripoSG's VRAM during texturing regardless.
+        if high_vram and texture_available:
             try:
-                _ensure_nvdiffrast()  # compile+cache at LOAD time (not inference)
-                _nvdiffrast_bg["state"] = 1
-                logger.info("nvdiffrast ready (compiled/cached at load) — texture phases enabled")
+                paint_pipe = _load_hunyuan_paint(code_dir, hf_token)
+                logger.info("Hunyuan3D-Paint preloaded (high VRAM mode)")
             except Exception as e:
-                # Don't fail model load — texture just falls back to untextured,
-                # and the inference-time background guard can retry the compile.
-                logger.warning("nvdiffrast not ready at load (%s) — will retry in background on first texture job", e)
-        except ImportError:
-            logger.info("MV-Adapter package not available — will produce untextured meshes")
+                logger.warning("Hunyuan paint preload failed (will load on-demand): %s", e)
+    else:
+        # ── MV-Adapter backend (default, UNCHANGED behavior) ──
+        if high_vram:
+            try:
+                mv_pipe, texture_pipe = _load_texture_models(code_dir, hf_token)
+                texture_available = True
+                logger.info("MV-Adapter + TexturePipeline preloaded (high VRAM mode)")
+            except Exception as e:
+                logger.warning("Texture pipeline preload failed (will try on-demand): %s", e)
+        else:
+            # Low-VRAM path: don't preload MV-Adapter weights, but compile
+            # nvdiffrast at LOAD time (lazy compile inside predict_fn would block
+            # past MMS's 120s response watchdog → worker reboot mid-job).
+            try:
+                import mvadapter  # noqa: F401
+                texture_available = True
+                logger.info("MV-Adapter package available — texture models load on-demand per inference")
+                try:
+                    _ensure_nvdiffrast()  # compile+cache at LOAD time (not inference)
+                    _nvdiffrast_bg["state"] = 1
+                    logger.info("nvdiffrast ready (compiled/cached at load) — texture phases enabled")
+                except Exception as e:
+                    logger.warning("nvdiffrast not ready at load (%s) — will retry in background on first texture job", e)
+            except ImportError:
+                logger.info("MV-Adapter package not available — will produce untextured meshes")
 
     return {
         "library": "image_to_3d",
@@ -1577,6 +1604,8 @@ def _load_image_to_3d(model_dir):
         "rmbg_model": rmbg_model,
         "mv_pipe": mv_pipe,
         "texture_pipe": texture_pipe,
+        "paint_pipe": paint_pipe,
+        "texture_backend": backend,
         "texture_available": texture_available,
         "high_vram": high_vram,
         "vram_gb": vram_gb,
@@ -1595,6 +1624,14 @@ def _load_image_to_3d(model_dir):
 # /nvdiffrast/ subfolder of this.
 _TEXTURE_DEPS_PREFIX = "artsmoker/custom-models/texture-deps"
 _NVDIFFRAST_WHEEL_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/nvdiffrast/"
+# Cached native ops for the Hunyuan3D-Paint backend (built at load, like
+# nvdiffrast): the custom_rasterizer CUDA extension wheel and the
+# mesh_inpaint_processor pybind .so.
+_HUNYUAN_DEPS_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/hunyuan"
+_HUNYUAN_RASTERIZER_WHEEL_PREFIX = f"{_HUNYUAN_DEPS_PREFIX}/custom_rasterizer/"
+_HUNYUAN_INPAINT_SO_PREFIX = f"{_HUNYUAN_DEPS_PREFIX}/mesh_inpaint_processor/"
+_hunyuan_ops_bg = {"state": -1, "error": ""}
+_hunyuan_ops_bg_lock = None
 
 # Background nvdiffrast-compile state (for the inference-time guard). When a
 # compile is kicked off on a worker thread, predict_fn fails the current job
@@ -1732,6 +1769,277 @@ def _ensure_nvdiffrast_background():
 
     t = threading.Thread(target=_work, daemon=True, name="nvdiffrast-compile")
     t.start()
+
+
+def _hunyuan_inpaint_so_dir(code_dir):
+    """Directory where mesh_inpaint_processor.*.so must live for the relative
+    import `from .mesh_inpaint_processor import meshVerticeInpaint` in
+    hy3dpaint/DifferentiableRenderer/MeshRender.py to resolve."""
+    return os.path.join(code_dir, "hy3dpaint", "DifferentiableRenderer")
+
+
+def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
+    """Make the two Hunyuan3D-Paint native ops importable. Returns True if ready.
+
+    Two builds (mirrors the proven _ensure_nvdiffrast pattern — import → S3
+    cache → build-from-source → cache-to-S3):
+      1. custom_rasterizer — a CUDA extension (module `custom_rasterizer_kernel`,
+         package `custom_rasterizer`). Imported as `import custom_rasterizer` by
+         MeshRender (raster_mode="cr"). Built via `pip install` of the vendored
+         hy3dpaint/custom_rasterizer/ (CUDAExtension). Cached as a wheel to S3.
+      2. mesh_inpaint_processor — a CPU pybind11 .so built by c++ from
+         hy3dpaint/DifferentiableRenderer/mesh_inpaint_processor.cpp. Must be
+         placed INSIDE that dir (relative import `.mesh_inpaint_processor`).
+         Cached as a raw .so to S3 (keyed by python tag for ABI safety).
+
+    CRITICAL: the CUDA build exceeds MMS's 120s response watchdog, so this runs
+    at LOAD time (model_fn). blocking=False returns immediately when a build is
+    still needed (the inference-time guard) so predict_fn never trips the watchdog.
+    """
+    import subprocess
+    import glob as _glob
+
+    rasterizer_ok = False
+    inpaint_so_dir = _hunyuan_inpaint_so_dir(code_dir)
+
+    # ---- 0. Already importable? ----
+    try:
+        import custom_rasterizer  # noqa: F401
+        rasterizer_ok = True
+    except Exception:
+        rasterizer_ok = False
+    inpaint_ok = bool(_glob.glob(os.path.join(inpaint_so_dir, "mesh_inpaint_processor*.so")))
+    if rasterizer_ok and inpaint_ok:
+        return True
+
+    if not blocking:
+        return False  # don't block under the response watchdog
+
+    import boto3 as _boto3
+    s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+    bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+
+    # Ensure CUDA_HOME for the CUDA build (same autodetect as nvdiffrast).
+    if not os.environ.get("CUDA_HOME"):
+        for p in ["/usr/local/cuda", "/opt/conda", "/usr/local/cuda-12.4", "/usr/local/cuda-12"]:
+            if os.path.isfile(os.path.join(p, "bin", "nvcc")):
+                os.environ["CUDA_HOME"] = p
+                logger.info("Set CUDA_HOME=%s", p)
+                break
+    # L40S is SM 8.9 — pin arch so the build doesn't probe/guess.
+    os.environ.setdefault("TORCH_CUDA_ARCH_LIST", "8.9")
+
+    rasterizer_src = os.path.join(code_dir, "hy3dpaint", "custom_rasterizer")
+
+    # ---- 1. custom_rasterizer ----
+    if not rasterizer_ok:
+        # 1a. S3 cached wheel.
+        if bucket:
+            try:
+                listing = s3.list_objects_v2(Bucket=bucket, Prefix=_HUNYUAN_RASTERIZER_WHEEL_PREFIX)
+                wheels = [o["Key"] for o in listing.get("Contents", []) if o["Key"].endswith(".whl")]
+                if wheels:
+                    wkey = wheels[0]
+                    wpath = os.path.join("/tmp", os.path.basename(wkey))
+                    s3.download_file(bucket, wkey, wpath)
+                    subprocess.check_call(["pip", "install", "--quiet", "--no-deps",
+                                           "--force-reinstall", wpath], timeout=180)
+                    import custom_rasterizer  # noqa: F401
+                    rasterizer_ok = True
+                    logger.info("custom_rasterizer installed from S3 cache (%s)", os.path.basename(wkey))
+            except Exception as e:
+                logger.info("custom_rasterizer S3 cache miss/failed (%s) — building from source", e)
+        # 1b. Build from the vendored source, then cache the wheel.
+        if not rasterizer_ok:
+            logger.info("Building custom_rasterizer CUDA extension from source (~2-5 min)...")
+            try:
+                subprocess.check_call(["pip", "install", "--quiet", "setuptools", "wheel", "ninja", "pybind11"], timeout=180)
+                wheel_dir = "/tmp/custom_rasterizer_wheel"
+                os.makedirs(wheel_dir, exist_ok=True)
+                subprocess.check_call(
+                    ["pip", "wheel", "--no-build-isolation", "--no-deps",
+                     "--wheel-dir", wheel_dir, rasterizer_src],
+                    timeout=900, env={**os.environ},
+                )
+                built = _glob.glob(os.path.join(wheel_dir, "custom_rasterizer*.whl"))
+                if not built:
+                    raise RuntimeError("custom_rasterizer wheel not produced")
+                subprocess.check_call(["pip", "install", "--quiet", "--no-deps",
+                                       "--force-reinstall", built[0]], timeout=180)
+                import custom_rasterizer  # noqa: F401
+                rasterizer_ok = True
+                logger.info("custom_rasterizer built + installed (%s)", os.path.basename(built[0]))
+                if bucket:
+                    try:
+                        s3.upload_file(built[0], bucket,
+                                       _HUNYUAN_RASTERIZER_WHEEL_PREFIX + os.path.basename(built[0]))
+                        logger.info("Cached custom_rasterizer wheel to S3")
+                    except Exception as ce:
+                        logger.warning("Failed to cache custom_rasterizer wheel: %s", ce)
+            except Exception as e:
+                logger.error("custom_rasterizer build failed: %s", e)
+                raise ImportError(f"custom_rasterizer unavailable — Hunyuan paint needs it: {e}")
+
+    # ---- 2. mesh_inpaint_processor (.so placed inside DifferentiableRenderer/) ----
+    if not inpaint_ok:
+        import sysconfig
+        ext_suffix = sysconfig.get_config_var("EXT_SUFFIX") or ".so"
+        so_name = "mesh_inpaint_processor" + ext_suffix
+        so_dst = os.path.join(inpaint_so_dir, so_name)
+        # 2a. S3 cache (keyed by ext suffix for ABI match).
+        cached = False
+        if bucket:
+            try:
+                skey = _HUNYUAN_INPAINT_SO_PREFIX + so_name
+                s3.download_file(bucket, skey, so_dst)
+                cached = True
+                logger.info("mesh_inpaint_processor .so loaded from S3 cache")
+            except Exception:
+                cached = False
+        # 2b. Compile from source.
+        if not cached:
+            logger.info("Compiling mesh_inpaint_processor (pybind11 .so)...")
+            try:
+                subprocess.check_call(["pip", "install", "--quiet", "pybind11"], timeout=120)
+                import pybind11
+                includes = subprocess.check_output(["python", "-m", "pybind11", "--includes"]).decode().split()
+                cpp_src = os.path.join(inpaint_so_dir, "mesh_inpaint_processor.cpp")
+                cmd = ["c++", "-O3", "-Wall", "-shared", "-std=c++11", "-fPIC",
+                       *includes, cpp_src, "-o", so_dst]
+                subprocess.check_call(cmd, timeout=300, env={**os.environ})
+                logger.info("mesh_inpaint_processor compiled -> %s", so_name)
+                if bucket:
+                    try:
+                        s3.upload_file(so_dst, bucket, _HUNYUAN_INPAINT_SO_PREFIX + so_name)
+                        logger.info("Cached mesh_inpaint_processor .so to S3")
+                    except Exception as ce:
+                        logger.warning("Failed to cache mesh_inpaint_processor .so: %s", ce)
+            except Exception as e:
+                # Non-fatal: MeshRender wraps this import in try/except. Texture
+                # still bakes; only the vertex-inpaint refinement is skipped.
+                logger.warning("mesh_inpaint_processor compile failed (inpaint refinement disabled): %s", e)
+
+    return rasterizer_ok
+
+
+def _ensure_hunyuan_ops_background(code_dir):
+    """Kick off the Hunyuan native-ops build on a daemon thread (idempotent),
+    so the worker isn't blocked past MMS's 120s response watchdog."""
+    import threading
+    global _hunyuan_ops_bg_lock
+    if _hunyuan_ops_bg_lock is None:
+        _hunyuan_ops_bg_lock = threading.Lock()
+    with _hunyuan_ops_bg_lock:
+        if _hunyuan_ops_bg["state"] in (0, 1):
+            return
+        _hunyuan_ops_bg["state"] = 0
+
+    def _work():
+        try:
+            _ensure_hunyuan_ops(code_dir, blocking=True)
+            _hunyuan_ops_bg["state"] = 1
+            logger.info("Background Hunyuan ops build complete — paint backend now available")
+        except Exception as e:
+            _hunyuan_ops_bg["state"] = 2
+            _hunyuan_ops_bg["error"] = str(e)
+            logger.error("Background Hunyuan ops build failed: %s", e)
+
+    t = threading.Thread(target=_work, daemon=True, name="hunyuan-ops-build")
+    t.start()
+
+
+# Texture backend selector. "mvadapter" (default, original) or "hunyuan"
+# (Hunyuan3D-Paint). Per-request override via input_data["texture_backend"];
+# server default via ARTSMOKER_TEXTURE_BACKEND. Both backends are retained.
+def _texture_backend(input_data=None):
+    if input_data and input_data.get("texture_backend"):
+        return str(input_data["texture_backend"]).lower().strip()
+    return (_get_env("ARTSMOKER_TEXTURE_BACKEND", "mvadapter") or "mvadapter").lower().strip()
+
+
+def _load_hunyuan_paint(code_dir, hf_token):
+    """Load the Hunyuan3D-Paint pipeline (second texturing backend).
+
+    Returns a Hunyuan3DPaintPipeline. Weights (tencent/Hunyuan3D-2.1 paint
+    subfolder + facebook/dinov2-giant) are pulled from HF at construction
+    (needs HF auth for the Tencent-licensed repo). Native ops (custom_rasterizer
+    + mesh_inpaint_processor) must already be built — call _ensure_hunyuan_ops
+    at load time first.
+    """
+    import sys as _sys
+    import time as _time
+
+    # The vendored package's internal imports are top-level (e.g.
+    # `from DifferentiableRenderer.MeshRender import MeshRender`,
+    # `from utils...`, `from textureGenPipeline import ...`), so hy3dpaint/
+    # ITSELF must be on sys.path (not just code/).
+    hy_dir = os.path.join(code_dir, "hy3dpaint")
+    if hy_dir not in _sys.path:
+        _sys.path.insert(0, hy_dir)
+    # Ensure HF auth for the gated Tencent repo.
+    if hf_token:
+        os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", hf_token)
+        os.environ.setdefault("HF_TOKEN", hf_token)
+
+    # Compatibility shim: basicsr (via realesrgan/imageSuperNet) imports
+    # torchvision.transforms.functional_tensor, removed in torchvision 0.17+.
+    # Apply BEFORE constructing the pipeline (which loads imageSuperNet).
+    try:
+        from utils.torchvision_shim import apply as _apply_tv_shim
+        _apply_tv_shim()
+    except Exception as _shim_e:
+        logger.warning("torchvision shim not applied (%s) — realesrgan import may fail", _shim_e)
+
+    from textureGenPipeline import Hunyuan3DPaintPipeline, Hunyuan3DPaintConfig
+
+    # max_num_view=6 keeps VRAM/time bounded; resolution 512 is the per-view gen
+    # size (the pipeline upscales + bakes to texture_size=4096 internally).
+    conf = Hunyuan3DPaintConfig(max_num_view=6, resolution=512)
+    # The vendored config hardcodes RELATIVE paths assuming CWD=repo root. On the
+    # container the code is under code/hy3dpaint/, so rewrite to ABSOLUTE paths
+    # (no os.chdir — that would race in a shared worker).
+    conf.multiview_cfg_path = os.path.join(hy_dir, "cfgs", "hunyuan-paint-pbr.yaml")
+    conf.realesrgan_ckpt_path = _hunyuan_realesrgan_path()
+    conf.multiview_pretrained_path = "tencent/Hunyuan3D-2.1"
+    conf.dino_ckpt_path = "facebook/dinov2-giant"
+
+    t0 = _time.time()
+    logger.info("Loading Hunyuan3D-Paint pipeline (paint backend)...")
+    paint_pipe = Hunyuan3DPaintPipeline(conf)
+    logger.info("Hunyuan3D-Paint loaded in %.0fs", _time.time() - t0)
+    return paint_pipe
+
+
+def _hunyuan_realesrgan_path():
+    """Ensure RealESRGAN_x4plus.pth (Hunyuan's super-res ckpt — x4, distinct from
+    MV-Adapter's x2) is on disk, S3-cache-first. Returns the local path."""
+    import boto3 as _boto3
+    import urllib.request as _urlreq
+    _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+    _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+    local = "/tmp/RealESRGAN_x4plus.pth"
+    s3key = f"{_TEXTURE_DEPS_PREFIX}/RealESRGAN_x4plus.pth"
+    url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
+    if not os.path.exists(local):
+        if _bucket:
+            try:
+                _s3.download_file(_bucket, s3key, local)
+                logger.info("RealESRGAN x4 loaded from S3 cache")
+                return local
+            except Exception:
+                pass
+        try:
+            logger.info("Downloading RealESRGAN x4 from GitHub...")
+            _urlreq.urlretrieve(url, local)
+            if _bucket:
+                try:
+                    _s3.upload_file(local, _bucket, s3key)
+                    logger.info("Cached RealESRGAN x4 to S3")
+                except Exception:
+                    pass
+        except Exception as e:
+            logger.warning("Failed to download RealESRGAN x4: %s", e)
+    return local
 
 
 def _load_texture_models(code_dir, hf_token):
@@ -2585,6 +2893,126 @@ def _predict_image_to_3d(input_data, model_dict):
     return json.dumps({"mesh": b64_glb, "format": "base64_glb", "vertices": vertex_count, "faces": face_count})
 
 
+def _generate_texture_hunyuan(mesh_path, source_image, model_dict, input_data, temp_dir):
+    """Texture an existing mesh with Hunyuan3D-Paint → PBR GLB bytes.
+
+    Called from _generate_texture's backend branch AFTER TripoSG has been
+    parked/evicted (so VRAM is free). Single call: mesh path + reference image →
+    OBJ + sibling PBR GLB (albedo + metallic-roughness). Returns GLB bytes.
+
+    Hunyuan3D-Paint's architecture (per-view normal+coordinate-map conditioning +
+    cross-view attention + random-azimuth training) is what avoids the multi-view
+    duplication/Janus that MV-Adapter hit on complex poses — see project notes.
+
+    Raises on failure so the caller falls back to the untextured GLB.
+    """
+    import time as _t
+    code_dir = model_dict.get("code_dir", "")
+    hf_token = model_dict.get("hf_token")
+    t0 = _t.time()
+    logger.info("Texturing with Hunyuan3D-Paint backend...")
+
+    # Watchdog guard: the native ops compile (~2-5 min) exceeds MMS's 120s
+    # response timeout. They are built at LOAD time normally; if NOT ready here
+    # (warm worker from before this fix, or a failed load build), do NOT build
+    # inline — kick off the background build and fail fast (caller → untextured).
+    if not _ensure_hunyuan_ops(code_dir, blocking=False):
+        _ensure_hunyuan_ops_background(code_dir)
+        st = _hunyuan_ops_bg["state"]
+        msg = ("Hunyuan paint native ops are being prepared in the background "
+               "(one-time CUDA compile, ~2-5 min). Texture skipped this run — resubmit shortly.")
+        if st == 2:
+            msg = f"Hunyuan paint native ops preparation failed: {_hunyuan_ops_bg['error']}"
+        logger.warning("Hunyuan texture deferred: %s", msg)
+        raise RuntimeError(msg)
+
+    # Get (or on-demand load) the paint pipeline.
+    paint_pipe = model_dict.get("paint_pipe")
+    on_demand = paint_pipe is None
+    if on_demand:
+        logger.info("Loading Hunyuan3D-Paint on-demand...")
+        paint_pipe = _load_hunyuan_paint(code_dir, hf_token)
+        if model_dict.get("high_vram"):
+            model_dict["paint_pipe"] = paint_pipe  # cache for reuse on high-VRAM
+
+    # Reference image: background-removed, composited on neutral gray (the paint
+    # pipeline re-handles RGBA→white internally, but feeding a clean subject is
+    # best). Reuse the same preprocessing as MV-Adapter for consistency.
+    ref_image = _preprocess_mv_reference(source_image, model_dict.get("rmbg_model"))
+    _save_debug_artifact(ref_image, "01_reference")
+
+    out_dir = os.path.join(temp_dir, "paint_out")
+    os.makedirs(out_dir, exist_ok=True)
+    out_obj = os.path.join(out_dir, "textured_mesh.obj")
+
+    _log_gpu_mem("before Hunyuan paint call")
+    # use_remesh=True: the pipeline remeshes for clean UVs (handles our 1M-face
+    # TripoSG mesh). save_glb=False: the pipeline's own OBJ→GLB step uses Blender
+    # (bpy), which we don't install — it writes the OBJ + MTL + albedo/metallic/
+    # roughness maps via save_obj_mesh (no bpy), and we assemble the PBR GLB from
+    # those with trimesh (embeds textures into the GLB binary buffer).
+    returned = paint_pipe(
+        mesh_path=mesh_path,
+        image_path=ref_image,
+        output_mesh_path=out_obj,
+        use_remesh=True,
+        save_glb=False,
+    )
+    logger.info("Hunyuan paint call complete in %.1fs (returned %s)", _t.time() - t0, returned)
+    _log_gpu_mem("after Hunyuan paint call")
+
+    # On-demand (low-VRAM): release the paint pipe now.
+    if on_demand and not model_dict.get("high_vram"):
+        try:
+            del paint_pipe
+            model_dict["paint_pipe"] = None
+        except Exception:
+            pass
+        _reclaim_cuda_memory("after on-demand Hunyuan paint unload")
+
+    # Assemble a self-contained PBR GLB from the OBJ + maps the pipeline wrote.
+    glb_path = _assemble_pbr_glb(out_obj, out_dir)
+    if not glb_path or not os.path.exists(glb_path):
+        raise RuntimeError(f"Hunyuan paint produced no GLB (obj={out_obj})")
+
+    with open(glb_path, "rb") as f:
+        glb_data = f.read()
+    logger.info("Hunyuan3D-Paint textured GLB: %.1f KB from %s", len(glb_data) / 1024, glb_path)
+
+    # Debug: extract the baked albedo + MR atlases for inspection.
+    if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
+        try:
+            import trimesh as _tm
+            _m = _tm.load(glb_path, process=False)
+            _g = list(_m.geometry.values())[0] if hasattr(_m, "geometry") and _m.geometry else _m
+            _mat = getattr(getattr(_g, "visual", None), "material", None)
+            _alb = getattr(_mat, "baseColorTexture", None)
+            if _alb is not None:
+                _save_debug_artifact(_alb, "02_albedo_atlas")
+            _mr = getattr(_mat, "metallicRoughnessTexture", None)
+            if _mr is not None:
+                _save_debug_artifact(_mr.convert("RGB"), "03_mr_atlas")
+        except Exception as _de:
+            logger.warning("Hunyuan debug atlas extract failed: %s", _de)
+
+    return glb_data
+
+
+def _assemble_pbr_glb(obj_path, out_dir):
+    """Fallback: build a self-contained PBR GLB from an OBJ+MTL+texture maps when
+    the pipeline's own convert_obj_to_glb didn't produce one. Uses trimesh's
+    glTF exporter, which embeds textures into the GLB binary buffer."""
+    try:
+        import trimesh as _tm
+        loaded = _tm.load(obj_path, process=False)
+        glb_path = os.path.join(out_dir, "textured_mesh_assembled.glb")
+        loaded.export(glb_path, file_type="glb")
+        return glb_path
+    except Exception as e:
+        logger.warning("PBR GLB assembly failed: %s", e)
+        return None
+
+
 def _generate_texture(mesh, source_image, model_dict, input_data):
     """Run Phase 2 (MV-Adapter) + Phase 3 (TexturePipeline) to produce textured GLB.
 
@@ -2703,7 +3131,19 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         _reclaim_cuda_memory("after parking TripoSG + texture models (before Phase 2)")
 
         # ═══════════════════════════════════════════════════════════════════
-        # Phase 2: MV-Adapter multi-view generation
+        # BACKEND BRANCH: Hunyuan3D-Paint (single call → PBR GLB) vs MV-Adapter
+        # ═══════════════════════════════════════════════════════════════════
+        backend = model_dict.get("texture_backend") or _texture_backend(input_data)
+        if input_data.get("texture_backend"):  # per-request override wins
+            backend = str(input_data["texture_backend"]).lower().strip()
+        if backend == "hunyuan":
+            glb_data = _generate_texture_hunyuan(
+                mesh_path, source_image, model_dict, input_data, temp_dir
+            )
+            return glb_data
+
+        # ═══════════════════════════════════════════════════════════════════
+        # Phase 2: MV-Adapter multi-view generation  (default backend)
         # ═══════════════════════════════════════════════════════════════════
         t0 = _t.time()
         logger.info("Phase 2: MV-Adapter multi-view generation...")
