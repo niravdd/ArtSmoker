@@ -2174,6 +2174,60 @@ def _host_ram_available_gb():
         return None
 
 
+def _host_ram_total_gb():
+    """Return total host RAM in GB, or None. Used to pick the MV-Adapter
+    resolution tier: the multi-view fp32 VAE decode of 6 views is bounded by
+    HOST RAM, not VRAM (1536² spiked a 32 GiB box to 99.9% → OOM). A bigger
+    instance (g6e.2xlarge = 64 GiB, 4xlarge = 128 GiB) can run higher res."""
+    try:
+        import psutil
+        return psutil.virtual_memory().total / (1024 ** 3)
+    except Exception:
+        try:
+            with open("/proc/meminfo") as f:
+                for line in f:
+                    if line.startswith("MemTotal:"):
+                        return int(line.split()[1]) / (1024 ** 2)
+        except Exception:
+            pass
+        return None
+
+
+def _choose_mv_resolution():
+    """Pick the highest MV-Adapter render+generation resolution that fits the
+    instance, maximizing face/texture detail without OOM.
+
+    The binding constraint is HOST RAM (the fp32 6-view VAE decode), not VRAM.
+    Measured on g6e.xlarge (32 GiB): 1024² peaked ~63% RAM (safe); 1536² hit
+    99.9% → OOM. fp16 VAE decode roughly halves that decode's host footprint,
+    which is what lets the 32 GiB box reach a higher tier safely. Bigger
+    instances (64/128 GiB) step up further. An env override
+    (ARTSMOKER_MV_RES) wins for manual experiments.
+
+    Returns (resolution:int, use_fp16_vae:bool).
+    """
+    override = _get_env("ARTSMOKER_MV_RES", "")
+    if override:
+        try:
+            r = int(override)
+            fp16 = _get_env("ARTSMOKER_MV_FP16_VAE", "") == "1"
+            logger.info("MV resolution override: %d (fp16_vae=%s)", r, fp16)
+            return r, fp16
+        except ValueError:
+            pass
+    total = _host_ram_total_gb() or 32.0
+    # Tiers chosen with margin below the OOM ceiling. fp16 VAE decode is enabled
+    # for the higher tiers to keep the host-RAM decode within budget.
+    if total >= 120:        # g6e.4xlarge (128 GiB) and up
+        return 1536, False
+    if total >= 60:         # g6e.2xlarge (64 GiB)
+        return 1536, True
+    # g6e.xlarge (32 GiB): push past the proven-safe 1024 to 1280 using a
+    # fp16 VAE decode to stay under the host-RAM ceiling. 1280² is ~1.56x the
+    # 1024² pixels (~78% projected RAM with fp16 decode) — the middle ground.
+    return 1280, True
+
+
 def _reload_triposg(model_dict):
     """Reload the TripoSG pipeline onto GPU after it was EVICTED (not parked).
 
@@ -2315,6 +2369,44 @@ def _predict_image_to_3d(input_data, model_dict):
         white_bg.paste(img_rgba, mask=img_rgba.split()[3])
         img = white_bg.convert("RGB")
         logger.info("Background removed, composited on white")
+
+        # 4. SUBJECT-FILL CROP — the single highest-impact geometry lever.
+        # TripoSG encodes the whole image into a fixed-capacity latent (2048/
+        # 4096 tokens). If the subject only fills part of the frame, the face
+        # gets a tiny share of tokens → smooth/flat facial geometry (no eye
+        # sockets/nose relief), no matter the octree depth. Cropping to the
+        # subject's bounding box (from the RMBG mask) + a small margin, then
+        # recentering on a square, makes the figure fill the frame so far more
+        # latent capacity lands on it. This is the research-backed primary fix
+        # for flat faces on full-body subjects.
+        try:
+            ys, xs = np.where(mask_np > 16)  # foreground pixels
+            if xs.size > 0 and ys.size > 0:
+                x0, x1 = int(xs.min()), int(xs.max())
+                y0, y1 = int(ys.min()), int(ys.max())
+                bw, bh = x1 - x0, y1 - y0
+                # square side = longer bbox dim + 8% margin each side
+                side = int(max(bw, bh) * 1.16)
+                cx, cy = (x0 + x1) // 2, (y0 + y1) // 2
+                sx0 = cx - side // 2
+                sy0 = cy - side // 2
+                # paste the (possibly out-of-bounds) square region onto a white
+                # square canvas so the subject is centered and fills it
+                canvas = Image.new("RGB", (side, side), (255, 255, 255))
+                src_x0, src_y0 = max(0, sx0), max(0, sy0)
+                src_x1, src_y1 = min(img.width, sx0 + side), min(img.height, sy0 + side)
+                region = img.crop((src_x0, src_y0, src_x1, src_y1))
+                canvas.paste(region, (src_x0 - sx0, src_y0 - sy0))
+                _frac_before = (bw * bh) / float(img.width * img.height)
+                img = canvas
+                logger.info(
+                    "Subject-fill crop: bbox=%dx%d (%.0f%% of frame) -> %dx%d square (subject now fills frame)",
+                    bw, bh, _frac_before * 100, side, side,
+                )
+            else:
+                logger.info("Subject-fill crop skipped: empty mask")
+        except Exception as _crop_e:
+            logger.warning("Subject-fill crop failed (using uncropped): %s", _crop_e)
     else:
         logger.info("No RMBG model — using input image as-is")
 
@@ -2334,12 +2426,23 @@ def _predict_image_to_3d(input_data, model_dict):
     # 8/9 (was 7/8) for noticeably sharper geometry on heads/faces.
     _dense_depth = int(input_data.get("dense_octree_depth", 8))
     _hier_depth = int(input_data.get("hierarchical_octree_depth", _dense_depth + 1))
-    logger.info("Phase 1: octree depth dense=%d hierarchical=%d", _dense_depth, _hier_depth)
+    # Latent token count = TripoSG's shape-capacity ceiling. The VAE is
+    # position-encoding-free, so it can decode at a HIGHER token count than the
+    # 2048 default with NO fine-tuning (per the TripoSG paper's 4096 extrapolation).
+    # 2048->4096 raises the actual detail ceiling the face is hitting — the only
+    # in-model lever that adds capacity (octree depth just samples an
+    # already-smooth field more densely). Cost is in Phase-1 VRAM/compute, which
+    # has headroom (TripoSG is evicted before the texture phases). Override via
+    # ARTSMOKER_TRIPOSG_TOKENS or request 'num_tokens'.
+    _num_tokens = int(input_data.get("num_tokens", _get_env("ARTSMOKER_TRIPOSG_TOKENS", "4096")))
+    logger.info("Phase 1: octree depth dense=%d hierarchical=%d, num_tokens=%d",
+                _dense_depth, _hier_depth, _num_tokens)
 
     t0 = _t.time()
     output = pipe(
         image=img,
         num_inference_steps=steps,
+        num_tokens=_num_tokens,
         guidance_scale=guidance,
         generator=generator,
         # Use hierarchical decoder (not flash) — flash requires diso CUDA package.
@@ -2622,21 +2725,32 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # default. Otherwise Phase 2 (geometry render) and Phase 3 (texture
         # projection) disagree by 90° about which mesh axis is "front", and the
         # face lands on the side of the head (Janus problem).
-        # Render and generate at 1024 (vs 768) for sharper texture detail,
-        # especially on faces. Render and generation resolution MUST match so
-        # the geometry control images align with the diffused views.
-        # MV-Adapter render+generation resolution.
-        # NOTE: 1536 was tried to give the (small, full-body) face more pixels,
-        # but it OOM-KILLED the worker on g6e.xlarge — NOT on VRAM (GPU peaked
-        # ~85%) but on HOST RAM: the fp32 VAE decode of six 1536² views spiked
-        # system RAM to 99.9% of 32 GiB right after the 50 diffusion steps. With
-        # TripoSG already evicted (9.2 GB free), there wasn't enough host
-        # headroom. 1024² is the proven-safe resolution (a full textured GLB
-        # completed there with RAM peaking ~63%). Face detail is pursued via the
-        # Phase-3 RealESRGAN 2x view upscale instead, which is GPU-side and
-        # doesn't touch the host-RAM ceiling. Render and generation res MUST
-        # match so the geometry-control images align with the diffused views.
-        _MV_RES = 1024
+        # MV-Adapter render+generation resolution — chosen ADAPTIVELY per
+        # instance to maximize face/texture detail without OOM. The binding
+        # constraint is HOST RAM (the fp32 6-view VAE decode), not VRAM: 1536²
+        # fp32 spiked a 32 GiB box to 99.9% → OOM. _choose_mv_resolution() reads
+        # total host RAM and returns the highest safe tier (g6e.xlarge 32GiB →
+        # 1280 w/ fp16 decode; 2xlarge 64GiB → 1536 w/ fp16; 4xlarge 128GiB →
+        # 1536 fp32). Render and generation res MUST match so the geometry
+        # control images align with the diffused views.
+        _MV_RES, _MV_FP16_VAE = _choose_mv_resolution()
+        logger.info("MV-Adapter resolution: %d² (fp16_vae_decode=%s, host RAM %.0f GiB)",
+                    _MV_RES, _MV_FP16_VAE, _host_ram_total_gb() or -1)
+        # If a higher tier needs the lighter fp16 VAE decode to fit host RAM,
+        # switch the VAE off the fp32-forced path for this run. fp16 decode has a
+        # small color-drift risk (the reason we default to fp32), but it halves
+        # the host-RAM footprint of the 6-view decode — the trade that lets a
+        # 32 GiB box exceed 1024². Below 1024 stays fp32 (no need).
+        try:
+            if _MV_FP16_VAE and mv_pipe is not None and hasattr(mv_pipe, "vae"):
+                mv_pipe.vae.to(torch.float16)
+                mv_pipe.vae.config.force_upcast = False
+                logger.info("VAE set to fp16 decode for this resolution tier")
+            elif mv_pipe is not None and hasattr(mv_pipe, "vae"):
+                mv_pipe.vae.to(torch.float32)
+                mv_pipe.vae.config.force_upcast = True
+        except Exception as _vae_sw:
+            logger.warning("Could not switch VAE decode dtype: %s", _vae_sw)
         ctx = NVDiffRastContextWrapper(device="cuda", context_type="cuda")
         mesh_obj = load_mesh(mesh_path, rescale=True, front_x_to_y=True, device="cuda")
         render_out = render(
