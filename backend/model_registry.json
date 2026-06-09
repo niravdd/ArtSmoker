@@ -5377,7 +5377,8 @@
           },
           "output_type": "base64_glb",
           "typical_latency_seconds": 900,
-          "max_concurrent_invocations": 1
+          "max_concurrent_invocations": 1,
+          "texture_backend": "hunyuan"
         },
         "pricing": {
           "estimated_cost_per_image": 0.05,

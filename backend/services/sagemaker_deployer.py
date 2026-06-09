@@ -2337,10 +2337,11 @@ def _get_model_environment(model_key: str, model: dict,
         env["ARTSMOKER_TEXTURE_DEBUG"] = "1"
 
     # Texturing backend default baked into the endpoint: "mvadapter" (default)
-    # or "hunyuan" (Hunyuan3D-Paint). This sets which backend's native ops are
-    # built + which pipe is preloaded at model load. Per-request texture_backend
-    # still overrides at inference time. Forwarded from the server env.
-    _tb = os.environ.get("ARTSMOKER_TEXTURE_BACKEND")
+    # or "hunyuan" (Hunyuan3D-Paint). Sets which backend's native ops are built +
+    # which pipe is preloaded at model load. Per-request texture_backend still
+    # overrides at inference. Source order: catalog invoke.texture_backend (so it
+    # survives server restarts), else the server's ARTSMOKER_TEXTURE_BACKEND env.
+    _tb = invoke.get("texture_backend") or os.environ.get("ARTSMOKER_TEXTURE_BACKEND")
     if _tb:
         env["ARTSMOKER_TEXTURE_BACKEND"] = _tb
 
