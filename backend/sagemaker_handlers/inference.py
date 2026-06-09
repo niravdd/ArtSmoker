@@ -2647,17 +2647,32 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                     "from GPU (will reload before next job) to avoid host OOM...",
                     _avail_gb, _PARK_RAM_HEADROOM_GB,
                 )
-                # CRITICAL: do NOT move to CPU first. host RAM is already
-                # critically low (that's WHY we're evicting) — copying the
-                # ~8-10 GB fp32 pipeline into host RAM is exactly what OOM-kills
-                # the worker (observed at 6.9 GB free: the to('cpu') copy during
-                # eviction crashed it). We're deleting the pipeline anyway, so
-                # just drop the GPU references and reclaim VRAM directly — no
-                # host-RAM copy. _reclaim_cuda_memory() below frees the VRAM.
+                # Free TripoSG's VRAM WITHOUT a host-RAM copy. Two wrong ways we
+                # already hit: (1) .to("cpu") copies ~8-10 GB fp32 into the
+                # nearly-full host RAM → host OOM-kill; (2) just dropping the
+                # Python ref does NOT reliably free the GPU storage in time —
+                # TripoSG stayed resident (~16 GB) and MV-Adapter then CUDA-OOM'd
+                # at Phase 2 (37.87 GB). The correct tool is the `meta` device:
+                # moving the modules to meta releases their CUDA storage IMMEDIATELY
+                # with ZERO host allocation (meta tensors have no backing storage).
+                # We reload TripoSG fresh from the local snapshot next job anyway,
+                # so discarding these weights is fine.
+                try:
+                    triposg_pipe.to("meta")
+                except Exception:
+                    # Fallback: move known sub-modules to meta individually.
+                    for _attr in ("vae", "transformer", "scheduler", "image_encoder", "feature_extractor"):
+                        _m = getattr(triposg_pipe, _attr, None)
+                        if _m is not None and hasattr(_m, "to"):
+                            try: _m.to("meta")
+                            except Exception: pass
                 model_dict["pipe"] = None
                 model_dict["_triposg_evicted"] = True
                 triposg_pipe = None
                 del triposg_pipe
+                # Force the VRAM release NOW, before MV-Adapter allocates, so
+                # Phase 2 sees the freed headroom (not a deferred reclaim).
+                _reclaim_cuda_memory("after evicting TripoSG (meta) — before texture parking")
             else:
                 logger.info(
                     "Parking TripoSG on CPU for texture phases (%.1f GB host RAM free)...",
