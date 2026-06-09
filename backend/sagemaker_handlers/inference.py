@@ -2326,8 +2326,14 @@ def _predict_image_to_3d(input_data, model_dict):
 
     # 1. Decode input image
     img = _decode_image(input_data["image"]).convert("RGB")
-    source_image = img.copy()  # Keep original for MV-Adapter reference
     logger.info("Input image: %dx%d", img.width, img.height)
+    # NOTE: source_image (the MV-Adapter reference) is captured LATER, AFTER the
+    # subject-fill crop, so the reference framing matches the geometry that
+    # TripoSG builds from the SAME cropped image. Capturing it here (pre-crop)
+    # fed MV-Adapter an uncropped reference while the geometry control images
+    # were full-frame (cropped) → conflicting scale → the projected texture
+    # smeared and the face drifted. See the crop block below.
+    source_image = None
 
     # 2. Remove background if RMBG is available
     if rmbg_model is not None:
@@ -2409,6 +2415,13 @@ def _predict_image_to_3d(input_data, model_dict):
             logger.warning("Subject-fill crop failed (using uncropped): %s", _crop_e)
     else:
         logger.info("No RMBG model — using input image as-is")
+
+    # Capture the MV-Adapter reference from the FINAL framed image (post-crop),
+    # so the reference and the TripoSG geometry share the same framing/scale.
+    # _preprocess_mv_reference re-runs RMBG + gray-composite on this; using the
+    # cropped img here keeps the reference's subject scale aligned with the
+    # geometry control images → clean projection (no smear/drift).
+    source_image = img.copy()
 
     # ═══════════════════════════════════════════════════════════════════════
     # Phase 1: TripoSG geometry generation
