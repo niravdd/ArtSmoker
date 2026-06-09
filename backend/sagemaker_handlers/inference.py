@@ -2194,15 +2194,22 @@ def _host_ram_total_gb():
 
 
 def _choose_mv_resolution():
-    """Pick the highest MV-Adapter render+generation resolution that fits the
-    instance, maximizing face/texture detail without OOM.
+    """Pick the MV-Adapter render+generation resolution.
 
-    The binding constraint is HOST RAM (the fp32 6-view VAE decode), not VRAM.
-    Measured on g6e.xlarge (32 GiB): 1024² peaked ~63% RAM (safe); 1536² hit
-    99.9% → OOM. fp16 VAE decode roughly halves that decode's host footprint,
-    which is what lets the 32 GiB box reach a higher tier safely. Bigger
-    instances (64/128 GiB) step up further. An env override
-    (ARTSMOKER_MV_RES) wins for manual experiments.
+    Subject-agnostic tradeoff (humans, animals, vehicles, props alike):
+    MV-Adapter is SDXL-based and SDXL is trained at 1024². Generating ABOVE
+    1024² can trigger SDXL's high-resolution failure mode — feature DUPLICATION
+    / "melting". We DO render at 1280² for the extra texture/face detail, but we
+    counter the duplication with GEOMETRY-DOMINANT conditioning
+    (control_conditioning_scale raised to 1.6 in Phase 2): a tightly-enforced
+    geometry control leaves SDXL little freedom to hallucinate duplicates, so
+    1280² + strong control is far cleaner than 1280² was with weak control.
+    1024² remains the guaranteed-clean fallback via ARTSMOKER_MV_RES=1024 if any
+    duplication shows in the 03_raw_views debug artifact — no redeploy needed.
+
+    1280² uses fp16 VAE decode to stay under the host-RAM ceiling (the fp32
+    6-view decode at 1280² risks the 32 GiB OOM; fp16 halves that footprint and
+    was proven RAM-safe at 1280² previously).
 
     Returns (resolution:int, use_fp16_vae:bool).
     """
@@ -2215,16 +2222,8 @@ def _choose_mv_resolution():
             return r, fp16
         except ValueError:
             pass
-    total = _host_ram_total_gb() or 32.0
-    # Tiers chosen with margin below the OOM ceiling. fp16 VAE decode is enabled
-    # for the higher tiers to keep the host-RAM decode within budget.
-    if total >= 120:        # g6e.4xlarge (128 GiB) and up
-        return 1536, False
-    if total >= 60:         # g6e.2xlarge (64 GiB)
-        return 1536, True
-    # g6e.xlarge (32 GiB): push past the proven-safe 1024 to 1280 using a
-    # fp16 VAE decode to stay under the host-RAM ceiling. 1280² is ~1.56x the
-    # 1024² pixels (~78% projected RAM with fp16 decode) — the middle ground.
+    # 1280² for higher detail; fp16 VAE decode for host-RAM safety. SDXL
+    # duplication is held in check by the strong geometry control in Phase 2.
     return 1280, True
 
 
@@ -2797,17 +2796,25 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         _save_debug_artifact(ref_image, "02_reference")
 
         # Generate multi-view images conditioned on geometry + reference image.
-        # CROSS-VIEW CONSISTENCY TUNING: the previous reference_conditioning_scale
-        # =1.5 over-weighted the 2D reference vs the 3D geometry control, so each
-        # view independently "imagined" facial detail → the 6 views disagreed on
-        # the face → projection smeared it (eyes/features misplaced). Rebalance
-        # toward geometry-driven coherence:
-        #   - reference_conditioning_scale 1.5 -> 1.0 (official default): let the
-        #     consistent geometry, not the reference, drive cross-view agreement.
-        #   - control_conditioning_scale 1.0 -> 1.2: tighten the geometry control's
-        #     grip so all views register to the same structure.
-        #   - prompt: drop the heavy "sharp facial features / detailed face" push
-        #     that encouraged per-view face invention; keep quality/material cues.
+        # GEOMETRY-DOMINANT CONDITIONING (subject-agnostic — applies to humans,
+        # animals, vehicles, props alike). The control_image is the 3D geometry
+        # render per view: it is the ONLY signal that knows which way each view
+        # actually faces. The reference_image is a single 2D picture in ONE pose.
+        # When reference is weighted too high, MV-Adapter follows the 2D
+        # reference's orientation instead of the per-view geometry — e.g. it drew
+        # the head TURNED to match the reference's slightly-turned face even on
+        # the straight-on front camera, so the face projected onto the wrong side
+        # of the head. The fix is to let the geometry control dominate placement
+        # and use the reference only for appearance/colour:
+        #   - control_conditioning_scale 1.2 -> 1.6: geometry firmly dictates
+        #     WHERE features sit and which way each view faces.
+        #   - reference_conditioning_scale 1.0 -> 0.7: reference informs look, not
+        #     orientation — stops it overriding the geometry's facing.
+        # This is generic: stronger geometry adherence keeps ANY object's 6 views
+        # mutually consistent and correctly oriented, which is the precondition
+        # for clean projection regardless of subject type. The strong control
+        # also suppresses SDXL's 1280² duplication tendency (see
+        # _choose_mv_resolution), letting us keep 1280² for detail.
         mv_result = mv_pipe(
             "best quality, crisp textures, vivid colors, detailed surface materials, game asset",
             height=_MV_RES, width=_MV_RES,
@@ -2815,10 +2822,10 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             guidance_scale=3.0,
             num_images_per_prompt=6,
             control_image=control_images,
-            control_conditioning_scale=1.2,
+            control_conditioning_scale=1.6,
             reference_image=ref_image,
-            reference_conditioning_scale=1.0,
-            negative_prompt="watermark, ugly, deformed, noisy, blurry, low quality, inconsistent, distorted face",
+            reference_conditioning_scale=0.7,
+            negative_prompt="watermark, ugly, deformed, noisy, blurry, low quality, inconsistent, duplicated, extra limbs, distorted",
         )
         mv_images = mv_result.images
         elapsed_p2 = _t.time() - t0
