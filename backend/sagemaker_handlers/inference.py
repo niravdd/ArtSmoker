@@ -3275,10 +3275,17 @@ def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, t
     render_cfg = os.path.join(vend, "paint3d", "config", "train_config_paint3d.py")
 
     # Common env: vendored package on PYTHONPATH so `from paint3d ...`,
-    # `from controlnet ...` resolve; HF token for any gated weights.
+    # `from controlnet ...` resolve regardless of cwd; HF token for gated weights.
     env = {**os.environ, "PYTHONPATH": vend + os.pathsep + os.environ.get("PYTHONPATH", "")}
     if model_dict.get("hf_token"):
         env.setdefault("HUGGING_FACE_HUB_TOKEN", model_dict["hf_token"])
+    # CRITICAL: run the subprocess with cwd in a WRITABLE dir. Paint3D writes
+    # RELATIVE paths (e.g. os.makedirs('paint3d_cache') in textured_mesh.py) that
+    # land under cwd — if cwd is the read-only vendored package dir, it dies with
+    # "Read-only file system: 'paint3d_cache'". A /tmp workdir fixes it; imports
+    # still resolve via PYTHONPATH=vend above.
+    workdir = os.path.join(temp_dir, "p3d_cwd")
+    os.makedirs(workdir, exist_ok=True)
 
     _log_gpu_mem("before Paint3D stage1")
     # Stage 1: image-conditioned coarse texture (depth-ControlNet + IP-Adapter).
@@ -3287,7 +3294,7 @@ def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, t
          "--sd_config", sd_cfg, "--render_config", render_cfg,
          "--mesh_path", paint_mesh_path, "--prompt", " ",
          "--ip_adapter_image_path", ref_path, "--outdir", out1],
-        timeout=1800, env=env, cwd=vend,
+        timeout=1800, env=env, cwd=workdir,
     )
     # Stage 1 writes the coarse albedo to out1/res-0/albedo.png.
     stage1_albedo = os.path.join(out1, "res-0", "albedo.png")
@@ -3302,7 +3309,7 @@ def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, t
          "--sd_config", sd_cfg2, "--render_config", render_cfg,
          "--mesh_path", paint_mesh_path, "--texture_path", stage1_albedo,
          "--outdir", out2],
-        timeout=1800, env=env, cwd=vend,
+        timeout=1800, env=env, cwd=workdir,
     )
     logger.info("Paint3D stages complete in %.1fs", _t.time() - t0)
     _log_gpu_mem("after Paint3D stage2")
