@@ -3100,10 +3100,11 @@ def _ensure_paint3d_ops(blocking: bool = True) -> bool:
     """Make kaolin importable for the Paint3D backend. Returns True if ready.
 
     kaolin (NVIDIA's 3D DL lib) is Paint3D's differentiable renderer. A PREBUILT
-    wheel exists for the container's exact torch 2.6 / cu124 / cp312 combo, so
-    this is a fast pip install (NO source compile — unlike Hunyuan's
-    custom_rasterizer). Still install at LOAD time (not predict) to be safe with
-    the 120s watchdog. blocking=False returns immediately if not yet present.
+    wheel exists for the container's exact torch/CUDA/py combo (runtime-derived
+    index), so no source compile — but it DOES need its runtime deps (pyglet,
+    usd-core, warp-lang) installed, or the import fails. Install at LOAD time
+    (not predict) for the 120s watchdog. blocking=False returns immediately if
+    not yet present.
     """
     try:
         import kaolin  # noqa: F401
@@ -3115,24 +3116,46 @@ def _ensure_paint3d_ops(blocking: bool = True) -> bool:
     import subprocess
     pkg = f"kaolin=={_KAOLIN_VERSION}" if _KAOLIN_VERSION else "kaolin"
     index = _kaolin_wheel_index()
-    # Try the runtime-derived index first (exact torch/CUDA match); if that
-    # install fails (no index for this combo), retry letting pip resolve from
-    # its default index. Never hard-code a torch version.
+    # IMPORTANT: kaolin needs its runtime deps (pyglet, usd-core, warp-lang,
+    # etc.) — a --no-deps install resolves the wheel but then fails to IMPORT
+    # ("No module named 'pyglet'"). So we install WITH deps. To stop pip from
+    # pulling a conflicting torch (kaolin pins a torch range), constrain torch to
+    # the one already installed. The -f index supplies the kaolin wheel matching
+    # the container's exact torch/CUDA; deps come from PyPI.
+    try:
+        import torch as _t
+        torch_pin = f"torch=={_t.__version__.split('+')[0]}"
+    except Exception:
+        torch_pin = None
+    base = ["pip", "install", "--quiet"]
+    constraint = ["-c", "/tmp/kaolin_torch_constraint.txt"] if torch_pin else []
+    if torch_pin:
+        try:
+            with open("/tmp/kaolin_torch_constraint.txt", "w") as _cf:
+                _cf.write(torch_pin + "\n")
+        except Exception:
+            constraint = []
     attempts = []
     if index:
-        attempts.append(["pip", "install", "--quiet", "--no-deps", pkg, "-f", index])
-    attempts.append(["pip", "install", "--quiet", "--no-deps", pkg])
+        attempts.append(base + [pkg, "-f", index] + constraint)
+    attempts.append(base + [pkg] + constraint)
+    # Last resort: wheel only (no deps) — at least surfaces a clearer import error.
+    if index:
+        attempts.append(base + ["--no-deps", pkg, "-f", index])
     last_err = None
     for cmd in attempts:
         try:
-            logger.info("Installing kaolin: %s", " ".join(cmd[3:]))
+            logger.info("Installing kaolin: %s", " ".join(cmd[2:]))
             subprocess.check_call(cmd, timeout=900)
             import kaolin  # noqa: F401
             logger.info("kaolin installed for Paint3D (index=%s)", index or "pip-default")
             return True
         except Exception as e:
             last_err = e
-            logger.warning("kaolin install attempt failed (%s) — trying next", str(e)[:120])
+            logger.warning("kaolin install attempt failed (%s) — trying next", str(e)[:140])
+            # Drop cached failed import so the next attempt's import re-evaluates.
+            import sys as _sys
+            _sys.modules.pop("kaolin", None)
     logger.error("kaolin install failed: %s", last_err)
     raise ImportError(f"kaolin unavailable — Paint3D needs it: {last_err}")
 
