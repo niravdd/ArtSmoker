@@ -2883,8 +2883,17 @@ def _predict_image_to_3d(input_data, model_dict):
     # Phase 2 + 3: Texture generation (MV-Adapter + TexturePipeline)
     # Falls back to untextured GLB if anything fails.
     # ═══════════════════════════════════════════════════════════════════════
+    # For the hunyuan backend, attempt texturing even if texture_available was
+    # set False at LOAD time (e.g. the native-op build failed at load, or a
+    # hot-reload overlay reused a stale model_dict). _generate_texture_hunyuan
+    # loads the pipe + builds the ops on-demand with its own watchdog guards, so
+    # a stale load-time flag must not permanently block the texture path.
+    _backend_now = model_dict.get("texture_backend") or _texture_backend(input_data)
+    if input_data.get("texture_backend"):
+        _backend_now = str(input_data["texture_backend"]).lower().strip()
+    _attempt_texture = texture_available or (_backend_now == "hunyuan")
     textured_glb_data = None
-    if texture_available:
+    if _attempt_texture:
         try:
             textured_glb_data = _generate_texture(
                 mesh, source_image, model_dict, input_data
