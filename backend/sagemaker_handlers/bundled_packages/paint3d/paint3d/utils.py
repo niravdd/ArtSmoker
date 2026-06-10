@@ -71,7 +71,19 @@ def seed_everything(seed):
 
 
 def save_video(video_frames, save_path):
-    imageio.mimsave(save_path, video_frames, fps=25, quality=8, macro_block_size=1)
+    # ARTSMOKER PATCH: this is a non-essential debug turntable video written at
+    # the END of dr_eval, AFTER the albedo texture is already on disk. On the
+    # container, imageio has no ffmpeg backend, so .mp4 routes to the tifffile
+    # plugin which rejects the 'fps'/'quality' kwargs → TypeError that crashed
+    # the whole stage. Make it best-effort: try the mp4, then a gif fallback,
+    # else skip — never let the debug video fail the texture pipeline.
+    try:
+        imageio.mimsave(save_path, video_frames, fps=25, quality=8, macro_block_size=1)
+    except Exception:
+        try:
+            imageio.mimsave(save_path.rsplit(".", 1)[0] + ".gif", video_frames, fps=25)
+        except Exception:
+            pass  # debug video is optional; the texture output is unaffected
 
 
 def split_grid_image(
