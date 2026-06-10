@@ -59,9 +59,11 @@ def _instance_has_local_nvme(instance: str) -> bool:
 # Shared by the deploy packager and the dev hot-reload overlay so both agree
 # on which packages a given model carries. Model-agnostic: keyed by library.
 _LIBRARY_BUNDLED_PACKAGES = {
-    # Both texturing backends are bundled: mvadapter (default) + hy3dpaint
-    # (Hunyuan3D-Paint, selected via ARTSMOKER_TEXTURE_BACKEND / request flag).
-    "image_to_3d": ["triposg", "mvadapter", "hy3dpaint"],
+    # Three texturing backends bundled, selected via ARTSMOKER_TEXTURE_BACKEND /
+    # per-request texture_backend: mvadapter (Apache-2.0, default), hy3dpaint
+    # (Hunyuan3D-Paint, best quality, Tencent community license), paint3d
+    # (Paint3D, Apache-2.0 — commercial-safe, image-conditioned UV texturing).
+    "image_to_3d": ["triposg", "mvadapter", "hy3dpaint", "paint3d"],
 }
 
 

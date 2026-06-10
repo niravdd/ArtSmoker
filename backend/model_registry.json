@@ -5422,7 +5422,9 @@
             "pybind11",
             "pytorch-lightning",
             "realesrgan",
-            "basicsr"
+            "basicsr",
+            "imageio",
+            "loguru"
           ]
         }
       }
