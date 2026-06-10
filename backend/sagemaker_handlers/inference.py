@@ -3241,6 +3241,34 @@ def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, t
     ref_image.save(ref_path)
     _save_debug_artifact(ref_image, "01_reference")
 
+    # DECIMATE for Paint3D: it runs xatlas UV-unwrap + a kaolin differentiable
+    # renderer that are designed for ~40K-face game meshes. On our 1M-face
+    # TripoSG mesh, xatlas effectively hangs (single-threaded; observed stalling
+    # 20+ min with no progress). Decimate to a Paint3D-friendly size first. This
+    # is texture-only — the heavy geometry isn't needed to bake a UV atlas (the
+    # texture detail lives in the 2K UV map, like MV-Adapter's 50K path).
+    _P3D_MAX_FACES = int(input_data.get("paint3d_max_faces",
+                                       _get_env("ARTSMOKER_PAINT3D_MAX_FACES", "40000")))
+    paint_mesh_path = mesh_path
+    try:
+        import trimesh as _tm
+        _m = _tm.load(mesh_path, force="mesh", process=False)
+        if hasattr(_m, "faces") and len(_m.faces) > _P3D_MAX_FACES:
+            logger.info("Paint3D: decimating mesh %d -> %d faces (xatlas/kaolin-friendly)",
+                        len(_m.faces), _P3D_MAX_FACES)
+            try:
+                _md = _m.simplify_quadric_decimation(face_count=_P3D_MAX_FACES)
+            except TypeError:
+                _md = _m.simplify_quadric_decimation(_P3D_MAX_FACES / len(_m.faces))
+            try: _md.fix_normals()
+            except Exception: pass
+            paint_mesh_path = os.path.join(temp_dir, "paint3d_mesh.glb")
+            _md.export(paint_mesh_path, file_type="glb")
+            logger.info("Paint3D: decimated to %d faces", len(_md.faces))
+    except Exception as _de:
+        logger.warning("Paint3D mesh decimation failed (using full mesh — may be slow): %s", _de)
+        paint_mesh_path = mesh_path
+
     out1 = os.path.join(temp_dir, "p3d_stage1")
     out2 = os.path.join(temp_dir, "p3d_stage2")
     sd_cfg = os.path.join(vend, "controlnet", "config", "depth_based_inpaint_template.yaml")
@@ -3257,7 +3285,7 @@ def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, t
     subprocess.check_call(
         ["python", os.path.join(vend, "pipeline_paint3d_stage1.py"),
          "--sd_config", sd_cfg, "--render_config", render_cfg,
-         "--mesh_path", mesh_path, "--prompt", " ",
+         "--mesh_path", paint_mesh_path, "--prompt", " ",
          "--ip_adapter_image_path", ref_path, "--outdir", out1],
         timeout=1800, env=env, cwd=vend,
     )
@@ -3272,7 +3300,7 @@ def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, t
     subprocess.check_call(
         ["python", os.path.join(vend, "pipeline_paint3d_stage2.py"),
          "--sd_config", sd_cfg2, "--render_config", render_cfg,
-         "--mesh_path", mesh_path, "--texture_path", stage1_albedo,
+         "--mesh_path", paint_mesh_path, "--texture_path", stage1_albedo,
          "--outdir", out2],
         timeout=1800, env=env, cwd=vend,
     )
