@@ -3347,27 +3347,42 @@ def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, t
     logger.info("Paint3D stages complete in %.1fs", _t.time() - t0)
     _log_gpu_mem("after Paint3D stage2")
 
-    # Locate the textured mesh Paint3D exported (it writes mesh.obj + albedo.png
-    # via export_mesh). Search stage2 output for the final OBJ.
+    # Locate Paint3D's FINAL textured mesh.obj. stage2's last dr_eval runs with
+    # save_result_dir=out2/tile_res_0 and calls export_mesh there → mesh.obj +
+    # albedo.png in tile_res_0/. The recursive glob also catches intermediate
+    # 'paint3d_mesh_cvt.obj' in convert_results/ (the mesh-loader's OBJ copy,
+    # which has NO sibling albedo) — selecting that gave albedo=None and an
+    # untextured GLB. So PREFER a mesh.obj under a tile_res_*/ dir, then any
+    # mesh.obj NOT under convert_results, then fall back.
     import glob as _glob
-    objs = _glob.glob(os.path.join(out2, "**", "mesh.obj"), recursive=True)
-    if not objs:
-        objs = _glob.glob(os.path.join(out2, "**", "*.obj"), recursive=True)
-    if not objs:
-        raise RuntimeError(f"Paint3D stage2 produced no OBJ (searched {out2})")
-    # Pick the most recently written OBJ.
-    out_obj = max(objs, key=os.path.getmtime)
-    # Find the albedo Paint3D wrote (export_mesh writes albedo.png next to the
-    # OBJ). Pass it explicitly so the GLB gets a baseColor texture even when
-    # trimesh's OBJ+MTL loader drops map_Kd.
+    all_meshobj = _glob.glob(os.path.join(out2, "**", "mesh.obj"), recursive=True)
+    tile_objs = [o for o in all_meshobj if "tile_res" in o]
+    noconv_objs = [o for o in all_meshobj if "convert_results" not in o]
+    if tile_objs:
+        out_obj = max(tile_objs, key=os.path.getmtime)
+    elif noconv_objs:
+        out_obj = max(noconv_objs, key=os.path.getmtime)
+    elif all_meshobj:
+        out_obj = max(all_meshobj, key=os.path.getmtime)
+    else:
+        raise RuntimeError(f"Paint3D stage2 produced no mesh.obj (searched {out2})")
     _obj_dir = os.path.dirname(out_obj)
+    # Best refined albedo: UV_tile (most refined) > UV_inpaint > albedo. Look in
+    # the obj's dir first, then anywhere under out2.
     _albedo = None
-    for _name in ("albedo.png", "UV_tile_res_0.png", "UV_inpaint_res_0.png"):
+    for _name in ("UV_tile_res_0.png", "UV_inpaint_res_0.png", "albedo.png"):
         _p = os.path.join(_obj_dir, _name)
         if os.path.exists(_p):
             _albedo = _p
             break
-    logger.info("Paint3D: assembling GLB from %s + albedo=%s", os.path.basename(out_obj), _albedo)
+    if _albedo is None:
+        for _name in ("UV_tile_res_0.png", "UV_inpaint_res_0.png", "albedo.png"):
+            hits = _glob.glob(os.path.join(out2, "**", _name), recursive=True)
+            if hits:
+                _albedo = max(hits, key=os.path.getmtime)
+                break
+    logger.info("Paint3D: assembling GLB from %s + albedo=%s",
+                out_obj.replace(out2, "…"), os.path.basename(_albedo) if _albedo else None)
     glb_path = _assemble_pbr_glb(out_obj, _obj_dir, albedo_path=_albedo)
     if not glb_path or not os.path.exists(glb_path):
         raise RuntimeError(f"Paint3D GLB assembly failed (obj={out_obj})")
