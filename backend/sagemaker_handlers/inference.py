@@ -1771,11 +1771,38 @@ def _ensure_nvdiffrast_background():
     t.start()
 
 
+_HUNYUAN_RUN_DIR = "/tmp/hy3dpaint_run"  # writable copy of the vendored package
+
+
+def _hunyuan_writable_dir(code_dir):
+    """Return a WRITABLE copy of the vendored hy3dpaint package.
+
+    The bundled source lives under /opt/ml/model/code/ which SageMaker mounts
+    READ-ONLY. We need to write into the tree (the custom_rasterizer build dir,
+    and the compiled mesh_inpaint_processor .so which must sit next to
+    MeshRender.py for its relative import). So copy hy3dpaint to /tmp once and
+    use that everywhere (build + import). Idempotent: copies only if absent.
+    """
+    import shutil as _sh
+    dst = os.path.join(_HUNYUAN_RUN_DIR, "hy3dpaint")
+    src = os.path.join(code_dir, "hy3dpaint")
+    if not os.path.isdir(dst):
+        try:
+            os.makedirs(_HUNYUAN_RUN_DIR, exist_ok=True)
+            _sh.copytree(src, dst)
+            logger.info("Copied hy3dpaint to writable %s", dst)
+        except Exception as e:
+            logger.warning("Could not copy hy3dpaint to /tmp (%s) — using read-only src", e)
+            return src
+    return dst
+
+
 def _hunyuan_inpaint_so_dir(code_dir):
     """Directory where mesh_inpaint_processor.*.so must live for the relative
     import `from .mesh_inpaint_processor import meshVerticeInpaint` in
-    hy3dpaint/DifferentiableRenderer/MeshRender.py to resolve."""
-    return os.path.join(code_dir, "hy3dpaint", "DifferentiableRenderer")
+    hy3dpaint/DifferentiableRenderer/MeshRender.py to resolve. Uses the WRITABLE
+    /tmp copy (the read-only model dir can't be written to)."""
+    return os.path.join(_hunyuan_writable_dir(code_dir), "DifferentiableRenderer")
 
 
 def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
@@ -1829,7 +1856,10 @@ def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
     # L40S is SM 8.9 — pin arch so the build doesn't probe/guess.
     os.environ.setdefault("TORCH_CUDA_ARCH_LIST", "8.9")
 
-    rasterizer_src = os.path.join(code_dir, "hy3dpaint", "custom_rasterizer")
+    # Build from the WRITABLE /tmp copy of hy3dpaint (the read-only model dir
+    # can't host setup.py's build/ dir → "Read-only file system" error).
+    _writable = _hunyuan_writable_dir(code_dir)
+    rasterizer_src = os.path.join(_writable, "custom_rasterizer")
 
     # ---- 1. custom_rasterizer ----
     if not rasterizer_ok:
@@ -1972,8 +2002,10 @@ def _load_hunyuan_paint(code_dir, hf_token):
     # The vendored package's internal imports are top-level (e.g.
     # `from DifferentiableRenderer.MeshRender import MeshRender`,
     # `from utils...`, `from textureGenPipeline import ...`), so hy3dpaint/
-    # ITSELF must be on sys.path (not just code/).
-    hy_dir = os.path.join(code_dir, "hy3dpaint")
+    # ITSELF must be on sys.path (not just code/). Use the WRITABLE /tmp copy so
+    # the compiled mesh_inpaint_processor .so (written next to MeshRender.py) is
+    # importable via its relative import, and the cfg/ paths resolve there too.
+    hy_dir = _hunyuan_writable_dir(code_dir)
     if hy_dir not in _sys.path:
         _sys.path.insert(0, hy_dir)
     # Ensure HF auth for the gated Tencent repo.
