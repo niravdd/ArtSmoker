@@ -2987,16 +2987,20 @@ def _generate_texture_hunyuan(mesh_path, source_image, model_dict, input_data, t
     out_obj = os.path.join(out_dir, "textured_mesh.obj")
 
     _log_gpu_mem("before Hunyuan paint call")
-    # use_remesh=True: the pipeline remeshes for clean UVs (handles our 1M-face
-    # TripoSG mesh). save_glb=False: the pipeline's own OBJ→GLB step uses Blender
-    # (bpy), which we don't install — it writes the OBJ + MTL + albedo/metallic/
-    # roughness maps via save_obj_mesh (no bpy), and we assemble the PBR GLB from
-    # those with trimesh (embeds textures into the GLB binary buffer).
+    # use_remesh=FALSE: the pipeline's remesh step (utils/simplify_mesh_utils.py)
+    # uses pymeshlab's save_current_mesh, whose save plugins fail on this headless
+    # container (missing libOpenGL — same issue that broke pymeshlab in the
+    # MV-Adapter path) → "Unknown format for save: obj". Skip it: our Phase-1 mesh
+    # is already clean (decimated to 1M faces, fixed normals), and Hunyuan's
+    # mesh_uv_wrap does the UV unwrap regardless. save_glb=False: the pipeline's
+    # own OBJ→GLB step uses Blender (bpy, not installed); it writes OBJ+MTL+PBR
+    # maps via save_obj_mesh (manual file I/O, no pymeshlab/bpy), and we assemble
+    # the PBR GLB from those with trimesh.
     returned = paint_pipe(
         mesh_path=mesh_path,
         image_path=ref_image,
         output_mesh_path=out_obj,
-        use_remesh=True,
+        use_remesh=False,
         save_glb=False,
     )
     logger.info("Hunyuan paint call complete in %.1fs (returned %s)", _t.time() - t0, returned)
