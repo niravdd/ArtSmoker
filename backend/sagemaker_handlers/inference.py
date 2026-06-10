@@ -3080,19 +3080,52 @@ def _generate_texture_hunyuan(mesh_path, source_image, model_dict, input_data, t
     return glb_data
 
 
-def _assemble_pbr_glb(obj_path, out_dir):
-    """Fallback: build a self-contained PBR GLB from an OBJ+MTL+texture maps when
-    the pipeline's own convert_obj_to_glb didn't produce one. Uses trimesh's
-    glTF exporter, which embeds textures into the GLB binary buffer."""
+def _assemble_pbr_glb(obj_path, out_dir, albedo_path=None):
+    """Build a self-contained textured GLB from an OBJ (+ UVs) + an albedo PNG.
+
+    trimesh's native OBJ+MTL load is unreliable at picking up map_Kd (observed:
+    it produced a 703 KB GLB with NO texture/UV from Paint3D's mesh.obj/.mtl/
+    albedo.png). So we load geometry+UVs, then EXPLICITLY attach the albedo as a
+    PBR baseColorTexture via TextureVisuals — guaranteeing the texture embeds in
+    the GLB binary buffer. Falls back to a plain load if anything is missing.
+    """
+    import trimesh as _tm
+    from PIL import Image as _PImg
+    glb_path = os.path.join(out_dir, "textured_mesh_assembled.glb")
+    # Locate the albedo if not given (Paint3D writes albedo.png next to mesh.obj).
+    if albedo_path is None:
+        cand = os.path.join(os.path.dirname(obj_path), "albedo.png")
+        albedo_path = cand if os.path.exists(cand) else None
     try:
-        import trimesh as _tm
         loaded = _tm.load(obj_path, process=False)
-        glb_path = os.path.join(out_dir, "textured_mesh_assembled.glb")
-        loaded.export(glb_path, file_type="glb")
+        # If it's a Scene, concat to a single mesh.
+        if isinstance(loaded, _tm.Scene):
+            geoms = list(loaded.geometry.values())
+            mesh = geoms[0] if len(geoms) == 1 else _tm.util.concatenate(geoms)
+        else:
+            mesh = loaded
+        uv = getattr(getattr(mesh, "visual", None), "uv", None)
+        has_tex = getattr(getattr(getattr(mesh, "visual", None), "material", None),
+                          "baseColorTexture", None) is not None
+        # Explicitly attach the albedo if trimesh didn't, and we have UVs + PNG.
+        if albedo_path and (not has_tex) and uv is not None and len(uv) > 0:
+            img = _PImg.open(albedo_path).convert("RGB")
+            mat = _tm.visual.material.PBRMaterial(baseColorTexture=img,
+                                                  metallicFactor=0.0, roughnessFactor=0.9)
+            mesh.visual = _tm.visual.TextureVisuals(uv=uv, material=mat)
+            logger.info("Paint3D GLB: attached albedo.png as baseColorTexture (%s)", img.size)
+        elif not albedo_path:
+            logger.warning("Paint3D GLB: no albedo.png found near %s — GLB will be untextured", obj_path)
+        mesh.export(glb_path, file_type="glb")
         return glb_path
     except Exception as e:
-        logger.warning("PBR GLB assembly failed: %s", e)
-        return None
+        logger.warning("PBR GLB assembly failed (%s) — trying plain export", e)
+        try:
+            _tm.load(obj_path, process=False).export(glb_path, file_type="glb")
+            return glb_path
+        except Exception as e2:
+            logger.warning("Plain GLB export also failed: %s", e2)
+            return None
 
 
 # ── Paint3D backend (Apache-2.0, commercial-safe) ────────────────────────────
@@ -3324,7 +3357,18 @@ def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, t
         raise RuntimeError(f"Paint3D stage2 produced no OBJ (searched {out2})")
     # Pick the most recently written OBJ.
     out_obj = max(objs, key=os.path.getmtime)
-    glb_path = _assemble_pbr_glb(out_obj, os.path.dirname(out_obj))
+    # Find the albedo Paint3D wrote (export_mesh writes albedo.png next to the
+    # OBJ). Pass it explicitly so the GLB gets a baseColor texture even when
+    # trimesh's OBJ+MTL loader drops map_Kd.
+    _obj_dir = os.path.dirname(out_obj)
+    _albedo = None
+    for _name in ("albedo.png", "UV_tile_res_0.png", "UV_inpaint_res_0.png"):
+        _p = os.path.join(_obj_dir, _name)
+        if os.path.exists(_p):
+            _albedo = _p
+            break
+    logger.info("Paint3D: assembling GLB from %s + albedo=%s", os.path.basename(out_obj), _albedo)
+    glb_path = _assemble_pbr_glb(out_obj, _obj_dir, albedo_path=_albedo)
     if not glb_path or not os.path.exists(glb_path):
         raise RuntimeError(f"Paint3D GLB assembly failed (obj={out_obj})")
 
