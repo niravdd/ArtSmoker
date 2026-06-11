@@ -1572,6 +1572,19 @@ def _load_image_to_3d(model_dir):
                 logger.info("Hunyuan3D-Paint preloaded (high VRAM mode)")
             except Exception as e:
                 logger.warning("Hunyuan paint preload failed (will load on-demand): %s", e)
+    elif backend == "mvpainter":
+        # ── MVPainter backend (Apache-2.0, commercial-safe, multi-view bake) ──
+        # MVPainter's diffusion (~54 GB weights) loads on-demand in
+        # _load_mvpainter; the bake reuses our nvdiffrast TexturePipeline, so the
+        # only thing that MUST be ready at load is nvdiffrast (its CUDA compile
+        # would otherwise trip MMS's 120s watchdog on the first job).
+        try:
+            _ensure_nvdiffrast()  # compile+cache at LOAD time (not inference)
+            _nvdiffrast_bg["state"] = 1
+            texture_available = True
+            logger.info("nvdiffrast ready (compiled/cached at load) — MVPainter texture enabled")
+        except Exception as e:
+            logger.warning("nvdiffrast not ready at load (%s) — will retry in background on first job", e)
     else:
         # ── MV-Adapter backend (default, UNCHANGED behavior) ──
         if high_vram:
@@ -2883,15 +2896,15 @@ def _predict_image_to_3d(input_data, model_dict):
     # Phase 2 + 3: Texture generation (MV-Adapter + TexturePipeline)
     # Falls back to untextured GLB if anything fails.
     # ═══════════════════════════════════════════════════════════════════════
-    # For the hunyuan backend, attempt texturing even if texture_available was
-    # set False at LOAD time (e.g. a native-dep install failed at load, or a
-    # hot-reload overlay reused a stale model_dict). That generator loads its
-    # pipe + deps on-demand with its own watchdog guards, so a stale load-time
+    # For the hunyuan/mvpainter backends, attempt texturing even if
+    # texture_available was set False at LOAD time (e.g. a dep install failed at
+    # load, or a hot-reload overlay reused a stale model_dict). They load their
+    # pipe + deps on-demand with their own watchdog guards, so a stale load-time
     # flag must not permanently block the texture path.
     _backend_now = model_dict.get("texture_backend") or _texture_backend(input_data)
     if input_data.get("texture_backend"):
         _backend_now = str(input_data["texture_backend"]).lower().strip()
-    _attempt_texture = texture_available or (_backend_now == "hunyuan")
+    _attempt_texture = texture_available or (_backend_now in ("hunyuan", "mvpainter"))
     textured_glb_data = None
     if _attempt_texture:
         try:
@@ -3040,6 +3053,283 @@ def _generate_texture_hunyuan(mesh_path, source_image, model_dict, input_data, t
         except Exception as _de:
             logger.warning("Hunyuan debug atlas extract failed: %s", _de)
 
+    return glb_data
+
+
+# ── MVPainter backend (Apache-2.0, commercial-safe, multi-view bake) ──────────
+# Cached MVPainter pipeline (built once per worker, reused across jobs). The
+# weights are large (~54 GB), so we load lazily on first texture job and keep
+# the handle on the worker. See bundled_packages/mvpainter/VENDORED_FROM.txt for
+# the license split: we use ONLY MVPainter's Apache-2.0 diffusion and bake with
+# our own nvdiffrast TexturePipeline (NOT MVPainter's non-commercial Stage-3).
+_mvpainter_pipe = None
+_MVPAINTER_REPO = "shaomq/MVPainter"
+_MVPAINTER_UNET_CKPT = "unet_w_controlnet/v29_25000.ckpt"
+
+
+def _load_mvpainter(hf_token=None):
+    """Load MVPainter's multi-view diffusion pipeline (Apache-2.0).
+
+    Mirrors the upstream infer_multiview.py setup exactly:
+      pipe = MVPainter_Pipeline.from_pretrained('shaomq/MVPainter', fp16)
+      cn   = ControlNetModel_Union.from_unet(pipe.unet)
+      pipe.add_controlnet(cn, conditioning_scale=1.0)
+      ckpt = torch.load(<unet_w_controlnet/v29_25000.ckpt>, map_location='cpu')
+      pipe.unet.load_state_dict({k[5:]: v for k,v in ckpt['state_dict'] if 'unet' in k})
+
+    The ckpt is CPU-mapped to avoid a transient GPU spike at load (upstream
+    issue #13 — lets it fit alongside our other models). Cached on the module so
+    repeated jobs reuse one pipeline. Raises on failure (caller → untextured).
+    """
+    global _mvpainter_pipe
+    if _mvpainter_pipe is not None:
+        return _mvpainter_pipe
+
+    import sys as _sys
+    # The vendored mvpainter package lives next to this handler under
+    # bundled_packages/mvpainter; put that on sys.path so `from mvpainter...`
+    # resolves regardless of the container's working dir.
+    here = os.path.dirname(os.path.abspath(__file__))
+    vend = os.path.join(here, "bundled_packages", "mvpainter")
+    if vend not in _sys.path:
+        _sys.path.insert(0, vend)
+
+    if hf_token:
+        os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", hf_token)
+        os.environ.setdefault("HF_TOKEN", hf_token)
+
+    from mvpainter.mvpainter_pipeline import MVPainter_Pipeline
+    from mvpainter.controlnet import ControlNetModel_Union
+    from huggingface_hub import hf_hub_download
+
+    logger.info("Loading MVPainter pipeline from %s (fp16)...", _MVPAINTER_REPO)
+    pipe = MVPainter_Pipeline.from_pretrained(_MVPAINTER_REPO, torch_dtype=torch.float16)
+    controlnet = ControlNetModel_Union.from_unet(pipe.unet).to(
+        dtype=torch.float16, device=pipe.device
+    )
+    pipe.add_controlnet(controlnet, conditioning_scale=1.0)
+
+    logger.info("Loading MVPainter custom UNet ckpt (%s)...", _MVPAINTER_UNET_CKPT)
+    ckpt_path = hf_hub_download(repo_id=_MVPAINTER_REPO, filename=_MVPAINTER_UNET_CKPT)
+    # CPU-map to dodge the load-time VRAM spike (upstream issue #13).
+    ckpt = torch.load(ckpt_path, map_location="cpu")["state_dict"]
+    new_ckpt = {k[5:]: v for k, v in ckpt.items() if "unet" in k}
+    pipe.unet.load_state_dict(new_ckpt)
+    del ckpt, new_ckpt
+
+    pipe = pipe.to("cuda")
+    _mvpainter_pipe = pipe
+    logger.info("MVPainter pipeline ready")
+    return _mvpainter_pipe
+
+
+# MVPainter's camera convention (from scripts/blender_render_ortho.py):
+#   azimuth_list = [0, 90, 180, 270, 0, 0] + geo_rotation; geo_rotation=0 for
+#   TripoSG (README-authoritative — the infer_multiview default -90 is for
+#   Hunyuan/TRELLIS). elevation_list = [0,0,0,0,-90,90]. Orthographic, camera
+#   looks at origin with -Z forward / +Y up.
+_MVP_AZIMUTH = [0, 90, 180, 270, 0, 0]
+_MVP_ELEVATION = [0, 0, 0, 0, -90, 90]
+# Upstream tiles the 6 views into a 3-row × 2-col grid in THIS view order
+# (Blender render indices ['000','005','001','004','002','003'] → grid slots).
+# Grid slot k (row=k//2, col=k%2) gets render index _MVP_TILE_ORDER[k].
+_MVP_TILE_ORDER = [0, 5, 1, 4, 2, 3]
+_MVP_VIEW_RES = 512  # MVPainter is trained at 512² per view (grid 1024×1536)
+
+
+def _mvp_tile_views(view_imgs):
+    """Tile 6 per-view PIL images (in render-index order 0..5) into MVPainter's
+    3×2 conditioning grid (1024 wide × 1536 tall), honoring _MVP_TILE_ORDER."""
+    from PIL import Image as _PImg
+    grid = _PImg.new("RGB", (_MVP_VIEW_RES * 2, _MVP_VIEW_RES * 3))
+    for slot, render_idx in enumerate(_MVP_TILE_ORDER):
+        col, row = slot % 2, slot // 2
+        img = view_imgs[render_idx]
+        if img.size != (_MVP_VIEW_RES, _MVP_VIEW_RES):
+            img = img.resize((_MVP_VIEW_RES, _MVP_VIEW_RES))
+        grid.paste(img.convert("RGB"), (col * _MVP_VIEW_RES, row * _MVP_VIEW_RES))
+    return grid
+
+
+def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data, temp_dir):
+    """Texture an existing mesh with MVPainter's multi-view diffusion + our
+    nvdiffrast bake → textured GLB bytes (Apache-2.0 / commercial-safe).
+
+    Pipeline (called AFTER TripoSG is parked/evicted so VRAM is free):
+      1. Render 6 geometry views (normal + depth) of the mesh with our existing
+         nvdiffrast renderer at MVPainter's camera convention.
+      2. Build MVPainter's two conditioning tiles (normal grid, inverse-depth
+         grid) and run its diffusion → a 3×2 grid of 6 textured RGB views.
+      3. Slice the grid back to 6 views and bake them onto the mesh with the
+         SAME MV-Adapter TexturePipeline our mvadapter backend uses (nvdiffrast
+         back-projection — robust to fragmented UVs). Returns the textured GLB.
+
+    Raises on failure so the caller falls back to the untextured GLB.
+    """
+    import time as _t
+    import numpy as _np
+    from PIL import Image as _PImg
+    hf_token = model_dict.get("hf_token")
+    t0 = _t.time()
+    logger.info("Texturing with MVPainter backend (Apache-2.0)...")
+
+    # nvdiffrast must be ready (same guard as the mvadapter path) — its CUDA
+    # compile exceeds MMS's 120s watchdog, so it's built at load. If somehow not
+    # ready, kick the background build and fail fast (caller → untextured).
+    if not _ensure_nvdiffrast(blocking=False):
+        _ensure_nvdiffrast_background()
+        st = _nvdiffrast_bg["state"]
+        msg = ("nvdiffrast is being prepared in the background (one-time CUDA "
+               "compile). Texture skipped this run — resubmit shortly.")
+        if st == 2:
+            msg = f"nvdiffrast preparation failed: {_nvdiffrast_bg['error']}"
+        logger.warning("MVPainter texture deferred: %s", msg)
+        raise RuntimeError(msg)
+
+    from mvadapter.utils.mesh_utils import (
+        get_orthogonal_camera, load_mesh, render, NVDiffRastContextWrapper
+    )
+    from mvadapter.utils.mesh_utils.render import SimpleNormalization
+
+    # ── 1. Render geometry views (normal + depth) at MVPainter's convention ──
+    # geo_rotation=0 for TripoSG. Our azimuth sign matches MV-Adapter's render
+    # (which subtracts 90 from a different base list); MVPainter's own offset is
+    # baked into _MVP_AZIMUTH, so we pass it directly. The 6-view conditioning
+    # is saved as a debug artifact so any orientation mismatch is caught BEFORE
+    # judging final texture quality.
+    cameras = get_orthogonal_camera(
+        elevation_deg=_MVP_ELEVATION,
+        distance=[1.8] * 6,
+        left=-0.55, right=0.55, bottom=-0.55, top=0.55,
+        azimuth_deg=_MVP_AZIMUTH,
+        device="cuda",
+    )
+    ctx = NVDiffRastContextWrapper(device="cuda", context_type="cuda")
+    mesh_obj = load_mesh(mesh_path, rescale=True, front_x_to_y=True, device="cuda")
+    # IMPORTANT: request RAW view-space depth (no inversion / per-view clip). The
+    # default DepthControlNetNormalization already inverts + per-view min/max
+    # normalizes, which would clash with MVPainter's per-WHOLE-TILE inverse-depth
+    # normalization we apply below. SimpleNormalization(scale=1, offset=0,
+    # clamp=False) passes depth through ~unchanged so we can reproduce
+    # MVPainter's infer_multiview.py depth math exactly. bg stays 0 (we mask).
+    render_out = render(
+        ctx, mesh_obj, cameras,
+        height=_MVP_VIEW_RES, width=_MVP_VIEW_RES,
+        render_attr=False, render_depth=True, render_normal=True,
+        depth_normalization_strategy=SimpleNormalization(
+            scale=1.0, offset=0.0, clamp=False, bg_value=0.0
+        ),
+        normal_background=0.0,
+    )
+
+    # Normal tile: encode normals as *0.5+0.5 (MVPainter's Blender pipeline uses
+    # the identical scale/bias). (6, H, W, 3) → 6 PIL → 3×2 grid.
+    _nrm = (render_out.normal / 2 + 0.5).clamp(0, 1)
+    _nrm_np = (_nrm.detach().cpu().numpy() * 255).astype(_np.uint8)
+    normal_views = [_PImg.fromarray(_nrm_np[i]) for i in range(_nrm_np.shape[0])]
+    normal_tile = _mvp_tile_views(normal_views)
+
+    # Depth tile: MVPainter normalizes inverse-depth to [0,1] across the WHOLE
+    # tile's valid region (background = far). Build a combined depth grid then
+    # invert+min/max-normalize over valid texels (mirrors infer_multiview.py).
+    _depth = render_out.depth.detach().cpu().numpy()        # (6, H, W, 1) or (6,H,W)
+    _mask = render_out.mask.detach().cpu().numpy().astype(bool)
+    if _depth.ndim == 4:
+        _depth = _depth[..., 0]
+    if _mask.ndim == 4:
+        _mask = _mask[..., 0]
+    grid_d = _np.zeros((_MVP_VIEW_RES * 3, _MVP_VIEW_RES * 2), dtype=_np.float32)
+    grid_valid = _np.zeros_like(grid_d, dtype=bool)
+    for slot, ridx in enumerate(_MVP_TILE_ORDER):
+        col, row = slot % 2, slot // 2
+        y, x = row * _MVP_VIEW_RES, col * _MVP_VIEW_RES
+        grid_d[y:y + _MVP_VIEW_RES, x:x + _MVP_VIEW_RES] = _depth[ridx]
+        grid_valid[y:y + _MVP_VIEW_RES, x:x + _MVP_VIEW_RES] = _mask[ridx]
+    inv = _np.zeros_like(grid_d)
+    if grid_valid.any():
+        d_valid = grid_d[grid_valid]
+        d_valid = _np.where(d_valid > 1e-6, 1.0 / d_valid, 0.0)  # inverse depth
+        lo, hi = float(d_valid.min()), float(d_valid.max())
+        if hi - lo > 1e-6:
+            inv[grid_valid] = (d_valid - lo) / (hi - lo)
+        else:
+            inv[grid_valid] = 1.0
+    depth_tile = _PImg.fromarray((inv * 255).astype(_np.uint8)).convert("RGB")
+
+    if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
+        _save_debug_artifact(normal_tile, "01_mvp_normal_tile")
+        _save_debug_artifact(depth_tile, "01b_mvp_depth_tile")
+
+    # ── 2. MVPainter multi-view diffusion ──
+    ref_image = _preprocess_mv_reference(source_image, model_dict.get("rmbg_model"))
+    _save_debug_artifact(ref_image, "02_reference")
+    pipe = _load_mvpainter(hf_token)
+    steps = int(input_data.get("num_inference_steps") or 75)
+    logger.info("MVPainter diffusion: %d steps", steps)
+    mvp_out = pipe(
+        ref_image,
+        depth_image=normal_tile,      # MVPainter conditions normals on depth_image
+        depth_image_2=depth_tile,     # and depth on depth_image_2
+        num_inference_steps=steps,
+    )
+    view_grid = mvp_out[0]  # PIL 3×2 grid of 6 textured RGB views (1024×1536)
+    if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
+        _save_debug_artifact(view_grid, "03_mvp_view_grid")
+
+    # ── 3. Slice grid → 6 views in render-index order, then bake ──
+    gw, gh = view_grid.size
+    vw, vh = gw // 2, gh // 3
+    slot_imgs = {}
+    for slot in range(6):
+        col, row = slot % 2, slot // 2
+        slot_imgs[slot] = view_grid.crop(
+            (col * vw, row * vh, (col + 1) * vw, (row + 1) * vh)
+        )
+    # Map grid slots back to render indices, then re-tile into the order the
+    # TexturePipeline expects (it consumes the same _MVP_AZIMUTH/_MVP_ELEVATION
+    # camera list in render-index order 0..5).
+    views_by_render_idx = [None] * 6
+    for slot, ridx in enumerate(_MVP_TILE_ORDER):
+        views_by_render_idx[ridx] = slot_imgs[slot]
+    mv_grid = _make_mv_grid(views_by_render_idx)
+    mv_grid_path = os.path.join(temp_dir, "mvp_mv_grid.png")
+    mv_grid.save(mv_grid_path)
+
+    # Free MVPainter's diffusion activations before the bake's nvdiffrast pass.
+    del mvp_out, view_grid, render_out, mesh_obj, ctx
+    _reclaim_cuda_memory("after MVPainter diffusion (before bake)")
+
+    # ── 4. Bake with the SAME nvdiffrast TexturePipeline as the mvadapter path ──
+    from mvadapter.pipelines.pipeline_texture import TexturePipeline, ModProcessConfig
+    texture_pipe = model_dict.get("texture_pipe")
+    if texture_pipe is None:
+        texture_pipe = TexturePipeline(
+            upscaler_ckpt_path=None, inpaint_ckpt_path=None, device="cuda",
+        )
+    _has_inpainter = hasattr(texture_pipe, "inpainter") and texture_pipe.inpainter is not None
+    _rgb_config = ModProcessConfig(view_upscale=False,
+                                   inpaint_mode="view" if _has_inpainter else "uv")
+    tex_output = texture_pipe(
+        mesh_path=mesh_path,
+        save_dir=temp_dir,
+        save_name="mvp_textured",
+        uv_unwarp=True,
+        preprocess_mesh=True,
+        uv_size=4096,
+        rgb_path=mv_grid_path,
+        rgb_process_config=_rgb_config,
+        camera_azimuth_deg=_MVP_AZIMUTH,
+        camera_elevation_deg=_MVP_ELEVATION,
+        camera_distance=1.8,
+        camera_ortho_scale=1.1,
+    )
+    textured_path = tex_output.shaded_model_save_path
+    if not (textured_path and os.path.exists(textured_path)):
+        raise RuntimeError(f"MVPainter bake produced no output (path={textured_path})")
+    with open(textured_path, "rb") as f:
+        glb_data = f.read()
+    logger.info("MVPainter textured GLB: %.1f KB in %.1fs",
+                len(glb_data) / 1024, _t.time() - t0)
     return glb_data
 
 
@@ -3219,13 +3509,18 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         _reclaim_cuda_memory("after parking TripoSG + texture models (before Phase 2)")
 
         # ═══════════════════════════════════════════════════════════════════
-        # BACKEND BRANCH: hunyuan (single call → GLB) vs MV-Adapter
+        # BACKEND BRANCH: hunyuan / mvpainter (single call → GLB) vs MV-Adapter
         # ═══════════════════════════════════════════════════════════════════
         backend = model_dict.get("texture_backend") or _texture_backend(input_data)
         if input_data.get("texture_backend"):  # per-request override wins
             backend = str(input_data["texture_backend"]).lower().strip()
         if backend == "hunyuan":
             glb_data = _generate_texture_hunyuan(
+                mesh_path, source_image, model_dict, input_data, temp_dir
+            )
+            return glb_data
+        if backend == "mvpainter":
+            glb_data = _generate_texture_mvpainter(
                 mesh_path, source_image, model_dict, input_data, temp_dir
             )
             return glb_data
