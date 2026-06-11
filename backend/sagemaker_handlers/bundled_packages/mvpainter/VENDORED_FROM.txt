@@ -62,4 +62,28 @@ ORIENTATION: for TripoSG meshes use azimuth offset 0 (README-authoritative;
 the infer_multiview.py default -90 is for Hunyuan/TRELLIS/Hi3DGen). Use the
 SAME offset for the conditioning render and the back-projection bake.
 
-PINS (issue #12 vision_encoder load): diffusers==0.20.2, huggingface-hub==0.22.2.
+DIFFUSERS COMPATIBILITY SHIM (ArtSmoker modification to controlnet.py)
+─────────────────────────────────────────────────────────────────────────────
+Upstream pins diffusers==0.20.2, but ArtSmoker's container runs diffusers>=0.30
+(required by TripoSG / MV-Adapter / Hunyuan). Rather than isolate MVPainter in a
+separate venv, we patched THREE import lines in controlnet.py to the modern
+diffusers layout (mvpainter_pipeline.py needed NO changes):
+
+  - from diffusers.models.unet_2d_blocks      → diffusers.models.unets.unet_2d_blocks
+  - from diffusers.models.unet_2d_condition   → diffusers.models.unets.unet_2d_condition
+    (both relocated under models.unets/ in diffusers 0.26; old paths removed 0.29)
+  - FromOriginalControlnetMixin (removed in 0.29) dropped from imports AND the
+    ControlNetModel_Union base classes — it is a from_single_file loader mixin
+    NEVER exercised at inference (weights load via ModelMixin.from_pretrained /
+    from_unet). All changes marked with "ARTSMOKER" comments in controlnet.py.
+
+Verified safe against diffusers source at tags 0.20→0.34: the relocated block
+classes + get_down_block are byte-for-byte identical (no new required args; all
+call sites keyword-only), and the attention-processor / forward interfaces only
+GAINED optional params. Original upstream pins (for reference): diffusers==0.20.2,
+huggingface-hub==0.22.2 (the latter for issue #12 vision_encoder load — we use
+huggingface-hub>=0.20 and load both CLIP vision encoders via from_pretrained).
+
+VALIDATION TODO at first deploy: load the v29_25000.ckpt and confirm zero
+unexpected_keys / missing_keys against the reconstructed ControlNet (the one
+thing not verifiable from source alone).

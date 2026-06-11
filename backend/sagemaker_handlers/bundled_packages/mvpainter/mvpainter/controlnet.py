@@ -19,18 +19,26 @@ from torch import nn
 from torch.nn import functional as F
 
 from diffusers.configuration_utils import ConfigMixin, register_to_config
-from diffusers.loaders import FromOriginalControlnetMixin
+# ARTSMOKER SHIM (diffusers 0.20→0.30+ migration; see VENDORED_FROM.txt):
+# 1. FromOriginalControlnetMixin (a from_single_file loader mixin) was removed
+#    in diffusers 0.29; it is NEVER exercised at inference (weights load via the
+#    standard ModelMixin.from_pretrained / from_unet path), so we drop it from
+#    the imports AND the class bases below.
+# 2. unet_2d_blocks / unet_2d_condition were relocated under models.unets/ in
+#    diffusers 0.26 (old paths hard-removed in 0.29). Repath only — the block
+#    classes + get_down_block are byte-for-byte identical (verified: no new
+#    required args, all call sites are keyword-only).
 from diffusers.utils import BaseOutput, logging
 from diffusers.models.attention_processor import AttentionProcessor, AttnProcessor
 from diffusers.models.embeddings import TextImageProjection, TextImageTimeEmbedding, TextTimeEmbedding, TimestepEmbedding, Timesteps
 from diffusers.models.modeling_utils import ModelMixin
-from diffusers.models.unet_2d_blocks import (
+from diffusers.models.unets.unet_2d_blocks import (
     CrossAttnDownBlock2D,
     DownBlock2D,
     UNetMidBlock2DCrossAttn,
     get_down_block,
 )
-from diffusers.models.unet_2d_condition import UNet2DConditionModel
+from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
 from collections import OrderedDict
 
 
@@ -139,7 +147,7 @@ class ControlNetConditioningEmbedding(nn.Module):
         return embedding
 
 
-class ControlNetModel_Union(ModelMixin, ConfigMixin, FromOriginalControlnetMixin):
+class ControlNetModel_Union(ModelMixin, ConfigMixin):  # ARTSMOKER: dropped FromOriginalControlnetMixin (removed in diffusers 0.29, unused at inference)
     """
     A ControlNet model.
 
