@@ -3107,15 +3107,23 @@ def _assemble_pbr_glb(obj_path, out_dir, albedo_path=None):
         uv = getattr(getattr(mesh, "visual", None), "uv", None)
         has_tex = getattr(getattr(getattr(mesh, "visual", None), "material", None),
                           "baseColorTexture", None) is not None
-        # Explicitly attach the albedo if trimesh didn't, and we have UVs + PNG.
-        if albedo_path and (not has_tex) and uv is not None and len(uv) > 0:
+        # When we have an EXPLICIT albedo, it must ALWAYS win — even if trimesh
+        # already auto-loaded a texture from the OBJ's MTL. stage1's mesh.obj has
+        # an MTL pointing at its COARSE albedo.png sibling, so trimesh sets
+        # has_tex=True; if we only attached on (not has_tex) we'd silently ship
+        # the coarse texture instead of stage2's refined UV_tile albedo. So gate
+        # the explicit attach on having a PNG + UVs, NOT on has_tex.
+        if albedo_path and uv is not None and len(uv) > 0:
             img = _PImg.open(albedo_path).convert("RGB")
             mat = _tm.visual.material.PBRMaterial(baseColorTexture=img,
                                                   metallicFactor=0.0, roughnessFactor=0.9)
             mesh.visual = _tm.visual.TextureVisuals(uv=uv, material=mat)
-            logger.info("Paint3D GLB: attached albedo.png as baseColorTexture (%s)", img.size)
+            logger.info("Paint3D GLB: attached %s as baseColorTexture (%s)",
+                        os.path.basename(albedo_path), img.size)
         elif not albedo_path:
-            logger.warning("Paint3D GLB: no albedo.png found near %s — GLB will be untextured", obj_path)
+            logger.warning("Paint3D GLB: no albedo found near %s — GLB will be untextured", obj_path)
+        elif uv is None or len(uv) == 0:
+            logger.warning("Paint3D GLB: mesh has no UVs — cannot attach albedo, GLB untextured")
         mesh.export(glb_path, file_type="glb")
         return glb_path
     except Exception as e:
@@ -3347,42 +3355,44 @@ def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, t
     logger.info("Paint3D stages complete in %.1fs", _t.time() - t0)
     _log_gpu_mem("after Paint3D stage2")
 
-    # Locate Paint3D's FINAL textured mesh.obj. stage2's last dr_eval runs with
-    # save_result_dir=out2/tile_res_0 and calls export_mesh there → mesh.obj +
-    # albedo.png in tile_res_0/. The recursive glob also catches intermediate
-    # 'paint3d_mesh_cvt.obj' in convert_results/ (the mesh-loader's OBJ copy,
-    # which has NO sibling albedo) — selecting that gave albedo=None and an
-    # untextured GLB. So PREFER a mesh.obj under a tile_res_*/ dir, then any
-    # mesh.obj NOT under convert_results, then fall back.
+    # Assemble the textured GLB. KEY FACT about Paint3D's stage2: it does NOT
+    # export a mesh — it loads stage1's mesh, refines only the ALBEDO in UV space
+    # (UV_inpaint_res_*.png → tile_res_*/UV_tile_res_*.png), and its dr_eval only
+    # dumps per-view render PNGs + a turntable video (no export_mesh call). The
+    # earlier assumption that stage2 wrote a mesh.obj under out2/ was wrong, so the
+    # search found nothing and we fell back to untextured. The ONLY real textured
+    # mesh.obj (geometry + UVs) is stage1's, and stage2 refines the albedo in that
+    # SAME UV layout (both stages texture the same decimated mesh — that's why
+    # stage2 can seed from stage1's albedo). So: geometry = stage1's mesh.obj,
+    # texture = the most-refined albedo we can find (stage2 UV_tile > UV_inpaint >
+    # stage1 coarse albedo).
     import glob as _glob
-    all_meshobj = _glob.glob(os.path.join(out2, "**", "mesh.obj"), recursive=True)
-    tile_objs = [o for o in all_meshobj if "tile_res" in o]
-    noconv_objs = [o for o in all_meshobj if "convert_results" not in o]
-    if tile_objs:
-        out_obj = max(tile_objs, key=os.path.getmtime)
-    elif noconv_objs:
-        out_obj = max(noconv_objs, key=os.path.getmtime)
-    elif all_meshobj:
-        out_obj = max(all_meshobj, key=os.path.getmtime)
+    stage1_obj = os.path.join(out1, "res-0", "mesh.obj")
+    if os.path.exists(stage1_obj):
+        out_obj = stage1_obj
     else:
-        raise RuntimeError(f"Paint3D stage2 produced no mesh.obj (searched {out2})")
+        # Fallback: any mesh.obj from stage1 (skip the mesh-loader's untextured
+        # convert_results copy, which has no usable albedo pairing).
+        cand = [o for o in _glob.glob(os.path.join(out1, "**", "mesh.obj"), recursive=True)
+                if "convert_results" not in o]
+        if not cand:
+            raise RuntimeError(f"Paint3D produced no textured mesh.obj (searched {out1})")
+        out_obj = max(cand, key=os.path.getmtime)
     _obj_dir = os.path.dirname(out_obj)
-    # Best refined albedo: UV_tile (most refined) > UV_inpaint > albedo. Look in
-    # the obj's dir first, then anywhere under out2.
+    # Best refined albedo, in descending quality. tile_res_0 holds the UVHD-tiled
+    # result; UV_inpaint is the inpaint-only pass; stage1's res-0/albedo.png is the
+    # coarse base. Search stage2 (out2) first, then fall back to stage1 (out1).
     _albedo = None
     for _name in ("UV_tile_res_0.png", "UV_inpaint_res_0.png", "albedo.png"):
-        _p = os.path.join(_obj_dir, _name)
-        if os.path.exists(_p):
-            _albedo = _p
-            break
-    if _albedo is None:
-        for _name in ("UV_tile_res_0.png", "UV_inpaint_res_0.png", "albedo.png"):
-            hits = _glob.glob(os.path.join(out2, "**", _name), recursive=True)
+        for _root in (out2, out1):
+            hits = _glob.glob(os.path.join(_root, "**", _name), recursive=True)
             if hits:
                 _albedo = max(hits, key=os.path.getmtime)
                 break
-    logger.info("Paint3D: assembling GLB from %s + albedo=%s",
-                out_obj.replace(out2, "…"), os.path.basename(_albedo) if _albedo else None)
+        if _albedo:
+            break
+    logger.info("Paint3D: assembling GLB from stage1 mesh + albedo=%s",
+                _albedo.replace(temp_dir, "…") if _albedo else None)
     glb_path = _assemble_pbr_glb(out_obj, _obj_dir, albedo_path=_albedo)
     if not glb_path or not os.path.exists(glb_path):
         raise RuntimeError(f"Paint3D GLB assembly failed (obj={out_obj})")
