@@ -1550,20 +1550,7 @@ def _load_image_to_3d(model_dir):
     backend = _texture_backend()
     logger.info("Texture backend (server default): %s", backend)
 
-    if backend == "paint3d":
-        # Paint3D (Apache-2.0, commercial-safe). Needs kaolin (prebuilt wheel,
-        # no source compile) for its differentiable renderer. Install at LOAD
-        # time so the first inference doesn't trip the 120s watchdog. The SD1.5 +
-        # ControlNet + IP-Adapter pipes are built per-job inside _generate_texture
-        # _paint3d (they're cheap to construct and config-driven), so no heavy
-        # preload here — just verify kaolin + package availability.
-        try:
-            _ensure_paint3d_ops(blocking=True)
-            texture_available = True
-            logger.info("Paint3D deps ready (kaolin installed at load)")
-        except Exception as e:
-            logger.warning("Paint3D deps not ready at load (%s) — will retry in background on first job", e)
-    elif backend == "hunyuan":
+    if backend == "hunyuan":
         # Build custom_rasterizer + mesh_inpaint_processor at load time.
         try:
             import hy3dpaint  # noqa: F401  (package presence check; vendored)
@@ -1645,30 +1632,6 @@ _HUNYUAN_RASTERIZER_WHEEL_PREFIX = f"{_HUNYUAN_DEPS_PREFIX}/custom_rasterizer/"
 _HUNYUAN_INPAINT_SO_PREFIX = f"{_HUNYUAN_DEPS_PREFIX}/mesh_inpaint_processor/"
 _hunyuan_ops_bg = {"state": -1, "error": ""}
 _hunyuan_ops_bg_lock = None
-
-# Paint3D backend deps: kaolin (NVIDIA, prebuilt wheel) powers its
-# differentiable renderer. The wheel index is keyed by torch+CUDA version, so we
-# DERIVE it at runtime from the actual installed torch (never hard-code a URL —
-# a DLC/torch upgrade would silently break a pinned one). See _kaolin_wheel_index.
-_KAOLIN_VERSION = _get_env("ARTSMOKER_KAOLIN_VERSION", "")  # "" → let pip pick newest compatible
-_paint3d_ops_bg = {"state": -1, "error": ""}
-_paint3d_ops_bg_lock = None
-
-
-def _kaolin_wheel_index():
-    """Build the kaolin prebuilt-wheel index URL for the CURRENTLY installed
-    torch + CUDA (e.g. torch-2.6.0_cu124). Detected at runtime so it tracks the
-    container, never a hard-coded version. Returns None if torch/CUDA can't be
-    read (caller then lets pip try its default index / source build)."""
-    try:
-        import torch
-        tv = torch.__version__.split("+")[0]              # e.g. "2.6.0"
-        cu = (torch.version.cuda or "").replace(".", "")  # e.g. "124"
-        if not cu:
-            return None
-        return f"https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-{tv}_cu{cu}.html"
-    except Exception:
-        return None
 
 # Background nvdiffrast-compile state (for the inference-time guard). When a
 # compile is kicked off on a worker thread, predict_fn fails the current job
@@ -2920,15 +2883,15 @@ def _predict_image_to_3d(input_data, model_dict):
     # Phase 2 + 3: Texture generation (MV-Adapter + TexturePipeline)
     # Falls back to untextured GLB if anything fails.
     # ═══════════════════════════════════════════════════════════════════════
-    # For the hunyuan/paint3d backends, attempt texturing even if
-    # texture_available was set False at LOAD time (e.g. a native-dep install
-    # failed at load, or a hot-reload overlay reused a stale model_dict). Those
-    # generators load their pipe + deps on-demand with their own watchdog guards,
-    # so a stale load-time flag must not permanently block the texture path.
+    # For the hunyuan backend, attempt texturing even if texture_available was
+    # set False at LOAD time (e.g. a native-dep install failed at load, or a
+    # hot-reload overlay reused a stale model_dict). That generator loads its
+    # pipe + deps on-demand with its own watchdog guards, so a stale load-time
+    # flag must not permanently block the texture path.
     _backend_now = model_dict.get("texture_backend") or _texture_backend(input_data)
     if input_data.get("texture_backend"):
         _backend_now = str(input_data["texture_backend"]).lower().strip()
-    _attempt_texture = texture_available or (_backend_now in ("hunyuan", "paint3d"))
+    _attempt_texture = texture_available or (_backend_now == "hunyuan")
     textured_glb_data = None
     if _attempt_texture:
         try:
@@ -3083,16 +3046,18 @@ def _generate_texture_hunyuan(mesh_path, source_image, model_dict, input_data, t
 def _assemble_pbr_glb(obj_path, out_dir, albedo_path=None):
     """Build a self-contained textured GLB from an OBJ (+ UVs) + an albedo PNG.
 
-    trimesh's native OBJ+MTL load is unreliable at picking up map_Kd (observed:
-    it produced a 703 KB GLB with NO texture/UV from Paint3D's mesh.obj/.mtl/
-    albedo.png). So we load geometry+UVs, then EXPLICITLY attach the albedo as a
-    PBR baseColorTexture via TextureVisuals — guaranteeing the texture embeds in
-    the GLB binary buffer. Falls back to a plain load if anything is missing.
+    Generic OBJ+albedo → textured GLB assembler (used by texture backends that
+    emit an OBJ/MTL + albedo PNG rather than a ready GLB). trimesh's native
+    OBJ+MTL load is unreliable at picking up map_Kd (observed: it produced a
+    703 KB GLB with NO texture/UV from an OBJ+MTL+albedo set). So we load
+    geometry+UVs, then EXPLICITLY attach the albedo as a PBR baseColorTexture via
+    TextureVisuals — guaranteeing the texture embeds in the GLB binary buffer.
+    Falls back to a plain load if anything is missing.
     """
     import trimesh as _tm
     from PIL import Image as _PImg
     glb_path = os.path.join(out_dir, "textured_mesh_assembled.glb")
-    # Locate the albedo if not given (Paint3D writes albedo.png next to mesh.obj).
+    # Locate the albedo if not given (a sibling albedo.png next to the OBJ).
     if albedo_path is None:
         cand = os.path.join(os.path.dirname(obj_path), "albedo.png")
         albedo_path = cand if os.path.exists(cand) else None
@@ -3108,22 +3073,22 @@ def _assemble_pbr_glb(obj_path, out_dir, albedo_path=None):
         has_tex = getattr(getattr(getattr(mesh, "visual", None), "material", None),
                           "baseColorTexture", None) is not None
         # When we have an EXPLICIT albedo, it must ALWAYS win — even if trimesh
-        # already auto-loaded a texture from the OBJ's MTL. stage1's mesh.obj has
-        # an MTL pointing at its COARSE albedo.png sibling, so trimesh sets
-        # has_tex=True; if we only attached on (not has_tex) we'd silently ship
-        # the coarse texture instead of stage2's refined UV_tile albedo. So gate
-        # the explicit attach on having a PNG + UVs, NOT on has_tex.
+        # already auto-loaded a texture from the OBJ's MTL. An OBJ whose MTL
+        # points at a sibling/coarse albedo makes trimesh set has_tex=True; if we
+        # only attached on (not has_tex) we'd silently ship that auto-loaded
+        # texture instead of the refined albedo we were handed. So gate the
+        # explicit attach on having a PNG + UVs, NOT on has_tex.
         if albedo_path and uv is not None and len(uv) > 0:
             img = _PImg.open(albedo_path).convert("RGB")
             mat = _tm.visual.material.PBRMaterial(baseColorTexture=img,
                                                   metallicFactor=0.0, roughnessFactor=0.9)
             mesh.visual = _tm.visual.TextureVisuals(uv=uv, material=mat)
-            logger.info("Paint3D GLB: attached %s as baseColorTexture (%s)",
+            logger.info("Assembled GLB: attached %s as baseColorTexture (%s)",
                         os.path.basename(albedo_path), img.size)
         elif not albedo_path:
-            logger.warning("Paint3D GLB: no albedo found near %s — GLB will be untextured", obj_path)
+            logger.warning("Assembled GLB: no albedo found near %s — GLB will be untextured", obj_path)
         elif uv is None or len(uv) == 0:
-            logger.warning("Paint3D GLB: mesh has no UVs — cannot attach albedo, GLB untextured")
+            logger.warning("Assembled GLB: mesh has no UVs — cannot attach albedo, GLB untextured")
         mesh.export(glb_path, file_type="glb")
         return glb_path
     except Exception as e:
@@ -3134,281 +3099,6 @@ def _assemble_pbr_glb(obj_path, out_dir, albedo_path=None):
         except Exception as e2:
             logger.warning("Plain GLB export also failed: %s", e2)
             return None
-
-
-# ── Paint3D backend (Apache-2.0, commercial-safe) ────────────────────────────
-def _ensure_paint3d_ops(blocking: bool = True) -> bool:
-    """Make kaolin importable for the Paint3D backend. Returns True if ready.
-
-    kaolin (NVIDIA's 3D DL lib) is Paint3D's differentiable renderer. A PREBUILT
-    wheel exists for the container's exact torch/CUDA/py combo (runtime-derived
-    index), so no source compile — but it DOES need its runtime deps (pyglet,
-    usd-core, warp-lang) installed, or the import fails. Install at LOAD time
-    (not predict) for the 120s watchdog. blocking=False returns immediately if
-    not yet present.
-    """
-    try:
-        import kaolin  # noqa: F401
-        return True
-    except Exception:
-        pass
-    if not blocking:
-        return False
-    import subprocess
-    pkg = f"kaolin=={_KAOLIN_VERSION}" if _KAOLIN_VERSION else "kaolin"
-    index = _kaolin_wheel_index()
-    # IMPORTANT: kaolin needs its runtime deps (pyglet, usd-core, warp-lang,
-    # etc.) — a --no-deps install resolves the wheel but then fails to IMPORT
-    # ("No module named 'pyglet'"). So we install WITH deps. To stop pip from
-    # pulling a conflicting torch (kaolin pins a torch range), constrain torch to
-    # the one already installed. The -f index supplies the kaolin wheel matching
-    # the container's exact torch/CUDA; deps come from PyPI.
-    try:
-        import torch as _t
-        torch_pin = f"torch=={_t.__version__.split('+')[0]}"
-    except Exception:
-        torch_pin = None
-    base = ["pip", "install", "--quiet"]
-    constraint = ["-c", "/tmp/kaolin_torch_constraint.txt"] if torch_pin else []
-    if torch_pin:
-        try:
-            with open("/tmp/kaolin_torch_constraint.txt", "w") as _cf:
-                _cf.write(torch_pin + "\n")
-        except Exception:
-            constraint = []
-    attempts = []
-    if index:
-        attempts.append(base + [pkg, "-f", index] + constraint)
-    attempts.append(base + [pkg] + constraint)
-    # Last resort: wheel only (no deps) — at least surfaces a clearer import error.
-    if index:
-        attempts.append(base + ["--no-deps", pkg, "-f", index])
-    last_err = None
-    for cmd in attempts:
-        try:
-            logger.info("Installing kaolin: %s", " ".join(cmd[2:]))
-            subprocess.check_call(cmd, timeout=900)
-            import kaolin  # noqa: F401
-            logger.info("kaolin installed for Paint3D (index=%s)", index or "pip-default")
-            return True
-        except Exception as e:
-            last_err = e
-            logger.warning("kaolin install attempt failed (%s) — trying next", str(e)[:140])
-            # Drop cached failed import so the next attempt's import re-evaluates.
-            import sys as _sys
-            _sys.modules.pop("kaolin", None)
-    logger.error("kaolin install failed: %s", last_err)
-    raise ImportError(f"kaolin unavailable — Paint3D needs it: {last_err}")
-
-
-def _ensure_paint3d_ops_background():
-    """Kick off the kaolin install on a daemon thread (idempotent), so the worker
-    isn't blocked past MMS's 120s response watchdog."""
-    import threading
-    global _paint3d_ops_bg_lock
-    if _paint3d_ops_bg_lock is None:
-        _paint3d_ops_bg_lock = threading.Lock()
-    with _paint3d_ops_bg_lock:
-        if _paint3d_ops_bg["state"] in (0, 1):
-            return
-        _paint3d_ops_bg["state"] = 0
-
-    def _work():
-        try:
-            _ensure_paint3d_ops(blocking=True)
-            _paint3d_ops_bg["state"] = 1
-            logger.info("Background Paint3D deps ready")
-        except Exception as e:
-            _paint3d_ops_bg["state"] = 2
-            _paint3d_ops_bg["error"] = str(e)
-            logger.error("Background Paint3D deps install failed: %s", e)
-
-    threading.Thread(target=_work, daemon=True, name="paint3d-deps").start()
-
-
-def _paint3d_writable_dir(code_dir):
-    """Writable /tmp copy of the vendored paint3d package (the model dir is
-    read-only; Paint3D writes intermediate renders/configs into its tree, and we
-    run its CLI pipelines with cwd there). Idempotent."""
-    import shutil as _sh
-    dst = os.path.join("/tmp/paint3d_run", "paint3d_pkg")
-    src = os.path.join(code_dir, "paint3d")
-    if not os.path.isdir(dst):
-        try:
-            os.makedirs("/tmp/paint3d_run", exist_ok=True)
-            _sh.copytree(src, dst)
-            logger.info("Copied paint3d to writable %s", dst)
-        except Exception as e:
-            logger.warning("Could not copy paint3d to /tmp (%s) — using read-only src", e)
-            return src
-    return dst
-
-
-def _generate_texture_paint3d(mesh_path, source_image, model_dict, input_data, temp_dir):
-    """Texture an existing mesh with Paint3D (Apache-2.0) → textured GLB bytes.
-
-    Runs Paint3D's stage1 (depth-ControlNet + IP-Adapter image conditioning →
-    coarse UV texture) then stage2 (UV-inpaint + UVHD refine) as SUBPROCESSES —
-    they are self-contained CLI scripts with their own arg parsing/config; the
-    subprocess isolates kaolin + Paint3D's diffusers config from our handler's
-    import space (and from the other backends). Called AFTER TripoSG eviction.
-
-    Raises on failure so the caller falls back to untextured.
-    """
-    import subprocess
-    import time as _t
-    code_dir = model_dict.get("code_dir", "")
-    t0 = _t.time()
-    logger.info("Texturing with Paint3D backend (Apache-2.0)...")
-
-    # Watchdog guard: kaolin install (~1-3 min on first cold worker) exceeds the
-    # 120s response timeout. Built at LOAD normally; if not ready, defer.
-    if not _ensure_paint3d_ops(blocking=False):
-        _ensure_paint3d_ops_background()
-        st = _paint3d_ops_bg["state"]
-        msg = ("Paint3D deps (kaolin) are being prepared in the background "
-               "(~1-3 min). Texture skipped this run — resubmit shortly.")
-        if st == 2:
-            msg = f"Paint3D deps preparation failed: {_paint3d_ops_bg['error']}"
-        logger.warning("Paint3D texture deferred: %s", msg)
-        raise RuntimeError(msg)
-
-    pkg_dir = os.path.dirname(_paint3d_writable_dir(code_dir))  # /tmp/paint3d_run (contains paint3d_pkg)
-    vend = os.path.join(code_dir, "paint3d")  # vendored root with pipeline_*.py + controlnet/
-
-    # Reference image (background-removed, on neutral bg) → IP-Adapter condition.
-    ref_image = _preprocess_mv_reference(source_image, model_dict.get("rmbg_model"))
-    ref_path = os.path.join(temp_dir, "paint3d_ref.png")
-    ref_image.save(ref_path)
-    _save_debug_artifact(ref_image, "01_reference")
-
-    # DECIMATE for Paint3D: it runs xatlas UV-unwrap + a kaolin differentiable
-    # renderer that are designed for ~40K-face game meshes. On our 1M-face
-    # TripoSG mesh, xatlas effectively hangs (single-threaded; observed stalling
-    # 20+ min with no progress). Decimate to a Paint3D-friendly size first. This
-    # is texture-only — the heavy geometry isn't needed to bake a UV atlas (the
-    # texture detail lives in the 2K UV map, like MV-Adapter's 50K path).
-    _P3D_MAX_FACES = int(input_data.get("paint3d_max_faces",
-                                       _get_env("ARTSMOKER_PAINT3D_MAX_FACES", "40000")))
-    paint_mesh_path = mesh_path
-    try:
-        import trimesh as _tm
-        _m = _tm.load(mesh_path, force="mesh", process=False)
-        if hasattr(_m, "faces") and len(_m.faces) > _P3D_MAX_FACES:
-            logger.info("Paint3D: decimating mesh %d -> %d faces (xatlas/kaolin-friendly)",
-                        len(_m.faces), _P3D_MAX_FACES)
-            try:
-                _md = _m.simplify_quadric_decimation(face_count=_P3D_MAX_FACES)
-            except TypeError:
-                _md = _m.simplify_quadric_decimation(_P3D_MAX_FACES / len(_m.faces))
-            try: _md.fix_normals()
-            except Exception: pass
-            paint_mesh_path = os.path.join(temp_dir, "paint3d_mesh.glb")
-            _md.export(paint_mesh_path, file_type="glb")
-            logger.info("Paint3D: decimated to %d faces", len(_md.faces))
-    except Exception as _de:
-        logger.warning("Paint3D mesh decimation failed (using full mesh — may be slow): %s", _de)
-        paint_mesh_path = mesh_path
-
-    out1 = os.path.join(temp_dir, "p3d_stage1")
-    out2 = os.path.join(temp_dir, "p3d_stage2")
-    sd_cfg = os.path.join(vend, "controlnet", "config", "depth_based_inpaint_template.yaml")
-    render_cfg = os.path.join(vend, "paint3d", "config", "train_config_paint3d.py")
-
-    # Common env: vendored package on PYTHONPATH so `from paint3d ...`,
-    # `from controlnet ...` resolve regardless of cwd; HF token for gated weights.
-    env = {**os.environ, "PYTHONPATH": vend + os.pathsep + os.environ.get("PYTHONPATH", "")}
-    if model_dict.get("hf_token"):
-        env.setdefault("HUGGING_FACE_HUB_TOKEN", model_dict["hf_token"])
-    # CRITICAL: run the subprocess with cwd in a WRITABLE dir. Paint3D writes
-    # RELATIVE paths (e.g. os.makedirs('paint3d_cache') in textured_mesh.py) that
-    # land under cwd — if cwd is the read-only vendored package dir, it dies with
-    # "Read-only file system: 'paint3d_cache'". A /tmp workdir fixes it; imports
-    # still resolve via PYTHONPATH=vend above.
-    workdir = os.path.join(temp_dir, "p3d_cwd")
-    os.makedirs(workdir, exist_ok=True)
-
-    _log_gpu_mem("before Paint3D stage1")
-    # Stage 1: image-conditioned coarse texture (depth-ControlNet + IP-Adapter).
-    subprocess.check_call(
-        ["python", os.path.join(vend, "pipeline_paint3d_stage1.py"),
-         "--sd_config", sd_cfg, "--render_config", render_cfg,
-         "--mesh_path", paint_mesh_path, "--prompt", " ",
-         "--ip_adapter_image_path", ref_path, "--outdir", out1],
-        timeout=1800, env=env, cwd=workdir,
-    )
-    # Stage 1 writes the coarse albedo to out1/res-0/albedo.png.
-    stage1_albedo = os.path.join(out1, "res-0", "albedo.png")
-    if not os.path.exists(stage1_albedo):
-        raise RuntimeError(f"Paint3D stage1 produced no albedo ({stage1_albedo})")
-
-    _log_gpu_mem("before Paint3D stage2")
-    # Stage 2: UV-inpaint + UVHD refine on the coarse texture.
-    sd_cfg2 = os.path.join(vend, "controlnet", "config", "UV_based_inpaint_template.yaml")
-    subprocess.check_call(
-        ["python", os.path.join(vend, "pipeline_paint3d_stage2.py"),
-         "--sd_config", sd_cfg2, "--render_config", render_cfg,
-         "--mesh_path", paint_mesh_path, "--texture_path", stage1_albedo,
-         "--outdir", out2],
-        timeout=1800, env=env, cwd=workdir,
-    )
-    logger.info("Paint3D stages complete in %.1fs", _t.time() - t0)
-    _log_gpu_mem("after Paint3D stage2")
-
-    # Assemble the textured GLB. KEY FACT about Paint3D's stage2: it does NOT
-    # export a mesh — it loads stage1's mesh, refines only the ALBEDO in UV space
-    # (UV_inpaint_res_*.png → tile_res_*/UV_tile_res_*.png), and its dr_eval only
-    # dumps per-view render PNGs + a turntable video (no export_mesh call). The
-    # earlier assumption that stage2 wrote a mesh.obj under out2/ was wrong, so the
-    # search found nothing and we fell back to untextured. The ONLY real textured
-    # mesh.obj (geometry + UVs) is stage1's, and stage2 refines the albedo in that
-    # SAME UV layout (both stages texture the same decimated mesh — that's why
-    # stage2 can seed from stage1's albedo). So: geometry = stage1's mesh.obj,
-    # texture = the most-refined albedo we can find (stage2 UV_tile > UV_inpaint >
-    # stage1 coarse albedo).
-    import glob as _glob
-    stage1_obj = os.path.join(out1, "res-0", "mesh.obj")
-    if os.path.exists(stage1_obj):
-        out_obj = stage1_obj
-    else:
-        # Fallback: any mesh.obj from stage1 (skip the mesh-loader's untextured
-        # convert_results copy, which has no usable albedo pairing).
-        cand = [o for o in _glob.glob(os.path.join(out1, "**", "mesh.obj"), recursive=True)
-                if "convert_results" not in o]
-        if not cand:
-            raise RuntimeError(f"Paint3D produced no textured mesh.obj (searched {out1})")
-        out_obj = max(cand, key=os.path.getmtime)
-    _obj_dir = os.path.dirname(out_obj)
-    # Best refined albedo, in descending quality. tile_res_0 holds the UVHD-tiled
-    # result; UV_inpaint is the inpaint-only pass; stage1's res-0/albedo.png is the
-    # coarse base. Search stage2 (out2) first, then fall back to stage1 (out1).
-    _albedo = None
-    for _name in ("UV_tile_res_0.png", "UV_inpaint_res_0.png", "albedo.png"):
-        for _root in (out2, out1):
-            hits = _glob.glob(os.path.join(_root, "**", _name), recursive=True)
-            if hits:
-                _albedo = max(hits, key=os.path.getmtime)
-                break
-        if _albedo:
-            break
-    logger.info("Paint3D: assembling GLB from stage1 mesh + albedo=%s",
-                _albedo.replace(temp_dir, "…") if _albedo else None)
-    glb_path = _assemble_pbr_glb(out_obj, _obj_dir, albedo_path=_albedo)
-    if not glb_path or not os.path.exists(glb_path):
-        raise RuntimeError(f"Paint3D GLB assembly failed (obj={out_obj})")
-
-    with open(glb_path, "rb") as f:
-        glb_data = f.read()
-    logger.info("Paint3D textured GLB: %.1f KB from %s", len(glb_data) / 1024, glb_path)
-
-    if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
-        try:
-            from PIL import Image as _PImg
-            if os.path.exists(stage1_albedo):
-                _save_debug_artifact(_PImg.open(stage1_albedo).convert("RGB"), "02_albedo_atlas")
-        except Exception as _de:
-            logger.warning("Paint3D debug atlas save failed: %s", _de)
-    return glb_data
 
 
 def _generate_texture(mesh, source_image, model_dict, input_data):
@@ -3529,18 +3219,13 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         _reclaim_cuda_memory("after parking TripoSG + texture models (before Phase 2)")
 
         # ═══════════════════════════════════════════════════════════════════
-        # BACKEND BRANCH: hunyuan / paint3d (single call → GLB) vs MV-Adapter
+        # BACKEND BRANCH: hunyuan (single call → GLB) vs MV-Adapter
         # ═══════════════════════════════════════════════════════════════════
         backend = model_dict.get("texture_backend") or _texture_backend(input_data)
         if input_data.get("texture_backend"):  # per-request override wins
             backend = str(input_data["texture_backend"]).lower().strip()
         if backend == "hunyuan":
             glb_data = _generate_texture_hunyuan(
-                mesh_path, source_image, model_dict, input_data, temp_dir
-            )
-            return glb_data
-        if backend == "paint3d":
-            glb_data = _generate_texture_paint3d(
                 mesh_path, source_image, model_dict, input_data, temp_dir
             )
             return glb_data

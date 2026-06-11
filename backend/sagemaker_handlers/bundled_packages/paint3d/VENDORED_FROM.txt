@@ -1,5 +1,0 @@
-Vendored from https://github.com/OpenTexture/Paint3D
-Commit: d5545d38db6aaf78efc563269f70177688a4218e
-Date: 2026-06-10
-Inference subset (excludes demo/, tools/, assets/).
-License: Apache-2.0 (LICENSE included) — commercial-safe.

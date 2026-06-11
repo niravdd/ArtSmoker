@@ -61,9 +61,10 @@ def _instance_has_local_nvme(instance: str) -> bool:
 _LIBRARY_BUNDLED_PACKAGES = {
     # Three texturing backends bundled, selected via ARTSMOKER_TEXTURE_BACKEND /
     # per-request texture_backend: mvadapter (Apache-2.0, default), hy3dpaint
-    # (Hunyuan3D-Paint, best quality, Tencent community license), paint3d
-    # (Paint3D, Apache-2.0 — commercial-safe, image-conditioned UV texturing).
-    "image_to_3d": ["triposg", "mvadapter", "hy3dpaint", "paint3d"],
+    # (Hunyuan3D-Paint, best quality, Tencent community license), mvpainter
+    # (MVPainter, Apache-2.0 — commercial-safe, multi-view-bake; only the
+    # Apache-licensed diffusion is vendored, baking reuses our nvdiffrast path).
+    "image_to_3d": ["triposg", "mvadapter", "hy3dpaint", "mvpainter"],
 }
 
 
