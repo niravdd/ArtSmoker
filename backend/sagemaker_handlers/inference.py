@@ -3362,7 +3362,15 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
         save_dir=temp_dir,
         save_name="mvp_textured",
         uv_unwarp=True,
-        preprocess_mesh=True,
+        # NO DECIMATION — bake onto the FULL geometry mesh (up to 1M faces),
+        # matching Hunyuan's full-detail approach for sharp faces/fingers/gear.
+        # preprocess_mesh=True would hard-decimate to 50k (process_raw →
+        # process_mesh(targetfacenum=50000)), which softened fine detail. With
+        # False, the TexturePipeline uses the mesh as-is and UV-unwraps the full
+        # mesh via Open3D UVAtlas (MIT-licensed, commercial-safe). NOTE: UVAtlas
+        # on ~1M faces is memory/time-heavy — watching for OOM; if it fails we
+        # fall back (caller → untextured) and revisit (raise target / xatlas).
+        preprocess_mesh=False,
         uv_size=4096,
         rgb_path=mv_grid_path,
         rgb_process_config=_rgb_config,
