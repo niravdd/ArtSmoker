@@ -3317,11 +3317,37 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     mv_grid_path = os.path.join(temp_dir, "mvp_mv_grid.png")
     mv_grid.save(mv_grid_path)
 
+    # Per-view validity masks for the bake. CRITICAL for coverage quality: without
+    # them (a) MVPainter's WHITE view background bleeds into the atlas, and (b) the
+    # baker can't tell which texels each view legitimately covers — so surfaces not
+    # facing one of the 6 cardinal cameras stay unpainted (the white holes seen in
+    # the first run). We already rendered the geometry silhouette per view
+    # (render_out.mask) — that IS the exact per-view coverage, cleaner than
+    # re-running RMBG on the generated views. Build a mask grid in render-index
+    # order, matching mv_grid, and pass it as view_masks_path.
+    mask_views = []
+    _msk = render_out.mask.detach().cpu().numpy()
+    if _msk.ndim == 4:
+        _msk = _msk[..., 0]
+    for ridx in range(6):
+        mview = (_msk[ridx].astype(_np.uint8) * 255)
+        mask_views.append(_PImg.fromarray(mview, mode="L").resize((vw, vh)))
+    mv_masks_grid = _make_mv_grid_masks(mask_views)
+    mv_masks_path = os.path.join(temp_dir, "mvp_mv_masks.png")
+    mv_masks_grid.save(mv_masks_path)
+    if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
+        _save_debug_artifact(mv_masks_grid.convert("RGB"), "04_mvp_masks")
+
     # Free MVPainter's diffusion activations before the bake's nvdiffrast pass.
     del mvp_out, view_grid, render_out, mesh_obj, ctx
     _reclaim_cuda_memory("after MVPainter diffusion (before bake)")
 
     # ── 4. Bake with the SAME nvdiffrast TexturePipeline as the mvadapter path ──
+    # Use the SAME gap-filling options the (working) mvadapter bake uses, or
+    # surfaces between the 6 cardinal views stay unpainted (white holes):
+    #   - view_masks_path: exclude each view's background from projection
+    #   - poisson_reprojection: seamlessly blend overlapping view projections
+    #   - view_inpaint_include_occlusion_boundary: inpaint uncovered/occluded UV
     from mvadapter.pipelines.pipeline_texture import TexturePipeline, ModProcessConfig
     texture_pipe = model_dict.get("texture_pipe")
     if texture_pipe is None:
@@ -3340,6 +3366,9 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
         uv_size=4096,
         rgb_path=mv_grid_path,
         rgb_process_config=_rgb_config,
+        view_masks_path=mv_masks_path,
+        view_inpaint_include_occlusion_boundary=True,
+        poisson_reprojection=True,
         camera_azimuth_deg=_MVP_AZIMUTH,
         camera_elevation_deg=_MVP_ELEVATION,
         camera_distance=1.8,
