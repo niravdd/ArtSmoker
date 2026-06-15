@@ -2914,7 +2914,10 @@ def _predict_image_to_3d(input_data, model_dict):
         except Exception as tex_err:
             logger.warning("Phase 2/3 texture generation failed — falling back to untextured: %s", tex_err)
             import traceback
-            logger.debug("Texture error traceback:\n%s", traceback.format_exc())
+            # Log the full traceback at WARNING (not DEBUG) — a texture failure is
+            # operationally important and the stack pinpoints the failing line for
+            # diagnosis without a redeploy-to-raise-log-level cycle.
+            logger.warning("Texture error traceback:\n%s", traceback.format_exc())
             textured_glb_data = None
             # Ensure GPU memory is freed after texture failure
             import gc
