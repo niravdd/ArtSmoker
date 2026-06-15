@@ -3369,7 +3369,15 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
         view_masks_path=mv_masks_path,
         view_inpaint_include_occlusion_boundary=True,
         poisson_reprojection=True,
-        camera_azimuth_deg=_MVP_AZIMUTH,
+        # CRITICAL azimuth-convention fix: TexturePipeline internally re-applies a
+        # -90° offset (azimuth_deg=[x-90 ...], "−y as front", pipeline_texture.py
+        # L207). Our conditioning render used get_orthogonal_camera(azimuth_deg=
+        # _MVP_AZIMUTH) DIRECTLY (no offset), so we must pre-add +90 here to make
+        # the bake's projection cameras land on the SAME views MVPainter generated.
+        # Passing _MVP_AZIMUTH raw left the bake rotated 90° from the diffused
+        # views → colors back-projected onto the wrong surface → shattered/mosaic
+        # texture. (+90 then −90 internally = our true render azimuths.)
+        camera_azimuth_deg=[a + 90 for a in _MVP_AZIMUTH],
         camera_elevation_deg=_MVP_ELEVATION,
         camera_distance=1.8,
         camera_ortho_scale=1.1,
