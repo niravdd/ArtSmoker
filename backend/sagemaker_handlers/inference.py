@@ -3281,8 +3281,10 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
         _save_debug_artifact(depth_tile, "01b_mvp_depth_tile")
 
     # ── 2. MVPainter multi-view diffusion ──
-    ref_image = _preprocess_mv_reference(source_image, model_dict.get("rmbg_model"))
-    _save_debug_artifact(ref_image, "02_reference")
+    # MVPainter wants an RGBA cutout (it reads alpha to recenter, then composites
+    # on white internally) — NOT the gray-composited RGB MV-Adapter uses.
+    ref_image = _preprocess_mvpainter_reference(source_image, model_dict.get("rmbg_model"))
+    _save_debug_artifact(ref_image.convert("RGB"), "02_reference")
     pipe = _load_mvpainter(hf_token)
     steps = int(input_data.get("num_inference_steps") or 75)
     logger.info("MVPainter diffusion: %d steps", steps)
@@ -3949,6 +3951,48 @@ def _preprocess_mv_reference(pil_image, rmbg_model):
     except Exception as e:
         logger.warning("Reference preprocess failed (%s) — using raw image", e)
         return img
+
+
+def _preprocess_mvpainter_reference(pil_image, rmbg_model):
+    """Prepare the reference image for MVPainter, which expects an RGBA cutout.
+
+    MVPainter's pipeline runs its OWN preprocessing: recenter_img/white_out_
+    background read the ALPHA channel to find the subject, then to_rgb_image
+    composites the cutout onto a white background (its training distribution).
+    So we must hand it a background-removed image WITH an alpha channel — not the
+    gray-composited RGB that _preprocess_mv_reference produces for MV-Adapter
+    (which crashed MVPainter's `for r,g,b,a in data` on a 3-channel image).
+    Returns an RGBA PIL image (subject opaque, background transparent). Falls
+    back to opaque RGBA if RMBG is unavailable.
+    """
+    img = pil_image.convert("RGB")
+    if rmbg_model is None:
+        return img.convert("RGBA")
+    try:
+        orig_size = img.size  # (W, H)
+        orig_np = np.array(img)
+        input_tensor = torch.tensor(orig_np, dtype=torch.float32).permute(2, 0, 1)
+        input_tensor = torch.nn.functional.interpolate(
+            input_tensor.unsqueeze(0), size=[1024, 1024], mode="bilinear"
+        )
+        input_tensor = torch.divide(input_tensor, 255.0)
+        from torchvision.transforms.functional import normalize as _tv_norm
+        input_tensor = _tv_norm(input_tensor, [0.5, 0.5, 0.5], [1.0, 1.0, 1.0]).to("cuda")
+        with torch.no_grad():
+            result = rmbg_model(input_tensor)[0][0]
+        result = torch.squeeze(torch.nn.functional.interpolate(
+            result, size=[orig_size[1], orig_size[0]], mode="bilinear"
+        ), 0)
+        ma, mi = torch.max(result), torch.min(result)
+        if ma > mi:
+            result = (result - mi) / (ma - mi)
+        alpha = (result * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
+        alpha = np.squeeze(alpha)  # (H, W)
+        rgba = np.dstack([orig_np, alpha]).astype(np.uint8)  # (H, W, 4)
+        return Image.fromarray(rgba, "RGBA")
+    except Exception as e:
+        logger.warning("MVPainter reference preprocess failed (%s) — using opaque RGBA", e)
+        return img.convert("RGBA")
 
 
 def _make_mv_grid(images):
