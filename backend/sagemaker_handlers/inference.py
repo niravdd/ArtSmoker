@@ -3086,13 +3086,30 @@ def _load_mvpainter(hf_token=None):
         return _mvpainter_pipe
 
     import sys as _sys
-    # The vendored mvpainter package lives next to this handler under
-    # bundled_packages/mvpainter; put that on sys.path so `from mvpainter...`
-    # resolves regardless of the container's working dir.
+    # Resolve the vendored mvpainter package on sys.path so `from mvpainter...`
+    # imports work. The deployer copies bundled_packages/mvpainter/ → code/mvpainter/
+    # (flattened — the 'bundled_packages' dir does NOT exist in the container),
+    # so the inner importable package ends up at code/mvpainter/mvpainter/. Locally
+    # it's at backend/sagemaker_handlers/bundled_packages/mvpainter/mvpainter/. Try
+    # the layouts that actually occur and add the dir whose child 'mvpainter/'
+    # holds mvpainter_pipeline.py to sys.path.
     here = os.path.dirname(os.path.abspath(__file__))
-    vend = os.path.join(here, "bundled_packages", "mvpainter")
-    if vend not in _sys.path:
-        _sys.path.insert(0, vend)
+    _candidates = [
+        os.path.join(here, "mvpainter"),                         # container: code/mvpainter
+        os.path.join(here, "bundled_packages", "mvpainter"),     # local/dev tree
+    ]
+    _outer = None
+    for _c in _candidates:
+        if os.path.isfile(os.path.join(_c, "mvpainter", "mvpainter_pipeline.py")):
+            _outer = _c
+            break
+    if _outer is None:
+        raise ImportError(
+            "MVPainter package not found; looked in: " + ", ".join(_candidates)
+        )
+    if _outer not in _sys.path:
+        _sys.path.insert(0, _outer)
+    logger.info("MVPainter package dir on sys.path: %s", _outer)
 
     if hf_token:
         os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", hf_token)
