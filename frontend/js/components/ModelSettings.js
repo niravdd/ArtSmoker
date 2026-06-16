@@ -1435,10 +1435,49 @@
             return overlay;
         },
 
-        _showDeployDialog(modelKey, instanceOptions, recommendedInstance, minVram, deployRegion) {
+        _showDeployDialog(modelKey, instanceOptions, recommendedInstance, minVram, deployRegion, textureBackends = null) {
             return new Promise((resolve) => {
                 const available = instanceOptions.filter(o => !o.needs_quota);
                 const needsQuota = instanceOptions.filter(o => o.needs_quota);
+
+                // Texture-backend picker (registry-driven). Rendered only when the
+                // model offers selectable backends (e.g. TripoSG: MVPainter/Hunyuan).
+                const tbOptions = (textureBackends && textureBackends.options) || null;
+                const tbDefault = (textureBackends && textureBackends.default) || (tbOptions ? Object.keys(tbOptions)[0] : null);
+                let textureHtml = '';
+                if (tbOptions) {
+                    const cards = Object.entries(tbOptions).map(([key, b]) => {
+                        const lic = b.license || {};
+                        const commercial = lic.commercial
+                            ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">${t('custom_models.tex_commercial_ok')}</span>`
+                            : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">${t('custom_models.tex_noncommercial')}</span>`;
+                        return `<label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-brand-accent/40 has-[:checked]:border-brand-accent/60 has-[:checked]:bg-brand-accent/5">
+                            <input type="radio" name="deploy-texbackend" value="${key}" ${key === tbDefault ? 'checked' : ''} class="mt-0.5 deploy-texbackend-radio" data-attest="${lic.attestation_required ? '1' : '0'}" />
+                            <div class="min-w-0">
+                                <div class="flex items-center gap-2 flex-wrap">
+                                    <span class="text-xs font-medium text-brand-text">${b.label || key}</span>
+                                    ${commercial}
+                                    <span class="text-[9px] text-brand-text-muted">${lic.name || ''}</span>
+                                </div>
+                                <p class="text-[10px] text-brand-text-muted mt-0.5">${b.description || ''}</p>
+                                <p class="text-[10px] text-brand-text-muted/80 mt-0.5">${b.instance_note || ''}</p>
+                            </div>
+                        </label>`;
+                    }).join('');
+                    textureHtml = `
+                        <div>
+                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('custom_models.tex_backend_title')}</label>
+                            <div class="space-y-2 deploy-texbackend-group">${cards}</div>
+                            <div class="deploy-tex-attest mt-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 hidden">
+                                <p class="deploy-tex-attest-warn text-[10px] text-amber-400 mb-1.5"></p>
+                                <ul class="deploy-tex-attest-terms text-[9px] text-brand-text-muted list-disc ml-4 mb-2 space-y-0.5"></ul>
+                                <label class="flex items-start gap-2 cursor-pointer">
+                                    <input type="checkbox" class="deploy-tex-attest-check mt-0.5" />
+                                    <span class="text-[10px] text-brand-text">${t('custom_models.tex_attest_label')} <a class="deploy-tex-attest-link text-brand-accent underline" target="_blank" rel="noopener">${t('custom_models.tex_attest_readlicense')}</a></span>
+                                </label>
+                            </div>
+                        </div>`;
+                }
 
                 // Build instance dropdown with ALL options — available first, then needs-quota
                 let instanceHtml = '';
@@ -1475,8 +1514,10 @@
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
                 backdrop.innerHTML = `
-                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-5">
+                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
                         <h3 class="text-sm font-semibold text-brand-text">${t('custom_models.deploy_config_title')}</h3>
+
+                        ${textureHtml}
 
                         <div>
                             <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('custom_models.instance')}</label>
@@ -1556,14 +1597,77 @@
                         }
                     }
 
-                    // Enable/disable deploy button
+                    // Enable/disable deploy button. Record the quota block as a
+                    // flag so the texture-attestation gate (updateDeployGate) can
+                    // compose with it instead of overwriting it.
                     if (deployBtn) {
-                        deployBtn.disabled = needsQ;
-                        deployBtn.classList.toggle('opacity-50', needsQ);
+                        if (needsQ) deployBtn.dataset.quotaBlocked = '1';
+                        else delete deployBtn.dataset.quotaBlocked;
+                        if (typeof updateDeployGate === 'function') updateDeployGate();
+                        else { deployBtn.disabled = needsQ; deployBtn.classList.toggle('opacity-50', needsQ); }
                     }
                 };
                 instanceSelect?.addEventListener('change', updateInfo);
                 updateInfo();
+
+                // ── Texture-backend interaction: filter instances to the chosen
+                // backend's allowed set, pre-select its recommended instance, and
+                // gate the deploy button on the non-commercial attestation. ──
+                const attestBox = backdrop.querySelector('.deploy-tex-attest');
+                const attestCheck = backdrop.querySelector('.deploy-tex-attest-check');
+                const syncTextureBackend = () => {
+                    if (!tbOptions) return;
+                    const sel = backdrop.querySelector('input[name="deploy-texbackend"]:checked');
+                    const key = sel?.value;
+                    const b = key && tbOptions[key];
+                    if (!b) return;
+                    // Filter the instance dropdown to this backend's allowed instances.
+                    const allowed = b.allowed_instances || null;
+                    if (instanceSelect && allowed) {
+                        let firstAllowed = null;
+                        Array.from(instanceSelect.options).forEach(o => {
+                            const ok = allowed.includes(o.value);
+                            o.hidden = !ok;
+                            o.disabled = !ok;
+                            if (ok && firstAllowed === null) firstAllowed = o.value;
+                        });
+                        // If current selection is now disallowed, pick the backend's
+                        // recommended (or first allowed) instance.
+                        const cur = instanceSelect.options[instanceSelect.selectedIndex];
+                        if (!cur || cur.hidden) {
+                            instanceSelect.value = (allowed.includes(b.recommended_instance) ? b.recommended_instance : firstAllowed) || instanceSelect.value;
+                        }
+                        updateInfo();
+                    }
+                    // Attestation block for non-commercial backends.
+                    const lic = b.license || {};
+                    if (lic.attestation_required && attestBox) {
+                        attestBox.classList.remove('hidden');
+                        const warnEl = attestBox.querySelector('.deploy-tex-attest-warn');
+                        const termsEl = attestBox.querySelector('.deploy-tex-attest-terms');
+                        const linkEl = attestBox.querySelector('.deploy-tex-attest-link');
+                        if (warnEl) warnEl.textContent = (lic.warnings || []).join(' ');
+                        if (termsEl) termsEl.innerHTML = (lic.key_terms || []).map(x => `<li>${x}</li>`).join('');
+                        if (linkEl && lic.url) linkEl.href = lic.url;
+                        if (attestCheck) attestCheck.checked = false;
+                    } else if (attestBox) {
+                        attestBox.classList.add('hidden');
+                        if (attestCheck) attestCheck.checked = false;
+                    }
+                    updateDeployGate();
+                };
+                function updateDeployGate() {
+                    if (!deployBtn) return;
+                    const sel = backdrop.querySelector('input[name="deploy-texbackend"]:checked');
+                    const needAttest = sel?.dataset.attest === '1';
+                    const attested = attestCheck?.checked;
+                    const blocked = (needAttest && !attested) || !!deployBtn.dataset.quotaBlocked;
+                    deployBtn.disabled = blocked;
+                    deployBtn.classList.toggle('opacity-50', blocked);
+                }
+                backdrop.querySelectorAll('input[name="deploy-texbackend"]').forEach(r => r.addEventListener('change', syncTextureBackend));
+                attestCheck?.addEventListener('change', updateDeployGate);
+                if (tbOptions) syncTextureBackend();
 
                 backdrop.querySelector('.deploy-cancel').addEventListener('click', () => {
                     backdrop.remove();
@@ -1572,8 +1676,11 @@
                 backdrop.querySelector('.deploy-confirm')?.addEventListener('click', () => {
                     const instanceType = instanceSelect?.value || recommendedInstance;
                     const endpointType = backdrop.querySelector('input[name="deploy-type"]:checked')?.value || 'async';
+                    const texSel = backdrop.querySelector('input[name="deploy-texbackend"]:checked');
+                    const textureBackend = texSel?.value || null;
+                    const textureLicenseAccepted = !!(attestCheck && attestCheck.checked);
                     backdrop.remove();
-                    resolve({ instanceType, endpointType });
+                    resolve({ instanceType, endpointType, textureBackend, textureLicenseAccepted });
                 });
                 backdrop.addEventListener('click', (e) => {
                     if (e.target === backdrop) { backdrop.remove(); resolve(null); }
@@ -2046,11 +2153,23 @@
                 }
             } catch {}
 
+            // Fetch the catalog entry for texture-backend metadata (TripoSG: the
+            // user picks MVPainter vs Hunyuan at deploy). Registry-driven — the
+            // dialog renders entirely from texture_backends.options.
+            let textureBackends = null;
+            try {
+                const catResp = await fetch(`/api/custom-models/catalog/${modelKey}`);
+                if (catResp.ok) {
+                    const cat = await catResp.json();
+                    textureBackends = cat.texture_backends || null;
+                }
+            } catch {}
+
             // Build instance selector + deployment type dialog
-            const deployConfig = await this._showDeployDialog(modelKey, instanceOptions, recommendedInstance, minVram, deployRegion);
+            const deployConfig = await this._showDeployDialog(modelKey, instanceOptions, recommendedInstance, minVram, deployRegion, textureBackends);
             if (!deployConfig) { _resetDeployBtn(); return; } // User cancelled
 
-            const { instanceType: selectedInstance, endpointType } = deployConfig;
+            const { instanceType: selectedInstance, endpointType, textureBackend, textureLicenseAccepted } = deployConfig;
 
             window.showLoading?.(`${isRedeploy ? 'Redeploying' : 'Deploying'} model...`);
 
@@ -2059,6 +2178,11 @@
                 const body = isRedeploy
                     ? { endpoint_type: endpointType, instance_type: selectedInstance, hf_token: hfToken }
                     : { model_key: modelKey, endpoint_type: endpointType, instance_type: selectedInstance, hf_token: hfToken, license_accepted: licenseAccepted };
+                // Texture-backend choice (TripoSG etc.) — only set when the model offers it.
+                if (!isRedeploy && textureBackend) {
+                    body.texture_backend = textureBackend;
+                    body.texture_license_accepted = !!textureLicenseAccepted;
+                }
 
                 const resp = await fetch(url, {
                     method: 'POST',
