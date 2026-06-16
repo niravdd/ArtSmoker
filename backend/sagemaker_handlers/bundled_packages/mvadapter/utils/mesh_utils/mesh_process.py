@@ -241,6 +241,45 @@ def uv_parameterize_uvatlas(
     parallel_partitions=16,
     nthreads=0,
 ):
+    # ARTSMOKER: xatlas-first UV unwrap. Open3D's compute_uvatlas (Microsoft
+    # UVAtlas) raises an internal RuntimeError (ComputeUVAtlasPartition) on large/
+    # complex marching-cubes meshes (observed on full ~1M-face TripoSG meshes),
+    # which fails the whole texture bake. xatlas (MIT — same commercial-safe tier
+    # as MVPainter/Open3D, NOT a Hunyuan dependency) robustly unwraps the full
+    # mesh (proven on 1M faces). Try xatlas first, fall back to UVAtlas so the
+    # MV-Adapter path (which already worked via UVAtlas on its decimated mesh) is
+    # unchanged if xatlas is somehow unavailable.
+    #
+    # CONTRACT: must return per-face-corner UVs as (#F, 3, 2) — caller does
+    # .reshape(-1,2) → (#F*3, 2) and pairs it with t_tex_idx = arange(#F*3).
+    try:
+        import xatlas as _xatlas
+        # parametrize returns: vmapping (#xverts,), indices (#F,3) into the
+        # xatlas vertex set, uvs (#xverts, 2). Gather per-corner UVs in ORIGINAL
+        # face order so corner (f,i) lands at output[f, i] — matching t_tex_idx.
+        _vmap, _indices, _uvs = _xatlas.parametrize(
+            vertices.astype(np.float32), faces.astype(np.uint32)
+        )
+        if _indices.shape[0] != faces.shape[0]:
+            # xatlas should preserve face count/order (it only duplicates verts
+            # along UV seams, never adds/removes faces). If it didn't, the
+            # per-face mapping below would be wrong — bail to UVAtlas.
+            raise RuntimeError(
+                "xatlas changed face count (%d→%d); falling back"
+                % (faces.shape[0], _indices.shape[0])
+            )
+        # uvs indexed by xatlas vertex; _indices[f,i] is the xatlas vert for
+        # corner i of face f → per-corner UV = _uvs[_indices]. Shape (#F, 3, 2).
+        face_uvs = _uvs[_indices].astype(np.float32)
+        return face_uvs
+    except Exception as _xe:
+        try:
+            import logging as _lg
+            _lg.getLogger("artsmoker").warning(
+                "xatlas UV unwrap failed (%s) — falling back to Open3D UVAtlas", _xe)
+        except Exception:
+            pass
+
     device = o3d.core.Device("CPU:0")
     dtype_f = o3d.core.float32
     dtype_i = o3d.core.int64
