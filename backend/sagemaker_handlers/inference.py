@@ -2582,6 +2582,26 @@ def _host_ram_total_gb():
         return None
 
 
+def _log_mem(label):
+    """GENERIC phase memory probe — logs BOTH host RAM (used/total) and GPU VRAM
+    at a named checkpoint. Reusable by any backend to find the real peak that
+    dictates the instance baseline. Host RAM is often the hidden ceiling (CPU
+    unwrap / fp32 decode), so we surface used-of-total, not just free."""
+    try:
+        avail = _host_ram_available_gb()
+        total = _host_ram_total_gb()
+        used = (total - avail) if (avail is not None and total is not None) else None
+        ram = ("RAM %.1f/%.1f GB used (%.1f free)" % (used, total, avail)) if used is not None else "RAM ?"
+        gpu = ""
+        import torch as _t
+        if _t.cuda.is_available():
+            gpu = " | VRAM %.1f GB alloc, %.1f reserved" % (
+                _t.cuda.memory_allocated() / 1024**3, _t.cuda.memory_reserved() / 1024**3)
+        logger.info("MEM [%s]: %s%s", label, ram, gpu)
+    except Exception:
+        pass
+
+
 def _choose_mv_resolution():
     """Pick the MV-Adapter render+generation resolution.
 
@@ -3228,6 +3248,7 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     hf_token = model_dict.get("hf_token")
     t0 = _t.time()
     logger.info("Texturing with MVPainter backend (Apache-2.0)...")
+    _log_mem("mvpainter: enter (TripoSG evicted, RMBG on GPU)")
 
     # nvdiffrast must be ready (same guard as the mvadapter path) — its CUDA
     # compile exceeds MMS's 120s watchdog, so it's built at load. If somehow not
@@ -3322,6 +3343,7 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     ref_image = _preprocess_mvpainter_reference(source_image, model_dict.get("rmbg_model"))
     _save_debug_artifact(ref_image.convert("RGB"), "02_reference")
     pipe = _load_mvpainter(hf_token)
+    _log_mem("mvpainter: after pipe load (before diffusion)")
     steps = int(input_data.get("num_inference_steps") or 75)
     logger.info("MVPainter diffusion: %d steps", steps)
     mvp_out = pipe(
@@ -3330,6 +3352,7 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
         depth_image_2=depth_tile,     # and depth on depth_image_2
         num_inference_steps=steps,
     )
+    _log_mem("mvpainter: after diffusion (peak)")
     view_grid = mvp_out[0]  # PIL 3×2 grid of 6 textured RGB views (1024×1536)
     if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
         _save_debug_artifact(view_grid, "03_mvp_view_grid")
@@ -3394,8 +3417,7 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     del mvp_out, view_grid, render_out, mesh_obj, ctx, pipe
     import gc as _gc; _gc.collect()
     _reclaim_cuda_memory("after MVPainter diffusion + pipe eviction (before bake)")
-    _ram = _host_ram_available_gb()
-    logger.info("Host RAM free before full-mesh bake: %.1f GB", _ram if _ram is not None else -1.0)
+    _log_mem("mvpainter: before full-mesh UVAtlas bake")
 
     # ── 4. Bake with the SAME nvdiffrast TexturePipeline as the mvadapter path ──
     # Use the SAME gap-filling options the (working) mvadapter bake uses, or
