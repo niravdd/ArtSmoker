@@ -1616,14 +1616,15 @@
                     <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_version_note')}</p>
                     ${chooserHtml}
 
-                    <!-- Quality preset -->
+                    <!-- Quality preset (real specs: face/vertex detail, not bogus seconds) -->
                     <div>
                         <label class="text-xs text-brand-text-muted mb-1 block">${t('asset_viewer.three_d_quality')}</label>
                         <select id="av-3d-quality" class="input text-sm w-full max-w-xs">
                             <option value="fast">${t('asset_viewer.three_d_quality_fast')}</option>
-                            <option value="standard" selected>${t('asset_viewer.three_d_quality_standard')}</option>
-                            <option value="high">${t('asset_viewer.three_d_quality_high')}</option>
+                            <option value="standard">${t('asset_viewer.three_d_quality_standard')}</option>
+                            <option value="high" selected>${t('asset_viewer.three_d_quality_high')}</option>
                         </select>
+                        <p id="av-3d-estimate" class="text-[10px] text-brand-text-dim mt-1.5"></p>
                     </div>
 
                     <!-- Seed -->
@@ -1681,14 +1682,16 @@
                 </div>
             `;
 
-            // Quality preset auto-fills advanced fields
+            // Quality preset auto-fills advanced fields. Specs are REAL (face/
+            // vertex targets + octree depth); the live estimate line below shows
+            // accurate time + cost derived from the deployed backend/instance.
+            // 0 faces = no decimation cap (full mesh, ~1M after the safety cap).
             const qualityPresets = {
-                fast: { steps: 30, guidance: 5, faces: 100000, depth: 128 },
-                standard: { steps: 50, guidance: 7.5, faces: 300000, depth: 256 },
-                // High: finest geometry (octree 9). Raw octree-9 (~8M faces)
-                // overwhelms texture baking; 750K keeps the fine facial shape
-                // while staying under the texture-pipeline-safe 1M hard cap.
-                high: { steps: 80, guidance: 12, faces: 750000, depth: 512 },
+                fast: { steps: 30, guidance: 5, faces: 100000, depth: 256, vtx: 50000 },
+                standard: { steps: 50, guidance: 7.5, faces: 300000, depth: 256, vtx: 150000 },
+                // High: full detail (octree 9, no decimation cap → ~1M faces /
+                // ~500K verts after the texture-safe ceiling). Matches Hunyuan-class.
+                high: { steps: 80, guidance: 12, faces: 0, depth: 512, vtx: 500000 },
             };
 
             const qualitySelect = container.querySelector('#av-3d-quality');
@@ -1698,18 +1701,61 @@
             const guidanceLabel = container.querySelector('#av-3d-guidance-label');
             const facesSelect = container.querySelector('#av-3d-faces');
             const depthSelect = container.querySelector('#av-3d-depth');
+            const estimateEl = container.querySelector('#av-3d-estimate');
+            const modelSelect = container.querySelector('#av-3d-model');
 
-            qualitySelect?.addEventListener('change', () => {
-                const preset = qualityPresets[qualitySelect.value];
+            // Resolve the targeted instance (chooser value, else first available)
+            // to derive the live time/cost estimate from registry-backed fields.
+            const _selectedInstance = () => {
+                if (!Array.isArray(instances) || !instances.length) return null;
+                const key = modelSelect?.value;
+                return (key && instances.find(i => i.model_key === key)) || instances[0];
+            };
+            const _fmtTime = (s) => {
+                if (!s) return '~?';
+                const m = Math.round(s / 60);
+                return m >= 1 ? `~${m} min` : `~${s}s`;
+            };
+            const updateEstimate = () => {
+                if (!estimateEl) return;
+                const inst = _selectedInstance();
+                const facesVal = facesSelect ? parseInt(facesSelect.value || '0') : 0;
+                const facesTxt = facesVal === 0
+                    ? t('asset_viewer.three_d_est_fullmesh')
+                    : `~${facesVal.toLocaleString()} ${t('asset_viewer.three_d_est_faces')}`;
+                let tail = '';
+                if (inst) {
+                    const lat = inst.typical_latency_seconds;
+                    const cost = inst.cost_per_hour_usd;
+                    const timeTxt = _fmtTime(lat);
+                    let costTxt = '';
+                    if (lat && cost) {
+                        const jobCost = (cost * lat / 3600);
+                        costTxt = ` · ~$${jobCost.toFixed(2)}`;
+                    }
+                    const backend = inst.texture_backend ? ` · ${inst.texture_backend}` : '';
+                    tail = ` · ${timeTxt}${costTxt}${backend}`;
+                }
+                estimateEl.textContent = `${facesTxt}${tail}`;
+            };
+
+            const applyPreset = () => {
+                const preset = qualityPresets[qualitySelect?.value];
                 if (!preset) return;
                 if (stepsInput) { stepsInput.value = preset.steps; stepsLabel.textContent = preset.steps; }
                 if (guidanceInput) { guidanceInput.value = preset.guidance; guidanceLabel.textContent = preset.guidance; }
-                if (facesSelect) facesSelect.value = preset.faces;
-                if (depthSelect) depthSelect.value = preset.depth;
-            });
+                if (facesSelect) facesSelect.value = String(preset.faces);
+                if (depthSelect) depthSelect.value = String(preset.depth);
+                updateEstimate();
+            };
+            qualitySelect?.addEventListener('change', applyPreset);
+            facesSelect?.addEventListener('change', updateEstimate);
+            modelSelect?.addEventListener('change', updateEstimate);
 
             stepsInput?.addEventListener('input', () => { if (stepsLabel) stepsLabel.textContent = stepsInput.value; });
             guidanceInput?.addEventListener('input', () => { if (guidanceLabel) guidanceLabel.textContent = guidanceInput.value; });
+
+            applyPreset();  // sync advanced fields + estimate to the default (High)
 
             // Generate button
             container.querySelector('#av-3d-generate')?.addEventListener('click', () => this._submit3DGeneration());

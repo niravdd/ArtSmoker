@@ -594,6 +594,8 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         "instance_type": instance,
         "status": "Creating",
         "created_at": datetime.now(timezone.utc).isoformat(),
+        # The texture backend baked into this endpoint (for the 3D chooser/estimate).
+        "texture_backend": _tb,
     }
 
 

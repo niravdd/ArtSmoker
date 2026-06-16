@@ -344,16 +344,37 @@ async def list_3d_instances(verify: bool = True):
 
         enabled = cfg.get("enabled", True)
         ready = bool(dep.get("model_ready") or cfg.get("model_ready"))
+        inst_type = dep.get("instance_type", "")
+        # Texture backend + est. cost/time for the 3D form's live estimate. Pull
+        # the per-backend latency + per-instance hourly cost from the catalog so
+        # the UI can show "~N min, ~$X" per choice (registry-driven, no hardcode).
+        tex_backend = dep.get("texture_backend") or ""
+        cost_per_hr = None
+        latency_s = None
+        try:
+            from backend.services.custom_models import get_catalog_model
+            cat = get_catalog_model(cfg.get("catalog_key", "triposg")) or {}
+            cost_per_hr = (cat.get("pricing", {}).get("instance_cost_per_hour", {}) or {}).get(inst_type)
+            tb_opts = (cat.get("texture_backends", {}).get("options", {}) or {})
+            if tex_backend and tex_backend in tb_opts:
+                latency_s = tb_opts[tex_backend].get("typical_latency_seconds")
+            if latency_s is None:
+                latency_s = cat.get("invoke", {}).get("typical_latency_seconds")
+        except Exception:
+            pass
         instances.append({
             "model_key": key,
             "endpoint_name": endpoint_name,
-            "instance_type": dep.get("instance_type", ""),
+            "instance_type": inst_type,
             "created_at": dep.get("created_at", ""),
             "status": live_status or ("InService" if ready else "Unknown"),
             "model_ready": ready,
             "enabled": bool(enabled),
             "available": bool(endpoint_name and enabled),
             "label": _instance_label(key, cfg),
+            "texture_backend": tex_backend,
+            "cost_per_hour_usd": cost_per_hr,
+            "typical_latency_seconds": latency_s,
         })
 
     # Self-heal: remove stale registry entries (endpoint deleted or failed).
