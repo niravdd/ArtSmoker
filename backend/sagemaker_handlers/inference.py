@@ -2501,6 +2501,42 @@ def _move_module_to(module, device):
         return False
 
 
+def _evict_module_to_meta(module, submodule_attrs=None, label="module"):
+    """GENERIC eviction: free a pipeline/model's storage with ZERO host-RAM copy.
+
+    Moving to the `meta` device releases CUDA (and host) tensor storage
+    IMMEDIATELY without allocating a host-RAM copy (meta tensors have no backing
+    storage) — unlike .to("cpu"), which copies weights into host RAM and can
+    OOM-kill the worker when RAM is the scarce resource (e.g. a CPU/host-RAM-
+    bound bake like Open3D UVAtlas on a high-poly mesh).
+
+    Model-agnostic — any backend (TripoSG, MVPainter, Hunyuan, future models)
+    can call this to fit a baseline instance. The caller is responsible for
+    dropping its Python refs and reloading from source/snapshot when next needed.
+    `submodule_attrs` is the fallback list of sub-module names to evict
+    individually if a whole-pipeline .to("meta") isn't supported. Returns True if
+    an eviction was attempted. Best-effort: never raises.
+    """
+    if module is None:
+        return False
+    try:
+        module.to("meta")
+        return True
+    except Exception:
+        moved = False
+        for _attr in (submodule_attrs or ("vae", "unet", "transformer", "text_encoder",
+                                          "image_encoder", "vision_encoder", "vision_encoder_2")):
+            _m = getattr(module, _attr, None)
+            if _m is not None and hasattr(_m, "to"):
+                try:
+                    _m.to("meta"); moved = True
+                except Exception:
+                    pass
+        if not moved:
+            logger.warning("Could not evict %s to meta (no movable submodules)", label)
+        return moved
+
+
 def _host_ram_available_gb():
     """Return available host (system) RAM in GB, or None if it can't be read.
 
@@ -3338,9 +3374,28 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
         _save_debug_artifact(mv_masks_grid.convert("RGB"), "04_mvp_masks")
 
-    # Free MVPainter's diffusion activations before the bake's nvdiffrast pass.
-    del mvp_out, view_grid, render_out, mesh_obj, ctx
-    _reclaim_cuda_memory("after MVPainter diffusion (before bake)")
+    # Free MVPainter's diffusion activations AND the diffusion pipeline itself
+    # before the bake. The 6 views are already generated/saved to disk, so the
+    # ~6-8 GB MVPainter pipe (SDXL UNet + ControlNet + 2 CLIP encoders) is dead
+    # weight during the bake — and the full-mesh UVAtlas unwrap is HOST-RAM-bound,
+    # so every GB we free (VRAM + the pipe's host-side allocations) is headroom
+    # the unwrap needs. Evict the cached pipe to meta (zero-copy) and drop the
+    # module ref; it reloads from the S3-cached weights on the next job.
+    global _mvpainter_pipe
+    if _mvpainter_pipe is not None:
+        _evict_module_to_meta(
+            _mvpainter_pipe,
+            submodule_attrs=("unet", "vae", "vision_encoder", "vision_encoder_2"),
+            label="MVPainter pipe",
+        )
+        _mvpainter_pipe = None
+    # Drop the LOCAL ref too (it aliases the now-meta'd pipe) so gc can reclaim it.
+    pipe = None
+    del mvp_out, view_grid, render_out, mesh_obj, ctx, pipe
+    import gc as _gc; _gc.collect()
+    _reclaim_cuda_memory("after MVPainter diffusion + pipe eviction (before bake)")
+    _ram = _host_ram_available_gb()
+    logger.info("Host RAM free before full-mesh bake: %.1f GB", _ram if _ram is not None else -1.0)
 
     # ── 4. Bake with the SAME nvdiffrast TexturePipeline as the mvadapter path ──
     # Use the SAME gap-filling options the (working) mvadapter bake uses, or
@@ -3510,15 +3565,28 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # So: park to CPU only when host RAM clearly allows it; otherwise EVICT
         # TripoSG entirely (free GPU + RAM) and reload it from the local snapshot
         # before the next job. Either way Phase 2 gets its freed VRAM.
+        # Determine the texture backend NOW (before park/evict) — it dictates the
+        # right memory strategy. The MVPainter bake's UV unwrap (Open3D UVAtlas on
+        # the full ~1M-face mesh) is HOST-RAM-bound, so PARKING TripoSG on CPU
+        # (~10 GB) — which is fine for the GPU-bound MV-Adapter bake — instead
+        # STARVES the unwrap and host-OOM-kills the worker (observed on g6e.2xlarge
+        # with 54 GB "free" at park time: abrupt SIGKILL, no traceback). For
+        # mvpainter we must EVICT (free host RAM, zero-copy via meta), not park.
+        _bake_backend = model_dict.get("texture_backend") or _texture_backend(input_data)
+        if input_data.get("texture_backend"):
+            _bake_backend = str(input_data["texture_backend"]).lower().strip()
+        _force_evict = (_bake_backend == "mvpainter")  # CPU/host-RAM-bound bake
+
         _PARK_RAM_HEADROOM_GB = 14.0  # ~10 GB fp32 pipe + transfer buffers + margin
         triposg_pipe = model_dict.get("pipe")
         if triposg_pipe is not None:
             _avail_gb = _host_ram_available_gb()
-            if _avail_gb is not None and _avail_gb < _PARK_RAM_HEADROOM_GB:
+            if _force_evict or (_avail_gb is not None and _avail_gb < _PARK_RAM_HEADROOM_GB):
                 logger.info(
-                    "Host RAM low (%.1f GB free < %.0f GB needed) — EVICTING TripoSG "
-                    "from GPU (will reload before next job) to avoid host OOM...",
-                    _avail_gb, _PARK_RAM_HEADROOM_GB,
+                    "EVICTING TripoSG from GPU (will reload before next job) — %s "
+                    "(host RAM %.1f GB free)...",
+                    "mvpainter host-RAM-bound bake" if _force_evict else "host RAM low",
+                    _avail_gb if _avail_gb is not None else -1.0,
                 )
                 # Free TripoSG's VRAM WITHOUT a host-RAM copy. Two wrong ways we
                 # already hit: (1) .to("cpu") copies ~8-10 GB fp32 into the
@@ -3529,16 +3597,13 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                 # moving the modules to meta releases their CUDA storage IMMEDIATELY
                 # with ZERO host allocation (meta tensors have no backing storage).
                 # We reload TripoSG fresh from the local snapshot next job anyway,
-                # so discarding these weights is fine.
-                try:
-                    triposg_pipe.to("meta")
-                except Exception:
-                    # Fallback: move known sub-modules to meta individually.
-                    for _attr in ("vae", "transformer", "scheduler", "image_encoder", "feature_extractor"):
-                        _m = getattr(triposg_pipe, _attr, None)
-                        if _m is not None and hasattr(_m, "to"):
-                            try: _m.to("meta")
-                            except Exception: pass
+                # so discarding these weights is fine. Generic zero-copy eviction.
+                _evict_module_to_meta(
+                    triposg_pipe,
+                    submodule_attrs=("vae", "transformer", "scheduler",
+                                     "image_encoder", "feature_extractor"),
+                    label="TripoSG",
+                )
                 model_dict["pipe"] = None
                 model_dict["_triposg_evicted"] = True
                 triposg_pipe = None
