@@ -511,7 +511,13 @@ class DeployRequest(BaseModel):
     instance_type: str | None = None
     hf_token: str | None = None  # For gated models — stored encrypted in Secrets Manager
     build_only: bool = False  # Build mode: cache weights after load, don't expect inference
-    license_accepted: bool = False  # User confirmed license agreement before deploying
+    license_accepted: bool = False  # User confirmed model license agreement before deploying
+    # For models with selectable texturing pipelines (e.g. TripoSG): the backend
+    # the user chose in the deploy dialog ("mvpainter" | "hunyuan"). Validated
+    # against the catalog's texture_backends; some (Hunyuan, non-commercial)
+    # require an explicit attestation.
+    texture_backend: str | None = None
+    texture_license_accepted: bool = False  # Attestation for a non-commercial texture backend
 
 
 _deploy_status: dict = {}  # model_key → {"stage": str, "progress": str, "error": str}
@@ -550,6 +556,42 @@ async def deploy_model(body: DeployRequest):
     # Record license acceptance in user registry
     if body.license_accepted:
         _record_license_acceptance(body.model_key, license_info.get("license_name", model.get("license", "")))
+
+    # ── Texture backend selection (e.g. TripoSG: mvpainter vs hunyuan) ──────────
+    # Validate the chosen backend against the catalog, enforce its instance
+    # baseline, and require attestation for a non-commercial backend (Hunyuan).
+    tex_meta = model.get("texture_backends") or {}
+    tex_options = tex_meta.get("options") or {}
+    chosen_tb = body.texture_backend or tex_meta.get("default")
+    if tex_options and chosen_tb:
+        if chosen_tb not in tex_options:
+            raise HTTPException(400, detail=f"Unknown texture backend: {chosen_tb}")
+        tb = tex_options[chosen_tb]
+        tb_lic = tb.get("license", {})
+        # Non-commercial backend → require the explicit attestation checkbox.
+        if tb_lic.get("attestation_required") and not body.texture_license_accepted:
+            raise HTTPException(400, detail={
+                "error": "texture_license_required",
+                "message": (
+                    f"{tb.get('label', chosen_tb)} uses a {tb_lic.get('name','non-commercial')} license. "
+                    "Confirm you hold a valid license or will use it within its non-commercial terms."
+                ),
+                "license_name": tb_lic.get("name", ""),
+                "license_url": tb_lic.get("url", ""),
+            })
+        # Enforce the backend's instance baseline (MVPainter needs g6e.2xlarge+).
+        allowed = tb.get("allowed_instances") or model.get("requirements", {}).get("allowed_instances", [])
+        if body.instance_type and allowed and body.instance_type not in allowed:
+            raise HTTPException(400, detail=(
+                f"{tb.get('label', chosen_tb)} requires one of: {', '.join(allowed)} "
+                f"(got {body.instance_type})."
+            ))
+        # Default the instance to the backend's recommendation if none given.
+        if not body.instance_type and tb.get("recommended_instance"):
+            body.instance_type = tb["recommended_instance"]
+        if body.texture_license_accepted:
+            _record_license_acceptance(
+                f"{body.model_key}:{chosen_tb}", tb_lic.get("name", chosen_tb))
 
     # Smart token flow: only ask for token if gated AND no token stored yet
     if model.get("requires_hf_auth") and not body.hf_token and not has_hf_token():
@@ -599,6 +641,7 @@ async def deploy_model(body: DeployRequest):
                     instance_type=body.instance_type,
                     hf_token=body.hf_token,  # Stored in Secrets Manager, not plain-text env var
                     build_only=body.build_only,
+                    texture_backend=chosen_tb,  # user's deploy-dialog choice (None if N/A)
                 )
 
                 _register_custom_model(key, model, deployment)
@@ -642,7 +685,7 @@ async def deploy_model(body: DeployRequest):
                         "progress": "Creating Amazon SageMaker endpoint...",
                         "error": "",
                     }
-                    deployment = deploy_endpoint(key, endpoint_type=body.endpoint_type, instance_type=body.instance_type)
+                    deployment = deploy_endpoint(key, endpoint_type=body.endpoint_type, instance_type=body.instance_type, texture_backend=chosen_tb)
 
                     _register_custom_model(key, model, deployment)
                     _deploy_status[key] = {

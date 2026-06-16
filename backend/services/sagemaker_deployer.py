@@ -431,6 +431,7 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
                     instance_type: str | None = None,
                     hf_token: str | None = None,
                     build_only: bool = False,
+                    texture_backend: str | None = None,
                     progress_callback=None) -> dict:
     """Create an Amazon SageMaker endpoint for the model.
 
@@ -2339,14 +2340,16 @@ def _get_model_environment(model_key: str, model: dict,
     if os.environ.get("ARTSMOKER_TEXTURE_DEBUG") == "1":
         env["ARTSMOKER_TEXTURE_DEBUG"] = "1"
 
-    # Texturing backend default baked into the endpoint: "mvadapter" (default)
-    # or "hunyuan" (Hunyuan3D-Paint). Sets which backend's native ops are built +
-    # which pipe is preloaded at model load. Per-request texture_backend still
-    # overrides at inference. Source order: catalog invoke.texture_backend (so it
-    # survives server restarts), else the server's ARTSMOKER_TEXTURE_BACKEND env.
-    _tb = invoke.get("texture_backend") or os.environ.get("ARTSMOKER_TEXTURE_BACKEND")
+    # Texturing backend baked into the endpoint: "mvpainter", "hunyuan", or
+    # "mvadapter". Sets which backend's native ops are built + which pipe is
+    # preloaded at model load. Per-request texture_backend still overrides at
+    # inference. Source order: the user's per-DEPLOY choice (texture_backend arg,
+    # from the deploy dialog) wins; else catalog invoke.texture_backend (survives
+    # server restarts); else the server's ARTSMOKER_TEXTURE_BACKEND env.
+    _tb = texture_backend or invoke.get("texture_backend") or os.environ.get("ARTSMOKER_TEXTURE_BACKEND")
     if _tb:
         env["ARTSMOKER_TEXTURE_BACKEND"] = _tb
+        logger.info("Texture backend for %s endpoint: %s", model_key, _tb)
 
     # Dev hot-reload — on a dev box, let the handler check S3 for a code
     # overlay (overlay.tar.gz) before each inference, so we can push handler +

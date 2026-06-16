@@ -5380,11 +5380,71 @@
           "max_concurrent_invocations": 1,
           "texture_backend": "mvpainter"
         },
+        "texture_backends": {
+          "default": "mvpainter",
+          "options": {
+            "mvpainter": {
+              "label": "MVPainter",
+              "description": "Multi-view PBR texturing. Commercial-safe and high quality on characters and objects.",
+              "license": {
+                "name": "Apache-2.0",
+                "url": "https://github.com/amap-cvlab/MV-Painter/blob/main/LICENSE",
+                "commercial": true,
+                "attestation_required": false,
+                "key_terms": [
+                  "Apache-2.0 — commercial use unrestricted",
+                  "Model weights also Apache-2.0 (shaomq/MVPainter)"
+                ],
+                "warnings": []
+              },
+              "min_instance": "ml.g6e.2xlarge",
+              "recommended_instance": "ml.g6e.2xlarge",
+              "allowed_instances": [
+                "ml.g6e.2xlarge",
+                "ml.g6e.4xlarge"
+              ],
+              "typical_latency_seconds": 1600,
+              "quality_note": "Full ~1M-face mesh, 4096² texture. Commercial-safe.",
+              "instance_note": "Needs g6e.2xlarge minimum (54GB pipeline). 4xlarge is faster for the same result, at higher cost."
+            },
+            "hunyuan": {
+              "label": "Hunyuan3D-Paint",
+              "description": "Tencent Hunyuan3D-Paint. Highest texture quality, but a NON-COMMERCIAL license.",
+              "license": {
+                "name": "Tencent Hunyuan 3D 2.0 Community License",
+                "url": "https://github.com/Tencent/Hunyuan3D-2/blob/main/LICENSE",
+                "commercial": false,
+                "attestation_required": true,
+                "key_terms": [
+                  "NON-COMMERCIAL community license",
+                  "Excludes EU / UK / South Korea for commercial use",
+                  "1M monthly-active-user cap",
+                  "No military use"
+                ],
+                "warnings": [
+                  "Not licensed for commercial use without a separate Tencent agreement.",
+                  "You must confirm you hold a valid license or will use it within its non-commercial terms."
+                ]
+              },
+              "min_instance": "ml.g6e.xlarge",
+              "recommended_instance": "ml.g6e.xlarge",
+              "allowed_instances": [
+                "ml.g6e.xlarge",
+                "ml.g6e.2xlarge",
+                "ml.g6e.4xlarge"
+              ],
+              "typical_latency_seconds": 1300,
+              "quality_note": "Full mesh, PBR. Best-in-class faces.",
+              "instance_note": "Runs on g6e.xlarge; larger instances are faster."
+            }
+          }
+        },
         "pricing": {
           "estimated_cost_per_image": 0.05,
           "instance_cost_per_hour": {
             "ml.g6e.xlarge": 1.86,
-            "ml.g6e.2xlarge": 2.35
+            "ml.g6e.2xlarge": 2.35,
+            "ml.g6e.4xlarge": 4.70
           }
         },
         "version": "1.0",
