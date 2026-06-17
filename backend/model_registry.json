@@ -5322,6 +5322,10 @@
           "repo_id": "VAST-AI/TripoSG"
         },
         "secondary_sources": {
+          "birefnet": {
+            "type": "huggingface",
+            "repo_id": "ZhengPeng7/BiRefNet"
+          },
           "rmbg": {
             "type": "huggingface",
             "repo_id": "briaai/RMBG-1.4"
@@ -5472,6 +5476,7 @@
             "scipy",
             "peft",
             "kornia",
+            "timm",
             "open3d",
             "spandrel==0.4.1",
             "xatlas",

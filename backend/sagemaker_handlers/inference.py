@@ -1509,23 +1509,37 @@ def _load_image_to_3d(model_dir):
     load_time = _time.time() - t0
     logger.info("Image-to-3D pipeline loaded on GPU in %.0fs", load_time)
 
-    # Load RMBG (background removal) for preprocessing
+    # Load the background-removal model for preprocessing. The mask model is
+    # SELECTABLE so we can use a commercially-licensed one without deleting the
+    # old path: BiRefNet (ZhengPeng7/BiRefNet, MIT code+weights) is the default;
+    # RMBG (briaai/RMBG-1.4, CC-BY-NC / non-commercial) stays available behind
+    # ARTSMOKER_BG_MODEL=rmbg, so if BRIA's terms change we just flip the flag.
+    # Both load identically (AutoModelForImageSegmentation + trust_remote_code)
+    # and produce a foreground mask; the per-model differences (input
+    # normalization, output indexing) are handled in _foreground_mask_np().
     rmbg_model = None
     try:
         secondary_sources = _config.get("secondary_sources", {})
-        rmbg_repo = secondary_sources.get("rmbg", {}).get("repo_id", "briaai/RMBG-1.4")
-        if not rmbg_repo:
-            rmbg_repo = "briaai/RMBG-1.4"
+        bg_choice = (_get_env("ARTSMOKER_BG_MODEL", "birefnet") or "birefnet").lower().strip()
+        if bg_choice == "rmbg":
+            bg_repo = secondary_sources.get("rmbg", {}).get("repo_id") or "briaai/RMBG-1.4"
+        else:
+            bg_repo = secondary_sources.get("birefnet", {}).get("repo_id") or "ZhengPeng7/BiRefNet"
 
-        logger.info("Downloading RMBG model from %s...", rmbg_repo)
+        logger.info("Downloading background-removal model (%s) from %s...", bg_choice, bg_repo)
         from transformers import AutoModelForImageSegmentation
         rmbg_model = AutoModelForImageSegmentation.from_pretrained(
-            rmbg_repo, trust_remote_code=True, token=hf_token,
+            bg_repo, trust_remote_code=True, token=hf_token,
         )
         rmbg_model.to("cuda").eval()
-        logger.info("RMBG background removal model loaded on GPU")
+        # Tag the model so the mask helper knows which convention to use.
+        try:
+            rmbg_model._artsmoker_bg_backend = "rmbg" if bg_choice == "rmbg" else "birefnet"
+        except Exception:
+            pass
+        logger.info("Background-removal model loaded on GPU (%s)", bg_choice)
     except Exception as e:
-        logger.warning("RMBG load failed (will skip background removal): %s", e)
+        logger.warning("Background-removal model load failed (will skip bg removal): %s", e)
 
     # Detect VRAM for adaptive loading strategy
     vram_gb = 0
@@ -2743,37 +2757,15 @@ def _predict_image_to_3d(input_data, model_dict):
     # smeared and the face drifted. See the crop block below.
     source_image = None
 
-    # 2. Remove background if RMBG is available
+    # 2. Remove background if a bg-removal model is available
     if rmbg_model is not None:
-        logger.info("Removing background with RMBG...")
+        logger.info("Removing background (%s)...", getattr(rmbg_model, "_artsmoker_bg_backend", "birefnet"))
         orig_size = img.size  # (W, H)
-        orig_np = np.array(img)
 
-        # Preprocess: resize to 1024x1024, normalize with RMBG-specific values
-        input_tensor = torch.tensor(orig_np, dtype=torch.float32).permute(2, 0, 1)
-        input_tensor = torch.nn.functional.interpolate(
-            input_tensor.unsqueeze(0), size=[1024, 1024], mode="bilinear"
-        )
-        input_tensor = torch.divide(input_tensor, 255.0)
-        from torchvision.transforms.functional import normalize as tv_normalize
-        input_tensor = tv_normalize(input_tensor, [0.5, 0.5, 0.5], [1.0, 1.0, 1.0])
-        input_tensor = input_tensor.to("cuda")
-
-        with torch.no_grad():
-            output = rmbg_model(input_tensor)
-
-        # Extract mask: RMBG returns nested structure, mask is at [0][0]
-        result = output[0][0]
-        # Resize mask back to original image size
-        result = torch.squeeze(torch.nn.functional.interpolate(
-            result, size=[orig_size[1], orig_size[0]], mode="bilinear"
-        ), 0)
-        # Normalize to 0-255
-        ma, mi = torch.max(result), torch.min(result)
-        result = (result - mi) / (ma - mi)
-        mask_np = (result * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
-        mask_np = np.squeeze(mask_np)
-        logger.info("RMBG mask: shape=%s, range=[%d, %d]", mask_np.shape, mask_np.min(), mask_np.max())
+        # Compute the foreground mask via the shared helper (handles RMBG vs
+        # BiRefNet conventions). Same uint8 H×W mask either way.
+        mask_np = _foreground_mask_np(rmbg_model, img)
+        logger.info("Foreground mask: shape=%s, range=[%d, %d]", mask_np.shape, mask_np.min(), mask_np.max())
 
         # 3. Composite onto white background
         pil_mask = Image.fromarray(mask_np)
@@ -3838,25 +3830,10 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         rmbg_model = model_dict.get("rmbg_model")
         mask_images = []
         if rmbg_model is not None:
-            from torchvision import transforms as _tv_transforms
-            _rmbg_transform = _tv_transforms.Compose([
-                _tv_transforms.Resize((1024, 1024)),
-                _tv_transforms.ToTensor(),
-                _tv_transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]),
-            ])
             cleaned_images = []
             for mv_img in mv_images:
-                input_tensor = _rmbg_transform(mv_img).unsqueeze(0).to("cuda")
-                with torch.no_grad():
-                    result = rmbg_model(input_tensor)[0][0]
-                result = torch.squeeze(torch.nn.functional.interpolate(
-                    result, size=[mv_img.height, mv_img.width], mode="bilinear"
-                ), 0)
-                ma, mi = torch.max(result), torch.min(result)
-                if ma > mi:
-                    result = (result - mi) / (ma - mi)
-                mask_np = (result * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
-                mask_np = np.squeeze(mask_np)
+                # Per-view foreground mask via the shared helper (RMBG/BiRefNet-agnostic).
+                mask_np = _foreground_mask_np(rmbg_model, mv_img)
                 mask_images.append(Image.fromarray(mask_np, mode='L'))
                 # Composite on neutral gray (127) — matches MV-Adapter's training
                 # background and avoids white edge halos bleeding into the atlas.
@@ -4046,6 +4023,51 @@ def _save_debug_artifact(pil_image, name):
         logger.warning("Debug artifact save failed (%s): %s", name, e)
 
 
+def _foreground_mask_np(rmbg_model, pil_image):
+    """Run the background-removal model on a PIL image → uint8 foreground mask
+    (H×W, 0..255), resized back to the original image size.
+
+    Centralizes the per-model differences so RMBG and BiRefNet are interchangeable
+    (the model carries `_artsmoker_bg_backend`; default treated as birefnet):
+      - RMBG-1.4:  input normalized /255 then ([0.5]*3,[1]*3); output at [0][0],
+                   min/max-normalized.
+      - BiRefNet:  input ImageNet-normalized ([0.485,0.456,0.406],[0.229,0.224,
+                   0.225]); output at [-1].sigmoid().
+    Returns None if rmbg_model is None.
+    """
+    if rmbg_model is None:
+        return None
+    backend = getattr(rmbg_model, "_artsmoker_bg_backend", "birefnet")
+    orig_size = pil_image.size  # (W, H)
+    orig_np = np.array(pil_image.convert("RGB"))
+    from torchvision.transforms.functional import normalize as _tv_normalize
+    x = torch.tensor(orig_np, dtype=torch.float32).permute(2, 0, 1)
+    x = torch.nn.functional.interpolate(x.unsqueeze(0), size=[1024, 1024], mode="bilinear")
+    x = torch.divide(x, 255.0)
+    if backend == "rmbg":
+        x = _tv_normalize(x, [0.5, 0.5, 0.5], [1.0, 1.0, 1.0])
+    else:  # birefnet — ImageNet normalization
+        x = _tv_normalize(x, [0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
+    # Match the model's dtype (BiRefNet card uses .half()); fall back to float.
+    try:
+        x = x.to("cuda").to(next(rmbg_model.parameters()).dtype)
+    except Exception:
+        x = x.to("cuda")
+    with torch.no_grad():
+        out = rmbg_model(x)
+    if backend == "rmbg":
+        result = out[0][0]
+    else:
+        result = out[-1].sigmoid()
+    result = torch.squeeze(torch.nn.functional.interpolate(
+        result, size=[orig_size[1], orig_size[0]], mode="bilinear"), 0)
+    ma, mi = torch.max(result), torch.min(result)
+    if ma > mi:
+        result = (result - mi) / (ma - mi)
+    mask_np = (result * 255).permute(1, 2, 0).float().cpu().numpy().astype(np.uint8)
+    return np.squeeze(mask_np)
+
+
 def _preprocess_mv_reference(pil_image, rmbg_model):
     """Prepare reference image for MV-Adapter: remove background, composite on gray.
 
@@ -4057,25 +4079,8 @@ def _preprocess_mv_reference(pil_image, rmbg_model):
     if rmbg_model is None:
         return img
     try:
-        orig_size = img.size  # (W, H)
         orig_np = np.array(img)
-        input_tensor = torch.tensor(orig_np, dtype=torch.float32).permute(2, 0, 1)
-        input_tensor = torch.nn.functional.interpolate(
-            input_tensor.unsqueeze(0), size=[1024, 1024], mode="bilinear"
-        )
-        input_tensor = torch.divide(input_tensor, 255.0)
-        from torchvision.transforms.functional import normalize as _tv_norm
-        input_tensor = _tv_norm(input_tensor, [0.5, 0.5, 0.5], [1.0, 1.0, 1.0]).to("cuda")
-        with torch.no_grad():
-            result = rmbg_model(input_tensor)[0][0]
-        result = torch.squeeze(torch.nn.functional.interpolate(
-            result, size=[orig_size[1], orig_size[0]], mode="bilinear"
-        ), 0)
-        ma, mi = torch.max(result), torch.min(result)
-        if ma > mi:
-            result = (result - mi) / (ma - mi)
-        mask = (result * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
-        mask = np.squeeze(mask)
+        mask = _foreground_mask_np(rmbg_model, img)  # (H, W) uint8, RMBG/BiRefNet-agnostic
         mask_3c = np.stack([mask] * 3, axis=-1) / 255.0
         gray_bg = np.ones_like(orig_np) * 127
         composited = (orig_np * mask_3c + gray_bg * (1 - mask_3c)).astype(np.uint8)
@@ -4101,25 +4106,8 @@ def _preprocess_mvpainter_reference(pil_image, rmbg_model):
     if rmbg_model is None:
         return img.convert("RGBA")
     try:
-        orig_size = img.size  # (W, H)
         orig_np = np.array(img)
-        input_tensor = torch.tensor(orig_np, dtype=torch.float32).permute(2, 0, 1)
-        input_tensor = torch.nn.functional.interpolate(
-            input_tensor.unsqueeze(0), size=[1024, 1024], mode="bilinear"
-        )
-        input_tensor = torch.divide(input_tensor, 255.0)
-        from torchvision.transforms.functional import normalize as _tv_norm
-        input_tensor = _tv_norm(input_tensor, [0.5, 0.5, 0.5], [1.0, 1.0, 1.0]).to("cuda")
-        with torch.no_grad():
-            result = rmbg_model(input_tensor)[0][0]
-        result = torch.squeeze(torch.nn.functional.interpolate(
-            result, size=[orig_size[1], orig_size[0]], mode="bilinear"
-        ), 0)
-        ma, mi = torch.max(result), torch.min(result)
-        if ma > mi:
-            result = (result - mi) / (ma - mi)
-        alpha = (result * 255).permute(1, 2, 0).cpu().numpy().astype(np.uint8)
-        alpha = np.squeeze(alpha)  # (H, W)
+        alpha = _foreground_mask_np(rmbg_model, img)  # (H, W) uint8, RMBG/BiRefNet-agnostic
         rgba = np.dstack([orig_np, alpha]).astype(np.uint8)  # (H, W, 4)
         return Image.fromarray(rgba, "RGBA")
     except Exception as e:
