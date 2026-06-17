@@ -497,7 +497,8 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     # startup BEFORE our custom handler runs, so we must pass the actual
     # token (not a Secrets Manager ARN). The token is a read-only token
     # visible only in the user's own AWS account via sagemaker:DescribeModel.
-    container_env = _get_model_environment(model_key, model, hf_token=resolved_hf_token)
+    container_env = _get_model_environment(model_key, model, hf_token=resolved_hf_token,
+                                           texture_backend=texture_backend)
 
     # Build mode: save cache after model load (no inference needed).
     # Used when the build instance can't run inference (e.g., OOM on smaller GPUs)
@@ -586,6 +587,12 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
     # Set CloudWatch log retention (SageMaker creates log groups automatically)
     _set_log_retention(endpoint_name)
 
+    # Effective texture backend baked into this endpoint (for the 3D chooser/
+    # estimate). Same source order as _get_model_environment: deploy choice >
+    # catalog invoke.texture_backend > server env.
+    _eff_tb = (texture_backend
+               or model.get("invoke", {}).get("texture_backend")
+               or os.environ.get("ARTSMOKER_TEXTURE_BACKEND"))
     return {
         "endpoint_name": endpoint_name,
         "model_name": sm_model_name,
@@ -594,8 +601,7 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         "instance_type": instance,
         "status": "Creating",
         "created_at": datetime.now(timezone.utc).isoformat(),
-        # The texture backend baked into this endpoint (for the 3D chooser/estimate).
-        "texture_backend": _tb,
+        "texture_backend": _eff_tb,
     }
 
 
@@ -2238,7 +2244,8 @@ def delete_hf_token():
 
 
 def _get_model_environment(model_key: str, model: dict,
-                           hf_token: str | None = None) -> dict:
+                           hf_token: str | None = None,
+                           texture_backend: str | None = None) -> dict:
     """Get environment variables for the Amazon SageMaker container.
 
     These env vars tell OUR inference handler (inference.py) how to load
