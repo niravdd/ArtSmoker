@@ -1,7 +1,10 @@
 import os
 
 import numpy as np
-import nvdiffrast.torch as dr
+try:  # nvdiffrast is an optional (non-commercial) fallback rasterizer; Kaolin is the default. Keep import non-fatal.
+    import nvdiffrast.torch as dr
+except Exception:  # noqa: BLE001 — module absent when ARTSMOKER_RASTERIZER=kaolin (default)
+    dr = None
 import torch
 import torch.nn.functional as F
 import trimesh
