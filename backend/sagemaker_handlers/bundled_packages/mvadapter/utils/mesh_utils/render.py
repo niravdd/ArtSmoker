@@ -172,6 +172,21 @@ class KaolinContextWrapper:
 
     def rasterize(self, pos, tri, resolution, ranges=None, grad_db=True):
         # pos: clip-space [V,4] or [mb,V,4]; tri: [F,3] int. resolution=(H,W).
+        # Two convention knobs (read at call time so they can be A/B-tested via the
+        # inference payload without a redeploy — see _generate_texture_mvpainter):
+        #   ARTSMOKER_KAOLIN_YFLIP (default 1): flip NDC y to match nvdiffrast's
+        #     output row order. If the bake comes out vertically mirrored / mostly
+        #     white (occlusion test fails because grid_sample reads wrong rows),
+        #     try 0.
+        #   ARTSMOKER_KAOLIN_ZSIGN (default 1): sign applied to the z passed to
+        #     kaolin's z-buffer. If front faces lose the depth test to back faces
+        #     (see-through / wrong-surface color), try -1.
+        import os as _os
+        _yflip = (_os.environ.get("ARTSMOKER_KAOLIN_YFLIP", "1") or "1").strip() != "0"
+        try:
+            _zsign = float(_os.environ.get("ARTSMOKER_KAOLIN_ZSIGN", "1") or "1")
+        except ValueError:
+            _zsign = 1.0
         H, W = int(resolution[0]), int(resolution[1])
         if pos.dim() == 2:
             pos = pos[None]
@@ -186,8 +201,9 @@ class KaolinContextWrapper:
             p = pos[b]
             ndc = p[:, :3] / p[:, 3:4].clamp(min=1e-8)   # perspective divide
             img_xy = ndc[:, :2].clone()
-            img_xy[:, 1] = -img_xy[:, 1]                  # OpenGL y-up → image y-down
-            z = ndc[:, 2]
+            if _yflip:
+                img_xy[:, 1] = -img_xy[:, 1]              # OpenGL y-up → image y-down
+            z = ndc[:, 2] * _zsign
             fv_image = img_xy[tri_i][None]                # (1,F,3,2)
             fv_z = z[tri_i][None]                         # (1,F,3)
             # One-hot corner features → rasterized output IS the barycentric map.

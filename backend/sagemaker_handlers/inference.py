@@ -3297,6 +3297,19 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     logger.info("Texturing with MVPainter backend (Apache-2.0)...")
     _log_mem("mvpainter: enter (TripoSG evicted, RMBG on GPU)")
 
+    # Per-request Kaolin-rasterizer convention overrides + diagnostics. Lets us
+    # A/B-test the y-flip / z-sign conventions (and turn on the per-gate coverage
+    # breakdown in uv.py's SimpleUVValidityStrategy) from the job payload WITHOUT
+    # a redeploy — the wrapper reads these env vars at call time. Remove once the
+    # correct convention is locked in.
+    for _k, _env in (("debug_texture", "ARTSMOKER_TEXTURE_DEBUG"),
+                     ("rasterizer", "ARTSMOKER_RASTERIZER"),
+                     ("kaolin_yflip", "ARTSMOKER_KAOLIN_YFLIP"),
+                     ("kaolin_zsign", "ARTSMOKER_KAOLIN_ZSIGN")):
+        if input_data.get(_k) is not None:
+            os.environ[_env] = str(input_data[_k])
+            logger.info("MVPainter debug override: %s=%s", _env, os.environ[_env])
+
     # The bake rasterizer (kaolin by default) must be ready — its install/compile
     # exceeds MMS's 120s watchdog, so it's prepared at load. If somehow not ready,
     # kick the background prep and fail fast (caller → untextured).

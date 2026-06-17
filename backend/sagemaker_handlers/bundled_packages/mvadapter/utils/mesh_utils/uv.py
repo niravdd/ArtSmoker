@@ -266,9 +266,35 @@ class SimpleUVValidityStrategy(UVValidityStrategy):
         uv_render_geometry_output: UVRenderGeometryOutput,
         uv_render_attr_output: Optional[UVRenderAttrOutput],
     ) -> torch.BoolTensor:
+        import os as _os
+        _dbg = _os.environ.get("ARTSMOKER_TEXTURE_DEBUG", "") == "1"
+
+        def _frac(t):
+            return float(t.float().mean().item())
+
         uv_pos_valid = uv_render_geometry_output.uv_pos_error < self.pos_error_eps
         uv_aoi_cos_valid = uv_render_geometry_output.uv_aoi_cos > self.aoi_cos_thresh
         uv_valid_mask = uv_pos_valid & uv_aoi_cos_valid
+
+        if _dbg:
+            # Per-gate coverage breakdown — pinpoints WHICH test collapses
+            # coverage (orientation/interp regression shows up as uv_pos_valid
+            # near-zero; normal-orientation as uv_aoi_cos near-zero; view-mask
+            # misalignment as mask_proj near-zero; UV-space raster as uv_mask).
+            pe = uv_render_geometry_output.uv_pos_error
+            inside = uv_precompute_output.uv_mask  # (H,W) atlas-occupied texels
+            pe_in = pe[:, inside] if inside.any() else pe.reshape(pe.shape[0], -1)
+            print(
+                f"[KAOLIN-DIAG] views={uv_valid_mask.shape[0]} "
+                f"uv_mask(atlas)%={_frac(inside)*100:.1f} | "
+                f"pos_valid%={_frac(uv_pos_valid)*100:.1f} "
+                f"aoi_valid%={_frac(uv_aoi_cos_valid)*100:.1f} | "
+                f"uv_pos_error[inside] min/med/max="
+                f"{pe_in.min().item():.4f}/{pe_in.median().item():.4f}/{pe_in.max().item():.4f} "
+                f"(eps={self.pos_error_eps}) "
+                f"aoi_cos max={uv_render_geometry_output.uv_aoi_cos.max().item():.3f} "
+                f"(thresh={self.aoi_cos_thresh})"
+            )
 
         if self.depth_grad_thresh is not None:
             if uv_render_geometry_output.uv_depth_grad is None:
@@ -276,17 +302,26 @@ class SimpleUVValidityStrategy(UVValidityStrategy):
                     "Warning: Depth gradient is not computed, depth gradient threshold is ignored."
                 )
             else:
+                _before = _frac(uv_valid_mask) if _dbg else 0.0
                 uv_valid_mask &= (
                     uv_render_geometry_output.uv_depth_grad < self.depth_grad_thresh
                 )
+                if _dbg:
+                    print(f"[KAOLIN-DIAG] after depth_grad gate: {_before*100:.1f}% -> {_frac(uv_valid_mask)*100:.1f}%")
 
+        _before = _frac(uv_valid_mask) if _dbg else 0.0
         uv_valid_mask &= uv_precompute_output.uv_mask
+        if _dbg:
+            print(f"[KAOLIN-DIAG] after uv_mask gate: {_before*100:.1f}% -> {_frac(uv_valid_mask)*100:.1f}%")
 
         if (
             uv_render_attr_output is not None
             and uv_render_attr_output.uv_mask_proj is not None
         ):
+            _before = _frac(uv_valid_mask) if _dbg else 0.0
             uv_valid_mask &= uv_render_attr_output.uv_mask_proj > self.mask_thresh
+            if _dbg:
+                print(f"[KAOLIN-DIAG] after mask_proj gate: {_before*100:.1f}% -> {_frac(uv_valid_mask)*100:.1f}%")
         else:
             print("No view mask provided for UV blending, using all valid pixels")
 
@@ -294,6 +329,10 @@ class SimpleUVValidityStrategy(UVValidityStrategy):
             uv_valid_mask[1:][
                 uv_valid_mask[0:1].expand(uv_valid_mask.shape[0] - 1, -1, -1)
             ] = False
+
+        if _dbg:
+            print(f"[KAOLIN-DIAG] FINAL per-view valid%={_frac(uv_valid_mask)*100:.1f} "
+                  f"blended(any-view)%={_frac(uv_valid_mask.any(dim=0))*100:.1f}")
 
         return uv_valid_mask
 
