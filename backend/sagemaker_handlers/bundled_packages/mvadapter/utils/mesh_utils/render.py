@@ -181,8 +181,16 @@ class KaolinContextWrapper:
         #   ARTSMOKER_KAOLIN_ZSIGN (default 1): sign applied to the z passed to
         #     kaolin's z-buffer. If front faces lose the depth test to back faces
         #     (see-through / wrong-surface color), try -1.
+        #   ARTSMOKER_KAOLIN_OUTFLIP (default 1): flip the rasterized OUTPUT along
+        #     the H (row) axis. This is the real orientation fix: the whole
+        #     downstream bake grid_samples rendered images with RAW uv_pos_ndc,
+        #     which only works if the raster is stored BOTTOM-UP (row 0 = NDC y
+        #     −1) like nvdiffrast's OpenGL convention. Kaolin's cuda backend
+        #     stores TOP-DOWN, so we flip rows to match. (Distinct from YFLIP,
+        #     which only moves where triangles land in the input coords.)
         import os as _os
         _yflip = (_os.environ.get("ARTSMOKER_KAOLIN_YFLIP", "1") or "1").strip() != "0"
+        _outflip = (_os.environ.get("ARTSMOKER_KAOLIN_OUTFLIP", "1") or "1").strip() != "0"
         try:
             _zsign = float(_os.environ.get("ARTSMOKER_KAOLIN_ZSIGN", "1") or "1")
         except ValueError:
@@ -222,6 +230,16 @@ class KaolinContextWrapper:
             rast_b = torch.stack([u, v, zw, tri_id_p1], dim=-1)   # (1,H,W,4)
             rast_b = torch.where(valid[..., None], rast_b,
                                  torch.zeros_like(rast_b))         # empty → all 0
+            if _outflip:
+                # Flip the whole raster along H so row 0 = bottom of scene
+                # (ndc y = −1), matching nvdiffrast's bottom-up OpenGL storage.
+                # The downstream bake grid_samples rendered views with RAW
+                # uv_pos_ndc (+y up), which maps ndc y=+1 → last row — so the
+                # views MUST be stored bottom-up or every sample reads the
+                # mirrored row (→ background → 0% coverage, the 73%-white bug).
+                # One flip here propagates to mask + every interpolate() output,
+                # since all of them are derived from this rast.
+                rast_b = torch.flip(rast_b, dims=[1])
             rast_list.append(rast_b)
         rast = torch.cat(rast_list, dim=0)                 # (mb,H,W,4)
         # Stash for interpolate() — it needs the bary+face_idx, recoverable from rast.
