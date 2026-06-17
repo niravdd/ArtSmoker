@@ -236,6 +236,13 @@ class ThreeDGenerateRequest(BaseModel):
     # Texturing backend: "mvadapter" (default) or "hunyuan" (Hunyuan3D-Paint).
     # When omitted, the endpoint's server default (ARTSMOKER_TEXTURE_BACKEND) is used.
     texture_backend: str | None = None
+    # Diagnostic/debug passthroughs for the texture bake (forwarded to the handler
+    # only when set): toggle per-gate coverage logging + A/B the Kaolin rasterizer
+    # convention (y-flip / z-sign) and rasterizer choice without a redeploy.
+    debug_texture: int | None = None
+    rasterizer: str | None = None
+    kaolin_yflip: int | None = None
+    kaolin_zsign: float | None = None
 
     def resolved_guidance(self) -> float:
         return self.guidance if self.guidance is not None else self.guidance_scale
@@ -470,6 +477,14 @@ async def generate_3d(body: ThreeDGenerateRequest):
     # Per-request texturing backend override (else endpoint server default).
     if body.texture_backend:
         payload["texture_backend"] = body.texture_backend
+
+    # Debug/diagnostic passthroughs for the texture bake (rasterizer convention
+    # A/B testing without a redeploy). Only forwarded when set. See
+    # _generate_texture_mvpainter's per-request override block.
+    for _f in ("debug_texture", "rasterizer", "kaolin_yflip", "kaolin_zsign"):
+        _v = getattr(body, _f, None)
+        if _v is not None:
+            payload[_f] = _v
 
     # Upload payload to S3 for async invocation
     bucket = get_deployment_s3_bucket()
