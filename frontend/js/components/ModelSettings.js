@@ -1562,6 +1562,11 @@
                 const quotaSection = backdrop.querySelector('#deploy-quota-section');
                 const quotaRow = backdrop.querySelector('#deploy-quota-row');
                 const deployBtn = backdrop.querySelector('.deploy-confirm');
+                // Texture-attestation elements — declared HERE (before updateInfo,
+                // which can call updateDeployGate during the initial render) to
+                // avoid a temporal-dead-zone error referencing them too early.
+                const attestBox = backdrop.querySelector('.deploy-tex-attest');
+                const attestCheck = backdrop.querySelector('.deploy-tex-attest-check');
 
                 const updateInfo = () => {
                     const sel = instanceSelect?.options[instanceSelect.selectedIndex];
@@ -1614,9 +1619,8 @@
 
                 // ── Texture-backend interaction: filter instances to the chosen
                 // backend's allowed set, pre-select its recommended instance, and
-                // gate the deploy button on the non-commercial attestation. ──
-                const attestBox = backdrop.querySelector('.deploy-tex-attest');
-                const attestCheck = backdrop.querySelector('.deploy-tex-attest-check');
+                // gate the deploy button on the license attestation. ──
+                // (attestBox / attestCheck are declared above, before updateInfo.)
                 const syncTextureBackend = () => {
                     if (!tbOptions) return;
                     const sel = backdrop.querySelector('input[name="deploy-texbackend"]:checked');
