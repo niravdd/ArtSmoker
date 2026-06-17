@@ -1062,8 +1062,6 @@
     "quota_submitted": "Soumis",
     "quota_failed": "Échec de la demande de quota",
     "tex_backend_title": "Pipeline de texture",
-    "tex_commercial_ok": "Usage commercial OK",
-    "tex_noncommercial": "Non commercial",
     "tex_attest_label": "Je confirme détenir une licence valide pour ce pipeline, ou que je l'utiliserai dans le cadre de ses conditions non commerciales.",
     "tex_attest_readlicense": "Lire la licence"
   },

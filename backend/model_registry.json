@@ -5385,7 +5385,7 @@
           "options": {
             "mvpainter": {
               "label": "MVPainter",
-              "description": "Multi-view PBR texturing. Commercial-safe and high quality on characters and objects.",
+              "description": "Multi-view PBR texturing. High quality on characters and objects.",
               "license": {
                 "name": "Apache-2.0",
                 "url": "https://github.com/amap-cvlab/MV-Painter/blob/main/LICENSE",
@@ -5404,12 +5404,12 @@
                 "ml.g6e.4xlarge"
               ],
               "typical_latency_seconds": 1600,
-              "quality_note": "Full ~1M-face mesh, 4096² texture. Commercial-safe.",
+              "quality_note": "Full ~1M-face mesh, 4096² texture.",
               "instance_note": "Needs g6e.2xlarge minimum (54GB pipeline). 4xlarge is faster for the same result, at higher cost."
             },
             "hunyuan": {
               "label": "Hunyuan3D-Paint",
-              "description": "Tencent Hunyuan3D-Paint. Highest texture quality, but a NON-COMMERCIAL license.",
+              "description": "Tencent Hunyuan3D-Paint. Highest texture quality, especially faces.",
               "license": {
                 "name": "Tencent Hunyuan 3D 2.0 Community License",
                 "url": "https://github.com/Tencent/Hunyuan3D-2/blob/main/LICENSE",

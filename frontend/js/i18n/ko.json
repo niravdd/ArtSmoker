@@ -1062,8 +1062,6 @@
     "quota_submitted": "제출됨",
     "quota_failed": "할당량 요청 실패",
     "tex_backend_title": "텍스처 파이프라인",
-    "tex_commercial_ok": "상업적 사용 가능",
-    "tex_noncommercial": "비상업용",
     "tex_attest_label": "이 파이프라인에 대한 유효한 라이선스를 보유하고 있거나 비상업적 조건 내에서 사용함을 확인합니다.",
     "tex_attest_readlicense": "라이선스 보기"
   },

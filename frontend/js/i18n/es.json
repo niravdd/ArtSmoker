@@ -1062,8 +1062,6 @@
     "quota_submitted": "Enviado",
     "quota_failed": "Error en solicitud de cuota",
     "tex_backend_title": "Pipeline de textura",
-    "tex_commercial_ok": "Apto comercial",
-    "tex_noncommercial": "No comercial",
     "tex_attest_label": "Confirmo que dispongo de una licencia válida para este pipeline, o que lo usaré dentro de sus términos no comerciales.",
     "tex_attest_readlicense": "Leer la licencia"
   },

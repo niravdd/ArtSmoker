@@ -1062,8 +1062,6 @@
     "quota_submitted": "送信済み",
     "quota_failed": "クォータリクエストに失敗しました",
     "tex_backend_title": "テクスチャパイプライン",
-    "tex_commercial_ok": "商用利用可",
-    "tex_noncommercial": "非商用",
     "tex_attest_label": "このパイプラインの有効なライセンスを保有しているか、非商用条件の範囲内で使用することを確認します。",
     "tex_attest_readlicense": "ライセンスを読む"
   },

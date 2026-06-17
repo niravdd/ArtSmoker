@@ -1089,8 +1089,6 @@
     "instance_inactive": "Inactive — activates when jobs are submitted",
     "deploy_config_title": "Deploy Configuration",
     "tex_backend_title": "Texture Pipeline",
-    "tex_commercial_ok": "Commercial-safe",
-    "tex_noncommercial": "Non-commercial",
     "tex_attest_label": "I confirm I hold a valid license for this pipeline, or will use it within its non-commercial terms.",
     "tex_attest_readlicense": "Read the license",
     "no_instances": "No GPU instances available for this model.",

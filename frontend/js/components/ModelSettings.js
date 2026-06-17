@@ -1448,16 +1448,18 @@
                 if (tbOptions) {
                     const cards = Object.entries(tbOptions).map(([key, b]) => {
                         const lic = b.license || {};
-                        const commercial = lic.commercial
-                            ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400">${t('custom_models.tex_commercial_ok')}</span>`
-                            : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400">${t('custom_models.tex_noncommercial')}</span>`;
+                        // License shown as the standard neutral name pill (matches the
+                        // model License Agreement modal) — the license NAME is the
+                        // unambiguous signal; the attestation block spells out terms.
+                        const licPill = lic.name
+                            ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 border border-brand-border/30 text-brand-text-muted">${lic.name}</span>`
+                            : '';
                         return `<label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-brand-accent/40 has-[:checked]:border-brand-accent/60 has-[:checked]:bg-brand-accent/5">
                             <input type="radio" name="deploy-texbackend" value="${key}" ${key === tbDefault ? 'checked' : ''} class="mt-0.5 deploy-texbackend-radio" data-attest="${lic.attestation_required ? '1' : '0'}" />
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
                                     <span class="text-xs font-medium text-brand-text">${b.label || key}</span>
-                                    ${commercial}
-                                    <span class="text-[9px] text-brand-text-muted">${lic.name || ''}</span>
+                                    ${licPill}
                                 </div>
                                 <p class="text-[10px] text-brand-text-muted mt-0.5">${b.description || ''}</p>
                                 <p class="text-[10px] text-brand-text-muted/80 mt-0.5">${b.instance_note || ''}</p>

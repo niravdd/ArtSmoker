@@ -1062,8 +1062,6 @@
     "quota_submitted": "已提交",
     "quota_failed": "配额申请失败",
     "tex_backend_title": "纹理管线",
-    "tex_commercial_ok": "可商用",
-    "tex_noncommercial": "非商用",
     "tex_attest_label": "我确认持有该管线的有效许可，或将在其非商用条款范围内使用。",
     "tex_attest_readlicense": "阅读许可"
   },
