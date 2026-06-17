@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-05-15T07:38:30.136324+00:00",
+  "last_updated": "2026-06-17T01:45:39.564940+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -4097,18 +4097,32 @@
       ],
       "lifecycle": "ACTIVE"
     },
-    "claude_opus_4_20250514_v1": {
-      "label": "Claude Opus 4",
-      "model_id": "us.anthropic.claude-opus-4-20250514-v1:0",
-      "region": "us-east-1",
+    "claude_fable_5": {
+      "label": "Claude Fable 5",
+      "model_id": "us.anthropic.claude-fable-5",
+      "region": "ap-northeast-1",
       "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
         "us-east-1",
         "us-east-2",
+        "us-west-1",
         "us-west-2"
       ],
       "provider": "Anthropic",
       "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-opus-4-20250514-v1:0",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-fable-5",
       "has_vision": true,
       "streaming_supported": true,
       "max_context_tokens": 128000,
@@ -4116,7 +4130,42 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "lifecycle": "LEGACY"
+      "lifecycle": "ACTIVE"
+    },
+    "claude_opus_4_8": {
+      "label": "Claude Opus 4.8",
+      "model_id": "us.anthropic.claude-opus-4-8",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-4-8",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE"
     }
   },
   "custom_model_catalog": {
@@ -5396,7 +5445,7 @@
                 "commercial": true,
                 "attestation_required": false,
                 "key_terms": [
-                  "Apache-2.0 — commercial use unrestricted",
+                  "Apache-2.0 \u2014 commercial use unrestricted",
                   "Model weights also Apache-2.0 (shaomq/MVPainter)"
                 ],
                 "warnings": []
@@ -5408,7 +5457,7 @@
                 "ml.g6e.4xlarge"
               ],
               "typical_latency_seconds": 1600,
-              "quality_note": "Full ~1M-face mesh, 4096² texture.",
+              "quality_note": "Full ~1M-face mesh, 4096\u00b2 texture.",
               "instance_note": "Needs g6e.2xlarge minimum (54GB pipeline). 4xlarge is faster for the same result, at higher cost."
             },
             "hunyuan": {
@@ -5448,7 +5497,7 @@
           "instance_cost_per_hour": {
             "ml.g6e.xlarge": 1.86,
             "ml.g6e.2xlarge": 2.35,
-            "ml.g6e.4xlarge": 4.70
+            "ml.g6e.4xlarge": 4.7
           }
         },
         "version": "1.0",
