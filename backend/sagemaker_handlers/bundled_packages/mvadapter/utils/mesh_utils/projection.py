@@ -47,7 +47,8 @@ class CameraProjection:
         context_type: str = "gl",
     ) -> None:
         self.pb_solver = PoissonBlendingSolver(pb_backend, device)
-        self.ctx = NVDiffRastContextWrapper(device, context_type)
+        from .render import make_raster_context
+        self.ctx = make_raster_context(device)  # Kaolin default; nvdiffrast via ARTSMOKER_RASTERIZER
         self.bg_remover = bg_remover
         self.device = device
 

@@ -5478,6 +5478,8 @@
             "kornia",
             "timm",
             "open3d",
+            "pyglet",
+            "usd-core",
             "spandrel==0.4.1",
             "xatlas",
             "ninja",

@@ -40,7 +40,8 @@ class SmartPainter:
         self.cam_proj = CameraProjection(
             pb_backend="torch-cuda", bg_remover=None, device=device, context_type=context_type
         )
-        self.ctx = NVDiffRastContextWrapper(device=self.device, context_type=context_type)
+        from .render import make_raster_context
+        self.ctx = make_raster_context(device=self.device)  # Kaolin default; nvdiffrast via ARTSMOKER_RASTERIZER
 
     def __call__(
         self,

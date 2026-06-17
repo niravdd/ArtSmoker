@@ -59,7 +59,8 @@ class TexturePipelineOutput:
 class TexturePipeline:
     def __init__(self, upscaler_ckpt_path: str, inpaint_ckpt_path: str, device: str, context_type: str = "cuda"):
         self.device = device
-        self.ctx = NVDiffRastContextWrapper(device=self.device, context_type=context_type)
+        from mvadapter.utils.mesh_utils import make_raster_context
+        self.ctx = make_raster_context(device=self.device)  # Kaolin default; nvdiffrast via ARTSMOKER_RASTERIZER
         self.cam_proj = CameraProjection(
             pb_backend="torch-cuda", bg_remover=None, device=self.device, context_type=context_type
         )

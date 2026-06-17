@@ -11,10 +11,12 @@ from .projection import CameraProjection, CameraProjectionOutput
 from .render import (
     DepthControlNetNormalization,
     DepthNormalizationStrategy,
+    KaolinContextWrapper,
     NVDiffRastContextWrapper,
     RenderOutput,
     SimpleNormalization,
     Zero123PlusPlusNormalization,
+    make_raster_context,
     render,
 )
 from .smart_paint import SmartPainter

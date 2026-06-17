@@ -1589,16 +1589,17 @@ def _load_image_to_3d(model_dir):
     elif backend == "mvpainter":
         # ── MVPainter backend (Apache-2.0, commercial-safe, multi-view bake) ──
         # MVPainter's diffusion (~54 GB weights) loads on-demand in
-        # _load_mvpainter; the bake reuses our nvdiffrast TexturePipeline, so the
-        # only thing that MUST be ready at load is nvdiffrast (its CUDA compile
-        # would otherwise trip MMS's 120s watchdog on the first job).
+        # _load_mvpainter; the bake reuses the TexturePipeline, so the only thing
+        # that MUST be ready at load is the rasterizer (kaolin by default; its
+        # install / nvdiffrast's CUDA compile would otherwise trip MMS's 120s
+        # watchdog on the first job).
         try:
-            _ensure_nvdiffrast()  # compile+cache at LOAD time (not inference)
+            _ensure_rasterizer()  # install kaolin (or compile nvdiffrast) at LOAD time
             _nvdiffrast_bg["state"] = 1
             texture_available = True
-            logger.info("nvdiffrast ready (compiled/cached at load) — MVPainter texture enabled")
+            logger.info("Rasterizer ready at load (%s) — MVPainter texture enabled", _rasterizer_choice())
         except Exception as e:
-            logger.warning("nvdiffrast not ready at load (%s) — will retry in background on first job", e)
+            logger.warning("Rasterizer not ready at load (%s) — will retry in background on first job", e)
     else:
         # ── MV-Adapter backend (default, UNCHANGED behavior) ──
         if high_vram:
@@ -1617,11 +1618,11 @@ def _load_image_to_3d(model_dir):
                 texture_available = True
                 logger.info("MV-Adapter package available — texture models load on-demand per inference")
                 try:
-                    _ensure_nvdiffrast()  # compile+cache at LOAD time (not inference)
+                    _ensure_rasterizer()  # install kaolin (or compile nvdiffrast) at LOAD time
                     _nvdiffrast_bg["state"] = 1
-                    logger.info("nvdiffrast ready (compiled/cached at load) — texture phases enabled")
+                    logger.info("Rasterizer ready at load (%s) — texture phases enabled", _rasterizer_choice())
                 except Exception as e:
-                    logger.warning("nvdiffrast not ready at load (%s) — will retry in background on first texture job", e)
+                    logger.warning("Rasterizer not ready at load (%s) — will retry in background on first texture job", e)
             except ImportError:
                 logger.info("MV-Adapter package not available — will produce untextured meshes")
 
@@ -1766,6 +1767,59 @@ def _ensure_nvdiffrast(blocking: bool = True) -> bool:
     except Exception as e:
         logger.error("nvdiffrast compilation failed: %s", e)
         raise ImportError(f"nvdiffrast unavailable — texture generation requires CUDA compilation: {e}")
+
+
+def _rasterizer_choice():
+    """Which texture-bake rasterizer to use: 'kaolin' (Apache-2.0, default,
+    commercial-safe) or 'nvdiffrast' (NVIDIA non-commercial, retained fallback).
+    Mirrors make_raster_context()'s ARTSMOKER_RASTERIZER flag."""
+    return (_get_env("ARTSMOKER_RASTERIZER", "kaolin") or "kaolin").lower().strip()
+
+
+def _ensure_kaolin(blocking: bool = True) -> bool:
+    """Make kaolin importable (Apache-2.0 rasterizer for the texture bake).
+
+    Kaolin ships PREBUILT wheels keyed by torch+CUDA (no source compile), so this
+    is lighter than _ensure_nvdiffrast — just pip-install the matching wheel from
+    NVIDIA's wheel index, derived at runtime from the installed torch/CUDA (never
+    hard-coded). Like nvdiffrast it runs at LOAD time (no inference watchdog).
+    """
+    try:
+        import kaolin  # noqa: F401
+        return True
+    except Exception:
+        pass
+    if not blocking:
+        return False
+    import subprocess, sys as _sys
+    try:
+        import torch
+        tv = torch.__version__.split("+")[0]              # e.g. 2.6.0
+        cu = (torch.version.cuda or "").replace(".", "")  # e.g. 124
+        index = f"https://nvidia-kaolin.s3.us-east-2.amazonaws.com/torch-{tv}_cu{cu}.html" if cu else None
+    except Exception:
+        index = None
+    cmd = [_sys.executable, "-m", "pip", "install", "kaolin"]
+    if index:
+        cmd += ["-f", index]
+    logger.info("Installing kaolin (Apache-2.0 rasterizer): %s", " ".join(cmd[2:]))
+    try:
+        subprocess.check_call(cmd)
+        import kaolin  # noqa: F401
+        logger.info("kaolin installed (index=%s)", index or "pip-default")
+        return True
+    except Exception as e:
+        logger.error("kaolin install failed: %s", e)
+        raise ImportError(f"kaolin unavailable — Apache-2.0 rasterizer needs it: {e}")
+
+
+def _ensure_rasterizer(blocking: bool = True) -> bool:
+    """Ensure the SELECTED bake rasterizer is importable. Default kaolin
+    (commercial-safe); nvdiffrast when ARTSMOKER_RASTERIZER=nvdiffrast. Single
+    gate the texture path calls so we install the right one at load time."""
+    if _rasterizer_choice() == "nvdiffrast":
+        return _ensure_nvdiffrast(blocking=blocking)
+    return _ensure_kaolin(blocking=blocking)
 
 
 def _ensure_nvdiffrast_background():
@@ -2111,9 +2165,10 @@ def _load_texture_models(code_dir, hf_token):
     import time as _time
     import subprocess
 
-    # Ensure nvdiffrast is importable (compile/cache handled by _ensure_nvdiffrast,
-    # which is also called at LOAD time in model_fn so this is normally a no-op here).
-    _ensure_nvdiffrast()
+    # Ensure the bake rasterizer is importable (kaolin by default; nvdiffrast via
+    # ARTSMOKER_RASTERIZER). Prepared at LOAD time in model_fn so this is normally
+    # a no-op here.
+    _ensure_rasterizer()
 
     # Load SDXL + MV-Adapter for multi-view generation
     t0 = _time.time()
@@ -3242,21 +3297,18 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     logger.info("Texturing with MVPainter backend (Apache-2.0)...")
     _log_mem("mvpainter: enter (TripoSG evicted, RMBG on GPU)")
 
-    # nvdiffrast must be ready (same guard as the mvadapter path) — its CUDA
-    # compile exceeds MMS's 120s watchdog, so it's built at load. If somehow not
-    # ready, kick the background build and fail fast (caller → untextured).
-    if not _ensure_nvdiffrast(blocking=False):
-        _ensure_nvdiffrast_background()
-        st = _nvdiffrast_bg["state"]
-        msg = ("nvdiffrast is being prepared in the background (one-time CUDA "
-               "compile). Texture skipped this run — resubmit shortly.")
-        if st == 2:
-            msg = f"nvdiffrast preparation failed: {_nvdiffrast_bg['error']}"
+    # The bake rasterizer (kaolin by default) must be ready — its install/compile
+    # exceeds MMS's 120s watchdog, so it's prepared at load. If somehow not ready,
+    # kick the background prep and fail fast (caller → untextured).
+    if not _ensure_rasterizer(blocking=False):
+        _ensure_nvdiffrast_background()  # only kicks if nvdiffrast is the choice; harmless otherwise
+        msg = (f"Bake rasterizer ({_rasterizer_choice()}) is being prepared in the "
+               "background. Texture skipped this run — resubmit shortly.")
         logger.warning("MVPainter texture deferred: %s", msg)
         raise RuntimeError(msg)
 
     from mvadapter.utils.mesh_utils import (
-        get_orthogonal_camera, load_mesh, render, NVDiffRastContextWrapper
+        get_orthogonal_camera, load_mesh, render, make_raster_context
     )
     from mvadapter.utils.mesh_utils.render import SimpleNormalization
 
@@ -3273,7 +3325,7 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
         azimuth_deg=_MVP_AZIMUTH,
         device="cuda",
     )
-    ctx = NVDiffRastContextWrapper(device="cuda", context_type="cuda")
+    ctx = make_raster_context(device="cuda")  # Kaolin default; nvdiffrast via ARTSMOKER_RASTERIZER
     mesh_obj = load_mesh(mesh_path, rescale=True, front_x_to_y=True, device="cuda")
     # IMPORTANT: request RAW view-space depth (no inversion / per-view clip). The
     # default DepthControlNetNormalization already inverts + per-view min/max
@@ -3685,13 +3737,10 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # worker mid-job. Instead kick off a background compile and fail this
         # job fast with a clear, retryable message (the mesh still returns
         # untextured via the caller's fallback).
-        if not _ensure_nvdiffrast(blocking=False):
-            _ensure_nvdiffrast_background()
-            st = _nvdiffrast_bg["state"]
-            msg = ("nvdiffrast is being prepared in the background (one-time CUDA "
-                   "compile, ~2-3 min). Texture skipped this run — resubmit shortly.")
-            if st == 2:
-                msg = f"nvdiffrast preparation failed: {_nvdiffrast_bg['error']}"
+        if not _ensure_rasterizer(blocking=False):
+            _ensure_nvdiffrast_background()  # only kicks if nvdiffrast is the choice; harmless otherwise
+            msg = (f"Bake rasterizer ({_rasterizer_choice()}) is being prepared in "
+                   "the background. Texture skipped this run — resubmit shortly.")
             logger.warning("Texture phase deferred: %s", msg)
             raise RuntimeError(msg)
 
@@ -3701,7 +3750,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             mv_pipe, texture_pipe = _load_texture_models(code_dir, hf_token)
 
         from mvadapter.utils.mesh_utils import (
-            get_orthogonal_camera, load_mesh, render, NVDiffRastContextWrapper
+            get_orthogonal_camera, load_mesh, render, make_raster_context
         )
 
         # Set up cameras for 6 orthogonal views — MUST match the official
@@ -3750,7 +3799,7 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
                 mv_pipe.vae.config.force_upcast = True
         except Exception as _vae_sw:
             logger.warning("Could not switch VAE decode dtype: %s", _vae_sw)
-        ctx = NVDiffRastContextWrapper(device="cuda", context_type="cuda")
+        ctx = make_raster_context(device="cuda")  # Kaolin default; nvdiffrast via ARTSMOKER_RASTERIZER
         mesh_obj = load_mesh(mesh_path, rescale=True, front_x_to_y=True, device="cuda")
         render_out = render(
             ctx, mesh_obj, cameras,

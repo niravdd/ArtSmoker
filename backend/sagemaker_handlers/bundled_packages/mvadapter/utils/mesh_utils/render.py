@@ -149,6 +149,121 @@ class NVDiffRastContextWrapper:
         )
 
 
+class KaolinContextWrapper:
+    """Apache-2.0 (commercial-safe) drop-in for NVDiffRastContextWrapper, backed
+    by kaolin.render.mesh (NOT kaolin/non_commercial). nvdiffrast is NVIDIA
+    Source-Code-Licensed (non-commercial); this lets the bake ship commercially.
+
+    Contract: produces the SAME nvdiffrast-format `rast` tensor
+    [mb, H, W, 4] = (u, v, z/w, triangle_id_plus_1) — so all downstream code
+    (rast[...,0/1/3] reads in warp.py, mask = rast[...,3] > 0, and repeated
+    ctx.interpolate(attr, rast, tri) calls) works UNCHANGED. We recover the
+    per-pixel barycentrics from Kaolin via the one-hot-feature trick (Kaolin
+    fuses rasterize+interpolate and doesn't expose barycentrics directly).
+    """
+
+    def __init__(self, device: str = "cuda", context_type: str = "cuda"):
+        self.device = device
+        import kaolin as _kal  # noqa: F401 — import here so the dep is lazy
+        self._kal = _kal
+
+    def rasterize(self, pos, tri, resolution, ranges=None, grad_db=True):
+        # pos: clip-space [V,4] or [mb,V,4]; tri: [F,3] int. resolution=(H,W).
+        H, W = int(resolution[0]), int(resolution[1])
+        if pos.dim() == 2:
+            pos = pos[None]
+        mb = pos.shape[0]
+        tri_i = tri.long().contiguous()
+        F_ = tri_i.shape[0]
+        dev = pos.device
+        rasterize = self._kal.render.mesh.rasterize
+        rast_list = []
+        eye3 = torch.eye(3, device=dev, dtype=torch.float32)
+        for b in range(mb):
+            p = pos[b]
+            ndc = p[:, :3] / p[:, 3:4].clamp(min=1e-8)   # perspective divide
+            img_xy = ndc[:, :2].clone()
+            img_xy[:, 1] = -img_xy[:, 1]                  # OpenGL y-up → image y-down
+            z = ndc[:, 2]
+            fv_image = img_xy[tri_i][None]                # (1,F,3,2)
+            fv_z = z[tri_i][None]                         # (1,F,3)
+            # One-hot corner features → rasterized output IS the barycentric map.
+            bary_feat = eye3.expand(1, F_, 3, 3).contiguous()  # (1,F,3,3)
+            (bary,), face_idx = rasterize(
+                H, W, fv_z, fv_image, [bary_feat], backend="cuda")
+            # bary: (1,H,W,3) weights (w0,w1,w2); face_idx: (1,H,W) 0-indexed, -1 empty
+            valid = (face_idx >= 0)                       # (1,H,W)
+            u = bary[..., 1]                              # nvdiffrast u = weight of v1
+            v = bary[..., 2]                              # nvdiffrast v = weight of v2
+            tri_id_p1 = (face_idx + 1).to(torch.float32)  # 1-indexed, 0 = empty
+            # z/w channel: interpolate ndc z by barycentric (only the mask + the
+            # raw value matter downstream; sign/scale isn't consumed for the bake).
+            zw = (bary * fv_z[0][face_idx.clamp(min=0)]).sum(-1)  # (1,H,W)
+            zw = torch.where(valid, zw, torch.zeros_like(zw))
+            rast_b = torch.stack([u, v, zw, tri_id_p1], dim=-1)   # (1,H,W,4)
+            rast_b = torch.where(valid[..., None], rast_b,
+                                 torch.zeros_like(rast_b))         # empty → all 0
+            rast_list.append(rast_b)
+        rast = torch.cat(rast_list, dim=0)                 # (mb,H,W,4)
+        # Stash for interpolate() — it needs the bary+face_idx, recoverable from rast.
+        empty_db = torch.zeros((mb, H, W, 0), device=dev, dtype=torch.float32)
+        return rast, empty_db
+
+    def interpolate(self, attr, rast, tri, rast_db=None, diff_attrs=None):
+        # Reconstruct from the nvdiffrast-format rast: tri_id, barycentric (u,v,w0).
+        tri_i = tri.long()
+        if attr.dim() == 3:   # [mb,V,C] → use batch 0's vertex set (matches usage)
+            attr0 = attr[0]
+        else:
+            attr0 = attr
+        face_id = rast[..., 3].long() - 1                  # (mb,H,W), -1 empty
+        valid = (face_id >= 0)
+        u = rast[..., 0]; v = rast[..., 1]; w0 = 1.0 - u - v
+        bary = torch.stack([w0, u, v], dim=-1)             # (mb,H,W,3)
+        fv = attr0[tri_i]                                  # (F,3,C)
+        gathered = fv[face_id.clamp(min=0)]                # (mb,H,W,3,C)
+        out = (bary[..., None] * gathered).sum(dim=-2)     # (mb,H,W,C)
+        out = torch.where(valid[..., None], out, torch.zeros_like(out))
+        empty_db = torch.zeros((*out.shape[:-1], 0), device=out.device, dtype=out.dtype)
+        return out, empty_db
+
+    def texture(self, tex, uv, uv_da=None, mip_level_bias=None, mip=None,
+                filter_mode="auto", boundary_mode="wrap", max_mip_level=None):
+        # Bilinear texture sampling via grid_sample (matches dr.texture).
+        mode = "nearest" if filter_mode == "nearest" else "bilinear"
+        grid = uv.float() * 2.0 - 1.0
+        grid = grid.clone()
+        grid[..., 1] = -grid[..., 1]                       # match nvdiffrast v-flip
+        if boundary_mode == "wrap":
+            # grid_sample has no true wrap; emulate by wrapping uv into [0,1) first.
+            wrapped = (uv.float() % 1.0) * 2.0 - 1.0
+            wrapped = wrapped.clone(); wrapped[..., 1] = -wrapped[..., 1]
+            grid = wrapped
+            pad = "border"
+        else:
+            pad = "border" if boundary_mode in ("clamp", "auto") else "zeros"
+        tex_nchw = tex.float().permute(0, 3, 1, 2).contiguous()
+        out = F.grid_sample(tex_nchw, grid, mode=mode, padding_mode=pad, align_corners=False)
+        return out.permute(0, 2, 3, 1).contiguous()
+
+    def antialias(self, color, rast, pos, tri, topology_hash=None, pos_gradient_boost=1.0):
+        # nvdiffrast's silhouette AA is a gradient/edge-polish feature; for a
+        # NON-differentiable bake it's not correctness-critical. No-op.
+        return color
+
+
+def make_raster_context(device: str = "cuda"):
+    """Return the texture-bake rasterization context. Default = Kaolin
+    (Apache-2.0, commercial-safe). Set ARTSMOKER_RASTERIZER=nvdiffrast to use the
+    original nvdiffrast path (NVIDIA non-commercial license) — retained as a
+    fallback so it can be reinstated if NVIDIA's terms change."""
+    import os as _os
+    choice = (_os.environ.get("ARTSMOKER_RASTERIZER", "kaolin") or "kaolin").lower().strip()
+    if choice == "nvdiffrast":
+        return NVDiffRastContextWrapper(device=device, context_type="cuda")
+    return KaolinContextWrapper(device=device, context_type="cuda")
+
+
 class DepthNormalizationStrategy(ABC):
     @abstractmethod
     def __init__(self, *args, **kwargs):
