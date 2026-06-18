@@ -3305,6 +3305,152 @@ def _load_mvpainter(hf_token=None):
 #   TripoSG (README-authoritative — the infer_multiview default -90 is for
 #   Hunyuan/TRELLIS). elevation_list = [0,0,0,0,-90,90]. Orthographic, camera
 #   looks at origin with -Z forward / +Y up.
+# ── De-lighting (StableDelight, Apache-2.0 weights) ──────────────────────────
+# MVPainter generates SHADED multi-view RGB (specular hot-spots, glossy wet
+# patches, per-view-inconsistent lighting). Baking that as albedo gives the
+# patchy/inconsistent surface. StableDelight (Stable-X/yoso-delight-v0-4-base)
+# removes the specular/reflection layer in ONE step. Its weights are Apache-2.0;
+# its GitHub YOSODiffusePipeline wrapper is UNLICENSED, so we DO NOT import it —
+# we run the (well-understood) one-step forward ourselves with stock diffusers
+# component classes on the Apache weights. Commercial-clean, like our BiRefNet +
+# Kaolin swaps. Gated by ARTSMOKER_DELIGHT (default "1"); set "0" to bypass.
+_DELIGHT_REPO = "Stable-X/yoso-delight-v0-4-base"
+_DELIGHT_T_START = 401  # the model's fixed one-step timestep (from its config)
+_delight_pipe = None
+
+
+def _ensure_delight_models():
+    """Download StableDelight Apache-2.0 weights (S3-cached). Returns local dir
+    or None. The repo is a standard diffusers layout (vae/unet/controlnet/
+    text_encoder/tokenizer/scheduler) — we load the COMPONENTS, not the
+    unlicensed pipeline class."""
+    import boto3 as _boto3
+    from huggingface_hub import snapshot_download
+    local_dir = "/tmp/yoso-delight"
+    if os.path.isdir(local_dir) and os.path.isfile(os.path.join(local_dir, "model_index.json")):
+        return local_dir
+    bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+    s3prefix = f"{_TEXTURE_DEPS_PREFIX}/yoso-delight/"
+    # Try S3 cache first (mirror of the HF snapshot)
+    if bucket:
+        try:
+            s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+            paginator = s3.get_paginator("list_objects_v2")
+            keys = [o["Key"] for pg in paginator.paginate(Bucket=bucket, Prefix=s3prefix)
+                    for o in pg.get("Contents", [])]
+            if keys:
+                for k in keys:
+                    rel = k[len(s3prefix):]
+                    if not rel:
+                        continue
+                    dst = os.path.join(local_dir, rel)
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    s3.download_file(bucket, k, dst)
+                logger.info("StableDelight weights from S3 cache (%d files)", len(keys))
+                return local_dir
+        except Exception as e:
+            logger.info("StableDelight S3 cache miss (%s) — downloading from HF", e)
+    # Download fp16 safetensors snapshot from HF
+    try:
+        snapshot_download(repo_id=_DELIGHT_REPO, local_dir=local_dir,
+                          allow_patterns=["*.json", "*.txt", "*.fp16.safetensors", "*.py"])
+        logger.info("StableDelight weights downloaded from HF")
+        if bucket:
+            try:
+                s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+                for root, _, files in os.walk(local_dir):
+                    for fn in files:
+                        fp = os.path.join(root, fn)
+                        rel = os.path.relpath(fp, local_dir)
+                        s3.upload_file(fp, bucket, s3prefix + rel)
+                logger.info("Cached StableDelight weights to S3")
+            except Exception as e:
+                logger.warning("Failed to cache StableDelight to S3: %s", e)
+        return local_dir
+    except Exception as e:
+        logger.warning("StableDelight download failed (%s) — de-lighting disabled", e)
+        return None
+
+
+def _load_delight_pipe():
+    """Lazy-load the StableDelight components (Apache-2.0 weights) onto GPU.
+    Returns a dict of components or None. NO unlicensed pipeline class — just
+    the stock diffusers AutoencoderKL / UNet2DConditionModel / ControlNetModel /
+    CLIPTextModel + tokenizer, which we drive ourselves in _delight_image()."""
+    global _delight_pipe
+    if _delight_pipe is not None:
+        return _delight_pipe
+    local_dir = _ensure_delight_models()
+    if not local_dir:
+        return None
+    try:
+        import torch as _t
+        from diffusers import AutoencoderKL, UNet2DConditionModel, ControlNetModel
+        from transformers import CLIPTextModel, CLIPTokenizer
+        dt = _t.float16
+        vae = AutoencoderKL.from_pretrained(local_dir, subfolder="vae", torch_dtype=dt, variant="fp16")
+        unet = UNet2DConditionModel.from_pretrained(local_dir, subfolder="unet", torch_dtype=dt, variant="fp16")
+        controlnet = ControlNetModel.from_pretrained(local_dir, subfolder="controlnet", torch_dtype=dt, variant="fp16")
+        text_encoder = CLIPTextModel.from_pretrained(local_dir, subfolder="text_encoder", torch_dtype=dt, variant="fp16")
+        tokenizer = CLIPTokenizer.from_pretrained(local_dir, subfolder="tokenizer")
+        for m in (vae, unet, controlnet, text_encoder):
+            m.to("cuda").eval()
+        # Pre-compute the empty-prompt embedding once (the model is trained with
+        # an empty text condition — it's an image/controlnet-driven model).
+        with _t.no_grad():
+            tok = tokenizer("", padding="max_length", max_length=tokenizer.model_max_length,
+                            truncation=True, return_tensors="pt").input_ids.to("cuda")
+            empty_emb = text_encoder(tok)[0].to(dt)
+        _delight_pipe = {"vae": vae, "unet": unet, "controlnet": controlnet,
+                         "empty_emb": empty_emb, "scaling": vae.config.scaling_factor}
+        logger.info("StableDelight pipeline ready (Apache-2.0, one-step)")
+        return _delight_pipe
+    except Exception as e:
+        logger.warning("StableDelight load failed (%s) — de-lighting disabled", e)
+        return None
+
+
+def _delight_image(pil_img):
+    """Remove baked-in specular lighting from one RGB PIL image via the StableDelight
+    one-step YOSO forward (our clean reimplementation on Apache weights):
+      encode RGB → latent; controlnet(latent, t)→residuals;
+      unet(zeros, t, +residuals) → delit latent DIRECTLY (one-step, no scheduler);
+      decode. Returns a de-lit RGB PIL (same size); on any failure returns input.
+    """
+    pipe = _load_delight_pipe()
+    if pipe is None:
+        return pil_img
+    import torch as _t
+    import numpy as _np
+    from PIL import Image as _PImg
+    try:
+        rgb = pil_img.convert("RGB")
+        W0, H0 = rgb.size
+        # VAE needs dims divisible by 8; work at the nearest multiple, restore after.
+        W = (W0 // 8) * 8 or 8
+        H = (H0 // 8) * 8 or 8
+        arr = _np.asarray(rgb.resize((W, H), _PImg.BILINEAR), dtype=_np.float32) / 255.0
+        x = _t.from_numpy(arr).permute(2, 0, 1)[None] * 2.0 - 1.0  # [1,3,H,W] in [-1,1]
+        x = x.to("cuda", dtype=_t.float16)
+        with _t.no_grad():
+            lat = pipe["vae"].encode(x).latent_dist.mode() * pipe["scaling"]
+            t = _t.tensor(_DELIGHT_T_START, device="cuda")
+            down, mid = pipe["controlnet"](lat, t, encoder_hidden_states=pipe["empty_emb"],
+                                           conditioning_scale=1.0, guess_mode=False, return_dict=False)
+            pred = pipe["unet"](_t.zeros_like(lat), t, encoder_hidden_states=pipe["empty_emb"],
+                                down_block_additional_residuals=down,
+                                mid_block_additional_residual=mid, return_dict=False)[0]
+            img = pipe["vae"].decode(pred / pipe["scaling"], return_dict=False)[0]  # [1,3,H,W] in [-1,1]
+        img = ((img[0].float().permute(1, 2, 0) + 1.0) / 2.0).clamp(0, 1).cpu().numpy()
+        out = _PImg.fromarray((img * 255).astype(_np.uint8))
+        if out.size != (W0, H0):
+            out = out.resize((W0, H0), _PImg.BILINEAR)
+        return out
+    except Exception as e:
+        logger.warning("De-light forward failed (%s) — using original view", e)
+        return pil_img
+
+
 _MVP_AZIMUTH = [0, 90, 180, 270, 0, 0]
 _MVP_ELEVATION = [0, 0, 0, 0, -90, 90]
 # Upstream tiles the 6 views into a 3-row × 2-col grid in THIS view order
@@ -3485,6 +3631,24 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     views_by_render_idx = [None] * 6
     for slot, ridx in enumerate(_MVP_TILE_ORDER):
         views_by_render_idx[ridx] = slot_imgs[slot]
+
+    # De-light the 6 views BEFORE baking. MVPainter outputs SHADED imagery
+    # (specular hot-spots, glossy wet patches, per-view-inconsistent lighting);
+    # baking that as albedo produced the patchy/inconsistent surface. StableDelight
+    # (Apache-2.0, one-step) strips the specular layer so we bake flatter base
+    # color. Gated by ARTSMOKER_DELIGHT (default on); per-request via input_data.
+    _delight_on = (str(input_data.get("delight", os.environ.get("ARTSMOKER_DELIGHT", "1")))
+                   .strip().lower() not in ("0", "false", "no"))
+    if _delight_on:
+        _dl0 = _t.time()
+        try:
+            views_by_render_idx = [_delight_image(v) for v in views_by_render_idx]
+            logger.info("De-lit 6 views (StableDelight) in %.1fs", _t.time() - _dl0)
+            if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
+                _save_debug_artifact(_make_mv_grid(views_by_render_idx), "03b_mvp_views_delit")
+        except Exception as _de:
+            logger.warning("De-lighting pass failed (%s) — baking original views", _de)
+
     mv_grid = _make_mv_grid(views_by_render_idx)
     mv_grid_path = os.path.join(temp_dir, "mvp_mv_grid.png")
     mv_grid.save(mv_grid_path)
