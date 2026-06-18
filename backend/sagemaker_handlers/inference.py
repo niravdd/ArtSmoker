@@ -2161,6 +2161,54 @@ def _hunyuan_realesrgan_path():
     return local
 
 
+def _ensure_texture_quality_models():
+    """Download the bake quality models (RealESRGAN x2 upscaler + LaMa inpainter),
+    S3-cached. Returns (upscaler_path_or_None, inpaint_path_or_None).
+
+    Reusable by both the MV-Adapter load path and the MVPainter bake — the latter
+    previously built a bare TexturePipeline with NO upscaler/inpainter, which is
+    why MVPainter textures came out soft (512² views projected to 4096² with no
+    super-res) and fragmented (no inpaint refine). Idempotent: skips files already
+    on local disk.
+    """
+    import urllib.request as _urlreq
+    import boto3 as _boto3
+    _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+    _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+    _upscaler_path = "/tmp/RealESRGAN_x2plus.pth"
+    _inpaint_path = "/tmp/big-lama.pt"
+    specs = [
+        (_upscaler_path, f"{_TEXTURE_DEPS_PREFIX}/RealESRGAN_x2plus.pth",
+         "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth", "RealESRGAN x2"),
+        (_inpaint_path, f"{_TEXTURE_DEPS_PREFIX}/big-lama.pt",
+         "https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt", "LaMa inpainter"),
+    ]
+    for _local, _s3k, _url, _name in specs:
+        if os.path.exists(_local):
+            continue
+        if _bucket:
+            try:
+                _s3.download_file(_bucket, _s3k, _local)
+                logger.info("%s loaded from S3 cache", _name)
+                continue
+            except Exception:
+                pass
+        try:
+            logger.info("Downloading %s from GitHub...", _name)
+            _urlreq.urlretrieve(_url, _local)
+            logger.info("%s downloaded (%.1f MB)", _name, os.path.getsize(_local) / (1024 * 1024))
+            if _bucket:
+                try:
+                    _s3.upload_file(_local, _bucket, _s3k)
+                    logger.info("Cached %s to S3", _name)
+                except Exception:
+                    pass
+        except Exception as _e:
+            logger.warning("Failed to fetch %s: %s", _name, _e)
+    return (_upscaler_path if os.path.exists(_upscaler_path) else None,
+            _inpaint_path if os.path.exists(_inpaint_path) else None)
+
+
 def _load_texture_models(code_dir, hf_token):
     """Load MV-Adapter (multi-view generation) and TexturePipeline models.
 
@@ -3493,11 +3541,23 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     from mvadapter.pipelines.pipeline_texture import TexturePipeline, ModProcessConfig
     texture_pipe = model_dict.get("texture_pipe")
     if texture_pipe is None:
+        # MVPainter has no preloaded texture_pipe — build one WITH the quality
+        # models (RealESRGAN x2 upscaler + LaMa inpainter). Without these the
+        # bake was soft (512² views → 4096² atlas, no super-res) and couldn't
+        # inpaint-refine. Models are S3-cached so this is fast after first use.
+        _ups_path, _inp_path = _ensure_texture_quality_models()
+        logger.info("MVPainter bake quality models: upscaler=%s inpainter=%s",
+                    bool(_ups_path), bool(_inp_path))
         texture_pipe = TexturePipeline(
-            upscaler_ckpt_path=None, inpaint_ckpt_path=None, device="cuda",
+            upscaler_ckpt_path=_ups_path, inpaint_ckpt_path=_inp_path, device="cuda",
         )
+    _has_upscaler = hasattr(texture_pipe, "upscaler") and texture_pipe.upscaler is not None
     _has_inpainter = hasattr(texture_pipe, "inpainter") and texture_pipe.inpainter is not None
-    _rgb_config = ModProcessConfig(view_upscale=False,
+    # view_upscale: RealESRGAN x2 on each 512² view BEFORE back-projection — the
+    # single biggest crispness lever (sharp ~1024² views land on the 4096² atlas
+    # instead of an 8× blur). Gated on the upscaler actually being loaded.
+    _rgb_config = ModProcessConfig(view_upscale=_has_upscaler,
+                                   view_upscale_factor=2,
                                    inpaint_mode="view" if _has_inpainter else "uv")
     tex_output = texture_pipe(
         mesh_path=mesh_path,
