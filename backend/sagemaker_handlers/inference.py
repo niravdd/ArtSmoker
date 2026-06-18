@@ -3507,7 +3507,8 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
                      ("kaolin_yflip", "ARTSMOKER_KAOLIN_YFLIP"),
                      ("kaolin_zsign", "ARTSMOKER_KAOLIN_ZSIGN"),
                      ("kaolin_outflip", "ARTSMOKER_KAOLIN_OUTFLIP"),
-                     ("kaolin_nflip", "ARTSMOKER_KAOLIN_NFLIP")):
+                     ("kaolin_nflip", "ARTSMOKER_KAOLIN_NFLIP"),
+                     ("ref_lift", "ARTSMOKER_REF_LIFT")):
         if input_data.get(_k) is not None:
             os.environ[_env] = str(input_data[_k])
             logger.info("MVPainter debug override: %s=%s", _env, os.environ[_env])
@@ -3637,7 +3638,12 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     # baking that as albedo produced the patchy/inconsistent surface. StableDelight
     # (Apache-2.0, one-step) strips the specular layer so we bake flatter base
     # color. Gated by ARTSMOKER_DELIGHT (default on); per-request via input_data.
-    _delight_on = (str(input_data.get("delight", os.environ.get("ARTSMOKER_DELIGHT", "1")))
+    # DEFAULT OFF: validated on the soldier — StableDelight removes specular
+    # HIGHLIGHTS (the main brightness on the dark navy uniform) without lifting
+    # diffuse shadows, so it made an already-dark texture darker/worse across all
+    # angles. Retained as an opt-in knob (ARTSMOKER_DELIGHT / per-request
+    # "delight") for assets where glossy/wet specular patches dominate.
+    _delight_on = (str(input_data.get("delight", os.environ.get("ARTSMOKER_DELIGHT", "0")))
                    .strip().lower() not in ("0", "false", "no"))
     if _delight_on:
         _dl0 = _t.time()
@@ -4384,6 +4390,39 @@ def _preprocess_mv_reference(pil_image, rmbg_model):
         return img
 
 
+def _shadow_lift(pil_rgb, strength=1.0):
+    """Lift crushed shadows on an RGB image so the baked texture isn't dark.
+
+    The reference soldier (and similar assets) are dramatically-lit studio renders
+    with deep shadows on a dark uniform; MVPainter reproduces that darkness and we
+    bake it as albedo → a near-black texture. This applies a shadow/midtone LIFT
+    (not a flat brighten, which washes highlights): a per-pixel gamma<1 weighted by
+    how dark the pixel is, so shadows open up while highlights stay put. Operates on
+    luminance-preserving ratios to avoid hue shift. strength in ~[0,1.5]; 0 = no-op.
+    Gated by ARTSMOKER_REF_LIFT (default "0.7") / per-request "ref_lift".
+    """
+    import numpy as _np
+    try:
+        s = float(strength)
+    except (TypeError, ValueError):
+        s = 0.0
+    if s <= 0:
+        return pil_rgb
+    arr = _np.asarray(pil_rgb.convert("RGB"), dtype=_np.float32) / 255.0
+    lum = arr @ _np.array([0.2126, 0.7152, 0.0722], dtype=_np.float32)  # (H,W)
+    # Shadow weight: 1 in blacks → 0 in highlights (smooth). Lift = gamma applied
+    # proportionally to that weight, so only dark regions open up.
+    w = (1.0 - lum) ** 2.0                       # emphasize the darkest pixels
+    gamma = 1.0 - 0.5 * s * w                    # γ<1 brightens; scaled by darkness
+    gamma = _np.clip(gamma, 0.35, 1.0)[..., None]
+    lifted = _np.clip(arr, 1e-4, 1.0) ** gamma   # per-channel → preserves hue ratios
+    # Gentle black-point raise so true 0 isn't pinned (adds a little base fill).
+    lifted = lifted * (1.0 - 0.06 * s) + 0.06 * s
+    out = _np.clip(lifted * 255.0, 0, 255).astype(_np.uint8)
+    from PIL import Image as _PImg
+    return _PImg.fromarray(out, "RGB")
+
+
 def _preprocess_mvpainter_reference(pil_image, rmbg_model):
     """Prepare the reference image for MVPainter, which expects an RGBA cutout.
 
@@ -4397,16 +4436,27 @@ def _preprocess_mvpainter_reference(pil_image, rmbg_model):
     back to opaque RGBA if RMBG is unavailable.
     """
     img = pil_image.convert("RGB")
-    if rmbg_model is None:
-        return img.convert("RGBA")
+    # Shadow-lift the reference BEFORE MVPainter so the generated views (and the
+    # baked albedo) aren't crushed-dark. Default on at moderate strength; the dark
+    # navy soldier reference is a heavily-lit render with deep shadows.
+    _lift = _get_env("ARTSMOKER_REF_LIFT", "0.7")
     try:
-        orig_np = np.array(img)
-        alpha = _foreground_mask_np(rmbg_model, img)  # (H, W) uint8, RMBG/BiRefNet-agnostic
+        img_lifted = _shadow_lift(img, float(_lift))
+        if float(_lift) > 0:
+            logger.info("Reference shadow-lift applied (strength=%s)", _lift)
+    except Exception as _le:
+        logger.warning("Shadow-lift failed (%s) — using original reference", _le)
+        img_lifted = img
+    if rmbg_model is None:
+        return img_lifted.convert("RGBA")
+    try:
+        orig_np = np.array(img_lifted)
+        alpha = _foreground_mask_np(rmbg_model, img)  # mask from ORIGINAL (lift doesn't change silhouette)
         rgba = np.dstack([orig_np, alpha]).astype(np.uint8)  # (H, W, 4)
         return Image.fromarray(rgba, "RGBA")
     except Exception as e:
         logger.warning("MVPainter reference preprocess failed (%s) — using opaque RGBA", e)
-        return img.convert("RGBA")
+        return img_lifted.convert("RGBA")
 
 
 def _make_mv_grid(images):
