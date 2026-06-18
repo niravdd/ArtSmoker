@@ -280,7 +280,18 @@ class KaolinContextWrapper:
             pad = "border"
         else:
             pad = "border" if boundary_mode in ("clamp", "auto") else "zeros"
-        tex_nchw = tex.float().permute(0, 3, 1, 2).contiguous()
+        tex_nchw = tex.float().permute(0, 3, 1, 2).contiguous()  # (Bt,C,H,W)
+        # nvdiffrast's dr.texture broadcasts the texture along the minibatch axis
+        # (one texture, many UV views). grid_sample requires matching batch dims,
+        # so expand the texture to the grid's batch when they differ (e.g. the
+        # SmartPainter refine renders the mesh with 108 view-selection cameras but
+        # carries a single texture). Without this: "grid_sampler(): expected grid
+        # and input to have same batch size".
+        if tex_nchw.shape[0] != grid.shape[0]:
+            if tex_nchw.shape[0] == 1:
+                tex_nchw = tex_nchw.expand(grid.shape[0], -1, -1, -1).contiguous()
+            elif grid.shape[0] == 1:
+                grid = grid.expand(tex_nchw.shape[0], -1, -1, -1).contiguous()
         out = F.grid_sample(tex_nchw, grid, mode=mode, padding_mode=pad, align_corners=False)
         return out.permute(0, 2, 3, 1).contiguous()
 
