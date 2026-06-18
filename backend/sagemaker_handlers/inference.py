@@ -3311,7 +3311,9 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     for _k, _env in (("debug_texture", "ARTSMOKER_TEXTURE_DEBUG"),
                      ("rasterizer", "ARTSMOKER_RASTERIZER"),
                      ("kaolin_yflip", "ARTSMOKER_KAOLIN_YFLIP"),
-                     ("kaolin_zsign", "ARTSMOKER_KAOLIN_ZSIGN")):
+                     ("kaolin_zsign", "ARTSMOKER_KAOLIN_ZSIGN"),
+                     ("kaolin_outflip", "ARTSMOKER_KAOLIN_OUTFLIP"),
+                     ("kaolin_nflip", "ARTSMOKER_KAOLIN_NFLIP")):
         if input_data.get(_k) is not None:
             os.environ[_env] = str(input_data[_k])
             logger.info("MVPainter debug override: %s=%s", _env, os.environ[_env])

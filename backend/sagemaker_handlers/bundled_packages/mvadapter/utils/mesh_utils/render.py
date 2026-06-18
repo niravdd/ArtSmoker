@@ -425,6 +425,16 @@ def render(
     if render_normal:
         gb_nrm, _ = ctx.interpolate(mesh.v_nrm[None], rast, mesh.stitched_t_pos_idx)
         gb_nrm = F.normalize(gb_nrm, dim=-1, p=2)
+        # ARTSMOKER_KAOLIN_NFLIP (default 0): negate interpolated normals. With the
+        # Kaolin rasterizer the depth test correctly selects the front face (so
+        # positions round-trip), yet that face's interpolated normal reads as
+        # pointing AWAY from the camera (aoi_cos≈0 → 0% coverage, the white-bake
+        # bug) — i.e. the normals are globally inverted relative to nvdiffrast.
+        # This negates them back. Self-contained to the normal path so it can't
+        # disturb the (already-correct) position round-trip.
+        import os as _os
+        if (_os.environ.get("ARTSMOKER_KAOLIN_NFLIP", "0") or "0").strip() != "0":
+            gb_nrm = -gb_nrm
         gb_nrm[~mask] = normal_background
         output_dict["normal"] = gb_nrm
 
