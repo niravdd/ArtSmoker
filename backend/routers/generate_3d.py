@@ -245,6 +245,7 @@ class ThreeDGenerateRequest(BaseModel):
     kaolin_zsign: float | None = None
     kaolin_outflip: int | None = None
     kaolin_nflip: int | None = None
+    delight: int | None = None
 
     def resolved_guidance(self) -> float:
         return self.guidance if self.guidance is not None else self.guidance_scale
@@ -483,7 +484,7 @@ async def generate_3d(body: ThreeDGenerateRequest):
     # Debug/diagnostic passthroughs for the texture bake (rasterizer convention
     # A/B testing without a redeploy). Only forwarded when set. See
     # _generate_texture_mvpainter's per-request override block.
-    for _f in ("debug_texture", "rasterizer", "kaolin_yflip", "kaolin_zsign", "kaolin_outflip", "kaolin_nflip"):
+    for _f in ("debug_texture", "rasterizer", "kaolin_yflip", "kaolin_zsign", "kaolin_outflip", "kaolin_nflip", "delight"):
         _v = getattr(body, _f, None)
         if _v is not None:
             payload[_f] = _v
