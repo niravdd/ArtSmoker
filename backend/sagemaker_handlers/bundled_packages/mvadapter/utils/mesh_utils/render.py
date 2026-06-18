@@ -181,16 +181,17 @@ class KaolinContextWrapper:
         #   ARTSMOKER_KAOLIN_ZSIGN (default 1): sign applied to the z passed to
         #     kaolin's z-buffer. If front faces lose the depth test to back faces
         #     (see-through / wrong-surface color), try -1.
-        #   ARTSMOKER_KAOLIN_OUTFLIP (default 1): flip the rasterized OUTPUT along
-        #     the H (row) axis. This is the real orientation fix: the whole
-        #     downstream bake grid_samples rendered images with RAW uv_pos_ndc,
-        #     which only works if the raster is stored BOTTOM-UP (row 0 = NDC y
-        #     −1) like nvdiffrast's OpenGL convention. Kaolin's cuda backend
-        #     stores TOP-DOWN, so we flip rows to match. (Distinct from YFLIP,
-        #     which only moves where triangles land in the input coords.)
+        #   ARTSMOKER_KAOLIN_OUTFLIP (default 0): flip the rasterized OUTPUT along
+        #     the H (row) axis. DISPROVEN as a fix — flipping the input coords
+        #     (_yflip) already aligns Kaolin's top-down cuda raster with the
+        #     downstream RAW-uv_pos_ndc grid_sample, and an additional output
+        #     flip CORRUPTS the position round-trip (uv_pos_error blows up,
+        #     pos_valid → 0%). Kept as an off-by-default knob only for
+        #     experimentation. Validated against an nvdiffrast control: with
+        #     OUTFLIP=0 the Kaolin pos_valid/uv_pos_error match nvdiffrast.
         import os as _os
         _yflip = (_os.environ.get("ARTSMOKER_KAOLIN_YFLIP", "1") or "1").strip() != "0"
-        _outflip = (_os.environ.get("ARTSMOKER_KAOLIN_OUTFLIP", "1") or "1").strip() != "0"
+        _outflip = (_os.environ.get("ARTSMOKER_KAOLIN_OUTFLIP", "0") or "0").strip() != "0"
         try:
             _zsign = float(_os.environ.get("ARTSMOKER_KAOLIN_ZSIGN", "1") or "1")
         except ValueError:
@@ -425,15 +426,20 @@ def render(
     if render_normal:
         gb_nrm, _ = ctx.interpolate(mesh.v_nrm[None], rast, mesh.stitched_t_pos_idx)
         gb_nrm = F.normalize(gb_nrm, dim=-1, p=2)
-        # ARTSMOKER_KAOLIN_NFLIP (default 0): negate interpolated normals. With the
-        # Kaolin rasterizer the depth test correctly selects the front face (so
-        # positions round-trip), yet that face's interpolated normal reads as
-        # pointing AWAY from the camera (aoi_cos≈0 → 0% coverage, the white-bake
-        # bug) — i.e. the normals are globally inverted relative to nvdiffrast.
-        # This negates them back. Self-contained to the normal path so it can't
-        # disturb the (already-correct) position round-trip.
+        # ARTSMOKER_KAOLIN_NFLIP (default 1 for kaolin): negate interpolated
+        # normals. With the Kaolin rasterizer the depth test correctly selects
+        # the front face (positions round-trip), yet that face's interpolated
+        # normal reads as pointing AWAY from the camera (aoi_cos≈0 → 0% coverage,
+        # the white-bake bug) — the normals are globally inverted relative to
+        # nvdiffrast. Negating them back is the fix. Self-contained to the normal
+        # path so it can't disturb the (already-correct) position round-trip.
+        # Validated against an nvdiffrast control: NFLIP=1 + OUTFLIP=0 makes the
+        # Kaolin aoi_valid/pos_valid both match nvdiffrast. Default keys off the
+        # active rasterizer so the nvdiffrast fallback (normals already correct)
+        # is NOT negated.
         import os as _os
-        if (_os.environ.get("ARTSMOKER_KAOLIN_NFLIP", "0") or "0").strip() != "0":
+        _nflip_default = "1" if (_os.environ.get("ARTSMOKER_RASTERIZER", "kaolin") or "kaolin").lower().strip() != "nvdiffrast" else "0"
+        if (_os.environ.get("ARTSMOKER_KAOLIN_NFLIP", _nflip_default) or _nflip_default).strip() != "0":
             gb_nrm = -gb_nrm
         gb_nrm[~mask] = normal_background
         output_dict["normal"] = gb_nrm
