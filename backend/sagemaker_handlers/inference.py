@@ -1595,7 +1595,12 @@ def _load_image_to_3d(model_dir):
         # watchdog on the first job).
         try:
             _ensure_rasterizer()  # install kaolin (or compile nvdiffrast) at LOAD time
-            _nvdiffrast_bg["state"] = 1
+            # Only mark the nvdiffrast background-prep as done if nvdiffrast is
+            # actually the active rasterizer — otherwise a later per-request
+            # ARTSMOKER_RASTERIZER=nvdiffrast override would see state=1 and skip
+            # the install that never happened (kaolin was installed instead).
+            if _rasterizer_choice() == "nvdiffrast":
+                _nvdiffrast_bg["state"] = 1
             texture_available = True
             logger.info("Rasterizer ready at load (%s) — MVPainter texture enabled", _rasterizer_choice())
         except Exception as e:
@@ -1619,7 +1624,8 @@ def _load_image_to_3d(model_dir):
                 logger.info("MV-Adapter package available — texture models load on-demand per inference")
                 try:
                     _ensure_rasterizer()  # install kaolin (or compile nvdiffrast) at LOAD time
-                    _nvdiffrast_bg["state"] = 1
+                    if _rasterizer_choice() == "nvdiffrast":
+                        _nvdiffrast_bg["state"] = 1
                     logger.info("Rasterizer ready at load (%s) — texture phases enabled", _rasterizer_choice())
                 except Exception as e:
                     logger.warning("Rasterizer not ready at load (%s) — will retry in background on first texture job", e)
