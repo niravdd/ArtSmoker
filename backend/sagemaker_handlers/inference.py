@@ -1927,14 +1927,28 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     #   • xformers — the SLAT *sparse* attention has NO sdpa fallback (only
     #     xformers/flash_attn). xformers has prebuilt cu124 wheels → no compile.
     # spconv/torchsparse are deliberately omitted: SPARSE_CONV_BACKEND=flex_gemm.
+    # CRITICAL ordering/pinning: an UNPINNED xformers pulls its latest build,
+    # which depends on a newer torch and SILENTLY upgrades the container's
+    # torch 2.6.0+cu124 → 2.12 — which then breaks EVERY CUDA-ext compile
+    # (nvdiffrast/o_voxel/cumesh/flex_gemm fail their torch/CUDA setup check with
+    # a mismatched ABI). xformers 0.0.29.post3 is the build matched to torch
+    # 2.6.0+cu124; --no-deps keeps it from touching torch (its only runtime dep,
+    # already present). Install it separately, FIRST.
+    subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "xformers==0.0.29.post3"],
+                          timeout=600, env={**os.environ})
     _py_deps = [
         "transformers>=4.56.0",
-        "xformers",
         "plyfile", "easydict", "pandas", "lpips", "kornia", "timm", "zstandard",
         "git+https://github.com/EasternJournalist/utils3d.git@9a4eb15e4021b67b12c460c7057d642626897ec8",
     ]
-    logger.info("Installing TRELLIS.2 Python deps (transformers>=4.56, xformers, utils3d, ...)")
-    subprocess.check_call(["pip", "install", "--quiet", *_py_deps], timeout=1200, env={**os.environ})
+    logger.info("Installing TRELLIS.2 Python deps (transformers>=4.56, utils3d, ...)")
+    # Pin torch/torchvision in the SAME resolve so no transitive dep can upgrade
+    # them (pip treats 2.6.0+cu124 as satisfying ==2.6.0). If a dep genuinely
+    # needs a newer torch, this surfaces a LOUD conflict instead of a silent,
+    # build-breaking upgrade.
+    subprocess.check_call(["pip", "install", "--quiet",
+                           "torch==2.6.0", "torchvision==0.21.0", *_py_deps],
+                          timeout=1200, env={**os.environ})
     # 3. nvdiffrast (shared) + the 3 TRELLIS.2-specific CUDA extensions.
     _ensure_nvdiffrast(blocking=True)
     _pip_install_build_cached("o_voxel", os.path.join(_TRELLIS2_RUN_DIR, "o-voxel"), "o_voxel")
