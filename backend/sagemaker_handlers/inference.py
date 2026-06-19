@@ -1586,6 +1586,20 @@ def _load_image_to_3d(model_dir):
                 logger.info("Hunyuan3D-Paint preloaded (high VRAM mode)")
             except Exception as e:
                 logger.warning("Hunyuan paint preload failed (will load on-demand): %s", e)
+    elif backend == "trellis2":
+        # ── TRELLIS.2 backend (MIT, commercial-clean) ──
+        # The `trellis2` package + 3 CUDA extensions (o_voxel/cumesh/flex_gemm) +
+        # nvdiffrast are git-cloned and built HERE at load (the build far exceeds
+        # MMS's 120s response watchdog), then S3-cached so later cold starts are
+        # fast. The texturing checkpoints + DINOv3 are pulled lazily on first job.
+        try:
+            _ensure_trellis2(blocking=True)
+            _trellis2_ops_bg["state"] = 1
+            texture_available = True
+            logger.info("TRELLIS.2 stack ready (built/cached at load)")
+        except Exception as e:
+            logger.warning("TRELLIS.2 not ready at load (%s) — will retry in background on first job", e)
+            _ensure_trellis2_background()
     elif backend == "mvpainter":
         # ── MVPainter backend (Apache-2.0, commercial-safe, multi-view bake) ──
         # MVPainter's diffusion (~54 GB weights) loads on-demand in
@@ -1666,6 +1680,34 @@ _HUNYUAN_RASTERIZER_WHEEL_PREFIX = f"{_HUNYUAN_DEPS_PREFIX}/custom_rasterizer/"
 _HUNYUAN_INPAINT_SO_PREFIX = f"{_HUNYUAN_DEPS_PREFIX}/mesh_inpaint_processor/"
 _hunyuan_ops_bg = {"state": -1, "error": ""}
 _hunyuan_ops_bg_lock = None
+
+# ── TRELLIS.2 (Microsoft, MIT) texturing backend ─────────────────────────────
+# Commercial-clean Hunyuan-grade texturer. The `trellis2` package + its 3 CUDA
+# extensions (o_voxel, cumesh, flex_gemm) are NOT pip-installable from an index;
+# we git-clone + build at LOAD time (like nvdiffrast) and S3-cache the wheels.
+# nvdiffrast is shared with the existing _ensure_nvdiffrast path. Repo is MIT;
+# the DINOv3 image encoder (gated, commercial-OK) is pulled at runtime via HF
+# token — requires a "Built with DINOv3" attribution in the product UI.
+_TRELLIS2_REPO = "https://github.com/microsoft/TRELLIS.2.git"
+_TRELLIS2_RUN_DIR = "/tmp/trellis2_run"          # writable clone (package on sys.path)
+_TRELLIS2_DEPS_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/trellis2"
+_TRELLIS2_WHEEL_PREFIX = f"{_TRELLIS2_DEPS_PREFIX}/wheels/"  # cached o_voxel/cumesh/flexgemm wheels
+_TRELLIS2_REPO_REF = "main"                      # pin if upstream churns
+# o_voxel ships in-repo; cumesh + flexgemm are external git (per setup.sh).
+_TRELLIS2_EXT_GIT = {
+    "cumesh": "https://github.com/JeffreyXiang/CuMesh.git",
+    "flex_gemm": "https://github.com/JeffreyXiang/FlexGEMM.git",
+}
+_trellis2_ops_bg = {"state": -1, "error": ""}
+_trellis2_ops_bg_lock = None
+# HF model repo (texturing checkpoints ~6.8 GB pulled at from_pretrained). The
+# texturing config selects only the 4 texturing checkpoints out of the 16.2 GB
+# repo. ATTN_BACKEND=xformers: the SLAT sparse transformer has NO sdpa fallback
+# (only xformers/flash_attn) — xformers ships prebuilt cu124 wheels, so we avoid
+# the flash-attn source compile entirely.
+_TRELLIS2_HF_REPO = "microsoft/TRELLIS.2-4B"
+_TRELLIS2_TEX_CONFIG = "texturing_pipeline.json"
+_trellis2_texture_pipe = None  # cached per worker (like _mvpainter_pipe)
 
 # Background nvdiffrast-compile state (for the inference-time guard). When a
 # compile is kicked off on a worker thread, predict_fn fails the current job
@@ -1773,6 +1815,156 @@ def _ensure_nvdiffrast(blocking: bool = True) -> bool:
     except Exception as e:
         logger.error("nvdiffrast compilation failed: %s", e)
         raise ImportError(f"nvdiffrast unavailable — texture generation requires CUDA compilation: {e}")
+
+
+def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True):
+    """Generic: make a source-built package importable, S3-caching its wheel.
+
+    Mirrors _ensure_nvdiffrast for any --no-build-isolation git/dir package:
+      1. already importable → True
+      2. cached wheel in S3 (_TRELLIS2_WHEEL_PREFIX) → pip install it
+      3. build from `build_spec` (a pip-installable path/URL), then cache the
+         wheel to S3 for future cold starts.
+    `pkg_name` is the python import name; `s3_glob` is the wheel-name prefix to
+    match in S3 (e.g. 'o_voxel'). Returns True on success. blocking=False bails
+    immediately if a build would be needed (inference-watchdog guard)."""
+    import importlib
+    try:
+        importlib.import_module(pkg_name)
+        return True
+    except Exception:
+        pass
+    if not blocking:
+        return False
+    import subprocess, glob as _glob
+    import boto3 as _boto3
+    s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+    bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+    # 1. CUDA_HOME for nvcc
+    if not os.environ.get("CUDA_HOME"):
+        for p in ["/usr/local/cuda", "/usr/local/cuda-12.4", "/usr/local/cuda-12", "/opt/conda"]:
+            if os.path.isfile(os.path.join(p, "bin", "nvcc")):
+                os.environ["CUDA_HOME"] = p
+                break
+    # 2. S3 cached wheel
+    if bucket:
+        try:
+            listing = s3.list_objects_v2(Bucket=bucket, Prefix=_TRELLIS2_WHEEL_PREFIX)
+            for o in listing.get("Contents", []):
+                k = o["Key"]
+                if k.endswith(".whl") and os.path.basename(k).startswith(s3_glob):
+                    wp = os.path.join("/tmp", os.path.basename(k))
+                    s3.download_file(bucket, k, wp)
+                    subprocess.check_call(["pip", "install", "--quiet", "--no-deps",
+                                           "--force-reinstall", wp], timeout=180)
+                    importlib.import_module(pkg_name)
+                    logger.info("%s installed from S3 cache (%s)", pkg_name, os.path.basename(k))
+                    return True
+        except Exception as e:
+            logger.info("%s S3 cache miss/failed (%s) — building from source", pkg_name, e)
+    # 3. build from source + cache the wheel
+    logger.info("Building %s from source (nvcc, may take minutes)...", pkg_name)
+    subprocess.check_call(["pip", "install", "--quiet", "setuptools", "wheel", "ninja", "pybind11"], timeout=180)
+    subprocess.check_call(["pip", "install", "--no-build-isolation", "--no-deps", build_spec],
+                          timeout=1800, env={**os.environ})
+    importlib.import_module(pkg_name)
+    logger.info("%s built + installed", pkg_name)
+    if bucket:
+        try:
+            wdir = f"/tmp/{pkg_name}_wheel_export"
+            os.makedirs(wdir, exist_ok=True)
+            subprocess.check_call(["pip", "wheel", "--no-build-isolation", "--no-deps",
+                                   "--wheel-dir", wdir, build_spec], timeout=1800, env={**os.environ})
+            found = _glob.glob(os.path.join(wdir, f"{s3_glob}*.whl"))
+            if found:
+                wkey = _TRELLIS2_WHEEL_PREFIX + os.path.basename(found[0])
+                s3.upload_file(found[0], bucket, wkey)
+                logger.info("Cached %s wheel to S3: %s", pkg_name, wkey)
+        except Exception as ce:
+            logger.warning("Failed to cache %s wheel: %s", pkg_name, ce)
+    return True
+
+
+def _ensure_trellis2(blocking: bool = True) -> bool:
+    """Make the TRELLIS.2 texturing stack importable. Returns True if ready.
+
+    Clones the MIT repo (for the `trellis2` package + the in-repo o-voxel source)
+    onto sys.path, then ensures the 4 CUDA extensions: nvdiffrast (shared
+    helper), o_voxel (in-repo), cumesh + flex_gemm (external git). Each ext's
+    wheel is S3-cached so cold starts after the first are fast. MUST run at LOAD
+    time (builds exceed MMS's 120s response watchdog); blocking=False is the
+    inference-time guard that bails so the caller can defer.
+    """
+    import sys as _sys
+    # Fast path: package + all ext already importable.
+    try:
+        if os.path.join(_TRELLIS2_RUN_DIR) not in _sys.path:
+            _sys.path.insert(0, _TRELLIS2_RUN_DIR)
+        import trellis2  # noqa: F401
+        import o_voxel, cumesh, flex_gemm  # noqa: F401
+        import nvdiffrast  # noqa: F401
+        return True
+    except Exception:
+        pass
+    if not blocking:
+        return False
+    import subprocess
+    # 1. Clone the repo (package source + o-voxel). Shallow, no LFS weights.
+    if not os.path.isdir(os.path.join(_TRELLIS2_RUN_DIR, "trellis2")):
+        os.makedirs(os.path.dirname(_TRELLIS2_RUN_DIR), exist_ok=True)
+        env = {**os.environ, "GIT_LFS_SKIP_SMUDGE": "1"}
+        subprocess.check_call(["git", "clone", "--depth", "1", "--branch", _TRELLIS2_REPO_REF,
+                               "--recursive", _TRELLIS2_REPO, _TRELLIS2_RUN_DIR],
+                              timeout=600, env=env)
+        logger.info("Cloned TRELLIS.2 repo to %s", _TRELLIS2_RUN_DIR)
+    if _TRELLIS2_RUN_DIR not in _sys.path:
+        _sys.path.insert(0, _TRELLIS2_RUN_DIR)
+    # 2. TRELLIS.2-specific Python deps (NOT in the shared container reqs — we
+    # install them only on the trellis2 endpoint so the Hunyuan/MVPainter/MV-
+    # Adapter endpoints keep their pinned transformers). Two hard requirements:
+    #   • transformers>=4.56 — DINOv3ViTModel (the image encoder) is imported at
+    #     module load; the shared container caps transformers<4.52, which lacks it.
+    #   • xformers — the SLAT *sparse* attention has NO sdpa fallback (only
+    #     xformers/flash_attn). xformers has prebuilt cu124 wheels → no compile.
+    # spconv/torchsparse are deliberately omitted: SPARSE_CONV_BACKEND=flex_gemm.
+    _py_deps = [
+        "transformers>=4.56.0",
+        "xformers",
+        "plyfile", "easydict", "pandas", "lpips", "kornia", "timm", "zstandard",
+        "git+https://github.com/EasternJournalist/utils3d.git@9a4eb15e4021b67b12c460c7057d642626897ec8",
+    ]
+    logger.info("Installing TRELLIS.2 Python deps (transformers>=4.56, xformers, utils3d, ...)")
+    subprocess.check_call(["pip", "install", "--quiet", *_py_deps], timeout=1200, env={**os.environ})
+    # 3. nvdiffrast (shared) + the 3 TRELLIS.2-specific CUDA extensions.
+    _ensure_nvdiffrast(blocking=True)
+    _pip_install_build_cached("o_voxel", os.path.join(_TRELLIS2_RUN_DIR, "o-voxel"), "o_voxel")
+    _pip_install_build_cached("cumesh", f"git+{_TRELLIS2_EXT_GIT['cumesh']}", "cumesh")
+    _pip_install_build_cached("flex_gemm", f"git+{_TRELLIS2_EXT_GIT['flex_gemm']}", "flex_gemm")
+    import trellis2  # noqa: F401  (verify the package imports with exts present)
+    logger.info("TRELLIS.2 stack ready (package + o_voxel + cumesh + flex_gemm + nvdiffrast)")
+    return True
+
+
+def _ensure_trellis2_background():
+    """Kick TRELLIS.2 build on a daemon thread (idempotent), like nvdiffrast."""
+    import threading
+    global _trellis2_ops_bg_lock
+    if _trellis2_ops_bg_lock is None:
+        _trellis2_ops_bg_lock = threading.Lock()
+    with _trellis2_ops_bg_lock:
+        if _trellis2_ops_bg["state"] in (0, 1):
+            return
+        _trellis2_ops_bg["state"] = 0
+    def _work():
+        try:
+            _ensure_trellis2(blocking=True)
+            _trellis2_ops_bg["state"] = 1
+            logger.info("Background TRELLIS.2 build complete — texturing available")
+        except Exception as e:
+            _trellis2_ops_bg["state"] = 2
+            _trellis2_ops_bg["error"] = str(e)
+            logger.error("Background TRELLIS.2 build failed: %s", e)
+    threading.Thread(target=_work, daemon=True, name="trellis2-build").start()
 
 
 def _rasterizer_choice():
@@ -3061,7 +3253,7 @@ def _predict_image_to_3d(input_data, model_dict):
     _backend_now = model_dict.get("texture_backend") or _texture_backend(input_data)
     if input_data.get("texture_backend"):
         _backend_now = str(input_data["texture_backend"]).lower().strip()
-    _attempt_texture = texture_available or (_backend_now in ("hunyuan", "mvpainter"))
+    _attempt_texture = texture_available or (_backend_now in ("hunyuan", "mvpainter", "trellis2"))
     textured_glb_data = None
     if _attempt_texture:
         try:
@@ -3104,7 +3296,24 @@ def _predict_image_to_3d(input_data, model_dict):
         logger.info("Exporting UNTEXTURED GLB (fallback): %.1f KB", len(glb_data) / 1024)
 
     b64_glb = base64.b64encode(glb_data).decode("utf-8")
-    return json.dumps({"mesh": b64_glb, "format": "base64_glb", "vertices": vertex_count, "faces": face_count})
+    # Report which texture backend actually ran + whether the GLB carries PBR maps,
+    # so the gallery metadata (read by generate_3d.py → AssetViewer) is accurate
+    # rather than defaulting to the deployed backend's label. PBR backends:
+    # hunyuan/trellis2 emit base-color + metallic-roughness; mvpainter emits
+    # base-color (+ optional normal map). _textured reflects success vs the
+    # untextured fallback.
+    _textured = textured_glb_data is not None
+    _has_pbr = _textured and (_backend_now in ("hunyuan", "trellis2"))
+    return json.dumps({
+        "mesh": b64_glb,
+        "format": "base64_glb",
+        "vertices": vertex_count,
+        "faces": face_count,
+        "textured": _textured,
+        "texture_backend": _backend_now if _textured else None,
+        "has_pbr": _has_pbr,
+        "rasterizer": _rasterizer_choice() if _textured else "",
+    })
 
 
 def _generate_texture_hunyuan(mesh_path, source_image, model_dict, input_data, temp_dir):
@@ -3213,6 +3422,101 @@ def _generate_texture_hunyuan(mesh_path, source_image, model_dict, input_data, t
         except Exception as _de:
             logger.warning("Hunyuan debug atlas extract failed: %s", _de)
 
+    return glb_data
+
+
+# ── TRELLIS.2 backend (Microsoft, MIT — commercial-clean Hunyuan-grade) ───────
+def _load_trellis2_texture_pipe(model_dict):
+    """Load (and cache per worker) the TRELLIS.2 texturing pipeline.
+
+    Requires the TRELLIS.2 stack importable (_ensure_trellis2 at LOAD time). The
+    4 texturing checkpoints (~6.8 GB) + the gated DINOv3 encoder are pulled from
+    HF at from_pretrained — needs HF auth. low_vram=True (the repo default) keeps
+    each model on CPU and pages it to GPU per step, which fits the 44.5 GB L40S
+    alongside TripoSG (we evict TripoSG before texturing regardless).
+    """
+    global _trellis2_texture_pipe
+    if _trellis2_texture_pipe is not None:
+        return _trellis2_texture_pipe
+    import time as _t
+    hf_token = model_dict.get("hf_token")
+    if hf_token:
+        os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", hf_token)
+        os.environ.setdefault("HF_TOKEN", hf_token)
+    # SLAT sparse attention has no sdpa fallback — force xformers (prebuilt wheel,
+    # no compile) before the package's config.__from_env() reads it at import.
+    os.environ.setdefault("ATTN_BACKEND", "xformers")
+    os.environ.setdefault("SPARSE_CONV_BACKEND", "flex_gemm")
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    from trellis2.pipelines import Trellis2TexturingPipeline
+    t0 = _t.time()
+    logger.info("Loading TRELLIS.2 texturing pipeline (%s / %s)...",
+                _TRELLIS2_HF_REPO, _TRELLIS2_TEX_CONFIG)
+    pipe = Trellis2TexturingPipeline.from_pretrained(
+        _TRELLIS2_HF_REPO, config_file=_TRELLIS2_TEX_CONFIG
+    )
+    pipe.cuda()  # low_vram=True → this only moves the lightweight bits; models page per step
+    logger.info("TRELLIS.2 texturing pipeline loaded in %.0fs", _t.time() - t0)
+    _trellis2_texture_pipe = pipe
+    return pipe
+
+
+def _generate_texture_trellis2(mesh_path, source_image, model_dict, input_data, temp_dir):
+    """Texture an existing mesh with TRELLIS.2 → PBR GLB bytes.
+
+    Called from _generate_texture's backend branch AFTER TripoSG has been
+    evicted/parked (VRAM free). TRELLIS.2's SLAT/SparseTensor texture model is the
+    commercial-clean (MIT) analogue of Hunyuan3D-Paint: image-conditioned (DINOv3)
+    texture-voxel generation baked onto the mesh's own UVs. run() returns a fully
+    PBR-textured trimesh (base_color + metallic-roughness + alpha).
+
+    NOTE: TRELLIS.2's postprocess bake uses nvdiffrast (NVIDIA non-commercial). We
+    run it here for the quality A/B vs Hunyuan FIRST; the nvdiffrast→Kaolin swap is
+    a separate (licensing-only) variable to validate independently, so quality and
+    rasterizer-license are never confounded in one change.
+
+    Raises on failure so the caller falls back to the untextured GLB.
+    """
+    import time as _t
+    t0 = _t.time()
+    logger.info("Texturing with TRELLIS.2 backend...")
+
+    # Watchdog guard: the CUDA-ext build (~5-10 min) far exceeds MMS's 120s
+    # response timeout. Built at LOAD time normally; if NOT ready on this warm
+    # worker, do NOT build inline — kick the background build and fail fast so the
+    # caller returns the untextured mesh (resubmit once the build lands).
+    if not _ensure_trellis2(blocking=False):
+        _ensure_trellis2_background()
+        st = _trellis2_ops_bg["state"]
+        msg = ("TRELLIS.2 native ops are being prepared in the background "
+               "(one-time CUDA build, ~5-10 min). Texture skipped this run — resubmit shortly.")
+        if st == 2:
+            msg = f"TRELLIS.2 native ops preparation failed: {_trellis2_ops_bg['error']}"
+        logger.warning("TRELLIS.2 texture deferred: %s", msg)
+        raise RuntimeError(msg)
+
+    import trimesh as _trimesh
+    pipe = _load_trellis2_texture_pipe(model_dict)
+
+    # Reference image: RGBA cutout (subject opaque, bg transparent). TRELLIS.2's
+    # preprocess_image uses the alpha channel directly when present (else runs its
+    # own BiRefNet) — same contract MVPainter wants, so reuse that helper.
+    ref_rgba = _preprocess_mvpainter_reference(source_image, model_dict.get("rmbg_model"))
+    _save_debug_artifact(ref_rgba.convert("RGB"), "01_reference")
+
+    mesh = _trimesh.load(mesh_path, process=False, force="mesh")
+    _log_gpu_mem("before TRELLIS.2 run")
+    out_mesh = pipe.run(mesh, ref_rgba)
+    logger.info("TRELLIS.2 run complete in %.1fs", _t.time() - t0)
+    _log_gpu_mem("after TRELLIS.2 run")
+
+    glb_path = os.path.join(temp_dir, "trellis2_textured.glb")
+    out_mesh.export(glb_path)  # PBR material baked into the GLB
+    if not os.path.exists(glb_path) or os.path.getsize(glb_path) == 0:
+        raise RuntimeError("TRELLIS.2 produced no GLB")
+    with open(glb_path, "rb") as f:
+        glb_data = f.read()
+    logger.info("TRELLIS.2 textured GLB: %.1f KB from %s", len(glb_data) / 1024, glb_path)
     return glb_data
 
 
@@ -4175,6 +4479,11 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
             return glb_data
         if backend == "mvpainter":
             glb_data = _generate_texture_mvpainter(
+                mesh_path, source_image, model_dict, input_data, temp_dir
+            )
+            return glb_data
+        if backend == "trellis2":
+            glb_data = _generate_texture_trellis2(
                 mesh_path, source_image, model_dict, input_data, temp_dir
             )
             return glb_data

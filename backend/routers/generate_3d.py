@@ -720,6 +720,7 @@ async def get_3d_status(job_id: str):
             "mvpainter": "MVPainter (multi-view PBR bake)",
             "hunyuan": "Hunyuan3D-Paint",
             "mvadapter": "MV-Adapter",
+            "trellis2": "TRELLIS.2 (SLAT PBR texturing)",
         }
         _tex_backend = (job.get("params", {}).get("texture_backend")
                         or output_data.get("texture_backend") or "mvpainter")
