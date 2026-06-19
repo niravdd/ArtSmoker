@@ -270,10 +270,12 @@ Cela compte à chaque étape :
 
 Générez des maillages 3D prêts pour la production à partir de n'importe quelle image 2D — directement dans l'Asset Viewer. Sélectionnez une image **Game Asset** ou **Character**, ouvrez l'onglet **3D Model**, et cliquez sur Generate.
 
+![Génération de modèle 3D — le maillage du soldat généré vu sous plusieurs angles dans le visualiseur 3D interactif](docs/images/3d-model-result.png)
+
 **Fonctionnement :**
 
 1. **Extraction de géométrie** — un transformeur à flux rectifié (TripoSG, 1,5 milliard de paramètres) convertit une seule image 2D en un maillage 3D haute fidélité en utilisant une représentation par champ de distance signée (SDF)
-2. **Synthèse multi-vues** — 6 vues orthogonales cohérentes sont générées à partir de l'image source à l'aide de MV-Adapter avec SDXL, conditionnées sur les cartes de normales et de position du maillage
+2. **Synthèse multi-vues** — un backend de diffusion multi-vues sous licence commerciale (MVPainter, Apache-2.0) génère 6 vues cohérentes à partir de l'image source, conditionnées sur les cartes de normales et de profondeur du maillage
 3. **Baking de textures** — les images multi-vues sont projetées sur le maillage avec dépliage UV, inpainting des coutures et upscaling optionnel pour produire un GLB entièrement texturé
 
 **Sortie :** Format GLB standard avec texture intégrée — s'importe directement dans Unity, Unreal Engine, Blender et d'autres moteurs de jeu. La visionneuse 3D interactive d'ArtSmoker supporte l'orbite, le zoom et le panoramique pour une inspection immédiate.

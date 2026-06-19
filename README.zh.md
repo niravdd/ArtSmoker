@@ -270,10 +270,12 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 从任意 2D 图像生成生产就绪的 3D 网格 —— 直接在 Asset Viewer 中操作。选择一张 **Game Asset** 或 **Character** 图像，打开 **3D Model** 标签页，点击 Generate。
 
+![3D 模型生成 — 在交互式 3D 查看器中从多个角度查看生成的士兵网格](docs/images/3d-model-result.png)
+
 **工作原理：**
 
 1. **几何提取** —— 整流流变换器（TripoSG，15 亿参数）使用符号距离场（SDF）表示将单张 2D 图像转换为高保真 3D 网格
-2. **多视角合成** —— 使用 MV-Adapter 和 SDXL，基于网格的法线贴图和位置贴图从源图像生成 6 个一致的正交视角
+2. **多视角合成** —— 由商业可授权的多视角扩散后端（MVPainter，Apache-2.0）基于网格的法线贴图和深度贴图从源图像生成 6 个一致的视角
 3. **纹理烘焙** —— 多视角图像通过 UV 展开、接缝修复和可选的超分辨率投射到网格上，生成带完整纹理的 GLB
 
 **输出：** 标准 GLB 格式，内嵌纹理 —— 可直接导入 Unity、Unreal Engine、Blender 及其他游戏引擎。ArtSmoker 的交互式 3D 查看器支持轨道旋转、缩放和平移，可即时检查。

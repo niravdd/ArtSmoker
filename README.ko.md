@@ -270,10 +270,12 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 임의의 2D 이미지에서 프로덕션 대응 3D 메시를 생성합니다 — Asset Viewer에서 직접 수행. **Game Asset** 또는 **Character** 이미지를 선택하고, **3D Model** 탭을 열어 Generate를 클릭합니다.
 
+![3D 모델 생성 — 생성된 군인 메시를 인터랙티브 3D 뷰어에서 여러 각도로 표시](docs/images/3d-model-result.png)
+
 **작동 방식:**
 
 1. **지오메트리 추출** — 정류 플로우 트랜스포머(TripoSG, 15억 파라미터)가 SDF(부호 거리장) 표현을 사용하여 단일 2D 이미지를 고충실도 3D 메시로 변환
-2. **멀티뷰 합성** — MV-Adapter와 SDXL을 사용하여 메시의 노멀 맵과 포지션 맵을 기반으로 소스 이미지에서 6개의 일관된 직교 뷰를 생성
+2. **멀티뷰 합성** — 상업적 라이선스가 가능한 멀티뷰 디퓨전 백엔드(MVPainter, Apache-2.0)가 메시의 노멀 맵과 뎁스 맵을 기반으로 소스 이미지에서 6개의 일관된 뷰를 생성
 3. **텍스처 베이킹** — 멀티뷰 이미지가 UV 언래핑, 솔기 인페인팅, 선택적 업스케일링을 통해 메시에 투영되어 완전히 텍스처가 입혀진 GLB를 생성
 
 **출력:** 텍스처가 내장된 표준 GLB 포맷 — Unity, Unreal Engine, Blender 및 기타 게임 엔진에 직접 임포트 가능. ArtSmoker의 인터랙티브 3D 뷰어는 오빗, 줌, 팬을 지원하여 즉시 확인할 수 있습니다.

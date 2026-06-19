@@ -270,10 +270,12 @@ Esto importa en cada etapa:
 
 Genere mallas 3D listas para producción a partir de cualquier imagen 2D — directamente en el Asset Viewer. Seleccione una imagen de **Game Asset** o **Character**, abra la pestaña **3D Model** y haga clic en Generate.
 
+![Generación de modelo 3D — la malla del soldado generada vista desde múltiples ángulos en el visor 3D interactivo](docs/images/3d-model-result.png)
+
 **Cómo funciona:**
 
 1. **Extracción de geometría** — un transformador de flujo rectificado (TripoSG, 1.500 millones de parámetros) convierte una sola imagen 2D en una malla 3D de alta fidelidad utilizando una representación de campo de distancia con signo (SDF)
-2. **Síntesis multi-vista** — se generan 6 vistas ortogonales consistentes a partir de la imagen fuente usando MV-Adapter con SDXL, condicionadas en los mapas de normales y posición de la malla
+2. **Síntesis multi-vista** — un backend de difusión multi-vista con licencia comercial (MVPainter, Apache-2.0) genera 6 vistas consistentes a partir de la imagen fuente, condicionadas en los mapas de normales y profundidad de la malla
 3. **Baking de texturas** — las imágenes multi-vista se proyectan sobre la malla con desenvolvimiento UV, inpainting de costuras y upscaling opcional para producir un GLB completamente texturizado
 
 **Salida:** Formato GLB estándar con textura integrada — se importa directamente en Unity, Unreal Engine, Blender y otros motores de juego. El visor 3D interactivo de ArtSmoker soporta órbita, zoom y panorámica para inspección inmediata.
