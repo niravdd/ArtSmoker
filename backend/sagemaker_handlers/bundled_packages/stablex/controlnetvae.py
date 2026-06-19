@@ -29,7 +29,12 @@ from torch import nn
 from torch.nn import functional as F
 
 from diffusers.configuration_utils import ConfigMixin, register_to_config
-from diffusers.loaders.single_file_model import FromOriginalModelMixin
+# ARTSMOKER: imported by upstream but UNUSED in the class body (ControlNetVAEModel
+# subclasses ControlNetModel which already carries it). Guard against version drift.
+try:
+    from diffusers.loaders.single_file_model import FromOriginalModelMixin
+except Exception:  # noqa: BLE001
+    FromOriginalModelMixin = object
 from diffusers.utils import BaseOutput, logging
 from diffusers.models.attention_processor import (
     ADDED_KV_ATTENTION_PROCESSORS,
@@ -48,8 +53,16 @@ from diffusers.models.unets.unet_2d_blocks import (
     get_down_block,
 )
 from diffusers.models.unets.unet_2d_condition import UNet2DConditionModel
-from diffusers.models.controlnet import ControlNetOutput
-from diffusers.models import ControlNetModel
+# ARTSMOKER: diffusers relocated controlnet under models/controlnets/ in 0.30+
+# (old models/controlnet.py path removed). Import version-robustly: prefer the
+# top-level re-exports, fall back to either module layout.
+try:
+    from diffusers import ControlNetModel, ControlNetOutput
+except Exception:  # noqa: BLE001
+    try:
+        from diffusers.models.controlnets.controlnet import ControlNetModel, ControlNetOutput
+    except Exception:  # noqa: BLE001
+        from diffusers.models.controlnet import ControlNetModel, ControlNetOutput
 
 
 
