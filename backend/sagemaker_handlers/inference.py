@@ -3538,24 +3538,21 @@ def _load_normal_pipe():
     try:
         import torch as _t
         from diffusers import AutoencoderKL, UNet2DConditionModel, ControlNetModel
-        from transformers import CLIPTextModel, CLIPTokenizer
         dt = _t.float16
         vae = AutoencoderKL.from_pretrained(local_dir, subfolder="vae", torch_dtype=dt, variant="fp16")
         unet = UNet2DConditionModel.from_pretrained(local_dir, subfolder="unet", torch_dtype=dt, variant="fp16")
         controlnet = ControlNetModel.from_pretrained(local_dir, subfolder="controlnet", torch_dtype=dt, variant="fp16")
         for m in (vae, unet, controlnet):
             m.to("cuda").eval()
-        # Empty-string CLIP embedding (SD2.1 text encoder = OpenCLIP ViT-H, dim
-        # 1024 = the model's cross_attention_dim). padding="do_not_pad" → [1,2,1024]
-        # (BOS+EOS), matching the upstream pipeline's empty_text_embedding.
-        _clip_repo = "stabilityai/stable-diffusion-2-1-base"
-        tok = CLIPTokenizer.from_pretrained(_clip_repo, subfolder="tokenizer")
-        te = CLIPTextModel.from_pretrained(_clip_repo, subfolder="text_encoder", torch_dtype=dt).to("cuda").eval()
-        with _t.no_grad():
-            ids = tok("", padding="do_not_pad", max_length=tok.model_max_length,
-                      truncation=True, return_tensors="pt").input_ids.to("cuda")
-            empty_emb = te(ids)[0].to(dt)
-        del te  # only needed once for the static empty embedding
+        # Null text conditioning: the YOSO-normal repo ships NO text_encoder and
+        # the model is image/controlnet-driven, so the text path is a fixed empty
+        # condition. We use a ZERO embedding of the cross-attention shape
+        # [1, 2, 1024] (matching the upstream empty_text_embedding's [1,2,dim]
+        # BOS+EOS length). This avoids any external/gated CLIP repo
+        # (stabilityai/stable-diffusion-2-1-base is gated → the load failed in
+        # the container). cross_attention_dim is read from the unet config.
+        _xdim = int(getattr(unet.config, "cross_attention_dim", 1024) or 1024)
+        empty_emb = _t.zeros((1, 2, _xdim), device="cuda", dtype=dt)
         _normal_pipe = {"vae": vae, "unet": unet, "controlnet": controlnet,
                         "empty_emb": empty_emb, "scaling": vae.config.scaling_factor}
         logger.info("StableNormal pipeline ready (Apache-2.0, one-step)")

@@ -265,23 +265,32 @@ This matters at every stage:
 
 ### 📝 1.8 3D Model Generation (Image-to-3D)
 
-Generate production-ready 3D meshes from any 2D image — directly in the Asset Viewer. Select a **Game Asset** or **Character** image, open the **3D Model** tab, and click Generate.
+Generate production-ready, fully-textured 3D meshes from any 2D image — directly in the Asset Viewer. Select a **Game Asset** or **Character** image, open the **3D Model** tab, and click Generate. The result is a game-engine-ready GLB you can orbit, zoom, and download — with no manual modeling, UV unwrapping, or texture painting.
+
+**The generated model — orbit, inspect, download:**
+
+![3D Model Generation — the generated soldier mesh viewed from multiple angles in the interactive 3D viewer](docs/images/3d-model-result.png)
+
+A single 2D character image (left, in the PNG tab) becomes a fully-textured 3D mesh you can rotate freely in-browser. The **3D Model** tab now also lists the exact **models & tools** used to produce each asset (geometry model, texturing backend, output type, instance, and generation parameters) — persisted to the asset's metadata for full provenance.
 
 **How it works:**
 
-1. **Geometry extraction** — a rectified flow transformer (TripoSG, 1.5B parameters) converts a single 2D image into a high-fidelity 3D mesh using signed distance field (SDF) representation
-2. **Multi-view synthesis** — 6 consistent orthogonal views are generated from the source image using MV-Adapter with SDXL, conditioned on the mesh's normal and position maps
-3. **Texture baking** — the multi-view images are projected onto the mesh with UV unwrapping, seam inpainting, and optional upscaling to produce a fully textured GLB
+1. **Geometry extraction** — a rectified flow transformer (TripoSG, 1.5B parameters, MIT-licensed) converts a single 2D image into a high-fidelity 3D mesh using a signed distance field (SDF) representation
+2. **Multi-view synthesis** — 6 consistent views are generated from the source image by a commercially-licensable multi-view diffusion backend (MVPainter, Apache-2.0), conditioned on the mesh's normal and depth maps
+3. **Texture baking** — the multi-view images are projected onto the full-resolution mesh with UV unwrapping, view-masking, Poisson seam blending, super-resolution upscaling, and iterative inpaint refinement to produce a fully textured GLB
+4. **Surface detail** — per-view surface-normal estimation bakes a normal map so materials catch light like real fabric and gear, not flat plastic
 
-**Output:** Standard GLB format with embedded texture — imports directly into Unity, Unreal Engine, Blender, and other game engines. The interactive 3D viewer in ArtSmoker supports orbit, zoom, and pan for immediate inspection.
+The entire pipeline is built on **commercially-licensable** components (MIT / Apache-2.0 weights and code throughout), so generated assets are clean for commercial use.
 
-**Infrastructure:** Deploys via the same 1-click Custom Models flow. Runs on `ml.g5.2xlarge` (24 GB, $1.51/hr) with sequential model loading, or `ml.g6e` (48 GB) with all models loaded simultaneously. Scale-to-zero when idle — $0 cost between jobs.
+**Output:** Standard GLB format with embedded base-color + normal textures — imports directly into Unity, Unreal Engine, Blender, and other game engines. The interactive 3D viewer in ArtSmoker supports orbit, zoom, and pan for immediate inspection.
+
+**Infrastructure:** Deploys via the same 1-click Custom Models flow, with a deploy-time picker for the texturing backend (each showing its licence, instance baseline, and est. cost/time). Runs on `ml.g6e` GPU instances; scale-to-zero when idle — $0 cost between jobs.
 
 | Metric | Value |
 |--------|-------|
-| Generation time | 60–90 seconds per asset |
-| Mesh quality | 200K–450K faces, full vertex normals |
-| Texture resolution | Up to 4K UV atlas |
+| Mesh quality | Up to ~1M faces, full vertex normals |
+| Texture resolution | 4K UV atlas (base color + normal map) |
+| Licensing | Commercially-safe (MIT / Apache-2.0 throughout) |
 | Supported asset types | Game Asset, Character |
 
 <a id="get-started"></a>
