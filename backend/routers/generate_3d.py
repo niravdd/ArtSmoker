@@ -598,15 +598,27 @@ async def get_active_3d_job(asset_id: str, version: int = 1):
     reload (when its in-memory job tracking is gone). Returns the most recent
     non-finalized job, or {active: false}.
     """
-    candidates = [
-        j for j in _3d_jobs.values()
-        if j.get("asset_id") == asset_id
-        and j.get("version", 1) == version
-        and j.get("status") not in ("complete", "failed")
-    ]
+    mine = [j for j in _3d_jobs.values()
+            if j.get("asset_id") == asset_id and j.get("version", 1) == version]
+    candidates = [j for j in mine if j.get("status") not in ("complete", "failed")]
     if not candidates:
         return {"active": False}
     job = sorted(candidates, key=lambda j: j.get("submitted_at", ""), reverse=True)[0]
+
+    # Supersession guard: if a job for this asset+version has already COMPLETED
+    # at/after this candidate was submitted, the candidate is stale (e.g. its
+    # async output was lost / never delivered) and must NOT keep the frontend
+    # spinning. Mark it failed and report the asset as done.
+    newest_complete = max(
+        (j.get("completed_at", "") for j in mine if j.get("status") == "complete"),
+        default="",
+    )
+    if newest_complete and newest_complete >= job.get("submitted_at", ""):
+        job["status"] = "failed"
+        job["error"] = "Superseded by a newer completed 3D job (stale async output)."
+        _persist_3d_job(job)
+        return {"active": False}
+
     return {"active": True, "job_id": job["job_id"], "status": job["status"]}
 
 
