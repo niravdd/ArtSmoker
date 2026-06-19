@@ -12,7 +12,7 @@
     // ============================================================
 
     const ROUTES = {
-        'image-studio':  { component: window.ImageStudio, label: '2D Image Studio' },
+        'image-studio':  { component: window.ImageStudio, label: 'Image Studio' },
         'type-studio':   { component: window.TypeStudio, label: 'Type Studio' },
         'video-studio':  { component: window.VideoStudio, label: 'Video Studio' },
         'chat-studio':   { component: window.ChatStudio, label: 'Chat Studio' },
@@ -145,14 +145,17 @@
         if (overlay) overlay.classList.add('hidden');
     };
 
-    // ── Global date formatters (dd MMM yyyy + timezone) ─────────────
+    // ── Global date formatters (dd-MMM-yyyy + timezone) ─────────────
+    // Single source of truth for ALL displayed dates. Format: dd-MMM-yyyy
+    // (zero-padded day) so dates sort/read consistently app-wide.
     const _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
     window.formatDate = function(dateStr) {
         if (!dateStr) return '';
         try {
             const d = new Date(dateStr);
             if (isNaN(d)) return '';
-            return `${d.getDate()} ${_MONTHS[d.getMonth()]} ${d.getFullYear()}`;
+            const dd = String(d.getDate()).padStart(2, '0');
+            return `${dd}-${_MONTHS[d.getMonth()]}-${d.getFullYear()}`;
         } catch { return ''; }
     };
     window.formatTimestamp = function(dateStr) {
@@ -160,13 +163,13 @@
         try {
             const d = new Date(dateStr);
             if (isNaN(d)) return '';
-            const dd = d.getDate();
+            const dd = String(d.getDate()).padStart(2, '0');
             const mon = _MONTHS[d.getMonth()];
             const yyyy = d.getFullYear();
             const hh = String(d.getHours()).padStart(2, '0');
             const mm = String(d.getMinutes()).padStart(2, '0');
             const tz = Intl.DateTimeFormat().resolvedOptions().timeZone || 'local';
-            return `${dd} ${mon} ${yyyy}, ${hh}:${mm} (${tz})`;
+            return `${dd}-${mon}-${yyyy}, ${hh}:${mm} (${tz})`;
         } catch { return ''; }
     };
 

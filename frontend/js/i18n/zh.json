@@ -198,7 +198,16 @@
     "three_d_job_id": "任务",
     "three_d_faces_hint": "面数越高，细节越精细。\"最高质量\"保留模型生成的完整分辨率。",
     "three_d_est_faces": "面",
-    "three_d_est_fullmesh": "完整网格（约100万面）"
+    "three_d_est_fullmesh": "完整网格（约100万面）",
+    "three_d_pipeline_title": "使用的模型和工具",
+    "three_d_geometry_model": "几何体",
+    "three_d_texture_model": "纹理",
+    "three_d_output_type": "输出",
+    "three_d_pbr_textured": "PBR（法线贴图）",
+    "three_d_albedo_textured": "反照率（基础色）",
+    "three_d_instance": "实例",
+    "three_d_mesh_detail": "网格细节",
+    "three_d_diffusion_steps": "扩散步数"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",
@@ -689,7 +698,7 @@
   "nav": {
     "chat_studio": "对话工作室",
     "gallery": "画廊",
-    "image_studio": "2D 图像工作室",
+    "image_studio": "图像工作室",
     "style_library": "风格库",
     "type_studio": "字体工作室",
     "video_studio": "视频工作室"

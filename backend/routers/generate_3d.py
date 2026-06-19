@@ -564,6 +564,7 @@ async def generate_3d(body: ThreeDGenerateRequest):
             "seed": body.seed,
             "faces": body.resolved_faces(),
             "octree_depth": _octree,
+            "texture_backend": body.texture_backend,
         },
         "submitted_at": datetime.utcnow().isoformat(),
     }
@@ -698,6 +699,29 @@ async def get_3d_status(job_id: str):
         vertices = output_data.get("vertices", 0)
         faces = output_data.get("faces", 0)
 
+        # Build a human-readable PIPELINE summary (which models/tools produced
+        # this asset) for the AssetViewer 3D tab. Geometry model + texture backend
+        # come from the job; the instance type + texture-model labels are resolved
+        # from the deployed instance. output_data may report richer fields (PBR,
+        # rasterizer) when the handler supplies them.
+        _TEX_LABELS = {
+            "mvpainter": "MVPainter (multi-view PBR bake)",
+            "hunyuan": "Hunyuan3D-Paint",
+            "mvadapter": "MV-Adapter",
+        }
+        _tex_backend = (job.get("params", {}).get("texture_backend")
+                        or output_data.get("texture_backend") or "mvpainter")
+        _, _cfg = _find_triposg_model(job.get("model_key"))
+        _instance = (_cfg or {}).get("deployment", {}).get("instance_type", "")
+        pipeline = {
+            "geometry_model": "TripoSG",
+            "texture_backend": _tex_backend,
+            "texture_label": _TEX_LABELS.get(_tex_backend, _tex_backend),
+            "instance_type": _instance,
+            "has_pbr": bool(output_data.get("has_pbr") or output_data.get("normal_map")),
+            "rasterizer": output_data.get("rasterizer", ""),
+        }
+
         # Update asset metadata — single entry, replaced on regenerate
         meta = store.load_generation_metadata(asset_id) or {}
         meta["three_d_versions"] = [{
@@ -708,6 +732,7 @@ async def get_3d_status(job_id: str):
             "vertices": vertices,
             "faces": faces,
             "params": job["params"],
+            "pipeline": pipeline,
             "created_at": datetime.utcnow().isoformat(),
         }]
         meta["has_3d"] = True
@@ -720,6 +745,8 @@ async def get_3d_status(job_id: str):
         job["size_bytes"] = len(glb_bytes)
         job["vertices"] = vertices
         job["faces"] = faces
+        job["pipeline"] = pipeline
+        job["created_at"] = meta["three_d_versions"][0]["created_at"]
 
         logger.info("3D generation complete for asset %s: %d bytes, %d vertices, %d faces",
                     asset_id, len(glb_bytes), vertices, faces)

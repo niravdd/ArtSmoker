@@ -7,7 +7,7 @@
   },
   "nav": {
     "style_library": "शैली संग्रह",
-    "image_studio": "2D चित्र स्टूडियो",
+    "image_studio": "चित्र स्टूडियो",
     "type_studio": "टाइप स्टूडियो",
     "video_studio": "वीडियो स्टूडियो",
     "chat_studio": "चैट स्टूडियो",
@@ -814,7 +814,16 @@
     "three_d_job_id": "कार्य",
     "three_d_faces_hint": "अधिक फेस का अर्थ है बेहतर विवरण। \"अधिकतम गुणवत्ता\" मॉडल द्वारा उत्पन्न पूर्ण रिज़ॉल्यूशन बनाए रखती है।",
     "three_d_est_faces": "फेस",
-    "three_d_est_fullmesh": "पूर्ण मेश (~1M फेस)"
+    "three_d_est_fullmesh": "पूर्ण मेश (~1M फेस)",
+    "three_d_pipeline_title": "उपयोग किए गए मॉडल और टूल",
+    "three_d_geometry_model": "ज्यामिति",
+    "three_d_texture_model": "टेक्सचरिंग",
+    "three_d_output_type": "आउटपुट",
+    "three_d_pbr_textured": "PBR (नॉर्मल-मैप्ड)",
+    "three_d_albedo_textured": "एल्बिडो (बेस कलर)",
+    "three_d_instance": "इंस्टेंस",
+    "three_d_mesh_detail": "मेश विवरण",
+    "three_d_diffusion_steps": "डिफ्यूज़न चरण"
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",

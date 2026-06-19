@@ -198,7 +198,16 @@
     "three_d_job_id": "ジョブ",
     "three_d_faces_hint": "フェイス数が多いほど精細になります。「最高品質」はモデルが生成する全解像度を保持します。",
     "three_d_est_faces": "フェイス",
-    "three_d_est_fullmesh": "フルメッシュ（約100万フェイス）"
+    "three_d_est_fullmesh": "フルメッシュ（約100万フェイス）",
+    "three_d_pipeline_title": "使用モデル・ツール",
+    "three_d_geometry_model": "ジオメトリ",
+    "three_d_texture_model": "テクスチャ",
+    "three_d_output_type": "出力",
+    "three_d_pbr_textured": "PBR（法線マップ付き）",
+    "three_d_albedo_textured": "アルベド（ベースカラー）",
+    "three_d_instance": "インスタンス",
+    "three_d_mesh_detail": "メッシュ詳細",
+    "three_d_diffusion_steps": "拡散ステップ"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",
@@ -689,7 +698,7 @@
   "nav": {
     "chat_studio": "チャットスタジオ",
     "gallery": "ギャラリー",
-    "image_studio": "2D画像スタジオ",
+    "image_studio": "画像スタジオ",
     "style_library": "スタイルライブラリ",
     "type_studio": "タイプスタジオ",
     "video_studio": "ビデオスタジオ"

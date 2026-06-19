@@ -7,7 +7,7 @@
   },
   "nav": {
     "style_library": "Библиотека стилей",
-    "image_studio": "2D-студия",
+    "image_studio": "Студия изображений",
     "type_studio": "Студия текста",
     "video_studio": "Видеостудия",
     "chat_studio": "Чат-студия",
@@ -814,7 +814,16 @@
     "three_d_job_id": "Задача",
     "three_d_faces_hint": "Больше граней — выше детализация. «Максимальное качество» сохраняет полное разрешение, которое создаёт модель.",
     "three_d_est_faces": "граней",
-    "three_d_est_fullmesh": "Полный меш (~1M граней)"
+    "three_d_est_fullmesh": "Полный меш (~1M граней)",
+    "three_d_pipeline_title": "Использованные модели и инструменты",
+    "three_d_geometry_model": "Геометрия",
+    "three_d_texture_model": "Текстурирование",
+    "three_d_output_type": "Вывод",
+    "three_d_pbr_textured": "PBR (с картой нормалей)",
+    "three_d_albedo_textured": "Альбедо (базовый цвет)",
+    "three_d_instance": "Инстанс",
+    "three_d_mesh_detail": "Детализация меша",
+    "three_d_diffusion_steps": "Шаги диффузии"
   },
   "model_settings": {
     "title": "Настройки моделей",

@@ -7,7 +7,7 @@
   },
   "nav": {
     "style_library": "Style Library",
-    "image_studio": "2D Image Studio",
+    "image_studio": "Image Studio",
     "type_studio": "Type Studio",
     "video_studio": "Video Studio",
     "chat_studio": "Chat Studio",
@@ -815,7 +815,16 @@
     "meta_3d_file": "Output",
     "meta_copy": "Copy",
     "meta_copied": "Copied!",
-    "three_d_viewer_hint": "Drag to orbit, scroll to zoom, right-click to pan"
+    "three_d_viewer_hint": "Drag to orbit, scroll to zoom, right-click to pan",
+    "three_d_pipeline_title": "Models & Tools Used",
+    "three_d_geometry_model": "Geometry",
+    "three_d_texture_model": "Texturing",
+    "three_d_output_type": "Output",
+    "three_d_pbr_textured": "PBR (normal-mapped)",
+    "three_d_albedo_textured": "Albedo (base color)",
+    "three_d_instance": "Instance",
+    "three_d_mesh_detail": "Mesh detail",
+    "three_d_diffusion_steps": "Diffusion steps"
   },
   "model_settings": {
     "title": "Model Settings",

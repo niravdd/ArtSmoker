@@ -198,7 +198,16 @@
     "three_d_job_id": "Tarea",
     "three_d_faces_hint": "Más caras significa mayor detalle. «Calidad máxima» mantiene la resolución completa que produce el modelo.",
     "three_d_est_faces": "caras",
-    "three_d_est_fullmesh": "Malla completa (~1M caras)"
+    "three_d_est_fullmesh": "Malla completa (~1M caras)",
+    "three_d_pipeline_title": "Modelos y herramientas usados",
+    "three_d_geometry_model": "Geometría",
+    "three_d_texture_model": "Texturizado",
+    "three_d_output_type": "Salida",
+    "three_d_pbr_textured": "PBR (mapa de normales)",
+    "three_d_albedo_textured": "Albedo (color base)",
+    "three_d_instance": "Instancia",
+    "three_d_mesh_detail": "Detalle de malla",
+    "three_d_diffusion_steps": "Pasos de difusión"
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",
@@ -689,7 +698,7 @@
   "nav": {
     "chat_studio": "Estudio de Chat",
     "gallery": "Galeria",
-    "image_studio": "Estudio de Imagen 2D",
+    "image_studio": "Estudio de Imagen",
     "style_library": "Biblioteca de Estilos",
     "type_studio": "Estudio de Texto",
     "video_studio": "Estudio de Video"

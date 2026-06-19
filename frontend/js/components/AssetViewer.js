@@ -90,7 +90,7 @@
             const overlay = document.createElement('div');
             overlay.className = 'modal-overlay fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
             overlay.innerHTML = `
-                <div class="modal-content bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden">
+                <div class="modal-content bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
                         <h2 class="text-lg font-semibold truncate flex-1">${this._esc(item.png_filename || t('asset_viewer.generated_asset'))}</h2>
@@ -1545,6 +1545,8 @@
                         vertices: existing3D.vertices || 0,
                         faces: existing3D.faces || 0,
                         created_at: existing3D.created_at || null,
+                        pipeline: existing3D.pipeline || null,
+                        params: existing3D.params || null,
                     });
                     return;
                 }
@@ -1811,6 +1813,30 @@
         _render3DComplete(container, data) {
             const fileSize = data.file_size ? this._formatBytes(data.file_size) : '—';
             const glbUrl = data.download_url || '#';
+            const pl = data.pipeline || {};
+            const prm = data.params || {};
+            // Build the "models & tools used" rows from the persisted pipeline
+            // block (gallery metadata). Only render rows we actually have.
+            const _toolRows = [];
+            if (pl.geometry_model) _toolRows.push([t('asset_viewer.three_d_geometry_model'), pl.geometry_model]);
+            if (pl.texture_label || pl.texture_backend) _toolRows.push([t('asset_viewer.three_d_texture_model'), pl.texture_label || pl.texture_backend]);
+            _toolRows.push([t('asset_viewer.three_d_output_type'),
+                pl.has_pbr ? t('asset_viewer.three_d_pbr_textured') : t('asset_viewer.three_d_albedo_textured')]);
+            if (pl.instance_type) _toolRows.push([t('asset_viewer.three_d_instance'), pl.instance_type.replace('ml.', '')]);
+            if (prm.octree_depth) _toolRows.push([t('asset_viewer.three_d_mesh_detail'), `octree ${prm.octree_depth}`]);
+            if (prm.steps) _toolRows.push([t('asset_viewer.three_d_diffusion_steps'), String(prm.steps)]);
+            if (prm.seed !== undefined && prm.seed !== null) _toolRows.push([t('asset_viewer.three_d_seed'), String(prm.seed)]);
+            const toolsHtml = _toolRows.length ? `
+                <div class="rounded-lg border border-brand-border/40 bg-white/[0.02] px-4 py-3">
+                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-2">${t('asset_viewer.three_d_pipeline_title')}</p>
+                    <div class="grid grid-cols-2 gap-x-6 gap-y-1.5">
+                        ${_toolRows.map(([k, v]) => `
+                            <div class="flex items-center justify-between gap-2 text-[11px]">
+                                <span class="text-brand-text-muted">${k}</span>
+                                <span class="font-medium text-right truncate" title="${this._esc(String(v))}">${this._esc(String(v))}</span>
+                            </div>`).join('')}
+                    </div>
+                </div>` : '';
             const regenInProgress = this._3dJobId && this._3dPollTimer;
             const regenBtnClass = regenInProgress ? 'btn btn-sm btn-secondary opacity-60 cursor-not-allowed' : 'btn btn-sm btn-secondary';
             const regenBtnLabel = regenInProgress
@@ -1861,9 +1887,10 @@
                         </div>
                         <div>
                             <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_created')}</p>
-                            <p class="font-medium text-[11px]">${data.created_at ? new Date(data.created_at).toLocaleString([], {dateStyle: 'short', timeStyle: 'short'}) : '—'}</p>
+                            <p class="font-medium text-[11px]">${data.created_at ? window.formatTimestamp(data.created_at) : '—'}</p>
                         </div>
                     </div>
+                    ${toolsHtml}
                     <div class="flex items-center justify-center gap-3">
                         <a href="${glbUrl}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1947,6 +1974,8 @@
                             vertices: r.vertices || 0,
                             faces: r.faces || 0,
                             created_at: r.created_at || new Date().toISOString(),
+                            pipeline: r.pipeline || null,
+                            params: r.params || null,
                         });
                     } else if (status.status === 'failed') {
                         this._stop3DPolling();

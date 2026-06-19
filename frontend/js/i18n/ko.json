@@ -198,7 +198,16 @@
     "three_d_job_id": "작업",
     "three_d_faces_hint": "페이스 수가 많을수록 디테일이 정교해집니다. \"최고 품질\"은 모델이 생성한 전체 해상도를 유지합니다.",
     "three_d_est_faces": "페이스",
-    "three_d_est_fullmesh": "전체 메시(약 100만 페이스)"
+    "three_d_est_fullmesh": "전체 메시(약 100만 페이스)",
+    "three_d_pipeline_title": "사용된 모델 및 도구",
+    "three_d_geometry_model": "지오메트리",
+    "three_d_texture_model": "텍스처",
+    "three_d_output_type": "출력",
+    "three_d_pbr_textured": "PBR (노멀 맵)",
+    "three_d_albedo_textured": "알베도 (베이스 컬러)",
+    "three_d_instance": "인스턴스",
+    "three_d_mesh_detail": "메시 디테일",
+    "three_d_diffusion_steps": "디퓨전 스텝"
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",
@@ -689,7 +698,7 @@
   "nav": {
     "chat_studio": "채팅 스튜디오",
     "gallery": "갤러리",
-    "image_studio": "2D 이미지 스튜디오",
+    "image_studio": "이미지 스튜디오",
     "style_library": "스타일 라이브러리",
     "type_studio": "타이프 스튜디오",
     "video_studio": "비디오 스튜디오"
