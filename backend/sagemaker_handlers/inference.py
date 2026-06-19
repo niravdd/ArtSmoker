@@ -3437,7 +3437,13 @@ def _delight_image(pil_img):
             t = _t.tensor(_DELIGHT_T_START, device="cuda")
             down, mid = pipe["controlnet"](lat, t, encoder_hidden_states=pipe["empty_emb"],
                                            conditioning_scale=1.0, guess_mode=False, return_dict=False)
-            pred = pipe["unet"](_t.zeros_like(lat), t, encoder_hidden_states=pipe["empty_emb"],
+            # YOSO one-step denoise: the UNet sample MUST be RANDOM NOISE (the
+            # reference pipeline's prepare_latents seeds randn, NOT zeros). Feeding
+            # zeros makes the one-step denoiser a near-passthrough → de-light did
+            # ~nothing (validated 2026-06-19). Seed fixed for reproducibility.
+            gen = _t.Generator(device="cuda").manual_seed(0)
+            noise = _t.randn(lat.shape, generator=gen, device="cuda", dtype=lat.dtype)
+            pred = pipe["unet"](noise, t, encoder_hidden_states=pipe["empty_emb"],
                                 down_block_additional_residuals=down,
                                 mid_block_additional_residual=mid, return_dict=False)[0]
             img = pipe["vae"].decode(pred / pipe["scaling"], return_dict=False)[0]  # [1,3,H,W] in [-1,1]
@@ -3449,6 +3455,157 @@ def _delight_image(pil_img):
     except Exception as e:
         logger.warning("De-light forward failed (%s) — using original view", e)
         return pil_img
+
+
+# ── Surface-normal estimation (StableNormal, Apache-2.0 weights) ─────────────
+# The baked albedo on smooth TripoSG geometry reads "wet/plastic" because there's
+# no surface microdetail — light slides uniformly across the smooth surface. A
+# per-view NORMAL map (baked as the GLB normalTexture) reintroduces microsurface
+# relief so the material catches light like real fabric/metal. StableNormal
+# (Stable-X/yoso-normal-v1-8-1) estimates camera-space normals in ONE step. Same
+# Apache-2.0-weights + unlicensed-GitHub-wrapper situation as StableDelight, so
+# we again run the YOSO one-step forward ourselves with stock diffusers classes.
+# Structurally identical to delight EXCEPT: 3 components (no text_encoder in the
+# repo) → we supply the empty-string CLIP embedding from SD2.1's text encoder
+# (cross_attention_dim 1024 matches), and the decoded output is a normal map
+# (xyz in [-1,1] → [0,1] RGB), not an RGB image.
+_NORMAL_REPO = "Stable-X/yoso-normal-v1-8-1"
+_NORMAL_T_START = 401
+_normal_pipe = None
+
+
+def _ensure_normal_models():
+    """Download StableNormal Apache-2.0 weights (S3-cached). Returns local dir or
+    None. Standard diffusers layout (vae/unet/controlnet); we load the COMPONENTS,
+    not the unlicensed YOSONormalsPipeline wrapper class."""
+    import boto3 as _boto3
+    from huggingface_hub import snapshot_download
+    local_dir = "/tmp/yoso-normal"
+    if os.path.isdir(local_dir) and os.path.isfile(os.path.join(local_dir, "model_index.json")):
+        return local_dir
+    bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
+    s3prefix = f"{_TEXTURE_DEPS_PREFIX}/yoso-normal/"
+    if bucket:
+        try:
+            s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+            paginator = s3.get_paginator("list_objects_v2")
+            keys = [o["Key"] for pg in paginator.paginate(Bucket=bucket, Prefix=s3prefix)
+                    for o in pg.get("Contents", [])]
+            if keys:
+                for k in keys:
+                    rel = k[len(s3prefix):]
+                    if not rel:
+                        continue
+                    dst = os.path.join(local_dir, rel)
+                    os.makedirs(os.path.dirname(dst), exist_ok=True)
+                    s3.download_file(bucket, k, dst)
+                logger.info("StableNormal weights from S3 cache (%d files)", len(keys))
+                return local_dir
+        except Exception as e:
+            logger.info("StableNormal S3 cache miss (%s) — downloading from HF", e)
+    try:
+        snapshot_download(repo_id=_NORMAL_REPO, local_dir=local_dir,
+                          allow_patterns=["*.json", "*.txt", "*.fp16.safetensors", "*.py"])
+        logger.info("StableNormal weights downloaded from HF")
+        if bucket:
+            try:
+                s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
+                for root, _, files in os.walk(local_dir):
+                    for fn in files:
+                        fp = os.path.join(root, fn)
+                        rel = os.path.relpath(fp, local_dir)
+                        s3.upload_file(fp, bucket, s3prefix + rel)
+                logger.info("Cached StableNormal weights to S3")
+            except Exception as e:
+                logger.warning("Failed to cache StableNormal to S3: %s", e)
+        return local_dir
+    except Exception as e:
+        logger.warning("StableNormal download failed (%s) — normal maps disabled", e)
+        return None
+
+
+def _load_normal_pipe():
+    """Lazy-load StableNormal components (Apache-2.0 weights) onto GPU. The repo
+    ships NO text_encoder, so we build the empty-string CLIP embedding [1,2,1024]
+    from SD2.1's text encoder (same OpenCLIP-1024 the model was trained with).
+    Returns a dict or None."""
+    global _normal_pipe
+    if _normal_pipe is not None:
+        return _normal_pipe
+    local_dir = _ensure_normal_models()
+    if not local_dir:
+        return None
+    try:
+        import torch as _t
+        from diffusers import AutoencoderKL, UNet2DConditionModel, ControlNetModel
+        from transformers import CLIPTextModel, CLIPTokenizer
+        dt = _t.float16
+        vae = AutoencoderKL.from_pretrained(local_dir, subfolder="vae", torch_dtype=dt, variant="fp16")
+        unet = UNet2DConditionModel.from_pretrained(local_dir, subfolder="unet", torch_dtype=dt, variant="fp16")
+        controlnet = ControlNetModel.from_pretrained(local_dir, subfolder="controlnet", torch_dtype=dt, variant="fp16")
+        for m in (vae, unet, controlnet):
+            m.to("cuda").eval()
+        # Empty-string CLIP embedding (SD2.1 text encoder = OpenCLIP ViT-H, dim
+        # 1024 = the model's cross_attention_dim). padding="do_not_pad" → [1,2,1024]
+        # (BOS+EOS), matching the upstream pipeline's empty_text_embedding.
+        _clip_repo = "stabilityai/stable-diffusion-2-1-base"
+        tok = CLIPTokenizer.from_pretrained(_clip_repo, subfolder="tokenizer")
+        te = CLIPTextModel.from_pretrained(_clip_repo, subfolder="text_encoder", torch_dtype=dt).to("cuda").eval()
+        with _t.no_grad():
+            ids = tok("", padding="do_not_pad", max_length=tok.model_max_length,
+                      truncation=True, return_tensors="pt").input_ids.to("cuda")
+            empty_emb = te(ids)[0].to(dt)
+        del te  # only needed once for the static empty embedding
+        _normal_pipe = {"vae": vae, "unet": unet, "controlnet": controlnet,
+                        "empty_emb": empty_emb, "scaling": vae.config.scaling_factor}
+        logger.info("StableNormal pipeline ready (Apache-2.0, one-step)")
+        return _normal_pipe
+    except Exception as e:
+        logger.warning("StableNormal load failed (%s) — normal maps disabled", e)
+        return None
+
+
+def _estimate_normal(pil_img):
+    """Estimate a camera-space surface-normal map for one RGB view via the
+    StableNormal one-step YOSO forward (clean reimpl on Apache weights). Returns
+    an RGB PIL normal map (xyz→[0,1], same size); on failure returns None so the
+    caller skips the normal channel for that view."""
+    pipe = _load_normal_pipe()
+    if pipe is None:
+        return None
+    import torch as _t
+    import numpy as _np
+    from PIL import Image as _PImg
+    try:
+        rgb = pil_img.convert("RGB")
+        W0, H0 = rgb.size
+        W = (W0 // 8) * 8 or 8
+        H = (H0 // 8) * 8 or 8
+        arr = _np.asarray(rgb.resize((W, H), _PImg.BILINEAR), dtype=_np.float32) / 255.0
+        x = _t.from_numpy(arr).permute(2, 0, 1)[None] * 2.0 - 1.0
+        x = x.to("cuda", dtype=_t.float16)
+        with _t.no_grad():
+            lat = pipe["vae"].encode(x).latent_dist.mode() * pipe["scaling"]
+            t = _t.tensor(_NORMAL_T_START, device="cuda")
+            down, mid = pipe["controlnet"](lat, t, encoder_hidden_states=pipe["empty_emb"],
+                                           conditioning_scale=1.0, guess_mode=False, return_dict=False)
+            gen = _t.Generator(device="cuda").manual_seed(0)
+            noise = _t.randn(lat.shape, generator=gen, device="cuda", dtype=lat.dtype)
+            pred = pipe["unet"](noise, t, encoder_hidden_states=pipe["empty_emb"],
+                                down_block_additional_residuals=down,
+                                mid_block_additional_residual=mid, return_dict=False)[0]
+            nrm = pipe["vae"].decode(pred / pipe["scaling"], return_dict=False)[0]  # [1,3,H,W] in [-1,1]
+        nrm = nrm[0].float()
+        # Re-normalize to unit vectors, then map xyz[-1,1] → RGB[0,1].
+        nrm = nrm / nrm.norm(dim=0, keepdim=True).clamp(min=1e-6)
+        img = ((nrm.permute(1, 2, 0) + 1.0) / 2.0).clamp(0, 1).cpu().numpy()
+        out = _PImg.fromarray((img * 255).astype(_np.uint8))
+        if out.size != (W0, H0):
+            out = out.resize((W0, H0), _PImg.BILINEAR)
+        return out
+    except Exception as e:
+        logger.warning("Normal estimate failed (%s) — skipping normal for this view", e)
+        return None
 
 
 _MVP_AZIMUTH = [0, 90, 180, 270, 0, 0]
@@ -3508,7 +3665,9 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
                      ("kaolin_zsign", "ARTSMOKER_KAOLIN_ZSIGN"),
                      ("kaolin_outflip", "ARTSMOKER_KAOLIN_OUTFLIP"),
                      ("kaolin_nflip", "ARTSMOKER_KAOLIN_NFLIP"),
-                     ("ref_lift", "ARTSMOKER_REF_LIFT")):
+                     ("ref_lift", "ARTSMOKER_REF_LIFT"),
+                     ("delight", "ARTSMOKER_DELIGHT"),
+                     ("normal_map", "ARTSMOKER_NORMAL_MAP")):
         if input_data.get(_k) is not None:
             os.environ[_env] = str(input_data[_k])
             logger.info("MVPainter debug override: %s=%s", _env, os.environ[_env])
@@ -3659,6 +3818,32 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
     mv_grid_path = os.path.join(temp_dir, "mvp_mv_grid.png")
     mv_grid.save(mv_grid_path)
 
+    # ── PR1: per-view NORMAL maps (StableNormal) → bake a normalTexture ──
+    # The biggest lever against the 'wet/plastic' look: smooth TripoSG geometry +
+    # flat albedo has no microsurface relief, so light slides uniformly. Estimate
+    # a camera-space normal per view, tile in render-index order, and hand it to
+    # the baker as normal_path so it emits a PBR GLB with a proper normalTexture.
+    # Gated by ARTSMOKER_NORMAL_MAP (default on) / per-request "normal_map".
+    mv_normal_path = None
+    _normal_on = (str(input_data.get("normal_map", os.environ.get("ARTSMOKER_NORMAL_MAP", "1")))
+                  .strip().lower() not in ("0", "false", "no"))
+    if _normal_on:
+        _nm0 = _t.time()
+        try:
+            normal_maps = [_estimate_normal(v) for v in views_by_render_idx]
+            if all(n is not None for n in normal_maps):
+                mv_normal_grid = _make_mv_grid(normal_maps)
+                mv_normal_path = os.path.join(temp_dir, "mvp_mv_normal.png")
+                mv_normal_grid.save(mv_normal_path)
+                logger.info("Estimated 6 normal maps (StableNormal) in %.1fs", _t.time() - _nm0)
+                if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
+                    _save_debug_artifact(mv_normal_grid, "05_mvp_normals")
+            else:
+                logger.warning("Normal estimation incomplete (%d/6) — baking without normal map",
+                               sum(n is not None for n in normal_maps))
+        except Exception as _ne:
+            logger.warning("Normal-map pass failed (%s) — baking without normal map", _ne)
+
     # Per-view validity masks for the bake. CRITICAL for coverage quality: without
     # them (a) MVPainter's WHITE view background bleeds into the atlas, and (b) the
     # baker can't tell which texels each view legitimately covers — so surfaces not
@@ -3746,6 +3931,16 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
         uv_size=4096,
         rgb_path=mv_grid_path,
         rgb_process_config=_rgb_config,
+        # PR1: when we have per-view normals, also pass base_color (= the same RGB
+        # views) + normal so the baker emits a PBR GLB (_pbr.glb) carrying a
+        # normalTexture. base_color_path is REQUIRED for the baker to write the
+        # PBR GLB at all (it gates on it). normal uses NO view-upscale (normals
+        # mustn't be super-res-sharpened) but shares the same inpaint/coverage.
+        base_color_path=(mv_grid_path if mv_normal_path else None),
+        base_color_process_config=_rgb_config,
+        normal_path=mv_normal_path,
+        normal_process_config=ModProcessConfig(view_upscale=False,
+                                               inpaint_mode="view" if _has_inpainter else "uv"),
         view_masks_path=mv_masks_path,
         view_inpaint_include_occlusion_boundary=True,
         poisson_reprojection=True,
@@ -3762,13 +3957,17 @@ def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data,
         camera_distance=1.8,
         camera_ortho_scale=1.1,
     )
-    textured_path = tex_output.shaded_model_save_path
+    # Prefer the PBR GLB (baseColor + normalTexture) when the normal pass ran;
+    # fall back to the plain shaded GLB (albedo only) otherwise.
+    pbr_path = getattr(tex_output, "pbr_model_save_path", None)
+    textured_path = pbr_path if (pbr_path and os.path.exists(pbr_path)) else tex_output.shaded_model_save_path
     if not (textured_path and os.path.exists(textured_path)):
         raise RuntimeError(f"MVPainter bake produced no output (path={textured_path})")
     with open(textured_path, "rb") as f:
         glb_data = f.read()
-    logger.info("MVPainter textured GLB: %.1f KB in %.1fs",
-                len(glb_data) / 1024, _t.time() - t0)
+    logger.info("MVPainter textured GLB: %.1f KB in %.1fs (%s)",
+                len(glb_data) / 1024, _t.time() - t0,
+                "PBR+normal" if textured_path == pbr_path else "albedo-only")
     return glb_data
 
 
