@@ -3,7 +3,14 @@ Commit: f714682db5e6f78e8d1c7c0a43d1525638dda5a6
 Date: 2026-06-11
 Paper: MVPainter (arXiv:2505.12635)
 Model weights: https://huggingface.co/shaomq/MVPainter (Apache-2.0)
-              + https://huggingface.co/lizb6626/IDArb (MIT, optional PBR)
+
+NOTE: MVPainter's companion IDArb (lizb6626/IDArb) was evaluated for PBR map
+generation and RULED OUT — its published WEIGHTS carry NO license tag
+("[More Information Needed]"), so they are not commercial-safe (MIT covers the
+CODE only). For normal maps we instead use StableNormal (Stable-X/
+yoso-normal-v1-8-1, Apache-2.0 weights AND code) — see inference.py
+_load_normal_pipe / _estimate_normal. Do NOT reintroduce IDArb unless its
+weights are explicitly relicensed.
 
 WHY ONLY A SUBSET IS VENDORED — LICENSE SPLIT
 ─────────────────────────────────────────────────────────────────────────────
