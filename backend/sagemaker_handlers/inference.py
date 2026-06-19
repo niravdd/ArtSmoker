@@ -1817,7 +1817,7 @@ def _ensure_nvdiffrast(blocking: bool = True) -> bool:
         raise ImportError(f"nvdiffrast unavailable — texture generation requires CUDA compilation: {e}")
 
 
-def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True):
+def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, verify_import=True):
     """Generic: make a source-built package importable, S3-caching its wheel.
 
     Mirrors _ensure_nvdiffrast for any --no-build-isolation git/dir package:
@@ -1827,13 +1827,28 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True):
          wheel to S3 for future cold starts.
     `pkg_name` is the python import name; `s3_glob` is the wheel-name prefix to
     match in S3 (e.g. 'o_voxel'). Returns True on success. blocking=False bails
-    immediately if a build would be needed (inference-watchdog guard)."""
+    immediately if a build would be needed (inference-watchdog guard).
+
+    verify_import=False skips the import checks (the fast-path AND the post-build
+    verify) and decides "already installed" by distribution metadata instead. Use
+    it for packages with cross-dependencies that can't import until a sibling is
+    present (e.g. o_voxel imports flex_gemm at module load): the caller builds the
+    whole set in dependency order, then imports once at the end."""
     import importlib
-    try:
-        importlib.import_module(pkg_name)
-        return True
-    except Exception:
-        pass
+    if verify_import:
+        try:
+            importlib.import_module(pkg_name)
+            return True
+        except Exception:
+            pass
+    else:
+        # Can't import yet (siblings may be missing) — check install metadata.
+        try:
+            import importlib.metadata as _md
+            _md.distribution(pkg_name)
+            return True
+        except Exception:
+            pass
     if not blocking:
         return False
     import subprocess, glob as _glob
@@ -1857,7 +1872,8 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True):
                     s3.download_file(bucket, k, wp)
                     subprocess.check_call(["pip", "install", "--quiet", "--no-deps",
                                            "--force-reinstall", wp], timeout=180)
-                    importlib.import_module(pkg_name)
+                    if verify_import:
+                        importlib.import_module(pkg_name)
                     logger.info("%s installed from S3 cache (%s)", pkg_name, os.path.basename(k))
                     return True
         except Exception as e:
@@ -1867,7 +1883,8 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True):
     subprocess.check_call(["pip", "install", "--quiet", "setuptools", "wheel", "ninja", "pybind11"], timeout=180)
     subprocess.check_call(["pip", "install", "--no-build-isolation", "--no-deps", build_spec],
                           timeout=1800, env={**os.environ})
-    importlib.import_module(pkg_name)
+    if verify_import:
+        importlib.import_module(pkg_name)
     logger.info("%s built + installed", pkg_name)
     if bucket:
         try:
@@ -1950,11 +1967,20 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
                            "torch==2.6.0", "torchvision==0.21.0", *_py_deps],
                           timeout=1200, env={**os.environ})
     # 3. nvdiffrast (shared) + the 3 TRELLIS.2-specific CUDA extensions.
+    # BUILD ORDER MATTERS: o_voxel/postprocess.py imports flex_gemm, cumesh AND
+    # nvdiffrast at module load, so o_voxel must be built LAST. We also can't
+    # eagerly import each package right after its own build (verify_import=False)
+    # — a package's wheel can build fine yet not import until its siblings exist
+    # (o_voxel can't import without flex_gemm). Build all in dependency order, then
+    # verify the whole stack imports once at the end.
     _ensure_nvdiffrast(blocking=True)
-    _pip_install_build_cached("o_voxel", os.path.join(_TRELLIS2_RUN_DIR, "o-voxel"), "o_voxel")
-    _pip_install_build_cached("cumesh", f"git+{_TRELLIS2_EXT_GIT['cumesh']}", "cumesh")
-    _pip_install_build_cached("flex_gemm", f"git+{_TRELLIS2_EXT_GIT['flex_gemm']}", "flex_gemm")
-    import trellis2  # noqa: F401  (verify the package imports with exts present)
+    _pip_install_build_cached("flex_gemm", f"git+{_TRELLIS2_EXT_GIT['flex_gemm']}", "flex_gemm", verify_import=False)
+    _pip_install_build_cached("cumesh", f"git+{_TRELLIS2_EXT_GIT['cumesh']}", "cumesh", verify_import=False)
+    _pip_install_build_cached("o_voxel", os.path.join(_TRELLIS2_RUN_DIR, "o-voxel"), "o_voxel", verify_import=False)
+    # Verify the full stack now that every extension is present.
+    import importlib
+    for _m in ("flex_gemm", "cumesh", "o_voxel", "nvdiffrast", "trellis2"):
+        importlib.import_module(_m)
     logger.info("TRELLIS.2 stack ready (package + o_voxel + cumesh + flex_gemm + nvdiffrast)")
     return True
 
