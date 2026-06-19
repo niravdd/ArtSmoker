@@ -64,7 +64,10 @@ _LIBRARY_BUNDLED_PACKAGES = {
     # (Hunyuan3D-Paint, best quality, Tencent community license), mvpainter
     # (MVPainter, Apache-2.0 — commercial-safe, multi-view-bake; only the
     # Apache-licensed diffusion is vendored, baking reuses our nvdiffrast path).
-    "image_to_3d": ["triposg", "mvadapter", "hy3dpaint", "mvpainter"],
+    # 'stablex' = vendored ControlNetVAEModel (Apache-2.0) for the StableNormal /
+    # StableDelight YOSO one-step forwards (their weights' controlnet is a
+    # ControlNetVAEModel subclass; stock diffusers ControlNetModel can't drive it).
+    "image_to_3d": ["triposg", "mvadapter", "hy3dpaint", "mvpainter", "stablex"],
 }
 
 

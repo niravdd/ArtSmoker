@@ -3385,12 +3385,16 @@ def _load_delight_pipe():
         return None
     try:
         import torch as _t
-        from diffusers import AutoencoderKL, UNet2DConditionModel, ControlNetModel
+        from diffusers import AutoencoderKL, UNet2DConditionModel
+        from stablex import ControlNetVAEModel  # vendored Apache-2.0 subclass
         from transformers import CLIPTextModel, CLIPTokenizer
         dt = _t.float16
         vae = AutoencoderKL.from_pretrained(local_dir, subfolder="vae", torch_dtype=dt, variant="fp16")
         unet = UNet2DConditionModel.from_pretrained(local_dir, subfolder="unet", torch_dtype=dt, variant="fp16")
-        controlnet = ControlNetModel.from_pretrained(local_dir, subfolder="controlnet", torch_dtype=dt, variant="fp16")
+        # ControlNetVAEModel (see _load_normal_pipe) — uses `sample` latent as the
+        # conditioning; stock ControlNetModel would error on the missing
+        # controlnet_cond. This is also why de-light previously did ~nothing.
+        controlnet = ControlNetVAEModel.from_pretrained(local_dir, subfolder="controlnet", torch_dtype=dt, variant="fp16")
         text_encoder = CLIPTextModel.from_pretrained(local_dir, subfolder="text_encoder", torch_dtype=dt, variant="fp16")
         tokenizer = CLIPTokenizer.from_pretrained(local_dir, subfolder="tokenizer")
         for m in (vae, unet, controlnet, text_encoder):
@@ -3537,11 +3541,16 @@ def _load_normal_pipe():
         return None
     try:
         import torch as _t
-        from diffusers import AutoencoderKL, UNet2DConditionModel, ControlNetModel
+        from diffusers import AutoencoderKL, UNet2DConditionModel
+        from stablex import ControlNetVAEModel  # vendored Apache-2.0 subclass
         dt = _t.float16
         vae = AutoencoderKL.from_pretrained(local_dir, subfolder="vae", torch_dtype=dt, variant="fp16")
         unet = UNet2DConditionModel.from_pretrained(local_dir, subfolder="unet", torch_dtype=dt, variant="fp16")
-        controlnet = ControlNetModel.from_pretrained(local_dir, subfolder="controlnet", torch_dtype=dt, variant="fp16")
+        # ControlNetVAEModel (NOT stock ControlNetModel): its forward() uses the
+        # VAE-encoded image latent passed as `sample` for conditioning and makes
+        # controlnet_cond optional. Stock ControlNetModel REQUIRES controlnet_cond
+        # → "forward() missing controlnet_cond" when driven the YOSO way.
+        controlnet = ControlNetVAEModel.from_pretrained(local_dir, subfolder="controlnet", torch_dtype=dt, variant="fp16")
         for m in (vae, unet, controlnet):
             m.to("cuda").eval()
         # Null text conditioning: the YOSO-normal repo ships NO text_encoder and
