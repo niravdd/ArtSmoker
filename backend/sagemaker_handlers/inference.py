@@ -1962,11 +1962,10 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "xformers==0.0.29.post3"],
                           timeout=600, env={**os.environ})
     _py_deps = [
-        "transformers>=4.56.0",
         "plyfile", "easydict", "pandas", "lpips", "kornia", "timm", "zstandard",
         "git+https://github.com/EasternJournalist/utils3d.git@9a4eb15e4021b67b12c460c7057d642626897ec8",
     ]
-    logger.info("Installing TRELLIS.2 Python deps (transformers>=4.56, utils3d, ...)")
+    logger.info("Installing TRELLIS.2 Python deps (utils3d, plyfile, lpips, ...)")
     # Pin torch/torchvision in the SAME resolve so no transitive dep can upgrade
     # them (pip treats 2.6.0+cu124 as satisfying ==2.6.0). If a dep genuinely
     # needs a newer torch, this surfaces a LOUD conflict instead of a silent,
@@ -1974,6 +1973,19 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     subprocess.check_call(["pip", "install", "--quiet",
                            "torch==2.6.0", "torchvision==0.21.0", *_py_deps],
                           timeout=1200, env={**os.environ})
+    # transformers MUST be >=4.56 for DINOv3ViTModel (the TRELLIS.2 image encoder,
+    # imported at module load). A plain `pip install transformers>=4.56` in the
+    # resolve above is silently kept at the base image's 4.51.3 to honor a
+    # transitive `transformers<4.52` pin (a co-installed package depends on it) —
+    # pip just emits a conflict WARNING and leaves 4.51.3 in place, so DINOv3ViTModel
+    # is absent and texturing falls back to untextured. Force the upgrade in its OWN
+    # --no-deps resolve so no transitive constraint can hold it back; bump tokenizers
+    # to the matching >=0.22 (4.56 requires it). --no-deps is safe: transformers'
+    # runtime deps (numpy/pyyaml/regex/safetensors/huggingface-hub/tqdm) are already
+    # present from the base image.
+    subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "--upgrade",
+                           "transformers>=4.56.0", "tokenizers>=0.22.0"],
+                          timeout=600, env={**os.environ})
     # 3. nvdiffrast (shared) + the 3 TRELLIS.2-specific CUDA extensions.
     # BUILD ORDER MATTERS: o_voxel/postprocess.py imports flex_gemm, cumesh AND
     # nvdiffrast at module load, so o_voxel must be built LAST. We also can't
@@ -1989,7 +2001,14 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     import importlib
     for _m in ("flex_gemm", "cumesh", "o_voxel", "nvdiffrast", "trellis2"):
         importlib.import_module(_m)
-    logger.info("TRELLIS.2 stack ready (package + o_voxel + cumesh + flex_gemm + nvdiffrast)")
+    # DINOv3ViTModel (the image encoder) is the canary for the transformers>=4.56
+    # upgrade. Verify it imports HERE, at load — if it's missing, fail loudly so the
+    # build is marked not-ready, rather than discovering it at inference time and
+    # silently shipping an untextured mesh (the 4.51.3-revert bug).
+    from transformers import DINOv3ViTModel  # noqa: F401
+    import transformers as _tfm
+    logger.info("TRELLIS.2 stack ready (package + o_voxel + cumesh + flex_gemm + nvdiffrast; transformers=%s)",
+                getattr(_tfm, "__version__", "?"))
     return True
 
 
