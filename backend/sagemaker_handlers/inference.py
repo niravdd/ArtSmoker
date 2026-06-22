@@ -1974,18 +1974,21 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
                            "torch==2.6.0", "torchvision==0.21.0", *_py_deps],
                           timeout=1200, env={**os.environ})
     # transformers MUST be >=4.56 for DINOv3ViTModel (the TRELLIS.2 image encoder,
-    # imported at module load). A plain `pip install transformers>=4.56` in the
-    # resolve above is silently kept at the base image's 4.51.3 to honor a
-    # transitive `transformers<4.52` pin (a co-installed package depends on it) —
-    # pip just emits a conflict WARNING and leaves 4.51.3 in place, so DINOv3ViTModel
-    # is absent and texturing falls back to untextured. Force the upgrade in its OWN
-    # --no-deps resolve so no transitive constraint can hold it back; bump tokenizers
-    # to the matching >=0.22 (4.56 requires it). --no-deps is safe: transformers'
-    # runtime deps (numpy/pyyaml/regex/safetensors/huggingface-hub/tqdm) are already
-    # present from the base image.
-    subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "--upgrade",
+    # imported at module load). The SageMaker HuggingFace DLC ships a pip CONSTRAINT
+    # file (PIP_CONSTRAINT=/etc/.../constraint.txt) pinning transformers/diffusers/
+    # accelerate to the image's tested versions. pip silently honors an inherited
+    # `-c constraint` on EVERY install — even `--no-deps --upgrade` — which is why a
+    # prior attempt left transformers at 4.51.3 (DINOv3ViTModel absent → untextured
+    # fallback) while torch/xformers/the CUDA exts (NOT in the constraint file)
+    # upgraded fine. Neutralize the constraint for THIS install by clearing
+    # PIP_CONSTRAINT in the subprocess env. --no-deps keeps transformers' runtime
+    # deps (numpy/pyyaml/regex/safetensors/huggingface-hub/tqdm — already present)
+    # untouched; non-quiet so the resolved version is visible in the build log.
+    _env_nocon = {**os.environ}
+    _env_nocon.pop("PIP_CONSTRAINT", None)
+    subprocess.check_call(["pip", "install", "--no-cache-dir", "--no-deps", "--upgrade",
                            "transformers>=4.56.0", "tokenizers>=0.22.0"],
-                          timeout=600, env={**os.environ})
+                          timeout=600, env=_env_nocon)
     # 3. nvdiffrast (shared) + the 3 TRELLIS.2-specific CUDA extensions.
     # BUILD ORDER MATTERS: o_voxel/postprocess.py imports flex_gemm, cumesh AND
     # nvdiffrast at module load, so o_voxel must be built LAST. We also can't
