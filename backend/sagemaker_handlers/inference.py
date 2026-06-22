@@ -1994,6 +1994,19 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     subprocess.check_call(["pip", "install", "--no-cache-dir", "--no-deps", "--upgrade",
                            "transformers>=4.56,<4.58", "tokenizers>=0.22,<0.23"],
                           timeout=600, env=_env_nocon)
+    # CRITICAL: the handler process ALREADY imported transformers 4.51.3 during
+    # TripoSG load (model_fn), so sys.modules['transformers'] is the stale 4.51.3
+    # module — the pip upgrade above only changed DISK. A later
+    # `from transformers import DINOv3ViTModel` would hit the cached 4.51.3 module
+    # (no DINOv3ViTModel → ImportError → untextured fallback), even though 4.57.6
+    # is now installed. Purge every transformers* entry from sys.modules so the
+    # next import reloads 4.57.6 from disk. Safe: TripoSG already built its
+    # objects (they keep their class refs alive); the TRELLIS.2 texturer is a
+    # separate pipeline that imports transformers fresh at texture time.
+    for _mod in [m for m in _sys.modules if m == "transformers" or m.startswith("transformers.")]:
+        del _sys.modules[_mod]
+    import importlib as _il_tfm
+    _il_tfm.invalidate_caches()
     # 3. nvdiffrast (shared) + the 3 TRELLIS.2-specific CUDA extensions.
     # BUILD ORDER MATTERS: o_voxel/postprocess.py imports flex_gemm, cumesh AND
     # nvdiffrast at module load, so o_voxel must be built LAST. We also can't
