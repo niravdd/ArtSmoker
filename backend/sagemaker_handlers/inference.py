@@ -1936,6 +1936,14 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
         logger.info("Cloned TRELLIS.2 repo to %s", _TRELLIS2_RUN_DIR)
     if _TRELLIS2_RUN_DIR not in _sys.path:
         _sys.path.insert(0, _TRELLIS2_RUN_DIR)
+    # The fast-path above probed `import trellis2` while _TRELLIS2_RUN_DIR did NOT
+    # yet exist on disk — Python's FileFinder NEGATIVELY caches a missing path and
+    # (unlike a present dir, which refreshes on mtime) does NOT auto-invalidate it.
+    # Without this, the final `import trellis2` still misses even though the clone
+    # just populated the dir. The CUDA exts import fine (they land in site-packages,
+    # which is mtime-refreshed) — only the sys.path package source needs this.
+    import importlib as _il
+    _il.invalidate_caches()
     # 2. TRELLIS.2-specific Python deps (NOT in the shared container reqs — we
     # install them only on the trellis2 endpoint so the Hunyuan/MVPainter/MV-
     # Adapter endpoints keep their pinned transformers). Two hard requirements:
