@@ -1984,10 +1984,15 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     # PIP_CONSTRAINT in the subprocess env. --no-deps keeps transformers' runtime
     # deps (numpy/pyyaml/regex/safetensors/huggingface-hub/tqdm — already present)
     # untouched; non-quiet so the resolved version is visible in the build log.
+    # Version CEILING matters: DINOv3 landed in transformers 4.56.0 with
+    # `DINOv3ViTModel` as a TOP-LEVEL class. transformers 5.x restructured the
+    # package and that top-level import path no longer resolves (an unpinned
+    # >=4.56 grabbed 5.12.1 → the same DINOv3ViTModel ImportError). Pin to the
+    # 4.56–4.57 line; tokenizers<0.23 to match (5.x pulls 0.23).
     _env_nocon = {**os.environ}
     _env_nocon.pop("PIP_CONSTRAINT", None)
     subprocess.check_call(["pip", "install", "--no-cache-dir", "--no-deps", "--upgrade",
-                           "transformers>=4.56.0", "tokenizers>=0.22.0"],
+                           "transformers>=4.56,<4.58", "tokenizers>=0.22,<0.23"],
                           timeout=600, env=_env_nocon)
     # 3. nvdiffrast (shared) + the 3 TRELLIS.2-specific CUDA extensions.
     # BUILD ORDER MATTERS: o_voxel/postprocess.py imports flex_gemm, cumesh AND
