@@ -268,9 +268,13 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 ### 📝 1.8 3D 模型生成（图像到 3D）
 
-从任意 2D 图像生成生产就绪的 3D 网格 —— 直接在 Asset Viewer 中操作。选择一张 **Game Asset** 或 **Character** 图像，打开 **3D Model** 标签页，点击 Generate。
+从任意 2D 图像生成生产就绪、完全纹理化的 3D 网格 —— 直接在 Asset Viewer 中操作。选择一张 **Game Asset** 或 **Character** 图像，打开 **3D Model** 标签页，点击 Generate。结果是可直接导入游戏引擎的 GLB，你可以对其进行轨道旋转、缩放和下载 —— 无需手动建模、UV 展开或纹理绘制。
+
+**生成的模型 —— 轨道旋转、检查、下载：**
 
 ![3D 模型生成 — 在交互式 3D 查看器中从多个角度查看生成的士兵网格](docs/images/3d-model-result.png)
+
+一张 2D 角色图像（左侧，PNG 标签页）即可变成可在浏览器中自由旋转的完全纹理化 3D 网格。**3D Model** 标签页现在还会列出生成每个资产所用的确切**模型与工具**（几何模型、纹理后端、输出类型、实例和生成参数）—— 持久化到资产的元数据中，实现完整溯源。
 
 **工作原理：**
 
@@ -294,9 +298,9 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 | 指标 | 数值 |
 |------|------|
-| 生成时间 | 每个资产 60-90 秒 |
-| 网格质量 | 20 万-45 万面，完整顶点法线 |
-| 纹理分辨率 | 最高 4K UV 图集 |
+| 网格质量 | 最多约 100 万面，完整顶点法线 |
+| 纹理分辨率 | 4096² PBR 图集（基础色 + 金属度-粗糙度 + alpha） |
+| 许可 | 默认商业洁净（TRELLIS.2 MIT + BiRefNet MIT）；非商业后端在完整披露下提供 |
 | 支持的资产类型 | Game Asset、Character |
 
 <a id="get-started"></a>

@@ -299,8 +299,8 @@ La eliminación de fondo (el paso de recorte previo al texturizado) usa **BiRefN
 | Métrica | Valor |
 |---------|-------|
 | Calidad de malla | Hasta ~1M de caras, normales de vértice completas |
-| Resolución de textura | Atlas UV de 4K (color base + mapa de normales) |
-| Licenciamiento | Seguro para uso comercial (MIT / Apache-2.0 en todo el flujo) |
+| Resolución de textura | Atlas PBR de 4096² (color base + metálico-rugosidad + alfa) |
+| Licenciamiento | Seguro para uso comercial por defecto (TRELLIS.2 MIT + BiRefNet MIT); backends no comerciales ofrecidos con divulgación completa |
 | Tipos de recurso soportados | Game Asset, Character |
 
 <a id="get-started"></a>

@@ -268,9 +268,13 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 ### 📝 1.8 3D 모델 생성 (이미지-투-3D)
 
-임의의 2D 이미지에서 프로덕션 대응 3D 메시를 생성합니다 — Asset Viewer에서 직접 수행. **Game Asset** 또는 **Character** 이미지를 선택하고, **3D Model** 탭을 열어 Generate를 클릭합니다.
+임의의 2D 이미지에서 프로덕션 대응의 완전 텍스처링된 3D 메시를 생성합니다 — Asset Viewer에서 직접 수행. **Game Asset** 또는 **Character** 이미지를 선택하고, **3D Model** 탭을 열어 Generate를 클릭합니다. 결과물은 게임 엔진에 바로 가져올 수 있는 GLB로, 오빗·줌·다운로드가 가능하며 — 수작업 모델링, UV 언래핑, 텍스처 페인팅이 전혀 필요 없습니다.
+
+**생성된 모델 — 오빗, 검사, 다운로드:**
 
 ![3D 모델 생성 — 생성된 군인 메시를 인터랙티브 3D 뷰어에서 여러 각도로 표시](docs/images/3d-model-result.png)
+
+한 장의 2D 캐릭터 이미지(왼쪽, PNG 탭)가 브라우저에서 자유롭게 회전할 수 있는 완전 텍스처링된 3D 메시가 됩니다. **3D Model** 탭은 이제 각 에셋 생성에 사용된 정확한 **모델 및 도구**(지오메트리 모델, 텍스처 백엔드, 출력 유형, 인스턴스, 생성 파라미터)도 나열하며 — 에셋 메타데이터에 저장되어 완전한 출처 추적을 제공합니다.
 
 **작동 방식:**
 
@@ -294,9 +298,9 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 | 지표 | 값 |
 |------|-----|
-| 생성 시간 | 에셋당 60-90초 |
-| 메시 품질 | 20만-45만 면, 완전한 버텍스 노멀 |
-| 텍스처 해상도 | 최대 4K UV 아틀라스 |
+| 메시 품질 | 최대 약 100만 면, 완전한 버텍스 노멀 |
+| 텍스처 해상도 | 4096² PBR 아틀라스 (베이스 컬러 + 메탈릭-러프니스 + 알파) |
+| 라이선스 | 기본적으로 상업적 사용 가능 (TRELLIS.2 MIT + BiRefNet MIT); 비상업용 백엔드는 완전한 공개와 함께 제공 |
 | 지원 에셋 유형 | Game Asset, Character |
 
 <a id="get-started"></a>

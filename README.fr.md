@@ -268,9 +268,13 @@ Cela compte à chaque étape :
 
 ### 📝 1.8 Génération de modèles 3D (Image-to-3D)
 
-Générez des maillages 3D prêts pour la production à partir de n'importe quelle image 2D — directement dans l'Asset Viewer. Sélectionnez une image **Game Asset** ou **Character**, ouvrez l'onglet **3D Model**, et cliquez sur Generate.
+Générez des maillages 3D entièrement texturés et prêts pour la production à partir de n'importe quelle image 2D — directement dans l'Asset Viewer. Sélectionnez une image **Game Asset** ou **Character**, ouvrez l'onglet **3D Model**, et cliquez sur Generate. Le résultat est un GLB prêt pour le moteur de jeu que vous pouvez orbiter, zoomer et télécharger — sans modélisation manuelle, dépliage UV ni peinture de texture.
+
+**Le modèle généré — orbitez, inspectez, téléchargez :**
 
 ![Génération de modèle 3D — le maillage du soldat généré vu sous plusieurs angles dans le visualiseur 3D interactif](docs/images/3d-model-result.png)
+
+Une seule image 2D de personnage (à gauche, dans l'onglet PNG) devient un maillage 3D entièrement texturé que vous pouvez faire pivoter librement dans le navigateur. L'onglet **3D Model** liste désormais aussi les **modèles et outils** exacts utilisés pour produire chaque asset (modèle de géométrie, backend de texturation, type de sortie, instance et paramètres de génération) — persistés dans les métadonnées de l'asset pour une traçabilité complète.
 
 **Fonctionnement :**
 
@@ -294,9 +298,9 @@ La suppression d'arrière-plan (l'étape de détourage avant la texturation) uti
 
 | Métrique | Valeur |
 |----------|--------|
-| Temps de génération | 60 à 90 secondes par asset |
-| Qualité du maillage | 200K–450K faces, normales de sommets complètes |
-| Résolution de texture | Jusqu'à 4K atlas UV |
+| Qualité du maillage | Jusqu'à ~1M de faces, normales de sommets complètes |
+| Résolution de texture | Atlas PBR 4096² (couleur de base + métallique-rugosité + alpha) |
+| Licence | Exploitable commercialement par défaut (TRELLIS.2 MIT + BiRefNet MIT) ; backends non commerciaux proposés avec divulgation complète |
 | Types d'assets supportés | Game Asset, Character |
 
 <a id="get-started"></a>

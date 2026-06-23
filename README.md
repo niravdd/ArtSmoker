@@ -296,8 +296,8 @@ Background removal (the cutout step before texturing) uses **BiRefNet (MIT)** by
 | Metric | Value |
 |--------|-------|
 | Mesh quality | Up to ~1M faces, full vertex normals |
-| Texture resolution | 4K UV atlas (base color + normal map) |
-| Licensing | Commercially-safe (MIT / Apache-2.0 throughout) |
+| Texture resolution | 4096² PBR atlas (base color + metallic-roughness + alpha) |
+| Licensing | Commercially-safe by default (TRELLIS.2 MIT + BiRefNet MIT); non-commercial backends offered with full disclosure |
 | Supported asset types | Game Asset, Character |
 
 <a id="get-started"></a>
