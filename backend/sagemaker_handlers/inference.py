@@ -3586,15 +3586,38 @@ def _generate_texture_trellis2(mesh_path, source_image, model_dict, input_data, 
     import trimesh as _trimesh
     pipe = _load_trellis2_texture_pipe(model_dict)
 
+    # Quality knobs (per-request tunable for live A/B without redeploy):
+    #  • texture_size — PBR atlas resolution. TRELLIS.2's run() default is 2048,
+    #    but it supports 4096 (Hunyuan parity). 2048 reads as soft/hazy; 4096 is
+    #    noticeably sharper. Default 4096 here.
+    #  • tex_resolution — the SLAT voxel resolution (1024 is the model's max).
+    #  • ref_lift — shadow-lift on the reference. Default 0 for TRELLIS.2 (the
+    #    0.7 MVPainter lift washes out contrast → dull look). Override per-request.
+    def _as_int(v, d):
+        try: return int(v)
+        except (TypeError, ValueError): return d
+    def _as_float(v, d):
+        try: return float(v)
+        except (TypeError, ValueError): return d
+    texture_size = _as_int(input_data.get("texture_size"), 4096)
+    tex_resolution = _as_int(input_data.get("tex_resolution"), 1024)
+    ref_lift = _as_float(input_data.get("ref_lift"), 0.0)
+    seed = _as_int(input_data.get("seed"), 42)
+    logger.info("TRELLIS.2 params: texture_size=%d resolution=%d ref_lift=%.2f seed=%d",
+                texture_size, tex_resolution, ref_lift, seed)
+
     # Reference image: RGBA cutout (subject opaque, bg transparent). TRELLIS.2's
     # preprocess_image uses the alpha channel directly when present (else runs its
-    # own BiRefNet) — same contract MVPainter wants, so reuse that helper.
-    ref_rgba = _preprocess_mvpainter_reference(source_image, model_dict.get("rmbg_model"))
+    # own BiRefNet) — same contract MVPainter wants, so reuse that helper. Pass
+    # ref_lift (default 0) so we don't inherit MVPainter's contrast-washing lift.
+    ref_rgba = _preprocess_mvpainter_reference(source_image, model_dict.get("rmbg_model"),
+                                               lift_override=ref_lift)
     _save_debug_artifact(ref_rgba.convert("RGB"), "01_reference")
 
     mesh = _trimesh.load(mesh_path, process=False, force="mesh")
     _log_gpu_mem("before TRELLIS.2 run")
-    out_mesh = pipe.run(mesh, ref_rgba)
+    out_mesh = pipe.run(mesh, ref_rgba, seed=seed,
+                        resolution=tex_resolution, texture_size=texture_size)
     logger.info("TRELLIS.2 run complete in %.1fs", _t.time() - t0)
     _log_gpu_mem("after TRELLIS.2 run")
 
@@ -5025,7 +5048,7 @@ def _shadow_lift(pil_rgb, strength=1.0):
     return _PImg.fromarray(out, "RGB")
 
 
-def _preprocess_mvpainter_reference(pil_image, rmbg_model):
+def _preprocess_mvpainter_reference(pil_image, rmbg_model, lift_override=None):
     """Prepare the reference image for MVPainter, which expects an RGBA cutout.
 
     MVPainter's pipeline runs its OWN preprocessing: recenter_img/white_out_
@@ -5036,12 +5059,17 @@ def _preprocess_mvpainter_reference(pil_image, rmbg_model):
     (which crashed MVPainter's `for r,g,b,a in data` on a 3-channel image).
     Returns an RGBA PIL image (subject opaque, background transparent). Falls
     back to opaque RGBA if RMBG is unavailable.
+
+    lift_override: when not None, use this shadow-lift strength instead of the
+    ARTSMOKER_REF_LIFT env default. The TRELLIS.2 texturer passes 0 — the lift was
+    tuned for MVPainter's crushed-dark albedo, but on TRELLIS.2 it washes out
+    contrast (dull/hazy look), and TRELLIS.2 wants a clean cutout.
     """
     img = pil_image.convert("RGB")
     # Shadow-lift the reference BEFORE MVPainter so the generated views (and the
     # baked albedo) aren't crushed-dark. Default on at moderate strength; the dark
     # navy soldier reference is a heavily-lit render with deep shadows.
-    _lift = _get_env("ARTSMOKER_REF_LIFT", "0.7")
+    _lift = str(lift_override) if lift_override is not None else _get_env("ARTSMOKER_REF_LIFT", "0.7")
     try:
         img_lifted = _shadow_lift(img, float(_lift))
         if float(_lift) > 0:
