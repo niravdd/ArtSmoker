@@ -275,16 +275,23 @@ A single 2D character image (left, in the PNG tab) becomes a fully-textured 3D m
 
 **How it works:**
 
-1. **Geometry extraction** — a rectified flow transformer (TripoSG, 1.5B parameters, MIT-licensed) converts a single 2D image into a high-fidelity 3D mesh using a signed distance field (SDF) representation
-2. **Multi-view synthesis** — 6 consistent views are generated from the source image by a commercially-licensable multi-view diffusion backend (MVPainter, Apache-2.0), conditioned on the mesh's normal and depth maps
-3. **Texture baking** — the multi-view images are projected onto the full-resolution mesh with UV unwrapping, view-masking, Poisson seam blending, super-resolution upscaling, and iterative inpaint refinement to produce a fully textured GLB
-4. **Surface detail** — per-view surface-normal estimation bakes a normal map so materials catch light like real fabric and gear, not flat plastic
+1. **Geometry extraction** — a rectified flow transformer (TripoSG, 1.5B parameters, MIT-licensed) converts a single 2D image into a high-fidelity 3D mesh using a signed distance field (SDF) representation. Mesh density scales with the quality preset (up to ~1M faces at the highest octree resolution) for crisp detail on faces and gear.
+2. **Texturing** — the mesh is painted by a **texture backend you choose at deploy time**. The default is **TRELLIS.2** (Microsoft, MIT) — a SLAT/voxel-conditioned texturer that produces full PBR materials (base colour + metallic-roughness + alpha) at a 4096² atlas, matching the quality of best-in-class proprietary texturers while remaining commercially licensable.
+3. **PBR output** — the textured mesh is exported as a GLB with embedded PBR maps, ready for physically-based rendering in any modern engine.
 
-The entire pipeline is built on **commercially-licensable** components (MIT / Apache-2.0 weights and code throughout), so generated assets are clean for commercial use.
+**Choose your texturing backend — with the licence in plain sight.** Image-to-3D supports three texturers, picked per-deployment. Each one shows its **full licence and dependency breakdown** in the deploy dialog — every model it pulls, that model's licence, and whether it's commercial-OK or gated — and you must read and accept before deploying:
 
-**Output:** Standard GLB format with embedded base-color + normal textures — imports directly into Unity, Unreal Engine, Blender, and other game engines. The interactive 3D viewer in ArtSmoker supports orbit, zoom, and pan for immediate inspection.
+| Backend | Licence | Commercial use | Best for |
+|---------|---------|----------------|----------|
+| **TRELLIS.2** *(default)* | MIT | ✅ Yes — requires a "Built with DINOv3" attribution in your product | Production, commercial assets, highest quality |
+| **Hunyuan3D-Paint** | Tencent Community | ❌ Non-commercial | Research / non-commercial, exceptional faces |
+| **MVPainter** | Apache-2.0 | ✅ Yes | Lightweight commercial multi-view baking |
 
-**Infrastructure:** Deploys via the same 1-click Custom Models flow, with a deploy-time picker for the texturing backend (each showing its licence, instance baseline, and est. cost/time). Runs on `ml.g6e` GPU instances; scale-to-zero when idle — $0 cost between jobs.
+Background removal (the cutout step before texturing) uses **BiRefNet (MIT)** by default — fully commercial-clean — with a non-commercial alternative (RMBG) available as a disclosed opt-in. ArtSmoker never silently pulls a restricted dependency: anything gated or non-commercial is named, badged, and gated behind an explicit acceptance.
+
+**Output:** Standard GLB with embedded PBR textures — imports directly into Unity, Unreal Engine, Blender, and other game engines. The interactive 3D viewer supports orbit, zoom, and pan for immediate inspection, and the **3D Model** tab lists the exact models & tools used (geometry model, texturing backend, dependencies, instance, parameters) for full provenance.
+
+**Infrastructure:** Deploys via the same 1-click Custom Models flow, with the deploy-time backend picker showing each option's licence, dependency table, instance baseline, and est. cost/time. Runs on `ml.g6e` GPU instances; scale-to-zero when idle — $0 cost between jobs. First cold start builds the CUDA extensions once (then S3-cached for fast restarts).
 
 | Metric | Value |
 |--------|-------|

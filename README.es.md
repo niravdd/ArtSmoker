@@ -268,25 +268,39 @@ Esto importa en cada etapa:
 
 ### 📝 1.8 Generación de modelos 3D (Imagen a 3D)
 
-Genere mallas 3D listas para producción a partir de cualquier imagen 2D — directamente en el Asset Viewer. Seleccione una imagen de **Game Asset** o **Character**, abra la pestaña **3D Model** y haga clic en Generate.
+Genere mallas 3D completamente texturizadas y listas para producción a partir de cualquier imagen 2D — directamente en el Asset Viewer. Seleccione una imagen de **Game Asset** o **Character**, abra la pestaña **3D Model** y haga clic en Generate. El resultado es un GLB listo para el motor de juego que puede orbitar, ampliar y descargar — sin modelado manual, desenvolvimiento UV ni pintado de texturas.
+
+**El modelo generado — orbite, inspeccione, descargue:**
 
 ![Generación de modelo 3D — la malla del soldado generada vista desde múltiples ángulos en el visor 3D interactivo](docs/images/3d-model-result.png)
 
+Una sola imagen 2D de personaje (a la izquierda, en la pestaña PNG) se convierte en una malla 3D completamente texturizada que puede rotar libremente en el navegador. La pestaña **3D Model** ahora también lista los **modelos y herramientas** exactos usados para producir cada recurso (modelo de geometría, backend de texturizado, tipo de salida, instancia y parámetros de generación) — persistidos en los metadatos del recurso para una trazabilidad completa.
+
 **Cómo funciona:**
 
-1. **Extracción de geometría** — un transformador de flujo rectificado (TripoSG, 1.500 millones de parámetros) convierte una sola imagen 2D en una malla 3D de alta fidelidad utilizando una representación de campo de distancia con signo (SDF)
-2. **Síntesis multi-vista** — un backend de difusión multi-vista con licencia comercial (MVPainter, Apache-2.0) genera 6 vistas consistentes a partir de la imagen fuente, condicionadas en los mapas de normales y profundidad de la malla
-3. **Baking de texturas** — las imágenes multi-vista se proyectan sobre la malla con desenvolvimiento UV, inpainting de costuras y upscaling opcional para producir un GLB completamente texturizado
+1. **Extracción de geometría** — un transformador de flujo rectificado (TripoSG, 1.500 millones de parámetros, con licencia MIT) convierte una sola imagen 2D en una malla 3D de alta fidelidad utilizando una representación de campo de distancia con signo (SDF). La densidad de la malla escala con el preajuste de calidad (hasta ~1M de caras en la resolución de octree más alta) para un detalle nítido en rostros y equipamiento.
+2. **Texturizado** — la malla es pintada por un **backend de texturizado que usted elige al desplegar**. El predeterminado es **TRELLIS.2** (Microsoft, MIT) — un texturizador condicionado por SLAT/vóxeles que produce materiales PBR completos (color base + metálico-rugosidad + alfa) en un atlas de 4096², igualando la calidad de los mejores texturizadores propietarios mientras permanece licenciable comercialmente.
+3. **Salida PBR** — la malla texturizada se exporta como un GLB con mapas PBR integrados, lista para renderizado basado en física en cualquier motor moderno.
 
-**Salida:** Formato GLB estándar con textura integrada — se importa directamente en Unity, Unreal Engine, Blender y otros motores de juego. El visor 3D interactivo de ArtSmoker soporta órbita, zoom y panorámica para inspección inmediata.
+**Elija su backend de texturizado — con la licencia a la vista.** Imagen a 3D admite tres texturizadores, elegidos por despliegue. Cada uno muestra su **licencia completa y el desglose de dependencias** en el diálogo de despliegue — cada modelo que descarga, la licencia de ese modelo y si es apto para uso comercial o restringido — y usted debe leerlo y aceptarlo antes de desplegar:
 
-**Infraestructura:** Se despliega mediante el mismo flujo de Custom Models en 1 clic. Se ejecuta en `ml.g5.2xlarge` (24 GB, $1.51/hora) con carga secuencial de modelos, o `ml.g6e` (48 GB) con todos los modelos cargados simultáneamente. Escalado a cero en reposo — $0 de costo entre trabajos.
+| Backend | Licencia | Uso comercial | Ideal para |
+|---------|----------|---------------|------------|
+| **TRELLIS.2** *(predeterminado)* | MIT | ✅ Sí — requiere una atribución "Built with DINOv3" en su producto | Producción, recursos comerciales, máxima calidad |
+| **Hunyuan3D-Paint** | Tencent Community | ❌ No comercial | Investigación / no comercial, rostros excepcionales |
+| **MVPainter** | Apache-2.0 | ✅ Sí | Baking multi-vista comercial ligero |
+
+La eliminación de fondo (el paso de recorte previo al texturizado) usa **BiRefNet (MIT)** de forma predeterminada — totalmente limpio para uso comercial — con una alternativa no comercial (RMBG) disponible como opción explícita divulgada. ArtSmoker nunca descarga silenciosamente una dependencia restringida: cualquier cosa restringida o no comercial se nombra, se etiqueta y queda condicionada a una aceptación explícita.
+
+**Salida:** Formato GLB estándar con texturas PBR integradas — se importa directamente en Unity, Unreal Engine, Blender y otros motores de juego. El visor 3D interactivo soporta órbita, zoom y panorámica para inspección inmediata, y la pestaña **3D Model** lista los modelos y herramientas exactos usados (modelo de geometría, backend de texturizado, dependencias, instancia, parámetros) para una trazabilidad completa.
+
+**Infraestructura:** Se despliega mediante el mismo flujo de Custom Models en 1 clic, con el selector de backend en tiempo de despliegue mostrando la licencia, la tabla de dependencias, la instancia base y el costo/tiempo est. de cada opción. Se ejecuta en instancias GPU `ml.g6e`; escalado a cero en reposo — $0 de costo entre trabajos. El primer arranque en frío compila las extensiones CUDA una vez (luego se almacenan en caché en S3 para reinicios rápidos).
 
 | Métrica | Valor |
 |---------|-------|
-| Tiempo de generación | 60–90 segundos por recurso |
-| Calidad de malla | 200K–450K caras, normales de vértice completas |
-| Resolución de textura | Hasta atlas UV de 4K |
+| Calidad de malla | Hasta ~1M de caras, normales de vértice completas |
+| Resolución de textura | Atlas UV de 4K (color base + mapa de normales) |
+| Licenciamiento | Seguro para uso comercial (MIT / Apache-2.0 en todo el flujo) |
 | Tipos de recurso soportados | Game Asset, Character |
 
 <a id="get-started"></a>

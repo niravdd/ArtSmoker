@@ -1431,6 +1431,29 @@ s3://your-bucket/
 └── artsmoker/async-jobs/*.json       ← Persisted async job state (1-day S3 lifecycle expiry)
 ```
 
+### 5.10.1 Image-to-3D Texture Backends & Dependency Licensing
+
+The TripoSG image-to-3D pipeline generates **untextured geometry**, then a **texture backend** paints it. The backend is chosen **per-deployment** (baked into the endpoint as `ARTSMOKER_TEXTURE_BACKEND`) from the catalog's `texture_backends.options`. Three are offered, each with a distinct license profile that is **disclosed in the deploy dialog and must be explicitly accepted** (`attestation_required`) before deployment proceeds.
+
+| Backend | License | Commercial | Key model dependencies | Gated repos |
+|---------|---------|------------|------------------------|-------------|
+| **TRELLIS.2** (default for new deploys) | MIT | ✅ Yes (with attribution) | `microsoft/TRELLIS.2-4B` (MIT), `facebook/dinov3-vitl16-pretrain-lvd1689m` (commercial-OK, **"Built with DINOv3" attribution required**), `ZhengPeng7/BiRefNet` (MIT, the actual background cutout) | `facebook/dinov3-…` |
+| **Hunyuan3D-Paint** | Tencent Hunyuan 3D 2.0 Community | ❌ Non-commercial | `tencent/Hunyuan3D-2.1` (Tencent, non-commercial), `facebook/dinov2-giant` (**CC-BY-NC-4.0, also non-commercial**), RealESRGAN x4 (MIT) | `tencent/Hunyuan3D-2.1` |
+| **MVPainter** | Apache-2.0 | ✅ Yes | `shaomq/MVPainter` (Apache-2.0) | — |
+
+**Licensing is surfaced, not buried.** Each `texture_backends.options.<key>.license` block carries `name`, `url`, `commercial`, `attestation_required`, `key_terms[]`, `warnings[]`, and a structured `dependencies[]` array (each: `name`, `license`, `url`, `gated`, `commercial`, `role`). The deploy dialog (`ModelSettings.js`) renders the `dependencies[]` as a per-model table with commercial/gated badges and HuggingFace links, so the operator sees **exactly which models are pulled and under what terms** before agreeing. Gated repos additionally require accepting that model's license on HuggingFace (the stored HF token must belong to an account that has done so).
+
+**DINOv2 ≠ DINOv3** (a common confusion, called out explicitly): Hunyuan's image encoder is **DINOv2-giant (CC-BY-NC-4.0, non-commercial)**; TRELLIS.2's is **DINOv3 (commercial-OK, attribution required)**. They are different models with different licenses.
+
+**Background-removal model (the cutout that actually runs).** ArtSmoker pre-cuts the input to an RGBA image before texturing; this cutout is produced by a **selectable** background remover, defaulting to the commercially-clean MIT option:
+
+| Env flag | Default | Options | Notes |
+|----------|---------|---------|-------|
+| `ARTSMOKER_BG_MODEL` | `birefnet` | `birefnet` (`ZhengPeng7/BiRefNet`, MIT) · `rmbg` (`briaai/RMBG-1.4`, CC-BY-NC / non-commercial) | The handler's preprocessing cutout for all texture backends. |
+| `ARTSMOKER_TRELLIS2_REMBG` | `birefnet` | `birefnet` (MIT) · `rmbg` (bundled `briaai/RMBG-2.0`, non-commercial, gated) | TRELLIS.2 ships a config that points its *internal* rembg at the gated Bria RMBG-2.0. Since we always feed a pre-cut RGBA image, TRELLIS.2's rembg **never executes** — but `from_pretrained` would still *download* it. By default the handler monkeypatches TRELLIS.2's BiRefNet wrapper to the MIT repo so the gated Bria model is never pulled, keeping TRELLIS.2 fully MIT. Set to `rmbg` to opt back into the bundled Bria model (requires accepting its license on HuggingFace). |
+
+Because BiRefNet (MIT) does the real cutout at equal/better quality, **RMBG is not required** for any backend; it remains available as a disclosed opt-in. Both flags default to the commercial-clean MIT path.
+
 ### 5.11 Async Jobs (Self-Hosted Model Generation)
 
 Non-blocking generation for self-hosted models on Amazon SageMaker async endpoints. When a user generates with a custom model, the request is submitted to S3 and returns immediately — the UI tracks progress without blocking.

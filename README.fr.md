@@ -274,13 +274,23 @@ Générez des maillages 3D prêts pour la production à partir de n'importe quel
 
 **Fonctionnement :**
 
-1. **Extraction de géométrie** — un transformeur à flux rectifié (TripoSG, 1,5 milliard de paramètres) convertit une seule image 2D en un maillage 3D haute fidélité en utilisant une représentation par champ de distance signée (SDF)
-2. **Synthèse multi-vues** — un backend de diffusion multi-vues sous licence commerciale (MVPainter, Apache-2.0) génère 6 vues cohérentes à partir de l'image source, conditionnées sur les cartes de normales et de profondeur du maillage
-3. **Baking de textures** — les images multi-vues sont projetées sur le maillage avec dépliage UV, inpainting des coutures et upscaling optionnel pour produire un GLB entièrement texturé
+1. **Extraction de géométrie** — un transformeur à flux rectifié (TripoSG, 1,5 milliard de paramètres, sous licence MIT) convertit une seule image 2D en un maillage 3D haute fidélité en utilisant une représentation par champ de distance signée (SDF). La densité du maillage s'adapte au préréglage de qualité (jusqu'à ~1M de faces à la plus haute résolution d'octree) pour des détails nets sur les visages et l'équipement.
+2. **Texturation** — le maillage est peint par un **backend de texturation que vous choisissez au moment du déploiement**. Le choix par défaut est **TRELLIS.2** (Microsoft, MIT) — un texturateur conditionné par SLAT/voxels qui produit des matériaux PBR complets (couleur de base + métallique-rugosité + alpha) sur un atlas 4096², égalant la qualité des meilleurs texturateurs propriétaires tout en restant exploitable commercialement.
+3. **Sortie PBR** — le maillage texturé est exporté en GLB avec des cartes PBR intégrées, prêt pour le rendu basé sur la physique dans n'importe quel moteur moderne.
 
-**Sortie :** Format GLB standard avec texture intégrée — s'importe directement dans Unity, Unreal Engine, Blender et d'autres moteurs de jeu. La visionneuse 3D interactive d'ArtSmoker supporte l'orbite, le zoom et le panoramique pour une inspection immédiate.
+**Choisissez votre backend de texturation — avec la licence bien en vue.** L'Image-to-3D prend en charge trois texturateurs, sélectionnés par déploiement. Chacun affiche son **détail complet de licence et de dépendances** dans la boîte de dialogue de déploiement — chaque modèle qu'il télécharge, la licence de ce modèle, et s'il est utilisable commercialement ou restreint — et vous devez le lire et l'accepter avant de déployer :
 
-**Infrastructure :** Se déploie via le même flux Custom Models en 1 clic. Fonctionne sur `ml.g5.2xlarge` (24 Go, $1.51/h) avec chargement séquentiel des modèles, ou `ml.g6e` (48 Go) avec tous les modèles chargés simultanément. Mise à l'échelle à zéro en veille — $0 entre les tâches.
+| Backend | Licence | Usage commercial | Idéal pour |
+|---------|---------|------------------|------------|
+| **TRELLIS.2** *(par défaut)* | MIT | ✅ Oui — nécessite une attribution « Built with DINOv3 » dans votre produit | Production, assets commerciaux, qualité maximale |
+| **Hunyuan3D-Paint** | Tencent Community | ❌ Non commercial | Recherche / non commercial, visages exceptionnels |
+| **MVPainter** | Apache-2.0 | ✅ Oui | Baking multi-vues commercial léger |
+
+La suppression d'arrière-plan (l'étape de détourage avant la texturation) utilise **BiRefNet (MIT)** par défaut — entièrement saine pour un usage commercial — avec une alternative non commerciale (RMBG) disponible en option déclarée. ArtSmoker ne télécharge jamais silencieusement une dépendance restreinte : tout ce qui est restreint ou non commercial est nommé, badgé et conditionné à une acceptation explicite.
+
+**Sortie :** Format GLB standard avec textures PBR intégrées — s'importe directement dans Unity, Unreal Engine, Blender et d'autres moteurs de jeu. La visionneuse 3D interactive supporte l'orbite, le zoom et le panoramique pour une inspection immédiate, et l'onglet **3D Model** liste les modèles et outils exacts utilisés (modèle de géométrie, backend de texturation, dépendances, instance, paramètres) pour une traçabilité complète.
+
+**Infrastructure :** Se déploie via le même flux Custom Models en 1 clic, le sélecteur de backend au moment du déploiement affichant pour chaque option sa licence, son tableau de dépendances, son instance de base et le coût/temps estimés. Fonctionne sur des instances GPU `ml.g6e` ; mise à l'échelle à zéro en veille — $0 entre les tâches. Le premier démarrage à froid compile les extensions CUDA une seule fois (puis mises en cache sur S3 pour des redémarrages rapides).
 
 | Métrique | Valeur |
 |----------|--------|
