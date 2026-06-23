@@ -1072,7 +1072,8 @@
     "quota_failed": "クォータリクエストに失敗しました",
     "tex_backend_title": "テクスチャパイプライン",
     "tex_attest_label": "このパイプラインの有効なライセンスを保有しているか、非商用条件の範囲内で使用することを確認します。",
-    "tex_attest_readlicense": "ライセンスを読む"
+    "tex_attest_readlicense": "ライセンスを読む",
+    "tex_attest_deps": "このパイプラインが取得するモデルとライセンス"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

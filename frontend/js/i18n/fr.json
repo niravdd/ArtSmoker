@@ -1072,7 +1072,8 @@
     "quota_failed": "Échec de la demande de quota",
     "tex_backend_title": "Pipeline de texture",
     "tex_attest_label": "Je confirme détenir une licence valide pour ce pipeline, ou que je l'utiliserai dans le cadre de ses conditions non commerciales.",
-    "tex_attest_readlicense": "Lire la licence"
+    "tex_attest_readlicense": "Lire la licence",
+    "tex_attest_deps": "Modèles et licences récupérés par ce pipeline"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

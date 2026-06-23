@@ -1072,7 +1072,8 @@
     "quota_failed": "Error en solicitud de cuota",
     "tex_backend_title": "Pipeline de textura",
     "tex_attest_label": "Confirmo que dispongo de una licencia válida para este pipeline, o que lo usaré dentro de sus términos no comerciales.",
-    "tex_attest_readlicense": "Leer la licencia"
+    "tex_attest_readlicense": "Leer la licencia",
+    "tex_attest_deps": "Modelos y licencias que usa este pipeline"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

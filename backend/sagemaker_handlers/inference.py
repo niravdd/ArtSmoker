@@ -3537,12 +3537,47 @@ def _load_trellis2_texture_pipe(model_dict):
     os.environ.setdefault("SPARSE_CONV_BACKEND", "flex_gemm")
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     from trellis2.pipelines import Trellis2TexturingPipeline
+
+    # ── Avoid TRELLIS.2's GATED, NON-COMMERCIAL bundled background remover ──
+    # texturing_pipeline.json points the BiRefNet rembg wrapper at briaai/RMBG-2.0
+    # (Bria, non-commercial, gated on HF) via its model_name arg. That repo is
+    # DOWNLOADED inside from_pretrained() even though it NEVER runs (we always feed
+    # a pre-cut RGBA image → preprocess_image takes the has_alpha branch and skips
+    # rembg). Unless the operator explicitly opted into RMBG at deploy
+    # (ARTSMOKER_TRELLIS2_REMBG=rmbg), monkeypatch the wrapper to force the MIT
+    # ZhengPeng7/BiRefNet repo instead — same wrapper class, commercial-clean, no
+    # gated Bria download. Keeps TRELLIS.2 fully MIT by default; RMBG stays
+    # available as a disclosed opt-in.
+    _rembg_choice = (_get_env("ARTSMOKER_TRELLIS2_REMBG", "birefnet") or "birefnet").lower().strip()
+    if _rembg_choice != "rmbg":
+        try:
+            from trellis2.pipelines.rembg import BiRefNet as _T2BiRefNet
+            if not getattr(_T2BiRefNet, "_artsmoker_patched", False):
+                _orig_init = _T2BiRefNet.__init__
+                def _mit_init(self, model_name="ZhengPeng7/BiRefNet", *a, **kw):
+                    # Ignore any gated/non-commercial repo from the config; force MIT.
+                    return _orig_init(self, model_name="ZhengPeng7/BiRefNet", *a, **kw)
+                _T2BiRefNet.__init__ = _mit_init
+                _T2BiRefNet._artsmoker_patched = True
+                logger.info("TRELLIS.2 rembg forced to MIT BiRefNet (gated RMBG-2.0 download avoided)")
+        except Exception as _pe:
+            logger.warning("Could not patch TRELLIS.2 rembg to BiRefNet (%s) — "
+                           "may attempt the bundled (gated) RMBG download", _pe)
+    else:
+        logger.info("TRELLIS.2 rembg: operator opted into RMBG (non-commercial) — using bundled repo")
+
     t0 = _t.time()
     logger.info("Loading TRELLIS.2 texturing pipeline (%s / %s)...",
                 _TRELLIS2_HF_REPO, _TRELLIS2_TEX_CONFIG)
     pipe = Trellis2TexturingPipeline.from_pretrained(
         _TRELLIS2_HF_REPO, config_file=_TRELLIS2_TEX_CONFIG
     )
+    # We feed RGBA → TRELLIS.2's rembg never runs; drop the handle so it can't
+    # page onto GPU. (Belt-and-suspenders with the MIT patch above.)
+    try:
+        pipe.rembg_model = None
+    except Exception:
+        pass
     pipe.cuda()  # low_vram=True → this only moves the lightweight bits; models page per step
     logger.info("TRELLIS.2 texturing pipeline loaded in %.0fs", _t.time() - t0)
     _trellis2_texture_pipe = pipe

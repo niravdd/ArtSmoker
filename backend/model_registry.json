@@ -5469,13 +5469,21 @@
                 "commercial": false,
                 "attestation_required": true,
                 "key_terms": [
-                  "NON-COMMERCIAL community license",
+                  "Weights tencent/Hunyuan3D-2.1 — NON-COMMERCIAL community license",
                   "Excludes EU / UK / South Korea for commercial use",
-                  "1M monthly-active-user cap",
-                  "No military use"
+                  "1M monthly-active-user cap; no military use",
+                  "Vision encoder is Meta DINOv2 (facebook/dinov2-giant) — CC-BY-NC-4.0, ALSO non-commercial",
+                  "Super-resolution: RealESRGAN x4 (MIT)"
+                ],
+                "dependencies": [
+                  {"name": "tencent/Hunyuan3D-2.1", "license": "Tencent Hunyuan 3D 2.0 Community (non-commercial)", "url": "https://huggingface.co/tencent/Hunyuan3D-2.1", "gated": true, "commercial": false, "role": "Multi-view PBR paint weights"},
+                  {"name": "facebook/dinov2-giant", "license": "CC-BY-NC-4.0 (non-commercial)", "url": "https://huggingface.co/facebook/dinov2-giant", "gated": false, "commercial": false, "role": "Image/vision encoder"},
+                  {"name": "RealESRGAN_x4plus", "license": "MIT", "url": "https://github.com/xinntao/Real-ESRGAN", "gated": false, "commercial": true, "role": "View super-resolution"}
                 ],
                 "warnings": [
                   "Not licensed for commercial use without a separate Tencent agreement.",
+                  "TWO non-commercial dependencies: Tencent Hunyuan3D-2.1 weights AND Meta DINOv2 (CC-BY-NC-4.0). Both restrict commercial use independently.",
+                  "tencent/Hunyuan3D-2.1 is a GATED HuggingFace repo — you must accept its license on HuggingFace before deploying.",
                   "You must confirm you hold a valid license or will use it within its non-commercial terms."
                 ]
               },
@@ -5488,7 +5496,7 @@
               ],
               "typical_latency_seconds": 1300,
               "quality_note": "Full mesh, PBR. Best-in-class faces.",
-              "instance_note": "Runs on g6e.xlarge; larger instances are faster."
+              "instance_note": "Runs on g6e.xlarge; larger instances are faster. First cold start builds CUDA ops (custom_rasterizer + mesh_inpaint_processor, ~2-5 min, then S3-cached)."
             },
             "trellis2": {
               "label": "TRELLIS.2",
@@ -5499,12 +5507,19 @@
                 "commercial": true,
                 "attestation_required": true,
                 "key_terms": [
-                  "MIT — commercial use unrestricted",
-                  "Image encoder is Meta DINOv3 (commercial-OK)",
-                  "Requires a \"Built with DINOv3\" attribution in your product UI"
+                  "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) — MIT, commercial use unrestricted",
+                  "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) — commercial-OK, GATED on HuggingFace",
+                  "Requires a \"Built with DINOv3\" attribution in your product UI",
+                  "Background removal uses BiRefNet (MIT) — TRELLIS.2's bundled RMBG-2.0 is NOT used (we feed a pre-cut RGBA image)"
+                ],
+                "dependencies": [
+                  {"name": "microsoft/TRELLIS.2-4B", "license": "MIT", "url": "https://huggingface.co/microsoft/TRELLIS.2-4B", "gated": false, "commercial": true, "role": "SLAT texturing checkpoints"},
+                  {"name": "facebook/dinov3-vitl16-pretrain-lvd1689m", "license": "DINOv3 License (commercial-OK, attribution required)", "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m", "gated": true, "commercial": true, "role": "Image encoder — REQUIRES 'Built with DINOv3' attribution"},
+                  {"name": "ZhengPeng7/BiRefNet", "license": "MIT", "url": "https://huggingface.co/ZhengPeng7/BiRefNet", "gated": false, "commercial": true, "role": "Background removal (the actual cutout model)"}
                 ],
                 "warnings": [
-                  "You must display a \"Built with DINOv3\" notice where the feature is surfaced."
+                  "You must display a \"Built with DINOv3\" notice where the feature is surfaced (DINOv3 license obligation).",
+                  "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo — accept its license on HuggingFace before deploying."
                 ]
               },
               "min_instance": "ml.g6e.2xlarge",

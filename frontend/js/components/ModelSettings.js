@@ -1473,6 +1473,10 @@
                             <div class="deploy-tex-attest mt-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 hidden">
                                 <p class="deploy-tex-attest-warn text-[10px] text-amber-400 mb-1.5"></p>
                                 <ul class="deploy-tex-attest-terms text-[9px] text-brand-text-muted list-disc ml-4 mb-2 space-y-0.5"></ul>
+                                <div class="deploy-tex-attest-deps mb-2 hidden">
+                                    <p class="text-[9px] font-semibold text-brand-text-muted uppercase tracking-wider mb-1">${t('custom_models.tex_attest_deps')}</p>
+                                    <div class="deploy-tex-attest-deps-rows space-y-1"></div>
+                                </div>
                                 <label class="flex items-start gap-2 cursor-pointer">
                                     <input type="checkbox" class="deploy-tex-attest-check mt-0.5" />
                                     <span class="text-[10px] text-brand-text">${t('custom_models.tex_attest_label')} <a class="deploy-tex-attest-link text-brand-accent underline" target="_blank" rel="noopener">${t('custom_models.tex_attest_readlicense')}</a></span>
@@ -1652,9 +1656,40 @@
                         const warnEl = attestBox.querySelector('.deploy-tex-attest-warn');
                         const termsEl = attestBox.querySelector('.deploy-tex-attest-terms');
                         const linkEl = attestBox.querySelector('.deploy-tex-attest-link');
-                        if (warnEl) warnEl.textContent = (lic.warnings || []).join(' ');
-                        if (termsEl) termsEl.innerHTML = (lic.key_terms || []).map(x => `<li>${x}</li>`).join('');
+                        if (warnEl) warnEl.innerHTML = (lic.warnings || []).map(w => this._esc(w)).join('<br>');
+                        if (termsEl) termsEl.innerHTML = (lic.key_terms || []).map(x => `<li>${this._esc(x)}</li>`).join('');
                         if (linkEl && lic.url) linkEl.href = lic.url;
+                        // Per-dependency licensing table (name · license · badges · link).
+                        // Lets the user see EXACTLY which models/repos are pulled and
+                        // each one's license + commercial/gated status before agreeing.
+                        const depsBox = attestBox.querySelector('.deploy-tex-attest-deps');
+                        const depsRows = attestBox.querySelector('.deploy-tex-attest-deps-rows');
+                        const deps = lic.dependencies || [];
+                        if (depsBox && depsRows) {
+                            if (deps.length) {
+                                depsRows.innerHTML = deps.map(d => {
+                                    const comm = d.commercial
+                                        ? `<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">commercial-OK</span>`
+                                        : `<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">non-commercial</span>`;
+                                    const gated = d.gated
+                                        ? `<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated · accept on HF</span>`
+                                        : '';
+                                    const nameEl = d.url
+                                        ? `<a href="${d.url}" target="_blank" rel="noopener" class="text-brand-accent underline">${this._esc(d.name)}</a>`
+                                        : `<span class="text-brand-text">${this._esc(d.name)}</span>`;
+                                    return `<div class="text-[9px] leading-relaxed">
+                                        <div class="flex items-center gap-1.5 flex-wrap">
+                                            ${nameEl} ${comm} ${gated}
+                                        </div>
+                                        <div class="text-brand-text-muted/80">${this._esc(d.license || '')}${d.role ? ' — ' + this._esc(d.role) : ''}</div>
+                                    </div>`;
+                                }).join('');
+                                depsBox.classList.remove('hidden');
+                            } else {
+                                depsRows.innerHTML = '';
+                                depsBox.classList.add('hidden');
+                            }
+                        }
                         if (attestCheck) attestCheck.checked = false;
                     } else if (attestBox) {
                         attestBox.classList.add('hidden');
