@@ -3848,7 +3848,14 @@ def _predict_trellis2_full(input_data, model_dict):
     )
     temp_dir = _tf.mkdtemp(prefix="artsmoker_trellis2_full_")
     glb_path = os.path.join(temp_dir, "trellis2_full.glb")
-    glb.export(glb_path)
+    # extension_webp=True: encode the 4096² PBR atlas as WebP, not raw PNG. A 1M-
+    # face mesh with an uncompressed atlas is ~80 MB → base64 ~107 MB, which blows
+    # past the SageMaker async response limit (the inlined result never lands in
+    # S3 → 'Frontend disconnected' / 500). WebP cuts the texture payload ~5-10×,
+    # bringing the GLB well under the limit. This is exactly what TRELLIS.2's own
+    # example.py does. (The texturer path's trimesh export stays PNG — its ~17 MB
+    # output is already under the limit.)
+    glb.export(glb_path, extension_webp=True)
     if not os.path.exists(glb_path) or os.path.getsize(glb_path) == 0:
         raise RuntimeError("TRELLIS.2 full pipeline produced no GLB")
     with open(glb_path, "rb") as f:
