@@ -13,7 +13,7 @@
     "complex_llm": {
       "label": "Complex LLM (Style Analysis & Creative)",
       "description": "Used for style analysis (vision), concept generation, marketing prompts, moderation analysis, Type Studio layout design. Should be the most capable model available.",
-      "current": "us.anthropic.claude-opus-4-6-v1",
+      "current": "us.anthropic.claude-opus-4-8",
       "region": "us-west-2",
       "provider": "Anthropic",
       "api_type": "converse"

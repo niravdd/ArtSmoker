@@ -173,6 +173,22 @@ def _get_fallback_llm() -> tuple[str, str]:
     return (model_id, region)
 
 
+def _build_inference_config(model_id: str, max_tokens: int, temperature: float) -> dict:
+    """Build the Converse inferenceConfig, omitting params a model rejects.
+
+    Newer Claude models (Opus 4.8+) DEPRECATE the `temperature` param — Converse
+    raises ValidationException ('temperature is deprecated for this model') if it's
+    sent. Detect those and omit it (the model uses its own default). Everything
+    else keeps the explicit temperature. Keyed by substring so future 4.8.x /
+    region-prefixed variants (us.anthropic.claude-opus-4-8...) all match.
+    """
+    cfg = {"maxTokens": max_tokens}
+    _no_temperature = ("claude-opus-4-8",)
+    if not any(tok in (model_id or "") for tok in _no_temperature):
+        cfg["temperature"] = temperature
+    return cfg
+
+
 def invoke_llm(
     prompt: str,
     *,
@@ -228,10 +244,7 @@ def invoke_llm(
     converse_kwargs = {
         "modelId": model_id,
         "messages": messages,
-        "inferenceConfig": {
-            "maxTokens": max_tokens,
-            "temperature": temperature,
-        },
+        "inferenceConfig": _build_inference_config(model_id, max_tokens, temperature),
     }
     if system:
         converse_kwargs["system"] = [{"text": system}]
@@ -258,10 +271,7 @@ def invoke_llm(
         fallback_kwargs = {
             "modelId": fallback_id,
             "messages": messages,
-            "inferenceConfig": {
-                "maxTokens": max_tokens,
-                "temperature": temperature,
-            },
+            "inferenceConfig": _build_inference_config(fallback_id, max_tokens, temperature),
         }
         if system:
             fallback_kwargs["system"] = [{"text": system}]
