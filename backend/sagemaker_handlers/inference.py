@@ -3814,12 +3814,26 @@ def _predict_trellis2_full(input_data, model_dict):
         try: return int(v)
         except (TypeError, ValueError): return d
     seed = _as_int(input_data.get("seed"), 42)
-    texture_size = _as_int(input_data.get("texture_size"), 4096)
-    decimation_target = _as_int(input_data.get("faces"), 1000000) or 1000000
+    # App defaults (NOT example.py's maxed showcase values): 2048 atlas / 500k
+    # faces. The official Gradio app sliders default here; 4096/1M is the slider
+    # max, overridable per-request via texture_size / faces.
+    texture_size = _as_int(input_data.get("texture_size"), 2048)
+    decimation_target = _as_int(input_data.get("faces"), 500000) or 500000
+    # pipeline_type: the app ALWAYS sets one (512 / 1024_cascade / 1536_cascade);
+    # the bare run() default is not what the app uses. '1024_cascade' is the app's
+    # standard-quality choice. Overridable per-request via resolution.
+    _res = str(input_data.get("resolution", "1024"))
+    pipeline_type = {"512": "512", "1024": "1024_cascade", "1536": "1536_cascade"}.get(_res, "1024_cascade")
 
     _log_gpu_mem("before TRELLIS.2 full run")
-    # preprocess_image=False: we already produced the RGBA cutout above.
-    out = pipe.run(ref_rgba, seed=seed, preprocess_image=False)
+    # CRITICAL: preprocess_image=True. TRELLIS.2's preprocess_image does more than
+    # background removal — it resizes to the model's expected conditioning size,
+    # bbox-recenters the subject, and premultiplies alpha. It is RGBA-safe (uses
+    # our cutout's alpha directly, skips its own rembg). Passing False (skipping
+    # it) feeds a mis-normalized image → bad sparse structure → SHREDDED geometry
+    # (61k disconnected fragments — observed on BOTH the soldier and TRELLIS.2's
+    # own stock example image). The texturer path already relies on this default.
+    out = pipe.run(ref_rgba, seed=seed, preprocess_image=True, pipeline_type=pipeline_type)
     mesh = out[0]
     logger.info("TRELLIS.2 full run complete in %.1fs", _t.time() - t0)
     _log_gpu_mem("after TRELLIS.2 full run")
