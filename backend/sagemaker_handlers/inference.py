@@ -1459,6 +1459,72 @@ def _load_autoregressive(model_dir):
     }
 
 
+def _load_trellis2_image_to_3d(model_dir):
+    """Load the STANDALONE full TRELLIS.2 image→3D pipeline (no TripoSG).
+
+    Distinct from _load_image_to_3d (TripoSG + texture-backend): this generates
+    BOTH geometry and texture from TRELLIS.2 alone. At LOAD time we only need to
+    (a) build the TRELLIS.2 CUDA-ext stack + python deps (the heavy part — must
+    happen before MMS's 120s inference watchdog), and (b) load the lightweight
+    BiRefNet (MIT) background-remover for the RGBA cutout. The 8-checkpoint
+    pipeline itself loads lazily on the first inference (_load_trellis2_full_pipe),
+    so model_fn returns fast and the endpoint reports InService promptly.
+    """
+    code_dir = os.path.join(model_dir, "code")
+    hf_token = _get_env("HUGGING_FACE_HUB_TOKEN") or None
+
+    # Build the TRELLIS.2 stack (clone + o_voxel/cumesh/flex_gemm/nvdiffrast +
+    # transformers>=4.56 + xformers) at LOAD time, then S3-cache. Mirrors the
+    # `trellis2` texture-backend load branch. On failure, retry in background.
+    trellis2_ready = False
+    try:
+        _ensure_trellis2(blocking=True)
+        _trellis2_ops_bg["state"] = 1
+        trellis2_ready = True
+        logger.info("TRELLIS.2 full-pipeline stack ready (built/cached at load)")
+    except Exception as e:
+        logger.warning("TRELLIS.2 stack not ready at load (%s) — will retry in background on first job", e)
+        _ensure_trellis2_background()
+
+    # Background remover for the RGBA cutout (BiRefNet/MIT default; RMBG opt-in).
+    rmbg_model = None
+    try:
+        secondary_sources = _config.get("secondary_sources", {})
+        bg_choice = (_get_env("ARTSMOKER_BG_MODEL", "birefnet") or "birefnet").lower().strip()
+        if bg_choice == "rmbg":
+            bg_repo = secondary_sources.get("rmbg", {}).get("repo_id") or "briaai/RMBG-1.4"
+        else:
+            bg_repo = secondary_sources.get("birefnet", {}).get("repo_id") or "ZhengPeng7/BiRefNet"
+        logger.info("Downloading background-removal model (%s) from %s...", bg_choice, bg_repo)
+        from transformers import AutoModelForImageSegmentation
+        rmbg_model = AutoModelForImageSegmentation.from_pretrained(
+            bg_repo, trust_remote_code=True, token=hf_token,
+        )
+        rmbg_model.to("cuda").eval()
+        try:
+            rmbg_model._artsmoker_bg_backend = "rmbg" if bg_choice == "rmbg" else "birefnet"
+        except Exception:
+            pass
+        logger.info("Background-removal model loaded on GPU (%s)", bg_choice)
+    except Exception as e:
+        logger.warning("Background-removal model load failed (will skip bg removal): %s", e)
+
+    vram_gb = 0
+    if torch.cuda.is_available():
+        props = torch.cuda.get_device_properties(0)
+        vram_gb = (getattr(props, 'total_memory', 0) or getattr(props, 'total_mem', 0)) / (1024**3)
+
+    return {
+        "library": "trellis2_image_to_3d",
+        "pipe": None,                 # full pipeline loads lazily in the predictor
+        "rmbg_model": rmbg_model,
+        "texture_available": trellis2_ready,
+        "vram_gb": vram_gb,
+        "code_dir": code_dir,
+        "hf_token": hf_token,
+    }
+
+
 def _load_image_to_3d(model_dir):
     """Load an image-to-3D mesh generation pipeline.
 
@@ -1706,8 +1772,10 @@ _trellis2_ops_bg_lock = None
 # (only xformers/flash_attn) — xformers ships prebuilt cu124 wheels, so we avoid
 # the flash-attn source compile entirely.
 _TRELLIS2_HF_REPO = "microsoft/TRELLIS.2-4B"
-_TRELLIS2_TEX_CONFIG = "texturing_pipeline.json"
+_TRELLIS2_TEX_CONFIG = "texturing_pipeline.json"   # texturer (BYO mesh): 4 ckpts
+_TRELLIS2_FULL_CONFIG = "pipeline.json"            # full image→3D: 8 ckpts (~16 GB)
 _trellis2_texture_pipe = None  # cached per worker (like _mvpainter_pipe)
+_trellis2_full_pipe = None     # cached full image→3D pipeline (per worker)
 
 # Background nvdiffrast-compile state (for the inference-time guard). When a
 # compile is kicked off on a worker thread, predict_fn fails the current job
@@ -2611,6 +2679,7 @@ _LOADERS = {
     "transformers": _load_transformers,
     "autoregressive": _load_autoregressive,
     "image_to_3d": _load_image_to_3d,
+    "trellis2_image_to_3d": _load_trellis2_image_to_3d,  # full pipeline: builds CUDA stack + RMBG cutout at load; 8-ckpt pipe loads lazily in the predictor
     "realesrgan": _load_realesrgan,
     "codeformer": _load_codeformer,
 }
@@ -3514,6 +3583,43 @@ def _generate_texture_hunyuan(mesh_path, source_image, model_dict, input_data, t
 
 
 # ── TRELLIS.2 backend (Microsoft, MIT — commercial-clean Hunyuan-grade) ───────
+def _trellis2_runtime_setup(model_dict):
+    """Shared runtime prep for BOTH TRELLIS.2 pipelines (texturer + full image→3D).
+
+    Sets HF auth + the SLAT backend env vars (sparse attention has NO sdpa
+    fallback → xformers; conv → flex_gemm), and monkeypatches TRELLIS.2's BiRefNet
+    rembg wrapper to the MIT ZhengPeng7/BiRefNet repo so the bundled, GATED,
+    non-commercial briaai/RMBG-2.0 is never DOWNLOADED at from_pretrained (it would
+    never RUN — we always feed a pre-cut RGBA image, which preprocess_image's
+    has_alpha branch passes straight through — but from_pretrained constructs it
+    regardless). Operator can opt back into RMBG via ARTSMOKER_TRELLIS2_REMBG=rmbg
+    (disclosed, requires accepting Bria's license on HF). Idempotent.
+    """
+    hf_token = model_dict.get("hf_token")
+    if hf_token:
+        os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", hf_token)
+        os.environ.setdefault("HF_TOKEN", hf_token)
+    os.environ.setdefault("ATTN_BACKEND", "xformers")
+    os.environ.setdefault("SPARSE_CONV_BACKEND", "flex_gemm")
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    _rembg_choice = (_get_env("ARTSMOKER_TRELLIS2_REMBG", "birefnet") or "birefnet").lower().strip()
+    if _rembg_choice != "rmbg":
+        try:
+            from trellis2.pipelines.rembg import BiRefNet as _T2BiRefNet
+            if not getattr(_T2BiRefNet, "_artsmoker_patched", False):
+                _orig_init = _T2BiRefNet.__init__
+                def _mit_init(self, model_name="ZhengPeng7/BiRefNet", *a, **kw):
+                    return _orig_init(self, model_name="ZhengPeng7/BiRefNet", *a, **kw)
+                _T2BiRefNet.__init__ = _mit_init
+                _T2BiRefNet._artsmoker_patched = True
+                logger.info("TRELLIS.2 rembg forced to MIT BiRefNet (gated RMBG-2.0 download avoided)")
+        except Exception as _pe:
+            logger.warning("Could not patch TRELLIS.2 rembg to BiRefNet (%s) — "
+                           "may attempt the bundled (gated) RMBG download", _pe)
+    else:
+        logger.info("TRELLIS.2 rembg: operator opted into RMBG (non-commercial) — using bundled repo")
+
+
 def _load_trellis2_texture_pipe(model_dict):
     """Load (and cache per worker) the TRELLIS.2 texturing pipeline.
 
@@ -3527,45 +3633,8 @@ def _load_trellis2_texture_pipe(model_dict):
     if _trellis2_texture_pipe is not None:
         return _trellis2_texture_pipe
     import time as _t
-    hf_token = model_dict.get("hf_token")
-    if hf_token:
-        os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", hf_token)
-        os.environ.setdefault("HF_TOKEN", hf_token)
-    # SLAT sparse attention has no sdpa fallback — force xformers (prebuilt wheel,
-    # no compile) before the package's config.__from_env() reads it at import.
-    os.environ.setdefault("ATTN_BACKEND", "xformers")
-    os.environ.setdefault("SPARSE_CONV_BACKEND", "flex_gemm")
-    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
+    _trellis2_runtime_setup(model_dict)
     from trellis2.pipelines import Trellis2TexturingPipeline
-
-    # ── Avoid TRELLIS.2's GATED, NON-COMMERCIAL bundled background remover ──
-    # texturing_pipeline.json points the BiRefNet rembg wrapper at briaai/RMBG-2.0
-    # (Bria, non-commercial, gated on HF) via its model_name arg. That repo is
-    # DOWNLOADED inside from_pretrained() even though it NEVER runs (we always feed
-    # a pre-cut RGBA image → preprocess_image takes the has_alpha branch and skips
-    # rembg). Unless the operator explicitly opted into RMBG at deploy
-    # (ARTSMOKER_TRELLIS2_REMBG=rmbg), monkeypatch the wrapper to force the MIT
-    # ZhengPeng7/BiRefNet repo instead — same wrapper class, commercial-clean, no
-    # gated Bria download. Keeps TRELLIS.2 fully MIT by default; RMBG stays
-    # available as a disclosed opt-in.
-    _rembg_choice = (_get_env("ARTSMOKER_TRELLIS2_REMBG", "birefnet") or "birefnet").lower().strip()
-    if _rembg_choice != "rmbg":
-        try:
-            from trellis2.pipelines.rembg import BiRefNet as _T2BiRefNet
-            if not getattr(_T2BiRefNet, "_artsmoker_patched", False):
-                _orig_init = _T2BiRefNet.__init__
-                def _mit_init(self, model_name="ZhengPeng7/BiRefNet", *a, **kw):
-                    # Ignore any gated/non-commercial repo from the config; force MIT.
-                    return _orig_init(self, model_name="ZhengPeng7/BiRefNet", *a, **kw)
-                _T2BiRefNet.__init__ = _mit_init
-                _T2BiRefNet._artsmoker_patched = True
-                logger.info("TRELLIS.2 rembg forced to MIT BiRefNet (gated RMBG-2.0 download avoided)")
-        except Exception as _pe:
-            logger.warning("Could not patch TRELLIS.2 rembg to BiRefNet (%s) — "
-                           "may attempt the bundled (gated) RMBG download", _pe)
-    else:
-        logger.info("TRELLIS.2 rembg: operator opted into RMBG (non-commercial) — using bundled repo")
-
     t0 = _t.time()
     logger.info("Loading TRELLIS.2 texturing pipeline (%s / %s)...",
                 _TRELLIS2_HF_REPO, _TRELLIS2_TEX_CONFIG)
@@ -3664,6 +3733,148 @@ def _generate_texture_trellis2(mesh_path, source_image, model_dict, input_data, 
         glb_data = f.read()
     logger.info("TRELLIS.2 textured GLB: %.1f KB from %s", len(glb_data) / 1024, glb_path)
     return glb_data
+
+
+# ── TRELLIS.2 FULL image→3D pipeline (standalone, no TripoSG) ─────────────────
+def _load_trellis2_full_pipe(model_dict):
+    """Load (and cache per worker) the full TRELLIS.2 image→3D pipeline.
+
+    Unlike the texturer (BYO mesh), this GENERATES geometry AND texture from a
+    single image. Loads the full `pipeline.json` config = 8 checkpoints (sparse-
+    structure + shape-SLAT + tex-SLAT flow models & decoders, ~16 GB) + the gated
+    DINOv3 encoder, from microsoft/TRELLIS.2-4B. Shares the CUDA-ext stack
+    (_ensure_trellis2), HF auth, SLAT backend env, and the MIT-rembg patch with
+    the texturer via _trellis2_runtime_setup. low_vram=True pages models per step
+    (fits the 44.5 GB L40S).
+    """
+    global _trellis2_full_pipe
+    if _trellis2_full_pipe is not None:
+        return _trellis2_full_pipe
+    import time as _t
+    _trellis2_runtime_setup(model_dict)
+    from trellis2.pipelines import Trellis2ImageTo3DPipeline
+    t0 = _t.time()
+    logger.info("Loading TRELLIS.2 FULL image→3D pipeline (%s / %s)...",
+                _TRELLIS2_HF_REPO, _TRELLIS2_FULL_CONFIG)
+    pipe = Trellis2ImageTo3DPipeline.from_pretrained(
+        _TRELLIS2_HF_REPO, config_file=_TRELLIS2_FULL_CONFIG
+    )
+    try:
+        pipe.rembg_model = None  # we pre-cut to RGBA; rembg never runs
+    except Exception:
+        pass
+    pipe.cuda()
+    logger.info("TRELLIS.2 FULL pipeline loaded in %.0fs", _t.time() - t0)
+    _trellis2_full_pipe = pipe
+    return pipe
+
+
+def _predict_trellis2_full(input_data, model_dict):
+    """Full image→3D via TRELLIS.2: image → textured PBR GLB (no TripoSG).
+
+    Mirrors _predict_image_to_3d's JSON contract (base64_glb + verts/faces/...),
+    so the frontend 3D flow + gallery are unchanged. Steps: decode image → RGBA
+    cutout (BiRefNet) → pipe.run(image)[0] (generates geometry + texture) →
+    simplify to the nvdiffrast cap → o_voxel.postprocess.to_glb (decimate 1M,
+    4096² PBR atlas, remesh) → base64.
+    """
+    import base64 as _b64
+    import tempfile as _tf
+    import time as _t
+    t0 = _t.time()
+
+    # Watchdog guard: the CUDA-ext build (~5-10 min) exceeds MMS's 120s response
+    # timeout. Built at LOAD time normally; if NOT ready on this warm worker, kick
+    # the background build and fail fast (the job is retryable once it lands).
+    if not _ensure_trellis2(blocking=False):
+        _ensure_trellis2_background()
+        st = _trellis2_ops_bg["state"]
+        msg = ("TRELLIS.2 native ops are being prepared in the background "
+               "(one-time CUDA build, ~5-10 min). Resubmit shortly.")
+        if st == 2:
+            msg = f"TRELLIS.2 native ops preparation failed: {_trellis2_ops_bg['error']}"
+        raise RuntimeError(msg)
+
+    # Decode the input image.
+    img_b64 = input_data.get("image")
+    if not img_b64:
+        raise ValueError("No input image provided for TRELLIS.2 full pipeline")
+    from PIL import Image as _PImg
+    import io as _io
+    src = _PImg.open(_io.BytesIO(_b64.b64decode(img_b64)))
+
+    # RGBA cutout (BiRefNet/MIT) — TRELLIS.2's preprocess_image takes the has_alpha
+    # branch and skips its own (gated) rembg. ref_lift=0: no MVPainter shadow-lift.
+    ref_rgba = _preprocess_mvpainter_reference(src, model_dict.get("rmbg_model"), lift_override=0.0)
+    _save_debug_artifact(ref_rgba.convert("RGB"), "01_reference")
+
+    pipe = _load_trellis2_full_pipe(model_dict)
+
+    def _as_int(v, d):
+        try: return int(v)
+        except (TypeError, ValueError): return d
+    seed = _as_int(input_data.get("seed"), 42)
+    texture_size = _as_int(input_data.get("texture_size"), 4096)
+    decimation_target = _as_int(input_data.get("faces"), 1000000) or 1000000
+
+    _log_gpu_mem("before TRELLIS.2 full run")
+    # preprocess_image=False: we already produced the RGBA cutout above.
+    out = pipe.run(ref_rgba, seed=seed, preprocess_image=False)
+    mesh = out[0]
+    logger.info("TRELLIS.2 full run complete in %.1fs", _t.time() - t0)
+    _log_gpu_mem("after TRELLIS.2 full run")
+
+    # nvdiffrast hard cap on triangle count before GLB postprocess.
+    try:
+        mesh.simplify(16777216)
+    except Exception as _se:
+        logger.info("mesh.simplify skipped (%s)", _se)
+
+    import o_voxel
+    glb = o_voxel.postprocess.to_glb(
+        vertices=mesh.vertices,
+        faces=mesh.faces,
+        attr_volume=mesh.attrs,
+        coords=mesh.coords,
+        attr_layout=mesh.layout,
+        voxel_size=mesh.voxel_size,
+        aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
+        decimation_target=decimation_target,
+        texture_size=texture_size,
+        remesh=True,
+        remesh_band=1,
+        remesh_project=0,
+        verbose=True,
+    )
+    temp_dir = _tf.mkdtemp(prefix="artsmoker_trellis2_full_")
+    glb_path = os.path.join(temp_dir, "trellis2_full.glb")
+    glb.export(glb_path)
+    if not os.path.exists(glb_path) or os.path.getsize(glb_path) == 0:
+        raise RuntimeError("TRELLIS.2 full pipeline produced no GLB")
+    with open(glb_path, "rb") as f:
+        glb_data = f.read()
+
+    # Vertex/face counts for the response (post-decimation, from the exported GLB).
+    vtx = fac = 0
+    try:
+        import trimesh as _tm
+        _m = _tm.load(glb_path, process=False, force="mesh")
+        vtx, fac = len(_m.vertices), len(_m.faces)
+    except Exception:
+        pass
+    logger.info("TRELLIS.2 full GLB: %.1f KB, %d verts, %d faces", len(glb_data) / 1024, vtx, fac)
+
+    b64_glb = _b64.b64encode(glb_data).decode("utf-8")
+    return json.dumps({
+        "mesh": b64_glb,
+        "format": "base64_glb",
+        "vertices": vtx,
+        "faces": fac,
+        "textured": True,
+        "texture_backend": "trellis2_full",
+        "has_pbr": True,
+        "geometry_model": "TRELLIS.2",
+    })
 
 
 # ── MVPainter backend (Apache-2.0, commercial-safe, multi-view bake) ──────────
@@ -5163,6 +5374,7 @@ _PREDICTORS = {
     "autoregressive_image": _predict_autoregressive_image,
     "image_to_video": _predict_image_to_video,
     "image_to_3d": _predict_image_to_3d,
+    "trellis2_image_to_3d": _predict_trellis2_full,
     "image_upscale": _predict_image_upscale,
     "background_removal": _predict_background_removal,
     "depth_estimation": _predict_depth_estimation,
@@ -5200,7 +5412,7 @@ def model_fn(model_dir):
         logger.warning("Could not read MMS config: %s", _ce)
 
     # Install system libraries needed by pymeshlab (OpenGL) on headless containers
-    if library == "image_to_3d":
+    if library in ("image_to_3d", "trellis2_image_to_3d"):
         import subprocess as _sp
         _opengl_installed = False
         # Try apt-get first (Debian-based DLC)
@@ -5388,7 +5600,7 @@ def predict_fn(input_data, model_dict):
         # thread and have THIS thread wait with a periodic heartbeat, so the
         # worker process stays in a normal Python wait (responsive) instead of
         # buried in a non-yielding native call. Fast predictors run inline.
-        _LONG_RUNNING = {"image_to_3d"}
+        _LONG_RUNNING = {"image_to_3d", "trellis2_image_to_3d"}
         if predictor_type in _LONG_RUNNING:
             result = _run_with_heartbeat(predictor, input_data, model_dict, predictor_type)
         else:

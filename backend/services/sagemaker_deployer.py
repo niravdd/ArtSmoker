@@ -68,6 +68,11 @@ _LIBRARY_BUNDLED_PACKAGES = {
     # StableDelight YOSO one-step forwards (their weights' controlnet is a
     # ControlNetVAEModel subclass; stock diffusers ControlNetModel can't drive it).
     "image_to_3d": ["triposg", "mvadapter", "hy3dpaint", "mvpainter", "stablex"],
+    # Full standalone TRELLIS.2 image→3D pipeline: the `trellis2` package + its
+    # CUDA exts are git-cloned/built at runtime (_ensure_trellis2), so NOTHING
+    # needs vendoring here — the handler's only bundled-pkg imports are
+    # function-local to the TripoSG path, which this library never calls.
+    "trellis2_image_to_3d": [],
 }
 
 

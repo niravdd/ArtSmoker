@@ -5347,6 +5347,121 @@
           ]
         }
       },
+      "trellis2_image_to_3d": {
+        "label": "TRELLIS.2 (Full Image-to-3D)",
+        "description": "Microsoft TRELLIS.2 full pipeline — generates BOTH geometry and PBR texture from a single image in one model. MIT-licensed, commercially-clean. Alternative to the TripoSG + texture-backend pipeline.",
+        "category": "3d_generation",
+        "studio": "image",
+        "provider": "Microsoft Research",
+        "license": "MIT",
+        "requires_hf_auth": true,
+        "hf_license_url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
+        "license_agreement": {
+          "required": true,
+          "license_name": "MIT (TRELLIS.2) + DINOv3 attribution",
+          "license_url": "https://github.com/microsoft/TRELLIS.2/blob/main/LICENSE",
+          "key_terms": [
+            "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) — MIT, commercial use unrestricted",
+            "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) — commercial-OK, GATED on HuggingFace",
+            "Requires a \"Built with DINOv3\" attribution in your product UI",
+            "Background removal uses BiRefNet (MIT); the bundled RMBG-2.0 is NOT used"
+          ],
+          "dependencies": [
+            {"name": "microsoft/TRELLIS.2-4B", "license": "MIT", "url": "https://huggingface.co/microsoft/TRELLIS.2-4B", "gated": false, "commercial": true, "role": "Full image-to-3D pipeline (8 checkpoints: sparse-structure + shape-SLAT + tex-SLAT)"},
+            {"name": "facebook/dinov3-vitl16-pretrain-lvd1689m", "license": "DINOv3 License (commercial-OK, attribution required)", "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m", "gated": true, "commercial": true, "role": "Image encoder — REQUIRES 'Built with DINOv3' attribution"},
+            {"name": "ZhengPeng7/BiRefNet", "license": "MIT", "url": "https://huggingface.co/ZhengPeng7/BiRefNet", "gated": false, "commercial": true, "role": "Background removal (the actual cutout model)"}
+          ],
+          "warnings": [
+            "You must display a \"Built with DINOv3\" notice where the feature is surfaced (DINOv3 license obligation).",
+            "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo — accept its license on HuggingFace before deploying."
+          ]
+        },
+        "source": {
+          "type": "huggingface",
+          "repo_id": "microsoft/TRELLIS.2-4B"
+        },
+        "secondary_sources": {
+          "birefnet": {
+            "type": "huggingface",
+            "repo_id": "ZhengPeng7/BiRefNet"
+          },
+          "rmbg": {
+            "type": "huggingface",
+            "repo_id": "briaai/RMBG-1.4"
+          }
+        },
+        "requirements": {
+          "min_vram_gb": 40,
+          "recommended_instance": "ml.g6e.2xlarge",
+          "disk_gb": 80,
+          "allowed_instances": [
+            "ml.g6e.2xlarge",
+            "ml.g6e.4xlarge"
+          ]
+        },
+        "invoke": {
+          "library": "trellis2_image_to_3d",
+          "predictor_type": "trellis2_image_to_3d",
+          "torch_dtype": "float16",
+          "input_fields": {
+            "image": {
+              "type": "base64_png",
+              "required": true
+            },
+            "seed": {
+              "type": "int",
+              "required": false
+            },
+            "texture_size": {
+              "type": "int",
+              "default": 4096
+            },
+            "faces": {
+              "type": "int",
+              "default": 1000000
+            }
+          },
+          "output_type": "base64_glb",
+          "typical_latency_seconds": 600,
+          "max_concurrent_invocations": 1
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.08,
+          "instance_cost_per_hour": {
+            "ml.g6e.2xlarge": 2.35,
+            "ml.g6e.4xlarge": 4.7
+          }
+        },
+        "version": "1.0",
+        "last_updated": "2026-06-23",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "diffusers>=0.30.0,<0.38.0",
+            "transformers>=4.40.0,<4.52.0",
+            "accelerate>=1.0.0,<2.0.0",
+            "safetensors>=0.4.3",
+            "huggingface-hub>=0.20.0,<1.0.0",
+            "trimesh",
+            "opencv-python-headless",
+            "scikit-image",
+            "einops",
+            "omegaconf",
+            "scipy",
+            "open3d",
+            "xatlas",
+            "ninja",
+            "pybind11",
+            "imageio",
+            "loguru"
+          ]
+        }
+      },
       "triposg": {
         "label": "TripoSG",
         "description": "Image-to-3D mesh generation. Produces high-quality GLB meshes from a single image in ~60 seconds.",
