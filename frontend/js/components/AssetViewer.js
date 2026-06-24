@@ -1604,19 +1604,29 @@
                     <div>
                         <label class="text-xs text-brand-text-muted mb-1 block">${t('asset_viewer.three_d_model')}</label>
                         <select id="av-3d-model" class="input text-sm w-full max-w-xs">
-                            ${instances.map((inst, i) => `
-                                <option value="${this._esc(inst.model_key)}" ${i === 0 ? 'selected' : ''}>
-                                    ${this._esc(inst.label)}${inst.instance_type ? ` · ${this._esc(inst.instance_type.replace('ml.', ''))}` : ''}${inst.model_ready ? '' : ' · ' + t('asset_viewer.three_d_model_warming')}
-                                </option>`).join('')}
+                            ${instances.map((inst, i) => {
+                                const ptype = inst.pipeline_type === 'trellis2_full'
+                                    ? t('asset_viewer.three_d_pipe_trellis2_full')
+                                    : t('asset_viewer.three_d_pipe_triposg');
+                                const inst_t = inst.instance_type ? ` · ${this._esc(inst.instance_type.replace('ml.', ''))}` : '';
+                                const warming = inst.model_ready ? '' : ' · ' + t('asset_viewer.three_d_model_warming');
+                                return `<option value="${this._esc(inst.model_key)}" ${i === 0 ? 'selected' : ''}>${this._esc(ptype)}${inst_t}${warming}</option>`;
+                            }).join('')}
                         </select>
                         <p class="text-[9px] text-brand-text-dim mt-1 max-w-xs">${t('asset_viewer.three_d_model_hint')}</p>
                     </div>
             ` : '';
 
+            // License / consent panel — shown for whichever pipeline is selected
+            // (or the single deployed one). Informational: the binding acceptance
+            // happened at DEPLOY time; here we surface it + confirm it's on record.
+            const licensePanelHtml = `<div id="av-3d-license" class="rounded-lg border border-brand-border bg-brand-bg/40 p-3 text-[11px] space-y-1 max-w-xs hidden"></div>`;
+
             container.innerHTML = `
                 <div class="space-y-4">
                     <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_version_note')}</p>
                     ${chooserHtml}
+                    ${licensePanelHtml}
 
                     <!-- Quality preset (real specs: face/vertex detail, not bogus seconds) -->
                     <div>
@@ -1750,9 +1760,40 @@
                 if (depthSelect) depthSelect.value = String(preset.depth);
                 updateEstimate();
             };
+            // License / consent panel: reflects the selected pipeline's license,
+            // commercial status, and the deploy-time acceptance on record. No new
+            // checkbox — we state "accepted on <date>" (or warn if not on record).
+            const licenseEl = container.querySelector('#av-3d-license');
+            const updateLicensePanel = () => {
+                if (!licenseEl) return;
+                const inst = _selectedInstance();
+                if (!inst || !inst.license_name) { licenseEl.classList.add('hidden'); return; }
+                const commercialBadge = inst.commercial === true
+                    ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('asset_viewer.three_d_lic_commercial')}</span>`
+                    : (inst.commercial === false
+                        ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('asset_viewer.three_d_lic_noncommercial')}</span>`
+                        : '');
+                const acceptedLine = inst.license_accepted
+                    ? `<p class="text-emerald-400/90">✓ ${t('asset_viewer.three_d_lic_accepted')}${inst.license_accepted_at ? ' · ' + window.formatTimestamp(inst.license_accepted_at) : ''}</p>`
+                    : `<p class="text-amber-400/90">⚠ ${t('asset_viewer.three_d_lic_not_recorded')}</p>`;
+                const link = inst.license_url
+                    ? ` <a href="${this._esc(inst.license_url)}" target="_blank" rel="noopener" class="text-brand-accent underline">${t('asset_viewer.three_d_lic_view')}</a>`
+                    : '';
+                licenseEl.innerHTML = `
+                    <div class="flex items-center gap-2 flex-wrap">
+                        <span class="text-brand-text-muted">${t('asset_viewer.three_d_lic_label')}</span>
+                        <span class="text-brand-text font-medium">${this._esc(inst.license_name)}</span>
+                        ${commercialBadge}
+                    </div>
+                    ${acceptedLine}
+                    <p class="text-brand-text-dim">${t('asset_viewer.three_d_lic_note')}${link}</p>`;
+                licenseEl.classList.remove('hidden');
+            };
+
             qualitySelect?.addEventListener('change', applyPreset);
             facesSelect?.addEventListener('change', updateEstimate);
-            modelSelect?.addEventListener('change', updateEstimate);
+            modelSelect?.addEventListener('change', () => { updateEstimate(); updateLicensePanel(); });
+            updateLicensePanel();
 
             stepsInput?.addEventListener('input', () => { if (stepsLabel) stepsLabel.textContent = stepsInput.value; });
             guidanceInput?.addEventListener('input', () => { if (guidanceLabel) guidanceLabel.textContent = guidanceInput.value; });
@@ -1826,6 +1867,13 @@
             if (prm.octree_depth) _toolRows.push([t('asset_viewer.three_d_mesh_detail'), `octree ${prm.octree_depth}`]);
             if (prm.steps) _toolRows.push([t('asset_viewer.three_d_diffusion_steps'), String(prm.steps)]);
             if (prm.seed !== undefined && prm.seed !== null) _toolRows.push([t('asset_viewer.three_d_seed'), String(prm.seed)]);
+            // License provenance (persisted from the deploy-time acceptance).
+            if (pl.license_name) {
+                const commTxt = pl.commercial === true ? ` (${t('asset_viewer.three_d_lic_commercial')})`
+                    : (pl.commercial === false ? ` (${t('asset_viewer.three_d_lic_noncommercial')})` : '');
+                _toolRows.push([t('asset_viewer.three_d_lic_label'), pl.license_name + commTxt]);
+            }
+            if (pl.license_accepted_at) _toolRows.push([t('asset_viewer.three_d_lic_accepted_col'), window.formatTimestamp(pl.license_accepted_at)]);
             const toolsHtml = _toolRows.length ? `
                 <div class="rounded-lg border border-brand-border/40 bg-white/[0.02] px-4 py-3">
                     <p class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-2">${t('asset_viewer.three_d_pipeline_title')}</p>

@@ -1776,6 +1776,32 @@
                         <span>${term}</span>
                     </li>`
                 ).join('');
+                // Per-dependency licensing table — each model/repo this pipeline
+                // pulls, its license, commercial/gated status + role. Lets the user
+                // see EXACTLY what's involved before accepting (well-split, clear).
+                const deps = la.dependencies || [];
+                const depsHtml = deps.length
+                    ? `<div class="p-3 rounded-lg bg-brand-bg/60 border border-brand-border/50">
+                        <p class="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('custom_models.tex_attest_deps')}</p>
+                        <div class="space-y-2">
+                            ${deps.map(d => {
+                                const comm = d.commercial
+                                    ? `<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">commercial-OK</span>`
+                                    : `<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">non-commercial</span>`;
+                                const gated = d.gated
+                                    ? `<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated &middot; accept on HF</span>`
+                                    : '';
+                                const nameEl = d.url
+                                    ? `<a href="${d.url}" target="_blank" rel="noopener" class="text-brand-accent underline">${this._esc(d.name)}</a>`
+                                    : `<span class="text-brand-text">${this._esc(d.name)}</span>`;
+                                return `<div class="text-[10px] leading-relaxed">
+                                    <div class="flex items-center gap-1.5 flex-wrap">${nameEl} ${comm} ${gated}</div>
+                                    <div class="text-brand-text-muted/80">${this._esc(d.license || '')}${d.role ? ' &mdash; ' + this._esc(d.role) : ''}</div>
+                                </div>`;
+                            }).join('')}
+                        </div>
+                    </div>`
+                    : '';
                 const warningsHtml = (la.warnings || []).length > 0
                     ? `<div class="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 space-y-1.5">
                         <p class="text-[10px] font-semibold text-red-400 uppercase tracking-wider">Restrictions &amp; Warnings</p>
@@ -1799,6 +1825,7 @@
                                 <p class="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('custom_models.license_key_terms')}</p>
                                 <ul class="space-y-1.5 text-xs">${termsHtml}</ul>
                             </div>
+                            ${depsHtml}
                             ${warningsHtml}
                             <a href="${la.license_url}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-brand-accent hover:underline text-xs">
                                 ${t('custom_models.license_read_full')} &#8599;

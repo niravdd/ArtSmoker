@@ -823,7 +823,18 @@
     "three_d_albedo_textured": "एल्बिडो (बेस कलर)",
     "three_d_instance": "इंस्टेंस",
     "three_d_mesh_detail": "मेश विवरण",
-    "three_d_diffusion_steps": "डिफ्यूज़न चरण"
+    "three_d_diffusion_steps": "डिफ्यूज़न चरण",
+    "three_d_pipe_triposg": "TripoSG + टेक्सचर बैकएंड",
+    "three_d_pipe_trellis2_full": "TRELLIS.2 (संपूर्ण पाइपलाइन)",
+    "three_d_lic_label": "लाइसेंस",
+    "three_d_lic_commercial": "वाणिज्यिक-उपयोग योग्य",
+    "three_d_lic_noncommercial": "गैर-वाणिज्यिक",
+    "three_d_lic_accepted": "डिप्लॉय के समय लाइसेंस स्वीकृत",
+    "three_d_lic_accepted_col": "लाइसेंस स्वीकृत",
+    "three_d_lic_not_recorded": "इस पाइपलाइन के लिए डिप्लॉय-समय की स्वीकृति रिकॉर्ड में नहीं है",
+    "three_d_lic_view": "लाइसेंस देखें",
+    "three_d_lic_note": "डिप्लॉय के समय स्वीकृत; जनरेट करने पर वही शर्तें लागू होती हैं।",
+    "three_d_lic_commercial_full": "वाणिज्यिक उपयोग की अनुमति है"
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",

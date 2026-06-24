@@ -207,7 +207,18 @@
     "three_d_albedo_textured": "알베도 (베이스 컬러)",
     "three_d_instance": "인스턴스",
     "three_d_mesh_detail": "메시 디테일",
-    "three_d_diffusion_steps": "디퓨전 스텝"
+    "three_d_diffusion_steps": "디퓨전 스텝",
+    "three_d_pipe_triposg": "TripoSG + 텍스처 백엔드",
+    "three_d_pipe_trellis2_full": "TRELLIS.2 (전체 파이프라인)",
+    "three_d_lic_label": "라이선스",
+    "three_d_lic_commercial": "상업적 이용 가능",
+    "three_d_lic_noncommercial": "비상업용",
+    "three_d_lic_accepted": "배포 시 라이선스 동의함",
+    "three_d_lic_accepted_col": "라이선스 동의됨",
+    "three_d_lic_not_recorded": "이 파이프라인에 대한 배포 시점 동의 기록이 없습니다",
+    "three_d_lic_view": "라이선스 보기",
+    "three_d_lic_note": "배포 시점에 동의했으며, 생성 시 해당 약관이 적용됩니다.",
+    "three_d_lic_commercial_full": "상업적 이용 가능"
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",

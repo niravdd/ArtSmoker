@@ -207,7 +207,18 @@
     "three_d_albedo_textured": "アルベド（ベースカラー）",
     "three_d_instance": "インスタンス",
     "three_d_mesh_detail": "メッシュ詳細",
-    "three_d_diffusion_steps": "拡散ステップ"
+    "three_d_diffusion_steps": "拡散ステップ",
+    "three_d_pipe_triposg": "TripoSG + テクスチャバックエンド",
+    "three_d_pipe_trellis2_full": "TRELLIS.2（フルパイプライン）",
+    "three_d_lic_label": "ライセンス",
+    "three_d_lic_commercial": "商用利用可",
+    "three_d_lic_noncommercial": "非商用",
+    "three_d_lic_accepted": "デプロイ時にライセンスに同意済み",
+    "three_d_lic_accepted_col": "ライセンス同意済み",
+    "three_d_lic_not_recorded": "このパイプラインにはデプロイ時の同意記録がありません",
+    "three_d_lic_view": "ライセンスを表示",
+    "three_d_lic_note": "デプロイ時に同意済み。生成にはその条件が適用されます。",
+    "three_d_lic_commercial_full": "商用利用可"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",

@@ -207,7 +207,18 @@
     "three_d_albedo_textured": "Albedo (color base)",
     "three_d_instance": "Instancia",
     "three_d_mesh_detail": "Detalle de malla",
-    "three_d_diffusion_steps": "Pasos de difusión"
+    "three_d_diffusion_steps": "Pasos de difusión",
+    "three_d_pipe_triposg": "TripoSG + backend de textura",
+    "three_d_pipe_trellis2_full": "TRELLIS.2 (canalización completa)",
+    "three_d_lic_label": "Licencia",
+    "three_d_lic_commercial": "uso comercial permitido",
+    "three_d_lic_noncommercial": "no comercial",
+    "three_d_lic_accepted": "Licencia aceptada en el despliegue",
+    "three_d_lic_accepted_col": "Licencia aceptada",
+    "three_d_lic_not_recorded": "No hay constancia de aceptación en el despliegue para esta canalización",
+    "three_d_lic_view": "Ver licencia",
+    "three_d_lic_note": "Aceptada en el momento del despliegue; al generar se aplican esos términos.",
+    "three_d_lic_commercial_full": "Uso comercial permitido"
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",

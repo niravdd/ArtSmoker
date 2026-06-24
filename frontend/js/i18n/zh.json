@@ -207,7 +207,18 @@
     "three_d_albedo_textured": "反照率（基础色）",
     "three_d_instance": "实例",
     "three_d_mesh_detail": "网格细节",
-    "three_d_diffusion_steps": "扩散步数"
+    "three_d_diffusion_steps": "扩散步数",
+    "three_d_pipe_triposg": "TripoSG + 纹理后端",
+    "three_d_pipe_trellis2_full": "TRELLIS.2（完整流程）",
+    "three_d_lic_label": "许可证",
+    "three_d_lic_commercial": "可商用",
+    "three_d_lic_noncommercial": "非商用",
+    "three_d_lic_accepted": "已在部署时接受许可证",
+    "three_d_lic_accepted_col": "许可证已接受",
+    "three_d_lic_not_recorded": "此流程没有部署时接受许可证的记录",
+    "three_d_lic_view": "查看许可证",
+    "three_d_lic_note": "已在部署时接受；生成将使用这些条款。",
+    "three_d_lic_commercial_full": "可用于商业用途"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",

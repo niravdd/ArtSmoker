@@ -823,7 +823,18 @@
     "three_d_albedo_textured": "Альбедо (базовый цвет)",
     "three_d_instance": "Инстанс",
     "three_d_mesh_detail": "Детализация меша",
-    "three_d_diffusion_steps": "Шаги диффузии"
+    "three_d_diffusion_steps": "Шаги диффузии",
+    "three_d_pipe_triposg": "TripoSG + бэкенд текстурирования",
+    "three_d_pipe_trellis2_full": "TRELLIS.2 (полный конвейер)",
+    "three_d_lic_label": "Лицензия",
+    "three_d_lic_commercial": "коммерческое использование разрешено",
+    "three_d_lic_noncommercial": "некоммерческое использование",
+    "three_d_lic_accepted": "Лицензия принята при развёртывании",
+    "three_d_lic_accepted_col": "Лицензия принята",
+    "three_d_lic_not_recorded": "Для этого конвейера нет записи о принятии лицензии при развёртывании",
+    "three_d_lic_view": "Просмотреть лицензию",
+    "three_d_lic_note": "Принята при развёртывании; генерация использует эти условия.",
+    "three_d_lic_commercial_full": "Коммерческое использование разрешено"
   },
   "model_settings": {
     "title": "Настройки моделей",

@@ -824,7 +824,18 @@
     "three_d_albedo_textured": "Albedo (base color)",
     "three_d_instance": "Instance",
     "three_d_mesh_detail": "Mesh detail",
-    "three_d_diffusion_steps": "Diffusion steps"
+    "three_d_diffusion_steps": "Diffusion steps",
+    "three_d_pipe_triposg": "TripoSG + texture backend",
+    "three_d_pipe_trellis2_full": "TRELLIS.2 (full pipeline)",
+    "three_d_lic_label": "License",
+    "three_d_lic_commercial": "commercial-OK",
+    "three_d_lic_noncommercial": "non-commercial",
+    "three_d_lic_accepted": "License accepted at deploy",
+    "three_d_lic_accepted_col": "License accepted",
+    "three_d_lic_not_recorded": "No deploy-time acceptance on record for this pipeline",
+    "three_d_lic_view": "View license",
+    "three_d_lic_note": "Accepted at deploy time; generating uses those terms.",
+    "three_d_lic_commercial_full": "Commercial use OK"
   },
   "model_settings": {
     "title": "Model Settings",

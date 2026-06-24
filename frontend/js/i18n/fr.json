@@ -207,7 +207,18 @@
     "three_d_albedo_textured": "Albédo (couleur de base)",
     "three_d_instance": "Instance",
     "three_d_mesh_detail": "Détail du maillage",
-    "three_d_diffusion_steps": "Étapes de diffusion"
+    "three_d_diffusion_steps": "Étapes de diffusion",
+    "three_d_pipe_triposg": "TripoSG + backend de texture",
+    "three_d_pipe_trellis2_full": "TRELLIS.2 (pipeline complet)",
+    "three_d_lic_label": "Licence",
+    "three_d_lic_commercial": "usage commercial autorisé",
+    "three_d_lic_noncommercial": "non commercial",
+    "three_d_lic_accepted": "Licence acceptée au déploiement",
+    "three_d_lic_accepted_col": "Licence acceptée",
+    "three_d_lic_not_recorded": "Aucune acceptation enregistrée au déploiement pour ce pipeline",
+    "three_d_lic_view": "Voir la licence",
+    "three_d_lic_note": "Acceptée au moment du déploiement ; la génération applique ces conditions.",
+    "three_d_lic_commercial_full": "Usage commercial autorisé"
   },
   "chat_studio": {
     "attach_image": "Joindre une image (pour les modèles de vision)",

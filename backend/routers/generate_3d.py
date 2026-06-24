@@ -4,7 +4,7 @@ import base64
 import json
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import uuid4
 
 import boto3
@@ -151,19 +151,30 @@ def load_persisted_3d_jobs() -> None:
         logger.debug("Failed to load persisted 3D jobs: %s", e)
 
 
-def _list_triposg_models() -> list[tuple[str, dict]]:
-    """List ALL deployed TripoSG instances in the registry.
+# The two image-to-3D pipelines a user can deploy + their generate-time identity.
+# triposg = TripoSG geometry + a chosen texture backend; trellis2_image_to_3d =
+# the standalone full TRELLIS.2 pipeline (geometry + texture in one model). Both
+# take a single image and produce a GLB, so the 3D-generate flow handles both —
+# the difference is metadata (texture_backend choice applies only to TripoSG).
+_3D_CATALOG_KEYS = {
+    "triposg": "triposg",
+    "trellis2_image_to_3d": "trellis2_full",
+}
 
-    A user can deploy TripoSG on several instance types (e.g. g6e and g5),
-    each a separate registry entry keyed like ``triposg_<hash>``. Returns
-    every entry that is a deployed TripoSG instance, sorted newest-first by
-    deployment timestamp so the most recent endpoint leads any chooser.
+
+def _list_3d_models() -> list[tuple[str, dict]]:
+    """List ALL deployed image-to-3D instances (BOTH pipelines) in the registry.
+
+    A user can deploy TripoSG (possibly several instance types) and/or the full
+    TRELLIS.2 pipeline — each a separate registry entry keyed like
+    ``<catalog>_<hash>``. Returns every deployed image-to-3D instance, newest-first
+    by deployment timestamp so the most recent endpoint leads any chooser.
     """
     registry = get_registry()
     found: list[tuple[str, dict]] = []
     for section in ("image_models", "post_processing"):
         for key, cfg in registry.get(section, {}).items():
-            if cfg.get("catalog_key") != "triposg":
+            if cfg.get("catalog_key") not in _3D_CATALOG_KEYS:
                 continue
             if cfg.get("model_source") != "custom_hosted":
                 continue
@@ -178,6 +189,11 @@ def _list_triposg_models() -> list[tuple[str, dict]]:
 
     found.sort(key=_created, reverse=True)
     return found
+
+
+# Back-compat alias: existing callers used _list_triposg_models. It now returns
+# BOTH pipelines (the callers that resolve a chosen instance work generically).
+_list_triposg_models = _list_3d_models
 
 
 def _find_triposg_model(model_key: str | None = None) -> tuple[str | None, dict | None]:
@@ -271,7 +287,7 @@ class ThreeDGenerateRequest(BaseModel):
 
 @router.get("/available")
 async def check_3d_available():
-    """Check if a 3D generation model (TripoSG) is deployed and available."""
+    """Check if ANY image-to-3D model (TripoSG or full TRELLIS.2) is deployed."""
     model_key, cfg = _find_triposg_model()
     if not model_key or not cfg:
         return {"available": False, "model_key": None, "endpoint_name": None}
@@ -313,6 +329,60 @@ def _instance_label(key: str, cfg: dict) -> str:
     if stamp:
         parts.append(f"({stamp})")
     return " ".join(parts)
+
+
+def _pipeline_info(key: str, cfg: dict) -> dict:
+    """Resolve a deployed 3D instance's pipeline identity, license summary, and
+    the user's deploy-time license acceptance — for the AssetViewer chooser.
+
+    pipeline_type: 'triposg' (TripoSG geometry + a chosen texture backend) or
+    'trellis2_full' (standalone full TRELLIS.2). The license summary + acceptance
+    let the generate-time UI show "you accepted <license> on <date>" (NO new
+    consent prompt — the authoritative attestation is at deploy time).
+    """
+    catalog_key = cfg.get("catalog_key", "")
+    pipeline_type = _3D_CATALOG_KEYS.get(catalog_key, "triposg")
+    dep = cfg.get("deployment", {})
+    registry = get_registry()
+    acceptances = registry.get("license_acceptances", {}) or {}
+
+    license_name = ""
+    license_url = ""
+    commercial = None
+    accepted = None  # {license_name, accepted_at} or None
+    try:
+        from backend.services.custom_models import get_catalog_model
+        cat = get_catalog_model(catalog_key) or {}
+        if pipeline_type == "trellis2_full":
+            # Full pipeline: the model's own license_agreement is the contract.
+            la = cat.get("license_agreement", {}) or {}
+            license_name = la.get("license_name", cat.get("license", ""))
+            license_url = la.get("license_url", "")
+            commercial = True  # MIT + commercial DINOv3 (attribution required)
+            accepted = acceptances.get(catalog_key) or acceptances.get(key)
+        else:
+            # TripoSG: the active TEXTURE BACKEND carries the license that matters.
+            tex_backend = dep.get("texture_backend") or ""
+            tb = ((cat.get("texture_backends", {}).get("options", {}) or {}).get(tex_backend, {}) or {})
+            lic = tb.get("license", {}) or {}
+            license_name = lic.get("name", "")
+            license_url = lic.get("url", "")
+            commercial = lic.get("commercial")
+            # Texture-backend acceptance was recorded under "<model_key>:<backend>".
+            accepted = (acceptances.get(f"{key}:{tex_backend}")
+                        or acceptances.get(f"{catalog_key}:{tex_backend}")
+                        or acceptances.get(catalog_key))
+    except Exception:
+        pass
+
+    return {
+        "pipeline_type": pipeline_type,
+        "license_name": license_name,
+        "license_url": license_url,
+        "commercial": commercial,
+        "license_accepted": bool(accepted),
+        "license_accepted_at": (accepted or {}).get("accepted_at", ""),
+    }
 
 
 @router.get("/instances")
@@ -378,6 +448,16 @@ async def list_3d_instances(verify: bool = True):
                 latency_s = cat.get("invoke", {}).get("typical_latency_seconds")
         except Exception:
             pass
+        # Pipeline identity + license summary + deploy-time acceptance (drives the
+        # AssetViewer chooser + the "accepted on <date>, still valid" line).
+        pinfo = _pipeline_info(key, cfg)
+        # Est. cost per job = hourly rate × (latency / 3600), when both known.
+        est_cost = None
+        try:
+            if cost_per_hr and latency_s:
+                est_cost = round(float(cost_per_hr) * (float(latency_s) / 3600.0), 2)
+        except Exception:
+            pass
         instances.append({
             "model_key": key,
             "endpoint_name": endpoint_name,
@@ -391,6 +471,8 @@ async def list_3d_instances(verify: bool = True):
             "texture_backend": tex_backend,
             "cost_per_hour_usd": cost_per_hr,
             "typical_latency_seconds": latency_s,
+            "est_cost_usd": est_cost,
+            **pinfo,
         })
 
     # Self-heal: remove stale registry entries (endpoint deleted or failed).
@@ -444,13 +526,14 @@ async def save_3d_defaults(body: ThreeDDefaultsRequest):
 
 @router.post("/")
 async def generate_3d(body: ThreeDGenerateRequest):
-    """Submit a 3D generation job (image-to-3D via TripoSG)."""
+    """Submit an image-to-3D job to a deployed 3D pipeline (TripoSG+texturer or
+    the standalone full TRELLIS.2 pipeline — whichever instance is selected)."""
     # Honor the chooser selection if provided; else use the newest instance.
     model_key, cfg = _find_triposg_model(body.model_key)
     if not model_key or not cfg:
         if body.model_key:
-            raise HTTPException(400, detail=f"Selected 3D model instance '{body.model_key}' is not a deployed TripoSG endpoint.")
-        raise HTTPException(400, detail="No 3D generation model (TripoSG) is deployed.")
+            raise HTTPException(400, detail=f"Selected 3D model instance '{body.model_key}' is not a deployed image-to-3D endpoint.")
+        raise HTTPException(400, detail="No image-to-3D model is deployed. Deploy TripoSG or TRELLIS.2 (Full) from Custom Models first.")
 
     dep = cfg.get("deployment", {})
     endpoint_name = dep.get("endpoint_name")
@@ -570,7 +653,7 @@ async def generate_3d(body: ThreeDGenerateRequest):
             "octree_depth": _octree,
             "texture_backend": body.texture_backend,
         },
-        "submitted_at": datetime.utcnow().isoformat(),
+        "submitted_at": datetime.now(timezone.utc).isoformat(),
     }
     _3d_jobs[job_id] = job
     _persist_3d_job(job)  # survive server restart
@@ -726,18 +809,38 @@ async def get_3d_status(job_id: str):
             "mvadapter": "MV-Adapter",
             "trellis2": "TRELLIS.2 (SLAT PBR texturing)",
         }
-        _tex_backend = (job.get("params", {}).get("texture_backend")
-                        or output_data.get("texture_backend") or "mvpainter")
         _, _cfg = _find_triposg_model(job.get("model_key"))
         _instance = (_cfg or {}).get("deployment", {}).get("instance_type", "")
-        pipeline = {
-            "geometry_model": "TripoSG",
-            "texture_backend": _tex_backend,
-            "texture_label": _TEX_LABELS.get(_tex_backend, _tex_backend),
-            "instance_type": _instance,
-            "has_pbr": bool(output_data.get("has_pbr") or output_data.get("normal_map")),
-            "rasterizer": output_data.get("rasterizer", ""),
-        }
+        _ptype = _3D_CATALOG_KEYS.get((_cfg or {}).get("catalog_key", ""), "triposg")
+        _pinfo = _pipeline_info(job.get("model_key"), _cfg) if _cfg else {}
+        if _ptype == "trellis2_full":
+            # Standalone full TRELLIS.2 — geometry AND texture from one model; no
+            # separate texture-backend choice.
+            pipeline = {
+                "geometry_model": "TRELLIS.2 (full pipeline)",
+                "texture_backend": "trellis2_full",
+                "texture_label": "TRELLIS.2 (integrated SLAT PBR)",
+                "instance_type": _instance,
+                "has_pbr": bool(output_data.get("has_pbr", True)),
+                "rasterizer": output_data.get("rasterizer", ""),
+            }
+        else:
+            _tex_backend = (job.get("params", {}).get("texture_backend")
+                            or output_data.get("texture_backend") or "mvpainter")
+            pipeline = {
+                "geometry_model": "TripoSG",
+                "texture_backend": _tex_backend,
+                "texture_label": _TEX_LABELS.get(_tex_backend, _tex_backend),
+                "instance_type": _instance,
+                "has_pbr": bool(output_data.get("has_pbr") or output_data.get("normal_map")),
+                "rasterizer": output_data.get("rasterizer", ""),
+            }
+        # Record the user's pipeline choice + the license they accepted at deploy
+        # (consent provenance) into the persisted metadata.
+        pipeline["pipeline_type"] = _ptype
+        pipeline["license_name"] = _pinfo.get("license_name", "")
+        pipeline["license_accepted_at"] = _pinfo.get("license_accepted_at", "")
+        pipeline["commercial"] = _pinfo.get("commercial")
 
         # Update asset metadata — single entry, replaced on regenerate
         meta = store.load_generation_metadata(asset_id) or {}
@@ -750,14 +853,17 @@ async def get_3d_status(job_id: str):
             "faces": faces,
             "params": job["params"],
             "pipeline": pipeline,
-            "created_at": datetime.utcnow().isoformat(),
+            # tz-AWARE UTC (…+00:00). A naive utcnow().isoformat() has no zone
+            # suffix → JS `new Date()` parses it as LOCAL time → wrong displayed
+            # time (off by the local UTC offset). The suffix lets JS convert right.
+            "created_at": datetime.now(timezone.utc).isoformat(),
         }]
         meta["has_3d"] = True
         store.save_generation_metadata(asset_id, meta)
 
         # Update job status
         job["status"] = "complete"
-        job["completed_at"] = datetime.utcnow().isoformat()
+        job["completed_at"] = datetime.now(timezone.utc).isoformat()
         job["glb_url"] = f"/api/gallery/{asset_id}/3d/{version}"
         job["size_bytes"] = len(glb_bytes)
         job["vertices"] = vertices
