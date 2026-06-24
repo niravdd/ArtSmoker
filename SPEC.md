@@ -1431,9 +1431,18 @@ s3://your-bucket/
 └── artsmoker/async-jobs/*.json       ← Persisted async job state (1-day S3 lifecycle expiry)
 ```
 
-### 5.10.1 Image-to-3D Texture Backends & Dependency Licensing
+### 5.10.1 Image-to-3D: Two Pipelines, Texture Backends & Dependency Licensing
 
-The TripoSG image-to-3D pipeline generates **untextured geometry**, then a **texture backend** paints it. The backend is chosen **per-deployment** (baked into the endpoint as `ARTSMOKER_TEXTURE_BACKEND`) from the catalog's `texture_backends.options`. Three are offered, each with a distinct license profile that is **disclosed in the deploy dialog and must be explicitly accepted** (`attestation_required`) before deployment proceeds.
+ArtSmoker offers **two image-to-3D pipelines**, each a separate Custom Models catalog entry under the **3D Generation** category. The user picks which to deploy (and, when more than one is live, which to use per generation) — both are offered with their own cost and licensing; it is the user's choice.
+
+| Pipeline | Catalog key | How it works | Texture |
+|----------|-------------|--------------|---------|
+| **TripoSG + texture backend** | `triposg` | TripoSG generates untextured geometry; a chosen **texture backend** paints it | Selectable backend (below) |
+| **TRELLIS.2 (Full)** | `trellis2_image_to_3d` | A single TRELLIS.2 model generates **both geometry and PBR texture** (SLAT), no separate texturing step | Integrated (MIT + DINOv3) |
+
+Both take a single image and produce a GLB; the handler routes the job to whichever deployed instance the user selected (`library`/`predictor_type` = `image_to_3d` for TripoSG, `trellis2_image_to_3d` for the full pipeline). The full pipeline shares the runtime-built CUDA-ext stack (o_voxel/cumesh/flex_gemm/nvdiffrast) and the DINOv3/BiRefNet gated-repo handling with the texturer.
+
+**Texture backends (TripoSG pipeline only).** The backend is chosen **per-deployment** (baked into the endpoint as `ARTSMOKER_TEXTURE_BACKEND`) from the catalog's `texture_backends.options`. Three are offered, each with a distinct license profile that is **disclosed in the deploy dialog and must be explicitly accepted** (`attestation_required`) before deployment proceeds.
 
 | Backend | License | Commercial | Key model dependencies | Gated repos |
 |---------|---------|------------|------------------------|-------------|
@@ -1453,6 +1462,14 @@ The TripoSG image-to-3D pipeline generates **untextured geometry**, then a **tex
 | `ARTSMOKER_TRELLIS2_REMBG` | `birefnet` | `birefnet` (MIT) · `rmbg` (bundled `briaai/RMBG-2.0`, non-commercial, gated) | TRELLIS.2 ships a config that points its *internal* rembg at the gated Bria RMBG-2.0. Since we always feed a pre-cut RGBA image, TRELLIS.2's rembg **never executes** — but `from_pretrained` would still *download* it. By default the handler monkeypatches TRELLIS.2's BiRefNet wrapper to the MIT repo so the gated Bria model is never pulled, keeping TRELLIS.2 fully MIT. Set to `rmbg` to opt back into the bundled Bria model (requires accepting its license on HuggingFace). |
 
 Because BiRefNet (MIT) does the real cutout at equal/better quality, **RMBG is not required** for any backend; it remains available as a disclosed opt-in. Both flags default to the commercial-clean MIT path.
+
+**Pipeline selection & license consent at generate time (AssetViewer 3D tab).** `GET /api/generate/3d/instances` returns every deployed image-to-3D instance (both pipelines) enriched with `pipeline_type` (`triposg` | `trellis2_full`), the active license summary (`license_name`, `license_url`, `commercial`), the **deploy-time acceptance on record** (`license_accepted`, `license_accepted_at`), and `est_cost_usd` (= instance hourly rate × typical latency). The AssetViewer shows a **pipeline chooser only when more than one generator is deployed** (with exactly one, it's auto-selected); each option displays its est. cost + time and a license panel. Consent is **not re-prompted** at generate time — the binding attestation happens at deploy (see below); the panel instead states *"License accepted at deploy on `<date>`"* (or warns if no acceptance is on record). The chosen pipeline + the accepted license are persisted into the asset's metadata (`three_d_versions[].pipeline`: `pipeline_type`, `license_name`, `commercial`, `license_accepted_at`) for full provenance, shown back in the 3D tab's "Models & Tools Used".
+
+**Deploy-time acceptance (authoritative).** The Custom Models deploy dialog is where the user reads and accepts. For TripoSG it's the texture-backend `attestation_required` checkbox + dependency table; for the full TRELLIS.2 pipeline it's the model's `license_agreement` modal — which now also renders the structured `dependencies[]` table (same per-model name/license/commercial/gated/role breakdown). Acceptances are recorded in the user registry (`license_acceptances`, keyed by model/backend with a timestamp); the generate-time UI reads this to show the "accepted on `<date>`" status.
+
+> **GLB texture format note.** Generated GLBs encode their PBR atlas as **WebP** (`EXT_texture_webp`) to keep files compact (and within the SageMaker async response limit). This renders correctly in the in-app viewer (`model-viewer`), Blender 4.x, three.js, and modern Unity/Unreal glTF importers. macOS Preview/QuickLook converts GLB→USDZ and does **not** support WebP textures, so it renders the model black — a viewer limitation, not an asset defect. We intentionally keep WebP rather than degrade to PNG.
+>
+> **Timestamps** are written timezone-aware (`datetime.now(timezone.utc)` → `…+00:00`) so the frontend renders local time correctly. (A prior naive `utcnow().isoformat()` had no zone suffix and displayed the wrong time.)
 
 ### 5.11 Async Jobs (Self-Hosted Model Generation)
 

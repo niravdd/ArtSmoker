@@ -276,25 +276,36 @@ Genere mallas 3D completamente texturizadas y listas para producción a partir d
 
 Una sola imagen 2D de personaje (a la izquierda, en la pestaña PNG) se convierte en una malla 3D completamente texturizada que puede rotar libremente en el navegador. La pestaña **3D Model** ahora también lista los **modelos y herramientas** exactos usados para producir cada recurso (modelo de geometría, backend de texturizado, tipo de salida, instancia y parámetros de generación) — persistidos en los metadatos del recurso para una trazabilidad completa.
 
-**Cómo funciona:**
+**Dos pipelines — usted elige.** ArtSmoker ofrece dos formas de convertir una imagen en un modelo 3D texturizado. Despliegue cualquiera de ellos (o ambos) desde Custom Models; cuando ambos están activos, usted elige por generación en el Asset Viewer — cada uno muestra su costo est., tiempo y licencia para que decida con conocimiento de causa:
 
-1. **Extracción de geometría** — un transformador de flujo rectificado (TripoSG, 1.500 millones de parámetros, con licencia MIT) convierte una sola imagen 2D en una malla 3D de alta fidelidad utilizando una representación de campo de distancia con signo (SDF). La densidad de la malla escala con el preajuste de calidad (hasta ~1M de caras en la resolución de octree más alta) para un detalle nítido en rostros y equipamiento.
-2. **Texturizado** — la malla es pintada por un **backend de texturizado que usted elige al desplegar**. El predeterminado es **TRELLIS.2** (Microsoft, MIT) — un texturizador condicionado por SLAT/vóxeles que produce materiales PBR completos (color base + metálico-rugosidad + alfa) en un atlas de 4096², igualando la calidad de los mejores texturizadores propietarios mientras permanece licenciable comercialmente.
-3. **Salida PBR** — la malla texturizada se exporta como un GLB con mapas PBR integrados, lista para renderizado basado en física en cualquier motor moderno.
+| Pipeline | Cómo funciona | Licencia | Uso comercial | Ideal para |
+|----------|---------------|----------|---------------|------------|
+| TripoSG + backend de texturizado | TripoSG construye la malla; un backend de texturizado elegido (TRELLIS.2 / Hunyuan3D-Paint / MVPainter) la pinta | según el backend (abajo) | según el backend | Combinar geometría + un texturizador específico |
+| TRELLIS.2 (Full) | Un solo modelo genera tanto la geometría como la textura PBR (SLAT) | MIT | Sí — atribución "Built with DINOv3" | Producción, recursos comerciales, el camino más simple |
 
-**Elija su backend de texturizado — con la licencia a la vista.** Imagen a 3D admite tres texturizadores, elegidos por despliegue. Cada uno muestra su **licencia completa y el desglose de dependencias** en el diálogo de despliegue — cada modelo que descarga, la licencia de ese modelo y si es apto para uso comercial o restringido — y usted debe leerlo y aceptarlo antes de desplegar:
+**Cómo funciona el pipeline de TripoSG:**
 
-| Backend | Licencia | Uso comercial | Ideal para |
+1. **Extracción de geometría** — TripoSG (1.500 millones de parámetros, MIT) convierte una sola imagen 2D en una malla 3D de alta fidelidad (SDF). La densidad de la malla escala con el preajuste de calidad (hasta ~1M de caras).
+2. **Texturizado** — pintado por un backend de texturizado que usted elige al desplegar (predeterminado TRELLIS.2, Microsoft, MIT — condicionado por SLAT/vóxeles, PBR completo en un atlas de 4096²).
+3. **Salida PBR** — exportado como un GLB con mapas PBR integrados, listo para cualquier motor moderno.
+
+El pipeline TRELLIS.2 (Full) hace lo mismo de extremo a extremo en un solo modelo — sin un paso de texturizado por separado.
+
+**La licencia a la vista — al desplegar Y al generar.** Cada opción desplegable muestra su **licencia completa y el desglose de dependencias** en el diálogo de despliegue (cada modelo que descarga, su licencia, si es apto para uso comercial o restringido) — léalo y acéptelo antes de desplegar. Al generar, el Asset Viewer vuelve a mostrar la licencia y confirma "aceptada al desplegar el \<fecha\>" (sin un segundo clic):
+
+| Backend de texturizado | Licencia | Uso comercial | Ideal para |
 |---------|----------|---------------|------------|
 | **TRELLIS.2** *(predeterminado)* | MIT | ✅ Sí — requiere una atribución "Built with DINOv3" en su producto | Producción, recursos comerciales, máxima calidad |
 | **Hunyuan3D-Paint** | Tencent Community | ❌ No comercial | Investigación / no comercial, rostros excepcionales |
 | **MVPainter** | Apache-2.0 | ✅ Sí | Baking multi-vista comercial ligero |
 
-La eliminación de fondo (el paso de recorte previo al texturizado) usa **BiRefNet (MIT)** de forma predeterminada — totalmente limpio para uso comercial — con una alternativa no comercial (RMBG) disponible como opción explícita divulgada. ArtSmoker nunca descarga silenciosamente una dependencia restringida: cualquier cosa restringida o no comercial se nombra, se etiqueta y queda condicionada a una aceptación explícita.
+La eliminación de fondo usa **BiRefNet (MIT)** de forma predeterminada — totalmente limpio para uso comercial — con una alternativa no comercial (RMBG) disponible como opción explícita divulgada. ArtSmoker nunca descarga silenciosamente una dependencia restringida: cualquier cosa restringida o no comercial se nombra, se etiqueta y queda condicionada a una aceptación explícita.
 
-**Salida:** Formato GLB estándar con texturas PBR integradas — se importa directamente en Unity, Unreal Engine, Blender y otros motores de juego. El visor 3D interactivo soporta órbita, zoom y panorámica para inspección inmediata, y la pestaña **3D Model** lista los modelos y herramientas exactos usados (modelo de geometría, backend de texturizado, dependencias, instancia, parámetros) para una trazabilidad completa.
+**Salida:** Formato GLB estándar con texturas PBR integradas — se importa en Unity, Unreal Engine, Blender, etc. El visor 3D interactivo soporta órbita, zoom y panorámica, y la pestaña **3D Model** lista los modelos y herramientas exactos usados para una trazabilidad completa.
 
-**Infraestructura:** Se despliega mediante el mismo flujo de Custom Models en 1 clic, con el selector de backend en tiempo de despliegue mostrando la licencia, la tabla de dependencias, la instancia base y el costo/tiempo est. de cada opción. Se ejecuta en instancias GPU `ml.g6e`; escalado a cero en reposo — $0 de costo entre trabajos. El primer arranque en frío compila las extensiones CUDA una vez (luego se almacenan en caché en S3 para reinicios rápidos).
+**Infraestructura:** Ambos pipelines se despliegan mediante el mismo flujo de Custom Models en 1 clic, con el selector en tiempo de despliegue mostrando la licencia, la tabla de dependencias, la instancia base y el costo/tiempo est. de cada opción. Se ejecuta en instancias GPU `ml.g6e`; escalado a cero en reposo — $0 entre trabajos. El primer arranque en frío compila las extensiones CUDA una vez (luego se almacenan en caché en S3).
+
+> **Visualización del GLB:** las texturas son WebP (`EXT_texture_webp`) para mantener los archivos compactos — se renderiza perfectamente en el visor integrado, Blender 4.x, three.js y los importadores modernos de Unity/Unreal. macOS Preview/QuickLook no admite WebP-en-glTF y muestra el modelo en negro; use el visor integrado o cualquier herramienta glTF moderna.
 
 | Métrica | Valor |
 |---------|-------|

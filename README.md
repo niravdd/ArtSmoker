@@ -273,25 +273,36 @@ Generate production-ready, fully-textured 3D meshes from any 2D image — direct
 
 A single 2D character image (left, in the PNG tab) becomes a fully-textured 3D mesh you can rotate freely in-browser. The **3D Model** tab now also lists the exact **models & tools** used to produce each asset (geometry model, texturing backend, output type, instance, and generation parameters) — persisted to the asset's metadata for full provenance.
 
-**How it works:**
+**Two pipelines — your choice.** ArtSmoker offers two ways to turn an image into a textured 3D model. Deploy either (or both) from Custom Models; when both are live, you pick per generation in the Asset Viewer — each shows its est. cost, time, and licence so you decide informed:
+
+| Pipeline | How it works | Licence | Commercial use | Best for |
+|----------|--------------|---------|----------------|----------|
+| **TripoSG + texture backend** | TripoSG builds the mesh; a chosen texture backend (TRELLIS.2 / Hunyuan3D-Paint / MVPainter) paints it | per backend (below) | per backend | Mixing geometry + a specific texturer |
+| **TRELLIS.2 (Full)** | One model generates **both** geometry and PBR texture (SLAT) | MIT | ✅ Yes — "Built with DINOv3" attribution | Production, commercial assets, simplest path |
+
+**How the TripoSG pipeline works:**
 
 1. **Geometry extraction** — a rectified flow transformer (TripoSG, 1.5B parameters, MIT-licensed) converts a single 2D image into a high-fidelity 3D mesh using a signed distance field (SDF) representation. Mesh density scales with the quality preset (up to ~1M faces at the highest octree resolution) for crisp detail on faces and gear.
-2. **Texturing** — the mesh is painted by a **texture backend you choose at deploy time**. The default is **TRELLIS.2** (Microsoft, MIT) — a SLAT/voxel-conditioned texturer that produces full PBR materials (base colour + metallic-roughness + alpha) at a 4096² atlas, matching the quality of best-in-class proprietary texturers while remaining commercially licensable.
-3. **PBR output** — the textured mesh is exported as a GLB with embedded PBR maps, ready for physically-based rendering in any modern engine.
+2. **Texturing** — the mesh is painted by a **texture backend you choose at deploy time** (default **TRELLIS.2**, Microsoft, MIT — a SLAT/voxel-conditioned texturer producing full PBR materials at a 4096² atlas).
+3. **PBR output** — exported as a GLB with embedded PBR maps, ready for physically-based rendering in any modern engine.
 
-**Choose your texturing backend — with the licence in plain sight.** Image-to-3D supports three texturers, picked per-deployment. Each one shows its **full licence and dependency breakdown** in the deploy dialog — every model it pulls, that model's licence, and whether it's commercial-OK or gated — and you must read and accept before deploying:
+The **TRELLIS.2 (Full)** pipeline does the same end-to-end in a single model — no separate texturing step.
 
-| Backend | Licence | Commercial use | Best for |
+**Licence in plain sight — at deploy AND at generate.** Each deployable option shows its **full licence and dependency breakdown** in the deploy dialog — every model it pulls, that model's licence, and whether it's commercial-OK or gated — and you read and accept before deploying. At generate time, the Asset Viewer surfaces the licence again and confirms *"accepted at deploy on `<date>`"* (no second click needed):
+
+| Texture backend | Licence | Commercial use | Best for |
 |---------|---------|----------------|----------|
 | **TRELLIS.2** *(default)* | MIT | ✅ Yes — requires a "Built with DINOv3" attribution in your product | Production, commercial assets, highest quality |
 | **Hunyuan3D-Paint** | Tencent Community | ❌ Non-commercial | Research / non-commercial, exceptional faces |
 | **MVPainter** | Apache-2.0 | ✅ Yes | Lightweight commercial multi-view baking |
 
-Background removal (the cutout step before texturing) uses **BiRefNet (MIT)** by default — fully commercial-clean — with a non-commercial alternative (RMBG) available as a disclosed opt-in. ArtSmoker never silently pulls a restricted dependency: anything gated or non-commercial is named, badged, and gated behind an explicit acceptance.
+Background removal (the cutout step) uses **BiRefNet (MIT)** by default — fully commercial-clean — with a non-commercial alternative (RMBG) available as a disclosed opt-in. ArtSmoker never silently pulls a restricted dependency: anything gated or non-commercial is named, badged, and gated behind an explicit acceptance.
 
 **Output:** Standard GLB with embedded PBR textures — imports directly into Unity, Unreal Engine, Blender, and other game engines. The interactive 3D viewer supports orbit, zoom, and pan for immediate inspection, and the **3D Model** tab lists the exact models & tools used (geometry model, texturing backend, dependencies, instance, parameters) for full provenance.
 
-**Infrastructure:** Deploys via the same 1-click Custom Models flow, with the deploy-time backend picker showing each option's licence, dependency table, instance baseline, and est. cost/time. Runs on `ml.g6e` GPU instances; scale-to-zero when idle — $0 cost between jobs. First cold start builds the CUDA extensions once (then S3-cached for fast restarts).
+**Infrastructure:** Both pipelines deploy via the same 1-click Custom Models flow, with the deploy-time picker showing each option's licence, dependency table, instance baseline, and est. cost/time. Runs on `ml.g6e` GPU instances; scale-to-zero when idle — $0 cost between jobs. First cold start builds the CUDA extensions once (then S3-cached for fast restarts).
+
+> **Viewing the GLB:** textures are encoded as WebP (`EXT_texture_webp`) to keep files compact — renders perfectly in the in-app viewer, Blender 4.x, three.js, and modern Unity/Unreal importers. macOS Preview/QuickLook doesn't support WebP-in-glTF and will show the model black; use the in-app viewer or any modern glTF tool.
 
 | Metric | Value |
 |--------|-------|

@@ -276,25 +276,36 @@ Générez des maillages 3D entièrement texturés et prêts pour la production �
 
 Une seule image 2D de personnage (à gauche, dans l'onglet PNG) devient un maillage 3D entièrement texturé que vous pouvez faire pivoter librement dans le navigateur. L'onglet **3D Model** liste désormais aussi les **modèles et outils** exacts utilisés pour produire chaque asset (modèle de géométrie, backend de texturation, type de sortie, instance et paramètres de génération) — persistés dans les métadonnées de l'asset pour une traçabilité complète.
 
-**Fonctionnement :**
+**Deux pipelines — à vous de choisir.** ArtSmoker propose deux façons de transformer une image en modèle 3D texturé. Déployez l'un (ou les deux) depuis Custom Models ; lorsque les deux sont actifs, vous choisissez par génération dans l'Asset Viewer — chacun affiche son coût est., son temps et sa licence pour que vous décidiez en connaissance de cause :
 
-1. **Extraction de géométrie** — un transformeur à flux rectifié (TripoSG, 1,5 milliard de paramètres, sous licence MIT) convertit une seule image 2D en un maillage 3D haute fidélité en utilisant une représentation par champ de distance signée (SDF). La densité du maillage s'adapte au préréglage de qualité (jusqu'à ~1M de faces à la plus haute résolution d'octree) pour des détails nets sur les visages et l'équipement.
-2. **Texturation** — le maillage est peint par un **backend de texturation que vous choisissez au moment du déploiement**. Le choix par défaut est **TRELLIS.2** (Microsoft, MIT) — un texturateur conditionné par SLAT/voxels qui produit des matériaux PBR complets (couleur de base + métallique-rugosité + alpha) sur un atlas 4096², égalant la qualité des meilleurs texturateurs propriétaires tout en restant exploitable commercialement.
-3. **Sortie PBR** — le maillage texturé est exporté en GLB avec des cartes PBR intégrées, prêt pour le rendu basé sur la physique dans n'importe quel moteur moderne.
+| Pipeline | Fonctionnement | Licence | Usage commercial | Idéal pour |
+|----------|----------------|---------|------------------|------------|
+| TripoSG + backend de texturation | TripoSG construit le maillage ; un backend de texturation choisi (TRELLIS.2 / Hunyuan3D-Paint / MVPainter) le peint | selon le backend (ci-dessous) | selon le backend | Combiner géométrie + un texturateur précis |
+| TRELLIS.2 (Full) | Un seul modèle génère à la fois la géométrie et la texture PBR (SLAT) | MIT | ✅ Oui — attribution « Built with DINOv3 » | Production, assets commerciaux, voie la plus simple |
 
-**Choisissez votre backend de texturation — avec la licence bien en vue.** L'Image-to-3D prend en charge trois texturateurs, sélectionnés par déploiement. Chacun affiche son **détail complet de licence et de dépendances** dans la boîte de dialogue de déploiement — chaque modèle qu'il télécharge, la licence de ce modèle, et s'il est utilisable commercialement ou restreint — et vous devez le lire et l'accepter avant de déployer :
+**Fonctionnement du pipeline TripoSG :**
 
-| Backend | Licence | Usage commercial | Idéal pour |
-|---------|---------|------------------|------------|
+1. **Extraction de géométrie** — TripoSG (1,5 milliard de paramètres, MIT) convertit une seule image 2D en un maillage 3D haute fidélité (SDF). La densité du maillage s'adapte au préréglage de qualité (jusqu'à ~1M de faces).
+2. **Texturation** — peint par un backend de texturation que vous choisissez au moment du déploiement (par défaut TRELLIS.2, Microsoft, MIT — conditionné par SLAT/voxels, PBR complet sur un atlas 4096²).
+3. **Sortie PBR** — exporté en GLB avec des cartes PBR intégrées, prêt pour n'importe quel moteur moderne.
+
+Le pipeline TRELLIS.2 (Full) fait la même chose de bout en bout dans un seul modèle — sans étape de texturation séparée.
+
+**La licence bien en vue — au déploiement ET à la génération.** Chaque option déployable affiche son détail complet de licence et de dépendances dans la boîte de dialogue de déploiement (chaque modèle qu'elle télécharge, sa licence, exploitable commercialement ou restreint) — à lire et accepter avant de déployer. Au moment de la génération, l'Asset Viewer rappelle la licence et confirme « accepté au déploiement le <date> » (sans second clic) :
+
+| Backend de texturation | Licence | Usage commercial | Idéal pour |
+|------------------------|---------|------------------|------------|
 | **TRELLIS.2** *(par défaut)* | MIT | ✅ Oui — nécessite une attribution « Built with DINOv3 » dans votre produit | Production, assets commerciaux, qualité maximale |
-| **Hunyuan3D-Paint** | Tencent Community | ❌ Non commercial | Recherche / non commercial, visages exceptionnels |
+| **Hunyuan3D-Paint** | Tencent Community | ❌ Non / Non commercial | Recherche / non commercial, visages exceptionnels |
 | **MVPainter** | Apache-2.0 | ✅ Oui | Baking multi-vues commercial léger |
 
-La suppression d'arrière-plan (l'étape de détourage avant la texturation) utilise **BiRefNet (MIT)** par défaut — entièrement saine pour un usage commercial — avec une alternative non commerciale (RMBG) disponible en option déclarée. ArtSmoker ne télécharge jamais silencieusement une dépendance restreinte : tout ce qui est restreint ou non commercial est nommé, badgé et conditionné à une acceptation explicite.
+La suppression d'arrière-plan utilise **BiRefNet (MIT)** par défaut — entièrement saine pour un usage commercial — avec une alternative non commerciale (RMBG) disponible en option déclarée. ArtSmoker ne télécharge jamais silencieusement une dépendance restreinte : tout ce qui est restreint ou non commercial est nommé, badgé et conditionné à une acceptation explicite.
 
-**Sortie :** Format GLB standard avec textures PBR intégrées — s'importe directement dans Unity, Unreal Engine, Blender et d'autres moteurs de jeu. La visionneuse 3D interactive supporte l'orbite, le zoom et le panoramique pour une inspection immédiate, et l'onglet **3D Model** liste les modèles et outils exacts utilisés (modèle de géométrie, backend de texturation, dépendances, instance, paramètres) pour une traçabilité complète.
+**Sortie :** Format GLB standard avec textures PBR intégrées — s'importe dans Unity, Unreal Engine, Blender, etc. La visionneuse 3D interactive supporte l'orbite, le zoom et le panoramique, et l'onglet **3D Model** liste les modèles et outils exacts utilisés pour une traçabilité complète.
 
-**Infrastructure :** Se déploie via le même flux Custom Models en 1 clic, le sélecteur de backend au moment du déploiement affichant pour chaque option sa licence, son tableau de dépendances, son instance de base et le coût/temps estimés. Fonctionne sur des instances GPU `ml.g6e` ; mise à l'échelle à zéro en veille — $0 entre les tâches. Le premier démarrage à froid compile les extensions CUDA une seule fois (puis mises en cache sur S3 pour des redémarrages rapides).
+**Infrastructure :** Les deux pipelines se déploient via le même flux Custom Models en 1 clic, le sélecteur au moment du déploiement affichant pour chaque option sa licence, son tableau de dépendances, son instance de base et le coût/temps estimés. Fonctionne sur des instances GPU `ml.g6e` ; mise à l'échelle à zéro en veille — $0 entre les tâches. Le premier démarrage à froid compile les extensions CUDA une seule fois (puis mises en cache sur S3).
+
+> Visionner le GLB : les textures sont en **WebP** (**EXT_texture_webp**) pour garder des fichiers compacts — rendu parfait dans la visionneuse intégrée, Blender 4.x, three.js et les importateurs Unity/Unreal modernes. Preview/QuickLook de macOS ne prend pas en charge le WebP dans le glTF et affiche le modèle en noir ; utilisez la visionneuse intégrée ou tout outil glTF moderne.
 
 | Métrique | Valeur |
 |----------|--------|
