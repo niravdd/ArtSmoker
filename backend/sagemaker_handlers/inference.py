@@ -1760,10 +1760,20 @@ _TRELLIS2_DEPS_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/trellis2"
 _TRELLIS2_WHEEL_PREFIX = f"{_TRELLIS2_DEPS_PREFIX}/wheels/"  # cached o_voxel/cumesh/flexgemm wheels
 _TRELLIS2_REPO_REF = "main"                      # pin if upstream churns
 # o_voxel ships in-repo; cumesh + flexgemm are external git (per setup.sh).
+# CRITICAL: these MUST be cloned --recursive — CuMesh compiles its submodules
+# (cubvh, xatlas, eigen), and `pip install git+...` clones NON-recursively, so the
+# submodule sources are missing → a silently broken simplify/remesh that SHREDS
+# the mesh into thousands of fragments. TRELLIS.2's setup.sh clones --recursive
+# precisely for this. We clone to a local dir recursively, then pip-install the dir.
 _TRELLIS2_EXT_GIT = {
     "cumesh": "https://github.com/JeffreyXiang/CuMesh.git",
     "flex_gemm": "https://github.com/JeffreyXiang/FlexGEMM.git",
 }
+# NOTE: nvdiffrast is built by the SHARED _ensure_nvdiffrast (also used by the
+# working Hunyuan/MVPainter texturers) at HEAD. We deliberately do NOT pin it here
+# — changing the shared builder would disturb those validated paths. nvdiffrast is
+# JIT-compiled at runtime (arch auto-handled) and a low-probability contributor;
+# revisit pinning to v0.4.0 ONLY if the cumesh-submodule fix doesn't fully resolve.
 _trellis2_ops_bg = {"state": -1, "error": ""}
 _trellis2_ops_bg_lock = None
 # HF model repo (texturing checkpoints ~6.8 GB pulled at from_pretrained). The
@@ -2083,8 +2093,21 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     # (o_voxel can't import without flex_gemm). Build all in dependency order, then
     # verify the whole stack imports once at the end.
     _ensure_nvdiffrast(blocking=True)
-    _pip_install_build_cached("flex_gemm", f"git+{_TRELLIS2_EXT_GIT['flex_gemm']}", "flex_gemm", verify_import=False)
-    _pip_install_build_cached("cumesh", f"git+{_TRELLIS2_EXT_GIT['cumesh']}", "cumesh", verify_import=False)
+    # cumesh + flex_gemm: clone --recursive to a local dir (NOT `git+`, which skips
+    # submodules → broken simplify → shredded mesh), then build from that dir.
+    def _recursive_clone(name, url):
+        dest = os.path.join("/tmp", f"trellis2_ext_{name}")
+        if not os.path.isdir(os.path.join(dest, ".git")):
+            import shutil as _sh
+            if os.path.isdir(dest):
+                _sh.rmtree(dest, ignore_errors=True)
+            subprocess.check_call(["git", "clone", "--recursive", "--depth", "1", url, dest], timeout=600)
+            logger.info("Cloned %s --recursive to %s", name, dest)
+        return dest
+    _flex_dir = _recursive_clone("flex_gemm", _TRELLIS2_EXT_GIT["flex_gemm"])
+    _cumesh_dir = _recursive_clone("cumesh", _TRELLIS2_EXT_GIT["cumesh"])
+    _pip_install_build_cached("flex_gemm", _flex_dir, "flex_gemm", verify_import=False)
+    _pip_install_build_cached("cumesh", _cumesh_dir, "cumesh", verify_import=False)
     _pip_install_build_cached("o_voxel", os.path.join(_TRELLIS2_RUN_DIR, "o-voxel"), "o_voxel", verify_import=False)
     # Verify the full stack now that every extension is present.
     import importlib
