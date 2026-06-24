@@ -1084,7 +1084,16 @@
     "tex_backend_title": "テクスチャパイプライン",
     "tex_attest_label": "このパイプラインの有効なライセンスを保有しているか、非商用条件の範囲内で使用することを確認します。",
     "tex_attest_readlicense": "ライセンスを読む",
-    "tex_attest_deps": "このパイプラインが取得するモデルとライセンス"
+    "tex_attest_deps": "このパイプラインが取得するモデルとライセンス",
+    "gated_title": "HuggingFace リポジトリへのアクセス",
+    "gated_checking": "必要なリポジトリへのアクセスを確認中…",
+    "gated_recheck": "再確認",
+    "gated_check_failed": "リポジトリへのアクセスを確認できませんでした。デプロイは可能ですが、アクセス制限付きリポジトリは起動時に失敗する場合があります。",
+    "gated_badge": "アクセス制限付き",
+    "gated_open_hf": "HuggingFace で開く",
+    "gated_all_clear": "保存済みのトークンで、必要なすべてのリポジトリにアクセスできます。",
+    "gated_blocked_hint": "上記のすべてのリポジトリにアクセスできるようになるまで、デプロイはブロックされます。各リポジトリについて表示された手順を実行してから、再確認してください。",
+    "gated_needs_token": "アクセス制限付きリポジトリには HuggingFace トークンが必要です。「HF トークンを管理」からトークンを追加し、HuggingFace でアクセス制限に同意してから、再確認してください。"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

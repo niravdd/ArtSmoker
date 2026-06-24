@@ -5392,8 +5392,10 @@
         },
         "requirements": {
           "min_vram_gb": 40,
-          "recommended_instance": "ml.g6e.2xlarge",
+          "min_ram_gb": 28,
+          "recommended_instance": "ml.g6e.xlarge",
           "disk_gb": 80,
+          "_resource_note": "Measured baseline on g6e.xlarge (L40S 48 GB, 32 GiB RAM): peak 6.5 GB VRAM reserved, ~22 GB host RAM during to_glb bake. VRAM is hugely over-provisioned; host RAM is the real constraint and xlarge holds it with ~9 GB headroom. xlarge is the right-sized baseline — 2xlarge/4xlarge only add RAM safety margin.",
           "allowed_instances": [
             "ml.g6e.xlarge",
             "ml.g6e.2xlarge",
@@ -5429,8 +5431,9 @@
         "pricing": {
           "estimated_cost_per_image": 0.08,
           "instance_cost_per_hour": {
-            "ml.g6e.2xlarge": 2.35,
-            "ml.g6e.4xlarge": 4.7
+            "ml.g6e.xlarge": 2.61,
+            "ml.g6e.2xlarge": 2.8,
+            "ml.g6e.4xlarge": 3.76
           }
         },
         "version": "1.0",
@@ -5653,9 +5656,9 @@
         "pricing": {
           "estimated_cost_per_image": 0.05,
           "instance_cost_per_hour": {
-            "ml.g6e.xlarge": 1.86,
-            "ml.g6e.2xlarge": 2.35,
-            "ml.g6e.4xlarge": 4.7
+            "ml.g6e.xlarge": 2.61,
+            "ml.g6e.2xlarge": 2.8,
+            "ml.g6e.4xlarge": 3.76
           }
         },
         "version": "1.0",

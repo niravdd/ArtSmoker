@@ -1084,7 +1084,16 @@
     "tex_backend_title": "텍스처 파이프라인",
     "tex_attest_label": "이 파이프라인에 대한 유효한 라이선스를 보유하고 있거나 비상업적 조건 내에서 사용함을 확인합니다.",
     "tex_attest_readlicense": "라이선스 보기",
-    "tex_attest_deps": "이 파이프라인이 가져오는 모델 및 라이선스"
+    "tex_attest_deps": "이 파이프라인이 가져오는 모델 및 라이선스",
+    "gated_title": "HuggingFace 리포지토리 액세스",
+    "gated_checking": "필요한 리포지토리에 대한 액세스 확인 중…",
+    "gated_recheck": "다시 확인",
+    "gated_check_failed": "리포지토리 액세스를 확인할 수 없습니다. 그래도 배포할 수 있지만, 액세스 제한 리포지토리는 시작 시 실패할 수 있습니다.",
+    "gated_badge": "액세스 제한",
+    "gated_open_hf": "HuggingFace에서 열기",
+    "gated_all_clear": "저장된 토큰으로 필요한 모든 리포지토리에 액세스할 수 있습니다.",
+    "gated_blocked_hint": "위의 모든 리포지토리에 액세스할 수 있을 때까지 배포가 차단됩니다. 각 항목에 표시된 단계를 따른 후 다시 확인하세요.",
+    "gated_needs_token": "액세스 제한 리포지토리에는 HuggingFace 토큰이 필요합니다. “HF 토큰 관리”를 통해 토큰을 추가하고 HuggingFace에서 액세스 제한에 동의한 후 다시 확인하세요."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

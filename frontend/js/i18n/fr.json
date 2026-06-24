@@ -1084,7 +1084,16 @@
     "tex_backend_title": "Pipeline de texture",
     "tex_attest_label": "Je confirme détenir une licence valide pour ce pipeline, ou que je l'utiliserai dans le cadre de ses conditions non commerciales.",
     "tex_attest_readlicense": "Lire la licence",
-    "tex_attest_deps": "Modèles et licences récupérés par ce pipeline"
+    "tex_attest_deps": "Modèles et licences récupérés par ce pipeline",
+    "gated_title": "Accès aux dépôts HuggingFace",
+    "gated_checking": "Vérification de l'accès aux dépôts requis…",
+    "gated_recheck": "Revérifier",
+    "gated_check_failed": "Impossible de vérifier l'accès aux dépôts. Vous pouvez tout de même déployer, mais un dépôt à accès restreint risque d'échouer au démarrage.",
+    "gated_badge": "accès restreint",
+    "gated_open_hf": "Ouvrir sur HuggingFace",
+    "gated_all_clear": "Tous les dépôts requis sont accessibles avec votre jeton enregistré.",
+    "gated_blocked_hint": "Le déploiement est bloqué tant que tous les dépôts ci-dessus ne sont pas accessibles. Suivez l'étape indiquée pour chacun, puis revérifiez.",
+    "gated_needs_token": "Un dépôt à accès restreint nécessite un jeton HuggingFace. Ajoutez-en un via « Gérer le jeton HF », acceptez la restriction sur HuggingFace, puis revérifiez."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

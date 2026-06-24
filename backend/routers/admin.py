@@ -73,14 +73,24 @@ class CategoryUpdate(BaseModel):
     current: str | None = None
     region: str | None = None
     provider: str | None = None
+    pinned: bool | None = None
 
 
 @router.patch("/models/category/{name}")
 async def update_model_category(name: str, body: CategoryUpdate):
-    """Update a model category (fast_llm, complex_llm, fallback_llm, voice)."""
+    """Update a model category (fast_llm, complex_llm, fallback_llm, voice).
+
+    A manual `current` change pins the category (pinned=True) so the AWS-Sync
+    auto-roll won't override the user's explicit pick — it will only notify when
+    a newer Claude is available. Pass pinned=False explicitly to opt back into
+    auto-roll.
+    """
     updates = body.model_dump(exclude_unset=True)
     if not updates:
         raise HTTPException(400, detail="No updates provided")
+    # Explicitly choosing a model = pinning it (unless the caller says otherwise).
+    if "current" in updates and "pinned" not in updates:
+        updates["pinned"] = True
     result = update_category(name, updates, user_pref=True)
     logger.info("Updated category '%s': %s", name, updates)
     return result
@@ -1224,6 +1234,159 @@ async def list_bedrock_regions():
     return {"regions": regions, "count": len(regions)}
 
 
+def _claude_version_tuple(model_id: str) -> tuple:
+    """Parse a sortable version key from a Claude model_id.
+
+    Returns (major, minor, date) so newer models sort higher. Examples:
+      us.anthropic.claude-sonnet-4-6     → (4, 6, 0)
+      us.anthropic.claude-opus-4-6-v1    → (4, 6, 0)  (patch -vN ignored for line)
+      anthropic.claude-3-5-sonnet-20241022-v2:0 → (3, 5, 20241022)
+    Unparseable IDs sort lowest. Used to find the newest Sonnet/Opus on Sync.
+    """
+    mid = model_id.lower()
+    major = minor = date = 0
+    # Minor is 1-3 digits — never an 8-digit date (claude-sonnet-4-20250514 form).
+    m = _re.search(r'claude-(?:opus|sonnet|haiku)-(\d+)-(\d{1,3})(?!\d)', mid)
+    if m:
+        major, minor = int(m.group(1)), int(m.group(2))
+    else:
+        m = _re.search(r'claude-(\d+)-(\d{1,3})(?!\d)', mid)  # older claude-3-5-... form
+        if m:
+            major, minor = int(m.group(1)), int(m.group(2))
+    dm = _re.search(r'-(\d{8})(?:-|$|:)', mid)
+    if dm:
+        date = int(dm.group(1))
+    return (major, minor, date)
+
+
+def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
+    """Smartly roll fast_llm/complex_llm to the newest available Claude on Sync.
+
+    End-users aren't tech-savvy and can get stranded on an older/deprecated model.
+    On every AWS Sync we re-point:
+      • fast_llm    → newest ACTIVE Claude **Sonnet** discovered in chat_models
+      • complex_llm → newest ACTIVE Claude **Opus** discovered in chat_models
+    Selection prefers `us.` cross-region inference profiles, ACTIVE over LEGACY,
+    and the highest (major, minor, date) via _claude_version_tuple. The category
+    region is preserved if the chosen model is available there, else it falls back
+    to the model's home region.
+
+    Respects explicit user pins: if categories.{name}.pinned is True (set when the
+    user manually picks a model in Model Settings), we DON'T switch — we only log
+    that a newer model is available. Writes to the BASE registry via _save() so the
+    smart default ships to everyone; user.json overrides still win on reload.
+
+    Returns a list of human-readable notices (also pushed to `progress`).
+    """
+    notices = []
+    chat_models = registry.get("chat_models", {})
+    if not chat_models:
+        return notices
+
+    def _newest(line: str):
+        """Newest ACTIVE Claude model entry for 'sonnet'/'opus'. Returns (key, cfg) or None."""
+        cands = []
+        for k, cfg in chat_models.items():
+            mid = cfg.get("model_id", "").lower()
+            if "claude" not in mid or line not in mid:
+                continue
+            if cfg.get("provider", "").lower() not in ("anthropic", ""):
+                continue
+            lifecycle = (cfg.get("lifecycle") or "ACTIVE").upper()
+            prefer_profile = 1 if cfg.get("model_id", "").startswith("us.") else 0
+            active = 1 if lifecycle == "ACTIVE" else 0
+            cands.append(((active, prefer_profile) + _claude_version_tuple(mid), k, cfg))
+        if not cands:
+            return None
+        cands.sort(key=lambda t: t[0])
+        _, k, cfg = cands[-1]
+        return k, cfg
+
+    targets = (("fast_llm", "sonnet", "Fast LLM"), ("complex_llm", "opus", "Complex LLM"))
+    for cat_name, line, label in targets:
+        best = _newest(line)
+        if not best:
+            continue
+        _key, cfg = best
+        new_id = cfg.get("model_id", "")
+        if not new_id:
+            continue
+        cat = registry.setdefault("categories", {}).setdefault(cat_name, {})
+        cur_id = cat.get("current", "")
+
+        # Preserve category region if the chosen model is offered there.
+        avail = cfg.get("available_regions", []) or []
+        cur_region = cat.get("region", "")
+        new_region = cur_region if cur_region in avail else cfg.get("region", cur_region)
+
+        if new_id == cur_id and new_region == cur_region:
+            continue  # already on the newest — nothing to do
+
+        # Is the newer model actually newer than the current pick?
+        is_upgrade = _claude_version_tuple(new_id) > _claude_version_tuple(cur_id)
+
+        if cat.get("pinned"):
+            if is_upgrade:
+                msg = (f"{label}: staying on pinned {cur_id} — newer {new_id} "
+                       f"is available (unpin in Model Settings to switch)")
+                notices.append(msg)
+                if progress:
+                    progress(msg)
+            continue
+
+        if not is_upgrade and cur_id:
+            continue  # don't downgrade or sidestep
+
+        cat["current"] = new_id
+        cat["region"] = new_region
+        cat["provider"] = cfg.get("provider", "Anthropic") or "Anthropic"
+        cat.setdefault("api_type", "converse")
+        # Self-correcting param gate: stamp whether this model still takes
+        # `temperature` so _build_inference_config stays data-driven (G-2/G-3).
+        _probe_and_record_temperature(new_id, new_region, registry)
+        msg = f"{label}: auto-switched to newest Claude → {new_id} ({new_region})"
+        notices.append(msg)
+        logger.info(msg)
+        if progress:
+            progress(msg)
+
+    return notices
+
+
+def _probe_and_record_temperature(model_id: str, region: str, registry: dict):
+    """Probe a model with `temperature` once and record support on its chat_models
+    entry, so the param gate (_model_supports_temperature) needs no hardcoding.
+
+    A 1-token Converse call: if it succeeds, temperature is supported; if it fails
+    specifically because temperature is unsupported/deprecated, record that. Other
+    errors (throttling, access) are ignored — we don't want to mislabel on a fluke.
+    """
+    try:
+        import boto3 as _b
+        client = _b.client("bedrock-runtime", region_name=region)
+        try:
+            client.converse(
+                modelId=model_id,
+                messages=[{"role": "user", "content": [{"text": "hi"}]}],
+                inferenceConfig={"maxTokens": 1, "temperature": 0.0},
+            )
+            supports = True
+        except Exception as exc:
+            txt = str(exc).lower()
+            if "temperature" in txt and ("not support" in txt or "deprecated" in txt
+                                         or "unsupported" in txt or "invalid" in txt):
+                supports = False
+            else:
+                return  # inconclusive — leave the entry untouched
+        # Record on every chat_models entry sharing this model_id.
+        for cfg in registry.get("chat_models", {}).values():
+            if cfg.get("model_id") == model_id:
+                cfg["supports_temperature"] = supports
+        logger.info("Param gate: %s supports_temperature=%s", model_id, supports)
+    except Exception as exc:
+        logger.debug("Temperature probe skipped for %s: %s", model_id, exc)
+
+
 @router.post("/discover/refresh-all")
 async def refresh_all_regions():
     """Scan ALL Bedrock-supported AWS regions for image + video models and update the registry."""
@@ -1334,6 +1497,17 @@ async def refresh_all_regions():
                 registry["video_models"][key]["enabled"] = False
                 disabled.append(key)
                 logger.debug("Disabled video model %s — no longer found in any region", key)
+
+        # Step 5: Smartly roll fast_llm/complex_llm to the newest Claude available.
+        # Keeps non-technical users off deprecated models without manual config.
+        # Auto-switch + notify; respects explicit user pins (categories.*.pinned).
+        _progress("Selecting newest Claude models for fast/complex tasks...")
+        try:
+            roll_notices = _auto_roll_llm_categories(registry, _progress)
+            for _n in roll_notices:
+                logger.info("Auto-roll: %s", _n)
+        except Exception as exc:
+            logger.warning("LLM auto-roll skipped: %s", exc)
 
         # Stamp as discovered — written to .user.json (gitignored) so fresh clones still trigger auto-Sync
         from datetime import datetime, timezone

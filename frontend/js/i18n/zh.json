@@ -1084,7 +1084,16 @@
     "tex_backend_title": "纹理管线",
     "tex_attest_label": "我确认持有该管线的有效许可，或将在其非商用条款范围内使用。",
     "tex_attest_readlicense": "阅读许可",
-    "tex_attest_deps": "此管线拉取的模型与许可"
+    "tex_attest_deps": "此管线拉取的模型与许可",
+    "gated_title": "HuggingFace 仓库访问",
+    "gated_checking": "正在检查对所需仓库的访问权限…",
+    "gated_recheck": "重新检查",
+    "gated_check_failed": "无法验证仓库访问权限。您仍可部署，但受限仓库可能在启动时失败。",
+    "gated_badge": "受限",
+    "gated_open_hf": "在 HuggingFace 中打开",
+    "gated_all_clear": "使用您已保存的令牌可访问所有所需仓库。",
+    "gated_blocked_hint": "在上述每个仓库均可访问之前，部署将被阻止。请按每个仓库显示的步骤操作，然后重新检查。",
+    "gated_needs_token": "受限仓库需要 HuggingFace 令牌。请通过“管理 HF 令牌”添加一个令牌，在 HuggingFace 上接受访问限制，然后重新检查。"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

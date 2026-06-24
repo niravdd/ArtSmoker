@@ -55,6 +55,109 @@ def _record_license_acceptance(model_key: str, license_name: str):
         logger.warning("Failed to record license acceptance for %s: %s", model_key, e)
 
 
+def _hf_repos_for_model(model: dict) -> list[dict]:
+    """Enumerate the HuggingFace repos a model pulls at runtime + their gated flag.
+
+    A model's weights come from its `source` repo PLUS any HF repos listed in
+    `license_agreement.dependencies` (e.g. TRELLIS.2 pulls facebook/dinov3, which
+    is gated). De-duplicates by repo_id, preserving order (source first). Each
+    entry: {repo_id, name, gated (declared), license_url}. Used by the gated-access
+    pre-check so we probe EVERY repo the deploy will need, not just the main one.
+    """
+    repos: dict[str, dict] = {}
+
+    def _add(repo_id, name=None, gated=False, url=None):
+        if not repo_id:
+            return
+        rid = repo_id.strip()
+        # Normalise a full URL down to "org/name".
+        if "huggingface.co/" in rid:
+            rid = rid.split("huggingface.co/")[-1].strip("/")
+        if not rid or rid in repos:
+            return
+        repos[rid] = {
+            "repo_id": rid,
+            "name": name or rid,
+            "gated": bool(gated),
+            "license_url": url or f"https://huggingface.co/{rid}",
+        }
+
+    src = model.get("source", {}) or {}
+    if src.get("type") == "huggingface":
+        _add(src.get("repo_id"), gated=model.get("requires_hf_auth", False))
+
+    for dep in (model.get("license_agreement", {}) or {}).get("dependencies", []) or []:
+        repo = dep.get("repo_id") or dep.get("hf_repo") or dep.get("url", "")
+        if "huggingface.co/" in (repo or "") or dep.get("repo_id") or dep.get("hf_repo"):
+            _add(repo, name=dep.get("name"), gated=dep.get("gated", False),
+                 url=dep.get("url"))
+
+    return list(repos.values())
+
+
+def _check_gated_access(model: dict, token: str | None) -> dict:
+    """Probe each HF repo a model needs and report per-repo accessibility.
+
+    Uses huggingface_hub.auth_check(repo_id, token=...) which distinguishes:
+      • accessible        → ok
+      • GatedRepoError    → token valid but gate not yet accepted by this account
+      • RepositoryNotFound→ private/typo/token lacks visibility
+      • 401/no token      → authentication missing
+    Returns {has_token, repos:[{repo_id, gated, accessible, status, action, license_url}],
+             all_clear, blocking:[repo_id,...]}. `action` gives the exact next step.
+    """
+    from huggingface_hub import auth_check
+    from huggingface_hub.utils import (
+        GatedRepoError, RepositoryNotFoundError, HfHubHTTPError,
+    )
+
+    repos = _hf_repos_for_model(model)
+    out = {"has_token": bool(token), "repos": [], "all_clear": True, "blocking": []}
+
+    for r in repos:
+        rid = r["repo_id"]
+        entry = {
+            "repo_id": rid, "name": r["name"], "gated": r["gated"],
+            "license_url": r["license_url"], "accessible": False,
+            "status": "unknown", "action": "",
+        }
+        try:
+            auth_check(rid, token=token)
+            entry.update(accessible=True, status="ok", action="")
+        except GatedRepoError:
+            entry.update(
+                accessible=False, status="gated_not_accepted", gated=True,
+                action=(f"Open {r['license_url']} while signed in to the SAME "
+                        "HuggingFace account as your token, and click "
+                        "“Agree and access repository”. Then retry."),
+            )
+        except RepositoryNotFoundError:
+            entry.update(
+                accessible=False, status="not_found",
+                action=(f"Repo not visible to this token. Confirm the name "
+                        f"({rid}) and that your token can read it."),
+            )
+        except HfHubHTTPError as exc:
+            code = getattr(getattr(exc, "response", None), "status_code", None)
+            if code in (401, 403):
+                entry.update(
+                    accessible=False, status="auth_required",
+                    action=("Add or refresh your HuggingFace token "
+                            "(huggingface.co/settings/tokens, Read scope)."),
+                )
+            else:
+                entry.update(accessible=False, status="error", action=str(exc)[:200])
+        except Exception as exc:
+            entry.update(accessible=False, status="error", action=str(exc)[:200])
+
+        if not entry["accessible"]:
+            out["all_clear"] = False
+            out["blocking"].append(rid)
+        out["repos"].append(entry)
+
+    return out
+
+
 # ── Catalog ───────────────────────────────────────────────────────────────
 
 @router.get("/catalog")
@@ -766,6 +869,33 @@ def check_hf_token_status():
     from backend.services.sagemaker_deployer import has_hf_token, get_hf_token_arn
     stored = has_hf_token()
     return {"stored": stored, "arn": get_hf_token_arn() if stored else None}
+
+
+@router.get("/gated-access/{model_key}")
+def check_gated_access(model_key: str):
+    """Pre-check whether the stored HF token can access every repo this model needs.
+
+    Drives the deploy dialog's gated-repo UX: instead of a bare "gated · accept on
+    HF" badge, the frontend can show, per repo, a ✓ (accessible) or ✗ with the exact
+    next step (accept the gate on HF, or add a token). Probes the SAME repos the
+    deploy will pull — the model's source plus any gated dependencies (e.g.
+    TRELLIS.2 → facebook/dinov3). Uses the shared stored token; never returns it.
+    """
+    from backend.services.custom_models import get_catalog_model
+    from backend.services.sagemaker_deployer import _retrieve_hf_token, has_hf_token
+
+    model = get_catalog_model(model_key)
+    if not model:
+        raise HTTPException(404, detail=f"Unknown model: {model_key}")
+
+    token = _retrieve_hf_token() if has_hf_token() else None
+    result = _check_gated_access(model, token)
+    result["model_key"] = model_key
+    result["requires_hf_auth"] = bool(model.get("requires_hf_auth"))
+    # If gated repos exist but no token is stored, surface the token step first.
+    if not result["has_token"] and any(r["gated"] for r in result["repos"]):
+        result["needs_token"] = True
+    return result
 
 
 class UpdateHfTokenRequest(BaseModel):

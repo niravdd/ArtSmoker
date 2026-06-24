@@ -1525,6 +1525,15 @@
 
                         ${textureHtml}
 
+                        <div class="deploy-gated-access hidden p-2.5 rounded-lg border" data-state="loading">
+                            <div class="flex items-center justify-between gap-2 mb-1.5">
+                                <p class="text-[10px] font-semibold uppercase tracking-wider deploy-gated-title">${t('custom_models.gated_title')}</p>
+                                <button type="button" class="deploy-gated-recheck text-[9px] px-2 py-0.5 rounded border border-brand-border/40 text-brand-text-muted hover:bg-white/5 hidden">${t('custom_models.gated_recheck')}</button>
+                            </div>
+                            <div class="deploy-gated-rows space-y-1.5"></div>
+                            <p class="deploy-gated-hint text-[9px] text-brand-text-muted/80 mt-1.5"></p>
+                        </div>
+
                         <div>
                             <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('custom_models.instance')}</label>
                             ${allOptions.length > 0 ? `<select class="deploy-instance input w-full text-xs">${instanceHtml}</select>` : instanceHtml}
@@ -1702,13 +1711,85 @@
                     const sel = backdrop.querySelector('input[name="deploy-texbackend"]:checked');
                     const needAttest = sel?.dataset.attest === '1';
                     const attested = attestCheck?.checked;
-                    const blocked = (needAttest && !attested) || !!deployBtn.dataset.quotaBlocked;
+                    const blocked = (needAttest && !attested)
+                        || !!deployBtn.dataset.quotaBlocked
+                        || deployBtn.dataset.gatedBlocked === '1';
                     deployBtn.disabled = blocked;
                     deployBtn.classList.toggle('opacity-50', blocked);
                 }
                 backdrop.querySelectorAll('input[name="deploy-texbackend"]').forEach(r => r.addEventListener('change', syncTextureBackend));
                 attestCheck?.addEventListener('change', updateDeployGate);
                 if (tbOptions) syncTextureBackend();
+
+                // ── Gated-repo access pre-check (G-5) ──────────────────────────
+                // Probe — via the backend, using the stored HF token — whether
+                // EVERY repo this deploy will pull is actually accessible. Replaces
+                // the vague "gated · accept on HF" badge with a per-repo ✓ / ✗ and
+                // the exact next step, and blocks deploy while a required repo is
+                // inaccessible (with a clear reason, not a silent failure 10 min in).
+                const gatedBox = backdrop.querySelector('.deploy-gated-access');
+                const gatedRows = backdrop.querySelector('.deploy-gated-rows');
+                const gatedHint = backdrop.querySelector('.deploy-gated-hint');
+                const gatedRecheck = backdrop.querySelector('.deploy-gated-recheck');
+                const esc = (s) => this._esc(s);
+                const runGatedCheck = async () => {
+                    if (!gatedBox) return;
+                    gatedBox.classList.remove('hidden');
+                    gatedBox.className = 'deploy-gated-access p-2.5 rounded-lg border border-brand-border/40 bg-white/5';
+                    gatedRows.innerHTML = `<p class="text-[10px] text-brand-text-muted">${t('custom_models.gated_checking')}</p>`;
+                    gatedHint.textContent = '';
+                    if (gatedRecheck) gatedRecheck.classList.add('hidden');
+                    let data;
+                    try {
+                        const resp = await fetch(`/api/custom-models/gated-access/${encodeURIComponent(modelKey)}`);
+                        data = await resp.json();
+                        if (!resp.ok) throw new Error(data.detail || 'check failed');
+                    } catch (e) {
+                        // Don't hard-block on a probe failure — show a soft warning.
+                        gatedRows.innerHTML = `<p class="text-[10px] text-amber-400">${t('custom_models.gated_check_failed')}</p>`;
+                        if (gatedRecheck) gatedRecheck.classList.remove('hidden');
+                        if (deployBtn) { deployBtn.dataset.gatedBlocked = '0'; updateDeployGate(); }
+                        return;
+                    }
+                    // No HF repos at all → hide the panel entirely.
+                    if (!data.repos || !data.repos.length) {
+                        gatedBox.classList.add('hidden');
+                        if (deployBtn) { deployBtn.dataset.gatedBlocked = '0'; updateDeployGate(); }
+                        return;
+                    }
+                    gatedRows.innerHTML = data.repos.map(r => {
+                        const ok = r.accessible;
+                        const icon = ok
+                            ? `<span class="text-emerald-400">✓</span>`
+                            : `<span class="text-amber-400">✗</span>`;
+                        const link = `<a href="${esc(r.license_url)}" target="_blank" rel="noopener" class="text-brand-accent underline">${esc(r.name)}</a>`;
+                        const action = ok ? '' :
+                            `<div class="text-[9px] text-amber-300/90 mt-0.5">${esc(r.action)}
+                                <a href="${esc(r.license_url)}" target="_blank" rel="noopener" class="text-brand-accent underline ml-1">${t('custom_models.gated_open_hf')} ↗</a></div>`;
+                        return `<div class="text-[10px] leading-relaxed">
+                            <div class="flex items-center gap-1.5">${icon} ${link}
+                                ${r.gated ? `<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.gated_badge')}</span>` : ''}
+                            </div>${action}
+                        </div>`;
+                    }).join('');
+                    if (gatedRecheck) gatedRecheck.classList.remove('hidden');
+
+                    if (data.all_clear) {
+                        gatedBox.className = 'deploy-gated-access p-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5';
+                        gatedHint.textContent = t('custom_models.gated_all_clear');
+                        if (deployBtn) { deployBtn.dataset.gatedBlocked = '0'; }
+                    } else {
+                        gatedBox.className = 'deploy-gated-access p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5';
+                        gatedHint.innerHTML = data.needs_token
+                            ? t('custom_models.gated_needs_token')
+                            : t('custom_models.gated_blocked_hint');
+                        // Block deploy ONLY when a gated/required repo is inaccessible.
+                        if (deployBtn) { deployBtn.dataset.gatedBlocked = '1'; }
+                    }
+                    updateDeployGate();
+                };
+                if (gatedRecheck) gatedRecheck.addEventListener('click', runGatedCheck);
+                runGatedCheck();
 
                 backdrop.querySelector('.deploy-cancel').addEventListener('click', () => {
                     backdrop.remove();

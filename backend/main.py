@@ -175,12 +175,24 @@ async def lifespan(app: FastAPI):
         )
     elif _aws_status["errors"]:
         logger.warning(
-            "AWS credentials valid (%s) but some Bedrock checks failed:\n  %s",
+            "Amazon Bedrock access — credentials OK (%s),\n"
+            "  but some checks failed:\n  • %s",
             _aws_status["identity"],
-            "\n  ".join(_aws_status["errors"]),
+            "\n  • ".join(_aws_status["errors"]),
         )
     else:
-        logger.info("All AWS checks passed. Identity: %s", _aws_status["identity"])
+        # Sanity check, not an exhaustive audit: we probe a representative
+        # sample of the models we may use to confirm the IAM role can reach
+        # Amazon Bedrock. Concise + multi-line so it never overflows a typical
+        # console width.
+        _probes = [p for p in _aws_status.get("probes", []) if p.get("ok")]
+        logger.info(
+            "Amazon Bedrock access verified — the IAM role can reach a\n"
+            "  representative sample of %d model(s) we may use:",
+            len(_probes),
+        )
+        for _p in _probes:
+            logger.info("    ✓ %s — %s (%s)", _p["role"], _p["model_id"], _p["region"])
 
     # Auto-Sync model registry if stale or missing (requires valid AWS credentials)
     if _check_and_refresh_configs._needs_registry_sync and _aws_status.get("credentials"):

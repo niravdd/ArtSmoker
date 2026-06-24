@@ -81,23 +81,35 @@ def validate_aws_credentials() -> dict:
         logger.error(msg)
         return result
 
-    # 2. Check Bedrock access using LLM from registry (fast_llm category)
-    try:
-        llm_id, llm_region = _pick_llm_model("fast")
-        client = _get_client(llm_region)
-        client.converse(
-            modelId=llm_id,
-            messages=[{"role": "user", "content": [{"text": "hi"}]}],
-            inferenceConfig={"maxTokens": 1, "temperature": 0},
-        )
-        result["models_region"] = True
-        logger.info("Bedrock LLM (%s in %s) OK.", llm_id, llm_region)
-    except Exception as exc:
-        msg = f"Bedrock LLM check failed: {exc}"
-        result["errors"].append(msg)
-        logger.warning(msg)
+    # 2. Probe the registry-configured LLMs — BOTH tiers (fast_llm + complex_llm),
+    # since they're typically different models with different access/params. Each
+    # is a cheap 1-token Converse call. inferenceConfig is built via the SAME
+    # registry-driven gate as runtime (_build_inference_config) so a model that
+    # deprecates `temperature` (e.g. Opus 4.8) doesn't make this probe fail.
+    # result["probes"] records each for an honest, representative summary line.
+    result.setdefault("probes", [])
+    _llm_ok = True
+    for _tier, _label in (("fast", "Fast LLM"), ("complex", "Complex LLM")):
+        _id, _region = "?", "?"
+        try:
+            _id, _region = _pick_llm_model(_tier)
+            if not _id:
+                continue
+            _client = _get_client(_region)
+            _client.converse(
+                modelId=_id,
+                messages=[{"role": "user", "content": [{"text": "hi"}]}],
+                inferenceConfig=_build_inference_config(_id, 1, 0.0),
+            )
+            result["probes"].append({"role": _label, "model_id": _id, "region": _region, "ok": True})
+        except Exception as exc:
+            _llm_ok = False
+            result["probes"].append({"role": _label, "model_id": _id, "region": _region, "ok": False})
+            result["errors"].append(f"Amazon Bedrock {_label} check failed: {exc}")
+    result["models_region"] = _llm_ok
 
     # 3. Check Bedrock access for first enabled image model from registry
+    img_model_id, img_region = "?", "?"
     try:
         from backend.services.model_registry import get_enabled_image_model_keys_sorted, get_image_model
         img_keys = get_enabled_image_model_keys_sorted()
@@ -114,17 +126,20 @@ def validate_aws_credentials() -> dict:
                 body='{"prompt":"test","output_format":"png","aspect_ratio":"1:1"}',
             )
             result["images_region"] = True
-            logger.info("Bedrock image model (%s in %s) OK.", img_model_id, img_region)
+            result["probes"].append({"role": "Image model", "model_id": img_model_id,
+                                     "region": img_region, "ok": True})
         else:
             result["images_region"] = False
             result["errors"].append("No enabled image models in registry.")
     except client.exceptions.ValidationException:
         # ValidationException means we reached the model — access works
         result["images_region"] = True
+        result["probes"].append({"role": "Image model", "model_id": img_model_id,
+                                 "region": img_region, "ok": True})
     except Exception as exc:
-        msg = f"Bedrock image model check: {exc}"
-        result["errors"].append(msg)
-        logger.warning(msg)
+        result["probes"].append({"role": "Image model", "model_id": img_model_id,
+                                 "region": img_region, "ok": False})
+        result["errors"].append(f"Amazon Bedrock image model check failed: {exc}")
 
     return result
 
