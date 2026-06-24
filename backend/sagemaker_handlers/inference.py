@@ -3824,15 +3824,26 @@ def _predict_trellis2_full(input_data, model_dict):
     # standard-quality choice. Overridable per-request via resolution.
     _res = str(input_data.get("resolution", "1024"))
     pipeline_type = {"512": "512", "1024": "1024_cascade", "1536": "1536_cascade"}.get(_res, "1024_cascade")
+    # to_glb postprocess knobs — per-request tunable for live A/B (the geometry was
+    # coming out shredded; isolating which postprocess param is responsible without
+    # a redeploy per trial). remesh=False uses o_voxel's branch WITH the topology
+    # cleanup (remove_small_connected_components / repair_non_manifold /
+    # fill_holes / unify_orientations); remesh=True skips that cleanup.
+    def _as_float(v, d):
+        try: return float(v)
+        except (TypeError, ValueError): return d
+    def _as_bool(v, d):
+        if v is None: return d
+        return str(v).lower() in ("1", "true", "yes", "on")
+    remesh = _as_bool(input_data.get("remesh"), False)        # default → cleanup branch
+    remesh_project = _as_float(input_data.get("remesh_project"), 0.9)  # to_glb's own default
 
     _log_gpu_mem("before TRELLIS.2 full run")
-    # CRITICAL: preprocess_image=True. TRELLIS.2's preprocess_image does more than
-    # background removal — it resizes to the model's expected conditioning size,
-    # bbox-recenters the subject, and premultiplies alpha. It is RGBA-safe (uses
-    # our cutout's alpha directly, skips its own rembg). Passing False (skipping
-    # it) feeds a mis-normalized image → bad sparse structure → SHREDDED geometry
-    # (61k disconnected fragments — observed on BOTH the soldier and TRELLIS.2's
-    # own stock example image). The texturer path already relies on this default.
+    # preprocess_image=True (TRELLIS.2 resizes/recenters/premultiplies; RGBA-safe,
+    # skips its own rembg) + pipeline_type set like the official app (1024_cascade).
+    # This made generation rich (12M-face raw mesh on the stock image) but the GLB
+    # postprocess still shredded it — the remaining variable is the to_glb remesh/
+    # cleanup path (knobs above), under A/B.
     out = pipe.run(ref_rgba, seed=seed, preprocess_image=True, pipeline_type=pipeline_type)
     mesh = out[0]
     logger.info("TRELLIS.2 full run complete in %.1fs", _t.time() - t0)
@@ -3855,11 +3866,13 @@ def _predict_trellis2_full(input_data, model_dict):
         aabb=[[-0.5, -0.5, -0.5], [0.5, 0.5, 0.5]],
         decimation_target=decimation_target,
         texture_size=texture_size,
-        remesh=True,
+        remesh=remesh,
         remesh_band=1,
-        remesh_project=0,
+        remesh_project=remesh_project,
         verbose=True,
     )
+    logger.info("TRELLIS.2 to_glb: remesh=%s remesh_project=%s decimation_target=%d texture_size=%d",
+                remesh, remesh_project, decimation_target, texture_size)
     temp_dir = _tf.mkdtemp(prefix="artsmoker_trellis2_full_")
     glb_path = os.path.join(temp_dir, "trellis2_full.glb")
     # extension_webp=True: encode the 4096² PBR atlas as WebP, not raw PNG. A 1M-
