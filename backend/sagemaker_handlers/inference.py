@@ -3896,6 +3896,19 @@ def _predict_trellis2_full(input_data, model_dict):
     )
     logger.info("TRELLIS.2 to_glb: remesh=%s remesh_project=%s decimation_target=%d texture_size=%d",
                 remesh, remesh_project, decimation_target, texture_size)
+    # Resource-baseline telemetry (right-sizing the instance — see task G-6). Logs
+    # PEAK GPU VRAM + current host RAM so we can tell if g6e.xlarge (or smaller) is
+    # sufficient vs the 2xlarge we first tested on. The bake's UV-unwrap/remesh is
+    # host-RAM-bound; the SLAT decode is the VRAM peak.
+    try:
+        if torch.cuda.is_available():
+            _peak_vram = torch.cuda.max_memory_allocated() / (1024**3)
+            _resv_vram = torch.cuda.max_memory_reserved() / (1024**3)
+            logger.info("TRELLIS.2 RESOURCE PEAK: VRAM alloc=%.1f GB reserved=%.1f GB | host RAM avail=%.1f GB / total=%.1f GB",
+                        _peak_vram, _resv_vram,
+                        _host_ram_available_gb() or -1.0, _host_ram_total_gb() or -1.0)
+    except Exception as _re:
+        logger.info("resource-peak logging skipped (%s)", _re)
     temp_dir = _tf.mkdtemp(prefix="artsmoker_trellis2_full_")
     glb_path = os.path.join(temp_dir, "trellis2_full.glb")
     # extension_webp=True: encode the 4096² PBR atlas as WebP, not raw PNG. A 1M-

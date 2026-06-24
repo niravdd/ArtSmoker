@@ -173,18 +173,41 @@ def _get_fallback_llm() -> tuple[str, str]:
     return (model_id, region)
 
 
-def _build_inference_config(model_id: str, max_tokens: int, temperature: float) -> dict:
-    """Build the Converse inferenceConfig, omitting params a model rejects.
+def _model_supports_temperature(model_id: str) -> bool:
+    """Whether a model accepts the Converse `temperature` inferenceConfig param.
 
-    Newer Claude models (Opus 4.8+) DEPRECATE the `temperature` param — Converse
-    raises ValidationException ('temperature is deprecated for this model') if it's
-    sent. Detect those and omit it (the model uses its own default). Everything
-    else keeps the explicit temperature. Keyed by substring so future 4.8.x /
-    region-prefixed variants (us.anthropic.claude-opus-4-8...) all match.
+    REGISTRY-DRIVEN (not a hardcoded model list): looks the model up in
+    chat_models by model_id/model_arn and reads its declared capability —
+    `supports_temperature: false` or `temperature` in `deprecated_params[]` →
+    omit it. The AWS sync captures these per-model so new models that deprecate
+    params work with NO code change. Only when the registry is silent do we fall
+    back to a minimal built-in heuristic (newer Claude tiers deprecate it), so the
+    behaviour is safe today and self-correcting once sync populates the field.
     """
-    cfg = {"maxTokens": max_tokens}
+    try:
+        from backend.services.model_registry import get_registry
+        mid = model_id or ""
+        for cfg in (get_registry().get("chat_models", {}) or {}).values():
+            if cfg.get("model_id") == mid or cfg.get("model_arn", "").endswith(mid):
+                if cfg.get("supports_temperature") is False:
+                    return False
+                if "temperature" in (cfg.get("deprecated_params") or []):
+                    return False
+                if cfg.get("supports_temperature") is True:
+                    return True
+                break  # found the model but it declares nothing → use heuristic
+    except Exception:
+        pass
+    # Heuristic fallback (registry silent): Claude Opus 4.8+ deprecate temperature.
     _no_temperature = ("claude-opus-4-8",)
-    if not any(tok in (model_id or "") for tok in _no_temperature):
+    return not any(tok in (model_id or "") for tok in _no_temperature)
+
+
+def _build_inference_config(model_id: str, max_tokens: int, temperature: float) -> dict:
+    """Build the Converse inferenceConfig, omitting params the model rejects
+    (registry-driven via _model_supports_temperature)."""
+    cfg = {"maxTokens": max_tokens}
+    if _model_supports_temperature(model_id):
         cfg["temperature"] = temperature
     return cfg
 

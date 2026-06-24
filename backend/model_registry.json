@@ -5395,6 +5395,7 @@
           "recommended_instance": "ml.g6e.2xlarge",
           "disk_gb": 80,
           "allowed_instances": [
+            "ml.g6e.xlarge",
             "ml.g6e.2xlarge",
             "ml.g6e.4xlarge"
           ]
