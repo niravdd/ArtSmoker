@@ -539,6 +539,16 @@ async def sync_progress_stream():
         import json
         last_log_len = 0
         try:
+            # Grace period: the Custom Models "Sync with AWS" button opens this
+            # SSE stream a beat BEFORE its refresh-all POST flips sync_in_progress
+            # on. Without a wait, the loop below would see False immediately, emit
+            # 'done', and the overlay would sit on a static "Syncing..." until the
+            # POST returns (30-60s) with no live updates. Wait up to ~10s for the
+            # sync to start before concluding there's nothing in progress.
+            waited = 0.0
+            while not _server_state.get("sync_in_progress") and waited < 10.0:
+                time.sleep(0.25)
+                waited += 0.25
             while _server_state.get("sync_in_progress"):
                 sync_log = _server_state.get("sync_log", [])
                 if len(sync_log) > last_log_len:
