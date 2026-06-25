@@ -746,6 +746,10 @@ If there is only one option, the options row is hidden. If there is only one var
 
 **Model fallback**: On `AccessDeniedException` from the primary LLM model, the system automatically falls back to the `fallback_llm` category model.
 
+**Inference-param gating** (`_model_supports_temperature` / `_build_inference_config`): Newer Claude tiers (e.g. Opus 4.8) reject the `temperature` Converse param. The gate is **registry-driven** — it reads `supports_temperature` (or `temperature` in `deprecated_params[]`) off the model's `chat_models` entry and omits the param accordingly, with a minimal built-in heuristic only as a last resort when the registry is silent. No hardcoded model lists; new models that deprecate a param work with zero code change once Sync records the capability.
+
+**Auto-roll on Sync** (`_auto_roll_llm_categories`): On every AWS Sync the `fast_llm` and `complex_llm` categories are smartly re-pointed to the newest available Claude — newest **Sonnet** → fast, newest **Opus** → complex (version parsed from the model ID, preferring `us.` cross-region inference profiles, ACTIVE over LEGACY, keeping the category's region when the model is offered there). This keeps non-technical users off deprecated models automatically (auto-switch + a logged notice). A manual category pick in Model Settings sets `pinned: true`, which the auto-roll respects — it then only *notifies* that a newer model exists rather than overriding the choice. The roll also probes the chosen model once and records its `supports_temperature` so the param gate above stays self-correcting.
+
 | Model | ID | Region | Purpose |
 |-------|----|--------|---------|
 | Claude Sonnet 4.6 | `us.anthropic.claude-sonnet-4-6` | us-west-2 | Fast: prompt refinement, generation hints |
@@ -812,14 +816,14 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 3. **Image pricing** (`image_pricing`): Per-model, per-region, per-quality pricing data from the AWS Pricing API. Fetched during refresh-all only. Keyed by `model_name|region|quality|size`. Used to display cost estimates in the UI and sort regions by cheapest-first.
 
 4. **LLM categories** (`categories`): Named model slots for different purposes:
-   - `fast_llm` — Claude Sonnet 4.6 (prompt refinement, hints, pre-check, cohesion check)
-   - `complex_llm` — Claude Opus 4.6 (style analysis, concept generation, marketing copy, Type Studio layout)
+   - `fast_llm` — newest Claude Sonnet (prompt refinement, hints, pre-check, cohesion check)
+   - `complex_llm` — newest Claude Opus (style analysis, concept generation, marketing copy, Type Studio layout)
    - `fallback_llm` — Fallback model on AccessDeniedException
    - `voice` — Nova Sonic (speech-to-text)
 
-   Each category stores: `current` (the model ID), `region`, `provider`, `api_type`, `label`, `description`.
+   Each category stores: `current` (the model ID), `region`, `provider`, `api_type`, `label`, `description`, and optionally `pinned` (bool). `fast_llm`/`complex_llm` are **auto-rolled to the newest Sonnet/Opus on every Sync** (see §4.8 *Auto-roll on Sync*); setting `pinned: true` — which happens automatically when a user manually picks a model in Model Settings — opts a category out of auto-roll (it's then only notified of newer models, never overridden).
 
-5. **Chat models** (`chat_models`): Discovered LLM models available for Chat Studio. Keyed by internal name (e.g. `claude_sonnet_4_6`, `llama_3_3_70b`). Each entry stores: `label`, `model_id`, `provider`, `available_regions`, `context_window`, `supports_vision`, `supports_streaming`, `input_price_per_1k`, `output_price_per_1k`, `model_source` (`foundation`, `custom`, `imported`). Custom and imported models inherit `format_family` from their base model.
+5. **Chat models** (`chat_models`): Discovered LLM models available for Chat Studio. Keyed by internal name (e.g. `claude_sonnet_4_6`, `llama_3_3_70b`). Each entry stores: `label`, `model_id`, `provider`, `available_regions`, `context_window`, `supports_vision`, `supports_streaming`, `input_price_per_1k`, `output_price_per_1k`, `model_source` (`foundation`, `custom`, `imported`), and optionally `supports_temperature` (recorded by the Sync auto-roll's one-time probe — drives the inference-param gate in §4.8). Custom and imported models inherit `format_family` from their base model.
 
 6. **Image models** (`image_models`): Keyed by internal name (e.g. `nova_canvas`, `sd35_large`). Each entry stores:
    - `label` — human-readable display name
@@ -849,6 +853,7 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 5. Discovers custom models via `ListCustomModels`, `ListImportedModels`, `ListCustomModelDeployments`, and `ListProvisionedModelThroughputs` — custom models inherit format family from their base model
 6. Disables models no longer found in any region
 7. Backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming support)
+8. **Auto-rolls** `fast_llm`/`complex_llm` to the newest discovered Sonnet/Opus (respecting `pinned` categories), recording each rolled model's `supports_temperature` (see §4.8 *Auto-roll on Sync*)
 
 This is the **only** operation that calls AWS discovery/pricing APIs. All other operations read from the cached registry file.
 
@@ -1273,6 +1278,7 @@ A full-featured LLM chat interface running on the user's own AWS account. 80+ mo
 | GET | `/api/custom-models/hf-token-status` | Check whether a HuggingFace token is stored in Secrets Manager. Returns `{has_token, secret_name}`. |
 | POST | `/api/custom-models/hf-token` | Store or update the HuggingFace token. Encrypted in AWS Secrets Manager (`artsmoker/hf-token`). Shared across all gated models. Body: `{token}`. |
 | DELETE | `/api/custom-models/hf-token` | Delete the stored HuggingFace token from Secrets Manager. |
+| GET | `/api/custom-models/gated-access/{key}` | Pre-check whether the stored HF token can access **every** repo this model pulls — its `source` repo plus any HuggingFace `dependencies[]`. Probes each via `huggingface_hub.auth_check`, returning per-repo `{repo_id, gated, accessible, status, action, license_url}` plus `all_clear` / `blocking[]`. Drives the deploy dialog's per-repo ✓/✗ + guided next-step UX. Never returns the token. |
 
 **Architecture:**
 
@@ -1442,6 +1448,8 @@ ArtSmoker offers **two image-to-3D pipelines**, each a separate Custom Models ca
 
 Both take a single image and produce a GLB; the handler routes the job to whichever deployed instance the user selected (`library`/`predictor_type` = `image_to_3d` for TripoSG, `trellis2_image_to_3d` for the full pipeline). The full pipeline shares the runtime-built CUDA-ext stack (o_voxel/cumesh/flex_gemm/nvdiffrast) and the DINOv3/BiRefNet gated-repo handling with the texturer.
 
+**Full-pipeline resourcing (measured).** The standalone TRELLIS.2 pipeline's baseline is **`ml.g6e.xlarge`** (`recommended_instance`; `allowed_instances` also offers 2xlarge/4xlarge as RAM-headroom upsells). A live run measured peak **~6.5 GB VRAM** (of the L40S's 48 GB — hugely over-provisioned) and **~22 GB host RAM** during the `to_glb` UV-unwrap/bake. Host RAM, not VRAM, is the real constraint: xlarge's 32 GiB holds it with ~9 GB headroom, so `min_ram_gb: 28` is enforced and the handler logs a per-run `TRELLIS.2 RESOURCE PEAK` line (VRAM alloc/reserved + host RAM avail/total) to keep the baseline observable. SageMaker async-inference rates: g6e.xlarge **$2.61/hr**, 2xlarge **$2.80/hr**, 4xlarge **$3.76/hr** (all carry the same single L40S, so the per-hour gap is small).
+
 **Texture backends (TripoSG pipeline only).** The backend is chosen **per-deployment** (baked into the endpoint as `ARTSMOKER_TEXTURE_BACKEND`) from the catalog's `texture_backends.options`. Three are offered, each with a distinct license profile that is **disclosed in the deploy dialog and must be explicitly accepted** (`attestation_required`) before deployment proceeds.
 
 | Backend | License | Commercial | Key model dependencies | Gated repos |
@@ -1451,6 +1459,8 @@ Both take a single image and produce a GLB; the handler routes the job to whiche
 | **MVPainter** | Apache-2.0 | ✅ Yes | `shaomq/MVPainter` (Apache-2.0) | — |
 
 **Licensing is surfaced, not buried.** Each `texture_backends.options.<key>.license` block carries `name`, `url`, `commercial`, `attestation_required`, `key_terms[]`, `warnings[]`, and a structured `dependencies[]` array (each: `name`, `license`, `url`, `gated`, `commercial`, `role`). The deploy dialog (`ModelSettings.js`) renders the `dependencies[]` as a per-model table with commercial/gated badges and HuggingFace links, so the operator sees **exactly which models are pulled and under what terms** before agreeing. Gated repos additionally require accepting that model's license on HuggingFace (the stored HF token must belong to an account that has done so).
+
+**Gated-repo access pre-check (deploy dialog).** Rather than a vague "gated · accept on HF" badge, the deploy dialog calls `GET /api/custom-models/gated-access/{key}` (see §5.10), which probes **every** repo the deploy will pull (model source + dependencies) with the stored token via `huggingface_hub.auth_check`. It renders a per-repo ✓/✗ with the exact next step (accept this specific gate on HF, or add a token) and **blocks deploy** while a required repo is inaccessible — so a missing gate acceptance fails fast in the dialog instead of 10 minutes into a cold start. In practice this pinpoints the one genuinely-gated repo (e.g. `facebook/dinov3-…`) even when the model is broadly flagged `requires_hf_auth` but its other repos are public.
 
 **DINOv2 ≠ DINOv3** (a common confusion, called out explicitly): Hunyuan's image encoder is **DINOv2-giant (CC-BY-NC-4.0, non-commercial)**; TRELLIS.2's is **DINOv3 (commercial-OK, attribution required)**. They are different models with different licenses.
 
@@ -1506,14 +1516,14 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 | GET | `/api/admin/regions` | Cached list of Bedrock-supported AWS regions from the registry. |
 | GET | `/api/admin/video/settings` | Current video storage settings (S3 bucket, prefix, storage mode). |
 | PUT | `/api/admin/video/settings` | Update video settings. Validates S3 bucket access (head_bucket + put/delete test) before saving. |
-| PATCH | `/api/admin/models/category/{name}` | Update an LLM category (e.g. `fast_llm`, `complex_llm`). |
+| PATCH | `/api/admin/models/category/{name}` | Update an LLM category (e.g. `fast_llm`, `complex_llm`). A manual `current` change sets `pinned: true`, opting the category out of the Sync auto-roll. |
 | PATCH | `/api/admin/models/image/{key}` | Update an image model. |
 | PATCH | `/api/admin/models/video/{key}` | Update a video model (enable/disable, region, prompt limit). |
 | POST | `/api/admin/models/image` | Add a new image model to the registry. |
 | PUT | `/api/admin/models` | Replace the entire model registry JSON. Validates required top-level keys. Used by the raw JSON editor. |
 | PATCH | `/api/admin/models/postprocess/{key}` | Update a post-processing model (model_id, region, enabled). |
 | POST | `/api/admin/models/reload` | Reload the model registry from disk (e.g. after external edit). |
-| POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions, fetches pricing, scans all regions for foundation + custom + imported models, backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming, customizations). |
+| POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions, fetches pricing, scans all regions for foundation + custom + imported models, backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming, customizations), and auto-rolls `fast_llm`/`complex_llm` to the newest Sonnet/Opus (respecting pinned categories). Live progress is available via the `/api/sync-progress` SSE stream. |
 | POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for foundation image + video models. Classifies by output modality (IMAGE → image registry, VIDEO → video registry). Custom/imported models are discovered separately during refresh-all. |
 | GET | `/api/admin/discover/{region}` | Raw model listing: image generators, video generators, text/LLM, vision models. |
 | GET | `/api/admin/templates` | Get all 14 prompt templates with metadata (description, variables, modified flag, group). |
@@ -1527,6 +1537,7 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | GET | `/api/health` | Health check — returns `{status, version, aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`. |
+| GET | `/api/sync-progress` | SSE stream of live AWS-Sync progress (per-region log lines + running model counts, final `done` event). Powers the first-run "Setting Up" modal and the Custom Models "Sync with AWS" overlay. |
 | GET | `/api/update-status` | Check for available updates. Returns `{update_available, local_version, remote_version, dev_mode}`. Used by frontend monitor. |
 | POST | `/api/ping` | Frontend telemetry ping. Accepts `{event, properties}` and forwards to PulseBoard if telemetry is enabled. |
 | POST | `/api/log` | Receive client-side log entries. Body: `{ "level": "error", "message": "...", "context": {} }`. Logged server-side with `[CLIENT]` prefix. |
@@ -1820,12 +1831,15 @@ If steps 1-3 pass, your core permissions are set. Step 4 is only needed for cust
 
 ### 7.5 Startup Validation
 
-On launch, ArtSmoker automatically validates:
-1. AWS credentials resolve (`sts:GetCallerIdentity`)
-2. Bedrock Claude access works in us-west-2 (attempts a lightweight `Converse` call)
-3. Bedrock Nova Canvas access works in us-east-1 (attempts a lightweight `InvokeModel` call)
+On launch, ArtSmoker runs a lightweight **sanity check** (`validate_aws_credentials()` in `bedrock_client.py`) — not an exhaustive audit. It confirms the configured IAM role can actually reach Amazon Bedrock by probing a **representative sample** of the models the app may use, all read from the registry (no hardcoded model IDs):
+1. AWS credentials resolve (`sts:GetCallerIdentity`).
+2. **Fast LLM** (`categories.fast_llm`) — a 1-token `Converse` call.
+3. **Complex LLM** (`categories.complex_llm`) — a 1-token `Converse` call. Probing both tiers matters because they are usually different models with different access (and the complex tier is often a newer model that deprecates inference params — see below).
+4. **Image model** — a lightweight `InvokeModel` against the first enabled image model in the registry; a `ValidationException` still counts as success (the model was reached, only the dummy body was rejected).
 
-Results are logged to the console and available at `GET /api/health`. If credentials are missing, a prominent error box explains what to configure. If some checks fail but credentials exist, a warning is shown — the app still starts (some features may be degraded).
+Each LLM probe builds its `inferenceConfig` through the same registry-driven gate used at runtime (`_build_inference_config` → `_model_supports_temperature`), so a model that deprecates `temperature` (e.g. Claude Opus 4.8) does **not** fail the probe. `_model_supports_temperature` reads `supports_temperature` / `deprecated_params` off the model's `chat_models` entry; only when the registry is silent does it fall back to a minimal built-in heuristic.
+
+The result records a `probes` list (`role`, `model_id`, `region`, `ok`). On success the console logs a concise multi-line message — *"Amazon Bedrock access verified — the IAM role can reach a representative sample of N model(s)…"* — followed by one `✓ <role> — <model_id> (<region>)` line per probe (kept short so it never overflows a typical console width). Results are also available at `GET /api/health`. If credentials are missing, a prominent error box explains what to configure. If some checks fail but credentials exist, a warning lists the failures — the app still starts (some features may be degraded).
 
 ## 8. Security Model
 
@@ -1856,6 +1870,7 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 6. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, chat, admin — in that order.
 7. **Health check endpoint** (`GET /api/health`) — defined inline on `app`, returns `{status: "ok"|"degraded", aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`.
 8. **Client log endpoint** (`POST /api/log`) — defined inline on `app`, receives `{level, message, context}`, logs as `[CLIENT] {message} | {context}` at the appropriate Python log level.
+   - **Sync progress stream** (`GET /api/sync-progress`) — an SSE stream of live AWS-Sync progress, used by both the first-run "Setting Up" modal and the Custom Models "Sync with AWS" overlay. It tails `_server_state["sync_log"]`, emitting a `data:` event per new log line (with running model counts) and a final `done` event. Because the manual Sync button opens the stream a beat *before* its `refresh-all` POST flips `sync_in_progress` on, the generator first waits up to ~10s for the sync to start before concluding nothing is running — without this grace period the overlay would close immediately and show no live updates.
 9. **Static files mount** — `app.mount("/", StaticFiles(directory=FRONTEND_DIR, html=True))` mounted LAST so `/api/*` routes take priority. `FRONTEND_DIR` is `Path(__file__).resolve().parent.parent / "frontend"`. The `html=True` flag enables serving `index.html` for directory requests.
 
 ## 10. Dependencies (requirements.txt)
