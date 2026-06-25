@@ -1504,8 +1504,10 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
     if not chat_models:
         return notices
 
-    def _newest(line: str):
-        """Newest ACTIVE Claude model entry for 'sonnet'/'opus'. Returns (key, cfg) or None."""
+    def _ranked(line: str):
+        """ACTIVE Claude entries for 'sonnet'/'opus', sorted oldest→newest.
+        Each item is (key, cfg). De-duplicated by version so 'second newest'
+        means a genuinely different version, not a regional/profile twin."""
         cands = []
         for k, cfg in chat_models.items():
             mid = cfg.get("model_id", "").lower()
@@ -1517,11 +1519,18 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
             prefer_profile = 1 if cfg.get("model_id", "").startswith("us.") else 0
             active = 1 if lifecycle == "ACTIVE" else 0
             cands.append(((active, prefer_profile) + _claude_version_tuple(mid), k, cfg))
-        if not cands:
-            return None
         cands.sort(key=lambda t: t[0])
-        _, k, cfg = cands[-1]
-        return k, cfg
+        # Keep one entry per distinct version tuple (newest profile wins), so
+        # _ranked()[-2] is the previous *version*, not a duplicate of the newest.
+        by_ver = {}
+        for sortkey, k, cfg in cands:
+            by_ver[_claude_version_tuple(cfg.get("model_id", "").lower())] = (k, cfg)
+        return [by_ver[v] for v in sorted(by_ver)]
+
+    def _newest(line: str):
+        """Newest ACTIVE Claude model entry for 'sonnet'/'opus'. Returns (key, cfg) or None."""
+        ranked = _ranked(line)
+        return ranked[-1] if ranked else None
 
     targets = (("fast_llm", "sonnet", "Fast LLM"), ("complex_llm", "opus", "Complex LLM"))
     for cat_name, line, label in targets:
@@ -1570,6 +1579,33 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
         logger.info(msg)
         if progress:
             progress(msg)
+
+    # fallback_llm: roll to the SECOND-newest Sonnet — one version behind fast_llm.
+    # The fallback is the safety net on AccessDeniedException, so it must be a
+    # genuinely DIFFERENT (still-current) model, not a clone of the primary. If
+    # only one Sonnet version exists, degrade to that one. Respects pins.
+    fb_cat = registry.setdefault("categories", {}).setdefault("fallback_llm", {})
+    if not fb_cat.get("pinned"):
+        sonnets = _ranked("sonnet")
+        if sonnets:
+            # prefer second-newest; fall back to newest if only one version
+            _fb_key, fb_cfg = sonnets[-2] if len(sonnets) >= 2 else sonnets[-1]
+            fb_id = fb_cfg.get("model_id", "")
+            fb_cur = fb_cat.get("current", "")
+            if fb_id and fb_id != fb_cur:
+                avail = fb_cfg.get("available_regions", []) or []
+                cur_region = fb_cat.get("region", "")
+                fb_region = cur_region if cur_region in avail else fb_cfg.get("region", cur_region)
+                fb_cat["current"] = fb_id
+                fb_cat["region"] = fb_region
+                fb_cat["provider"] = fb_cfg.get("provider", "Anthropic") or "Anthropic"
+                fb_cat.setdefault("api_type", "converse")
+                _probe_and_record_temperature(fb_id, fb_region, registry)
+                msg = f"Fallback LLM: auto-switched to prior-version Sonnet → {fb_id} ({fb_region})"
+                notices.append(msg)
+                logger.info(msg)
+                if progress:
+                    progress(msg)
 
     return notices
 
