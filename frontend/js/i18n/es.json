@@ -174,7 +174,7 @@
     "meta_3d_job_id": "ID de trabajo",
     "meta_3d_pbr": "Materiales",
     "meta_3d_license": "Licencia",
-    "meta_3d_commercial": "Uso comercial OK",
+    "meta_3d_commercial": "uso comercial — OK",
     "meta_copy": "Copiar",
     "meta_copied": "Copiado!",
     "svg_tab": "SVG",
@@ -229,8 +229,8 @@
     "three_d_pipe_triposg": "TripoSG + backend de textura",
     "three_d_pipe_trellis2_full": "TRELLIS.2 (canalización completa)",
     "three_d_lic_label": "Licencia",
-    "three_d_lic_commercial": "uso comercial permitido",
-    "three_d_lic_noncommercial": "no comercial",
+    "three_d_lic_commercial": "uso comercial — OK",
+    "three_d_lic_noncommercial": "uso comercial — no permitido",
     "three_d_lic_accepted": "Licencia aceptada en el despliegue",
     "three_d_lic_accepted_col": "Licencia aceptada",
     "three_d_lic_not_recorded": "No hay constancia de aceptación en el despliegue para esta canalización",
@@ -1101,6 +1101,7 @@
     "quota_failed": "Error en solicitud de cuota",
     "tex_backend_title": "Pipeline de textura",
     "tex_attest_label": "Confirmo que dispongo de una licencia válida para este pipeline, o que lo usaré dentro de sus términos no comerciales.",
+    "tex_attest_label_commercial": "He leído y acepto los términos de licencia de este pipeline.",
     "tex_attest_readlicense": "Leer la licencia",
     "tex_attest_deps": "Modelos y licencias que usa este pipeline",
     "gated_title": "Acceso a repositorios de HuggingFace",
@@ -1111,7 +1112,9 @@
     "gated_open_hf": "Abrir en HuggingFace",
     "gated_all_clear": "Todos los repositorios necesarios son accesibles con tu token guardado.",
     "gated_blocked_hint": "El despliegue está bloqueado hasta que todos los repositorios anteriores sean accesibles. Sigue el paso indicado para cada uno y luego vuelve a comprobar.",
-    "gated_needs_token": "Un repositorio restringido necesita un token de HuggingFace. Añade uno mediante “Gestionar token de HF”, acepta la restricción en HuggingFace y luego vuelve a comprobar."
+    "gated_needs_token": "Un repositorio restringido necesita un token de HuggingFace. Añade uno mediante “Gestionar token de HF”, acepta la restricción en HuggingFace y luego vuelve a comprobar.",
+    "license_commercial_ok": "uso comercial — OK",
+    "license_commercial_no": "uso comercial — no permitido"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

@@ -174,7 +174,7 @@
     "meta_3d_job_id": "任务 ID",
     "meta_3d_pbr": "材质",
     "meta_3d_license": "许可证",
-    "meta_3d_commercial": "可商用",
+    "meta_3d_commercial": "商业使用 — 可以",
     "meta_copy": "复制",
     "meta_copied": "已复制！",
     "svg_tab": "SVG",
@@ -229,8 +229,8 @@
     "three_d_pipe_triposg": "TripoSG + 纹理后端",
     "three_d_pipe_trellis2_full": "TRELLIS.2（完整流程）",
     "three_d_lic_label": "许可证",
-    "three_d_lic_commercial": "可商用",
-    "three_d_lic_noncommercial": "非商用",
+    "three_d_lic_commercial": "商业使用 — 可以",
+    "three_d_lic_noncommercial": "商业使用 — 不可",
     "three_d_lic_accepted": "已在部署时接受许可证",
     "three_d_lic_accepted_col": "许可证已接受",
     "three_d_lic_not_recorded": "此流程没有部署时接受许可证的记录",
@@ -1101,6 +1101,7 @@
     "quota_failed": "配额申请失败",
     "tex_backend_title": "纹理管线",
     "tex_attest_label": "我确认持有该管线的有效许可，或将在其非商用条款范围内使用。",
+    "tex_attest_label_commercial": "我已阅读并同意本管线的许可条款。",
     "tex_attest_readlicense": "阅读许可",
     "tex_attest_deps": "此管线拉取的模型与许可",
     "gated_title": "HuggingFace 仓库访问",
@@ -1111,7 +1112,9 @@
     "gated_open_hf": "在 HuggingFace 中打开",
     "gated_all_clear": "使用您已保存的令牌可访问所有所需仓库。",
     "gated_blocked_hint": "在上述每个仓库均可访问之前，部署将被阻止。请按每个仓库显示的步骤操作，然后重新检查。",
-    "gated_needs_token": "受限仓库需要 HuggingFace 令牌。请通过“管理 HF 令牌”添加一个令牌，在 HuggingFace 上接受访问限制，然后重新检查。"
+    "gated_needs_token": "受限仓库需要 HuggingFace 令牌。请通过“管理 HF 令牌”添加一个令牌，在 HuggingFace 上接受访问限制，然后重新检查。",
+    "license_commercial_ok": "商业使用 — 可以",
+    "license_commercial_no": "商业使用 — 不可"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

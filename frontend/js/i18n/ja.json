@@ -174,7 +174,7 @@
     "meta_3d_job_id": "ジョブID",
     "meta_3d_pbr": "マテリアル",
     "meta_3d_license": "ライセンス",
-    "meta_3d_commercial": "商用利用可",
+    "meta_3d_commercial": "商用利用 — 可",
     "meta_copy": "コピー",
     "meta_copied": "コピー済み！",
     "svg_tab": "SVG",
@@ -229,8 +229,8 @@
     "three_d_pipe_triposg": "TripoSG + テクスチャバックエンド",
     "three_d_pipe_trellis2_full": "TRELLIS.2（フルパイプライン）",
     "three_d_lic_label": "ライセンス",
-    "three_d_lic_commercial": "商用利用可",
-    "three_d_lic_noncommercial": "非商用",
+    "three_d_lic_commercial": "商用利用 — 可",
+    "three_d_lic_noncommercial": "商用利用 — 不可",
     "three_d_lic_accepted": "デプロイ時にライセンスに同意済み",
     "three_d_lic_accepted_col": "ライセンス同意済み",
     "three_d_lic_not_recorded": "このパイプラインにはデプロイ時の同意記録がありません",
@@ -1101,6 +1101,7 @@
     "quota_failed": "クォータリクエストに失敗しました",
     "tex_backend_title": "テクスチャパイプライン",
     "tex_attest_label": "このパイプラインの有効なライセンスを保有しているか、非商用条件の範囲内で使用することを確認します。",
+    "tex_attest_label_commercial": "このパイプラインのライセンス条項を読み、同意します。",
     "tex_attest_readlicense": "ライセンスを読む",
     "tex_attest_deps": "このパイプラインが取得するモデルとライセンス",
     "gated_title": "HuggingFace リポジトリへのアクセス",
@@ -1111,7 +1112,9 @@
     "gated_open_hf": "HuggingFace で開く",
     "gated_all_clear": "保存済みのトークンで、必要なすべてのリポジトリにアクセスできます。",
     "gated_blocked_hint": "上記のすべてのリポジトリにアクセスできるようになるまで、デプロイはブロックされます。各リポジトリについて表示された手順を実行してから、再確認してください。",
-    "gated_needs_token": "アクセス制限付きリポジトリには HuggingFace トークンが必要です。「HF トークンを管理」からトークンを追加し、HuggingFace でアクセス制限に同意してから、再確認してください。"
+    "gated_needs_token": "アクセス制限付きリポジトリには HuggingFace トークンが必要です。「HF トークンを管理」からトークンを追加し、HuggingFace でアクセス制限に同意してから、再確認してください。",
+    "license_commercial_ok": "商用利用 — 可",
+    "license_commercial_no": "商用利用 — 不可"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

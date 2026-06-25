@@ -174,7 +174,7 @@
     "meta_3d_job_id": "작업 ID",
     "meta_3d_pbr": "머티리얼",
     "meta_3d_license": "라이선스",
-    "meta_3d_commercial": "상업적 이용 가능",
+    "meta_3d_commercial": "상업적 이용 — 가능",
     "meta_copy": "복사",
     "meta_copied": "복사됨!",
     "svg_tab": "SVG",
@@ -229,8 +229,8 @@
     "three_d_pipe_triposg": "TripoSG + 텍스처 백엔드",
     "three_d_pipe_trellis2_full": "TRELLIS.2 (전체 파이프라인)",
     "three_d_lic_label": "라이선스",
-    "three_d_lic_commercial": "상업적 이용 가능",
-    "three_d_lic_noncommercial": "비상업용",
+    "three_d_lic_commercial": "상업적 이용 — 가능",
+    "three_d_lic_noncommercial": "상업적 이용 — 불가",
     "three_d_lic_accepted": "배포 시 라이선스 동의함",
     "three_d_lic_accepted_col": "라이선스 동의됨",
     "three_d_lic_not_recorded": "이 파이프라인에 대한 배포 시점 동의 기록이 없습니다",
@@ -1101,6 +1101,7 @@
     "quota_failed": "할당량 요청 실패",
     "tex_backend_title": "텍스처 파이프라인",
     "tex_attest_label": "이 파이프라인에 대한 유효한 라이선스를 보유하고 있거나 비상업적 조건 내에서 사용함을 확인합니다.",
+    "tex_attest_label_commercial": "이 파이프라인의 라이선스 약관을 읽고 동의합니다.",
     "tex_attest_readlicense": "라이선스 보기",
     "tex_attest_deps": "이 파이프라인이 가져오는 모델 및 라이선스",
     "gated_title": "HuggingFace 리포지토리 액세스",
@@ -1111,7 +1112,9 @@
     "gated_open_hf": "HuggingFace에서 열기",
     "gated_all_clear": "저장된 토큰으로 필요한 모든 리포지토리에 액세스할 수 있습니다.",
     "gated_blocked_hint": "위의 모든 리포지토리에 액세스할 수 있을 때까지 배포가 차단됩니다. 각 항목에 표시된 단계를 따른 후 다시 확인하세요.",
-    "gated_needs_token": "액세스 제한 리포지토리에는 HuggingFace 토큰이 필요합니다. “HF 토큰 관리”를 통해 토큰을 추가하고 HuggingFace에서 액세스 제한에 동의한 후 다시 확인하세요."
+    "gated_needs_token": "액세스 제한 리포지토리에는 HuggingFace 토큰이 필요합니다. “HF 토큰 관리”를 통해 토큰을 추가하고 HuggingFace에서 액세스 제한에 동의한 후 다시 확인하세요.",
+    "license_commercial_ok": "상업적 이용 — 가능",
+    "license_commercial_no": "상업적 이용 — 불가"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

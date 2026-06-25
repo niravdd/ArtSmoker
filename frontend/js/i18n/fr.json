@@ -174,7 +174,7 @@
     "meta_3d_job_id": "ID de tâche",
     "meta_3d_pbr": "Matériaux",
     "meta_3d_license": "Licence",
-    "meta_3d_commercial": "Usage commercial OK",
+    "meta_3d_commercial": "usage commercial — OK",
     "meta_copy": "Copier",
     "meta_copied": "Copié !",
     "svg_tab": "SVG",
@@ -229,8 +229,8 @@
     "three_d_pipe_triposg": "TripoSG + backend de texture",
     "three_d_pipe_trellis2_full": "TRELLIS.2 (pipeline complet)",
     "three_d_lic_label": "Licence",
-    "three_d_lic_commercial": "usage commercial autorisé",
-    "three_d_lic_noncommercial": "non commercial",
+    "three_d_lic_commercial": "usage commercial — OK",
+    "three_d_lic_noncommercial": "usage commercial — interdit",
     "three_d_lic_accepted": "Licence acceptée au déploiement",
     "three_d_lic_accepted_col": "Licence acceptée",
     "three_d_lic_not_recorded": "Aucune acceptation enregistrée au déploiement pour ce pipeline",
@@ -1101,6 +1101,7 @@
     "quota_failed": "Échec de la demande de quota",
     "tex_backend_title": "Pipeline de texture",
     "tex_attest_label": "Je confirme détenir une licence valide pour ce pipeline, ou que je l'utiliserai dans le cadre de ses conditions non commerciales.",
+    "tex_attest_label_commercial": "J'ai lu et j'accepte les conditions de licence de ce pipeline.",
     "tex_attest_readlicense": "Lire la licence",
     "tex_attest_deps": "Modèles et licences récupérés par ce pipeline",
     "gated_title": "Accès aux dépôts HuggingFace",
@@ -1111,7 +1112,9 @@
     "gated_open_hf": "Ouvrir sur HuggingFace",
     "gated_all_clear": "Tous les dépôts requis sont accessibles avec votre jeton enregistré.",
     "gated_blocked_hint": "Le déploiement est bloqué tant que tous les dépôts ci-dessus ne sont pas accessibles. Suivez l'étape indiquée pour chacun, puis revérifiez.",
-    "gated_needs_token": "Un dépôt à accès restreint nécessite un jeton HuggingFace. Ajoutez-en un via « Gérer le jeton HF », acceptez la restriction sur HuggingFace, puis revérifiez."
+    "gated_needs_token": "Un dépôt à accès restreint nécessite un jeton HuggingFace. Ajoutez-en un via « Gérer le jeton HF », acceptez la restriction sur HuggingFace, puis revérifiez.",
+    "license_commercial_ok": "usage commercial — OK",
+    "license_commercial_no": "usage commercial — interdit"
   },
   "prompt_designer": {
     "title": "Prompt Designer",
