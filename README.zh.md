@@ -303,7 +303,7 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 **输出：** 标准 GLB 格式，内嵌 PBR 纹理 —— 可直接导入 Unity、Unreal Engine、Blender 及其他游戏引擎。交互式 3D 查看器支持轨道旋转、缩放和平移；**3D Model** 标签页还会列出生成所用的确切模型与工具，以实现完整的溯源。
 
-**基础设施：** 两条流程均通过相同的一键 Custom Models 流程部署，部署时的选择器会显示每个选项的许可、依赖表、实例基线以及预估成本/时间。完整 TRELLIS.2 流程的合理实例基线为 **`ml.g6e.xlarge`**（约 $2.61/小时；实测峰值约 6.5 GB 显存 + 约 22 GB 主机内存 —— 真正的约束是主机内存，而非 GPU）。更大的 `g6e` 规格则作为内存余量升级选项提供。端点在空闲时缩容至零 —— 作业间成本为 $0。首次冷启动会构建一次 CUDA 扩展（随后缓存至 S3 以加速重启）。在部署受限模型之前，对话框会**预先检查它将拉取的每一个仓库的 HuggingFace 访问权限**，并为每个仓库显示 ✓/✗ 以及确切的后续步骤 —— 这样您就不会在冷启动数分钟后才发现缺少某项许可接受。
+**基础设施：** 两条流程均通过相同的一键 Custom Models 流程部署，部署时的选择器会显示每个选项的许可、依赖表、实例基线以及预估成本/时间。完整 TRELLIS.2 流程的合理实例基线为 **`ml.g6e.xlarge`**（约 $2.61/小时；实测峰值约 6.5 GB 显存 + 约 22 GB 主机内存 —— 真正的约束是主机内存，而非 GPU）。更大的 `g6e` 规格则作为内存余量升级选项提供。端点在空闲时缩容至零 —— 作业间成本为 $0。首次冷启动会构建一次 CUDA 扩展（随后缓存至 S3 以加速重启）。在部署受限模型之前，对话框会**预先检查它将拉取的每一个仓库的 HuggingFace 访问权限**，并为每个仓库显示 ✓/✗ 以及确切的后续步骤 —— 这样您就不会在冷启动数分钟后才发现缺少某项许可接受。前沿模型（OpenAI GPT-5.x、Claude Mythos、GLM、Grok 等）通过 Amazon Bedrock Mantle 端点提供服务，该端点需要 AmazonBedrockMantleInferenceAccess IAM 权限 —— 完整的所需权限列表请参阅英文版 README.md。
 
 > GLB 查看说明：纹理采用 WebP 格式（`EXT_texture_webp`）以保持文件紧凑 —— 在应用内查看器、Blender 4.x、three.js 以及现代 Unity/Unreal 导入器中均可完美渲染。macOS 的"预览"/QuickLook 不支持 glTF 中的 WebP，会将模型显示为黑色；请使用应用内查看器或任意现代 glTF 工具。
 
