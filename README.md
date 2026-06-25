@@ -391,6 +391,7 @@ Your IAM user, role, or instance profile needs these permissions:
 | `bedrock:ListCustomModelDeployments` | Find custom models with on-demand deployments |
 | `bedrock:CreateInference` *(or policy `AmazonBedrockMantleInferenceAccess`)* | **Amazon Bedrock Mantle** — frontier models reachable only via the Mantle endpoint (OpenAI GPT‑5.x, Claude Mythos, GLM, Grok, Qwen, Gemma…). Missing it affects only those models; Claude via Converse keeps working. |
 | `account:ListRegions` | Scan only your account's **enabled** regions during Sync (fast, no errors on opt‑in regions). Optional — falls back to scanning all regions. |
+| `account:GetRegionOptStatus` | Read per‑region opt‑in status (companion to `account:ListRegions`). Optional. |
 | `s3:CreateBucket` | Create S3 bucket for video storage (optional, via UI) |
 | `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Video output storage and retrieval |
 | `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models (incl. third-party Mantle models) |
@@ -1252,7 +1253,7 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
 - **S3 access** — S3 browsing and imports use the server's AWS credentials. The user can access any S3 bucket their IAM role permits.
 
 > [!WARNING]
-> Do not expose ArtSmoker to untrusted networks without adding authentication and path restrictions. See the [Deployment Roadmap in SPEC.md](SPEC.md#14-deployment--scaling-roadmap) for production hardening guidance (Phase 4 adds Cognito authentication).
+> Do not expose ArtSmoker to untrusted networks without adding authentication and path restrictions. See the [Deployment Roadmap in SPEC.md](SPEC.md#16-deployment--scaling-roadmap) for production hardening guidance (Phase 4 adds Cognito authentication).
 
 ## 📌 9. API
 
@@ -1424,7 +1425,7 @@ Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `m
 > [!NOTE]
 > The tables below are **reference pricing for planning purposes**. The app itself shows **live per-model pricing** in the Image Studio sidebar — fetched from the AWS Pricing API during registry refresh and stored in `model_registry.json`. The in-app cost estimate updates dynamically based on selected model, quality tier, region, and batch size.
 
-All pricing from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions. See also [SPEC.md](SPEC.md#13-aws-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
+All pricing from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions. See also [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
 
 ### 📝 12.1 Per-Unit Pricing
 

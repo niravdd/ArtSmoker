@@ -420,14 +420,14 @@ ArtSmoker est conçu comme un **outil de développement local/réseau de confian
 - **Accès S3** — La navigation et l'importation S3 utilisent les identifiants AWS du serveur.
 
 > [!WARNING]
-> N'exposez pas ArtSmoker à des réseaux non fiables sans ajouter l'authentification et les restrictions de chemins. Consultez le [plan de déploiement dans SPEC.md](SPEC.md#14-deployment--scaling-roadmap) pour les recommandations de durcissement en production.
+> N'exposez pas ArtSmoker à des réseaux non fiables sans ajouter l'authentification et les restrictions de chemins. Consultez le [plan de déploiement dans SPEC.md](SPEC.md#16-deployment--scaling-roadmap) pour les recommandations de durcissement en production.
 
 ## 📌 12. Tarification Amazon Bedrock et ventilation des coûts
 
 > [!NOTE]
 > Les tableaux ci-dessous sont des **tarifs de référence à des fins de planification**. L'application elle-même affiche les **tarifs en direct par modèle** dans la barre latérale de l'Image Studio — récupérés depuis l'API AWS Pricing lors du rafraîchissement du registre et stockés dans `model_registry.json`.
 
-Tous les tarifs proviennent de la [page de tarification Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) (régions US). Pour plus de détails, consultez [SPEC.md](SPEC.md#13-aws-bedrock-pricing--cost-breakdown).
+Tous les tarifs proviennent de la [page de tarification Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) (régions US). Pour plus de détails, consultez [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown).
 
 | Service | Modèle | Coût | Unité |
 |---------|--------|------|-------|

@@ -420,14 +420,14 @@ ArtSmokerは**ローカル/信頼されたネットワーク開発ツール**と
 - **S3アクセス** — S3の閲覧とインポートはサーバーのAWS認証情報を使用。
 
 > [!WARNING]
-> 認証とパス制限を追加せずに、信頼されていないネットワークにArtSmokerを公開しないでください。本番環境の強化ガイダンスについては[SPEC.mdのデプロイメントロードマップ](SPEC.md#14-deployment--scaling-roadmap)を参照してください。
+> 認証とパス制限を追加せずに、信頼されていないネットワークにArtSmokerを公開しないでください。本番環境の強化ガイダンスについては[SPEC.mdのデプロイメントロードマップ](SPEC.md#16-deployment--scaling-roadmap)を参照してください。
 
 ## 📌 12. Amazon Bedrock料金とコスト内訳
 
 > [!NOTE]
 > 以下の表は**計画用の参考料金**です。アプリ自体はImage Studioサイドバーに**ライブのモデルごとの料金**を表示します — AWS Pricing APIからレジストリリフレッシュ時に取得され、`model_registry.json`に保存されます。
 
-すべての料金は[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)（USリージョン）から取得。詳細は[SPEC.md](SPEC.md#13-aws-bedrock-pricing--cost-breakdown)を参照。
+すべての料金は[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)（USリージョン）から取得。詳細は[SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)を参照。
 
 | サービス | モデル | コスト | 単位 |
 |---------|-------|------|------|

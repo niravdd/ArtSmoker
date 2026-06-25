@@ -41,7 +41,7 @@
 - [5. API Reference](#5-api-reference)
   - [5.1 Styles](#51-styles)
   - [5.2 Generation](#52-generation)
-  - [5.3 Prompt Refinement](#53-prompt-refinement)
+  - [5.3 Prompt Refinement & Prompt Designer](#53-prompt-refinement--prompt-designer)
   - [5.4 Voice Transcription](#54-voice-transcription)
   - [5.5 Gallery](#55-gallery)
   - [5.6 Type Studio](#56-type-studio)
@@ -1775,7 +1775,6 @@ For a scoped IAM policy:
       "Effect": "Allow",
       "Action": [
         "aws-marketplace:Subscribe",
-        "aws-marketplace:Unsubscribe",
         "aws-marketplace:ViewSubscriptions"
       ],
       "Resource": "*"
@@ -1799,6 +1798,8 @@ For a scoped IAM policy:
 }
 ```
 > Note: `Comment` is illustrative only — strip it before applying (IAM rejects unknown keys). The dedicated Mantle statement mirrors the managed policy `AmazonBedrockMantleInferenceAccess`; attaching that managed policy instead is simpler and AWS keeps it current.
+>
+> This is the **core** policy (Bedrock + Mantle + S3 + discovery). **Self-hosted Custom Models on Amazon SageMaker** need an additional set of permissions (`sagemaker:*` for endpoints, `iam:PassRole`/`CreateRole`/`AttachRolePolicy`, `secretsmanager:*` for the gated-model HF token) — see the **Amazon SageMaker IAM requirements** under §5.10. Skip those if you won't deploy Custom Models.
 
 **Apply the policy via CLI:**
 
@@ -1931,6 +1932,10 @@ pydantic>=2.10
 pydantic-settings>=2.7
 Pillow>=11.1
 aiofiles>=24.1
+huggingface_hub>=0.23          # Custom-model weight downloads from HuggingFace
+openai>=1.50                   # Amazon Bedrock Mantle endpoint (OpenAI-compatible Chat Completions + Responses)
+aws-bedrock-token-generator>=1.0  # Short-term Bedrock bearer token for Mantle (derived from AWS creds)
+requests>=2.31                 # Anthropic Messages API over the Mantle endpoint
 ```
 
 For multi-user, shared test, or production deployments, also install `gunicorn` (Linux/macOS only):
@@ -2106,6 +2111,8 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 <a id="13-aws-bedrock-pricing--cost-breakdown"></a>
 
 <a id="14-aws-bedrock-pricing--cost-breakdown"></a>
+
+<a id="14-amazon-bedrock-pricing--cost-breakdown"></a>
 
 ## 14. Amazon Bedrock Pricing & Cost Breakdown
 

@@ -420,14 +420,14 @@ ArtSmoker 设计为**本地/受信网络开发工具** —— 在开发者自己
 - **S3 访问** —— S3 浏览和导入使用服务器的 AWS 凭证。
 
 > [!WARNING]
-> 不要在未添加认证和路径限制的情况下将 ArtSmoker 暴露到不受信任的网络。有关生产环境加固指南，请参阅 [SPEC.md 中的部署路线图](SPEC.md#14-deployment--scaling-roadmap)。
+> 不要在未添加认证和路径限制的情况下将 ArtSmoker 暴露到不受信任的网络。有关生产环境加固指南，请参阅 [SPEC.md 中的部署路线图](SPEC.md#16-deployment--scaling-roadmap)。
 
 ## 📌 12. Amazon Bedrock 定价和成本明细
 
 > [!NOTE]
 > 下表为**规划用的参考定价**。应用本身在 Image Studio 侧边栏中显示**实时的每模型定价** —— 在注册表刷新时从 AWS Pricing API 获取并存储在 `model_registry.json` 中。
 
-所有价格来自 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)（美国区域）。详情请参阅 [SPEC.md](SPEC.md#13-aws-bedrock-pricing--cost-breakdown)。
+所有价格来自 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)（美国区域）。详情请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
 
 | 服务 | 模型 | 成本 | 单位 |
 |------|------|------|------|

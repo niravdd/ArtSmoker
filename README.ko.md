@@ -420,14 +420,14 @@ ArtSmoker는 **로컬/신뢰 네트워크 개발 도구**로 설계되었습니�
 - **S3 접근** — S3 탐색과 가져오기는 서버의 AWS 인증 정보를 사용합니다.
 
 > [!WARNING]
-> 인증과 경로 제한을 추가하지 않고 신뢰할 수 없는 네트워크에 ArtSmoker를 노출하지 마세요. 프로덕션 강화 가이드는 [SPEC.md의 배포 로드맵](SPEC.md#14-deployment--scaling-roadmap)을 참조하세요.
+> 인증과 경로 제한을 추가하지 않고 신뢰할 수 없는 네트워크에 ArtSmoker를 노출하지 마세요. 프로덕션 강화 가이드는 [SPEC.md의 배포 로드맵](SPEC.md#16-deployment--scaling-roadmap)을 참조하세요.
 
 ## 📌 12. Amazon Bedrock 요금 및 비용 내역
 
 > [!NOTE]
 > 아래 표는 **계획용 참고 요금**입니다. 앱 자체는 Image Studio 사이드바에 **실시간 모델별 요금**을 표시합니다 — AWS Pricing API에서 레지스트리 새로 고침 시 가져와 `model_registry.json`에 저장됩니다.
 
-모든 요금은 [Amazon Bedrock 요금 페이지](https://aws.amazon.com/bedrock/pricing/)(US 리전) 기준. 자세한 내용은 [SPEC.md](SPEC.md#13-aws-bedrock-pricing--cost-breakdown)를 참조하세요.
+모든 요금은 [Amazon Bedrock 요금 페이지](https://aws.amazon.com/bedrock/pricing/)(US 리전) 기준. 자세한 내용은 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)를 참조하세요.
 
 | 서비스 | 모델 | 비용 | 단위 |
 |--------|------|------|------|
