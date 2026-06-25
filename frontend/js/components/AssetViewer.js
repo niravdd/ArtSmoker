@@ -2040,7 +2040,7 @@
                     <!-- Variant switcher — populated async when a version
                          has >1 3D variant (different pipeline / deployment / config). -->
                     <div id="av-3d-variants" class="hidden"></div>
-                    <div class="relative rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 60vh; min-height: 480px;">
+                    <div class="relative rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 460px;">
                         <model-viewer id="av-3d-viewer"
                             src="${glbUrl}?t=${Date.now()}"
                             alt="3D Model"
