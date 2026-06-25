@@ -804,7 +804,6 @@ async def get_3d_status(job_id: str):
         # from the deployed instance. output_data may report richer fields (PBR,
         # rasterizer) when the handler supplies them.
         _TEX_LABELS = {
-            "mvpainter": "MVPainter (multi-view PBR bake)",
             "hunyuan": "Hunyuan3D-Paint",
             "mvadapter": "MV-Adapter",
             "trellis2": "TRELLIS.2 (SLAT PBR texturing)",
@@ -826,7 +825,7 @@ async def get_3d_status(job_id: str):
             }
         else:
             _tex_backend = (job.get("params", {}).get("texture_backend")
-                            or output_data.get("texture_backend") or "mvpainter")
+                            or output_data.get("texture_backend") or "trellis2")
             pipeline = {
                 "geometry_model": "TripoSG",
                 "texture_backend": _tex_backend,

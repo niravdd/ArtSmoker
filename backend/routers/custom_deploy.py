@@ -616,9 +616,10 @@ class DeployRequest(BaseModel):
     build_only: bool = False  # Build mode: cache weights after load, don't expect inference
     license_accepted: bool = False  # User confirmed model license agreement before deploying
     # For models with selectable texturing pipelines (e.g. TripoSG): the backend
-    # the user chose in the deploy dialog ("mvpainter" | "hunyuan"). Validated
-    # against the catalog's texture_backends; some (Hunyuan, non-commercial)
-    # require an explicit attestation.
+    # the user chose in the deploy dialog ("trellis2" | "hunyuan"; default
+    # trellis2). Validated against the catalog's texture_backends; some (Hunyuan,
+    # non-commercial) require an explicit attestation. (MVPainter removed
+    # 2026-06-25 — license-tainted + dominated.)
     texture_backend: str | None = None
     texture_license_accepted: bool = False  # Attestation for a non-commercial texture backend
 
@@ -660,7 +661,7 @@ async def deploy_model(body: DeployRequest):
     if body.license_accepted:
         _record_license_acceptance(body.model_key, license_info.get("license_name", model.get("license", "")))
 
-    # ── Texture backend selection (e.g. TripoSG: mvpainter vs hunyuan) ──────────
+    # ── Texture backend selection (e.g. TripoSG: trellis2 vs hunyuan) ──────────
     # Validate the chosen backend against the catalog, enforce its instance
     # baseline, and require attestation for a non-commercial backend (Hunyuan).
     tex_meta = model.get("texture_backends") or {}
@@ -682,7 +683,7 @@ async def deploy_model(body: DeployRequest):
                 "license_name": tb_lic.get("name", ""),
                 "license_url": tb_lic.get("url", ""),
             })
-        # Enforce the backend's instance baseline (MVPainter needs g6e.2xlarge+).
+        # Enforce the backend's instance baseline (per the catalog allowed_instances).
         allowed = tb.get("allowed_instances") or model.get("requirements", {}).get("allowed_instances", [])
         if body.instance_type and allowed and body.instance_type not in allowed:
             raise HTTPException(400, detail=(

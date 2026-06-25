@@ -1468,7 +1468,7 @@
                 const needsQuota = instanceOptions.filter(o => o.needs_quota);
 
                 // Texture-backend picker (registry-driven). Rendered only when the
-                // model offers selectable backends (e.g. TripoSG: MVPainter/Hunyuan).
+                // model offers selectable backends (e.g. TripoSG: TRELLIS.2/Hunyuan).
                 const tbOptions = (textureBackends && textureBackends.options) || null;
                 const tbDefault = (textureBackends && textureBackends.default) || (tbOptions ? Object.keys(tbOptions)[0] : null);
                 let textureHtml = '';
@@ -2330,7 +2330,7 @@
             } catch {}
 
             // Fetch the catalog entry for texture-backend metadata (TripoSG: the
-            // user picks MVPainter vs Hunyuan at deploy). Registry-driven — the
+            // user picks TRELLIS.2 vs Hunyuan at deploy). Registry-driven — the
             // dialog renders entirely from texture_backends.options.
             let textureBackends = null;
             try {

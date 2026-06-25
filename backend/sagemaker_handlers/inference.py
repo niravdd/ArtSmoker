@@ -1666,25 +1666,6 @@ def _load_image_to_3d(model_dir):
         except Exception as e:
             logger.warning("TRELLIS.2 not ready at load (%s) — will retry in background on first job", e)
             _ensure_trellis2_background()
-    elif backend == "mvpainter":
-        # ── MVPainter backend (Apache-2.0, commercial-safe, multi-view bake) ──
-        # MVPainter's diffusion (~54 GB weights) loads on-demand in
-        # _load_mvpainter; the bake reuses the TexturePipeline, so the only thing
-        # that MUST be ready at load is the rasterizer (kaolin by default; its
-        # install / nvdiffrast's CUDA compile would otherwise trip MMS's 120s
-        # watchdog on the first job).
-        try:
-            _ensure_rasterizer()  # install kaolin (or compile nvdiffrast) at LOAD time
-            # Only mark the nvdiffrast background-prep as done if nvdiffrast is
-            # actually the active rasterizer — otherwise a later per-request
-            # ARTSMOKER_RASTERIZER=nvdiffrast override would see state=1 and skip
-            # the install that never happened (kaolin was installed instead).
-            if _rasterizer_choice() == "nvdiffrast":
-                _nvdiffrast_bg["state"] = 1
-            texture_available = True
-            logger.info("Rasterizer ready at load (%s) — MVPainter texture enabled", _rasterizer_choice())
-        except Exception as e:
-            logger.warning("Rasterizer not ready at load (%s) — will retry in background on first job", e)
     else:
         # ── MV-Adapter backend (default, UNCHANGED behavior) ──
         if high_vram:
@@ -1817,7 +1798,7 @@ _trellis2_ops_bg_lock = None
 _TRELLIS2_HF_REPO = "microsoft/TRELLIS.2-4B"
 _TRELLIS2_TEX_CONFIG = "texturing_pipeline.json"   # texturer (BYO mesh): 4 ckpts
 _TRELLIS2_FULL_CONFIG = "pipeline.json"            # full image→3D: 8 ckpts (~16 GB)
-_trellis2_texture_pipe = None  # cached per worker (like _mvpainter_pipe)
+_trellis2_texture_pipe = None  # cached per worker, reused across jobs
 _trellis2_full_pipe = None     # cached full image→3D pipeline (per worker)
 
 # Background nvdiffrast-compile state (for the inference-time guard). When a
@@ -3470,7 +3451,7 @@ def _predict_image_to_3d(input_data, model_dict):
     _backend_now = model_dict.get("texture_backend") or _texture_backend(input_data)
     if input_data.get("texture_backend"):
         _backend_now = str(input_data["texture_backend"]).lower().strip()
-    _attempt_texture = texture_available or (_backend_now in ("hunyuan", "mvpainter", "trellis2"))
+    _attempt_texture = texture_available or (_backend_now in ("hunyuan", "trellis2"))
     textured_glb_data = None
     if _attempt_texture:
         try:
@@ -3984,766 +3965,13 @@ def _predict_trellis2_full(input_data, model_dict):
     })
 
 
-# ── MVPainter backend (Apache-2.0, commercial-safe, multi-view bake) ──────────
-# Cached MVPainter pipeline (built once per worker, reused across jobs). The
-# weights are large (~54 GB), so we load lazily on first texture job and keep
-# the handle on the worker. See bundled_packages/mvpainter/VENDORED_FROM.txt for
-# the license split: we use ONLY MVPainter's Apache-2.0 diffusion and bake with
-# our own nvdiffrast TexturePipeline (NOT MVPainter's non-commercial Stage-3).
-_mvpainter_pipe = None
-_MVPAINTER_REPO = "shaomq/MVPainter"
-_MVPAINTER_UNET_CKPT = "unet_w_controlnet/v29_25000.ckpt"
-
-
-def _load_mvpainter(hf_token=None):
-    """Load MVPainter's multi-view diffusion pipeline (Apache-2.0).
-
-    Mirrors the upstream infer_multiview.py setup exactly:
-      pipe = MVPainter_Pipeline.from_pretrained('shaomq/MVPainter', fp16)
-      cn   = ControlNetModel_Union.from_unet(pipe.unet)
-      pipe.add_controlnet(cn, conditioning_scale=1.0)
-      ckpt = torch.load(<unet_w_controlnet/v29_25000.ckpt>, map_location='cpu')
-      pipe.unet.load_state_dict({k[5:]: v for k,v in ckpt['state_dict'] if 'unet' in k})
-
-    The ckpt is CPU-mapped to avoid a transient GPU spike at load (upstream
-    issue #13 — lets it fit alongside our other models). Cached on the module so
-    repeated jobs reuse one pipeline. Raises on failure (caller → untextured).
-    """
-    global _mvpainter_pipe
-    if _mvpainter_pipe is not None:
-        return _mvpainter_pipe
-
-    import sys as _sys
-    # Resolve the vendored mvpainter package on sys.path so `from mvpainter...`
-    # imports work. The deployer copies bundled_packages/mvpainter/ → code/mvpainter/
-    # (flattened — the 'bundled_packages' dir does NOT exist in the container),
-    # so the inner importable package ends up at code/mvpainter/mvpainter/. Locally
-    # it's at backend/sagemaker_handlers/bundled_packages/mvpainter/mvpainter/. Try
-    # the layouts that actually occur and add the dir whose child 'mvpainter/'
-    # holds mvpainter_pipeline.py to sys.path.
-    here = os.path.dirname(os.path.abspath(__file__))
-    _candidates = [
-        os.path.join(here, "mvpainter"),                         # container: code/mvpainter
-        os.path.join(here, "bundled_packages", "mvpainter"),     # local/dev tree
-    ]
-    _outer = None
-    for _c in _candidates:
-        if os.path.isfile(os.path.join(_c, "mvpainter", "mvpainter_pipeline.py")):
-            _outer = _c
-            break
-    if _outer is None:
-        raise ImportError(
-            "MVPainter package not found; looked in: " + ", ".join(_candidates)
-        )
-    if _outer not in _sys.path:
-        _sys.path.insert(0, _outer)
-    logger.info("MVPainter package dir on sys.path: %s", _outer)
-
-    if hf_token:
-        os.environ.setdefault("HUGGING_FACE_HUB_TOKEN", hf_token)
-        os.environ.setdefault("HF_TOKEN", hf_token)
-
-    from mvpainter.mvpainter_pipeline import MVPainter_Pipeline
-    from mvpainter.controlnet import ControlNetModel_Union
-    from huggingface_hub import hf_hub_download
-
-    logger.info("Loading MVPainter pipeline from %s (fp16)...", _MVPAINTER_REPO)
-    pipe = MVPainter_Pipeline.from_pretrained(_MVPAINTER_REPO, torch_dtype=torch.float16)
-    controlnet = ControlNetModel_Union.from_unet(pipe.unet).to(
-        dtype=torch.float16, device=pipe.device
-    )
-    pipe.add_controlnet(controlnet, conditioning_scale=1.0)
-
-    logger.info("Loading MVPainter custom UNet ckpt (%s)...", _MVPAINTER_UNET_CKPT)
-    ckpt_path = hf_hub_download(repo_id=_MVPAINTER_REPO, filename=_MVPAINTER_UNET_CKPT)
-    # CPU-map to dodge the load-time VRAM spike (upstream issue #13).
-    ckpt = torch.load(ckpt_path, map_location="cpu")["state_dict"]
-    new_ckpt = {k[5:]: v for k, v in ckpt.items() if "unet" in k}
-    pipe.unet.load_state_dict(new_ckpt)
-    del ckpt, new_ckpt
-
-    pipe = pipe.to("cuda")
-    _mvpainter_pipe = pipe
-    logger.info("MVPainter pipeline ready")
-    return _mvpainter_pipe
-
-
-# MVPainter's camera convention (from scripts/blender_render_ortho.py):
-#   azimuth_list = [0, 90, 180, 270, 0, 0] + geo_rotation; geo_rotation=0 for
-#   TripoSG (README-authoritative — the infer_multiview default -90 is for
-#   Hunyuan/TRELLIS). elevation_list = [0,0,0,0,-90,90]. Orthographic, camera
-#   looks at origin with -Z forward / +Y up.
-# ── De-lighting (StableDelight, Apache-2.0 weights) ──────────────────────────
-# MVPainter generates SHADED multi-view RGB (specular hot-spots, glossy wet
-# patches, per-view-inconsistent lighting). Baking that as albedo gives the
-# patchy/inconsistent surface. StableDelight (Stable-X/yoso-delight-v0-4-base)
-# removes the specular/reflection layer in ONE step. Its weights are Apache-2.0;
-# its GitHub YOSODiffusePipeline wrapper is UNLICENSED, so we DO NOT import it —
-# we run the (well-understood) one-step forward ourselves with stock diffusers
-# component classes on the Apache weights. Commercial-clean, like our BiRefNet +
-# Kaolin swaps. Gated by ARTSMOKER_DELIGHT (default "1"); set "0" to bypass.
-_DELIGHT_REPO = "Stable-X/yoso-delight-v0-4-base"
-_DELIGHT_T_START = 401  # the model's fixed one-step timestep (from its config)
-_delight_pipe = None
-
-
-def _ensure_delight_models():
-    """Download StableDelight Apache-2.0 weights (S3-cached). Returns local dir
-    or None. The repo is a standard diffusers layout (vae/unet/controlnet/
-    text_encoder/tokenizer/scheduler) — we load the COMPONENTS, not the
-    unlicensed pipeline class."""
-    import boto3 as _boto3
-    from huggingface_hub import snapshot_download
-    local_dir = "/tmp/yoso-delight"
-    if os.path.isdir(local_dir) and os.path.isfile(os.path.join(local_dir, "model_index.json")):
-        return local_dir
-    bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
-    s3prefix = f"{_TEXTURE_DEPS_PREFIX}/yoso-delight/"
-    # Try S3 cache first (mirror of the HF snapshot)
-    if bucket:
-        try:
-            s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
-            paginator = s3.get_paginator("list_objects_v2")
-            keys = [o["Key"] for pg in paginator.paginate(Bucket=bucket, Prefix=s3prefix)
-                    for o in pg.get("Contents", [])]
-            if keys:
-                for k in keys:
-                    rel = k[len(s3prefix):]
-                    if not rel:
-                        continue
-                    dst = os.path.join(local_dir, rel)
-                    os.makedirs(os.path.dirname(dst), exist_ok=True)
-                    s3.download_file(bucket, k, dst)
-                logger.info("StableDelight weights from S3 cache (%d files)", len(keys))
-                return local_dir
-        except Exception as e:
-            logger.info("StableDelight S3 cache miss (%s) — downloading from HF", e)
-    # Download fp16 safetensors snapshot from HF
-    try:
-        snapshot_download(repo_id=_DELIGHT_REPO, local_dir=local_dir,
-                          allow_patterns=["*.json", "*.txt", "*.fp16.safetensors", "*.py"])
-        logger.info("StableDelight weights downloaded from HF")
-        if bucket:
-            try:
-                s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
-                for root, _, files in os.walk(local_dir):
-                    for fn in files:
-                        fp = os.path.join(root, fn)
-                        rel = os.path.relpath(fp, local_dir)
-                        s3.upload_file(fp, bucket, s3prefix + rel)
-                logger.info("Cached StableDelight weights to S3")
-            except Exception as e:
-                logger.warning("Failed to cache StableDelight to S3: %s", e)
-        return local_dir
-    except Exception as e:
-        logger.warning("StableDelight download failed (%s) — de-lighting disabled", e)
-        return None
-
-
-def _load_delight_pipe():
-    """Lazy-load the StableDelight components (Apache-2.0 weights) onto GPU.
-    Returns a dict of components or None. NO unlicensed pipeline class — just
-    the stock diffusers AutoencoderKL / UNet2DConditionModel / ControlNetModel /
-    CLIPTextModel + tokenizer, which we drive ourselves in _delight_image()."""
-    global _delight_pipe
-    if _delight_pipe is not None:
-        return _delight_pipe
-    local_dir = _ensure_delight_models()
-    if not local_dir:
-        return None
-    try:
-        import torch as _t
-        from diffusers import AutoencoderKL, UNet2DConditionModel
-        from stablex import ControlNetVAEModel  # vendored Apache-2.0 subclass
-        from transformers import CLIPTextModel, CLIPTokenizer
-        dt = _t.float16
-        vae = AutoencoderKL.from_pretrained(local_dir, subfolder="vae", torch_dtype=dt, variant="fp16")
-        unet = UNet2DConditionModel.from_pretrained(local_dir, subfolder="unet", torch_dtype=dt, variant="fp16")
-        # ControlNetVAEModel (see _load_normal_pipe) — uses `sample` latent as the
-        # conditioning; stock ControlNetModel would error on the missing
-        # controlnet_cond. This is also why de-light previously did ~nothing.
-        controlnet = ControlNetVAEModel.from_pretrained(local_dir, subfolder="controlnet", torch_dtype=dt, variant="fp16")
-        text_encoder = CLIPTextModel.from_pretrained(local_dir, subfolder="text_encoder", torch_dtype=dt, variant="fp16")
-        tokenizer = CLIPTokenizer.from_pretrained(local_dir, subfolder="tokenizer")
-        for m in (vae, unet, controlnet, text_encoder):
-            m.to("cuda").eval()
-        # Pre-compute the empty-prompt embedding once (the model is trained with
-        # an empty text condition — it's an image/controlnet-driven model).
-        with _t.no_grad():
-            tok = tokenizer("", padding="max_length", max_length=tokenizer.model_max_length,
-                            truncation=True, return_tensors="pt").input_ids.to("cuda")
-            empty_emb = text_encoder(tok)[0].to(dt)
-        _delight_pipe = {"vae": vae, "unet": unet, "controlnet": controlnet,
-                         "empty_emb": empty_emb, "scaling": vae.config.scaling_factor}
-        logger.info("StableDelight pipeline ready (Apache-2.0, one-step)")
-        return _delight_pipe
-    except Exception as e:
-        logger.warning("StableDelight load failed (%s) — de-lighting disabled", e)
-        return None
-
-
-def _delight_image(pil_img):
-    """Remove baked-in specular lighting from one RGB PIL image via the StableDelight
-    one-step YOSO forward (our clean reimplementation on Apache weights):
-      encode RGB → latent; controlnet(latent, t)→residuals;
-      unet(zeros, t, +residuals) → delit latent DIRECTLY (one-step, no scheduler);
-      decode. Returns a de-lit RGB PIL (same size); on any failure returns input.
-    """
-    pipe = _load_delight_pipe()
-    if pipe is None:
-        return pil_img
-    import torch as _t
-    import numpy as _np
-    from PIL import Image as _PImg
-    try:
-        rgb = pil_img.convert("RGB")
-        W0, H0 = rgb.size
-        # VAE needs dims divisible by 8; work at the nearest multiple, restore after.
-        W = (W0 // 8) * 8 or 8
-        H = (H0 // 8) * 8 or 8
-        arr = _np.asarray(rgb.resize((W, H), _PImg.BILINEAR), dtype=_np.float32) / 255.0
-        x = _t.from_numpy(arr).permute(2, 0, 1)[None] * 2.0 - 1.0  # [1,3,H,W] in [-1,1]
-        x = x.to("cuda", dtype=_t.float16)
-        with _t.no_grad():
-            lat = pipe["vae"].encode(x).latent_dist.mode() * pipe["scaling"]
-            t = _t.tensor(_DELIGHT_T_START, device="cuda")
-            down, mid = pipe["controlnet"](lat, t, encoder_hidden_states=pipe["empty_emb"],
-                                           conditioning_scale=1.0, guess_mode=False, return_dict=False)
-            # YOSO one-step denoise: the UNet sample MUST be RANDOM NOISE (the
-            # reference pipeline's prepare_latents seeds randn, NOT zeros). Feeding
-            # zeros makes the one-step denoiser a near-passthrough → de-light did
-            # ~nothing (validated 2026-06-19). Seed fixed for reproducibility.
-            gen = _t.Generator(device="cuda").manual_seed(0)
-            noise = _t.randn(lat.shape, generator=gen, device="cuda", dtype=lat.dtype)
-            pred = pipe["unet"](noise, t, encoder_hidden_states=pipe["empty_emb"],
-                                down_block_additional_residuals=down,
-                                mid_block_additional_residual=mid, return_dict=False)[0]
-            img = pipe["vae"].decode(pred / pipe["scaling"], return_dict=False)[0]  # [1,3,H,W] in [-1,1]
-        img = ((img[0].float().permute(1, 2, 0) + 1.0) / 2.0).clamp(0, 1).cpu().numpy()
-        out = _PImg.fromarray((img * 255).astype(_np.uint8))
-        if out.size != (W0, H0):
-            out = out.resize((W0, H0), _PImg.BILINEAR)
-        return out
-    except Exception as e:
-        logger.warning("De-light forward failed (%s) — using original view", e)
-        return pil_img
-
-
-# ── Surface-normal estimation (StableNormal, Apache-2.0 weights) ─────────────
-# The baked albedo on smooth TripoSG geometry reads "wet/plastic" because there's
-# no surface microdetail — light slides uniformly across the smooth surface. A
-# per-view NORMAL map (baked as the GLB normalTexture) reintroduces microsurface
-# relief so the material catches light like real fabric/metal. StableNormal
-# (Stable-X/yoso-normal-v1-8-1) estimates camera-space normals in ONE step. Same
-# Apache-2.0-weights + unlicensed-GitHub-wrapper situation as StableDelight, so
-# we again run the YOSO one-step forward ourselves with stock diffusers classes.
-# Structurally identical to delight EXCEPT: 3 components (no text_encoder in the
-# repo) → we supply the empty-string CLIP embedding from SD2.1's text encoder
-# (cross_attention_dim 1024 matches), and the decoded output is a normal map
-# (xyz in [-1,1] → [0,1] RGB), not an RGB image.
-_NORMAL_REPO = "Stable-X/yoso-normal-v1-8-1"
-_NORMAL_T_START = 401
-_normal_pipe = None
-
-
-def _ensure_normal_models():
-    """Download StableNormal Apache-2.0 weights (S3-cached). Returns local dir or
-    None. Standard diffusers layout (vae/unet/controlnet); we load the COMPONENTS,
-    not the unlicensed YOSONormalsPipeline wrapper class."""
-    import boto3 as _boto3
-    from huggingface_hub import snapshot_download
-    local_dir = "/tmp/yoso-normal"
-    if os.path.isdir(local_dir) and os.path.isfile(os.path.join(local_dir, "model_index.json")):
-        return local_dir
-    bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
-    s3prefix = f"{_TEXTURE_DEPS_PREFIX}/yoso-normal/"
-    if bucket:
-        try:
-            s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
-            paginator = s3.get_paginator("list_objects_v2")
-            keys = [o["Key"] for pg in paginator.paginate(Bucket=bucket, Prefix=s3prefix)
-                    for o in pg.get("Contents", [])]
-            if keys:
-                for k in keys:
-                    rel = k[len(s3prefix):]
-                    if not rel:
-                        continue
-                    dst = os.path.join(local_dir, rel)
-                    os.makedirs(os.path.dirname(dst), exist_ok=True)
-                    s3.download_file(bucket, k, dst)
-                logger.info("StableNormal weights from S3 cache (%d files)", len(keys))
-                return local_dir
-        except Exception as e:
-            logger.info("StableNormal S3 cache miss (%s) — downloading from HF", e)
-    try:
-        snapshot_download(repo_id=_NORMAL_REPO, local_dir=local_dir,
-                          allow_patterns=["*.json", "*.txt", "*.fp16.safetensors", "*.py"])
-        logger.info("StableNormal weights downloaded from HF")
-        if bucket:
-            try:
-                s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
-                for root, _, files in os.walk(local_dir):
-                    for fn in files:
-                        fp = os.path.join(root, fn)
-                        rel = os.path.relpath(fp, local_dir)
-                        s3.upload_file(fp, bucket, s3prefix + rel)
-                logger.info("Cached StableNormal weights to S3")
-            except Exception as e:
-                logger.warning("Failed to cache StableNormal to S3: %s", e)
-        return local_dir
-    except Exception as e:
-        logger.warning("StableNormal download failed (%s) — normal maps disabled", e)
-        return None
-
-
-def _load_normal_pipe():
-    """Lazy-load StableNormal components (Apache-2.0 weights) onto GPU. The repo
-    ships NO text_encoder, so we build the empty-string CLIP embedding [1,2,1024]
-    from SD2.1's text encoder (same OpenCLIP-1024 the model was trained with).
-    Returns a dict or None."""
-    global _normal_pipe
-    if _normal_pipe is not None:
-        return _normal_pipe
-    local_dir = _ensure_normal_models()
-    if not local_dir:
-        return None
-    try:
-        import torch as _t
-        from diffusers import AutoencoderKL, UNet2DConditionModel
-        from stablex import ControlNetVAEModel  # vendored Apache-2.0 subclass
-        dt = _t.float16
-        vae = AutoencoderKL.from_pretrained(local_dir, subfolder="vae", torch_dtype=dt, variant="fp16")
-        unet = UNet2DConditionModel.from_pretrained(local_dir, subfolder="unet", torch_dtype=dt, variant="fp16")
-        # ControlNetVAEModel (NOT stock ControlNetModel): its forward() uses the
-        # VAE-encoded image latent passed as `sample` for conditioning and makes
-        # controlnet_cond optional. Stock ControlNetModel REQUIRES controlnet_cond
-        # → "forward() missing controlnet_cond" when driven the YOSO way.
-        controlnet = ControlNetVAEModel.from_pretrained(local_dir, subfolder="controlnet", torch_dtype=dt, variant="fp16")
-        for m in (vae, unet, controlnet):
-            m.to("cuda").eval()
-        # Null text conditioning: the YOSO-normal repo ships NO text_encoder and
-        # the model is image/controlnet-driven, so the text path is a fixed empty
-        # condition. We use a ZERO embedding of the cross-attention shape
-        # [1, 2, 1024] (matching the upstream empty_text_embedding's [1,2,dim]
-        # BOS+EOS length). This avoids any external/gated CLIP repo
-        # (stabilityai/stable-diffusion-2-1-base is gated → the load failed in
-        # the container). cross_attention_dim is read from the unet config.
-        _xdim = int(getattr(unet.config, "cross_attention_dim", 1024) or 1024)
-        empty_emb = _t.zeros((1, 2, _xdim), device="cuda", dtype=dt)
-        _normal_pipe = {"vae": vae, "unet": unet, "controlnet": controlnet,
-                        "empty_emb": empty_emb, "scaling": vae.config.scaling_factor}
-        logger.info("StableNormal pipeline ready (Apache-2.0, one-step)")
-        return _normal_pipe
-    except Exception as e:
-        logger.warning("StableNormal load failed (%s) — normal maps disabled", e)
-        return None
-
-
-def _estimate_normal(pil_img):
-    """Estimate a camera-space surface-normal map for one RGB view via the
-    StableNormal one-step YOSO forward (clean reimpl on Apache weights). Returns
-    an RGB PIL normal map (xyz→[0,1], same size); on failure returns None so the
-    caller skips the normal channel for that view."""
-    pipe = _load_normal_pipe()
-    if pipe is None:
-        return None
-    import torch as _t
-    import numpy as _np
-    from PIL import Image as _PImg
-    try:
-        rgb = pil_img.convert("RGB")
-        W0, H0 = rgb.size
-        W = (W0 // 8) * 8 or 8
-        H = (H0 // 8) * 8 or 8
-        arr = _np.asarray(rgb.resize((W, H), _PImg.BILINEAR), dtype=_np.float32) / 255.0
-        x = _t.from_numpy(arr).permute(2, 0, 1)[None] * 2.0 - 1.0
-        x = x.to("cuda", dtype=_t.float16)
-        with _t.no_grad():
-            lat = pipe["vae"].encode(x).latent_dist.mode() * pipe["scaling"]
-            t = _t.tensor(_NORMAL_T_START, device="cuda")
-            down, mid = pipe["controlnet"](lat, t, encoder_hidden_states=pipe["empty_emb"],
-                                           conditioning_scale=1.0, guess_mode=False, return_dict=False)
-            gen = _t.Generator(device="cuda").manual_seed(0)
-            noise = _t.randn(lat.shape, generator=gen, device="cuda", dtype=lat.dtype)
-            pred = pipe["unet"](noise, t, encoder_hidden_states=pipe["empty_emb"],
-                                down_block_additional_residuals=down,
-                                mid_block_additional_residual=mid, return_dict=False)[0]
-            nrm = pipe["vae"].decode(pred / pipe["scaling"], return_dict=False)[0]  # [1,3,H,W] in [-1,1]
-        nrm = nrm[0].float()
-        # Re-normalize to unit vectors, then map xyz[-1,1] → RGB[0,1].
-        nrm = nrm / nrm.norm(dim=0, keepdim=True).clamp(min=1e-6)
-        img = ((nrm.permute(1, 2, 0) + 1.0) / 2.0).clamp(0, 1).cpu().numpy()
-        out = _PImg.fromarray((img * 255).astype(_np.uint8))
-        if out.size != (W0, H0):
-            out = out.resize((W0, H0), _PImg.BILINEAR)
-        return out
-    except Exception as e:
-        logger.warning("Normal estimate failed (%s) — skipping normal for this view", e)
-        return None
-
-
-_MVP_AZIMUTH = [0, 90, 180, 270, 0, 0]
-_MVP_ELEVATION = [0, 0, 0, 0, -90, 90]
-# Upstream tiles the 6 views into a 3-row × 2-col grid in THIS view order
-# (Blender render indices ['000','005','001','004','002','003'] → grid slots).
-# Grid slot k (row=k//2, col=k%2) gets render index _MVP_TILE_ORDER[k].
-_MVP_TILE_ORDER = [0, 5, 1, 4, 2, 3]
-_MVP_VIEW_RES = 512  # MVPainter is trained at 512² per view (grid 1024×1536)
-
-
-def _mvp_tile_views(view_imgs):
-    """Tile 6 per-view PIL images (in render-index order 0..5) into MVPainter's
-    3×2 conditioning grid (1024 wide × 1536 tall), honoring _MVP_TILE_ORDER."""
-    from PIL import Image as _PImg
-    grid = _PImg.new("RGB", (_MVP_VIEW_RES * 2, _MVP_VIEW_RES * 3))
-    for slot, render_idx in enumerate(_MVP_TILE_ORDER):
-        col, row = slot % 2, slot // 2
-        img = view_imgs[render_idx]
-        if img.size != (_MVP_VIEW_RES, _MVP_VIEW_RES):
-            img = img.resize((_MVP_VIEW_RES, _MVP_VIEW_RES))
-        grid.paste(img.convert("RGB"), (col * _MVP_VIEW_RES, row * _MVP_VIEW_RES))
-    return grid
-
-
-def _generate_texture_mvpainter(mesh_path, source_image, model_dict, input_data, temp_dir):
-    """Texture an existing mesh with MVPainter's multi-view diffusion + our
-    nvdiffrast bake → textured GLB bytes (Apache-2.0 / commercial-safe).
-
-    Pipeline (called AFTER TripoSG is parked/evicted so VRAM is free):
-      1. Render 6 geometry views (normal + depth) of the mesh with our existing
-         nvdiffrast renderer at MVPainter's camera convention.
-      2. Build MVPainter's two conditioning tiles (normal grid, inverse-depth
-         grid) and run its diffusion → a 3×2 grid of 6 textured RGB views.
-      3. Slice the grid back to 6 views and bake them onto the mesh with the
-         SAME MV-Adapter TexturePipeline our mvadapter backend uses (nvdiffrast
-         back-projection — robust to fragmented UVs). Returns the textured GLB.
-
-    Raises on failure so the caller falls back to the untextured GLB.
-    """
-    import time as _t
-    import numpy as _np
-    from PIL import Image as _PImg
-    hf_token = model_dict.get("hf_token")
-    t0 = _t.time()
-    logger.info("Texturing with MVPainter backend (Apache-2.0)...")
-    _log_mem("mvpainter: enter (TripoSG evicted, RMBG on GPU)")
-
-    # Per-request Kaolin-rasterizer convention overrides + diagnostics. Lets us
-    # A/B-test the y-flip / z-sign conventions (and turn on the per-gate coverage
-    # breakdown in uv.py's SimpleUVValidityStrategy) from the job payload WITHOUT
-    # a redeploy — the wrapper reads these env vars at call time. Remove once the
-    # correct convention is locked in.
-    for _k, _env in (("debug_texture", "ARTSMOKER_TEXTURE_DEBUG"),
-                     ("rasterizer", "ARTSMOKER_RASTERIZER"),
-                     ("kaolin_yflip", "ARTSMOKER_KAOLIN_YFLIP"),
-                     ("kaolin_zsign", "ARTSMOKER_KAOLIN_ZSIGN"),
-                     ("kaolin_outflip", "ARTSMOKER_KAOLIN_OUTFLIP"),
-                     ("kaolin_nflip", "ARTSMOKER_KAOLIN_NFLIP"),
-                     ("ref_lift", "ARTSMOKER_REF_LIFT"),
-                     ("delight", "ARTSMOKER_DELIGHT"),
-                     ("normal_map", "ARTSMOKER_NORMAL_MAP")):
-        if input_data.get(_k) is not None:
-            os.environ[_env] = str(input_data[_k])
-            logger.info("MVPainter debug override: %s=%s", _env, os.environ[_env])
-
-    # The bake rasterizer (kaolin by default) must be ready — its install/compile
-    # exceeds MMS's 120s watchdog, so it's prepared at load. If somehow not ready,
-    # kick the background prep and fail fast (caller → untextured).
-    if not _ensure_rasterizer(blocking=False):
-        _ensure_nvdiffrast_background()  # only kicks if nvdiffrast is the choice; harmless otherwise
-        msg = (f"Bake rasterizer ({_rasterizer_choice()}) is being prepared in the "
-               "background. Texture skipped this run — resubmit shortly.")
-        logger.warning("MVPainter texture deferred: %s", msg)
-        raise RuntimeError(msg)
-
-    from mvadapter.utils.mesh_utils import (
-        get_orthogonal_camera, load_mesh, render, make_raster_context
-    )
-    from mvadapter.utils.mesh_utils.render import SimpleNormalization
-
-    # ── 1. Render geometry views (normal + depth) at MVPainter's convention ──
-    # geo_rotation=0 for TripoSG. Our azimuth sign matches MV-Adapter's render
-    # (which subtracts 90 from a different base list); MVPainter's own offset is
-    # baked into _MVP_AZIMUTH, so we pass it directly. The 6-view conditioning
-    # is saved as a debug artifact so any orientation mismatch is caught BEFORE
-    # judging final texture quality.
-    cameras = get_orthogonal_camera(
-        elevation_deg=_MVP_ELEVATION,
-        distance=[1.8] * 6,
-        left=-0.55, right=0.55, bottom=-0.55, top=0.55,
-        azimuth_deg=_MVP_AZIMUTH,
-        device="cuda",
-    )
-    ctx = make_raster_context(device="cuda")  # Kaolin default; nvdiffrast via ARTSMOKER_RASTERIZER
-    mesh_obj = load_mesh(mesh_path, rescale=True, front_x_to_y=True, device="cuda")
-    # IMPORTANT: request RAW view-space depth (no inversion / per-view clip). The
-    # default DepthControlNetNormalization already inverts + per-view min/max
-    # normalizes, which would clash with MVPainter's per-WHOLE-TILE inverse-depth
-    # normalization we apply below. SimpleNormalization(scale=1, offset=0,
-    # clamp=False) passes depth through ~unchanged so we can reproduce
-    # MVPainter's infer_multiview.py depth math exactly. bg stays 0 (we mask).
-    render_out = render(
-        ctx, mesh_obj, cameras,
-        height=_MVP_VIEW_RES, width=_MVP_VIEW_RES,
-        render_attr=False, render_depth=True, render_normal=True,
-        depth_normalization_strategy=SimpleNormalization(
-            scale=1.0, offset=0.0, clamp=False, bg_value=0.0
-        ),
-        normal_background=0.0,
-    )
-
-    # Normal tile: encode normals as *0.5+0.5 (MVPainter's Blender pipeline uses
-    # the identical scale/bias). (6, H, W, 3) → 6 PIL → 3×2 grid.
-    _nrm = (render_out.normal / 2 + 0.5).clamp(0, 1)
-    _nrm_np = (_nrm.detach().cpu().numpy() * 255).astype(_np.uint8)
-    normal_views = [_PImg.fromarray(_nrm_np[i]) for i in range(_nrm_np.shape[0])]
-    normal_tile = _mvp_tile_views(normal_views)
-
-    # Depth tile: MVPainter normalizes inverse-depth to [0,1] across the WHOLE
-    # tile's valid region (background = far). Build a combined depth grid then
-    # invert+min/max-normalize over valid texels (mirrors infer_multiview.py).
-    _depth = render_out.depth.detach().cpu().numpy()        # (6, H, W, 1) or (6,H,W)
-    _mask = render_out.mask.detach().cpu().numpy().astype(bool)
-    if _depth.ndim == 4:
-        _depth = _depth[..., 0]
-    if _mask.ndim == 4:
-        _mask = _mask[..., 0]
-    grid_d = _np.zeros((_MVP_VIEW_RES * 3, _MVP_VIEW_RES * 2), dtype=_np.float32)
-    grid_valid = _np.zeros_like(grid_d, dtype=bool)
-    for slot, ridx in enumerate(_MVP_TILE_ORDER):
-        col, row = slot % 2, slot // 2
-        y, x = row * _MVP_VIEW_RES, col * _MVP_VIEW_RES
-        grid_d[y:y + _MVP_VIEW_RES, x:x + _MVP_VIEW_RES] = _depth[ridx]
-        grid_valid[y:y + _MVP_VIEW_RES, x:x + _MVP_VIEW_RES] = _mask[ridx]
-    inv = _np.zeros_like(grid_d)
-    if grid_valid.any():
-        d_valid = grid_d[grid_valid]
-        d_valid = _np.where(d_valid > 1e-6, 1.0 / d_valid, 0.0)  # inverse depth
-        lo, hi = float(d_valid.min()), float(d_valid.max())
-        if hi - lo > 1e-6:
-            inv[grid_valid] = (d_valid - lo) / (hi - lo)
-        else:
-            inv[grid_valid] = 1.0
-    depth_tile = _PImg.fromarray((inv * 255).astype(_np.uint8)).convert("RGB")
-
-    if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
-        _save_debug_artifact(normal_tile, "01_mvp_normal_tile")
-        _save_debug_artifact(depth_tile, "01b_mvp_depth_tile")
-
-    # ── 2. MVPainter multi-view diffusion ──
-    # MVPainter wants an RGBA cutout (it reads alpha to recenter, then composites
-    # on white internally) — NOT the gray-composited RGB MV-Adapter uses.
-    ref_image = _preprocess_mvpainter_reference(source_image, model_dict.get("rmbg_model"))
-    _save_debug_artifact(ref_image.convert("RGB"), "02_reference")
-    pipe = _load_mvpainter(hf_token)
-    _log_mem("mvpainter: after pipe load (before diffusion)")
-    steps = int(input_data.get("num_inference_steps") or 75)
-    logger.info("MVPainter diffusion: %d steps", steps)
-    mvp_out = pipe(
-        ref_image,
-        depth_image=normal_tile,      # MVPainter conditions normals on depth_image
-        depth_image_2=depth_tile,     # and depth on depth_image_2
-        num_inference_steps=steps,
-    )
-    _log_mem("mvpainter: after diffusion (peak)")
-    view_grid = mvp_out[0]  # PIL 3×2 grid of 6 textured RGB views (1024×1536)
-    if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
-        _save_debug_artifact(view_grid, "03_mvp_view_grid")
-
-    # ── 3. Slice grid → 6 views in render-index order, then bake ──
-    gw, gh = view_grid.size
-    vw, vh = gw // 2, gh // 3
-    slot_imgs = {}
-    for slot in range(6):
-        col, row = slot % 2, slot // 2
-        slot_imgs[slot] = view_grid.crop(
-            (col * vw, row * vh, (col + 1) * vw, (row + 1) * vh)
-        )
-    # Map grid slots back to render indices, then re-tile into the order the
-    # TexturePipeline expects (it consumes the same _MVP_AZIMUTH/_MVP_ELEVATION
-    # camera list in render-index order 0..5).
-    views_by_render_idx = [None] * 6
-    for slot, ridx in enumerate(_MVP_TILE_ORDER):
-        views_by_render_idx[ridx] = slot_imgs[slot]
-
-    # De-light the 6 views BEFORE baking. MVPainter outputs SHADED imagery
-    # (specular hot-spots, glossy wet patches, per-view-inconsistent lighting);
-    # baking that as albedo produced the patchy/inconsistent surface. StableDelight
-    # (Apache-2.0, one-step) strips the specular layer so we bake flatter base
-    # color. Gated by ARTSMOKER_DELIGHT (default on); per-request via input_data.
-    # DEFAULT OFF: validated on the soldier — StableDelight removes specular
-    # HIGHLIGHTS (the main brightness on the dark navy uniform) without lifting
-    # diffuse shadows, so it made an already-dark texture darker/worse across all
-    # angles. Retained as an opt-in knob (ARTSMOKER_DELIGHT / per-request
-    # "delight") for assets where glossy/wet specular patches dominate.
-    _delight_on = (str(input_data.get("delight", os.environ.get("ARTSMOKER_DELIGHT", "0")))
-                   .strip().lower() not in ("0", "false", "no"))
-    if _delight_on:
-        _dl0 = _t.time()
-        try:
-            views_by_render_idx = [_delight_image(v) for v in views_by_render_idx]
-            logger.info("De-lit 6 views (StableDelight) in %.1fs", _t.time() - _dl0)
-            if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
-                _save_debug_artifact(_make_mv_grid(views_by_render_idx), "03b_mvp_views_delit")
-        except Exception as _de:
-            logger.warning("De-lighting pass failed (%s) — baking original views", _de)
-
-    mv_grid = _make_mv_grid(views_by_render_idx)
-    mv_grid_path = os.path.join(temp_dir, "mvp_mv_grid.png")
-    mv_grid.save(mv_grid_path)
-
-    # ── PR1: per-view NORMAL maps (StableNormal) → bake a normalTexture ──
-    # The biggest lever against the 'wet/plastic' look: smooth TripoSG geometry +
-    # flat albedo has no microsurface relief, so light slides uniformly. Estimate
-    # a camera-space normal per view, tile in render-index order, and hand it to
-    # the baker as normal_path so it emits a PBR GLB with a proper normalTexture.
-    # Gated by ARTSMOKER_NORMAL_MAP (default on) / per-request "normal_map".
-    mv_normal_path = None
-    _normal_on = (str(input_data.get("normal_map", os.environ.get("ARTSMOKER_NORMAL_MAP", "1")))
-                  .strip().lower() not in ("0", "false", "no"))
-    if _normal_on:
-        _nm0 = _t.time()
-        try:
-            normal_maps = [_estimate_normal(v) for v in views_by_render_idx]
-            if all(n is not None for n in normal_maps):
-                mv_normal_grid = _make_mv_grid(normal_maps)
-                mv_normal_path = os.path.join(temp_dir, "mvp_mv_normal.png")
-                mv_normal_grid.save(mv_normal_path)
-                logger.info("Estimated 6 normal maps (StableNormal) in %.1fs", _t.time() - _nm0)
-                if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
-                    _save_debug_artifact(mv_normal_grid, "05_mvp_normals")
-            else:
-                logger.warning("Normal estimation incomplete (%d/6) — baking without normal map",
-                               sum(n is not None for n in normal_maps))
-        except Exception as _ne:
-            logger.warning("Normal-map pass failed (%s) — baking without normal map", _ne)
-
-    # Per-view validity masks for the bake. CRITICAL for coverage quality: without
-    # them (a) MVPainter's WHITE view background bleeds into the atlas, and (b) the
-    # baker can't tell which texels each view legitimately covers — so surfaces not
-    # facing one of the 6 cardinal cameras stay unpainted (the white holes seen in
-    # the first run). We already rendered the geometry silhouette per view
-    # (render_out.mask) — that IS the exact per-view coverage, cleaner than
-    # re-running RMBG on the generated views. Build a mask grid in render-index
-    # order, matching mv_grid, and pass it as view_masks_path.
-    mask_views = []
-    _msk = render_out.mask.detach().cpu().numpy()
-    if _msk.ndim == 4:
-        _msk = _msk[..., 0]
-    for ridx in range(6):
-        mview = (_msk[ridx].astype(_np.uint8) * 255)
-        mask_views.append(_PImg.fromarray(mview, mode="L").resize((vw, vh)))
-    mv_masks_grid = _make_mv_grid_masks(mask_views)
-    mv_masks_path = os.path.join(temp_dir, "mvp_mv_masks.png")
-    mv_masks_grid.save(mv_masks_path)
-    if _get_env("ARTSMOKER_TEXTURE_DEBUG", "") == "1":
-        _save_debug_artifact(mv_masks_grid.convert("RGB"), "04_mvp_masks")
-
-    # Free MVPainter's diffusion activations AND the diffusion pipeline itself
-    # before the bake. The 6 views are already generated/saved to disk, so the
-    # ~6-8 GB MVPainter pipe (SDXL UNet + ControlNet + 2 CLIP encoders) is dead
-    # weight during the bake — and the full-mesh UVAtlas unwrap is HOST-RAM-bound,
-    # so every GB we free (VRAM + the pipe's host-side allocations) is headroom
-    # the unwrap needs. Evict the cached pipe to meta (zero-copy) and drop the
-    # module ref; it reloads from the S3-cached weights on the next job.
-    global _mvpainter_pipe
-    if _mvpainter_pipe is not None:
-        _evict_module_to_meta(
-            _mvpainter_pipe,
-            submodule_attrs=("unet", "vae", "vision_encoder", "vision_encoder_2"),
-            label="MVPainter pipe",
-        )
-        _mvpainter_pipe = None
-    # Drop the LOCAL ref too (it aliases the now-meta'd pipe) so gc can reclaim it.
-    pipe = None
-    del mvp_out, view_grid, render_out, mesh_obj, ctx, pipe
-    import gc as _gc; _gc.collect()
-    _reclaim_cuda_memory("after MVPainter diffusion + pipe eviction (before bake)")
-    _log_mem("mvpainter: before full-mesh UVAtlas bake")
-
-    # ── 4. Bake with the SAME nvdiffrast TexturePipeline as the mvadapter path ──
-    # Use the SAME gap-filling options the (working) mvadapter bake uses, or
-    # surfaces between the 6 cardinal views stay unpainted (white holes):
-    #   - view_masks_path: exclude each view's background from projection
-    #   - poisson_reprojection: seamlessly blend overlapping view projections
-    #   - view_inpaint_include_occlusion_boundary: inpaint uncovered/occluded UV
-    from mvadapter.pipelines.pipeline_texture import TexturePipeline, ModProcessConfig
-    texture_pipe = model_dict.get("texture_pipe")
-    if texture_pipe is None:
-        # MVPainter has no preloaded texture_pipe — build one WITH the quality
-        # models (RealESRGAN x2 upscaler + LaMa inpainter). Without these the
-        # bake was soft (512² views → 4096² atlas, no super-res) and couldn't
-        # inpaint-refine. Models are S3-cached so this is fast after first use.
-        _ups_path, _inp_path = _ensure_texture_quality_models()
-        logger.info("MVPainter bake quality models: upscaler=%s inpainter=%s",
-                    bool(_ups_path), bool(_inp_path))
-        texture_pipe = TexturePipeline(
-            upscaler_ckpt_path=_ups_path, inpaint_ckpt_path=_inp_path, device="cuda",
-        )
-    _has_upscaler = hasattr(texture_pipe, "upscaler") and texture_pipe.upscaler is not None
-    _has_inpainter = hasattr(texture_pipe, "inpainter") and texture_pipe.inpainter is not None
-    # view_upscale: RealESRGAN x2 on each 512² view BEFORE back-projection — the
-    # single biggest crispness lever (sharp ~1024² views land on the 4096² atlas
-    # instead of an 8× blur). Gated on the upscaler actually being loaded.
-    _rgb_config = ModProcessConfig(view_upscale=_has_upscaler,
-                                   view_upscale_factor=2,
-                                   inpaint_mode="view" if _has_inpainter else "uv")
-    tex_output = texture_pipe(
-        mesh_path=mesh_path,
-        save_dir=temp_dir,
-        save_name="mvp_textured",
-        uv_unwarp=True,
-        # NO DECIMATION — bake onto the FULL geometry mesh (up to 1M faces),
-        # matching Hunyuan's full-detail approach for sharp faces/fingers/gear.
-        # preprocess_mesh=True would hard-decimate to 50k (process_raw →
-        # process_mesh(targetfacenum=50000)), which softened fine detail. With
-        # False, the TexturePipeline uses the mesh as-is and UV-unwraps the full
-        # mesh via Open3D UVAtlas (MIT-licensed, commercial-safe). NOTE: UVAtlas
-        # on ~1M faces is memory/time-heavy — watching for OOM; if it fails we
-        # fall back (caller → untextured) and revisit (raise target / xatlas).
-        preprocess_mesh=False,
-        uv_size=4096,
-        rgb_path=mv_grid_path,
-        rgb_process_config=_rgb_config,
-        # PR1: when we have per-view normals, also pass base_color (= the same RGB
-        # views) + normal so the baker emits a PBR GLB (_pbr.glb) carrying a
-        # normalTexture. base_color_path is REQUIRED for the baker to write the
-        # PBR GLB at all (it gates on it). normal uses NO view-upscale (normals
-        # mustn't be super-res-sharpened) but shares the same inpaint/coverage.
-        base_color_path=(mv_grid_path if mv_normal_path else None),
-        base_color_process_config=_rgb_config,
-        normal_path=mv_normal_path,
-        normal_process_config=ModProcessConfig(view_upscale=False,
-                                               inpaint_mode="view" if _has_inpainter else "uv"),
-        view_masks_path=mv_masks_path,
-        view_inpaint_include_occlusion_boundary=True,
-        poisson_reprojection=True,
-        # CRITICAL azimuth-convention fix: TexturePipeline internally re-applies a
-        # -90° offset (azimuth_deg=[x-90 ...], "−y as front", pipeline_texture.py
-        # L207). Our conditioning render used get_orthogonal_camera(azimuth_deg=
-        # _MVP_AZIMUTH) DIRECTLY (no offset), so we must pre-add +90 here to make
-        # the bake's projection cameras land on the SAME views MVPainter generated.
-        # Passing _MVP_AZIMUTH raw left the bake rotated 90° from the diffused
-        # views → colors back-projected onto the wrong surface → shattered/mosaic
-        # texture. (+90 then −90 internally = our true render azimuths.)
-        camera_azimuth_deg=[a + 90 for a in _MVP_AZIMUTH],
-        camera_elevation_deg=_MVP_ELEVATION,
-        camera_distance=1.8,
-        camera_ortho_scale=1.1,
-    )
-    # Prefer the PBR GLB (baseColor + normalTexture) when the normal pass ran;
-    # fall back to the plain shaded GLB (albedo only) otherwise.
-    pbr_path = getattr(tex_output, "pbr_model_save_path", None)
-    textured_path = pbr_path if (pbr_path and os.path.exists(pbr_path)) else tex_output.shaded_model_save_path
-    if not (textured_path and os.path.exists(textured_path)):
-        raise RuntimeError(f"MVPainter bake produced no output (path={textured_path})")
-    with open(textured_path, "rb") as f:
-        glb_data = f.read()
-    logger.info("MVPainter textured GLB: %.1f KB in %.1fs (%s)",
-                len(glb_data) / 1024, _t.time() - t0,
-                "PBR+normal" if textured_path == pbr_path else "albedo-only")
-    return glb_data
-
+# ── MVPainter backend: REMOVED 2026-06-25 ──────────────────────────────────
+# MVPainter was dropped entirely: research found its weights are fine-tuned
+# from a Tencent Hunyuan3D checkpoint (NOT the claimed Apache-2.0 commercial-
+# safe), and its texture quality was the lowest of the three backends. It is
+# strictly dominated by Hunyuan (quality) and TRELLIS.2 (commercial-clean +
+# native PBR). The shared _preprocess_mvpainter_reference() helper is RETAINED
+# (TRELLIS.2 + Hunyuan reuse it for the RGBA cutout).
 
 def _assemble_pbr_glb(obj_path, out_dir, albedo_path=None):
     """Build a self-contained textured GLB from an OBJ (+ UVs) + an albedo PNG.
@@ -4856,16 +4084,11 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         # TripoSG entirely (free GPU + RAM) and reload it from the local snapshot
         # before the next job. Either way Phase 2 gets its freed VRAM.
         # Determine the texture backend NOW (before park/evict) — it dictates the
-        # right memory strategy. The MVPainter bake's UV unwrap (Open3D UVAtlas on
-        # the full ~1M-face mesh) is HOST-RAM-bound, so PARKING TripoSG on CPU
-        # (~10 GB) — which is fine for the GPU-bound MV-Adapter bake — instead
-        # STARVES the unwrap and host-OOM-kills the worker (observed on g6e.2xlarge
-        # with 54 GB "free" at park time: abrupt SIGKILL, no traceback). For
-        # mvpainter we must EVICT (free host RAM, zero-copy via meta), not park.
-        _bake_backend = model_dict.get("texture_backend") or _texture_backend(input_data)
-        if input_data.get("texture_backend"):
-            _bake_backend = str(input_data["texture_backend"]).lower().strip()
-        _force_evict = (_bake_backend == "mvpainter")  # CPU/host-RAM-bound bake
+        # right memory strategy. Only the MV-Adapter (default) bake reaches here —
+        # the hunyuan / trellis2 backends early-return above with their own memory
+        # handling. The MV-Adapter bake is GPU-bound, so PARKING TripoSG on CPU
+        # (~10 GB) is sufficient; no force-evict needed.
+        _force_evict = False
 
         _PARK_RAM_HEADROOM_GB = 14.0  # ~10 GB fp32 pipe + transfer buffers + margin
         triposg_pipe = model_dict.get("pipe")
@@ -4931,18 +4154,38 @@ def _generate_texture(mesh, source_image, model_dict, input_data):
         _reclaim_cuda_memory("after parking TripoSG + texture models (before Phase 2)")
 
         # ═══════════════════════════════════════════════════════════════════
-        # BACKEND BRANCH: hunyuan / mvpainter (single call → GLB) vs MV-Adapter
+        # TEXTURE BACKEND DISPATCH — which texturer paints the TripoSG mesh.
+        # ───────────────────────────────────────────────────────────────────
+        # Active, user-selectable backends (registry texture_backends.options):
+        #   • "trellis2" — TRELLIS.2 (MIT + commercial DINOv3). DEFAULT. Native
+        #     PBR; self-contained bake via o_voxel.postprocess.to_glb (does NOT
+        #     use the mvadapter TexturePipeline below).
+        #   • "hunyuan"  — Hunyuan3D-Paint (best quality, Tencent NON-commercial).
+        #     Bakes via the vendored `mvadapter` TexturePipeline + mesh_utils.
+        #
+        # ON MV-ADAPTER (the `else` branch below): the `mvadapter` package plays
+        # TWO roles. (1) As a GENERATOR backend (_generate_texture / its own SDXL
+        # multi-view pipeline) it is RETIRED — it failed the Janus/duplicated-face
+        # test, is NOT offered in the registry options, and is reached only as a
+        # fallback if `backend` is empty/unknown. (2) As a BAKE LIBRARY
+        # (mvadapter.pipelines.pipeline_texture.TexturePipeline + utils.mesh_utils)
+        # it is STILL REQUIRED — Hunyuan's Phase-3 bake imports it. So the vendored
+        # `bundled_packages/mvadapter` MUST stay even though the MV-Adapter texturer
+        # itself is no longer a user choice. Do not delete the package.
+        #
+        # MVPAINTER was removed entirely 2026-06-25 (commit after 81eaed5): its
+        # weights are fine-tuned from a Tencent Hunyuan3D checkpoint (NOT the
+        # claimed Apache-2.0 commercial-safe) and its quality was the lowest of the
+        # three. Strictly dominated by Hunyuan (quality) + TRELLIS.2 (commercial-
+        # clean). Only the shared _preprocess_mvpainter_reference() helper survives
+        # (TRELLIS.2 + Hunyuan reuse it for the RGBA cutout — name kept for git
+        # blame continuity; it's just "RGBA cutout prep", nothing MVPainter-specific).
         # ═══════════════════════════════════════════════════════════════════
         backend = model_dict.get("texture_backend") or _texture_backend(input_data)
         if input_data.get("texture_backend"):  # per-request override wins
             backend = str(input_data["texture_backend"]).lower().strip()
         if backend == "hunyuan":
             glb_data = _generate_texture_hunyuan(
-                mesh_path, source_image, model_dict, input_data, temp_dir
-            )
-            return glb_data
-        if backend == "mvpainter":
-            glb_data = _generate_texture_mvpainter(
                 mesh_path, source_image, model_dict, input_data, temp_dir
             )
             return glb_data
@@ -5402,9 +4645,16 @@ def _shadow_lift(pil_rgb, strength=1.0):
 
 
 def _preprocess_mvpainter_reference(pil_image, rmbg_model, lift_override=None):
-    """Prepare the reference image for MVPainter, which expects an RGBA cutout.
+    """Prepare the reference image as an RGBA cutout (bg-removed + optional shadow-lift).
 
-    MVPainter's pipeline runs its OWN preprocessing: recenter_img/white_out_
+    SHARED helper — despite the legacy name, this is NOT MVPainter-specific (MVPainter
+    was removed 2026-06-25). It's the common RGBA-cutout prep reused by BOTH active
+    texturers: TRELLIS.2 (`_generate_texture_trellis2`) and Hunyuan
+    (`_generate_texture_hunyuan`), plus the full TRELLIS.2 image-to-3D predictor. Name
+    retained for git-blame continuity; safe to rename to _preprocess_rgba_reference if
+    ever desired (update the 3 call sites). Do NOT delete.
+
+    Background: a texturer pipeline that runs its OWN preprocessing (recenter_img/white_out_
     background read the ALPHA channel to find the subject, then to_rgb_image
     composites the cutout onto a white background (its training distribution).
     So we must hand it a background-removed image WITH an alpha channel — not the

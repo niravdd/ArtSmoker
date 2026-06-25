@@ -61,13 +61,13 @@ def _instance_has_local_nvme(instance: str) -> bool:
 _LIBRARY_BUNDLED_PACKAGES = {
     # Three texturing backends bundled, selected via ARTSMOKER_TEXTURE_BACKEND /
     # per-request texture_backend: mvadapter (Apache-2.0, default), hy3dpaint
-    # (Hunyuan3D-Paint, best quality, Tencent community license), mvpainter
-    # (MVPainter, Apache-2.0 — commercial-safe, multi-view-bake; only the
-    # Apache-licensed diffusion is vendored, baking reuses our nvdiffrast path).
+    # (Hunyuan3D-Paint, best quality, Tencent community license), trellis2
+    # (TRELLIS.2, MIT + commercial DINOv3 — commercial-clean, native PBR).
     # 'stablex' = vendored ControlNetVAEModel (Apache-2.0) for the StableNormal /
     # StableDelight YOSO one-step forwards (their weights' controlnet is a
     # ControlNetVAEModel subclass; stock diffusers ControlNetModel can't drive it).
-    "image_to_3d": ["triposg", "mvadapter", "hy3dpaint", "mvpainter", "stablex"],
+    # (MVPainter removed 2026-06-25 — license-tainted + dominated; see SPEC §5.10.1.)
+    "image_to_3d": ["triposg", "mvadapter", "hy3dpaint", "stablex"],
     # Full standalone TRELLIS.2 image→3D pipeline: the `trellis2` package + its
     # CUDA exts are git-cloned/built at runtime (_ensure_trellis2), so NOTHING
     # needs vendoring here — the handler's only bundled-pkg imports are
@@ -2357,9 +2357,10 @@ def _get_model_environment(model_key: str, model: dict,
     if os.environ.get("ARTSMOKER_TEXTURE_DEBUG") == "1":
         env["ARTSMOKER_TEXTURE_DEBUG"] = "1"
 
-    # Texturing backend baked into the endpoint: "mvpainter", "hunyuan", or
-    # "mvadapter". Sets which backend's native ops are built + which pipe is
-    # preloaded at model load. Per-request texture_backend still overrides at
+    # Texturing backend baked into the endpoint: "trellis2" (default) or
+    # "hunyuan" (or the retired "mvadapter" fallback). Sets which backend's native
+    # ops are built + which pipe is preloaded at model load. Per-request
+    # texture_backend still overrides at
     # inference. Source order: the user's per-DEPLOY choice (texture_backend arg,
     # from the deploy dialog) wins; else catalog invoke.texture_backend (survives
     # server restarts); else the server's ARTSMOKER_TEXTURE_BACKEND env.
