@@ -1742,8 +1742,38 @@ _NVDIFFRAST_WHEEL_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/nvdiffrast/"
 # nvdiffrast): the custom_rasterizer CUDA extension wheel and the
 # mesh_inpaint_processor pybind .so.
 _HUNYUAN_DEPS_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/hunyuan"
-_HUNYUAN_RASTERIZER_WHEEL_PREFIX = f"{_HUNYUAN_DEPS_PREFIX}/custom_rasterizer/"
 _HUNYUAN_INPAINT_SO_PREFIX = f"{_HUNYUAN_DEPS_PREFIX}/mesh_inpaint_processor/"
+
+
+def _gpu_arch_tag() -> str:
+    """Compute-capability tag of the current GPU, e.g. 'sm_89' (L40S) or
+    'sm_86' (A10G). CUDA-compiled artifacts (wheels/.so) are NOT portable across
+    architectures, so this tags both the build flags and the S3 wheel cache so a
+    wheel built on one GPU family is never loaded on another. Falls back to
+    'sm_89' (the original hardcoded L40S target) if the device can't be probed,
+    preserving prior behavior on the validated g6e path."""
+    try:
+        import torch
+        if torch.cuda.is_available():
+            major, minor = torch.cuda.get_device_capability()
+            return f"sm_{major}{minor}"
+    except Exception:
+        pass
+    return "sm_89"
+
+
+def _torch_arch_list() -> str:
+    """TORCH_CUDA_ARCH_LIST value for the current GPU, e.g. '8.9' or '8.6'."""
+    tag = _gpu_arch_tag()[3:]  # strip 'sm_'
+    return f"{tag[0]}.{tag[1:]}" if len(tag) >= 2 else "8.9"
+
+
+# CUDA-compiled wheel caches are namespaced by GPU arch so an L40S (sm_89) wheel
+# is never pulled onto an A10G (sm_86) and vice-versa. Each is a property-style
+# helper so the arch is resolved at call time (after CUDA is up), not import.
+def _hunyuan_rasterizer_wheel_prefix() -> str:
+    return f"{_HUNYUAN_DEPS_PREFIX}/custom_rasterizer/{_gpu_arch_tag()}/"
+
 _hunyuan_ops_bg = {"state": -1, "error": ""}
 _hunyuan_ops_bg_lock = None
 
@@ -1757,7 +1787,10 @@ _hunyuan_ops_bg_lock = None
 _TRELLIS2_REPO = "https://github.com/microsoft/TRELLIS.2.git"
 _TRELLIS2_RUN_DIR = "/tmp/trellis2_run"          # writable clone (package on sys.path)
 _TRELLIS2_DEPS_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/trellis2"
-_TRELLIS2_WHEEL_PREFIX = f"{_TRELLIS2_DEPS_PREFIX}/wheels/"  # cached o_voxel/cumesh/flexgemm wheels
+# cached o_voxel/cumesh/flex_gemm wheels — arch-namespaced (sm_89 L40S, sm_86 A10G,
+# …) since CUDA-compiled wheels are NOT portable across GPU architectures.
+def _trellis2_wheel_prefix() -> str:
+    return f"{_TRELLIS2_DEPS_PREFIX}/wheels/{_gpu_arch_tag()}/"
 _TRELLIS2_REPO_REF = "main"                      # pin if upstream churns
 # o_voxel ships in-repo; cumesh + flexgemm are external git (per setup.sh).
 # CRITICAL: these MUST be cloned --recursive — CuMesh compiles its submodules
@@ -1900,7 +1933,7 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, veri
 
     Mirrors _ensure_nvdiffrast for any --no-build-isolation git/dir package:
       1. already importable → True
-      2. cached wheel in S3 (_TRELLIS2_WHEEL_PREFIX) → pip install it
+      2. cached wheel in S3 (arch-namespaced, _trellis2_wheel_prefix()) → pip install it
       3. build from `build_spec` (a pip-installable path/URL), then cache the
          wheel to S3 for future cold starts.
     `pkg_name` is the python import name; `s3_glob` is the wheel-name prefix to
@@ -1939,10 +1972,13 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, veri
             if os.path.isfile(os.path.join(p, "bin", "nvcc")):
                 os.environ["CUDA_HOME"] = p
                 break
+    # Pin the CUDA-ext compile (cumesh/flex_gemm/o_voxel) to THIS GPU's arch so
+    # binaries match the hardware (L40S=8.9, A10G=8.6) rather than guessing.
+    os.environ["TORCH_CUDA_ARCH_LIST"] = _torch_arch_list()
     # 2. S3 cached wheel
     if bucket:
         try:
-            listing = s3.list_objects_v2(Bucket=bucket, Prefix=_TRELLIS2_WHEEL_PREFIX)
+            listing = s3.list_objects_v2(Bucket=bucket, Prefix=_trellis2_wheel_prefix())
             for o in listing.get("Contents", []):
                 k = o["Key"]
                 if k.endswith(".whl") and os.path.basename(k).startswith(s3_glob):
@@ -1972,7 +2008,7 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, veri
                                    "--wheel-dir", wdir, build_spec], timeout=1800, env={**os.environ})
             found = _glob.glob(os.path.join(wdir, f"{s3_glob}*.whl"))
             if found:
-                wkey = _TRELLIS2_WHEEL_PREFIX + os.path.basename(found[0])
+                wkey = _trellis2_wheel_prefix() + os.path.basename(found[0])
                 s3.upload_file(found[0], bucket, wkey)
                 logger.info("Cached %s wheel to S3: %s", pkg_name, wkey)
         except Exception as ce:
@@ -2311,8 +2347,9 @@ def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
                 os.environ["CUDA_HOME"] = p
                 logger.info("Set CUDA_HOME=%s", p)
                 break
-    # L40S is SM 8.9 — pin arch so the build doesn't probe/guess.
-    os.environ.setdefault("TORCH_CUDA_ARCH_LIST", "8.9")
+    # Pin the build to THIS GPU's arch (L40S=8.9, A10G=8.6, …) so the compile
+    # doesn't probe/guess and the artifact matches the hardware it runs on.
+    os.environ["TORCH_CUDA_ARCH_LIST"] = _torch_arch_list()
 
     # Build from the WRITABLE /tmp copy of hy3dpaint (the read-only model dir
     # can't host setup.py's build/ dir → "Read-only file system" error).
@@ -2324,7 +2361,7 @@ def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
         # 1a. S3 cached wheel.
         if bucket:
             try:
-                listing = s3.list_objects_v2(Bucket=bucket, Prefix=_HUNYUAN_RASTERIZER_WHEEL_PREFIX)
+                listing = s3.list_objects_v2(Bucket=bucket, Prefix=_hunyuan_rasterizer_wheel_prefix())
                 wheels = [o["Key"] for o in listing.get("Contents", []) if o["Key"].endswith(".whl")]
                 if wheels:
                     wkey = wheels[0]
@@ -2360,7 +2397,7 @@ def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
                 if bucket:
                     try:
                         s3.upload_file(built[0], bucket,
-                                       _HUNYUAN_RASTERIZER_WHEEL_PREFIX + os.path.basename(built[0]))
+                                       _hunyuan_rasterizer_wheel_prefix() + os.path.basename(built[0]))
                         logger.info("Cached custom_rasterizer wheel to S3")
                     except Exception as ce:
                         logger.warning("Failed to cache custom_rasterizer wheel: %s", ce)

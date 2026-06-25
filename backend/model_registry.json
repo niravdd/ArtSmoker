@@ -6593,15 +6593,16 @@
           }
         },
         "requirements": {
-          "min_vram_gb": 40,
+          "min_vram_gb": 24,
           "min_ram_gb": 28,
           "recommended_instance": "ml.g6e.xlarge",
           "disk_gb": 80,
-          "_resource_note": "Measured baseline on g6e.xlarge (L40S 48 GB, 32 GiB RAM): peak 6.5 GB VRAM reserved, ~22 GB host RAM during to_glb bake. VRAM is hugely over-provisioned; host RAM is the real constraint and xlarge holds it with ~9 GB headroom. xlarge is the right-sized baseline \u2014 2xlarge/4xlarge only add RAM safety margin.",
+          "_resource_note": "Measured baseline on g6e.xlarge (L40S 48 GB, 32 GiB RAM): peak 6.5 GB VRAM reserved, ~22 GB host RAM during to_glb bake. VRAM is hugely over-provisioned; host RAM is the real constraint (min_ram_gb=28). g6e.xlarge is the proven baseline. ml.g5.2xlarge (A10G 24 GB, 32 GiB RAM, ~$1.51/hr) is offered as a cheaper candidate UNDER TEST \u2014 fits the VRAM/RAM peaks, but the CUDA exts (o_voxel/cumesh/flex_gemm) + xformers must be confirmed to build/run on Ampere sm_86 and latency re-measured before it's promoted to recommended.",
           "allowed_instances": [
             "ml.g6e.xlarge",
             "ml.g6e.2xlarge",
-            "ml.g6e.4xlarge"
+            "ml.g6e.4xlarge",
+            "ml.g5.2xlarge"
           ]
         },
         "invoke": {
@@ -6633,6 +6634,7 @@
         "pricing": {
           "estimated_cost_per_image": 0.08,
           "instance_cost_per_hour": {
+            "ml.g5.2xlarge": 1.52,
             "ml.g6e.xlarge": 2.61,
             "ml.g6e.2xlarge": 2.8,
             "ml.g6e.4xlarge": 3.76
