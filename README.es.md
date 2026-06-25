@@ -280,7 +280,7 @@ Una sola imagen 2D de personaje (a la izquierda, en la pestaña PNG) se conviert
 
 | Pipeline | Cómo funciona | Licencia | Uso comercial | Ideal para |
 |----------|---------------|----------|---------------|------------|
-| TripoSG + backend de texturizado | TripoSG construye la malla; un backend de texturizado elegido (TRELLIS.2 / Hunyuan3D-Paint / MVPainter) la pinta | según el backend (abajo) | según el backend | Combinar geometría + un texturizador específico |
+| TripoSG + backend de texturizado | TripoSG construye la malla; un backend de texturizado elegido (TRELLIS.2 / Hunyuan3D-Paint) la pinta | según el backend (abajo) | según el backend | Combinar geometría + un texturizador específico |
 | TRELLIS.2 (Full) | Un solo modelo genera tanto la geometría como la textura PBR (SLAT) | MIT | Sí — atribución "Built with DINOv3" | Producción, recursos comerciales, el camino más simple |
 
 **Cómo funciona el pipeline de TripoSG:**
@@ -297,8 +297,6 @@ El pipeline TRELLIS.2 (Full) hace lo mismo de extremo a extremo en un solo model
 |---------|----------|---------------|------------|
 | **TRELLIS.2** *(predeterminado)* | MIT | ✅ Sí — requiere una atribución "Built with DINOv3" en su producto | Producción, recursos comerciales, máxima calidad |
 | **Hunyuan3D-Paint** | Tencent Community | ❌ No comercial | Investigación / no comercial, rostros excepcionales |
-| **MVPainter** | Apache-2.0 | ✅ Sí | Baking multi-vista comercial ligero |
-
 La eliminación de fondo usa **BiRefNet (MIT)** de forma predeterminada — totalmente limpio para uso comercial — con una alternativa no comercial (RMBG) disponible como opción explícita divulgada. ArtSmoker nunca descarga silenciosamente una dependencia restringida: cualquier cosa restringida o no comercial se nombra, se etiqueta y queda condicionada a una aceptación explícita.
 
 **Salida:** Formato GLB estándar con texturas PBR integradas — se importa en Unity, Unreal Engine, Blender, etc. El visor 3D interactivo soporta órbita, zoom y panorámica, y la pestaña **3D Model** lista los modelos y herramientas exactos usados para una trazabilidad completa.

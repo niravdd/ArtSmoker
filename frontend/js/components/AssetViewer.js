@@ -864,6 +864,24 @@
             });
         },
 
+        /**
+         * The version bar's verbose PROMPT line belongs only on the image tabs.
+         * Hidden on 3D (irrelevant to the mesh) and Metadata (shown there in the
+         * tab's own section — avoid duplication). Single source of truth, called
+         * by the tab switcher and the version-switch handler. Resolves the active
+         * tab from the DOM so it works regardless of caller.
+         */
+        _syncVersionDetailVisibility(activeTab) {
+            const verDetail = this._overlay?.querySelector('#av-version-detail');
+            if (!verDetail) return;
+            const tab = activeTab
+                || this._overlay?.querySelector('.tab.active')?.dataset.tab
+                || 'png';
+            const promptTabs = this._promptTabs || new Set(['png', 'edit', 'svg']);
+            const hasContent = verDetail.innerHTML.trim().length > 0;
+            verDetail.classList.toggle('hidden', !(promptTabs.has(tab) && hasContent));
+        },
+
         _updateVersionBar(meta) {
             const bar = this._overlay?.querySelector('#av-version-bar');
             const btns = this._overlay?.querySelector('#av-version-buttons');
@@ -984,9 +1002,9 @@
                         }
                     });
 
-                    // Show version detail summary
+                    // Show version detail summary (only on image tabs — the
+                    // helper hides it on 3D/Metadata to avoid clutter/duplication).
                     if (detail && v) {
-                        detail.classList.remove('hidden');
                         detail.innerHTML = `
                             <strong>${v.type === 'original' ? t('asset_viewer.version_original') : v.type}</strong>
                             ${v.model_label || v.image_model || ''}
@@ -995,6 +1013,7 @@
                             ${v.negative_prompt ? ` <span class="text-amber-300/60">[neg: ${this._esc(v.negative_prompt)}]</span>` : ''}
                             ${v.timestamp ? ` <span class="text-brand-text-dim">${window.formatTimestamp(v.timestamp)}</span>` : ''}
                         `;
+                        this._syncVersionDetailVisibility();
                     }
                 });
             });
@@ -1022,10 +1041,18 @@
             // Hide it on Metadata + 3D (the 3D tab has its own Download GLB).
             const imageTabs = new Set(['png', 'edit', 'svg']);
             const dlFooter = this._overlay.querySelector('#av-image-downloads');
-            const syncDownloadFooter = (activeTab) => {
+            // The version bar's verbose PROMPT line is only useful on the image
+            // tabs. Hide it on 3D (irrelevant to the mesh) and Metadata (the
+            // Metadata tab already shows the full prompt in its own section —
+            // don't show it twice). The version BUTTONS stay visible everywhere.
+            const promptTabs = new Set(['png', 'edit', 'svg']);
+            const verDetail = this._overlay.querySelector('#av-version-detail');
+            this._promptTabs = promptTabs;  // used by _syncVersionDetailVisibility
+            const syncTabChrome = (activeTab) => {
                 if (dlFooter) dlFooter.classList.toggle('hidden', !imageTabs.has(activeTab));
+                this._syncVersionDetailVisibility(activeTab);
             };
-            syncDownloadFooter('png');
+            syncTabChrome('png');
 
             this._overlay.querySelectorAll('.tab').forEach((tab) => {
                 tab.addEventListener('click', () => {
@@ -1034,7 +1061,7 @@
                     this._overlay.querySelectorAll('.tab-panel').forEach((p) => {
                         p.classList.toggle('hidden', p.dataset.panel !== tab.dataset.tab);
                     });
-                    syncDownloadFooter(tab.dataset.tab);
+                    syncTabChrome(tab.dataset.tab);
                 });
             });
 
@@ -1708,7 +1735,7 @@
             // License / consent panel — shown for whichever pipeline is selected
             // (or the single deployed one). Informational: the binding acceptance
             // happened at DEPLOY time; here we surface it + confirm it's on record.
-            const licensePanelHtml = `<div id="av-3d-license" class="rounded-lg border border-brand-border bg-brand-bg/40 p-3 text-[11px] space-y-1 max-w-xs hidden"></div>`;
+            const licensePanelHtml = `<div id="av-3d-license" class="flex-1 min-w-[16rem] rounded-lg border border-brand-border bg-brand-bg/40 p-3 text-[11px] space-y-1 hidden"></div>`;
 
             // Save-as choice: only when a 3D model ALREADY exists for this
             // version — i.e. this is a regeneration. Lets the user replace the
@@ -1718,7 +1745,7 @@
             const hasExisting3D = !!(this._meta?.three_d?.[`v${ver}`]?.variants?.length
                 || this._meta?.three_d_versions?.some(v => v.version === ver));
             const saveAsHtml = hasExisting3D ? `
-                    <div class="rounded-lg border border-brand-border bg-brand-bg/40 p-3 max-w-xs">
+                    <div class="flex-1 min-w-[16rem] rounded-lg border border-brand-border bg-brand-bg/40 p-3">
                         <label class="text-xs text-brand-text-muted mb-2 block">${t('asset_viewer.three_d_saveas_title')}</label>
                         <label class="flex items-start gap-2 mb-1.5 cursor-pointer">
                             <input type="radio" name="av-3d-saveas" value="default" checked class="mt-0.5" />
@@ -1735,8 +1762,12 @@
                 <div class="space-y-4">
                     <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_version_note')}</p>
                     ${chooserHtml}
-                    ${licensePanelHtml}
-                    ${saveAsHtml}
+                    <!-- License + save-as choice sit SIDE-BY-SIDE (wrap on narrow
+                         widths) to keep the form compact instead of stacking tall. -->
+                    <div class="flex flex-wrap items-stretch gap-3">
+                        ${licensePanelHtml}
+                        ${saveAsHtml}
+                    </div>
 
                     <!-- Quality preset (real specs: face/vertex detail, not bogus seconds) -->
                     <div>
@@ -2009,7 +2040,7 @@
                     <!-- Variant switcher — populated async when a version
                          has >1 3D variant (different pipeline / deployment / config). -->
                     <div id="av-3d-variants" class="hidden"></div>
-                    <div class="relative rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 420px;">
+                    <div class="relative rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 60vh; min-height: 480px;">
                         <model-viewer id="av-3d-viewer"
                             src="${glbUrl}?t=${Date.now()}"
                             alt="3D Model"

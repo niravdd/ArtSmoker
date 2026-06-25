@@ -277,7 +277,7 @@ A single 2D character image (left, in the PNG tab) becomes a fully-textured 3D m
 
 | Pipeline | How it works | Licence | Commercial use | Best for |
 |----------|--------------|---------|----------------|----------|
-| **TripoSG + texture backend** | TripoSG builds the mesh; a chosen texture backend (TRELLIS.2 / Hunyuan3D-Paint / MVPainter) paints it | per backend (below) | per backend | Mixing geometry + a specific texturer |
+| **TripoSG + texture backend** | TripoSG builds the mesh; a chosen texture backend (TRELLIS.2 / Hunyuan3D-Paint) paints it | per backend (below) | per backend | Mixing geometry + a specific texturer |
 | **TRELLIS.2 (Full)** | One model generates **both** geometry and PBR texture (SLAT) | MIT | ✅ Yes — "Built with DINOv3" attribution | Production, commercial assets, simplest path |
 
 **How the TripoSG pipeline works:**
@@ -294,7 +294,6 @@ The **TRELLIS.2 (Full)** pipeline does the same end-to-end in a single model —
 |---------|---------|----------------|----------|
 | **TRELLIS.2** *(default)* | MIT | ✅ Yes — requires a "Built with DINOv3" attribution in your product | Production, commercial assets, highest quality |
 | **Hunyuan3D-Paint** | Tencent Community | ❌ Non-commercial | Research / non-commercial, exceptional faces |
-| **MVPainter** | Apache-2.0 | ✅ Yes | Lightweight commercial multi-view baking |
 
 Background removal (the cutout step) uses **BiRefNet (MIT)** by default — fully commercial-clean — with a non-commercial alternative (RMBG) available as a disclosed opt-in. ArtSmoker never silently pulls a restricted dependency: anything gated or non-commercial is named, badged, and gated behind an explicit acceptance.
 

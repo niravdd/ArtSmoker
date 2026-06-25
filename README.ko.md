@@ -280,7 +280,7 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 | 파이프라인 | 작동 방식 | 라이선스 | 상업적 사용 | 적합한 용도 |
 |------------|-----------|----------|-------------|-------------|
-| **TripoSG + 텍스처 백엔드** | TripoSG가 메시를 생성하고, 선택한 텍스처 백엔드(TRELLIS.2 / Hunyuan3D-Paint / MVPainter)가 페인팅 | 백엔드별(아래) | 백엔드별 | 지오메트리 + 특정 텍스처러 조합 |
+| **TripoSG + 텍스처 백엔드** | TripoSG가 메시를 생성하고, 선택한 텍스처 백엔드(TRELLIS.2 / Hunyuan3D-Paint)가 페인팅 | 백엔드별(아래) | 백엔드별 | 지오메트리 + 특정 텍스처러 조합 |
 | **TRELLIS.2 (Full)** | 하나의 모델이 지오메트리와 PBR 텍스처(SLAT)를 **모두** 생성 | MIT | ✅ 가능 — "Built with DINOv3" 출처 표기 | 프로덕션, 상업용 에셋, 가장 간단한 경로 |
 
 **TripoSG 파이프라인 작동 방식:**
@@ -297,8 +297,6 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 |---------------|----------|-------------|-------------|
 | **TRELLIS.2** *(기본값)* | MIT | ✅ 가능 — 제품에 "Built with DINOv3" 출처 표기 필요 | 프로덕션, 상업용 에셋, 최고 품질 |
 | **Hunyuan3D-Paint** | Tencent Community | ❌ 비상업용 | 연구/비상업용, 뛰어난 얼굴 표현 |
-| **MVPainter** | Apache-2.0 | ✅ 가능 | 경량 상업용 멀티뷰 베이킹 |
-
 배경 제거는 기본적으로 **BiRefNet(MIT)** 을 사용합니다 — 완전히 상업적 사용 가능 — 비상업용 대안(RMBG)은 명시적 옵트인으로 제공됩니다. ArtSmoker는 제한된 의존성을 절대 조용히 가져오지 않습니다: 게이팅되거나 비상업용인 모든 것은 이름이 명시되고, 배지가 표시되며, 명시적 동의 뒤에 게이팅됩니다.
 
 **출력:** PBR 텍스처가 내장된 표준 GLB — Unity, Unreal Engine, Blender 등에 직접 임포트 가능. 인터랙티브 3D 뷰어는 오빗·줌·팬을 지원하며, **3D Model** 탭은 완전한 출처 추적을 위해 사용된 정확한 모델 및 도구를 나열합니다.

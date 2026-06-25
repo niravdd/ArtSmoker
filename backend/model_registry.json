@@ -6539,13 +6539,14 @@
         "hf_license_url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
         "license_agreement": {
           "required": true,
-          "license_name": "MIT (TRELLIS.2) + DINOv3 attribution",
+          "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
           "license_url": "https://github.com/microsoft/TRELLIS.2/blob/main/LICENSE",
           "key_terms": [
             "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) \u2014 MIT, commercial use unrestricted",
             "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) \u2014 commercial-OK, GATED on HuggingFace",
             "Requires a \"Built with DINOv3\" attribution in your product UI",
-            "Background removal uses BiRefNet (MIT); the bundled RMBG-2.0 is NOT used"
+            "Background removal uses BiRefNet (MIT); the bundled RMBG-2.0 is NOT used",
+            "The mesh/texture bake (o_voxel.postprocess) hard-imports nvdiffrast \u2014 NVIDIA Source Code License (1-Way Commercial), NON-commercial for general users. Review before commercial use."
           ],
           "dependencies": [
             {
@@ -6571,11 +6572,20 @@
               "gated": false,
               "commercial": true,
               "role": "Background removal (the actual cutout model)"
+            },
+            {
+              "name": "nvdiffrast (NVlabs)",
+              "license": "NVIDIA Source Code License (1-Way Commercial) \u2014 non-commercial for general users",
+              "url": "https://github.com/NVlabs/nvdiffrast/blob/main/LICENSE.txt",
+              "gated": false,
+              "commercial": false,
+              "role": "Rasterizer hard-imported by o_voxel.postprocess (the to_glb mesh/PBR bake). Built into the full pipeline; cannot be swapped without patching upstream microsoft/TRELLIS.2."
             }
           ],
           "warnings": [
             "You must display a \"Built with DINOv3\" notice where the feature is surfaced (DINOv3 license obligation).",
-            "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo \u2014 accept its license on HuggingFace before deploying."
+            "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo \u2014 accept its license on HuggingFace before deploying.",
+            "The mesh/texture bake (o_voxel.postprocess.to_glb) hard-imports nvdiffrast, which is under the NVIDIA Source Code License (1-Way Commercial) \u2014 NON-commercial for general users. Review this dependency before any commercial use of the full TRELLIS.2 image-to-3D pipeline. (The TripoSG + texture-backend path uses Kaolin/Apache-2.0 instead.)"
           ]
         },
         "source": {

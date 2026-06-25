@@ -280,7 +280,7 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 | 流程 | 工作原理 | 许可 | 商业用途 | 最适用于 |
 |------|----------|------|----------|----------|
-| TripoSG + 纹理后端 | TripoSG 构建网格；由所选纹理后端（TRELLIS.2 / Hunyuan3D-Paint / MVPainter）为其上色 | 取决于后端（见下文） | 取决于后端 | 几何模型与特定纹理器的自由组合 |
+| TripoSG + 纹理后端 | TripoSG 构建网格；由所选纹理后端（TRELLIS.2 / Hunyuan3D-Paint）为其上色 | 取决于后端（见下文） | 取决于后端 | 几何模型与特定纹理器的自由组合 |
 | TRELLIS.2（完整） | 单一模型同时生成几何与 PBR 纹理（SLAT） | MIT | ✅ 可以 —— 需标注 "Built with DINOv3" 署名 | 生产环境、商业资产、最简路径 |
 
 **TripoSG 流程的工作原理：**
@@ -297,8 +297,6 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 |----------|------|----------|----------|
 | **TRELLIS.2** *(默认)* | MIT | ✅ 可以 —— 需在您的产品中标注 "Built with DINOv3" 署名 | 生产环境、商业资产、最高质量 |
 | **Hunyuan3D-Paint** | Tencent Community | ❌ 非商业 | 研究 / 非商业用途，面部表现卓越 |
-| **MVPainter** | Apache-2.0 | ✅ 可以 | 轻量级商业多视角烘焙 |
-
 背景移除默认使用 **BiRefNet（MIT）**—— 完全商业洁净 —— 并提供一个非商业替代方案（RMBG），作为已披露的可选项。ArtSmoker 绝不会悄无声息地拉取受限依赖：任何受限或非商业的内容都会被命名、标记，并置于显式接受的门槛之后。
 
 **输出：** 标准 GLB 格式，内嵌 PBR 纹理 —— 可直接导入 Unity、Unreal Engine、Blender 及其他游戏引擎。交互式 3D 查看器支持轨道旋转、缩放和平移；**3D Model** 标签页还会列出生成所用的确切模型与工具，以实现完整的溯源。

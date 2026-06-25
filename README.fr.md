@@ -280,7 +280,7 @@ Une seule image 2D de personnage (à gauche, dans l'onglet PNG) devient un maill
 
 | Pipeline | Fonctionnement | Licence | Usage commercial | Idéal pour |
 |----------|----------------|---------|------------------|------------|
-| TripoSG + backend de texturation | TripoSG construit le maillage ; un backend de texturation choisi (TRELLIS.2 / Hunyuan3D-Paint / MVPainter) le peint | selon le backend (ci-dessous) | selon le backend | Combiner géométrie + un texturateur précis |
+| TripoSG + backend de texturation | TripoSG construit le maillage ; un backend de texturation choisi (TRELLIS.2 / Hunyuan3D-Paint) le peint | selon le backend (ci-dessous) | selon le backend | Combiner géométrie + un texturateur précis |
 | TRELLIS.2 (Full) | Un seul modèle génère à la fois la géométrie et la texture PBR (SLAT) | MIT | ✅ Oui — attribution « Built with DINOv3 » | Production, assets commerciaux, voie la plus simple |
 
 **Fonctionnement du pipeline TripoSG :**
@@ -297,8 +297,6 @@ Le pipeline TRELLIS.2 (Full) fait la même chose de bout en bout dans un seul mo
 |------------------------|---------|------------------|------------|
 | **TRELLIS.2** *(par défaut)* | MIT | ✅ Oui — nécessite une attribution « Built with DINOv3 » dans votre produit | Production, assets commerciaux, qualité maximale |
 | **Hunyuan3D-Paint** | Tencent Community | ❌ Non / Non commercial | Recherche / non commercial, visages exceptionnels |
-| **MVPainter** | Apache-2.0 | ✅ Oui | Baking multi-vues commercial léger |
-
 La suppression d'arrière-plan utilise **BiRefNet (MIT)** par défaut — entièrement saine pour un usage commercial — avec une alternative non commerciale (RMBG) disponible en option déclarée. ArtSmoker ne télécharge jamais silencieusement une dépendance restreinte : tout ce qui est restreint ou non commercial est nommé, badgé et conditionné à une acceptation explicite.
 
 **Sortie :** Format GLB standard avec textures PBR intégrées — s'importe dans Unity, Unreal Engine, Blender, etc. La visionneuse 3D interactive supporte l'orbite, le zoom et le panoramique, et l'onglet **3D Model** liste les modèles et outils exacts utilisés pour une traçabilité complète.

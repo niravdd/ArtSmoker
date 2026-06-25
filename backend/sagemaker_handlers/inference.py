@@ -1762,8 +1762,16 @@ _hunyuan_ops_bg_lock = None
 # Commercial-clean Hunyuan-grade texturer. The `trellis2` package + its 3 CUDA
 # extensions (o_voxel, cumesh, flex_gemm) are NOT pip-installable from an index;
 # we git-clone + build at LOAD time (like nvdiffrast) and S3-cache the wheels.
-# nvdiffrast is shared with the existing _ensure_nvdiffrast path. Repo is MIT;
-# the DINOv3 image encoder (gated, commercial-OK) is pulled at runtime via HF
+# nvdiffrast is shared with the existing _ensure_nvdiffrast path. LICENSE NOTE:
+# nvdiffrast is under the NVIDIA Source Code License (1-Way Commercial) —
+# NON-commercial for general users, NOT MIT. o_voxel/postprocess.py (the to_glb
+# bake) hard-imports it at module load, so the full TRELLIS.2 pipeline currently
+# carries a non-commercial rasterizer dependency. This is disclosed in the
+# catalog license_agreement.dependencies for trellis2_image_to_3d (and SPEC §12).
+# (The separate MV-Adapter texture path defaults to Kaolin/Apache-2.0 instead —
+# see _rasterizer_choice — but o_voxel's internal import cannot be swapped without
+# patching upstream microsoft/TRELLIS.2.)
+# The DINOv3 image encoder (gated, commercial-OK) is pulled at runtime via HF
 # token — requires a "Built with DINOv3" attribution in the product UI.
 _TRELLIS2_REPO = "https://github.com/microsoft/TRELLIS.2.git"
 _TRELLIS2_RUN_DIR = "/tmp/trellis2_run"          # writable clone (package on sys.path)
@@ -3402,6 +3410,54 @@ def _predict_image_to_3d(input_data, model_dict):
         logger.info("Applied 180° Y-axis rotation to align mesh front with reference")
     except Exception as _rot_err:
         logger.warning("Mesh orientation rotation failed: %s", _rot_err)
+
+    # 4b. OPTIONAL Phase-1 mesh cleanup: drop disconnected floaters + degenerate
+    # faces from the raw octree mesh BEFORE decimation, so the texture pipeline
+    # never wastes UV space (or projects onto) stray junk. Conservative by
+    # default — only removes components far smaller than the main body (tiny
+    # specks), never legitimate separate parts. Off unless mesh_cleanup is truthy
+    # (default on); tune the floater threshold via mesh_cleanup_min_ratio
+    # (fraction of the largest component's face count; default 1%).
+    def _as_bool_in(v, d):
+        if v is None:
+            return d
+        return str(v).lower() in ("1", "true", "yes", "on")
+    if _as_bool_in(input_data.get("mesh_cleanup"), True):
+        try:
+            import numpy as _np
+            faces_before = len(mesh.faces)
+            # Drop degenerate (zero-area) + duplicate faces first.
+            try:
+                mesh.update_faces(mesh.nondegenerate_faces())
+                mesh.update_faces(mesh.unique_faces())
+                mesh.remove_unreferenced_vertices()
+            except Exception as _de:
+                logger.debug("degenerate/duplicate face cull skipped: %s", _de)
+            # Drop tiny disconnected floaters: keep components whose face count is
+            # >= min_ratio × the largest component's. Default 1% — kills specks,
+            # keeps real multi-part geometry (e.g. a separate weapon/accessory).
+            try:
+                min_ratio = float(input_data.get("mesh_cleanup_min_ratio", 0.01) or 0.01)
+            except (TypeError, ValueError):
+                min_ratio = 0.01
+            try:
+                comps = mesh.split(only_watertight=False)
+                if comps is not None and len(comps) > 1:
+                    sizes = [len(c.faces) for c in comps]
+                    biggest = max(sizes)
+                    thresh = max(1, int(biggest * min_ratio))
+                    kept = [c for c, s in zip(comps, sizes) if s >= thresh]
+                    if kept and len(kept) < len(comps):
+                        import trimesh as _tm2
+                        mesh = _tm2.util.concatenate(kept)
+                        logger.info("Mesh cleanup: kept %d/%d components (dropped %d floaters < %d faces)",
+                                    len(kept), len(comps), len(comps) - len(kept), thresh)
+            except Exception as _se:
+                logger.debug("floater split/cull skipped: %s", _se)
+            if len(mesh.faces) != faces_before:
+                logger.info("Phase-1 cleanup: %d -> %d faces", faces_before, len(mesh.faces))
+        except Exception as _ce:
+            logger.warning("Phase-1 mesh cleanup skipped (keeping raw mesh): %s", _ce)
 
     # 5. Decimate to target face count. 0 = "maximum quality", but we still
     # enforce a hard ceiling: the texture pipeline (UV unwrap + projection +
