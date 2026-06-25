@@ -344,7 +344,7 @@ aws sts get-caller-identity
 > [!NOTE]
 > 在 EC2 和其他 AWS 计算服务上，您无需配置显式凭证。附加具有所需权限的 [IAM 实例配置文件](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html)，boto3 会通过实例元数据服务自动获取。
 
-有关详细的 IAM 权限、安装步骤、配置选项和定价信息，请参阅[英文版 README](README.md) 的 2.1.1-2.4 节、3-4 节和 11-12 节。
+有关详细的 IAM 权限、安装步骤、配置选项和定价信息，请参阅[英文版 README](README.md) 中的 Prerequisites（IAM 权限）、Installation、Running、Configurable Limits 和 Pricing 章节。
 
 ## 📌 5. 架构
 

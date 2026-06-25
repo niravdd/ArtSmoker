@@ -344,7 +344,7 @@ aws sts get-caller-identity
 > [!NOTE]
 > Sur EC2 et les autres services de calcul AWS, vous n'avez pas besoin de configurer des identifiants explicites. Attachez un [IAM Instance Profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html) avec les permissions requises, et boto3 le récupère automatiquement via le service de métadonnées de l'instance.
 
-Pour les permissions IAM détaillées, les instructions d'installation, les options de configuration et les informations tarifaires, consultez les sections 2.1.1 à 2.4, les sections 3 à 4 et les sections 11 à 12 du [README anglais](README.md).
+Pour les permissions IAM détaillées, les instructions d'installation, les options de configuration et les informations tarifaires, consultez les sections Prerequisites (IAM permissions), Installation, Running, Configurable Limits et Pricing du [README anglais](README.md).
 
 ## 📌 5. Architecture
 

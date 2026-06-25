@@ -343,7 +343,7 @@ aws sts get-caller-identity
 > [!NOTE]
 > EC2 और अन्य AWS कंप्यूट सेवाओं पर, आपको स्पष्ट क्रेडेंशियल्स कॉन्फ़िगर करने की ज़रूरत नहीं है। आवश्यक अनुमतियों के साथ [IAM Instance Profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html) अटैच करें, और boto3 इसे इंस्टेंस मेटाडेटा सर्विस के माध्यम से स्वचालित रूप से उठा लेता है।
 
-विस्तृत IAM अनुमतियाँ, इंस्टॉलेशन निर्देश, कॉन्फ़िगरेशन विकल्प और मूल्य निर्धारण जानकारी के लिए, [अंग्रेज़ी README](README.md) के अनुभाग 2.1.1 से 2.4, अनुभाग 3 से 4 और अनुभाग 11 से 12 देखें।
+विस्तृत IAM अनुमतियाँ, इंस्टॉलेशन निर्देश, कॉन्फ़िगरेशन विकल्प और मूल्य निर्धारण जानकारी के लिए, [अंग्रेज़ी README](README.md) के Prerequisites (IAM permissions), Installation, Running, Configurable Limits और Pricing अनुभाग देखें।
 
 ## 📌 5. आर्किटेक्चर
 

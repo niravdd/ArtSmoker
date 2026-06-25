@@ -344,7 +344,7 @@ aws sts get-caller-identity
 > [!NOTE]
 > EC2 및 기타 AWS 컴퓨팅 서비스에서는 명시적 인증 정보를 설정할 필요가 없습니다. 필요한 권한이 있는 [IAM Instance Profile](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html)을 연결하면 boto3가 인스턴스 메타데이터 서비스를 통해 자동으로 감지합니다.
 
-상세한 IAM 권한, 설치 절차, 설정 옵션, 요금 정보는 [영문 README](README.md)의 섹션 2.1.1~2.4, 섹션 3~4, 섹션 11~12를 참조하세요.
+상세한 IAM 권한, 설치 절차, 설정 옵션, 요금 정보는 [영문 README](README.md)의 Prerequisites(IAM 권한), Installation, Running, Configurable Limits, Pricing 섹션을 참조하세요.
 
 ## 📌 5. 아키텍처
 

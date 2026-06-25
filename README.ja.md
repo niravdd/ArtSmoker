@@ -344,7 +344,7 @@ aws sts get-caller-identity
 > [!NOTE]
 > EC2やその他のAWSコンピューティングサービスでは、明示的な認証情報を設定する必要はありません。必要なパーミッションを持つ[IAMインスタンスプロファイル](https://docs.aws.amazon.com/IAM/latest/UserGuide/id_roles_use_switch-role-ec2_instance-profiles.html)をアタッチすれば、boto3がインスタンスメタデータサービス経由で自動的に取得します。
 
-詳細なIAMパーミッション、インストール手順、設定オプション、料金情報については、[英語版README](README.md)のセクション2.1.1〜2.4、セクション3〜4、セクション11〜12を参照してください。
+詳細なIAMパーミッション、インストール手順、設定オプション、料金情報については、[英語版README](README.md)の「Prerequisites」（IAMパーミッション）、「Installation」、「Running」、「Configurable Limits」、「Pricing」の各セクションを参照してください。
 
 ## 📌 5. アーキテクチャ
 
