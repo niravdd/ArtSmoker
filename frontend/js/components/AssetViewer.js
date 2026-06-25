@@ -1995,7 +1995,18 @@
                         window.showToast?.(t('asset_viewer.three_d_not_deployed'), 'warning');
                         return;
                     }
-                    this._render3DForm(container);
+                    // Fetch deployed instances so Regenerate offers the SAME pipeline
+                    // chooser as the first-time form (when >1 is deployed). Without
+                    // this, regen defaulted to an empty list → no picker, so you
+                    // couldn't re-run an asset through a different pipeline (e.g.
+                    // A/B TripoSG vs full TRELLIS.2). Best-effort: empty list just
+                    // hides the chooser and uses the server default.
+                    let instances = [];
+                    try {
+                        const resp = await API.threeD.instances();
+                        instances = (resp?.instances || []).filter(i => i.available);
+                    } catch {}
+                    this._render3DForm(container, instances);
                 } catch (err) {
                     window.showToast?.(t('asset_viewer.three_d_not_deployed'), 'warning');
                 }
@@ -2039,7 +2050,15 @@
                                     <p class="text-[10px] text-brand-text-dim">${this._esc(status.error || '')}</p>
                                     <button id="av-3d-retry" class="btn btn-sm btn-secondary">${t('asset_viewer.three_d_regenerate')}</button>
                                 </div>`;
-                            container.querySelector('#av-3d-retry')?.addEventListener('click', () => this._render3DForm(container));
+                            container.querySelector('#av-3d-retry')?.addEventListener('click', async () => {
+                                // Re-fetch instances so retry also offers the full picker.
+                                let instances = [];
+                                try {
+                                    const resp = await API.threeD.instances();
+                                    instances = (resp?.instances || []).filter(i => i.available);
+                                } catch {}
+                                this._render3DForm(container, instances);
+                            });
                         }
                     }
                 } catch (err) {
