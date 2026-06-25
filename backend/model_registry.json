@@ -6595,14 +6595,14 @@
         "requirements": {
           "min_vram_gb": 24,
           "min_ram_gb": 28,
-          "recommended_instance": "ml.g6e.xlarge",
+          "recommended_instance": "ml.g5.2xlarge",
           "disk_gb": 80,
-          "_resource_note": "Measured baseline on g6e.xlarge (L40S 48 GB, 32 GiB RAM): peak 6.5 GB VRAM reserved, ~22 GB host RAM during to_glb bake. VRAM is hugely over-provisioned; host RAM is the real constraint (min_ram_gb=28). g6e.xlarge is the proven baseline. ml.g5.2xlarge (A10G 24 GB, 32 GiB RAM, ~$1.51/hr) is offered as a cheaper candidate UNDER TEST \u2014 fits the VRAM/RAM peaks, but the CUDA exts (o_voxel/cumesh/flex_gemm) + xformers must be confirmed to build/run on Ampere sm_86 and latency re-measured before it's promoted to recommended.",
+          "_resource_note": "PROVEN baseline: ml.g5.2xlarge (A10G 24 GB, 32 GiB RAM, ~$1.52/hr). Confirmed 2026-06-25 \u2014 full image\u21923D run completed cleanly: peak 4.78 GB VRAM (of 24), ~7.5 min inference (459s, excl. ~2 min cold-start model load), 18.8 MB PBR GLB. CUDA exts (o_voxel/cumesh/flex_gemm) + xformers build & run fine on Ampere sm_86 via the arch-portable builder. No errors. Chosen over g6e.xlarge (L40S 48 GB) because VRAM was hugely over-provisioned there \u2014 the A10G's 24 GB has ample headroom at ~5 GB peak, at materially lower cost. Larger g6e options remain allowed for headroom if needed.",
           "allowed_instances": [
+            "ml.g5.2xlarge",
             "ml.g6e.xlarge",
             "ml.g6e.2xlarge",
-            "ml.g6e.4xlarge",
-            "ml.g5.2xlarge"
+            "ml.g6e.4xlarge"
           ]
         },
         "invoke": {

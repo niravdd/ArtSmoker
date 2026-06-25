@@ -269,8 +269,11 @@
                         </div>
                     </div>
 
-                    <!-- Footer -->
-                    <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border">
+                    <!-- Footer: PNG/SVG downloads — only relevant on the image tabs
+                         (png/edit/svg). Hidden on the Metadata + 3D tabs, which have
+                         their own actions (the 3D tab has its own Download GLB). The
+                         tab handler toggles #av-image-downloads visibility. -->
+                    <div id="av-image-downloads" class="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border">
                         <a href="${pngUrl}" download="${this._esc(item.png_filename || 'asset.png')}" class="btn btn-secondary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
@@ -341,6 +344,29 @@
 
             // Populate 3D tab based on asset type
             this._update3DContent();
+        },
+
+        /**
+         * Resolve the DEFAULT 3D variant entry for a 2D version, tolerating
+         * every metadata shape we may encounter:
+         *   • nested `three_d.v{N}` = { default_variant, variants:[…] } (current)
+         *   • flat  `three_d_versions` list (kept in sync as default-per-version)
+         *   • legacy single entries
+         * Returns a variant-shaped object ({glb_url, size_bytes, pipeline, …}) or
+         * null. One 2D version can carry MANY 3D variants; this returns the one
+         * currently marked default (what the gallery/thumbnail serve).
+         */
+        _default3DVariant(meta, version) {
+            if (!meta) return null;
+            const bucket = meta.three_d?.[`v${version}`];
+            if (bucket && Array.isArray(bucket.variants) && bucket.variants.length) {
+                return bucket.variants.find(v => v.variant_id === bucket.default_variant)
+                    || bucket.variants[bucket.variants.length - 1];
+            }
+            // Flat list (default-per-version) — backend keeps this in sync.
+            return meta.three_d_versions?.find(v => v.version === version)
+                || (version === 1 ? meta.three_d_versions?.[0] : null)
+                || null;
         },
 
         _populateMetadata(container, meta) {
@@ -594,21 +620,62 @@
             }
 
             // ── Section 5: 3D Model ────────────────────────────────────────
+            // The backend persists 3D provenance in `meta.three_d_versions` (a
+            // list keyed by 2D version), each entry carrying a `pipeline` dict
+            // (geometry model + texture backend + instance + license consent),
+            // the exact deployed `model_key`, the `job_id`, params and file stats.
+            // (Legacy `meta.three_d.v{N}` is still honored as a fallback.)
             let threeDContent = '';
             const currentVer = this._currentVersion || meta.current_version || (meta.versions?.length || 1);
-            const threeDData = meta.three_d?.[`v${currentVer}`] || meta.three_d?.v1;
+            const threeDData = this._default3DVariant(meta, currentVer)
+                || this._default3DVariant(meta, 1);
             if (threeDData) {
+                const pl = threeDData.pipeline || {};
+                const created3D = threeDData.created_at || threeDData.generated_at;
                 threeDContent = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">`;
-                if (threeDData.generated_at) {
+                if (created3D) {
                     threeDContent += `<div>
                         <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_generated')}</label>
-                        <p>${window.formatTimestamp(threeDData.generated_at)}</p>
+                        <p>${window.formatTimestamp(created3D)}</p>
                     </div>`;
                 }
-                if (threeDData.model_key) {
+                // Geometry model (e.g. TripoSG / TRELLIS.2 full pipeline)
+                if (pl.geometry_model || threeDData.model_key) {
                     threeDContent += `<div>
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_model')}</label>
-                        <p>${this._esc(threeDData.model_key)}</p>
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_geometry')}</label>
+                        <p>${this._esc(pl.geometry_model || threeDData.model_key)}</p>
+                    </div>`;
+                }
+                // Texture backend label (Hunyuan / MV-Adapter bake / TRELLIS.2)
+                if (pl.texture_label || pl.texture_backend) {
+                    threeDContent += `<div>
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_texture')}</label>
+                        <p>${this._esc(pl.texture_label || pl.texture_backend)}</p>
+                    </div>`;
+                }
+                // Exact deployed endpoint that produced this asset (disambiguates
+                // multiple deployments of the same model).
+                if (threeDData.model_key) {
+                    threeDContent += `<div class="col-span-2 sm:col-span-3">
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_endpoint')}</label>
+                        <p class="font-mono text-xs">${this._esc(threeDData.model_key)}${pl.instance_type ? ` <span class="text-brand-text-muted">(${this._esc(pl.instance_type)})</span>` : ''}</p>
+                    </div>`;
+                } else if (pl.instance_type) {
+                    threeDContent += `<div>
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_instance')}</label>
+                        <p class="font-mono text-xs">${this._esc(pl.instance_type)}</p>
+                    </div>`;
+                }
+                if (threeDData.job_id) {
+                    threeDContent += `<div class="col-span-2 sm:col-span-3">
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_job_id')}</label>
+                        <p class="font-mono text-xs text-brand-text-muted">${this._esc(threeDData.job_id)}${copyBtn(threeDData.job_id)}</p>
+                    </div>`;
+                }
+                if (pl.has_pbr) {
+                    threeDContent += `<div>
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_pbr')}</label>
+                        <p class="text-sm"><span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">PBR</span></p>
                     </div>`;
                 }
                 if (threeDData.params) {
@@ -618,16 +685,26 @@
                         p.guidance ? `guidance: ${p.guidance}` : '',
                         p.mesh_resolution ? `depth: ${p.mesh_resolution}` : '',
                         p.max_faces ? `faces: ${p.max_faces}` : '',
+                        p.texture_resolution ? `tex: ${p.texture_resolution}` : '',
                     ].filter(Boolean).join(', ');
-                    threeDContent += `<div class="col-span-2 sm:col-span-3">
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_params')}</label>
-                        <p class="font-mono text-xs">${this._esc(paramStr)}</p>
-                    </div>`;
+                    if (paramStr) {
+                        threeDContent += `<div class="col-span-2 sm:col-span-3">
+                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_params')}</label>
+                            <p class="font-mono text-xs">${this._esc(paramStr)}</p>
+                        </div>`;
+                    }
                 }
                 if (threeDData.size_bytes || threeDData.vertices || threeDData.faces) {
                     threeDContent += `<div class="col-span-2 sm:col-span-3">
                         <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_file')}</label>
                         <p class="text-xs">${threeDData.size_bytes ? this._formatBytes(threeDData.size_bytes) : ''}${threeDData.vertices ? ` / ${threeDData.vertices.toLocaleString()} vertices` : ''}${threeDData.faces ? ` / ${threeDData.faces.toLocaleString()} faces` : ''}</p>
+                    </div>`;
+                }
+                // License consent provenance (the license accepted at deploy time)
+                if (pl.license_name) {
+                    threeDContent += `<div class="col-span-2 sm:col-span-3">
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_license')}</label>
+                        <p class="text-xs">${this._esc(pl.license_name)}${pl.commercial === true ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('asset_viewer.meta_3d_commercial')}</span>` : ''}${pl.license_accepted_at ? ` <span class="text-brand-text-muted">— ${window.formatTimestamp(pl.license_accepted_at)}</span>` : ''}</p>
                     </div>`;
                 }
                 threeDContent += `</div>`;
@@ -941,6 +1018,15 @@
             document.addEventListener('keydown', this._escHandler);
 
             // Tab switching
+            // PNG/SVG download footer is only meaningful on the image tabs.
+            // Hide it on Metadata + 3D (the 3D tab has its own Download GLB).
+            const imageTabs = new Set(['png', 'edit', 'svg']);
+            const dlFooter = this._overlay.querySelector('#av-image-downloads');
+            const syncDownloadFooter = (activeTab) => {
+                if (dlFooter) dlFooter.classList.toggle('hidden', !imageTabs.has(activeTab));
+            };
+            syncDownloadFooter('png');
+
             this._overlay.querySelectorAll('.tab').forEach((tab) => {
                 tab.addEventListener('click', () => {
                     this._overlay.querySelectorAll('.tab').forEach((t) => t.classList.remove('active'));
@@ -948,6 +1034,7 @@
                     this._overlay.querySelectorAll('.tab-panel').forEach((p) => {
                         p.classList.toggle('hidden', p.dataset.panel !== tab.dataset.tab);
                     });
+                    syncDownloadFooter(tab.dataset.tab);
                 });
             });
 
@@ -1536,8 +1623,9 @@
             try {
                 const ver = this._currentVersion || 1;
                 const glbUrl = `/api/gallery/${encodeURIComponent(meta.id)}/3d/${ver}`;
-                const existing3D = meta.three_d_versions?.find(v => v.version === ver)
-                    || meta.three_d?.[`v${ver}`];
+                // Resolve THIS version's default 3D variant (a 2D version can hold
+                // several; the switcher in _render3DComplete exposes the rest).
+                const existing3D = this._default3DVariant(meta, ver);
                 if (existing3D) {
                     this._render3DComplete(container, {
                         download_url: existing3D.glb_url || glbUrl,
@@ -1622,11 +1710,33 @@
             // happened at DEPLOY time; here we surface it + confirm it's on record.
             const licensePanelHtml = `<div id="av-3d-license" class="rounded-lg border border-brand-border bg-brand-bg/40 p-3 text-[11px] space-y-1 max-w-xs hidden"></div>`;
 
+            // Save-as choice: only when a 3D model ALREADY exists for this
+            // version — i.e. this is a regeneration. Lets the user replace the
+            // version's default or keep the new result as a side variant
+            // (different pipeline / config) alongside it. First-ever 3D skips this.
+            const ver = this._currentVersion || 1;
+            const hasExisting3D = !!(this._meta?.three_d?.[`v${ver}`]?.variants?.length
+                || this._meta?.three_d_versions?.some(v => v.version === ver));
+            const saveAsHtml = hasExisting3D ? `
+                    <div class="rounded-lg border border-brand-border bg-brand-bg/40 p-3 max-w-xs">
+                        <label class="text-xs text-brand-text-muted mb-2 block">${t('asset_viewer.three_d_saveas_title')}</label>
+                        <label class="flex items-start gap-2 mb-1.5 cursor-pointer">
+                            <input type="radio" name="av-3d-saveas" value="default" checked class="mt-0.5" />
+                            <span class="text-[11px]"><span class="font-medium">${t('asset_viewer.three_d_saveas_replace')}</span><br><span class="text-brand-text-dim">${t('asset_viewer.three_d_saveas_replace_hint')}</span></span>
+                        </label>
+                        <label class="flex items-start gap-2 cursor-pointer">
+                            <input type="radio" name="av-3d-saveas" value="variant" class="mt-0.5" />
+                            <span class="text-[11px]"><span class="font-medium">${t('asset_viewer.three_d_saveas_variant')}</span><br><span class="text-brand-text-dim">${t('asset_viewer.three_d_saveas_variant_hint')}</span></span>
+                        </label>
+                    </div>
+            ` : '';
+
             container.innerHTML = `
                 <div class="space-y-4">
                     <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_version_note')}</p>
                     ${chooserHtml}
                     ${licensePanelHtml}
+                    ${saveAsHtml}
 
                     <!-- Quality preset (real specs: face/vertex detail, not bogus seconds) -->
                     <div>
@@ -1823,6 +1933,10 @@
                 guidance: parseFloat(container.querySelector('#av-3d-guidance')?.value) || 7.5,
                 max_faces: parseInt(container.querySelector('#av-3d-faces')?.value, 10) || 0,
                 mesh_resolution: parseInt(container.querySelector('#av-3d-depth')?.value, 10) || 256,
+                // Replace the version's default 3D model, or keep this as a
+                // side variant. Defaults to "default" (also when the selector is
+                // absent, i.e. the first-ever 3D for this version).
+                save_as: container.querySelector('input[name="av-3d-saveas"]:checked')?.value || 'default',
             };
 
             try {
@@ -1892,6 +2006,9 @@
                 : `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('asset_viewer.three_d_regenerate')}`;
             container.innerHTML = `
                 <div class="space-y-3">
+                    <!-- Variant switcher — populated async when a version
+                         has >1 3D variant (different pipeline / deployment / config). -->
+                    <div id="av-3d-variants" class="hidden"></div>
                     <div class="relative rounded-lg border border-brand-border overflow-hidden bg-gradient-to-b from-gray-800 to-gray-900" style="height: 420px;">
                         <model-viewer id="av-3d-viewer"
                             src="${glbUrl}?t=${Date.now()}"
@@ -2011,6 +2128,101 @@
                     window.showToast?.(t('asset_viewer.three_d_not_deployed'), 'warning');
                 }
             });
+
+            // Variant switcher: show alternative 3D models for this 2D
+            // version (different pipeline / deployment / config), each labelled by
+            // deployment time. Best-effort, async — hidden when there's only one.
+            this._populate3DVariants(container);
+        },
+
+        /**
+         * Fetch + render the 3D variant switcher for the current version. A 2D
+         * version can have multiple 3D variants; this lets the user view each and
+         * "Set as default" (which one the gallery + thumbnail serve). Disambiguates
+         * same-model multi-deploy variants by deployment time, like the 2D picker.
+         */
+        async _populate3DVariants(container) {
+            const bar = container.querySelector('#av-3d-variants');
+            const viewer = container.querySelector('#av-3d-viewer');
+            if (!bar || !this._meta) return;
+            const assetId = this._meta.id;
+            const ver = this._currentVersion || 1;
+            let data;
+            try {
+                data = await API.threeD.variants(assetId, ver);
+            } catch { return; }
+            const variants = data?.variants || [];
+            if (variants.length < 2) { bar.classList.add('hidden'); return; }
+            const defaultId = data.default_variant;
+
+            const label = (v) => {
+                const pl = v.pipeline || {};
+                return v.instance_label
+                    || pl.texture_label
+                    || pl.geometry_model
+                    || v.model_key || v.variant_id;
+            };
+            bar.innerHTML = `
+                <div class="rounded-lg border border-brand-border/40 bg-white/[0.02] px-3 py-2">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_variants_title')}</span>
+                        <span class="text-[10px] text-brand-text-dim">${variants.length} ${t('asset_viewer.three_d_variants_count')}</span>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        ${variants.map((v) => {
+                            const isDefault = v.variant_id === defaultId;
+                            return `
+                            <button class="av-3d-variant-btn group text-left px-2.5 py-1.5 rounded-lg border text-[11px] transition-colors ${isDefault ? 'border-brand-accent bg-brand-accent/10' : 'border-brand-border hover:border-brand-accent/50'}"
+                                    data-variant="${this._esc(v.variant_id)}">
+                                <div class="flex items-center gap-1.5">
+                                    <span class="font-medium">${this._esc(label(v))}</span>
+                                    ${isDefault ? `<span class="text-[8px] px-1 py-0.5 rounded bg-brand-accent/20 text-brand-accent">${t('asset_viewer.three_d_variant_default')}</span>` : ''}
+                                </div>
+                                <div class="text-[9px] text-brand-text-dim">${v.faces ? v.faces.toLocaleString() + ' ' + t('asset_viewer.three_d_est_faces') : ''}${v.pipeline?.has_pbr ? ' · PBR' : ''}</div>
+                            </button>`;
+                        }).join('')}
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <button id="av-3d-set-default" class="btn btn-xs btn-secondary hidden">${t('asset_viewer.three_d_variant_set_default')}</button>
+                    </div>
+                </div>`;
+            bar.classList.remove('hidden');
+
+            // Track which variant is being previewed (starts at the default).
+            let previewId = defaultId;
+            const setDefaultBtn = bar.querySelector('#av-3d-set-default');
+            const refreshButtons = () => {
+                bar.querySelectorAll('.av-3d-variant-btn').forEach((btn) => {
+                    const sel = btn.dataset.variant === previewId;
+                    btn.classList.toggle('border-brand-accent', sel);
+                    btn.classList.toggle('bg-brand-accent/10', sel);
+                });
+                // Offer "Set as default" only when previewing a non-default variant.
+                if (setDefaultBtn) setDefaultBtn.classList.toggle('hidden', previewId === defaultId);
+            };
+
+            bar.querySelectorAll('.av-3d-variant-btn').forEach((btn) => {
+                btn.addEventListener('click', () => {
+                    previewId = btn.dataset.variant;
+                    // Swap the model-viewer source to the chosen variant.
+                    if (viewer) viewer.src = `/api/gallery/${encodeURIComponent(assetId)}/3d/${ver}?variant=${encodeURIComponent(previewId)}&t=${Date.now()}`;
+                    refreshButtons();
+                });
+            });
+
+            setDefaultBtn?.addEventListener('click', async () => {
+                try {
+                    await API.threeD.setDefaultVariant(assetId, ver, previewId);
+                    window.showToast?.(t('asset_viewer.three_d_variant_set_default_ok'), 'success');
+                    // Refresh metadata so the gallery/thumbnail reflect the new default.
+                    try { this._meta = await API.gallery.get(assetId); } catch {}
+                    window.Gallery?.refresh?.();
+                    this._update3DContent();
+                } catch {
+                    window.showToast?.(t('asset_viewer.three_d_failed'), 'error');
+                }
+            });
+            refreshButtons();
         },
 
         _start3DPolling(jobId) {

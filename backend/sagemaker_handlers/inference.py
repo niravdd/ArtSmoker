@@ -3855,11 +3855,14 @@ def _predict_trellis2_full(input_data, model_dict):
         try: return int(v)
         except (TypeError, ValueError): return d
     seed = _as_int(input_data.get("seed"), 42)
-    # App defaults (NOT example.py's maxed showcase values): 2048 atlas / 500k
-    # faces. The official Gradio app sliders default here; 4096/1M is the slider
-    # max, overridable per-request via texture_size / faces.
+    # Quality default: 1M faces (the TRELLIS.2 slider MAX), matching TripoSG's
+    # high-quality output so users don't perceive TRELLIS.2 as lower-fidelity.
+    # This is also what the catalog input_fields declare (faces=1000000). The
+    # A10G/L40S have ample VRAM headroom for it (measured ~5 GB peak of 24 GB).
+    # Texture atlas stays at 2048 (the app's standard) unless overridden to 4096.
+    # Both overridable per-request via faces / texture_size.
     texture_size = _as_int(input_data.get("texture_size"), 2048)
-    decimation_target = _as_int(input_data.get("faces"), 500000) or 500000
+    decimation_target = _as_int(input_data.get("faces"), 1000000) or 1000000
     # pipeline_type: the app ALWAYS sets one (512 / 1024_cascade / 1536_cascade);
     # the bare run() default is not what the app uses. '1024_cascade' is the app's
     # standard-quality choice. Overridable per-request via resolution.
@@ -3914,7 +3917,7 @@ def _predict_trellis2_full(input_data, model_dict):
     )
     logger.info("TRELLIS.2 to_glb: remesh=%s remesh_project=%s decimation_target=%d texture_size=%d",
                 remesh, remesh_project, decimation_target, texture_size)
-    # Resource-baseline telemetry (right-sizing the instance — see task G-6). Logs
+    # Resource-baseline telemetry (right-sizing the instance). Logs
     # PEAK GPU VRAM + current host RAM so we can tell if g6e.xlarge (or smaller) is
     # sufficient vs the 2xlarge we first tested on. The bake's UV-unwrap/remesh is
     # host-RAM-bound; the SLAT decode is the VRAM peak.

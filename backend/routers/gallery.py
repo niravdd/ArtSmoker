@@ -382,13 +382,27 @@ async def get_asset_svg(asset_id: str):
 
 
 @router.get("/{asset_id}/3d/{version}")
-async def get_asset_3d(asset_id: str, version: int):
-    """Serve a GLB (3D model) file for a generated asset."""
-    # asset_3d.glb is always the latest; asset_3d_v{N}.glb are older versions
-    # Try latest first (most common request), fall back to versioned for history
-    path = store.get_generated_file_path(asset_id, "asset_3d.glb")
-    if path is None:
-        path = store.get_generated_file_path(asset_id, f"asset_3d_v{version}.glb")
+async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
+    """Serve a GLB (3D model) file for a generated asset.
+
+    3D sub-versioning: a version can hold multiple 3D variants. ``?variant=<id>``
+    serves that specific variant file (asset_3d_v{N}__{id}.glb). Without it, the
+    version's DEFAULT file is served — asset_3d_v{N}.glb, with asset_3d.glb as the
+    v1 fallback for legacy assets that predate per-version files.
+    """
+    candidates = []
+    if variant:
+        candidates.append(f"asset_3d_v{version}__{variant}.glb")
+    # The version's default file, then legacy fallbacks.
+    candidates.append(f"asset_3d_v{version}.glb")
+    if version == 1:
+        candidates.append("asset_3d.glb")
+
+    path = None
+    for fn in candidates:
+        path = store.get_generated_file_path(asset_id, fn)
+        if path is not None:
+            break
     if path is None:
         raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
     return FileResponse(path, media_type="model/gltf-binary", filename=f"{asset_id}_3d.glb")

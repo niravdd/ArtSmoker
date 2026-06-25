@@ -117,8 +117,18 @@ def submit_job(
 
 
 def _maybe_auto_keep_warm(model_key: str, endpoint_name: str):
-    """On a dev box, auto-pin the endpoint warm (non-cumulative). Best-effort."""
+    """Auto-pin the endpoint warm (non-cumulative). Best-effort.
+
+    Gated on BOTH dev_mode AND the explicit ARTSMOKER_AUTO_KEEP_WARM flag, which
+    defaults OFF (see Settings.auto_keep_warm). With it off, endpoints rely
+    purely on scale-to-zero / scale-from-zero autoscaling and never get pinned
+    by a job — avoiding the silent multi-hour GPU billing this used to cause.
+    On-demand warming via the /keep-warm API is unaffected.
+    """
     try:
+        from backend.config import settings
+        if not settings.auto_keep_warm:
+            return
         from backend.services.auto_update import is_dev_mode
         if not is_dev_mode():
             return

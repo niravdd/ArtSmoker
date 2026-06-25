@@ -1748,7 +1748,7 @@
                 attestCheck?.addEventListener('change', updateDeployGate);
                 if (tbOptions) syncTextureBackend();
 
-                // ── Gated-repo access pre-check (G-5) ──────────────────────────
+                // ── Gated-repo access pre-check ────────────────────────────────
                 // Probe — via the backend, using the stored HF token — whether
                 // EVERY repo this deploy will pull is actually accessible. Replaces
                 // the vague "gated · accept on HF" badge with a per-repo ✓ / ✗ and

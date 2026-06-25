@@ -19,8 +19,14 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/generate/3d", tags=["3d"])
 
+import threading as _threading
+
 # In-memory job tracker for 3D generation
 _3d_jobs: dict[str, dict] = {}
+
+# Serializes finalization so the frontend-driven /status route and the
+# server-side poller can't both download + save the same job's GLB at once.
+_3d_finalize_lock = _threading.Lock()
 
 # S3 prefix for persisted 3D jobs — kept SEPARATE from the 2D async-jobs prefix
 # (artsmoker/async-jobs/) so the two systems never read each other's records.
@@ -268,6 +274,11 @@ class ThreeDGenerateRequest(BaseModel):
     # (2048 default in TRELLIS.2 → 4096 for sharpness) + SLAT voxel resolution.
     texture_size: int | None = None
     tex_resolution: int | None = None
+    # 3D sub-versioning: when regenerating, "default" makes the new
+    # variant this version's default 3D model; "variant" keeps it alongside the
+    # existing default (which stays the served asset_3d.glb). First-ever 3D for a
+    # version always becomes the default regardless.
+    save_as: str = "default"  # "default" | "variant"
 
     def resolved_guidance(self) -> float:
         return self.guidance if self.guidance is not None else self.guidance_scale
@@ -329,6 +340,125 @@ def _instance_label(key: str, cfg: dict) -> str:
     if stamp:
         parts.append(f"({stamp})")
     return " ".join(parts)
+
+
+# ── 3D sub-versioning ──────────────────────────────────────────────────────
+# A single 2D image VERSION (v1, v2, …) can have MULTIPLE 3D models — one per
+# pipeline / texture-backend / deployment / config the user tried. We store
+# these as VARIANTS nested under each 2D version, with one marked default:
+#
+#   meta["three_d"] = {
+#     "v1": {
+#       "default_variant": "<variant_id>",
+#       "variants": [ { variant_id, glb_filename, pipeline, params,
+#                       model_key, job_id, instance_label, created_at, … } ]
+#     }, …
+#   }
+#
+# Files on disk (per asset dir):
+#   asset_3d_v{N}.glb                     ← the DEFAULT variant for version N
+#                                           (also asset_3d.glb for v1 — kept for
+#                                           the legacy gallery route + thumbnails)
+#   asset_3d_v{N}__{variant_id}.glb       ← every variant, addressable directly
+#
+# Backward compatibility: legacy assets only have a flat meta["three_d_versions"]
+# list (one entry per version, no variants). _migrate_legacy_3d() lifts those
+# into the nested shape on first access, and we ALSO keep writing a flattened
+# three_d_versions (the default variant of each version) so any old reader works.
+
+
+def _deploy_hash(model_key: str) -> str:
+    """Short deployment discriminator from a deployed model_key.
+
+    Deployed instance keys carry a hash suffix (e.g. ``trellis2_image_to_3d_afe4``
+    → ``afe4``). Two deployments of the same model differ only by this suffix, so
+    it disambiguates same-model multi-deploy variants. Falls back to the whole
+    key when there's no suffix.
+    """
+    if not model_key:
+        return "default"
+    tail = model_key.rsplit("_", 1)[-1]
+    # A real hash suffix is short + alphanumeric; otherwise use a trimmed key.
+    if tail and len(tail) <= 6 and tail.isalnum():
+        return tail
+    return model_key[-8:]
+
+
+def _pipeline_slug(pipeline_type: str, tex_backend: str = "") -> str:
+    """Filesystem-safe pipeline identity for a variant id / filename.
+
+    trellis2_full → ``trellis2``; triposg → ``triposg-<texbackend>`` so a TripoSG
+    model textured by Hunyuan vs MV-Adapter vs TRELLIS.2 are distinct variants.
+    """
+    if pipeline_type == "trellis2_full":
+        return "trellis2"
+    tb = (tex_backend or "").strip().lower() or "default"
+    return f"triposg-{tb}"
+
+
+def _variant_id(pipeline_type: str, tex_backend: str, model_key: str) -> str:
+    """Stable variant id = pipeline + deployment. Re-running the SAME pipeline on
+    the SAME deployment replaces that variant; a different pipeline/backend/
+    deployment yields a new one. Safe for use in a filename."""
+    return f"{_pipeline_slug(pipeline_type, tex_backend)}__{_deploy_hash(model_key)}"
+
+
+def _variant_instance_label(pipeline_type: str, cfg: dict) -> str:
+    """Disambiguating label for a variant, shown in the AssetViewer switcher.
+
+    Mirrors the 2D Image Studio model picker: pipeline name + DEPLOYMENT TIME
+    (so two deployments of the same model are told apart by when they were
+    deployed), e.g. "TRELLIS.2 Full (25Jun 14:18)" / "TripoSG (02Jun 12:14)".
+    """
+    base = "TRELLIS.2 Full" if pipeline_type == "trellis2_full" else "TripoSG"
+    dep = (cfg or {}).get("deployment", {})
+    created = dep.get("created_at", "")
+    stamp = ""
+    if created:
+        try:
+            stamp = datetime.fromisoformat(created).strftime("%d%b %H:%M")
+        except Exception:
+            stamp = created[:16]
+    return f"{base} ({stamp})" if stamp else base
+
+
+def _migrate_legacy_3d(meta: dict) -> dict:
+    """Ensure meta has the nested three_d structure, lifting any legacy flat
+    three_d_versions list into it. Idempotent. Returns the nested dict
+    (meta["three_d"]). Does NOT save — caller persists if needed."""
+    nested = meta.get("three_d")
+    if isinstance(nested, dict) and nested:
+        return nested
+    nested = {}
+    for entry in (meta.get("three_d_versions") or []):
+        ver = entry.get("version", 1)
+        pl = entry.get("pipeline", {}) or {}
+        vid = _variant_id(pl.get("pipeline_type", "triposg"),
+                          pl.get("texture_backend", ""),
+                          entry.get("model_key", ""))
+        variant = dict(entry)
+        variant["variant_id"] = vid
+        # Legacy files are named asset_3d.glb / asset_3d_v{N}.glb (no variant
+        # suffix) — keep that filename so the existing file still resolves.
+        variant.setdefault("glb_filename",
+                            "asset_3d.glb" if ver == 1 else f"asset_3d_v{ver}.glb")
+        nested[f"v{ver}"] = {"default_variant": vid, "variants": [variant]}
+    meta["three_d"] = nested
+    return nested
+
+
+def _flatten_three_d_versions(nested: dict) -> list:
+    """Build the legacy flat three_d_versions list (the DEFAULT variant of each
+    version) from the nested structure, so old readers keep working."""
+    out = []
+    for vkey, vdata in nested.items():
+        variants = vdata.get("variants", [])
+        if not variants:
+            continue
+        default_id = vdata.get("default_variant")
+        chosen = next((v for v in variants if v.get("variant_id") == default_id), variants[-1])
+        out.append(chosen)
+    return out
 
 
 def _pipeline_info(key: str, cfg: dict) -> dict:
@@ -653,6 +783,9 @@ async def generate_3d(body: ThreeDGenerateRequest):
             "octree_depth": _octree,
             "texture_backend": body.texture_backend,
         },
+        # Whether this variant should become the version's default 3D
+        # model on completion ("default") or be kept as a side variant ("variant").
+        "set_default": body.save_as != "variant",
         "submitted_at": datetime.now(timezone.utc).isoformat(),
     }
     _3d_jobs[job_id] = job
@@ -709,20 +842,101 @@ async def get_active_3d_job(asset_id: str, version: int = 1):
     return {"active": True, "job_id": job["job_id"], "status": job["status"]}
 
 
-@router.get("/status/{job_id}")
-async def get_3d_status(job_id: str):
-    """Check status of a 3D generation job."""
-    job = _3d_jobs.get(job_id)
-    if not job:
-        raise HTTPException(404, detail=f"3D job '{job_id}' not found.")
+@router.get("/variants/{asset_id}/{version}")
+async def list_3d_variants(asset_id: str, version: int):
+    """List the 3D variants for an asset+version (3D sub-versioning).
 
-    # If already finalized, return cached
+    Returns the variants (each with its pipeline, deployment label, job id and
+    stats) plus which one is the default. Legacy flat metadata is migrated on
+    read. Used by the AssetViewer variant switcher.
+    """
+    meta = store.load_generation_metadata(asset_id) or {}
+    nested = _migrate_legacy_3d(meta)
+    vbucket = nested.get(f"v{version}") or {}
+    return {
+        "asset_id": asset_id,
+        "version": version,
+        "default_variant": vbucket.get("default_variant"),
+        "variants": vbucket.get("variants", []),
+    }
+
+
+class SetDefaultVariantRequest(BaseModel):
+    asset_id: str
+    version: int = 1
+    variant_id: str
+
+
+@router.post("/variants/set-default")
+async def set_default_3d_variant(body: SetDefaultVariantRequest):
+    """Make a variant the version's default 3D model.
+
+    Repoints default_variant and re-materializes the canonical files
+    (asset_3d_v{N}.glb, plus asset_3d.glb for v1) from the chosen variant so the
+    gallery/thumbnail/legacy route serve it.
+    """
+    meta = store.load_generation_metadata(body.asset_id) or {}
+    nested = _migrate_legacy_3d(meta)
+    vbucket = nested.get(f"v{body.version}")
+    if not vbucket:
+        raise HTTPException(404, detail=f"No 3D models for asset '{body.asset_id}' version {body.version}.")
+    chosen = next((v for v in vbucket.get("variants", []) if v.get("variant_id") == body.variant_id), None)
+    if not chosen:
+        raise HTTPException(404, detail=f"Variant '{body.variant_id}' not found.")
+
+    asset_dir = store.generated_asset_dir(body.asset_id)
+    src = asset_dir / chosen["glb_filename"]
+    if not src.exists():
+        raise HTTPException(404, detail="Variant GLB file is missing on disk.")
+    data = src.read_bytes()
+    (asset_dir / f"asset_3d_v{body.version}.glb").write_bytes(data)
+    if body.version == 1:
+        (asset_dir / "asset_3d.glb").write_bytes(data)
+
+    vbucket["default_variant"] = body.variant_id
+    meta["three_d_versions"] = _flatten_three_d_versions(nested)
+    store.save_generation_metadata(body.asset_id, meta)
+    return {"ok": True, "default_variant": body.variant_id}
+
+
+def _check_3d_job(job: dict, s3=None) -> dict:
+    """Poll S3 for a 3D job's async output and finalize it if ready.
+
+    This is the single source of truth for turning a `submitted`/`generating`
+    job into a terminal `complete`/`failed` state: it downloads the GLB, saves
+    it to the asset dir, writes the rich `three_d_versions` metadata, and cleans
+    up S3 artifacts. It is intentionally side-effecting and idempotent-ish —
+    once a job is terminal it returns the cached job without touching S3.
+
+    Both callers share it so behavior is identical regardless of who drives it:
+      • the frontend-driven GET /status/{job_id} route, and
+      • the server-side background poller (_poll_loop), which finalizes jobs
+        even when no browser is watching (e.g. the user closed the tab during a
+        long SageMaker cold start).
+
+    Returns a status dict (job_id/status/asset_id/version[/glb_url/error/...]).
+    """
+    job_id = job["job_id"]
+
+    # Fast path: already finalized (avoids taking the lock for the common
+    # "poll a done job" case).
     if job["status"] in ("complete", "failed"):
         return job
 
-    # Check S3 for output
-    s3 = boto3.client("s3", region_name=_get_region())
+    if s3 is None:
+        s3 = boto3.client("s3", region_name=_get_region())
 
+    # Serialize finalization across the /status route and the background poller.
+    # Re-check status after acquiring — the other caller may have just finished.
+    with _3d_finalize_lock:
+        if job["status"] in ("complete", "failed"):
+            return job
+        return _finalize_3d_job(job, s3)
+
+
+def _finalize_3d_job(job: dict, s3) -> dict:
+    """S3 poll + finalize body for one 3D job. Caller holds _3d_finalize_lock."""
+    job_id = job["job_id"]
     try:
         s3.head_object(Bucket=job["s3_bucket"], Key=job["s3_key"])
     except Exception as e:
@@ -784,15 +998,8 @@ async def get_3d_status(job_id: str):
         version = job["version"]
         asset_id = job["asset_id"]
 
-        # Save GLB file — always overwrites the current version (no history)
         asset_dir = store.generated_asset_dir(asset_id)
         asset_dir.mkdir(parents=True, exist_ok=True)
-        glb_path = asset_dir / "asset_3d.glb"
-        glb_path.write_bytes(glb_bytes)
-
-        # Clean up any old versioned files
-        for old in asset_dir.glob("asset_3d_v*.glb"):
-            old.unlink(missing_ok=True)
 
         # Extract mesh stats from output if available
         vertices = output_data.get("vertices", 0)
@@ -841,34 +1048,88 @@ async def get_3d_status(job_id: str):
         pipeline["license_accepted_at"] = _pinfo.get("license_accepted_at", "")
         pipeline["commercial"] = _pinfo.get("commercial")
 
-        # Update asset metadata — single entry, replaced on regenerate
-        meta = store.load_generation_metadata(asset_id) or {}
-        meta["three_d_versions"] = [{
+        # ── Build the VARIANT record ──────────────────────────────────────
+        # A 2D version can hold multiple 3D variants (different pipeline /
+        # texture backend / deployment / config). The variant id is stable per
+        # (pipeline, deployment): re-running the same pipeline on the same
+        # endpoint REPLACES its variant; anything else is a new variant.
+        vid = _variant_id(_ptype, pipeline.get("texture_backend", ""), job.get("model_key", ""))
+        created_at = datetime.now(timezone.utc).isoformat()
+        # Per-variant GLB file (addressable directly) + the version's default
+        # file (asset_3d_v{N}.glb, plus asset_3d.glb for v1 — the legacy route).
+        variant_filename = f"asset_3d_v{version}__{vid}.glb"
+        (asset_dir / variant_filename).write_bytes(glb_bytes)
+
+        variant = {
+            "variant_id": vid,
             "version": version,
-            "glb_filename": "asset_3d.glb",
-            "glb_url": f"/api/gallery/{asset_id}/3d/{version}",
+            "glb_filename": variant_filename,
+            "glb_url": f"/api/gallery/{asset_id}/3d/{version}?variant={vid}",
             "size_bytes": len(glb_bytes),
             "vertices": vertices,
             "faces": faces,
             "params": job["params"],
             "pipeline": pipeline,
+            "instance_label": _variant_instance_label(_ptype, _cfg or {}),
+            # Exact provenance: which deployed endpoint produced this, and the
+            # job that ran it — surfaced in the AssetViewer Metadata tab.
+            "model_key": job.get("model_key", ""),
+            "job_id": job_id,
             # tz-AWARE UTC (…+00:00). A naive utcnow().isoformat() has no zone
             # suffix → JS `new Date()` parses it as LOCAL time → wrong displayed
             # time (off by the local UTC offset). The suffix lets JS convert right.
-            "created_at": datetime.now(timezone.utc).isoformat(),
-        }]
+            "created_at": created_at,
+        }
+
+        meta = store.load_generation_metadata(asset_id) or {}
+        nested = _migrate_legacy_3d(meta)
+        vkey = f"v{version}"
+        vbucket = nested.setdefault(vkey, {"default_variant": None, "variants": []})
+        # Replace any existing variant with the same id (same pipeline+deploy),
+        # else append. Clean up the OLD variant's GLB file if its name changed.
+        existing = next((v for v in vbucket["variants"] if v.get("variant_id") == vid), None)
+        if existing:
+            old_fn = existing.get("glb_filename")
+            if old_fn and old_fn != variant_filename:
+                (asset_dir / old_fn).unlink(missing_ok=True)
+            vbucket["variants"] = [v if v.get("variant_id") != vid else variant
+                                   for v in vbucket["variants"]]
+        else:
+            vbucket["variants"].append(variant)
+
+        # Default-variant policy: a brand-new generation (no prior default) OR a
+        # regen the user asked to "replace" becomes the default. A regen saved as
+        # a NEW variant leaves the existing default untouched.
+        make_default = (not vbucket.get("default_variant")) or bool(job.get("set_default", True))
+        if make_default:
+            vbucket["default_variant"] = vid
+
+        # Materialize the DEFAULT variant as the version's canonical file(s) so
+        # the legacy gallery route (asset_3d.glb / asset_3d_v{N}.glb) serves it.
+        default_id = vbucket["default_variant"]
+        default_variant = next((v for v in vbucket["variants"] if v.get("variant_id") == default_id), variant)
+        default_bytes = glb_bytes if default_variant is variant else \
+            (asset_dir / default_variant["glb_filename"]).read_bytes()
+        (asset_dir / f"asset_3d_v{version}.glb").write_bytes(default_bytes)
+        if version == 1:
+            (asset_dir / "asset_3d.glb").write_bytes(default_bytes)
+
+        # Keep the legacy flat list in sync (default variant per version) so any
+        # un-migrated reader still works.
+        meta["three_d_versions"] = _flatten_three_d_versions(nested)
         meta["has_3d"] = True
         store.save_generation_metadata(asset_id, meta)
 
         # Update job status
         job["status"] = "complete"
         job["completed_at"] = datetime.now(timezone.utc).isoformat()
-        job["glb_url"] = f"/api/gallery/{asset_id}/3d/{version}"
+        job["glb_url"] = variant["glb_url"]
+        job["variant_id"] = vid
         job["size_bytes"] = len(glb_bytes)
         job["vertices"] = vertices
         job["faces"] = faces
         job["pipeline"] = pipeline
-        job["created_at"] = meta["three_d_versions"][0]["created_at"]
+        job["created_at"] = created_at
 
         logger.info("3D generation complete for asset %s: %d bytes, %d vertices, %d faces",
                     asset_id, len(glb_bytes), vertices, faces)
@@ -916,3 +1177,76 @@ async def get_3d_status(job_id: str):
             "version": job["version"],
             "error": str(exc)[:500],
         }
+
+
+@router.get("/status/{job_id}")
+async def get_3d_status(job_id: str):
+    """Check status of a 3D generation job.
+
+    Thin wrapper over _check_3d_job(): the background poller (_poll_loop) may
+    have already finalized this job, in which case the cached terminal state is
+    returned immediately. Otherwise this poll attempt drives the finalize.
+    """
+    job = _3d_jobs.get(job_id)
+    if not job:
+        raise HTTPException(404, detail=f"3D job '{job_id}' not found.")
+    return _check_3d_job(job)
+
+
+# ── Server-side background poller ──────────────────────────────────────────
+# 3D async jobs are submitted to SageMaker and their GLB lands in S3 minutes
+# later (often after a multi-minute cold start when the endpoint scaled to
+# zero). Finalization (download GLB → save → write metadata) used to happen
+# ONLY when the browser polled /status — so if the user closed the tab during a
+# long cold start, a finished job's output was never saved. This poller closes
+# that gap: it finalizes generating jobs regardless of whether any UI is
+# watching, mirroring the 2D async-job poller (services/async_jobs.py).
+_3d_poller_thread: "_threading.Thread | None" = None
+_3d_poller_stop = _threading.Event()
+
+
+def _3d_poll_loop():
+    """Background loop: finalize in-progress 3D jobs by polling S3."""
+    import time as _time
+    while not _3d_poller_stop.is_set():
+        try:
+            pending = [j for j in list(_3d_jobs.values())
+                       if j.get("status") not in ("complete", "failed")]
+            if pending:
+                s3 = boto3.client("s3", region_name=_get_region())
+                for job in pending:
+                    if _3d_poller_stop.is_set():
+                        break
+                    try:
+                        _check_3d_job(job, s3)
+                    except Exception as e:
+                        logger.warning("3D job poll error (%s): %s",
+                                       job.get("job_id"), e)
+        except Exception as e:
+            logger.debug("3D poll loop iteration error: %s", e)
+        # 15s cadence: brisk enough that a finished GLB is saved promptly, but
+        # light on S3 HEAD calls when a long cold start is in progress.
+        _3d_poller_stop.wait(timeout=15)
+    logger.debug("3D job poller stopped")
+
+
+def start_3d_poller() -> None:
+    """Start the background 3D-job poller (called from app startup).
+
+    Idempotent — a second call while the thread is alive is a no-op. Must be
+    invoked AFTER load_persisted_3d_jobs() so restored in-progress jobs are
+    picked up immediately on boot.
+    """
+    global _3d_poller_thread
+    if _3d_poller_thread and _3d_poller_thread.is_alive():
+        return
+    _3d_poller_stop.clear()
+    _3d_poller_thread = _threading.Thread(
+        target=_3d_poll_loop, daemon=True, name="three-d-job-poller")
+    _3d_poller_thread.start()
+    logger.info("3D job poller started")
+
+
+def stop_3d_poller() -> None:
+    """Stop the background 3D-job poller (called on shutdown)."""
+    _3d_poller_stop.set()

@@ -859,7 +859,7 @@ async def auto_register_image_models(region: str):
         has_vision = "IMAGE" in inp
         streaming = m.get("responseStreamingSupported", False)
 
-        # Endpoint/API capability (M-2/M-3): this model came from the
+        # Endpoint/API capability: this model came from the
         # bedrock-runtime listing, so it's runtime-reachable. Mantle-also and
         # mantle-only models are reconciled in a later pass (_reconcile_mantle_models).
         from backend.services.mantle_client import derive_model_apis, resolve_invoke_path
@@ -1341,7 +1341,7 @@ def _claude_version_tuple(model_id: str) -> tuple:
 
 
 def _reconcile_mantle_models(registry: dict) -> int:
-    """Reconcile the bedrock-mantle catalog into chat_models (M-2/M-3).
+    """Reconcile the bedrock-mantle catalog into chat_models.
 
     The bedrock-runtime ListFoundationModels scan (done per-region above) does
     NOT surface Mantle-only models (OpenAI GPT-5.x, Claude Mythos, …). This pass
@@ -1572,7 +1572,7 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
         cat["provider"] = cfg.get("provider", "Anthropic") or "Anthropic"
         cat.setdefault("api_type", "converse")
         # Self-correcting param gate: stamp whether this model still takes
-        # `temperature` so _build_inference_config stays data-driven (G-2/G-3).
+        # `temperature` so _build_inference_config stays data-driven.
         _probe_and_record_temperature(new_id, new_region, registry)
         msg = f"{label}: auto-switched to newest Claude → {new_id} ({new_region})"
         notices.append(msg)

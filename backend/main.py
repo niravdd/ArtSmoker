@@ -373,10 +373,13 @@ async def lifespan(app: FastAPI):
                 logger.info("Async jobs: %d loaded, %d resumed from S3", loaded, resumed)
         except Exception as exc:
             logger.debug("Async jobs resume: %s", exc)
-        # Restore 3D generation jobs (separate tracker, separate S3 prefix)
+        # Restore 3D generation jobs (separate tracker, separate S3 prefix),
+        # then start the server-side poller so any restored in-progress job
+        # finalizes itself even if no browser is watching.
         try:
-            from backend.routers.generate_3d import load_persisted_3d_jobs
+            from backend.routers.generate_3d import load_persisted_3d_jobs, start_3d_poller
             load_persisted_3d_jobs()
+            start_3d_poller()
         except Exception as exc:
             logger.debug("3D jobs resume: %s", exc)
 
@@ -432,6 +435,11 @@ async def lifespan(app: FastAPI):
     stop_periodic_checker()
     from backend.services.async_jobs import stop_poller
     stop_poller()
+    try:
+        from backend.routers.generate_3d import stop_3d_poller
+        stop_3d_poller()
+    except Exception:
+        pass
     track_server_stop()
     logger.info("ArtSmoker backend shutting down.")
 

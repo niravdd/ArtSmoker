@@ -468,6 +468,17 @@
             activeJob(assetId, version = 1) {
                 return request(`/api/generate/3d/active/${encodeURIComponent(assetId)}?version=${version}`);
             },
+            /** List the 3D variants for an asset+version (3D sub-versioning). */
+            variants(assetId, version = 1) {
+                return request(`/api/generate/3d/variants/${encodeURIComponent(assetId)}/${version}`);
+            },
+            /** Make a variant the version's default 3D model. */
+            setDefaultVariant(assetId, version, variantId) {
+                return request('/api/generate/3d/variants/set-default', {
+                    method: 'POST',
+                    body: { asset_id: assetId, version, variant_id: variantId },
+                });
+            },
         },
     };
 })();

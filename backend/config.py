@@ -3,7 +3,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.9-20260625_02"
+APP_VERSION = "1.9-20260625_03"
 
 class Settings(BaseSettings):
     # ── AWS ───────────────────────────────────────────────────────────────
@@ -38,6 +38,15 @@ class Settings(BaseSettings):
     # hard-won instance survives dev iteration. Set via ARTSMOKER_DEV_MODE in
     # .env (loaded below). is_dev_mode() reads this OR the raw env var.
     dev_mode: bool = False
+
+    # Auto keep-warm: when true, submitting an inference job pins its endpoint
+    # warm (MinCapacity=1) for DEFAULT_WARM_HOURS so dev iteration doesn't pay
+    # repeated cold starts. DEFAULT OFF — an 8h pin per job is expensive and was
+    # silently keeping GPU instances up. Endpoints now rely purely on the
+    # scale-to-zero / scale-from-zero autoscaling policies; warm-pinning is an
+    # explicit, opt-in action (the /keep-warm API still works on demand). Set
+    # ARTSMOKER_AUTO_KEEP_WARM=true in .env to restore the old behavior.
+    auto_keep_warm: bool = False
 
     # ── Generation defaults ───────────────────────────────────────────────
     default_image_width: int = 1024
