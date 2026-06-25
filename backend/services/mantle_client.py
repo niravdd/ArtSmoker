@@ -82,20 +82,8 @@ def _now() -> float:
     return time.time()
 
 
-def get_bedrock_token(region: str) -> str | None:
-    """Return a Bedrock bearer token for the given region (cached + refreshed).
-
-    Priority:
-      1. ``AWS_BEARER_TOKEN_BEDROCK`` env var, if the operator set one explicitly.
-      2. A short-term token derived from the current AWS credentials via
-         ``aws_bedrock_token_generator`` (no stored secret).
-    Returns None if neither is available (Mantle then cleanly unavailable).
-    The token value is never logged.
-    """
-    env_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
-    if env_token:
-        return env_token
-
+def _derive_token(region: str) -> str | None:
+    """Derive + cache a short-term Bedrock token from the current AWS creds."""
     with _token_lock:
         cached = _token_cache.get(region)
         if cached and cached[1] > _now():
@@ -122,6 +110,62 @@ def get_bedrock_token(region: str) -> str | None:
         return token
 
 
+def get_bedrock_token(region: str, *, force_derive: bool = False) -> str | None:
+    """Return a Bedrock bearer token for the given region (cached + refreshed).
+
+    Priority:
+      1. ``AWS_BEARER_TOKEN_BEDROCK`` env var, if the operator set one explicitly
+         (an operator-owned override — we never rewrite it).
+      2. A short-term token derived from the current AWS credentials via
+         ``aws_bedrock_token_generator`` (cached ~8h; no stored secret).
+    Returns None if neither is available (Mantle then cleanly unavailable).
+    The token value is never logged.
+
+    ``force_derive=True`` skips the env var and derives fresh — used by the
+    retry path when an env-var token turns out to be stale/expired (so we
+    self-heal without mutating ``os.environ`` or changing the operator's value).
+    """
+    if not force_derive:
+        env_token = os.environ.get("AWS_BEARER_TOKEN_BEDROCK")
+        if env_token:
+            return env_token
+    return _derive_token(region)
+
+
+def _is_auth_error(exc: Exception) -> bool:
+    """True if the exception looks like an expired/invalid bearer token (401/403)."""
+    code = getattr(getattr(exc, "response", None), "status_code", None)
+    if code in (401, 403):
+        return True
+    txt = str(exc).lower()
+    return ("401" in txt or "403" in txt or "expired" in txt or "unauthorized" in txt
+            or "invalid" in txt and "token" in txt or "security token" in txt)
+
+
+def _mantle_call(region: str, fn):
+    """Run a Mantle call, retrying ONCE with a freshly-derived token on auth error.
+
+    ``fn(client)`` performs the actual request. On the first 401/403 we discard
+    the (possibly stale env-var or cached) token, derive a fresh one from AWS
+    creds, rebuild the client, and retry. os.environ is never modified — the
+    operator's AWS_BEARER_TOKEN_BEDROCK stays as they set it.
+    """
+    m_region = mantle_region_for(region)
+    try:
+        return fn(_build_client(m_region))
+    except Exception as exc:
+        if not _is_auth_error(exc):
+            raise
+        # Invalidate any cached derived token for this region, then force-derive.
+        with _token_lock:
+            _token_cache.pop(m_region, None)
+        fresh = get_bedrock_token(m_region, force_derive=True)
+        if not fresh:
+            raise
+        logger.info("Mantle auth failed for %s — retried with a freshly derived token", m_region)
+        return fn(_build_client(m_region, token=fresh))
+
+
 def mantle_available(region: str | None = None) -> bool:
     """Whether the Mantle endpoint is usable right now (deps + auth present)."""
     try:
@@ -137,23 +181,29 @@ def _base_url(region: str) -> str:
     return f"https://bedrock-mantle.{region}.api.aws/v1"
 
 
-def _get_openai_client(region: str):
+def _build_client(region: str, token: str | None = None):
     """Build a fresh OpenAI client for the Mantle endpoint in ``region``.
 
     Not cached: the bearer token rotates, and the OpenAI client captures the
     key at construction. Construction is cheap (no network), so we build per
-    call with a current token.
+    call with a current token. Pass ``token`` to use a specific (e.g. freshly
+    re-derived) token; otherwise the standard priority applies.
+    ``region`` must already be Mantle-supported (callers pass mantle_region_for).
     """
     from openai import OpenAI
 
-    m_region = mantle_region_for(region)
-    token = get_bedrock_token(m_region)
-    if not token:
+    tok = token or get_bedrock_token(region)
+    if not tok:
         raise RuntimeError(
             "No Bedrock bearer token available for Mantle. Install "
             "aws-bedrock-token-generator or set AWS_BEARER_TOKEN_BEDROCK."
         )
-    return OpenAI(api_key=token, base_url=_base_url(m_region))
+    return OpenAI(api_key=tok, base_url=_base_url(region))
+
+
+def _get_openai_client(region: str):
+    """Back-compat: build a client for an arbitrary region (region-mapped)."""
+    return _build_client(mantle_region_for(region))
 
 
 # ── Invokers (one per Mantle API surface) ───────────────────────────────────
@@ -169,14 +219,17 @@ def invoke_chat_completions(
 ) -> str:
     """OpenAI Chat Completions on Mantle. ``messages`` are OpenAI-format
     ({role, content}). Returns the assistant text."""
-    client = _get_openai_client(region or settings.aws_region_models)
     kwargs: dict = {"model": model_id, "messages": messages, "max_completion_tokens": max_tokens}
     if temperature is not None:
         kwargs["temperature"] = temperature
     if extra:
         kwargs.update(extra)
-    resp = client.chat.completions.create(**kwargs)
-    return resp.choices[0].message.content or ""
+
+    def _do(client):
+        resp = client.chat.completions.create(**kwargs)
+        return resp.choices[0].message.content or ""
+
+    return _mantle_call(region or settings.aws_region_models, _do)
 
 
 def invoke_responses(
@@ -194,7 +247,6 @@ def invoke_responses(
     the caller opts in (the OpenAI default is True; we choose privacy-first).
     Returns the aggregated output text.
     """
-    client = _get_openai_client(region or settings.aws_region_models)
     kwargs: dict = {
         "model": model_id,
         "input": input_messages,
@@ -203,9 +255,13 @@ def invoke_responses(
     }
     if extra:
         kwargs.update(extra)
-    resp = client.responses.create(**kwargs)
-    # output_text is the SDK's convenience aggregation of text output items.
-    return getattr(resp, "output_text", "") or ""
+
+    def _do(client):
+        resp = client.responses.create(**kwargs)
+        # output_text is the SDK's convenience aggregation of text output items.
+        return getattr(resp, "output_text", "") or ""
+
+    return _mantle_call(region or settings.aws_region_models, _do)
 
 
 def invoke_messages(
@@ -225,9 +281,6 @@ def invoke_messages(
     ({role, content}). Returns the concatenated text blocks.
     """
     m_region = mantle_region_for(region or settings.aws_region_models)
-    token = get_bedrock_token(m_region)
-    if not token:
-        raise RuntimeError("No Bedrock bearer token available for Mantle Messages.")
     import requests
 
     url = f"https://bedrock-mantle.{m_region}.api.aws/anthropic/v1/messages"
@@ -238,16 +291,34 @@ def invoke_messages(
         body["temperature"] = temperature
     if extra:
         body.update(extra)
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "anthropic-version": "2023-06-01",
-        "Content-Type": "application/json",
-    }
-    resp = requests.post(url, json=body, headers=headers, timeout=120)
-    resp.raise_for_status()
-    data = resp.json()
-    parts = [b.get("text", "") for b in data.get("content", []) if b.get("type") == "text"]
-    return "".join(parts)
+
+    def _post(token: str):
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "anthropic-version": "2023-06-01",
+            "Content-Type": "application/json",
+        }
+        resp = requests.post(url, json=body, headers=headers, timeout=120)
+        resp.raise_for_status()
+        data = resp.json()
+        return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+
+    token = get_bedrock_token(m_region)
+    if not token:
+        raise RuntimeError("No Bedrock bearer token available for Mantle Messages.")
+    try:
+        return _post(token)
+    except Exception as exc:
+        # Self-heal a stale env-var/cached token: derive fresh + retry once.
+        if not _is_auth_error(exc):
+            raise
+        with _token_lock:
+            _token_cache.pop(m_region, None)
+        fresh = get_bedrock_token(m_region, force_derive=True)
+        if not fresh:
+            raise
+        logger.info("Mantle Messages auth failed for %s — retried with a fresh token", m_region)
+        return _post(fresh)
 
 
 # ── Endpoint/API capability resolution (registry-driven routing) ────────────
