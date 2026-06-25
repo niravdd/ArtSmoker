@@ -2119,7 +2119,7 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 > [!NOTE]
 > The tables below are **reference pricing for deployment planning**. The application shows **live pricing** in the UI — fetched from the AWS Pricing API during registry refresh-all and stored in `model_registry.json`. Each model's `base_price_usd` and per-region `quality_prices` are displayed in the Image Studio and Video Studio model/region selectors and cost estimates. The pricing data is cached in the registry and only updated when an admin explicitly runs refresh-all.
 
-All prices below are from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions (us-west-2, us-east-1). Prices are on-demand, per-request.
+All prices below are from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for the app's **default regions** — `us-west-2` (Claude, Stability AI) and `us-east-1` (Amazon Nova Canvas, Titan Image, Nova Sonic). Prices are on-demand, per-request. **Other AWS Regions may differ** — the application reads live, per-region pricing from the AWS Pricing API into `model_registry.json` (per-model `base_price_usd` / `quality_prices`) and displays the cost for your actual configured region, so these tables are for planning only.
 
 ### 14.1 Per-Unit Pricing
 

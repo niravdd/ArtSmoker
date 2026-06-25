@@ -427,7 +427,7 @@ ArtSmoker est conçu comme un **outil de développement local/réseau de confian
 > [!NOTE]
 > Les tableaux ci-dessous sont des **tarifs de référence à des fins de planification**. L'application elle-même affiche les **tarifs en direct par modèle** dans la barre latérale de l'Image Studio — récupérés depuis l'API AWS Pricing lors du rafraîchissement du registre et stockés dans `model_registry.json`.
 
-Tous les tarifs proviennent de la [page de tarification Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) (régions US). Pour plus de détails, consultez [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown).
+Les tarifs de référence proviennent de la [page de tarification Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) officielle, pour les régions par défaut de l'application — us-west-2 (Claude, Stability AI) et us-east-1 (Amazon Nova Canvas, Titan Image, Nova Sonic). Les tarifs peuvent varier dans les autres régions AWS ; l'application affiche toujours les tarifs en direct correspondant à la région que vous avez réellement configurée, dans la barre latérale de l'Image Studio. Consultez également [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) pour les projections mensuelles par équipe et les estimations de coût de déploiement.
 
 | Service | Modèle | Coût | Unité |
 |---------|--------|------|-------|

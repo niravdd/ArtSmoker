@@ -427,7 +427,7 @@ ArtSmoker 设计为**本地/受信网络开发工具** —— 在开发者自己
 > [!NOTE]
 > 下表为**规划用的参考定价**。应用本身在 Image Studio 侧边栏中显示**实时的每模型定价** —— 在注册表刷新时从 AWS Pricing API 获取并存储在 `model_registry.json` 中。
 
-所有价格来自 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)（美国区域）。详情请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
+参考价格取自官方 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)，对应应用的默认区域 —— us-west-2（Claude、Stability AI）和 us-east-1（Amazon Nova Canvas、Titan Image、Nova Sonic）。其他 AWS 区域的价格可能有所不同；应用始终会在 Image Studio 侧边栏中显示你实际配置区域的实时定价。月度团队预算估算和部署成本估算另请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
 
 | 服务 | 模型 | 成本 | 单位 |
 |------|------|------|------|

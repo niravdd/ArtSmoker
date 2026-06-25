@@ -427,7 +427,7 @@ ArtSmokerは**ローカル/信頼されたネットワーク開発ツール**と
 > [!NOTE]
 > 以下の表は**計画用の参考料金**です。アプリ自体はImage Studioサイドバーに**ライブのモデルごとの料金**を表示します — AWS Pricing APIからレジストリリフレッシュ時に取得され、`model_registry.json`に保存されます。
 
-すべての料金は[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)（USリージョン）から取得。詳細は[SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)を参照。
+参考料金は、アプリのデフォルトリージョン — us-west-2（Claude、Stability AI）と us-east-1（Amazon Nova Canvas、Titan Image、Nova Sonic）— について、公式の[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)から取得しています。他のAWSリージョンでは料金が異なる場合があります。アプリは常に、実際に設定されているリージョンのライブ料金をImage Studioサイドバーに表示します。月次のチーム見積もりやデプロイのコスト試算については、[SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)も参照してください。
 
 | サービス | モデル | コスト | 単位 |
 |---------|-------|------|------|

@@ -1425,7 +1425,7 @@ Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `m
 > [!NOTE]
 > The tables below are **reference pricing for planning purposes**. The app itself shows **live per-model pricing** in the Image Studio sidebar — fetched from the AWS Pricing API during registry refresh and stored in `model_registry.json`. The in-app cost estimate updates dynamically based on selected model, quality tier, region, and batch size.
 
-All pricing from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for US regions. See also [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
+Reference prices are taken from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for the app's **default regions** — `us-west-2` (Claude, Stability AI) and `us-east-1` (Amazon Nova Canvas, Titan Image, Nova Sonic). Prices can differ in other AWS Regions; the app always shows **live pricing for your actual configured region** in the Image Studio sidebar (fetched from the AWS Pricing API). See also [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
 
 ### 📝 12.1 Per-Unit Pricing
 

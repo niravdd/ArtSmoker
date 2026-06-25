@@ -426,7 +426,7 @@ ArtSmoker एक **लोकल/विश्वसनीय-नेटवर्�
 > [!NOTE]
 > नीचे दी गई तालिकाएँ **योजना के उद्देश्य से संदर्भ मूल्य** हैं। ऐप स्वयं Image Studio साइडबार में **लाइव प्रति-मॉडल मूल्य** दिखाता है — AWS Pricing API से रजिस्ट्री रिफ़्रेश के दौरान प्राप्त और `model_registry.json` में संग्रहीत।
 
-सभी मूल्य [Amazon Bedrock मूल्य निर्धारण पृष्ठ](https://aws.amazon.com/bedrock/pricing/) (US रीजन) से प्राप्त। विस्तृत जानकारी के लिए [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) देखें।
+संदर्भ मूल्य आधिकारिक [Amazon Bedrock मूल्य निर्धारण पृष्ठ](https://aws.amazon.com/bedrock/pricing/) से ऐप के डिफ़ॉल्ट रीजनों के लिए लिए गए हैं — us-west-2 (Claude, Stability AI) और us-east-1 (Amazon Nova Canvas, Titan Image, Nova Sonic)। अन्य AWS रीजनों में मूल्य भिन्न हो सकते हैं; ऐप हमेशा आपके वास्तविक कॉन्फ़िगर किए गए रीजन के लिए Image Studio साइडबार में लाइव मूल्य दिखाता है। मासिक टीम अनुमानों और परिनियोजन लागत आकलनों के लिए [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) भी देखें।
 
 | सेवा | मॉडल | लागत | इकाई |
 |------|------|------|------|
