@@ -750,6 +750,21 @@ If there is only one option, the options row is hidden. If there is only one var
 
 **Auto-roll on Sync** (`_auto_roll_llm_categories`): On every AWS Sync the `fast_llm` and `complex_llm` categories are smartly re-pointed to the newest available Claude — newest **Sonnet** → fast, newest **Opus** → complex (version parsed from the model ID, preferring `us.` cross-region inference profiles, ACTIVE over LEGACY, keeping the category's region when the model is offered there). This keeps non-technical users off deprecated models automatically (auto-switch + a logged notice). A manual category pick in Model Settings sets `pinned: true`, which the auto-roll respects — it then only *notifies* that a newer model exists rather than overriding the choice. The roll also probes the chosen model once and records its `supports_temperature` so the param gate above stays self-correcting.
 
+#### Two inference endpoints: `bedrock-runtime` (Converse) and `bedrock-mantle`
+
+Amazon Bedrock exposes **two** inference endpoints, and a model may be reachable on one, the other, or both — via *different* APIs:
+
+| Endpoint | APIs | boto3? | Auth | ArtSmoker client |
+|----------|------|--------|------|------------------|
+| `bedrock-runtime.{region}.amazonaws.com` | InvokeModel, **Converse**/ConverseStream | ✅ yes | AWS SigV4 (existing creds) | `bedrock_client.py` |
+| `bedrock-mantle.{region}.api.aws` | **Chat Completions**, **Responses** (OpenAI-compatible), **Messages** (Anthropic) | ❌ no — HTTP/OpenAI SDK | **Bedrock bearer token** | `mantle_client.py` |
+
+Why both matter: the newest **frontier models are Mantle-only** — OpenAI **GPT-5.x** are Responses-API-only; some new Claude variants (e.g. Mythos) are Messages-only — so they cannot be reached via Converse at all. Conversely, Converse keeps capabilities Mantle lacks (Guardrails, `us.` cross-region inference profiles, structured outputs) and needs no extra token.
+
+**Routing policy — Converse-first, Mantle only when required.** Each `chat_models` entry carries (stamped by Sync, see §4.11): `endpoints[]` (which endpoints list the model), `apis[]` (which APIs it supports), and a resolved **`invoke_endpoint`** + **`invoke_api`** chosen by priority **`converse` > `chat_completions` > `responses` > `messages`** (`mantle_client.resolve_invoke_path`). So Claude/most models stay on the rock-solid boto3 Converse path; Mantle is used only for models Converse can't reach. `invoke_llm` and the Chat Studio stream both branch on the resolved `invoke_endpoint`: runtime → existing boto3 path (unchanged); mantle → `mantle_client` (`_invoke_llm_mantle` / `_chat_stream_mantle`). The startup probe (§7.5) honors the same resolution.
+
+**Mantle auth** (`mantle_client.get_bedrock_token`): Mantle uses a **Bedrock bearer token**, not SigV4. By default a **short-term token** (≤12h, inherits the caller's IAM permissions) is derived from the active AWS credentials via `aws-bedrock-token-generator` — **nothing is stored**, and it's cached + refreshed in-process. An explicit `AWS_BEARER_TOKEN_BEDROCK` env var takes precedence if set. Token values are never logged. If neither the SDK nor a token is available, Mantle is cleanly reported unavailable and the Converse path is unaffected. Mantle is not offered in every region; `mantle_region_for` maps an arbitrary region to the nearest supported one (default fallback `us-west-2`).
+
 | Model | ID | Region | Purpose |
 |-------|----|--------|---------|
 | Claude Sonnet 4.6 | `us.anthropic.claude-sonnet-4-6` | us-west-2 | Fast: prompt refinement, generation hints |
@@ -823,7 +838,7 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 
    Each category stores: `current` (the model ID), `region`, `provider`, `api_type`, `label`, `description`, and optionally `pinned` (bool). `fast_llm`/`complex_llm` are **auto-rolled to the newest Sonnet/Opus on every Sync** (see §4.8 *Auto-roll on Sync*); setting `pinned: true` — which happens automatically when a user manually picks a model in Model Settings — opts a category out of auto-roll (it's then only notified of newer models, never overridden).
 
-5. **Chat models** (`chat_models`): Discovered LLM models available for Chat Studio. Keyed by internal name (e.g. `claude_sonnet_4_6`, `llama_3_3_70b`). Each entry stores: `label`, `model_id`, `provider`, `available_regions`, `context_window`, `supports_vision`, `supports_streaming`, `input_price_per_1k`, `output_price_per_1k`, `model_source` (`foundation`, `custom`, `imported`), and optionally `supports_temperature` (recorded by the Sync auto-roll's one-time probe — drives the inference-param gate in §4.8). Custom and imported models inherit `format_family` from their base model.
+5. **Chat models** (`chat_models`): Discovered LLM models available for Chat Studio. Keyed by internal name (e.g. `claude_sonnet_4_6`, `llama_3_3_70b`, `gpt_5_4`). Each entry stores: `label`, `model_id`, `provider`, `available_regions`, `context_window`, `supports_vision`, `supports_streaming`, `input_price_per_1k`, `output_price_per_1k`, `model_source` (`foundation`, `custom`, `imported`), and optionally `supports_temperature` (recorded by the Sync auto-roll's one-time probe — drives the inference-param gate in §4.8). It also carries the **endpoint/API routing** fields (§4.8): `endpoints[]` (`bedrock-runtime` and/or `bedrock-mantle`), `apis[]` (`converse`/`invoke`/`chat_completions`/`responses`/`messages`), and the resolved `invoke_endpoint` + `invoke_api` the app actually uses (Converse-first). All of these are user-overridable in `.user.json`. Custom and imported models inherit `format_family` from their base model.
 
 6. **Image models** (`image_models`): Keyed by internal name (e.g. `nova_canvas`, `sd35_large`). Each entry stores:
    - `label` — human-readable display name
@@ -853,7 +868,8 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 5. Discovers custom models via `ListCustomModels`, `ListImportedModels`, `ListCustomModelDeployments`, and `ListProvisionedModelThroughputs` — custom models inherit format family from their base model
 6. Disables models no longer found in any region
 7. Backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming support)
-8. **Auto-rolls** `fast_llm`/`complex_llm` to the newest discovered Sonnet/Opus (respecting `pinned` categories), recording each rolled model's `supports_temperature` (see §4.8 *Auto-roll on Sync*)
+8. **Reconciles the `bedrock-mantle` catalog** (`_reconcile_mantle_models`): queries the Mantle `models.list`, marks discovered runtime models that are *also* on Mantle, and adds **Mantle-only** models (OpenAI GPT-5.x, Claude Mythos, GLM/Grok, …) as new `chat_models` entries — stamping `endpoints[]`/`apis[]`/`invoke_endpoint`/`invoke_api` on every entry (derived from provider/family heuristics grounded in the AWS API-compatibility matrix; dated aliases like `gpt-5.4-2026-03-05` are de-duped against their undated base). Skipped cleanly if Mantle is unavailable.
+9. **Auto-rolls** `fast_llm`/`complex_llm` to the newest discovered Sonnet/Opus (respecting `pinned` categories), recording each rolled model's `supports_temperature` (see §4.8 *Auto-roll on Sync*)
 
 This is the **only** operation that calls AWS discovery/pricing APIs. All other operations read from the cached registry file.
 
@@ -1837,7 +1853,7 @@ On launch, ArtSmoker runs a lightweight **sanity check** (`validate_aws_credenti
 3. **Complex LLM** (`categories.complex_llm`) — a 1-token `Converse` call. Probing both tiers matters because they are usually different models with different access (and the complex tier is often a newer model that deprecates inference params — see below).
 4. **Image model** — a lightweight `InvokeModel` against the first enabled image model in the registry; a `ValidationException` still counts as success (the model was reached, only the dummy body was rejected).
 
-Each LLM probe builds its `inferenceConfig` through the same registry-driven gate used at runtime (`_build_inference_config` → `_model_supports_temperature`), so a model that deprecates `temperature` (e.g. Claude Opus 4.8) does **not** fail the probe. `_model_supports_temperature` reads `supports_temperature` / `deprecated_params` off the model's `chat_models` entry; only when the registry is silent does it fall back to a minimal built-in heuristic.
+Each LLM probe builds its `inferenceConfig` through the same registry-driven gate used at runtime (`_build_inference_config` → `_model_supports_temperature`), so a model that deprecates `temperature` (e.g. Claude Opus 4.8) does **not** fail the probe. `_model_supports_temperature` reads `supports_temperature` / `deprecated_params` off the model's `chat_models` entry; only when the registry is silent does it fall back to a minimal built-in heuristic. Each probe also honors the model's **resolved invoke path** (§4.8): a Converse-routed model is probed with a 1-token `Converse` call on `bedrock-runtime`; a Mantle-only model (e.g. a `fast_llm`/`complex_llm` pointed at GPT-5.x) is probed with a 1-token call on its `bedrock-mantle` API — so the sanity check exercises exactly the path the app will use.
 
 The result records a `probes` list (`role`, `model_id`, `region`, `ok`). On success the console logs a concise multi-line message — *"Amazon Bedrock access verified — the IAM role can reach a representative sample of N model(s)…"* — followed by one `✓ <role> — <model_id> (<region>)` line per probe (kept short so it never overflows a typical console width). Results are also available at `GET /api/health`. If credentials are missing, a prominent error box explains what to configure. If some checks fail but credentials exist, a warning lists the failures — the app still starts (some features may be degraded).
 

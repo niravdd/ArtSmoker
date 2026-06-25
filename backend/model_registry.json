@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-06-17T01:45:39.564940+00:00",
+  "last_updated": "2026-06-25T01:47:31.670194+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -2024,32 +2024,6 @@
     "s3_bucket_arn": ""
   },
   "chat_models": {
-    "gemma_3_4b_it": {
-      "label": "Gemma 3 4B IT",
-      "model_id": "google.gemma-3-4b-it",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Google",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/google.gemma-3-4b-it",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
     "nemotron_nano_12b_v2": {
       "label": "NVIDIA Nemotron Nano 12B v2 VL BF16",
       "model_id": "nvidia.nemotron-nano-12b-v2",
@@ -2074,7 +2048,18 @@
       "customizations_supported": [],
       "inference_types": [
         "ON_DEMAND"
-      ]
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
     "claude_sonnet_4_20250514_v1": {
       "label": "Claude Sonnet 4",
@@ -2106,7 +2091,16 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "lifecycle": "LEGACY"
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
     "claude_haiku_4_5_20251001_v1": {
       "label": "Claude Haiku 4.5",
@@ -2140,7 +2134,17 @@
       "customizations_supported": [],
       "inference_types": [
         "INFERENCE_PROFILE"
-      ]
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
     "qwen3_235b_a22b_2507_v1": {
       "label": "Qwen3 235B A22B 2507",
@@ -2165,78 +2169,55 @@
       "customizations_supported": [],
       "inference_types": [
         "ON_DEMAND"
-      ]
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
-    "gpt_oss_safeguard_120b": {
-      "label": "GPT OSS Safeguard 120B",
-      "model_id": "openai.gpt-oss-safeguard-120b",
+    "kimi_k2_5": {
+      "label": "Kimi K2.5",
+      "model_id": "moonshotai.kimi-k2.5",
       "region": "ap-northeast-1",
       "available_regions": [
         "ap-northeast-1",
         "ap-south-1",
         "ap-southeast-2",
-        "eu-west-1",
+        "eu-north-1",
         "eu-west-2",
         "sa-east-1",
         "us-east-1",
         "us-east-2",
         "us-west-2"
       ],
-      "provider": "OpenAI",
+      "provider": "Moonshot AI",
       "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-safeguard-120b",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "gemma_3_27b_it": {
-      "label": "Gemma 3 27B PT",
-      "model_id": "google.gemma-3-27b-it",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Google",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/google.gemma-3-27b-it",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/moonshotai.kimi-k2.5",
       "has_vision": true,
       "streaming_supported": true,
       "max_context_tokens": 128000,
       "customizations_supported": [],
       "inference_types": [
         "ON_DEMAND"
-      ]
-    },
-    "5": {
-      "label": "MiniMax M2.5",
-      "model_id": "minimax.minimax-m2.5",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
       ],
-      "provider": "MiniMax",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/minimax.minimax-m2.5",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
       ],
-      "lifecycle": "ACTIVE"
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
     "gpt_oss_120b_1": {
       "label": "gpt-oss-120b",
@@ -2264,33 +2245,20 @@
       "customizations_supported": [],
       "inference_types": [
         "ON_DEMAND"
-      ]
-    },
-    "qwen3_vl_235b_a22b": {
-      "label": "Qwen3 VL 235B A22B",
-      "model_id": "qwen.qwen3-vl-235b-a22b",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
       ],
-      "provider": "Qwen",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-vl-235b-a22b",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
+        "responses"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
     "qwen3_next_80b_a3b": {
       "label": "Qwen3 Next 80B A3B",
@@ -2316,1786 +2284,16 @@
       "customizations_supported": [],
       "inference_types": [
         "ON_DEMAND"
-      ]
-    },
-    "2": {
-      "label": "DeepSeek V3.2",
-      "model_id": "deepseek.v3.2",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-north-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
       ],
-      "provider": "DeepSeek",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/deepseek.v3.2",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "7": {
-      "label": "GLM 4.7",
-      "model_id": "zai.glm-4.7",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-north-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
       ],
-      "provider": "Z.AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-4.7",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "nemotron_nano_3_30b": {
-      "label": "Nemotron Nano 3 30B",
-      "model_id": "nvidia.nemotron-nano-3-30b",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
+      "apis": [
+        "converse"
       ],
-      "provider": "NVIDIA",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-nano-3-30b",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "minimax_m2": {
-      "label": "MiniMax M2",
-      "model_id": "minimax.minimax-m2",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "MiniMax",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/minimax.minimax-m2",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "7_flash": {
-      "label": "GLM 4.7 Flash",
-      "model_id": "zai.glm-4.7-flash",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Z.AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-4.7-flash",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "voxtral_mini_3b_2507": {
-      "label": "Voxtral Mini 3B 2507",
-      "model_id": "mistral.voxtral-mini-3b-2507",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.voxtral-mini-3b-2507",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "qwen3_coder_480b_a35b_v1": {
-      "label": "Qwen3 Coder 480B A35B Instruct",
-      "model_id": "qwen.qwen3-coder-480b-a35b-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-north-1",
-        "eu-west-2",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Qwen",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-coder-480b-a35b-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "nova_2_lite_v1": {
-      "label": "Nova 2 Lite",
-      "model_id": "amazon.nova-2-lite-v1:0:256k",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Amazon",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-2-lite-v1:0:256k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "gemma_3_12b_it": {
-      "label": "Gemma 3 12B IT",
-      "model_id": "google.gemma-3-12b-it",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Google",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/google.gemma-3-12b-it",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "magistral_small_2509": {
-      "label": "Magistral Small 2509",
-      "model_id": "mistral.magistral-small-2509",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.magistral-small-2509",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "kimi_k2_thinking": {
-      "label": "Kimi K2 Thinking",
-      "model_id": "moonshot.kimi-k2-thinking",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Moonshot AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/moonshot.kimi-k2-thinking",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "mistral_large_3_675b_instruct": {
-      "label": "Mistral Large 3",
-      "model_id": "mistral.mistral-large-3-675b-instruct",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.mistral-large-3-675b-instruct",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "pegasus_1_2_v1": {
-      "label": "Pegasus v1.2",
-      "model_id": "us.twelvelabs.pegasus-1-2-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "TwelveLabs",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/twelvelabs.pegasus-1-2-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "devstral_2_123b": {
-      "label": "Devstral 2 123B",
-      "model_id": "mistral.devstral-2-123b",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.devstral-2-123b",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "1": {
-      "label": "MiniMax M2.1",
-      "model_id": "minimax.minimax-m2.1",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "MiniMax",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/minimax.minimax-m2.1",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "v3_v1": {
-      "label": "DeepSeek-V3.1",
-      "model_id": "deepseek.v3-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-north-1",
-        "eu-west-2",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "DeepSeek",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/deepseek.v3-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "ministral_3_3b_instruct": {
-      "label": "Ministral 3B",
-      "model_id": "mistral.ministral-3-3b-instruct",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.ministral-3-3b-instruct",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "claude_opus_4_5_20251101_v1": {
-      "label": "Claude Opus 4.5",
-      "model_id": "us.anthropic.claude-opus-4-5-20251101-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-4-5-20251101-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "qwen3_coder_30b_a3b_v1": {
-      "label": "Qwen3-Coder-30B-A3B-Instruct",
-      "model_id": "qwen.qwen3-coder-30b-a3b-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Qwen",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-coder-30b-a3b-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "nemotron_super_3_120b": {
-      "label": "NVIDIA Nemotron 3 Super 120B A12B",
-      "model_id": "nvidia.nemotron-super-3-120b",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "NVIDIA",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-super-3-120b",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "qwen3_32b_v1": {
-      "label": "Qwen3 32B (dense)",
-      "model_id": "qwen.qwen3-32b-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Qwen",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-32b-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "ministral_3_14b_instruct": {
-      "label": "Ministral 14B 3.0",
-      "model_id": "mistral.ministral-3-14b-instruct",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.ministral-3-14b-instruct",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "nemotron_nano_9b_v2": {
-      "label": "NVIDIA Nemotron Nano 9B v2",
-      "model_id": "nvidia.nemotron-nano-9b-v2",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "NVIDIA",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-nano-9b-v2",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "ministral_3_8b_instruct": {
-      "label": "Ministral 3 8B",
-      "model_id": "mistral.ministral-3-8b-instruct",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.ministral-3-8b-instruct",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "voxtral_small_24b_2507": {
-      "label": "Voxtral Small 24B 2507",
-      "model_id": "mistral.voxtral-small-24b-2507",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.voxtral-small-24b-2507",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "glm_5": {
-      "label": "GLM 5",
-      "model_id": "zai.glm-5",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-north-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Z.AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-5",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "gpt_oss_safeguard_20b": {
-      "label": "GPT OSS Safeguard 20B",
-      "model_id": "openai.gpt-oss-safeguard-20b",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "OpenAI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-safeguard-20b",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "gpt_oss_20b_1": {
-      "label": "gpt-oss-20b",
-      "model_id": "openai.gpt-oss-20b-1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-south-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "OpenAI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-20b-1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "rerank_v1": {
-      "label": "Rerank 1.0",
-      "model_id": "amazon.rerank-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ca-central-1",
-        "eu-central-1",
-        "us-west-2"
-      ],
-      "provider": "Amazon",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.rerank-v1:0",
-      "has_vision": false,
-      "streaming_supported": false,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "nova_pro_v1": {
-      "label": "Nova Pro",
-      "model_id": "amazon.nova-pro-v1:0:300k",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Amazon",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-pro-v1:0:300k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "nova_lite_v1": {
-      "label": "Nova Lite",
-      "model_id": "amazon.nova-lite-v1:0:300k",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Amazon",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-lite-v1:0:300k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE",
-        "ON_DEMAND"
-      ]
-    },
-    "nova_micro_v1": {
-      "label": "Nova Micro",
-      "model_id": "amazon.nova-micro-v1:0:128k",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Amazon",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-micro-v1:0:128k",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "claude_3_haiku_20240307_v1": {
-      "label": "Claude 3 Haiku",
-      "model_id": "anthropic.claude-3-haiku-20240307-v1:0:200k",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-3-haiku-20240307-v1:0:200k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "claude_3_5_sonnet_20240620_v1": {
-      "label": "Claude 3.5 Sonnet v2",
-      "model_id": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "ACTIVE"
-    },
-    "claude_3_sonnet_20240229_v1": {
-      "label": "Claude 3 Sonnet",
-      "model_id": "anthropic.claude-3-sonnet-20240229-v1:0:200k",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0:200k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": []
-    },
-    "claude_3_7_sonnet_20250219_v1": {
-      "label": "Claude 3.7 Sonnet",
-      "model_id": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-south-1",
-        "eu-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-3-7-sonnet-20250219-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "rerank_v3_5": {
-      "label": "Rerank 3.5",
-      "model_id": "cohere.rerank-v3-5:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ca-central-1",
-        "eu-central-1",
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Cohere",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/cohere.rerank-v3-5:0",
-      "has_vision": false,
-      "streaming_supported": false,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "llama3_8b_instruct_v1": {
-      "label": "Llama 3 8B Instruct",
-      "model_id": "meta.llama3-8b-instruct-v1:0",
-      "region": "ap-south-1",
-      "available_regions": [
-        "ap-south-1",
-        "ca-central-1",
-        "eu-west-2",
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/meta.llama3-8b-instruct-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "llama3_70b_instruct_v1": {
-      "label": "Llama 3 70B Instruct",
-      "model_id": "meta.llama3-70b-instruct-v1:0",
-      "region": "ap-south-1",
-      "available_regions": [
-        "ap-south-1",
-        "ca-central-1",
-        "eu-west-2",
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/meta.llama3-70b-instruct-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "mistral_7b_instruct_v0": {
-      "label": "Mistral 7B Instruct",
-      "model_id": "mistral.mistral-7b-instruct-v0:2",
-      "region": "ap-south-1",
-      "available_regions": [
-        "ap-south-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/mistral.mistral-7b-instruct-v0:2",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "mixtral_8x7b_instruct_v0": {
-      "label": "Mixtral 8x7B Instruct",
-      "model_id": "mistral.mixtral-8x7b-instruct-v0:1",
-      "region": "ap-south-1",
-      "available_regions": [
-        "ap-south-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/mistral.mixtral-8x7b-instruct-v0:1",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "mistral_large_2402_v1": {
-      "label": "Mistral Large (24.02)",
-      "model_id": "mistral.mistral-large-2402-v1:0",
-      "region": "ap-south-1",
-      "available_regions": [
-        "ap-south-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/mistral.mistral-large-2402-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "qwen3_coder_next": {
-      "label": "Qwen3 Coder Next",
-      "model_id": "qwen.qwen3-coder-next",
-      "region": "ap-southeast-2",
-      "available_regions": [
-        "ap-southeast-2",
-        "eu-west-2",
-        "us-east-1"
-      ],
-      "provider": "Qwen",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-southeast-2::foundation-model/qwen.qwen3-coder-next",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "pixtral_large_2502_v1": {
-      "label": "Pixtral Large (25.02)",
-      "model_id": "us.mistral.pixtral-large-2502-v1:0",
-      "region": "eu-central-1",
-      "available_regions": [
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:eu-central-1::foundation-model/mistral.pixtral-large-2502-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "llama3_2_1b_instruct_v1": {
-      "label": "Llama 3.2 1B Instruct",
-      "model_id": "meta.llama3-2-1b-instruct-v1:0:128k",
-      "region": "eu-central-1",
-      "available_regions": [
-        "eu-central-1",
-        "eu-west-1",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-2-1b-instruct-v1:0:128k",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "llama3_2_3b_instruct_v1": {
-      "label": "Llama 3.2 3B Instruct",
-      "model_id": "meta.llama3-2-3b-instruct-v1:0:128k",
-      "region": "eu-central-1",
-      "available_regions": [
-        "eu-central-1",
-        "eu-west-1",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-2-3b-instruct-v1:0:128k",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "palmyra_x5_v1": {
-      "label": "Palmyra X5",
-      "model_id": "us.writer.palmyra-x5-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Writer",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/writer.palmyra-x5-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "palmyra_x4_v1": {
-      "label": "Palmyra X4",
-      "model_id": "us.writer.palmyra-x4-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Writer",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/writer.palmyra-x4-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "palmyra_vision_7b": {
-      "label": "Writer Palmyra Vision 7B",
-      "model_id": "writer.palmyra-vision-7b",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Writer",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/writer.palmyra-vision-7b",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "nova_2_pro_preview_20251202_v1": {
-      "label": "Nova 2 Pro Preview",
-      "model_id": "us.amazon.nova-2-pro-preview-20251202-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Amazon",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-2-pro-preview-20251202-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "nova_premier_v1": {
-      "label": "Nova Premier",
-      "model_id": "amazon.nova-premier-v1:0:1000k",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Amazon",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-premier-v1:0:1000k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": []
-    },
-    "jamba_1_5_large_v1": {
-      "label": "Jamba 1.5 Large",
-      "model_id": "ai21.jamba-1-5-large-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1"
-      ],
-      "provider": "AI21 Labs",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/ai21.jamba-1-5-large-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "jamba_1_5_mini_v1": {
-      "label": "Jamba 1.5 Mini",
-      "model_id": "ai21.jamba-1-5-mini-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1"
-      ],
-      "provider": "AI21 Labs",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/ai21.jamba-1-5-mini-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "claude_3_5_haiku_20241022_v1": {
-      "label": "Claude 3.5 Haiku",
-      "model_id": "us.anthropic.claude-3-5-haiku-20241022-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-3-5-haiku-20241022-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "command_r_v1": {
-      "label": "Command R",
-      "model_id": "cohere.command-r-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Cohere",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/cohere.command-r-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "command_r_plus_v1": {
-      "label": "Command R+",
-      "model_id": "cohere.command-r-plus-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Cohere",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/cohere.command-r-plus-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "r1_v1": {
-      "label": "DeepSeek-R1",
-      "model_id": "us.deepseek.r1-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "DeepSeek",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/deepseek.r1-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "llama3_1_8b_instruct_v1": {
-      "label": "Llama 3.1 8B Instruct",
-      "model_id": "meta.llama3-1-8b-instruct-v1:0:128k",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-2::foundation-model/meta.llama3-1-8b-instruct-v1:0:128k",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "llama3_1_70b_instruct_v1": {
-      "label": "Llama 3.1 70B Instruct",
-      "model_id": "meta.llama3-1-70b-instruct-v1:0:128k",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-2::foundation-model/meta.llama3-1-70b-instruct-v1:0:128k",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "llama3_2_11b_instruct_v1": {
-      "label": "Llama 3.2 11B Instruct",
-      "model_id": "meta.llama3-2-11b-instruct-v1:0:128k",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-2-11b-instruct-v1:0:128k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "llama3_2_90b_instruct_v1": {
-      "label": "Llama 3.2 90B Instruct",
-      "model_id": "meta.llama3-2-90b-instruct-v1:0:128k",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-2-90b-instruct-v1:0:128k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "llama3_3_70b_instruct_v1": {
-      "label": "Llama 3.3 70B Instruct",
-      "model_id": "meta.llama3-3-70b-instruct-v1:0:128k",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/meta.llama3-3-70b-instruct-v1:0:128k",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "llama4_scout_17b_instruct_v1": {
-      "label": "Llama 4 Scout 17B Instruct",
-      "model_id": "meta.llama4-scout-17b-instruct-v1:0:128k",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-1::foundation-model/meta.llama4-scout-17b-instruct-v1:0:128k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "llama4_maverick_17b_instruct_v1": {
-      "label": "Llama 4 Maverick 17B Instruct",
-      "model_id": "meta.llama4-maverick-17b-instruct-v1:0:128k",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-1::foundation-model/meta.llama4-maverick-17b-instruct-v1:0:128k",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "mistral_small_2402_v1": {
-      "label": "Mistral Small (24.02)",
-      "model_id": "mistral.mistral-small-2402-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/mistral.mistral-small-2402-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "llama3_1_405b_instruct_v1": {
-      "label": "Llama 3.1 405B Instruct",
-      "model_id": "us.meta.llama3-1-405b-instruct-v1:0",
-      "region": "us-east-2",
-      "available_regions": [
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-2::foundation-model/meta.llama3-1-405b-instruct-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ]
-    },
-    "mistral_large_2407_v1": {
-      "label": "Mistral Large (24.07)",
-      "model_id": "mistral.mistral-large-2407-v1:0",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "Mistral AI",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/mistral.mistral-large-2407-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "ON_DEMAND"
-      ]
-    },
-    "claude_sonnet_4_6": {
-      "label": "Claude Sonnet 4.6",
-      "model_id": "us.anthropic.claude-sonnet-4-6",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-6",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "ACTIVE"
-    },
-    "claude_opus_4_6_v1": {
-      "label": "Claude Opus 4.6",
-      "model_id": "us.anthropic.claude-opus-4-6-v1",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-4-6-v1",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "ACTIVE"
-    },
-    "claude_sonnet_4_5_20250929_v1": {
-      "label": "Claude Sonnet 4.5",
-      "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "ACTIVE"
-    },
-    "claude_opus_4_7": {
-      "label": "Claude Opus 4.7",
-      "model_id": "us.anthropic.claude-opus-4-7",
-      "region": "ap-northeast-1",
-      "available_regions": [
-        "ap-northeast-1",
-        "ap-northeast-2",
-        "ap-northeast-3",
-        "ap-south-1",
-        "ap-southeast-1",
-        "ap-southeast-2",
-        "ca-central-1",
-        "eu-central-1",
-        "eu-north-1",
-        "eu-west-1",
-        "eu-west-2",
-        "eu-west-3",
-        "sa-east-1",
-        "us-east-1",
-        "us-east-2",
-        "us-west-1",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-opus-4-7",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "ACTIVE"
-    },
-    "claude_opus_4_1_20250805_v1": {
-      "label": "Claude Opus 4.1",
-      "model_id": "us.anthropic.claude-opus-4-1-20250805-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Anthropic",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-opus-4-1-20250805-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "ACTIVE"
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
     "claude_fable_5": {
       "label": "Claude Fable 5",
@@ -4130,7 +2328,938 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "lifecycle": "ACTIVE"
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "v3_2": {
+      "label": "DeepSeek V3.2",
+      "model_id": "deepseek.v3.2",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "DeepSeek",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/deepseek.v3.2",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "nemotron_nano_3_30b": {
+      "label": "Nemotron Nano 3 30B",
+      "model_id": "nvidia.nemotron-nano-3-30b",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "NVIDIA",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-nano-3-30b",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_sonnet_4_6": {
+      "label": "Claude Sonnet 4.6",
+      "model_id": "us.anthropic.claude-sonnet-4-6",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-6",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "minimax_m2": {
+      "label": "MiniMax M2",
+      "model_id": "minimax.minimax-m2",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "MiniMax",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/minimax.minimax-m2",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "glm_4_7_flash": {
+      "label": "GLM 4.7 Flash",
+      "model_id": "zai.glm-4.7-flash",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Z.AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-4.7-flash",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "voxtral_mini_3b_2507": {
+      "label": "Voxtral Mini 3B 2507",
+      "model_id": "mistral.voxtral-mini-3b-2507",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.voxtral-mini-3b-2507",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "nova_2_lite_v1": {
+      "label": "Nova 2 Lite",
+      "model_id": "us.amazon.nova-2-lite-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Amazon",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-2-lite-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "minimax_m2_5": {
+      "label": "MiniMax M2.5",
+      "model_id": "minimax.minimax-m2.5",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "MiniMax",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/minimax.minimax-m2.5",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "gemma_3_12b_it": {
+      "label": "Gemma 3 12B IT",
+      "model_id": "google.gemma-3-12b-it",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/google.gemma-3-12b-it",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "kimi_k2_thinking": {
+      "label": "Kimi K2 Thinking",
+      "model_id": "moonshot.kimi-k2-thinking",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Moonshot AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/moonshot.kimi-k2-thinking",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "mistral_large_3_675b_instruct": {
+      "label": "Mistral Large 3",
+      "model_id": "mistral.mistral-large-3-675b-instruct",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.mistral-large-3-675b-instruct",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "pegasus_1_2_v1": {
+      "label": "Pegasus v1.2",
+      "model_id": "us.twelvelabs.pegasus-1-2-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "TwelveLabs",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/twelvelabs.pegasus-1-2-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "devstral_2_123b": {
+      "label": "Devstral 2 123B",
+      "model_id": "mistral.devstral-2-123b",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.devstral-2-123b",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "minimax_m2_1": {
+      "label": "MiniMax M2.1",
+      "model_id": "minimax.minimax-m2.1",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "MiniMax",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/minimax.minimax-m2.1",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "nemotron_super_3_120b": {
+      "label": "NVIDIA Nemotron 3 Super 120B A12B",
+      "model_id": "nvidia.nemotron-super-3-120b",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "NVIDIA",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-super-3-120b",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "qwen3_32b_v1": {
+      "label": "Qwen3 32B (dense)",
+      "model_id": "qwen.qwen3-32b-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-32b-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "ministral_3_14b_instruct": {
+      "label": "Ministral 14B 3.0",
+      "model_id": "mistral.ministral-3-14b-instruct",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.ministral-3-14b-instruct",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_opus_4_6_v1": {
+      "label": "Claude Opus 4.6",
+      "model_id": "us.anthropic.claude-opus-4-6-v1",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-4-6-v1",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "nemotron_nano_9b_v2": {
+      "label": "NVIDIA Nemotron Nano 9B v2",
+      "model_id": "nvidia.nemotron-nano-9b-v2",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "NVIDIA",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/nvidia.nemotron-nano-9b-v2",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "ministral_3_8b_instruct": {
+      "label": "Ministral 3 8B",
+      "model_id": "mistral.ministral-3-8b-instruct",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.ministral-3-8b-instruct",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "voxtral_small_24b_2507": {
+      "label": "Voxtral Small 24B 2507",
+      "model_id": "mistral.voxtral-small-24b-2507",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.voxtral-small-24b-2507",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "glm_5": {
+      "label": "GLM 5",
+      "model_id": "zai.glm-5",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Z.AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-5",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "gpt_oss_20b_1": {
+      "label": "gpt-oss-20b",
+      "model_id": "openai.gpt-oss-20b-1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "OpenAI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-20b-1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
+        "responses"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "gemma_3_4b_it": {
+      "label": "Gemma 3 4B IT",
+      "model_id": "google.gemma-3-4b-it",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/google.gemma-3-4b-it",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
     "claude_opus_4_8": {
       "label": "Claude Opus 4.8",
@@ -4165,7 +3294,2058 @@
       "inference_types": [
         "INFERENCE_PROFILE"
       ],
-      "lifecycle": "ACTIVE"
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_opus_4_7": {
+      "label": "Claude Opus 4.7",
+      "model_id": "us.anthropic.claude-opus-4-7",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-4-7",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "gpt_oss_safeguard_120b": {
+      "label": "GPT OSS Safeguard 120B",
+      "model_id": "openai.gpt-oss-safeguard-120b",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "OpenAI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-safeguard-120b",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
+        "responses"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "gemma_3_27b_it": {
+      "label": "Gemma 3 27B PT",
+      "model_id": "google.gemma-3-27b-it",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/google.gemma-3-27b-it",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_sonnet_4_5_20250929_v1": {
+      "label": "Claude Sonnet 4.5",
+      "model_id": "us.anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-4-5-20250929-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "qwen3_vl_235b_a22b": {
+      "label": "Qwen3 VL 235B A22B",
+      "model_id": "qwen.qwen3-vl-235b-a22b",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-vl-235b-a22b",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "glm_4_7": {
+      "label": "GLM 4.7",
+      "model_id": "zai.glm-4.7",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Z.AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/zai.glm-4.7",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "qwen3_coder_480b_a35b_v1": {
+      "label": "Qwen3 Coder 480B A35B Instruct",
+      "model_id": "qwen.qwen3-coder-480b-a35b-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-coder-480b-a35b-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "magistral_small_2509": {
+      "label": "Magistral Small 2509",
+      "model_id": "mistral.magistral-small-2509",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.magistral-small-2509",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "v3_v1": {
+      "label": "DeepSeek-V3.1",
+      "model_id": "deepseek.v3-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-north-1",
+        "eu-west-2",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "DeepSeek",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/deepseek.v3-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "ministral_3_3b_instruct": {
+      "label": "Ministral 3B",
+      "model_id": "mistral.ministral-3-3b-instruct",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/mistral.ministral-3-3b-instruct",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_opus_4_5_20251101_v1": {
+      "label": "Claude Opus 4.5",
+      "model_id": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-4-5-20251101-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "qwen3_coder_30b_a3b_v1": {
+      "label": "Qwen3-Coder-30B-A3B-Instruct",
+      "model_id": "qwen.qwen3-coder-30b-a3b-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/qwen.qwen3-coder-30b-a3b-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "gpt_oss_safeguard_20b": {
+      "label": "GPT OSS Safeguard 20B",
+      "model_id": "openai.gpt-oss-safeguard-20b",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-south-1",
+        "ap-southeast-2",
+        "eu-west-1",
+        "eu-west-2",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "OpenAI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/openai.gpt-oss-safeguard-20b",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke",
+        "chat_completions",
+        "responses"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "rerank_v1": {
+      "label": "Rerank 1.0",
+      "model_id": "amazon.rerank-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ca-central-1",
+        "eu-central-1",
+        "us-west-2"
+      ],
+      "provider": "Amazon",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.rerank-v1:0",
+      "has_vision": false,
+      "streaming_supported": false,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "nova_pro_v1": {
+      "label": "Nova Pro",
+      "model_id": "us.amazon.nova-pro-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Amazon",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-pro-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "nova_lite_v1": {
+      "label": "Nova Lite",
+      "model_id": "us.amazon.nova-lite-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Amazon",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-lite-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE",
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "nova_micro_v1": {
+      "label": "Nova Micro",
+      "model_id": "us.amazon.nova-micro-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Amazon",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-micro-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_3_haiku_20240307_v1": {
+      "label": "Claude 3 Haiku",
+      "model_id": "anthropic.claude-3-haiku-20240307-v1:0:200k",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-3-haiku-20240307-v1:0:200k",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_3_5_sonnet_20240620_v1": {
+      "label": "Claude 3.5 Sonnet v2",
+      "model_id": "us.anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-2::foundation-model/anthropic.claude-3-5-sonnet-20241022-v2:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_3_sonnet_20240229_v1": {
+      "label": "Claude 3 Sonnet",
+      "model_id": "anthropic.claude-3-sonnet-20240229-v1:0:28k",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/anthropic.claude-3-sonnet-20240229-v1:0:28k",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "PROVISIONED"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "rerank_v3_5": {
+      "label": "Rerank 3.5",
+      "model_id": "cohere.rerank-v3-5:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "ca-central-1",
+        "eu-central-1",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Cohere",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/cohere.rerank-v3-5:0",
+      "has_vision": false,
+      "streaming_supported": false,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_3_7_sonnet_20250219_v1": {
+      "label": "Claude 3.7 Sonnet",
+      "model_id": "us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "region": "ap-south-1",
+      "available_regions": [
+        "ap-south-1",
+        "eu-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/anthropic.claude-3-7-sonnet-20250219-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_8b_instruct_v1": {
+      "label": "Llama 3 8B Instruct",
+      "model_id": "meta.llama3-8b-instruct-v1:0",
+      "region": "ap-south-1",
+      "available_regions": [
+        "ap-south-1",
+        "ca-central-1",
+        "eu-west-2",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/meta.llama3-8b-instruct-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_70b_instruct_v1": {
+      "label": "Llama 3 70B Instruct",
+      "model_id": "meta.llama3-70b-instruct-v1:0",
+      "region": "ap-south-1",
+      "available_regions": [
+        "ap-south-1",
+        "ca-central-1",
+        "eu-west-2",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/meta.llama3-70b-instruct-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "mistral_7b_instruct_v0": {
+      "label": "Mistral 7B Instruct",
+      "model_id": "mistral.mistral-7b-instruct-v0:2",
+      "region": "ap-south-1",
+      "available_regions": [
+        "ap-south-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/mistral.mistral-7b-instruct-v0:2",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "mixtral_8x7b_instruct_v0": {
+      "label": "Mixtral 8x7B Instruct",
+      "model_id": "mistral.mixtral-8x7b-instruct-v0:1",
+      "region": "ap-south-1",
+      "available_regions": [
+        "ap-south-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/mistral.mixtral-8x7b-instruct-v0:1",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "mistral_large_2402_v1": {
+      "label": "Mistral Large (24.02)",
+      "model_id": "mistral.mistral-large-2402-v1:0",
+      "region": "ap-south-1",
+      "available_regions": [
+        "ap-south-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-south-1::foundation-model/mistral.mistral-large-2402-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "qwen3_coder_next": {
+      "label": "Qwen3 Coder Next",
+      "model_id": "qwen.qwen3-coder-next",
+      "region": "ap-southeast-2",
+      "available_regions": [
+        "ap-southeast-2",
+        "eu-west-2",
+        "us-east-1"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:ap-southeast-2::foundation-model/qwen.qwen3-coder-next",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "pixtral_large_2502_v1": {
+      "label": "Pixtral Large (25.02)",
+      "model_id": "us.mistral.pixtral-large-2502-v1:0",
+      "region": "eu-central-1",
+      "available_regions": [
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:eu-central-1::foundation-model/mistral.pixtral-large-2502-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_2_1b_instruct_v1": {
+      "label": "Llama 3.2 1B Instruct",
+      "model_id": "us.meta.llama3-2-1b-instruct-v1:0",
+      "region": "eu-central-1",
+      "available_regions": [
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:eu-central-1::foundation-model/meta.llama3-2-1b-instruct-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_2_3b_instruct_v1": {
+      "label": "Llama 3.2 3B Instruct",
+      "model_id": "us.meta.llama3-2-3b-instruct-v1:0",
+      "region": "eu-central-1",
+      "available_regions": [
+        "eu-central-1",
+        "eu-west-1",
+        "eu-west-3",
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:eu-central-1::foundation-model/meta.llama3-2-3b-instruct-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "palmyra_x5_v1": {
+      "label": "Palmyra X5",
+      "model_id": "us.writer.palmyra-x5-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Writer",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/writer.palmyra-x5-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "palmyra_x4_v1": {
+      "label": "Palmyra X4",
+      "model_id": "us.writer.palmyra-x4-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Writer",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/writer.palmyra-x4-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "palmyra_vision_7b": {
+      "label": "Writer Palmyra Vision 7B",
+      "model_id": "writer.palmyra-vision-7b",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Writer",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/writer.palmyra-vision-7b",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle",
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "claude_opus_4_1_20250805_v1": {
+      "label": "Claude Opus 4.1",
+      "model_id": "us.anthropic.claude-opus-4-1-20250805-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/anthropic.claude-opus-4-1-20250805-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse",
+        "invoke"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "nova_2_pro_preview_20251202_v1": {
+      "label": "Nova 2 Pro Preview",
+      "model_id": "us.amazon.nova-2-pro-preview-20251202-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Amazon",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-2-pro-preview-20251202-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "nova_premier_v1": {
+      "label": "Nova Premier",
+      "model_id": "amazon.nova-premier-v1:0:8k",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Amazon",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.nova-premier-v1:0:8k",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "jamba_1_5_large_v1": {
+      "label": "Jamba 1.5 Large",
+      "model_id": "ai21.jamba-1-5-large-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "AI21 Labs",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/ai21.jamba-1-5-large-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "jamba_1_5_mini_v1": {
+      "label": "Jamba 1.5 Mini",
+      "model_id": "ai21.jamba-1-5-mini-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "AI21 Labs",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/ai21.jamba-1-5-mini-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "command_r_v1": {
+      "label": "Command R",
+      "model_id": "cohere.command-r-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Cohere",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/cohere.command-r-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "command_r_plus_v1": {
+      "label": "Command R+",
+      "model_id": "cohere.command-r-plus-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-west-2"
+      ],
+      "provider": "Cohere",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/cohere.command-r-plus-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "r1_v1": {
+      "label": "DeepSeek-R1",
+      "model_id": "us.deepseek.r1-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "DeepSeek",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/deepseek.r1-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_1_8b_instruct_v1": {
+      "label": "Llama 3.1 8B Instruct",
+      "model_id": "us.meta.llama3-1-8b-instruct-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/meta.llama3-1-8b-instruct-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_1_70b_instruct_v1": {
+      "label": "Llama 3.1 70B Instruct",
+      "model_id": "us.meta.llama3-1-70b-instruct-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/meta.llama3-1-70b-instruct-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_2_11b_instruct_v1": {
+      "label": "Llama 3.2 11B Instruct",
+      "model_id": "us.meta.llama3-2-11b-instruct-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/meta.llama3-2-11b-instruct-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_2_90b_instruct_v1": {
+      "label": "Llama 3.2 90B Instruct",
+      "model_id": "us.meta.llama3-2-90b-instruct-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/meta.llama3-2-90b-instruct-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_3_70b_instruct_v1": {
+      "label": "Llama 3.3 70B Instruct",
+      "model_id": "us.meta.llama3-3-70b-instruct-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/meta.llama3-3-70b-instruct-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama4_scout_17b_instruct_v1": {
+      "label": "Llama 4 Scout 17B Instruct",
+      "model_id": "us.meta.llama4-scout-17b-instruct-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/meta.llama4-scout-17b-instruct-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama4_maverick_17b_instruct_v1": {
+      "label": "Llama 4 Maverick 17B Instruct",
+      "model_id": "us.meta.llama4-maverick-17b-instruct-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/meta.llama4-maverick-17b-instruct-v1:0",
+      "has_vision": true,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "mistral_small_2402_v1": {
+      "label": "Mistral Small (24.02)",
+      "model_id": "mistral.mistral-small-2402-v1:0",
+      "region": "us-east-1",
+      "available_regions": [
+        "us-east-1"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/mistral.mistral-small-2402-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "llama3_1_405b_instruct_v1": {
+      "label": "Llama 3.1 405B Instruct",
+      "model_id": "us.meta.llama3-1-405b-instruct-v1:0",
+      "region": "us-east-2",
+      "available_regions": [
+        "us-east-2",
+        "us-west-2"
+      ],
+      "provider": "Meta",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-east-2::foundation-model/meta.llama3-1-405b-instruct-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
+      "lifecycle": "LEGACY",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "mistral_large_2407_v1": {
+      "label": "Mistral Large (24.07)",
+      "model_id": "mistral.mistral-large-2407-v1:0",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Mistral AI",
+      "model_source": "foundation",
+      "model_arn": "arn:aws:bedrock:us-west-2::foundation-model/mistral.mistral-large-2407-v1:0",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-runtime"
+      ],
+      "apis": [
+        "converse"
+      ],
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
+    },
+    "v3_1": {
+      "label": "deepseek.v3.1",
+      "model_id": "deepseek.v3.1",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "DeepSeek",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "gemma_4_e2b": {
+      "label": "google.gemma-4-e2b",
+      "model_id": "google.gemma-4-e2b",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "grok_4_3": {
+      "label": "xai.grok-4.3",
+      "model_id": "xai.grok-4.3",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "xAI",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "gpt_5_4": {
+      "label": "openai.gpt-5.4",
+      "model_id": "openai.gpt-5.4",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "OpenAI",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "responses"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "responses"
+    },
+    "qwen3_coder_480b_a35b_instruct": {
+      "label": "qwen.qwen3-coder-480b-a35b-instruct",
+      "model_id": "qwen.qwen3-coder-480b-a35b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "qwen3_coder_30b_a3b_instruct": {
+      "label": "qwen.qwen3-coder-30b-a3b-instruct",
+      "model_id": "qwen.qwen3-coder-30b-a3b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "glm_4_6": {
+      "label": "zai.glm-4.6",
+      "model_id": "zai.glm-4.6",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Z.AI",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "qwen3_vl_235b_a22b_instruct": {
+      "label": "qwen.qwen3-vl-235b-a22b-instruct",
+      "model_id": "qwen.qwen3-vl-235b-a22b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "gemma_4_31b": {
+      "label": "google.gemma-4-31b",
+      "model_id": "google.gemma-4-31b",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "qwen3_next_80b_a3b_instruct": {
+      "label": "qwen.qwen3-next-80b-a3b-instruct",
+      "model_id": "qwen.qwen3-next-80b-a3b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "claude_haiku_4_5": {
+      "label": "anthropic.claude-haiku-4-5",
+      "model_id": "anthropic.claude-haiku-4-5",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "messages"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "messages"
+    },
+    "gemma_4_26b_a4b": {
+      "label": "google.gemma-4-26b-a4b",
+      "model_id": "google.gemma-4-26b-a4b",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
+    },
+    "moonshotai_kimi_k2_thinking": {
+      "label": "moonshotai.kimi-k2-thinking",
+      "model_id": "moonshotai.kimi-k2-thinking",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Moonshotai",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions"
     }
   },
   "custom_model_catalog": {
@@ -5349,7 +6529,7 @@
       },
       "trellis2_image_to_3d": {
         "label": "TRELLIS.2 (Full Image-to-3D)",
-        "description": "Microsoft TRELLIS.2 full pipeline — generates BOTH geometry and PBR texture from a single image in one model. MIT-licensed, commercially-clean. Alternative to the TripoSG + texture-backend pipeline.",
+        "description": "Microsoft TRELLIS.2 full pipeline \u2014 generates BOTH geometry and PBR texture from a single image in one model. MIT-licensed, commercially-clean. Alternative to the TripoSG + texture-backend pipeline.",
         "category": "3d_generation",
         "studio": "image",
         "provider": "Microsoft Research",
@@ -5361,19 +6541,40 @@
           "license_name": "MIT (TRELLIS.2) + DINOv3 attribution",
           "license_url": "https://github.com/microsoft/TRELLIS.2/blob/main/LICENSE",
           "key_terms": [
-            "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) — MIT, commercial use unrestricted",
-            "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) — commercial-OK, GATED on HuggingFace",
+            "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) \u2014 MIT, commercial use unrestricted",
+            "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) \u2014 commercial-OK, GATED on HuggingFace",
             "Requires a \"Built with DINOv3\" attribution in your product UI",
             "Background removal uses BiRefNet (MIT); the bundled RMBG-2.0 is NOT used"
           ],
           "dependencies": [
-            {"name": "microsoft/TRELLIS.2-4B", "license": "MIT", "url": "https://huggingface.co/microsoft/TRELLIS.2-4B", "gated": false, "commercial": true, "role": "Full image-to-3D pipeline (8 checkpoints: sparse-structure + shape-SLAT + tex-SLAT)"},
-            {"name": "facebook/dinov3-vitl16-pretrain-lvd1689m", "license": "DINOv3 License (commercial-OK, attribution required)", "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m", "gated": true, "commercial": true, "role": "Image encoder — REQUIRES 'Built with DINOv3' attribution"},
-            {"name": "ZhengPeng7/BiRefNet", "license": "MIT", "url": "https://huggingface.co/ZhengPeng7/BiRefNet", "gated": false, "commercial": true, "role": "Background removal (the actual cutout model)"}
+            {
+              "name": "microsoft/TRELLIS.2-4B",
+              "license": "MIT",
+              "url": "https://huggingface.co/microsoft/TRELLIS.2-4B",
+              "gated": false,
+              "commercial": true,
+              "role": "Full image-to-3D pipeline (8 checkpoints: sparse-structure + shape-SLAT + tex-SLAT)"
+            },
+            {
+              "name": "facebook/dinov3-vitl16-pretrain-lvd1689m",
+              "license": "DINOv3 License (commercial-OK, attribution required)",
+              "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
+              "gated": true,
+              "commercial": true,
+              "role": "Image encoder \u2014 REQUIRES 'Built with DINOv3' attribution"
+            },
+            {
+              "name": "ZhengPeng7/BiRefNet",
+              "license": "MIT",
+              "url": "https://huggingface.co/ZhengPeng7/BiRefNet",
+              "gated": false,
+              "commercial": true,
+              "role": "Background removal (the actual cutout model)"
+            }
           ],
           "warnings": [
             "You must display a \"Built with DINOv3\" notice where the feature is surfaced (DINOv3 license obligation).",
-            "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo — accept its license on HuggingFace before deploying."
+            "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo \u2014 accept its license on HuggingFace before deploying."
           ]
         },
         "source": {
@@ -5395,7 +6596,7 @@
           "min_ram_gb": 28,
           "recommended_instance": "ml.g6e.xlarge",
           "disk_gb": 80,
-          "_resource_note": "Measured baseline on g6e.xlarge (L40S 48 GB, 32 GiB RAM): peak 6.5 GB VRAM reserved, ~22 GB host RAM during to_glb bake. VRAM is hugely over-provisioned; host RAM is the real constraint and xlarge holds it with ~9 GB headroom. xlarge is the right-sized baseline — 2xlarge/4xlarge only add RAM safety margin.",
+          "_resource_note": "Measured baseline on g6e.xlarge (L40S 48 GB, 32 GiB RAM): peak 6.5 GB VRAM reserved, ~22 GB host RAM during to_glb bake. VRAM is hugely over-provisioned; host RAM is the real constraint and xlarge holds it with ~9 GB headroom. xlarge is the right-sized baseline \u2014 2xlarge/4xlarge only add RAM safety margin.",
           "allowed_instances": [
             "ml.g6e.xlarge",
             "ml.g6e.2xlarge",
@@ -5588,21 +6789,42 @@
                 "commercial": false,
                 "attestation_required": true,
                 "key_terms": [
-                  "Weights tencent/Hunyuan3D-2.1 — NON-COMMERCIAL community license",
+                  "Weights tencent/Hunyuan3D-2.1 \u2014 NON-COMMERCIAL community license",
                   "Excludes EU / UK / South Korea for commercial use",
                   "1M monthly-active-user cap; no military use",
-                  "Vision encoder is Meta DINOv2 (facebook/dinov2-giant) — CC-BY-NC-4.0, ALSO non-commercial",
+                  "Vision encoder is Meta DINOv2 (facebook/dinov2-giant) \u2014 CC-BY-NC-4.0, ALSO non-commercial",
                   "Super-resolution: RealESRGAN x4 (MIT)"
                 ],
                 "dependencies": [
-                  {"name": "tencent/Hunyuan3D-2.1", "license": "Tencent Hunyuan 3D 2.0 Community (non-commercial)", "url": "https://huggingface.co/tencent/Hunyuan3D-2.1", "gated": true, "commercial": false, "role": "Multi-view PBR paint weights"},
-                  {"name": "facebook/dinov2-giant", "license": "CC-BY-NC-4.0 (non-commercial)", "url": "https://huggingface.co/facebook/dinov2-giant", "gated": false, "commercial": false, "role": "Image/vision encoder"},
-                  {"name": "RealESRGAN_x4plus", "license": "MIT", "url": "https://github.com/xinntao/Real-ESRGAN", "gated": false, "commercial": true, "role": "View super-resolution"}
+                  {
+                    "name": "tencent/Hunyuan3D-2.1",
+                    "license": "Tencent Hunyuan 3D 2.0 Community (non-commercial)",
+                    "url": "https://huggingface.co/tencent/Hunyuan3D-2.1",
+                    "gated": true,
+                    "commercial": false,
+                    "role": "Multi-view PBR paint weights"
+                  },
+                  {
+                    "name": "facebook/dinov2-giant",
+                    "license": "CC-BY-NC-4.0 (non-commercial)",
+                    "url": "https://huggingface.co/facebook/dinov2-giant",
+                    "gated": false,
+                    "commercial": false,
+                    "role": "Image/vision encoder"
+                  },
+                  {
+                    "name": "RealESRGAN_x4plus",
+                    "license": "MIT",
+                    "url": "https://github.com/xinntao/Real-ESRGAN",
+                    "gated": false,
+                    "commercial": true,
+                    "role": "View super-resolution"
+                  }
                 ],
                 "warnings": [
                   "Not licensed for commercial use without a separate Tencent agreement.",
                   "TWO non-commercial dependencies: Tencent Hunyuan3D-2.1 weights AND Meta DINOv2 (CC-BY-NC-4.0). Both restrict commercial use independently.",
-                  "tencent/Hunyuan3D-2.1 is a GATED HuggingFace repo — you must accept its license on HuggingFace before deploying.",
+                  "tencent/Hunyuan3D-2.1 is a GATED HuggingFace repo \u2014 you must accept its license on HuggingFace before deploying.",
                   "You must confirm you hold a valid license or will use it within its non-commercial terms."
                 ]
               },
@@ -5626,19 +6848,40 @@
                 "commercial": true,
                 "attestation_required": true,
                 "key_terms": [
-                  "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) — MIT, commercial use unrestricted",
-                  "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) — commercial-OK, GATED on HuggingFace",
+                  "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) \u2014 MIT, commercial use unrestricted",
+                  "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) \u2014 commercial-OK, GATED on HuggingFace",
                   "Requires a \"Built with DINOv3\" attribution in your product UI",
-                  "Background removal uses BiRefNet (MIT) — TRELLIS.2's bundled RMBG-2.0 is NOT used (we feed a pre-cut RGBA image)"
+                  "Background removal uses BiRefNet (MIT) \u2014 TRELLIS.2's bundled RMBG-2.0 is NOT used (we feed a pre-cut RGBA image)"
                 ],
                 "dependencies": [
-                  {"name": "microsoft/TRELLIS.2-4B", "license": "MIT", "url": "https://huggingface.co/microsoft/TRELLIS.2-4B", "gated": false, "commercial": true, "role": "SLAT texturing checkpoints"},
-                  {"name": "facebook/dinov3-vitl16-pretrain-lvd1689m", "license": "DINOv3 License (commercial-OK, attribution required)", "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m", "gated": true, "commercial": true, "role": "Image encoder — REQUIRES 'Built with DINOv3' attribution"},
-                  {"name": "ZhengPeng7/BiRefNet", "license": "MIT", "url": "https://huggingface.co/ZhengPeng7/BiRefNet", "gated": false, "commercial": true, "role": "Background removal (the actual cutout model)"}
+                  {
+                    "name": "microsoft/TRELLIS.2-4B",
+                    "license": "MIT",
+                    "url": "https://huggingface.co/microsoft/TRELLIS.2-4B",
+                    "gated": false,
+                    "commercial": true,
+                    "role": "SLAT texturing checkpoints"
+                  },
+                  {
+                    "name": "facebook/dinov3-vitl16-pretrain-lvd1689m",
+                    "license": "DINOv3 License (commercial-OK, attribution required)",
+                    "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
+                    "gated": true,
+                    "commercial": true,
+                    "role": "Image encoder \u2014 REQUIRES 'Built with DINOv3' attribution"
+                  },
+                  {
+                    "name": "ZhengPeng7/BiRefNet",
+                    "license": "MIT",
+                    "url": "https://huggingface.co/ZhengPeng7/BiRefNet",
+                    "gated": false,
+                    "commercial": true,
+                    "role": "Background removal (the actual cutout model)"
+                  }
                 ],
                 "warnings": [
                   "You must display a \"Built with DINOv3\" notice where the feature is surfaced (DINOv3 license obligation).",
-                  "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo — accept its license on HuggingFace before deploying."
+                  "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo \u2014 accept its license on HuggingFace before deploying."
                 ]
               },
               "min_instance": "ml.g6e.2xlarge",
@@ -6228,5 +7471,23 @@
       "region": "mx-central-1",
       "reason": "502: Failed to list models in mx-central-1: An error occurred (UnrecognizedClientException) when cal"
     }
+  ],
+  "regions_not_enabled": [
+    "af-south-1",
+    "ap-east-2",
+    "ap-south-2",
+    "ap-southeast-3",
+    "ap-southeast-4",
+    "ap-southeast-5",
+    "ap-southeast-6",
+    "ap-southeast-7",
+    "ca-west-1",
+    "eu-central-2",
+    "eu-south-1",
+    "eu-south-2",
+    "il-central-1",
+    "me-central-1",
+    "me-south-1",
+    "mx-central-1"
   ]
 }

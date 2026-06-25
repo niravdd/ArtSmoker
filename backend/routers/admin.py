@@ -613,6 +613,48 @@ async def update_video_settings_endpoint(body: VideoSettingsUpdate):
 import re as _re
 
 
+def _normalize_model_id(model_id: str) -> str:
+    """Bare, comparable form of a model id for cross-endpoint matching.
+
+    Strips the ``us.`` inference-profile prefix and any trailing throughput /
+    context / version qualifiers (``:0``, ``:200k``, ``-v1:0``) so the SAME
+    model discovered via different endpoints/listings collapses to one identity.
+    Examples:
+      ``us.anthropic.claude-sonnet-4-6``            -> ``anthropic.claude-sonnet-4-6``
+      ``openai.gpt-oss-120b-1:0``                   -> ``openai.gpt-oss-120b``
+      ``anthropic.claude-3-sonnet-20240229-v1:0:200k`` -> ``anthropic.claude-3-sonnet-20240229``
+    """
+    mid = (model_id or "")
+    if mid.startswith("us."):
+        mid = mid[3:]
+    mid = mid.split(":")[0]                       # drop :throughput / :context
+    mid = _re.sub(r"-v\d+$", "", mid)             # drop trailing -vN
+    # Drop a trailing throughput-variant "-N" ONLY when it directly follows a
+    # parameter-size token like "120b"/"20b"/"7b" (e.g. "gpt-oss-120b-1" ->
+    # "gpt-oss-120b"). This must NOT touch version minors ("claude-sonnet-4-6")
+    # or date stamps ("claude-3-sonnet-20240229").
+    mid = _re.sub(r"(\d+b)-\d+$", r"\1", mid)
+    return mid
+
+
+def _chat_model_key(model_id: str) -> str:
+    """Stable, readable registry key for a chat model.
+
+    Drops only the leading provider segment (NOT split on every dot — model ids
+    embed dots in version numbers, e.g. ``zai.glm-4.7`` whose naive
+    ``split('.')[-1]`` would yield the bare fragment ``7``), strips a ``:``
+    qualifier, then sanitizes to ``[a-z0-9_]``. ``zai.glm-4.7`` -> ``glm_4_7``;
+    ``us.anthropic.claude-opus-4-8`` -> ``claude_opus_4_8``.
+    """
+    mid = (model_id or "")
+    if mid.startswith("us."):
+        mid = mid[3:]
+    body = mid.split(":")[0]
+    if "." in body:
+        body = body.split(".", 1)[1]              # strip provider prefix only
+    return body.replace(".", "_").replace("-", "_").replace("/", "_")
+
+
 def _model_family_key(model_id: str) -> str:
     """Extract a base family key, aggressively grouping model versions.
 
@@ -772,8 +814,9 @@ async def auto_register_image_models(region: str):
 
         chat_models = registry.setdefault("chat_models", {})
 
-        # Key: provider.model-name (deduplicated by family)
-        key = model_id.split(".")[-1].split(":")[0].replace("-", "_")
+        # Key: provider-stripped, version-safe (dotted-version ids like
+        # zai.glm-4.7 must NOT collapse to a bare "7" — see _chat_model_key).
+        key = _chat_model_key(model_id)
         family_key = _model_family_key(model_id)
 
         # Check if a model from this family is already registered
@@ -816,6 +859,13 @@ async def auto_register_image_models(region: str):
         has_vision = "IMAGE" in inp
         streaming = m.get("responseStreamingSupported", False)
 
+        # Endpoint/API capability (M-2/M-3): this model came from the
+        # bedrock-runtime listing, so it's runtime-reachable. Mantle-also and
+        # mantle-only models are reconciled in a later pass (_reconcile_mantle_models).
+        from backend.services.mantle_client import derive_model_apis, resolve_invoke_path
+        apis = derive_model_apis(effective_id, provider, on_mantle=False, on_runtime=True)
+        invoke_endpoint, invoke_api = resolve_invoke_path(apis)
+
         chat_models[key] = {
             "label": m.get("modelName", model_id),
             "model_id": effective_id,
@@ -831,6 +881,10 @@ async def auto_register_image_models(region: str):
             "customizations_supported": m.get("customizationsSupported", []),
             "inference_types": inference_types,
             "lifecycle": m.get("modelLifecycle", {}).get("status", "ACTIVE"),
+            "endpoints": ["bedrock-runtime"],
+            "apis": apis,
+            "invoke_endpoint": invoke_endpoint,
+            "invoke_api": invoke_api,
         }
         registered.append({"key": key, "model_id": model_id, "label": chat_models[key]["label"],
                           "region": region, "purpose": "chat", "media": "text"})
@@ -1218,6 +1272,33 @@ def _get_bedrock_regions() -> list[str]:
     return ["us-east-1", "us-west-2"]
 
 
+def _account_enabled_regions() -> set[str] | None:
+    """Regions ENABLED for this AWS account, via the Account API.
+
+    Returns a set of region names, or None if we couldn't determine it (e.g.
+    the role lacks `account:ListRegions`). Callers fall back to scan-all on None.
+    Not-enabled regions otherwise fail mid-scan with `UnrecognizedClientException`
+    (403) or hang on connect timeouts — filtering them up front makes Sync fast
+    and quiet.
+    """
+    try:
+        acct = boto3.client("account", config=_DISCOVERY_CONFIG)
+        enabled: set[str] = set()
+        paginator = acct.get_paginator("list_regions")
+        for page in paginator.paginate(
+            RegionOptStatusContains=["ENABLED", "ENABLED_BY_DEFAULT"]
+        ):
+            for r in page.get("Regions", []):
+                name = r.get("RegionName")
+                if name:
+                    enabled.add(name)
+        return enabled or None
+    except Exception as exc:
+        logger.info("account:ListRegions unavailable (%s) — Sync will scan all regions",
+                    type(exc).__name__)
+        return None
+
+
 @router.get("/regions")
 async def list_bedrock_regions():
     """Return Bedrock-supported AWS regions from the registry.
@@ -1257,6 +1338,146 @@ def _claude_version_tuple(model_id: str) -> tuple:
     if dm:
         date = int(dm.group(1))
     return (major, minor, date)
+
+
+def _reconcile_mantle_models(registry: dict) -> int:
+    """Reconcile the bedrock-mantle catalog into chat_models (M-2/M-3).
+
+    The bedrock-runtime ListFoundationModels scan (done per-region above) does
+    NOT surface Mantle-only models (OpenAI GPT-5.x, Claude Mythos, …). This pass
+    queries the Mantle ``models.list`` and:
+      • marks discovered runtime models that are ALSO on Mantle (adds
+        "bedrock-mantle" to their ``endpoints`` and the Mantle APIs to ``apis``),
+      • adds Mantle-only models as new chat_models entries (endpoints=[mantle]).
+    Every entry's ``invoke_endpoint``/``invoke_api`` is (re)resolved Converse-first.
+    No-op (returns 0) if Mantle is unavailable (deps/token absent) — purely
+    additive, never disturbs the runtime catalog. User overrides in .user.json
+    win on reload as usual.
+    """
+    from backend.services.mantle_client import (
+        mantle_available, list_mantle_models, derive_model_apis,
+        resolve_invoke_path, mantle_region_for,
+    )
+    from backend.services.model_registry import get_registry
+
+    if not mantle_available():
+        logger.info("Mantle unavailable (no SDK/token) — skipping Mantle reconciliation")
+        return 0
+
+    region = mantle_region_for(None)
+    mantle_ids = list_mantle_models(region)
+    if not mantle_ids:
+        return 0
+
+    chat_models = registry.setdefault("chat_models", {})
+
+    # Index existing entries by their bare model_id (strip us. profile prefix)
+    # so we can match Mantle IDs (which are bare, e.g. "openai.gpt-5.4") against
+    # our stored IDs (which may be "us.anthropic.…").
+    # Match Mantle ids against stored ids by their NORMALIZED form (strip us.
+    # prefix + throughput/version qualifiers), so e.g. the runtime entry for
+    # ``openai.gpt-oss-120b-1:0`` merges with the Mantle id ``openai.gpt-oss-120b``
+    # instead of creating a duplicate.
+    by_norm: dict[str, str] = {}
+    for k, cfg in chat_models.items():
+        by_norm[_normalize_model_id(cfg.get("model_id", ""))] = k
+
+    def _provider_from_id(mid: str) -> str:
+        head = mid.split(".")[0].lower()
+        return {"openai": "OpenAI", "anthropic": "Anthropic", "meta": "Meta",
+                "mistral": "Mistral AI", "deepseek": "DeepSeek", "qwen": "Qwen",
+                "zai": "Z.AI", "google": "Google", "nvidia": "NVIDIA",
+                "amazon": "Amazon", "ai21": "AI21 Labs", "cohere": "Cohere",
+                "writer": "Writer", "minimax": "MiniMax", "moonshot": "Moonshot AI",
+                "twelvelabs": "TwelveLabs", "xai": "xAI"}.get(head, head.title())
+
+    # Drop date-suffixed aliases (e.g. "openai.gpt-5.4-2026-03-05") when the
+    # undated base ("openai.gpt-5.4") is also listed — they're the same model.
+    import re as _re2
+    _id_set = set(mantle_ids)
+    def _is_dupe_dated_alias(mid: str) -> bool:
+        base = _re2.sub(r"-\d{4}-\d{2}-\d{2}$", "", mid)
+        return base != mid and base in _id_set
+
+    reconciled = 0
+    for mid in mantle_ids:
+        if _is_dupe_dated_alias(mid):
+            continue
+        existing_key = by_norm.get(_normalize_model_id(mid))
+        if existing_key:
+            cfg = chat_models[existing_key]
+            provider = cfg.get("provider", "")
+            eps = set(cfg.get("endpoints") or ["bedrock-runtime"])
+            eps.add("bedrock-mantle")
+            cfg["endpoints"] = sorted(eps)
+            on_runtime = "bedrock-runtime" in eps
+            cfg["apis"] = derive_model_apis(cfg.get("model_id", mid), provider,
+                                            on_mantle=True, on_runtime=on_runtime)
+            cfg["invoke_endpoint"], cfg["invoke_api"] = resolve_invoke_path(cfg["apis"])
+            reconciled += 1
+        else:
+            # Mantle-only model — add a fresh entry (shared keymaker; version-safe).
+            provider = _provider_from_id(mid)
+            key = _chat_model_key(mid)
+            if key in chat_models:
+                key = mid.replace(".", "_").replace("-", "_").replace(":", "_").replace("/", "_")
+            by_norm[_normalize_model_id(mid)] = key  # so dated aliases/dupes match this
+            apis = derive_model_apis(mid, provider, on_mantle=True, on_runtime=False)
+            inv_ep, inv_api = resolve_invoke_path(apis)
+            chat_models[key] = {
+                "label": mid,
+                "model_id": mid,
+                "region": region,
+                "available_regions": [region],
+                "provider": provider,
+                "enabled": True,
+                "model_source": "foundation",
+                "model_arn": "",
+                "has_vision": False,
+                "streaming_supported": True,
+                "max_context_tokens": 128000,
+                "customizations_supported": [],
+                "inference_types": [],
+                "lifecycle": "ACTIVE",
+                "endpoints": ["bedrock-mantle"],
+                "apis": apis,
+                "invoke_endpoint": inv_ep,
+                "invoke_api": inv_api,
+            }
+            reconciled += 1
+    logger.info("Mantle reconciliation: %d model(s) (of %d listed)", reconciled, len(mantle_ids))
+    return reconciled
+
+
+def _stamp_all_chat_model_routing(registry: dict) -> int:
+    """Ensure EVERY chat_models entry carries endpoint/API routing fields.
+
+    The per-model stamping in _register_chat_model only fires for newly-created
+    entries; pre-existing models and the update-existing branch never got
+    `endpoints`/`apis`/`invoke_endpoint`/`invoke_api`. This backfills any entry
+    missing them (runtime-reachable unless Mantle reconciliation already marked
+    it otherwise), so routing is explicit for all models — not relying on the
+    invoke-time Converse default. Idempotent. Returns count stamped.
+    """
+    from backend.services.mantle_client import derive_model_apis, resolve_invoke_path
+    cm = registry.get("chat_models", {})
+    stamped = 0
+    for cfg in cm.values():
+        if not isinstance(cfg, dict):
+            continue
+        if cfg.get("invoke_endpoint") and cfg.get("invoke_api") and cfg.get("apis"):
+            continue  # already stamped (e.g. by Mantle reconciliation)
+        eps = cfg.get("endpoints") or ["bedrock-runtime"]
+        cfg["endpoints"] = eps
+        apis = derive_model_apis(
+            cfg.get("model_id", ""), cfg.get("provider", ""),
+            on_mantle=("bedrock-mantle" in eps), on_runtime=("bedrock-runtime" in eps))
+        cfg["apis"] = apis
+        cfg["invoke_endpoint"], cfg["invoke_api"] = resolve_invoke_path(apis)
+        stamped += 1
+    if stamped:
+        logger.info("Routing backfill: stamped %d chat model(s) with endpoint/API fields", stamped)
+    return stamped
 
 
 def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
@@ -1389,7 +1610,20 @@ def _probe_and_record_temperature(model_id: str, region: str, registry: dict):
 
 @router.post("/discover/refresh-all")
 async def refresh_all_regions():
-    """Scan ALL Bedrock-supported AWS regions for image + video models and update the registry."""
+    """Scan ALL Bedrock-supported AWS regions and update the registry.
+
+    The scan is blocking (boto3 region discovery + ~33 region scans + pricing).
+    Run it in a worker thread so the event loop stays free to serve the
+    ``/api/sync-progress`` SSE stream concurrently — otherwise the progress
+    overlay shows nothing until the whole sync finishes (the bug fixed here).
+    """
+    import asyncio
+    return await asyncio.to_thread(_run_refresh_all_regions)
+
+
+def _run_refresh_all_regions():
+    """Synchronous body of the AWS Sync (runs in a worker thread)."""
+    import asyncio
     from backend.services.telemetry import track_model_settings_refresh
     track_model_settings_refresh()
 
@@ -1405,6 +1639,12 @@ async def refresh_all_regions():
     _server_state["sync_in_progress"] = True
     _server_state["sync_log"] = []
 
+    # Initialized before the try so the post-finally summary never NameErrors.
+    all_regions: list[str] = []
+    scan_regions: list[str] = []
+    regions_not_enabled: list[str] = []
+    account_listregions_denied = False
+
     try:
         # Step 1: Discover regions from AWS
         _progress("Discovering Amazon Bedrock regions...")
@@ -1413,8 +1653,25 @@ async def refresh_all_regions():
         # Step 2: Persist regions + fetch pricing data
         _progress(f"Found {len(all_regions)} regions. Fetching model pricing...")
         registry = get_registry()
-        registry["bedrock_regions"] = all_regions
+        registry["bedrock_regions"] = all_regions  # full Bedrock-supported list (cached)
         logger.debug("Stored %d Bedrock regions in registry", len(all_regions))
+
+        # Step 2a: Filter to regions ENABLED for this account before scanning.
+        # Not-enabled regions otherwise fail with UnrecognizedClientException(403)
+        # or hang on connect timeouts (~8-45s each) — slow + noisy. If we can't
+        # read enabled regions (role lacks account:ListRegions), scan all and note it.
+        _enabled = _account_enabled_regions()
+        if _enabled is not None:
+            regions_not_enabled = sorted(set(all_regions) - _enabled)
+            scan_regions = [r for r in all_regions if r in _enabled]
+            registry["regions_not_enabled"] = regions_not_enabled
+            if regions_not_enabled:
+                logger.info("Skipping %d region(s) not enabled for this account: %s",
+                            len(regions_not_enabled), ", ".join(regions_not_enabled))
+        else:
+            account_listregions_denied = True
+            scan_regions = all_regions
+            registry.pop("regions_not_enabled", None)
 
         # Step 2b: Fetch per-image pricing from AWS Pricing API
         pricing_data = _fetch_image_pricing()
@@ -1431,8 +1688,8 @@ async def refresh_all_regions():
         for key in list(registry.get("chat_models", {}).keys()):
             registry["chat_models"][key]["available_regions"] = []
 
-        # Step 3: Scan each region for foundation + custom + imported models
-        _progress(f"Scanning {len(all_regions)} regions for available models...")
+        # Step 3: Scan each ENABLED region for foundation + custom + imported models
+        _progress(f"Scanning {len(scan_regions)} enabled regions for available models...")
 
         results = {}
         total_new = 0
@@ -1440,10 +1697,10 @@ async def refresh_all_regions():
         total_custom = 0
         errors = 0
 
-        for idx, region in enumerate(all_regions):
-            _progress(f"Scanning region {idx + 1}/{len(all_regions)}: {region}...")
+        for idx, region in enumerate(scan_regions):
+            _progress(f"Scanning region {idx + 1}/{len(scan_regions)}: {region}...")
             try:
-                result = await auto_register_image_models(region)
+                result = asyncio.run(auto_register_image_models(region))
                 results[region] = {
                     "new": result["new_count"],
                     "updated": result["updated_count"],
@@ -1467,6 +1724,14 @@ async def refresh_all_regions():
                     total_custom += custom_count
             except Exception as exc:
                 logger.warning("Custom model discovery failed in %s: %s", region, exc)
+
+        # Report not-enabled regions as ONE clean summary line (no per-region spam).
+        if regions_not_enabled:
+            _progress(f"Regions not enabled ({len(regions_not_enabled)}): "
+                      + ", ".join(regions_not_enabled))
+        elif account_listregions_denied:
+            _progress("Note: add the account:ListRegions permission for faster, "
+                      "quieter syncs (couldn't pre-filter to enabled regions).")
 
         # Step 4: Prune — check which Bedrock models are still available.
         _progress("Finalizing — checking model availability...")
@@ -1498,6 +1763,26 @@ async def refresh_all_regions():
                 disabled.append(key)
                 logger.debug("Disabled video model %s — no longer found in any region", key)
 
+        # Step 4b: Reconcile the bedrock-mantle catalog — mark which discovered
+        # models are ALSO on Mantle, and add Mantle-only models (e.g. OpenAI
+        # GPT-5.x, Claude Mythos) that never appear in the bedrock-runtime
+        # listing. Stamps endpoints/apis/invoke_endpoint/invoke_api per model.
+        _progress("Reconciling Amazon Bedrock Mantle model catalog...")
+        try:
+            mantle_added = _reconcile_mantle_models(registry)
+            if mantle_added:
+                _progress(f"Mantle: {mantle_added} model(s) reconciled")
+        except Exception as exc:
+            logger.warning("Mantle reconciliation skipped: %s", exc)
+
+        # Step 4c: Backfill endpoint/API routing on EVERY chat model (incl.
+        # pre-existing + update-path entries the per-model stamping missed), so
+        # routing is explicit for all models. Runs even if Mantle is unavailable.
+        try:
+            _stamp_all_chat_model_routing(registry)
+        except Exception as exc:
+            logger.warning("Routing backfill skipped: %s", exc)
+
         # Step 5: Smartly roll fast_llm/complex_llm to the newest Claude available.
         # Keeps non-technical users off deprecated models without manual config.
         # Auto-switch + notify; respects explicit user pins (categories.*.pinned).
@@ -1526,8 +1811,8 @@ async def refresh_all_regions():
     # rewrite user file to only user-specific overrides
     from backend.services.model_registry import promote_to_base
     promote_result = promote_to_base()
-    logger.info("Sync complete: %d new, %d updated across %d regions (%d errors). Promoted %d base models, %d user overrides.",
-                total_new, total_updated, len(all_regions), errors,
+    logger.info("Sync complete: %d new, %d updated across %d enabled regions (%d errors, %d not enabled). Promoted %d base models, %d user overrides.",
+                total_new, total_updated, len(scan_regions), errors, len(regions_not_enabled),
                 promote_result["base_models"], promote_result["user_overrides"])
 
     # Telemetry: track sync completion + first-sync milestone
@@ -1535,12 +1820,13 @@ async def refresh_all_regions():
     registry = get_registry()
     img_count = sum(1 for v in registry.get("image_models", {}).values() if v.get("model_purpose") == "text_to_image")
     chat_count = len(registry.get("chat_models", {}))
-    track_sync_complete(regions=len(all_regions), new_models=total_new, updated_models=total_updated, errors=errors)
+    track_sync_complete(regions=len(scan_regions), new_models=total_new, updated_models=total_updated, errors=errors)
     if total_new > 0:
-        track_first_sync(regions=len(all_regions), image_models=img_count, chat_models=chat_count)
+        track_first_sync(regions=len(scan_regions), image_models=img_count, chat_models=chat_count)
 
     return {
-        "regions_scanned": len(all_regions),
+        "regions_scanned": len(scan_regions),
+        "regions_not_enabled": regions_not_enabled,
         "total_new": total_new,
         "total_updated": total_updated,
         "total_custom": total_custom,

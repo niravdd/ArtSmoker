@@ -57,6 +57,82 @@ class CompactRequest(BaseModel):
     keep_recent: int = 6  # Keep last N messages verbatim
 
 
+# ── Mantle streaming (OpenAI-compatible endpoint) ───────────────────────────
+
+def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, invoke_api: str):
+    """Stream a chat response from a bedrock-mantle model via the OpenAI SDK.
+
+    Emits the SAME SSE event shapes as the Converse path (delta / metadata /
+    stop / error) so the frontend needs no changes. Used only for mantle-only
+    models (resolved invoke_endpoint == bedrock-mantle). Chat Completions and
+    Responses stream natively; the Anthropic Messages API path streams via its
+    own SSE — for simplicity we use non-streaming Messages and emit one delta.
+    """
+    from backend.services.cost_tracker import compute_llm_cost, reset_costs, add_cost
+    reset_costs()
+
+    def sse(data: dict) -> str:
+        return f"data: {json.dumps(data, default=str)}\n\n"
+
+    # Normalize messages to OpenAI shape (role/content strings; structured
+    # content is passed through). System prompt becomes a system message.
+    msgs = []
+    if req.system_prompt and invoke_api != "messages":
+        msgs.append({"role": "system", "content": req.system_prompt})
+    for m in req.messages:
+        msgs.append({"role": m.get("role", "user"), "content": m.get("content", "")})
+
+    def generate():
+        start = time.time()
+        full = ""
+        try:
+            from backend.services import mantle_client as mc
+            client = mc._get_openai_client(region)
+            if invoke_api == "responses":
+                stream = client.responses.create(
+                    model=model_id, input=msgs,
+                    max_output_tokens=req.max_tokens, store=False, stream=True)
+                for event in stream:
+                    delta = getattr(event, "delta", None)
+                    if isinstance(delta, str) and delta:
+                        full += delta
+                        yield sse({"type": "delta", "text": delta})
+            elif invoke_api == "messages":
+                # Non-streaming Messages → single delta (keeps deps minimal).
+                text = mc.invoke_messages(
+                    model_id, [{"role": m["role"], "content": m["content"]} for m in msgs],
+                    region=region, system=req.system_prompt or "",
+                    max_tokens=req.max_tokens, temperature=req.temperature)
+                full = text
+                if text:
+                    yield sse({"type": "delta", "text": text})
+            else:  # chat_completions
+                kwargs = {"model": model_id, "messages": msgs,
+                          "max_completion_tokens": req.max_tokens, "stream": True}
+                if req.temperature is not None:
+                    kwargs["temperature"] = req.temperature
+                stream = client.chat.completions.create(**kwargs)
+                for chunk in stream:
+                    if chunk.choices and chunk.choices[0].delta.content:
+                        piece = chunk.choices[0].delta.content
+                        full += piece
+                        yield sse({"type": "delta", "text": piece})
+
+            latency_ms = round((time.time() - start) * 1000)
+            cost = compute_llm_cost(model_id, 0, 0)
+            yield sse({"type": "metadata", "input_tokens": 0, "output_tokens": 0,
+                       "latency_ms": latency_ms, "cost_usd": cost,
+                       "model_id": model_id, "region": region,
+                       "endpoint": "bedrock-mantle", "api": invoke_api})
+            yield sse({"type": "stop", "stop_reason": "end_turn"})
+        except Exception as exc:
+            logger.error("Mantle chat stream error (%s/%s): %s", model_id, invoke_api, exc)
+            yield sse({"type": "error", "detail": f"Mantle error: {str(exc)[:300]}"})
+
+    return StreamingResponse(generate(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
 # ── Streaming chat ────────────────────────────────────────────────────────
 
 @router.post("/stream")
@@ -75,6 +151,16 @@ async def chat_stream(req: ChatMessageRequest):
 
     model_id = req.model_id
     region = req.region or _resolve_chat_region(model_id)
+
+    # Route by the model's resolved invoke path. Mantle-only models (e.g. OpenAI
+    # GPT-5.x via Responses, GLM/Grok via Chat Completions, Claude Mythos via
+    # Messages) can't use ConverseStream — stream them via the Mantle endpoint.
+    # Everything Converse-capable keeps the unchanged boto3 path below.
+    from backend.services.bedrock_client import _resolve_invoke_path
+    _invoke_endpoint, _invoke_api = _resolve_invoke_path(model_id)
+    if _invoke_endpoint == "bedrock-mantle":
+        return _chat_stream_mantle(req, model_id, region, _invoke_api)
+
     client = _get_client(region)
 
     # Build Converse messages

@@ -244,9 +244,13 @@
             document.body.appendChild(modal);
             this._attachEvents(modal);
 
-            // Activate requested tab (if opened from a specific studio)
-            if (this._requestedTab) {
-                const targetTab = modal.querySelector(`[data-ms-tab="${this._requestedTab}"]`);
+            // Activate the requested tab (opened from a specific studio) or
+            // restore the tab that was active before a re-render (e.g. after a
+            // Sync), so the user stays where they were instead of snapping to
+            // Image Studio.
+            const tabToActivate = this._requestedTab || this._activeTab;
+            if (tabToActivate) {
+                const targetTab = modal.querySelector(`[data-ms-tab="${tabToActivate}"]`);
                 if (targetTab) {
                     targetTab.click();
                 }
@@ -493,11 +497,14 @@
             if (!cat) return '';
             const chatModels = this._registry?.chat_models || {};
             const currentId = cat.current || '';
-            const familyOf = (id) => {
-                const tail = id.replace(/^us\./, '').split('.').pop() || '';
-                return tail.replace(/-\d.*/, '').toLowerCase();
-            };
-            const currentFamily = familyOf(currentId);
+            // Match the category's current model to a chat_models entry by EXACT
+            // id (modulo the us. inference-profile prefix). The old code matched
+            // by "family" (everything before the first digit), so e.g. the
+            // current opus-4-8 matched the FIRST "claude" entry encountered —
+            // showing a stale older Opus/Sonnet label even though current was the
+            // newest. Exact match only; no family fuzz.
+            const bare = (id) => (id || '').replace(/^us\./, '');
+            const isExact = (mid) => mid === currentId || bare(mid) === bare(currentId);
 
             // Build options grouped by provider
             const groups = {};
@@ -507,12 +514,9 @@
                     const provider = m.provider || 'Other';
                     if (!groups[provider]) groups[provider] = [];
                     const mid = m.model_id || '';
-                    const isMatch = mid === currentId
-                        || currentId.includes(mid.replace('us.', ''))
-                        || mid.includes(currentId.replace('us.', ''))
-                        || (currentFamily && familyOf(mid) === currentFamily);
+                    const selected = isExact(mid);
                     const regions = (m.available_regions || []).length;
-                    groups[provider].push({ mid: currentId && isMatch ? currentId : mid, label: m.label || mid, provider, regions, region: m.region || '', selected: isMatch });
+                    groups[provider].push({ mid, label: m.label || mid, provider, regions, region: m.region || '', selected });
                 });
 
             let optionsHtml = '';
@@ -524,22 +528,13 @@
                 optionsHtml += '</optgroup>';
             }
 
-            // Fallback if current model not in list
-            const hasMatch = Object.values(chatModels).some(m => {
-                const mid = m.model_id || '';
-                return mid === currentId || currentId.includes(mid.replace('us.', '')) || mid.includes(currentId.replace('us.', '')) || (currentFamily && familyOf(mid) === currentFamily);
-            });
-            const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(currentId)} (current)</option>` : '';
-
-            // Find current model label for display
+            // Find the exact current model's label; fallback option if absent.
             let currentLabel = currentId;
+            let hasMatch = false;
             for (const m of Object.values(chatModels)) {
-                const mid = m.model_id || '';
-                if (mid === currentId || currentId.includes(mid.replace('us.', '')) || mid.includes(currentId.replace('us.', '')) || (currentFamily && familyOf(mid) === currentFamily)) {
-                    currentLabel = m.label || mid;
-                    break;
-                }
+                if (isExact(m.model_id || '')) { currentLabel = m.label || m.model_id; hasMatch = true; break; }
             }
+            const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(currentId)} (current)</option>` : '';
 
             return `
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-category="${name}">
@@ -676,6 +671,9 @@
             // Tab switching
             modal.querySelectorAll('[data-ms-tab]').forEach(tab => {
                 tab.addEventListener('click', () => {
+                    // Remember the active tab so a post-sync re-render restores it
+                    // (instead of snapping back to Image Studio).
+                    this._activeTab = tab.dataset.msTab;
                     modal.querySelectorAll('[data-ms-tab]').forEach(t2 => {
                         t2.classList.remove('active', 'bg-brand-accent/10', 'text-brand-accent', 'border-l-2', 'border-brand-accent');
                         t2.classList.add('text-brand-text-muted');
@@ -1368,6 +1366,27 @@
             });
         },
 
+        async _refreshAfterSync() {
+            // Re-fetch the registry and re-render the open Model Settings modal so
+            // post-sync changes (auto-rolled LLM categories, new/Mantle models,
+            // pruned models) are reflected without a manual page reload. Guarded
+            // so a failure here never throws into the SSE handler.
+            try {
+                if (this._refreshingAfterSync) return;
+                this._refreshingAfterSync = true;
+                this._registry = await API.admin.getModels();
+                const modal = document.getElementById('model-settings-modal');
+                if (modal && typeof this._renderModal === 'function') {
+                    modal.remove();
+                    this._renderModal();
+                }
+            } catch (err) {
+                console.warn('Post-sync refresh failed:', err);
+            } finally {
+                this._refreshingAfterSync = false;
+            }
+        },
+
         _showSyncProgress() {
             const overlay = document.createElement('div');
             overlay.className = 'fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
@@ -1395,7 +1414,15 @@
                 sse.onmessage = (e) => {
                     try {
                         const d = JSON.parse(e.data);
-                        if (d.ready || d.message === 'done') { sse.close(); return; }
+                        if (d.ready || d.message === 'done') {
+                            sse.close();
+                            // Self-refresh on completion: re-fetch the registry and
+                            // re-render so category labels (auto-rolled models, e.g.
+                            // newest Claude) update even if the user dismissed this
+                            // overlay or the trigger's await chain detached.
+                            this._refreshAfterSync?.();
+                            return;
+                        }
                         const msgEl = overlay.querySelector('.sync-msg');
                         if (msgEl) msgEl.textContent = d.message;
                         const countsEl = overlay.querySelector('.sync-counts');

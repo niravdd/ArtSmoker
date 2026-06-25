@@ -95,13 +95,23 @@ def validate_aws_credentials() -> dict:
             _id, _region = _pick_llm_model(_tier)
             if not _id:
                 continue
-            _client = _get_client(_region)
-            _client.converse(
-                modelId=_id,
-                messages=[{"role": "user", "content": [{"text": "hi"}]}],
-                inferenceConfig=_build_inference_config(_id, 1, 0.0),
-            )
-            result["probes"].append({"role": _label, "model_id": _id, "region": _region, "ok": True})
+            # Probe via the model's RESOLVED path: Converse models use the boto3
+            # 1-token call (registry-driven param gate); Mantle-only models
+            # (e.g. GPT-5.x) use a 1-token call on the right Mantle API.
+            _endpoint, _api = _resolve_invoke_path(_id)
+            if _endpoint == "bedrock-mantle":
+                _invoke_llm_mantle(_id, _api, "hi", max_tokens=1, region=_region)
+                _probe_endpoint = "bedrock-mantle"
+            else:
+                _client = _get_client(_region)
+                _client.converse(
+                    modelId=_id,
+                    messages=[{"role": "user", "content": [{"text": "hi"}]}],
+                    inferenceConfig=_build_inference_config(_id, 1, 0.0),
+                )
+                _probe_endpoint = "bedrock-runtime"
+            result["probes"].append({"role": _label, "model_id": _id, "region": _region,
+                                     "endpoint": _probe_endpoint, "ok": True})
         except Exception as exc:
             _llm_ok = False
             result["probes"].append({"role": _label, "model_id": _id, "region": _region, "ok": False})
@@ -174,6 +184,33 @@ def _pick_llm_model(complexity: str) -> tuple[str, str]:
     return (model_id, region)
 
 
+def _resolve_invoke_path(model_id: str) -> tuple[str, str]:
+    """Resolve (invoke_endpoint, invoke_api) for a model from the registry.
+
+    Reads the per-model ``invoke_endpoint``/``invoke_api`` that Sync stamped on
+    the ``chat_models`` entry (matched by model_id, with/without the ``us.``
+    profile prefix). Defaults to ("bedrock-runtime", "converse") when the model
+    isn't found or carries no routing — i.e. the Converse path stays the default
+    for everything not explicitly marked otherwise (Converse-first policy).
+    """
+    try:
+        from backend.services.model_registry import get_registry
+        mid = model_id or ""
+        bare = mid[3:] if mid.startswith("us.") else mid
+        for cfg in (get_registry().get("chat_models", {}) or {}).values():
+            cmid = cfg.get("model_id", "")
+            cbare = cmid[3:] if cmid.startswith("us.") else cmid
+            if cmid == mid or cbare == bare:
+                ep = cfg.get("invoke_endpoint")
+                api = cfg.get("invoke_api")
+                if ep and api:
+                    return ep, api
+                break
+    except Exception:
+        pass
+    return "bedrock-runtime", "converse"
+
+
 def _get_fallback_llm() -> tuple[str, str]:
     """Get the fallback LLM model ID and region from the registry."""
     from backend.services.model_registry import get_category
@@ -227,6 +264,79 @@ def _build_inference_config(model_id: str, max_tokens: int, temperature: float) 
     return cfg
 
 
+def _img_mime(img_bytes: bytes) -> str:
+    """Sniff an image's MIME type from its magic bytes (for Mantle payloads)."""
+    if img_bytes[:3] == b"\xff\xd8\xff":
+        return "image/jpeg"
+    if img_bytes[:8] == b"\x89PNG\r\n\x1a\n":
+        return "image/png"
+    if img_bytes[:4] == b"GIF8":
+        return "image/gif"
+    if img_bytes[:4] == b"RIFF" and img_bytes[8:12] == b"WEBP":
+        return "image/webp"
+    return "image/png"
+
+
+def _invoke_llm_mantle(
+    model_id: str,
+    invoke_api: str,
+    prompt: str,
+    *,
+    system: str = "",
+    images: list[bytes] | None = None,
+    max_tokens: int = 4096,
+    temperature: float = 0.7,
+    region: str = "",
+) -> str:
+    """Invoke an LLM over the bedrock-mantle endpoint (Chat Completions /
+    Responses / Messages), converting our prompt+images to the right shape.
+
+    Isolated from the Converse path; reached only when a model's resolved
+    invoke_endpoint is bedrock-mantle. Cost tracking mirrors the Converse path
+    where usage is available.
+    """
+    from backend.services import mantle_client as mc
+
+    # Build the user content. OpenAI (chat/responses) and Anthropic (messages)
+    # use different content shapes for images.
+    if invoke_api == "messages":
+        content: list[dict] = []
+        for img in (images or []):
+            content.append({
+                "type": "image",
+                "source": {"type": "base64", "media_type": _img_mime(img),
+                           "data": base64.b64encode(img).decode()},
+            })
+        content.append({"type": "text", "text": prompt})
+        text = mc.invoke_messages(
+            model_id, [{"role": "user", "content": content}],
+            region=region, system=system, max_tokens=max_tokens,
+            temperature=temperature,
+        )
+    else:
+        # OpenAI-style content parts (chat_completions + responses).
+        parts: list[dict] = []
+        for img in (images or []):
+            b64 = base64.b64encode(img).decode()
+            parts.append({"type": "image_url",
+                          "image_url": {"url": f"data:{_img_mime(img)};base64,{b64}"}})
+        parts.append({"type": "text", "text": prompt})
+        messages = []
+        if system:
+            messages.append({"role": "system", "content": system})
+        messages.append({"role": "user", "content": parts if images else prompt})
+        if invoke_api == "responses":
+            text = mc.invoke_responses(
+                model_id, messages, region=region, max_output_tokens=max_tokens,
+            )
+        else:  # chat_completions
+            text = mc.invoke_chat_completions(
+                model_id, messages, region=region, max_tokens=max_tokens,
+                temperature=temperature,
+            )
+    return text
+
+
 def invoke_llm(
     prompt: str,
     *,
@@ -254,6 +364,19 @@ def invoke_llm(
         The text response from the LLM.
     """
     model_id, region = _pick_llm_model(complexity)
+
+    # Route by the model's resolved invoke path (Converse-first; Mantle only for
+    # models Converse can't reach — e.g. OpenAI GPT-5.x via Responses, Claude
+    # Mythos via Messages). The boto3 Converse path below is unchanged and stays
+    # the default for everything that supports it.
+    invoke_endpoint, invoke_api = _resolve_invoke_path(model_id)
+    if invoke_endpoint == "bedrock-mantle":
+        return _invoke_llm_mantle(
+            model_id, invoke_api, prompt,
+            system=system, images=images, max_tokens=max_tokens,
+            temperature=temperature, region=region,
+        )
+
     client = _get_client(region)
 
     content_blocks: list[dict] = []

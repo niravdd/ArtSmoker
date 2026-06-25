@@ -3,7 +3,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.9-20260624_02"
+APP_VERSION = "1.9-20260625_02"
 
 class Settings(BaseSettings):
     # ── AWS ───────────────────────────────────────────────────────────────
@@ -13,6 +13,15 @@ class Settings(BaseSettings):
 
     # Note: LLM model IDs are configured in model_registry.json (categories section).
     # No hardcoded model IDs here — everything comes from the registry.
+
+    # ── Amazon Bedrock Mantle endpoint ────────────────────────────────────
+    # The bedrock-mantle endpoint (OpenAI-compatible + Anthropic Messages APIs)
+    # authenticates with a Bedrock bearer token, not SigV4. By default a
+    # short-term token is derived from the active AWS credentials at runtime
+    # (aws-bedrock-token-generator) — nothing to configure. To pin an explicit
+    # key instead, set AWS_BEARER_TOKEN_BEDROCK in the environment; mantle_client
+    # reads it directly. Mantle is used ONLY for models Converse can't reach
+    # (e.g. OpenAI GPT-5.x); the Converse path needs no token.
 
     # ── Paths ─────────────────────────────────────────────────────────────
     data_dir: Path = Path(__file__).resolve().parent.parent / "data"

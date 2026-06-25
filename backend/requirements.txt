@@ -7,3 +7,6 @@ pydantic-settings>=2.7
 Pillow>=11.1
 aiofiles>=24.1
 huggingface_hub>=0.23  # For downloading custom model weights from HuggingFace
+openai>=1.50  # Amazon Bedrock Mantle endpoint (OpenAI-compatible Chat Completions + Responses APIs)
+aws-bedrock-token-generator>=1.0  # Short-term Bedrock bearer token (derived from AWS creds) for Mantle
+requests>=2.31  # Anthropic Messages API over the Mantle endpoint
