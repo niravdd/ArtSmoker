@@ -1775,34 +1775,13 @@ def _run_refresh_all_regions():
         # Models with empty available_regions (not found in any region) get disabled.
         # Custom-hosted models are EXEMPT — they don't use Bedrock regions.
         registry = get_registry()
-        disabled = []
-        for key, cfg in list(registry.get("image_models", {}).items()):
-            if cfg.get("model_source") == "custom_hosted":
-                continue
-            regions = cfg.get("available_regions", [])
-            if not regions and cfg.get("enabled", True):
-                update_image_model(key, {"enabled": False})
-                disabled.append(key)
-                logger.debug("Disabled image model %s — no longer found in any region", key)
-        for key, cfg in list(registry.get("chat_models", {}).items()):
-            regions = cfg.get("available_regions", [])
-            if not regions and cfg.get("enabled", True):
-                registry["chat_models"][key]["enabled"] = False
-                disabled.append(key)
-                logger.debug("Disabled chat model %s — no longer found in any region", key)
-        for key, cfg in list(registry.get("video_models", {}).items()):
-            if cfg.get("model_source") == "custom_hosted":
-                continue
-            regions = cfg.get("available_regions", [])
-            if not regions and cfg.get("enabled", True):
-                registry["video_models"][key]["enabled"] = False
-                disabled.append(key)
-                logger.debug("Disabled video model %s — no longer found in any region", key)
 
-        # Step 4b: Reconcile the bedrock-mantle catalog — mark which discovered
-        # models are ALSO on Mantle, and add Mantle-only models (e.g. OpenAI
-        # GPT-5.x, Claude Mythos) that never appear in the bedrock-runtime
-        # listing. Stamps endpoints/apis/invoke_endpoint/invoke_api per model.
+        # Step 4b: Reconcile the bedrock-mantle catalog FIRST (before pruning) —
+        # mark which discovered models are ALSO on Mantle, and add Mantle-only
+        # models (e.g. OpenAI GPT-5.x, Claude Mythos) that never appear in the
+        # bedrock-runtime listing. Stamps endpoints/apis/invoke_* per model.
+        # Doing this before the prune ensures mantle-reachable models carry their
+        # `endpoints` when the prune runs, so they're correctly exempted.
         _progress("Reconciling Amazon Bedrock Mantle model catalog...")
         try:
             mantle_added = _reconcile_mantle_models(registry)
@@ -1818,6 +1797,38 @@ def _run_refresh_all_regions():
             _stamp_all_chat_model_routing(registry)
         except Exception as exc:
             logger.warning("Routing backfill skipped: %s", exc)
+
+        # Step 4d: Prune — disable models not found in any region this scan.
+        disabled = []
+        for key, cfg in list(registry.get("image_models", {}).items()):
+            if cfg.get("model_source") == "custom_hosted":
+                continue
+            regions = cfg.get("available_regions", [])
+            if not regions and cfg.get("enabled", True):
+                update_image_model(key, {"enabled": False})
+                disabled.append(key)
+                logger.debug("Disabled image model %s — no longer found in any region", key)
+        for key, cfg in list(registry.get("chat_models", {}).items()):
+            # Mantle-reachable models are EXEMPT — they live on the bedrock-mantle
+            # endpoint, which the per-region runtime scan (list_foundation_models)
+            # structurally can't see, so they always have empty available_regions.
+            # Disabling them here would wipe every Mantle-only model (GPT-5.x,
+            # Grok, etc.) on each sync.
+            if "bedrock-mantle" in (cfg.get("endpoints") or []):
+                continue
+            regions = cfg.get("available_regions", [])
+            if not regions and cfg.get("enabled", True):
+                registry["chat_models"][key]["enabled"] = False
+                disabled.append(key)
+                logger.debug("Disabled chat model %s — no longer found in any region", key)
+        for key, cfg in list(registry.get("video_models", {}).items()):
+            if cfg.get("model_source") == "custom_hosted":
+                continue
+            regions = cfg.get("available_regions", [])
+            if not regions and cfg.get("enabled", True):
+                registry["video_models"][key]["enabled"] = False
+                disabled.append(key)
+                logger.debug("Disabled video model %s — no longer found in any region", key)
 
         # Step 5: Smartly roll fast_llm/complex_llm to the newest Claude available.
         # Keeps non-technical users off deprecated models without manual config.
