@@ -389,11 +389,13 @@ Your IAM user, role, or instance profile needs these permissions:
 | `bedrock:GetImportedModel` | Read imported model details (architecture, status) |
 | `bedrock:ListProvisionedModelThroughputs` | Find invocable custom models with provisioned throughput |
 | `bedrock:ListCustomModelDeployments` | Find custom models with on-demand deployments |
+| `bedrock:CreateInference` *(or policy `AmazonBedrockMantleInferenceAccess`)* | **Amazon Bedrock Mantle** — frontier models reachable only via the Mantle endpoint (OpenAI GPT‑5.x, Claude Mythos, GLM, Grok, Qwen, Gemma…). Missing it affects only those models; Claude via Converse keeps working. |
+| `account:ListRegions` | Scan only your account's **enabled** regions during Sync (fast, no errors on opt‑in regions). Optional — falls back to scanning all regions. |
 | `s3:CreateBucket` | Create S3 bucket for video storage (optional, via UI) |
 | `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Video output storage and retrieval |
-| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models |
+| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models (incl. third-party Mantle models) |
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
-| `sts:GetCallerIdentity` | Startup credential validation |
+| `sts:GetCallerIdentity` | Startup credential validation; also underpins the locally-signed Mantle bearer token |
 | `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
 | `sagemaker:*` | Self-hosted custom models on Amazon SageMaker (optional — only if using Custom Models) |
 | `iam:PassRole` | Allow Amazon SageMaker to use your role (optional — only for Custom Models) |
@@ -407,6 +409,11 @@ Your IAM user, role, or instance profile needs these permissions:
 # Option A: Attach managed policies to your IAM user (simplest for local development)
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+
+# Amazon Bedrock Mantle endpoint — needed for frontier models (OpenAI GPT-5.x,
+# Claude Mythos, GLM, Grok, etc.). Skip only if you won't use Mantle-only models.
+aws iam attach-user-policy --user-name YOUR_USERNAME \
+  --policy-arn arn:aws:iam::aws:policy/AmazonBedrockMantleInferenceAccess
 
 # Add S3 access for video storage
 aws iam attach-user-policy --user-name YOUR_USERNAME \
@@ -436,8 +443,21 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
         "bedrock:GetCustomModel",
         "bedrock:GetImportedModel",
         "bedrock:ListProvisionedModelThroughputs",
-        "bedrock:ListCustomModelDeployments"
+        "bedrock:ListCustomModelDeployments",
+        "bedrock:CreateInference"
       ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "BedrockMantleInference",
+      "Effect": "Allow",
+      "Action": ["bedrock:CreateInference", "bedrock:GetInference", "bedrock:ListInferences", "bedrock:GetInferenceProfile"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "EnabledRegions",
+      "Effect": "Allow",
+      "Action": ["account:ListRegions", "account:GetRegionOptStatus"],
       "Resource": "*"
     },
     {

@@ -142,6 +142,34 @@ def _is_auth_error(exc: Exception) -> bool:
             or "invalid" in txt and "token" in txt or "security token" in txt)
 
 
+class MantleAccessError(RuntimeError):
+    """Raised when Amazon Bedrock Mantle is unreachable for permission/setup
+    reasons, with an actionable, user-facing message (no raw stack/HTTP noise)."""
+
+
+# Actionable guidance shared by every Mantle access failure. Names the exact
+# AWS managed policies (verified against the AWS docs) so the operator knows the
+# fix, not just that "something failed".
+_MANTLE_ACCESS_HELP = (
+    "Amazon Bedrock Mantle access was denied. This model is only reachable via "
+    "the bedrock-mantle endpoint, which needs Mantle inference permissions on "
+    "the IAM identity ArtSmoker runs as. To fix, attach one of these AWS managed "
+    "policies (or an equivalent): \"AmazonBedrockMantleInferenceAccess\" "
+    "(read + CreateInference + bearer-token calls — recommended) or "
+    "\"AmazonBedrockMantleFullAccess\". For third-party models (OpenAI, GLM, "
+    "Grok, etc.), AWS Marketplace subscribe permissions may also be required; "
+    "an account admin can subscribe once in the Bedrock console. Meanwhile, "
+    "Claude models that run via the Converse endpoint keep working without this."
+)
+
+
+def _permission_denied_error(region: str, exc: Exception) -> "MantleAccessError":
+    """Build a clear MantleAccessError from a denied Mantle response."""
+    detail = str(exc)
+    # Keep the message actionable but include a short raw hint for diagnostics.
+    return MantleAccessError(f"{_MANTLE_ACCESS_HELP} (region {region}; detail: {detail[:160]})")
+
+
 def _mantle_call(region: str, fn):
     """Run a Mantle call, retrying ONCE with a freshly-derived token on auth error.
 
@@ -149,6 +177,12 @@ def _mantle_call(region: str, fn):
     the (possibly stale env-var or cached) token, derive a fresh one from AWS
     creds, rebuild the client, and retry. os.environ is never modified — the
     operator's AWS_BEARER_TOKEN_BEDROCK stays as they set it.
+
+    A short-term token is signed LOCALLY (no AWS call), so a true *permission*
+    gap doesn't surface at derivation — it surfaces as a 401/403 from Mantle.
+    If the retry with a fresh token STILL gets denied, that's a genuine IAM/
+    Marketplace permission problem, not a stale token: we raise MantleAccessError
+    with the exact managed policies to attach.
     """
     m_region = mantle_region_for(region)
     try:
@@ -161,9 +195,17 @@ def _mantle_call(region: str, fn):
             _token_cache.pop(m_region, None)
         fresh = get_bedrock_token(m_region, force_derive=True)
         if not fresh:
+            raise MantleAccessError(_MANTLE_ACCESS_HELP)
+        logger.info("Mantle auth failed for %s — retrying with a freshly derived token", m_region)
+        try:
+            return fn(_build_client(m_region, token=fresh))
+        except Exception as exc2:
+            # Fresh token still denied → real permission/Marketplace gap, not staleness.
+            if _is_auth_error(exc2):
+                logger.warning("Mantle access denied for %s even with a fresh token: %s",
+                               m_region, str(exc2)[:200])
+                raise _permission_denied_error(m_region, exc2) from exc2
             raise
-        logger.info("Mantle auth failed for %s — retried with a freshly derived token", m_region)
-        return fn(_build_client(m_region, token=fresh))
 
 
 def mantle_available(region: str | None = None) -> bool:
@@ -194,9 +236,13 @@ def _build_client(region: str, token: str | None = None):
 
     tok = token or get_bedrock_token(region)
     if not tok:
-        raise RuntimeError(
-            "No Bedrock bearer token available for Mantle. Install "
-            "aws-bedrock-token-generator or set AWS_BEARER_TOKEN_BEDROCK."
+        raise MantleAccessError(
+            "Amazon Bedrock Mantle is unavailable: no bearer token could be "
+            "obtained. Either the active AWS credentials couldn't sign a token "
+            "(check the credentials ArtSmoker runs as), the "
+            "aws-bedrock-token-generator package isn't installed, or no "
+            "AWS_BEARER_TOKEN_BEDROCK is set. Claude models via the Converse "
+            "endpoint are unaffected."
         )
     return OpenAI(api_key=tok, base_url=_base_url(region))
 
@@ -305,7 +351,7 @@ def invoke_messages(
 
     token = get_bedrock_token(m_region)
     if not token:
-        raise RuntimeError("No Bedrock bearer token available for Mantle Messages.")
+        raise MantleAccessError(_MANTLE_ACCESS_HELP)
     try:
         return _post(token)
     except Exception as exc:
@@ -316,9 +362,16 @@ def invoke_messages(
             _token_cache.pop(m_region, None)
         fresh = get_bedrock_token(m_region, force_derive=True)
         if not fresh:
+            raise MantleAccessError(_MANTLE_ACCESS_HELP)
+        logger.info("Mantle Messages auth failed for %s — retrying with a fresh token", m_region)
+        try:
+            return _post(fresh)
+        except Exception as exc2:
+            if _is_auth_error(exc2):
+                logger.warning("Mantle Messages access denied for %s even with a fresh token: %s",
+                               m_region, str(exc2)[:200])
+                raise _permission_denied_error(m_region, exc2) from exc2
             raise
-        logger.info("Mantle Messages auth failed for %s — retried with a fresh token", m_region)
-        return _post(fresh)
 
 
 # ── Endpoint/API capability resolution (registry-driven routing) ────────────

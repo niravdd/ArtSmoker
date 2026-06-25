@@ -1720,14 +1720,19 @@ The IAM principal (user, role, or SSO session) needs the following permissions:
 | `bedrock:GetImportedModel` | Read imported model details (architecture, status) |
 | `bedrock:ListProvisionedModelThroughputs` | Find invocable custom models with provisioned throughput |
 | `bedrock:ListCustomModelDeployments` | Find custom models with on-demand deployments |
+| `bedrock:CreateInference` *(or `AmazonBedrockMantleInferenceAccess`)* | **Amazon Bedrock Mantle** inference — required for models reachable ONLY via the `bedrock-mantle` endpoint (OpenAI GPT-5.x, Claude Mythos, GLM/Grok/Qwen/Gemma, etc.). Without it those models fail with a clear "Mantle access denied" message; Converse-served models (Claude tiers) are unaffected. See §4.8. |
+| `account:ListRegions` | List the account's **enabled** regions so Sync scans only those (skips opt-in/disabled regions instead of erroring on them). Optional — without it, Sync falls back to scanning all Bedrock regions (slower, with skips logged). |
+| `account:GetRegionOptStatus` | Read per-region opt-in status (companion to `account:ListRegions`). Optional. |
 | `s3:CreateBucket` | Create S3 bucket for video storage (optional, via UI) |
 | `s3:PutObject` / `s3:GetObject` / `s3:DeleteObject` / `s3:ListBucket` | Video output storage and retrieval |
-| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models |
+| `aws-marketplace:Subscribe` | Auto-subscription on first use of third-party models (incl. Mantle-hosted third-party models) |
 | `aws-marketplace:ViewSubscriptions` | Check existing model subscriptions |
-| `sts:GetCallerIdentity` | Startup credential validation |
+| `sts:GetCallerIdentity` | Startup credential validation; also underpins the locally-signed Mantle bearer token |
 | `pricing:GetProducts` | Fetch model pricing during Sync from AWS (optional) |
 
-**Quickest setup**: Attach the AWS managed policy **`AmazonBedrockFullAccess`**. This covers all `bedrock:*` actions. You may additionally need `aws-marketplace:Subscribe` and `aws-marketplace:ViewSubscriptions` for first-time third-party model access.
+> **Amazon Bedrock Mantle (frontier models):** The `bedrock-mantle` endpoint authenticates with a short-term **bearer token** that ArtSmoker derives locally from these same credentials (nothing stored) — so no extra *token* setup is needed, but the identity must hold **Mantle inference permission**. The simplest grant is the AWS managed policy **`AmazonBedrockMantleInferenceAccess`** (read + `CreateInference` + bearer-token calls) or **`AmazonBedrockMantleFullAccess`**. Third-party Mantle models additionally rely on the `aws-marketplace:*` permissions above. If this is missing, only Mantle-only models are affected — everything on the Converse endpoint keeps working.
+
+**Quickest setup**: Attach **`AmazonBedrockFullAccess`** (covers all `bedrock:*` including `CreateInference`) **plus** **`AmazonBedrockMantleInferenceAccess`** for the Mantle endpoint. You may additionally need `aws-marketplace:Subscribe` / `aws-marketplace:ViewSubscriptions` for first-time third-party model access, and `account:ListRegions` for the fast region-filtered Sync.
 
 For a scoped IAM policy:
 ```json
@@ -1749,9 +1754,22 @@ For a scoped IAM policy:
         "bedrock:GetCustomModel",
         "bedrock:GetImportedModel",
         "bedrock:ListProvisionedModelThroughputs",
-        "bedrock:ListCustomModelDeployments"
+        "bedrock:ListCustomModelDeployments",
+        "bedrock:CreateInference"
       ],
       "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Sid": "AmazonBedrockMantleInference",
+      "Action": [
+        "bedrock:GetInferenceProfile",
+        "bedrock:CreateInference",
+        "bedrock:GetInference",
+        "bedrock:ListInferences"
+      ],
+      "Resource": "*",
+      "Comment": "Or simply attach the managed policy AmazonBedrockMantleInferenceAccess"
     },
     {
       "Effect": "Allow",
@@ -1760,6 +1778,11 @@ For a scoped IAM policy:
         "aws-marketplace:Unsubscribe",
         "aws-marketplace:ViewSubscriptions"
       ],
+      "Resource": "*"
+    },
+    {
+      "Effect": "Allow",
+      "Action": ["account:ListRegions", "account:GetRegionOptStatus"],
       "Resource": "*"
     },
     {
@@ -1775,6 +1798,7 @@ For a scoped IAM policy:
   ]
 }
 ```
+> Note: `Comment` is illustrative only — strip it before applying (IAM rejects unknown keys). The dedicated Mantle statement mirrors the managed policy `AmazonBedrockMantleInferenceAccess`; attaching that managed policy instead is simpler and AWS keeps it current.
 
 **Apply the policy via CLI:**
 
@@ -1782,6 +1806,9 @@ For a scoped IAM policy:
 # Option A: Quickest — attach managed policies to your IAM user
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonBedrockFullAccess
+# Mantle endpoint (frontier models — OpenAI GPT-5.x, Claude Mythos, GLM, etc.)
+aws iam attach-user-policy --user-name YOUR_USERNAME \
+  --policy-arn arn:aws:iam::aws:policy/AmazonBedrockMantleInferenceAccess
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::aws:policy/AmazonS3FullAccess
 
