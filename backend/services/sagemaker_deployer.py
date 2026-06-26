@@ -952,56 +952,43 @@ def _scan_logs_for_readiness(endpoint_name: str) -> dict:
         return {"ready": False, "detail": "Checking..."}
 
 
-def _persist_readiness_to_registry(endpoint_name: str):
-    """Persist model readiness to the registry so it survives server restarts.
+def _set_registry_model_ready(endpoint_name: str, ready: bool) -> bool:
+    """Set/clear deployment.model_ready on the endpoint's registry entry.
 
-    Writes deployment.model_ready=True to the model's user registry entry.
-    On next server start, _check_model_readiness reads this and skips log scanning.
-    Cleared on teardown (deployment entry removed) or redeploy.
+    Mutates the in-memory registry (the single source of truth that live reads
+    go through) and persists it via the registry module's own _save(), so memory
+    and the user.json file stay in sync — no separate raw file write. Scans both
+    image_models and post_processing (3D pipelines live in the latter). Returns
+    True if the endpoint was found.
     """
     try:
-        import json, pathlib
-        user_path = pathlib.Path("backend/model_registry.user.json")
-        if not user_path.exists():
-            return
-        user = json.loads(user_path.read_text())
-        for section in _DEPLOYABLE_REGISTRY_SECTIONS:
-            for key, cfg in user.get(section, {}).items():
-                dep = cfg.get("deployment", {})
-                if dep.get("endpoint_name") == endpoint_name:
-                    dep["model_ready"] = True
-                    user_path.write_text(json.dumps(user, indent=2))
-                    # Also update the IN-MEMORY registry so live reads (e.g. the 3D
-                    # /instances route) reflect readiness immediately — the file
-                    # write alone wouldn't surface until a server restart reloaded it.
-                    _set_inmemory_model_ready(endpoint_name, True)
-                    logger.info("Persisted model_ready=True for %s in registry (%s)", endpoint_name, section)
-                    return
-    except Exception as e:
-        logger.debug("Failed to persist readiness to registry: %s", e)
-
-
-def _set_inmemory_model_ready(endpoint_name: str, value):
-    """Reflect a model_ready change in the live in-memory registry cache.
-
-    The persisted file is authoritative across restarts, but reads during this
-    process go through the cached get_registry() dict — so mutate it too. value=
-    True sets the flag; value=None pops it (teardown).
-    """
-    try:
-        from backend.services.model_registry import get_registry
+        from backend.services.model_registry import get_registry, _save
         reg = get_registry()
         for section in _DEPLOYABLE_REGISTRY_SECTIONS:
             for key, cfg in reg.get(section, {}).items():
-                dep = cfg.get("deployment", {}) if isinstance(cfg, dict) else {}
+                if not isinstance(cfg, dict):
+                    continue
+                dep = cfg.get("deployment", {})
                 if dep.get("endpoint_name") == endpoint_name:
-                    if value is None:
-                        dep.pop("model_ready", None)
+                    if ready:
+                        dep["model_ready"] = True
                     else:
-                        dep["model_ready"] = value
-                    return
+                        dep.pop("model_ready", None)
+                    _save()
+                    logger.info("model_ready=%s for %s in registry (%s)", ready, endpoint_name, section)
+                    return True
     except Exception as e:
-        logger.debug("In-memory model_ready update skipped for %s: %s", endpoint_name, e)
+        logger.debug("Failed to set model_ready for %s: %s", endpoint_name, e)
+    return False
+
+
+def _persist_readiness_to_registry(endpoint_name: str):
+    """Persist model readiness so it survives server restarts.
+
+    On next server start, _check_model_readiness reads this and skips log scanning.
+    Cleared on teardown (deployment entry removed) or redeploy.
+    """
+    _set_registry_model_ready(endpoint_name, True)
 
 
 def _start_readiness_monitor(endpoint_name: str):
@@ -1050,27 +1037,8 @@ def clear_readiness_cache(endpoint_name: str):
     _readiness_monitors.discard(endpoint_name)
     _auto_scaling_registered.discard(endpoint_name)
 
-    # Clear persisted readiness from registry
-    try:
-        import json, pathlib
-        user_path = pathlib.Path("backend/model_registry.user.json")
-        if user_path.exists():
-            user = json.loads(user_path.read_text())
-            cleared = False
-            for section in _DEPLOYABLE_REGISTRY_SECTIONS:
-                for key, cfg in user.get(section, {}).items():
-                    dep = cfg.get("deployment", {})
-                    if dep.get("endpoint_name") == endpoint_name and dep.get("model_ready"):
-                        dep.pop("model_ready", None)
-                        user_path.write_text(json.dumps(user, indent=2))
-                        _set_inmemory_model_ready(endpoint_name, None)
-                        logger.debug("Cleared model_ready for %s in registry (%s)", endpoint_name, section)
-                        cleared = True
-                        break
-                if cleared:
-                    break
-    except Exception:
-        pass
+    # Clear persisted readiness from the registry (in-memory + file via _save).
+    _set_registry_model_ready(endpoint_name, False)
 
 
 def check_endpoint_status(endpoint_name: str) -> dict:
