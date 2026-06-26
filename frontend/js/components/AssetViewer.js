@@ -2193,29 +2193,26 @@
                     || pl.geometry_model
                     || v.model_key || v.variant_id;
             };
+            // Compact single-line pills — mirrors the 2D image version bar. Per-
+            // variant detail (faces / PBR) lives in the button title tooltip so
+            // the row stays short. "Set default" is a small inline button shown
+            // only while previewing a non-default variant.
+            const subtitle = (v) => [
+                v.faces ? v.faces.toLocaleString() + ' ' + t('asset_viewer.three_d_est_faces') : '',
+                v.pipeline?.has_pbr ? 'PBR' : '',
+            ].filter(Boolean).join(' · ');
             bar.innerHTML = `
-                <div class="rounded-lg border border-brand-border/40 bg-white/[0.02] px-3 py-2">
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_variants_title')}</span>
-                        <span class="text-[10px] text-brand-text-dim">${variants.length} ${t('asset_viewer.three_d_variants_count')}</span>
-                    </div>
-                    <div class="flex flex-wrap gap-2">
-                        ${variants.map((v) => {
-                            const isDefault = v.variant_id === defaultId;
-                            return `
-                            <button class="av-3d-variant-btn group text-left px-2.5 py-1.5 rounded-lg border text-[11px] transition-colors ${isDefault ? 'border-brand-accent bg-brand-accent/10' : 'border-brand-border hover:border-brand-accent/50'}"
-                                    data-variant="${this._esc(v.variant_id)}">
-                                <div class="flex items-center gap-1.5">
-                                    <span class="font-medium">${this._esc(label(v))}</span>
-                                    ${isDefault ? `<span class="text-[8px] px-1 py-0.5 rounded bg-brand-accent/20 text-brand-accent">${t('asset_viewer.three_d_variant_default')}</span>` : ''}
-                                </div>
-                                <div class="text-[9px] text-brand-text-dim">${v.faces ? v.faces.toLocaleString() + ' ' + t('asset_viewer.three_d_est_faces') : ''}${v.pipeline?.has_pbr ? ' · PBR' : ''}</div>
-                            </button>`;
-                        }).join('')}
-                    </div>
-                    <div class="flex items-center gap-2 mt-2">
-                        <button id="av-3d-set-default" class="btn btn-xs btn-secondary hidden">${t('asset_viewer.three_d_variant_set_default')}</button>
-                    </div>
+                <div class="flex items-center gap-2 flex-wrap">
+                    <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('asset_viewer.three_d_variants_title')}</span>
+                    ${variants.map((v) => {
+                        const isDefault = v.variant_id === defaultId;
+                        const sub = subtitle(v);
+                        return `<button class="av-3d-variant-btn px-2 py-1 rounded text-[10px] transition-all cursor-pointer ${isDefault ? 'bg-brand-accent text-white' : 'bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent hover:text-brand-text'}"
+                                data-variant="${this._esc(v.variant_id)}" title="${this._esc(label(v))}${sub ? ' — ' + this._esc(sub) : ''}">
+                            ${this._esc(label(v))}${isDefault ? `<span class="opacity-60 ml-1">(${t('asset_viewer.three_d_variant_default')})</span>` : ''}
+                        </button>`;
+                    }).join('')}
+                    <button id="av-3d-set-default" class="hidden px-2 py-1 rounded text-[10px] border border-brand-accent/50 text-brand-accent hover:bg-brand-accent/10 transition-colors cursor-pointer">${t('asset_viewer.three_d_variant_set_default')}</button>
                 </div>`;
             bar.classList.remove('hidden');
 
@@ -2225,8 +2222,14 @@
             const refreshButtons = () => {
                 bar.querySelectorAll('.av-3d-variant-btn').forEach((btn) => {
                     const sel = btn.dataset.variant === previewId;
-                    btn.classList.toggle('border-brand-accent', sel);
-                    btn.classList.toggle('bg-brand-accent/10', sel);
+                    // Mirror the 2D version-bar pill states: accent fill when active,
+                    // bordered/muted otherwise.
+                    btn.classList.toggle('bg-brand-accent', sel);
+                    btn.classList.toggle('text-white', sel);
+                    btn.classList.toggle('bg-brand-bg', !sel);
+                    btn.classList.toggle('border', !sel);
+                    btn.classList.toggle('border-brand-border', !sel);
+                    btn.classList.toggle('text-brand-text-muted', !sel);
                 });
                 // Offer "Set as default" only when previewing a non-default variant.
                 if (setDefaultBtn) setDefaultBtn.classList.toggle('hidden', previewId === defaultId);
