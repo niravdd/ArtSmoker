@@ -751,6 +751,13 @@ _ENDPOINT_CACHE_TTL = 30  # seconds
 _model_readiness: dict = {}  # endpoint_name → {"ready": bool, "detail": str, "checked_at": float}
 _readiness_monitors: set = set()  # endpoints with active background monitors
 
+# Registry sections that can hold a deployed custom endpoint. Custom image models
+# live under "image_models"; 3D pipelines (TripoSG / TRELLIS.2-full) live under
+# "post_processing". Readiness persistence MUST scan BOTH — otherwise a 3D
+# endpoint's model_ready flag is never written (nor cleared on teardown), which
+# left the 3D picker permanently showing "warming up" even after the model loaded.
+_DEPLOYABLE_REGISTRY_SECTIONS = ("image_models", "post_processing")
+
 
 def _check_model_readiness(endpoint_name: str) -> dict:
     """Check if the model is actually loaded and ready, not just InService.
@@ -769,16 +776,18 @@ def _check_model_readiness(endpoint_name: str) -> dict:
     if cached and cached.get("ready"):
         return cached
 
-    # 1b. Check registry for persisted readiness (survives server restart)
+    # 1b. Check registry for persisted readiness (survives server restart).
+    # Scan both image_models and post_processing (3D pipelines live in the latter).
     try:
         from backend.services.model_registry import get_registry
         reg = get_registry()
-        for key, cfg in reg.get("image_models", {}).items():
-            dep = cfg.get("deployment", {})
-            if dep.get("endpoint_name") == endpoint_name and dep.get("model_ready"):
-                result = {"ready": True, "detail": "Confirmed ready (from registry)"}
-                _model_readiness[endpoint_name] = result
-                return result
+        for section in _DEPLOYABLE_REGISTRY_SECTIONS:
+            for key, cfg in reg.get(section, {}).items():
+                dep = cfg.get("deployment", {})
+                if dep.get("endpoint_name") == endpoint_name and dep.get("model_ready"):
+                    result = {"ready": True, "detail": "Confirmed ready (from registry)"}
+                    _model_readiness[endpoint_name] = result
+                    return result
     except Exception:
         pass
 
@@ -951,21 +960,48 @@ def _persist_readiness_to_registry(endpoint_name: str):
     Cleared on teardown (deployment entry removed) or redeploy.
     """
     try:
-        from backend.services.model_registry import get_registry, _save_user_overrides
         import json, pathlib
         user_path = pathlib.Path("backend/model_registry.user.json")
         if not user_path.exists():
             return
         user = json.loads(user_path.read_text())
-        for key, cfg in user.get("image_models", {}).items():
-            dep = cfg.get("deployment", {})
-            if dep.get("endpoint_name") == endpoint_name:
-                dep["model_ready"] = True
-                user_path.write_text(json.dumps(user, indent=2))
-                logger.info("Persisted model_ready=True for %s in registry", endpoint_name)
-                return
+        for section in _DEPLOYABLE_REGISTRY_SECTIONS:
+            for key, cfg in user.get(section, {}).items():
+                dep = cfg.get("deployment", {})
+                if dep.get("endpoint_name") == endpoint_name:
+                    dep["model_ready"] = True
+                    user_path.write_text(json.dumps(user, indent=2))
+                    # Also update the IN-MEMORY registry so live reads (e.g. the 3D
+                    # /instances route) reflect readiness immediately — the file
+                    # write alone wouldn't surface until a server restart reloaded it.
+                    _set_inmemory_model_ready(endpoint_name, True)
+                    logger.info("Persisted model_ready=True for %s in registry (%s)", endpoint_name, section)
+                    return
     except Exception as e:
         logger.debug("Failed to persist readiness to registry: %s", e)
+
+
+def _set_inmemory_model_ready(endpoint_name: str, value):
+    """Reflect a model_ready change in the live in-memory registry cache.
+
+    The persisted file is authoritative across restarts, but reads during this
+    process go through the cached get_registry() dict — so mutate it too. value=
+    True sets the flag; value=None pops it (teardown).
+    """
+    try:
+        from backend.services.model_registry import get_registry
+        reg = get_registry()
+        for section in _DEPLOYABLE_REGISTRY_SECTIONS:
+            for key, cfg in reg.get(section, {}).items():
+                dep = cfg.get("deployment", {}) if isinstance(cfg, dict) else {}
+                if dep.get("endpoint_name") == endpoint_name:
+                    if value is None:
+                        dep.pop("model_ready", None)
+                    else:
+                        dep["model_ready"] = value
+                    return
+    except Exception as e:
+        logger.debug("In-memory model_ready update skipped for %s: %s", endpoint_name, e)
 
 
 def _start_readiness_monitor(endpoint_name: str):
@@ -1020,12 +1056,18 @@ def clear_readiness_cache(endpoint_name: str):
         user_path = pathlib.Path("backend/model_registry.user.json")
         if user_path.exists():
             user = json.loads(user_path.read_text())
-            for key, cfg in user.get("image_models", {}).items():
-                dep = cfg.get("deployment", {})
-                if dep.get("endpoint_name") == endpoint_name and dep.get("model_ready"):
-                    dep.pop("model_ready", None)
-                    user_path.write_text(json.dumps(user, indent=2))
-                    logger.debug("Cleared model_ready for %s in registry", endpoint_name)
+            cleared = False
+            for section in _DEPLOYABLE_REGISTRY_SECTIONS:
+                for key, cfg in user.get(section, {}).items():
+                    dep = cfg.get("deployment", {})
+                    if dep.get("endpoint_name") == endpoint_name and dep.get("model_ready"):
+                        dep.pop("model_ready", None)
+                        user_path.write_text(json.dumps(user, indent=2))
+                        _set_inmemory_model_ready(endpoint_name, None)
+                        logger.debug("Cleared model_ready for %s in registry (%s)", endpoint_name, section)
+                        cleared = True
+                        break
+                if cleared:
                     break
     except Exception:
         pass
