@@ -202,6 +202,7 @@
     "three_d_regenerate": "重新生成",
     "three_d_variants_title": "3D 变体",
     "three_d_variants_count": "个变体",
+    "three_d_jobs_running": "生成中",
     "three_d_variant_default": "默认",
     "three_d_variant_set_default": "设为默认",
     "three_d_variant_set_default_ok": "默认 3D 模型已更新",

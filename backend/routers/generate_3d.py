@@ -875,6 +875,39 @@ async def get_active_3d_job(asset_id: str, version: int = 1):
     return {"active": True, "job_id": job["job_id"], "status": job["status"]}
 
 
+@router.get("/active-all/{asset_id}")
+async def get_active_3d_jobs(asset_id: str, version: int = 1):
+    """Return ALL in-progress 3D jobs for an asset+version (parallel jobs).
+
+    Unlike /active (single most-recent job), this lists every non-finalized job
+    so the frontend can run + track multiple async generations of the same image
+    in parallel (e.g. TripoSG and TRELLIS.2 at once). Each carries a short
+    pipeline label for the in-progress strip. No supersession collapse here —
+    each job is independent and finalizes into its own variant.
+    """
+    out = []
+    for j in _3d_jobs.values():
+        if j.get("asset_id") != asset_id or j.get("version", 1) != version:
+            continue
+        if j.get("status") in ("complete", "failed"):
+            continue
+        # Resolve a human label (pipeline + deploy time) like the variant chooser.
+        mk = j.get("model_key", "")
+        _, cfg = _find_triposg_model(mk)
+        ptype = _3D_CATALOG_KEYS.get((cfg or {}).get("catalog_key", ""), "triposg") if cfg else "triposg"
+        label = _variant_instance_label(ptype, cfg or {}) if cfg else (mk or "3D job")
+        out.append({
+            "job_id": j["job_id"],
+            "status": j.get("status", "submitted"),
+            "model_key": mk,
+            "pipeline_type": ptype,
+            "label": label,
+            "submitted_at": j.get("submitted_at", ""),
+        })
+    out.sort(key=lambda x: x.get("submitted_at", ""))
+    return {"asset_id": asset_id, "version": version, "jobs": out}
+
+
 @router.get("/variants/{asset_id}/{version}")
 async def list_3d_variants(asset_id: str, version: int):
     """List the 3D variants for an asset+version (3D sub-versioning).

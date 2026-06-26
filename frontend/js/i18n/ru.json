@@ -818,6 +818,7 @@
     "three_d_regenerate": "Перегенерация",
     "three_d_variants_title": "3D-варианты",
     "three_d_variants_count": "вариантов",
+    "three_d_jobs_running": "Генерация",
     "three_d_variant_default": "По умолчанию",
     "three_d_variant_set_default": "Сделать по умолчанию",
     "three_d_variant_set_default_ok": "Модель 3D по умолчанию обновлена",

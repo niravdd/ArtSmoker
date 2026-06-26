@@ -202,6 +202,7 @@
     "three_d_regenerate": "再生成",
     "three_d_variants_title": "3Dバリアント",
     "three_d_variants_count": "バリアント",
+    "three_d_jobs_running": "生成中",
     "three_d_variant_default": "デフォルト",
     "three_d_variant_set_default": "デフォルトに設定",
     "three_d_variant_set_default_ok": "デフォルトの3Dモデルを更新しました",

@@ -48,6 +48,15 @@ class Settings(BaseSettings):
     # ARTSMOKER_AUTO_KEEP_WARM=true in .env to restore the old behavior.
     auto_keep_warm: bool = False
 
+    # Deploy-time scale-in grace (minutes). A freshly-deployed endpoint has zero
+    # traffic, so the scale-to-zero alarm trips ~1 min after it goes live and can
+    # drain the instance BEFORE the user's first job runs (or mid-job). To avoid
+    # that, when auto-scaling is first registered we pin MinCapacity=1 for this
+    # window, then auto-revert to 0 (normal scale-to-zero resumes). The
+    # ScaleInCooldown only gates the interval BETWEEN scale-ins, not this first
+    # one — hence a dedicated grace. Set 0 to disable.
+    deploy_scale_in_grace_minutes: int = 20
+
     # ── Generation defaults ───────────────────────────────────────────────
     default_image_width: int = 1024
     default_image_height: int = 1024

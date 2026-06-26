@@ -59,6 +59,7 @@
 
         close() {
             this._stop3DPolling();
+            this._stop3DJobsPolling();
             if (this._overlay) {
                 this._overlay.remove();
                 this._overlay = null;
@@ -260,6 +261,10 @@
 
                         <!-- 3D Model tab -->
                         <div class="tab-panel hidden" data-panel="3d">
+                            <!-- In-progress strip: lists ALL parallel 3D jobs for
+                                 this asset+version (independent of the main content
+                                 below, so the form/viewer stays usable while jobs run). -->
+                            <div id="av-3d-jobs" class="hidden mb-3"></div>
                             <div id="av-3d-content" class="space-y-4 text-sm">
                                 <div class="flex items-center gap-2 text-brand-text-muted py-8 justify-center">
                                     <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
@@ -1624,27 +1629,13 @@
                 return;
             }
 
-            // If a regeneration is in progress for THIS asset, show the pending
-            // view (not the stale prior model) so the user knows work is ongoing
-            // and doesn't re-trigger. Resume polling so it auto-loads when ready.
-            // Check in-memory first (same session), then the backend (survives
-            // a page reload, since in-memory tracking is wiped on refresh).
-            let activeJobId = window._3dActiveJobs?.[meta.id];
-            if (!activeJobId) {
-                try {
-                    const active = await API.threeD.activeJob(meta.id, this._currentVersion || 1);
-                    if (active && active.active && active.job_id) {
-                        activeJobId = active.job_id;
-                        window._3dActiveJobs[meta.id] = activeJobId;
-                    }
-                } catch {}
-            }
-            if (activeJobId) {
-                this._3dJobId = activeJobId;
-                this._render3DPending(container, activeJobId);
-                if (!this._3dPollTimer) this._start3DPolling(activeJobId);
-                return;
-            }
+            // Parallel jobs: the in-progress strip (#av-3d-jobs) is driven by its
+            // own poller (_start3DJobsPolling) and shows EVERY active job for this
+            // asset+version. The main content below always renders the current
+            // state (existing model or the generate form) so the user can fire
+            // additional parallel jobs while others run — we no longer block the
+            // whole tab on a single in-flight job.
+            this._start3DJobsPolling();
 
             // Check if 3D already exists for current version — show it regardless of deployment status
             try {
@@ -1972,11 +1963,13 @@
 
             try {
                 const result = await API.threeD.generate(payload);
-                this._3dJobId = result.job_id;
-                window._3dActiveJobs[payload.asset_id] = result.job_id;
                 window.showToast?.(t('asset_viewer.three_d_pending'), 'info');
-                this._render3DPending(container, result.job_id);
-                this._start3DPolling(result.job_id);
+                // Parallel-jobs model: the new job joins the in-progress strip
+                // (poller picks it up); the main content re-renders to the current
+                // state (existing model or a fresh form) so another job can be
+                // fired immediately. No full-panel takeover.
+                this._start3DJobsPolling(true);
+                this._update3DContent();
             } catch (err) {
                 window.showToast?.(t('asset_viewer.three_d_failed') + ': ' + err.message, 'error');
                 btn.disabled = false;
@@ -1993,6 +1986,66 @@
                         <p class="text-[10px] text-brand-text-muted mt-1">${t('asset_viewer.three_d_pending_subtitle')}</p>
                     </div>
                     <p class="text-[9px] text-brand-text-dim font-mono">${t('asset_viewer.three_d_job_id')}: ${this._esc(jobId)}</p>
+                </div>`;
+        },
+
+        /**
+         * Poll ALL in-progress 3D jobs for the current asset+version and render a
+         * compact in-progress strip (#av-3d-jobs). Supports multiple parallel jobs
+         * (e.g. TripoSG + TRELLIS.2 at once). Single source of truth = the backend
+         * /active-all route, so it survives page reloads. When the set of active
+         * jobs shrinks (a job finished), it refreshes the main content + variant
+         * switcher so the new model appears. Idempotent — one timer per viewer.
+         */
+        _start3DJobsPolling(force) {
+            if (this._3dJobsTimer && !force) return;
+            const tick = async () => {
+                const meta = this._meta;
+                const strip = this._overlay?.querySelector('#av-3d-jobs');
+                if (!meta || !strip) return;
+                let jobs = [];
+                try {
+                    const r = await API.threeD.activeJobs(meta.id, this._currentVersion || 1);
+                    jobs = r?.jobs || [];
+                } catch { return; }
+                const prevCount = this._3dActiveCount || 0;
+                this._3dActiveCount = jobs.length;
+                this._render3DJobsStrip(strip, jobs);
+                // A job just finished → pull fresh metadata + re-render content so
+                // the new variant shows, and refresh the variant switcher.
+                if (jobs.length < prevCount) {
+                    try { this._meta = await API.gallery.get(meta.id); } catch {}
+                    window.Gallery?.refresh?.();
+                    this._update3DContent();
+                }
+                // No jobs left → stop polling.
+                if (jobs.length === 0) this._stop3DJobsPolling();
+            };
+            this._stop3DJobsPolling();
+            this._3dJobsTimer = setInterval(tick, 5000);
+            tick();  // immediate first pass
+        },
+
+        _stop3DJobsPolling() {
+            if (this._3dJobsTimer) { clearInterval(this._3dJobsTimer); this._3dJobsTimer = null; }
+        },
+
+        _render3DJobsStrip(strip, jobs) {
+            if (!jobs.length) { strip.classList.add('hidden'); strip.innerHTML = ''; return; }
+            strip.classList.remove('hidden');
+            strip.innerHTML = `
+                <div class="rounded-lg border border-brand-accent/30 bg-brand-accent/5 px-3 py-2">
+                    <div class="flex items-center gap-2 mb-1.5">
+                        <div class="loading-spinner w-3.5 h-3.5 border-2 border-brand-accent/30 border-t-brand-accent rounded-full"></div>
+                        <span class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_jobs_running')} (${jobs.length})</span>
+                    </div>
+                    <div class="space-y-1">
+                        ${jobs.map(j => `
+                            <div class="flex items-center justify-between gap-2 text-[11px]">
+                                <span class="text-brand-text">${this._esc(j.label || j.model_key || '3D')}</span>
+                                <span class="text-[9px] font-mono text-brand-text-dim">${this._esc(j.status)} · ${this._esc(j.job_id)}</span>
+                            </div>`).join('')}
+                    </div>
                 </div>`;
         },
 
@@ -2030,11 +2083,10 @@
                             </div>`).join('')}
                     </div>
                 </div>` : '';
-            const regenInProgress = this._3dJobId && this._3dPollTimer;
-            const regenBtnClass = regenInProgress ? 'btn btn-sm btn-secondary opacity-60 cursor-not-allowed' : 'btn btn-sm btn-secondary';
-            const regenBtnLabel = regenInProgress
-                ? `<span class="spinner-sm mr-1"></span> ${t('asset_viewer.three_d_regenerating')}`
-                : `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('asset_viewer.three_d_regenerate')}`;
+            // Parallel jobs: Regenerate is ALWAYS available — firing another job
+            // adds it to the in-progress strip rather than blocking the view.
+            const regenBtnClass = 'btn btn-sm btn-secondary';
+            const regenBtnLabel = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('asset_viewer.three_d_regenerate')}`;
             container.innerHTML = `
                 <div class="space-y-3">
                     <!-- Variant switcher — populated async when a version
@@ -2136,7 +2188,6 @@
             });
 
             container.querySelector('#av-3d-regenerate')?.addEventListener('click', async () => {
-                if (this._3dJobId && this._3dPollTimer) return;
                 try {
                     const availability = await API.threeD.check();
                     if (!availability || !availability.available) {
@@ -2259,64 +2310,10 @@
             refreshButtons();
         },
 
-        _start3DPolling(jobId) {
-            this._stop3DPolling();
-            this._3dPollTimer = setInterval(async () => {
-                try {
-                    const status = await API.threeD.status(jobId);
-                    if (status.status === 'complete') {
-                        this._stop3DPolling();
-                        this._3dJobId = null;
-                        const assetId = this._item?.id;
-                        if (assetId) delete window._3dActiveJobs[assetId];
-                        window.showToast?.(t('asset_viewer.three_d_complete'), 'success');
-                        const container = this._overlay?.querySelector('#av-3d-content');
-                        // Map the status response fields to what _render3DComplete expects
-                        const r = status.result || status;
-                        if (container) this._render3DComplete(container, {
-                            download_url: r.glb_url || r.download_url,
-                            file_size: r.size_bytes || r.file_size || 0,
-                            vertices: r.vertices || 0,
-                            faces: r.faces || 0,
-                            created_at: r.created_at || new Date().toISOString(),
-                            pipeline: r.pipeline || null,
-                            params: r.params || null,
-                        });
-                    } else if (status.status === 'failed') {
-                        this._stop3DPolling();
-                        this._3dJobId = null;
-                        const assetId = this._item?.id;
-                        if (assetId) delete window._3dActiveJobs[assetId];
-                        window.showToast?.(t('asset_viewer.three_d_failed'), 'error');
-                        const container = this._overlay?.querySelector('#av-3d-content');
-                        if (container) {
-                            container.innerHTML = `
-                                <div class="text-center py-8 space-y-3">
-                                    <p class="text-red-400">${t('asset_viewer.three_d_failed')}</p>
-                                    <p class="text-[10px] text-brand-text-dim">${this._esc(status.error || '')}</p>
-                                    <button id="av-3d-retry" class="btn btn-sm btn-secondary">${t('asset_viewer.three_d_regenerate')}</button>
-                                </div>`;
-                            container.querySelector('#av-3d-retry')?.addEventListener('click', async () => {
-                                // Re-fetch instances so retry also offers the full picker.
-                                let instances = [];
-                                try {
-                                    const resp = await API.threeD.instances();
-                                    instances = (resp?.instances || []).filter(i => i.available);
-                                } catch {}
-                                this._render3DForm(container, instances);
-                            });
-                        }
-                    }
-                } catch (err) {
-                    this._stop3DPolling();
-                    this._3dJobId = null;
-                    const assetId = this._item?.id;
-                    if (assetId) delete window._3dActiveJobs[assetId];
-                    this._update3DContent();
-                }
-            }, 5000);
-        },
-
+        // Legacy single-job poller removed — parallel 3D jobs are now tracked by
+        // the in-progress strip (_start3DJobsPolling / #av-3d-jobs), which polls
+        // the backend /active-all route and finalizes each via the server-side
+        // poller. Kept as a safe no-op so existing close()/lifecycle calls work.
         _stop3DPolling() {
             if (this._3dPollTimer) {
                 clearInterval(this._3dPollTimer);

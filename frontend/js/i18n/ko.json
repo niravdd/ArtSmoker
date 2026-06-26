@@ -202,6 +202,7 @@
     "three_d_regenerate": "재생성",
     "three_d_variants_title": "3D 변형",
     "three_d_variants_count": "개 변형",
+    "three_d_jobs_running": "생성 중",
     "three_d_variant_default": "기본값",
     "three_d_variant_set_default": "기본값으로 설정",
     "three_d_variant_set_default_ok": "기본 3D 모델이 업데이트되었습니다",

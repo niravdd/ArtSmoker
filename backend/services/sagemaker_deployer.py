@@ -1567,9 +1567,43 @@ def _register_auto_scaling_after_ready(endpoint_name: str):
         _auto_scaling_registered.add(endpoint_name)
         logger.info("Auto-scaling configured for %s (scale to zero + scale from zero)", endpoint_name)
         logger.info("Auto-scaling registered for %s (cooldown=%ds) — model confirmed ready", endpoint_name, cooldown)
+        _apply_deploy_scale_in_grace(endpoint_name)
     except Exception as e:
         logger.warning("Auto-scaling setup failed for %s after model ready: %s — retrying in background", endpoint_name, e)
         _retry_auto_scaling_in_background(endpoint_name, scale_in_cooldown=cooldown)
+
+
+def _apply_deploy_scale_in_grace(endpoint_name: str):
+    """Protect a freshly-ready endpoint from scaling to zero before its first job.
+
+    A brand-new endpoint has zero traffic, so the scale-to-zero alarm fires within
+    ~1 min of going live and can drain the instance just as the user's first job
+    arrives (observed: a job's instance killed mid-inference, recovered only via
+    the backlog/scale-from-zero self-heal after a multi-minute stall). The
+    ScaleInCooldown gates only the interval BETWEEN scale-ins, not this first one.
+
+    Fix: pin MinCapacity=1 for settings.deploy_scale_in_grace_minutes, then
+    auto-revert to 0 (normal scale-to-zero resumes). Reuses the keep-warm
+    machinery (marker + revert timer) so a server restart is covered too. No-op
+    if the grace is 0 or a warm pin is already active.
+    """
+    try:
+        from backend.config import settings
+        grace_min = getattr(settings, "deploy_scale_in_grace_minutes", 0) or 0
+        if grace_min <= 0:
+            return
+        from .model_registry import get_warm_markers
+        if get_warm_markers().get(endpoint_name):
+            return  # already pinned (explicit keep-warm) — don't shorten its window
+        model_key = endpoint_name.replace("artsmoker-", "").replace("-", "_")
+        # Reuse set_keep_warm: pins MinCapacity=1, persists a marker, schedules the
+        # auto-revert. Bounded, self-reverting, restart-safe.
+        set_keep_warm(model_key, hours=grace_min / 60.0,
+                      endpoint_name=endpoint_name, extend_window=False)
+        logger.info("Deploy scale-in grace: pinned %s warm for %d min (protects first job)",
+                    endpoint_name, grace_min)
+    except Exception as e:
+        logger.debug("Deploy scale-in grace skipped for %s: %s", endpoint_name, e)
 
 
 def _retry_auto_scaling_in_background(endpoint_name: str, scale_in_cooldown: int = 600):

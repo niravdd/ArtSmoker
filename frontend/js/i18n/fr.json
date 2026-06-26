@@ -202,6 +202,7 @@
     "three_d_regenerate": "Régénérer",
     "three_d_variants_title": "Variantes 3D",
     "three_d_variants_count": "variantes",
+    "three_d_jobs_running": "Génération",
     "three_d_variant_default": "Par défaut",
     "three_d_variant_set_default": "Définir par défaut",
     "three_d_variant_set_default_ok": "Modèle 3D par défaut mis à jour",
