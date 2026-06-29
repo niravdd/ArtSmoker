@@ -51,6 +51,11 @@
             try {
                 const meta = await API.gallery.get(item.id);
                 this._meta = meta;
+                // Initialize the selected version to the asset's CURRENT version so
+                // every tab (incl. 3D) resolves against what the version bar shows.
+                // Without this, _currentVersion stayed null and the 3D tab fell back
+                // to v1 — loading v1's GLB even when v2 was the selected version.
+                this._currentVersion = meta.current_version || (meta.versions?.length || 1);
                 this._updateMetadata(meta);
             } catch (err) {
                 console.error('Failed to fetch metadata:', err);
