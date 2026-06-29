@@ -1779,40 +1779,46 @@
                     <!-- Advanced (collapsible) -->
                     <details class="border border-brand-border rounded-lg">
                         <summary class="px-3 py-2 text-xs text-brand-text-muted cursor-pointer hover:text-brand-text">${t('asset_viewer.three_d_advanced')}</summary>
-                        <div class="px-3 pb-3 pt-1 space-y-3">
+                        <!-- Two-column grid: pairs the fields so the panel is ~half
+                             the height (uses the previously-empty right side). -->
+                        <div class="px-3 pb-3 pt-2 grid grid-cols-2 gap-x-4 gap-y-3">
                             <div>
                                 <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_steps')}</label>
-                                <input id="av-3d-steps" type="range" min="20" max="100" value="50" class="w-48" />
-                                <span id="av-3d-steps-label" class="text-[10px] text-brand-text-muted ml-2">50</span>
+                                <div class="flex items-center gap-2">
+                                    <input id="av-3d-steps" type="range" min="20" max="100" value="50" class="flex-1 min-w-0" />
+                                    <span id="av-3d-steps-label" class="text-[10px] text-brand-text-muted w-6 text-right">50</span>
+                                </div>
                             </div>
                             <div>
                                 <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_guidance')}</label>
-                                <input id="av-3d-guidance" type="range" min="1" max="20" step="0.5" value="7.5" class="w-48" />
-                                <span id="av-3d-guidance-label" class="text-[10px] text-brand-text-muted ml-2">7.5</span>
+                                <div class="flex items-center gap-2">
+                                    <input id="av-3d-guidance" type="range" min="1" max="20" step="0.5" value="7.5" class="flex-1 min-w-0" />
+                                    <span id="av-3d-guidance-label" class="text-[10px] text-brand-text-muted w-6 text-right">7.5</span>
+                                </div>
                             </div>
                             <div>
                                 <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_faces')}</label>
-                                <select id="av-3d-faces" class="input text-xs w-48">
+                                <select id="av-3d-faces" class="input text-xs w-full">
                                     <option value="0">${t('asset_viewer.three_d_faces_unlimited')}</option>
                                     <option value="50000">50,000</option>
                                     <option value="100000" selected>100,000</option>
                                     <option value="200000">200,000</option>
                                     <option value="300000">300,000</option>
                                 </select>
-                                <p class="text-[9px] text-brand-text-dim mt-1 max-w-[12rem]">${t('asset_viewer.three_d_faces_hint')}</p>
+                                <p class="text-[9px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_faces_hint')}</p>
                             </div>
                             <div>
                                 <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_depth')}</label>
-                                <select id="av-3d-depth" class="input text-xs w-48">
+                                <select id="av-3d-depth" class="input text-xs w-full">
                                     <option value="128">${t('asset_viewer.three_d_depth_low')}</option>
                                     <option value="256" selected>${t('asset_viewer.three_d_depth_medium')}</option>
                                     <option value="512">${t('asset_viewer.three_d_depth_high')}</option>
                                 </select>
                             </div>
-                            <div>
+                            <div class="col-span-2">
                                 <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_seed')}</label>
-                                <input id="av-3d-seed" type="number" class="input text-xs w-48" placeholder="${t('asset_viewer.three_d_seed_placeholder')}" />
-                                <p class="text-[9px] text-brand-text-dim mt-1 max-w-[14rem]">${t('asset_viewer.three_d_seed_hint')}</p>
+                                <input id="av-3d-seed" type="number" class="input text-xs w-full max-w-xs" placeholder="${t('asset_viewer.three_d_seed_placeholder')}" />
+                                <p class="text-[9px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_seed_hint')}</p>
                             </div>
                         </div>
                     </details>
