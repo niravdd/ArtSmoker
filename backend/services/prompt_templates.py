@@ -23,6 +23,33 @@ _templates: dict = {}  # Merged view: defaults + user overrides
 # ── Default templates (code as source of truth for resets) ────────────────
 
 _DEFAULTS = {
+    "three_d_source_analysis": {
+        "label": "3D Source Completeness Analysis",
+        "description": "Vision analysis of a 2D image before image-to-3D, to detect whether the subject is cropped/incomplete so we can offer outpaint completion.",
+        "used_by": "3D Generator — pre-submit source check (generate_3d.analyze_source)",
+        "variables": ["{asset_type}"],
+        "model": "complex LLM (with vision)",
+        "system_prompt": "You are a 3D-asset pipeline reviewer. You judge whether a single 2D image is a COMPLETE depiction of its subject — suitable to convert into a full 3D model — or whether the subject is CROPPED by the image frame (parts cut off at an edge). Image-to-3D can only build geometry for what is visible, so a subject cropped at the bottom yields a legless/footless model. Respond with STRICT JSON only — no prose, no markdown.",
+        "text": """Analyze this image of a {asset_type} for image-to-3D conversion.
+
+Decide if the MAIN SUBJECT is fully visible, or cropped by the frame edges (parts cut off). Focus ONLY on framing/cropping — do NOT flag stylistic choices, partial occlusion by other objects, or intentionally abstract art.
+
+Return STRICT JSON with exactly these keys:
+{{
+  "complete": true|false,                 // true if the whole subject is in-frame
+  "subject": "short noun, e.g. 'humanoid character'",
+  "crop_edges": ["bottom"|"top"|"left"|"right"],   // frame edges where the subject is cut off; [] if none
+  "missing": ["legs","feet"],             // body parts/sections not visible due to cropping; [] if none
+  "suggest_outpaint": {{"down": 0-512, "up": 0-512, "left": 0-512, "right": 0-512}}, // px to extend per edge to reveal the rest; 0 where not needed
+  "reason": "one short sentence a user can read"
+}}
+
+Rules:
+- If the subject is fully visible (head-to-toe for a character, whole object for a prop), set complete=true, empty arrays, all outpaint values 0.
+- Only suggest outpaint on edges where the subject is genuinely cut off by the frame.
+- Be conservative: when in doubt, prefer complete=true (avoid false alarms on well-framed art).
+- Output ONLY the JSON object.""",
+    },
     "image_refine_single": {
         "label": "Image Prompt Refinement (Single)",
         "description": "Refines a user prompt into a detailed image caption optimized for the target model.",

@@ -1936,13 +1936,39 @@
             container.querySelector('#av-3d-generate')?.addEventListener('click', () => this._submit3DGeneration());
         },
 
-        async _submit3DGeneration() {
+        async _submit3DGeneration(skipSourceCheck) {
             const container = this._overlay?.querySelector('#av-3d-content');
             const btn = container?.querySelector('#av-3d-generate');
             if (!btn || btn.disabled) return;
 
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
+
+            // ── Source completeness pre-check (outpaint-completion offer) ──────
+            // Before dispatching, vision-check whether the source image's subject
+            // is cropped by the frame (→ an incomplete/legless 3D model). If so,
+            // offer to outpaint-complete it into a new 2D version first. Opt-in,
+            // non-blocking; only for subject-centric types; skipped on retry.
+            if (!skipSourceCheck) {
+                const t3 = this._meta?.asset_type;
+                if (t3 === 'character' || t3 === 'game_asset') {
+                    let analysis = null;
+                    try {
+                        analysis = await API.threeD.analyzeSource(this._item?.id, this._currentVersion || 1);
+                    } catch {}
+                    if (analysis && analysis.analyzed && analysis.complete === false) {
+                        const choice = await this._show3DSourceDialog(analysis);
+                        if (choice === 'cancel') { this._reset3DGenerateBtn(btn); return; }
+                        if (choice === 'complete') {
+                            const ok = await this._complete3DSource(analysis, btn);
+                            if (!ok) { this._reset3DGenerateBtn(btn); return; }
+                            // _complete3DSource switched _currentVersion to the new
+                            // outpainted version; fall through to submit against it.
+                        }
+                        // 'as-is' → just proceed with the current version.
+                    }
+                }
+            }
 
             const payload = {
                 asset_id: this._item?.id,
@@ -1972,8 +1998,87 @@
                 this._update3DContent();
             } catch (err) {
                 window.showToast?.(t('asset_viewer.three_d_failed') + ': ' + err.message, 'error');
-                btn.disabled = false;
-                btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> ${t('asset_viewer.three_d_generate')}`;
+                this._reset3DGenerateBtn(btn);
+            }
+        },
+
+        /** Restore the Generate-3D button to its idle state. */
+        _reset3DGenerateBtn(btn) {
+            if (!btn) return;
+            btn.disabled = false;
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> ${t('asset_viewer.three_d_generate')}`;
+        },
+
+        /**
+         * Modal offering to complete a cropped source before 3D. Resolves to
+         * 'as-is' (default), 'complete' (outpaint), or 'cancel'. Non-blocking by
+         * design — pre-selects nothing destructive; "Generate as-is" is primary.
+         */
+        _show3DSourceDialog(analysis) {
+            return new Promise((resolve) => {
+                const missing = (analysis.missing || []).join(', ');
+                const reason = analysis.reason || t('asset_viewer.three_d_src_default_reason');
+                const backdrop = document.createElement('div');
+                backdrop.className = 'fixed inset-0 z-[130] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
+                backdrop.innerHTML = `
+                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
+                        <div class="flex items-start gap-3">
+                            <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                            <div>
+                                <h3 class="text-sm font-semibold text-brand-text">${t('asset_viewer.three_d_src_title')}</h3>
+                                <p class="text-xs text-brand-text-muted mt-1">${this._esc(reason)}</p>
+                                ${missing ? `<p class="text-[11px] text-amber-400/90 mt-1">${t('asset_viewer.three_d_src_missing')}: ${this._esc(missing)}</p>` : ''}
+                            </div>
+                        </div>
+                        <p class="text-[11px] text-brand-text-dim">${t('asset_viewer.three_d_src_explain')}</p>
+                        <div class="flex flex-col gap-2">
+                            <button class="av-3d-src-complete btn btn-sm bg-brand-accent hover:bg-brand-accent-hover text-white rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_complete')}</button>
+                            <button class="av-3d-src-asis btn btn-sm btn-secondary rounded-lg py-2 text-xs">${t('asset_viewer.three_d_src_asis')}</button>
+                            <button class="av-3d-src-cancel text-[11px] text-brand-text-muted hover:text-brand-text mt-1">${t('prompt_designer.cancel')}</button>
+                        </div>
+                        <p class="text-[9px] text-brand-text-dim text-center">${t('asset_viewer.three_d_src_note')}</p>
+                    </div>`;
+                const done = (v) => { backdrop.remove(); resolve(v); };
+                backdrop.querySelector('.av-3d-src-complete').addEventListener('click', () => done('complete'));
+                backdrop.querySelector('.av-3d-src-asis').addEventListener('click', () => done('as-is'));
+                backdrop.querySelector('.av-3d-src-cancel').addEventListener('click', () => done('cancel'));
+                backdrop.addEventListener('click', (e) => { if (e.target === backdrop) done('cancel'); });
+                document.body.appendChild(backdrop);
+            });
+        },
+
+        /**
+         * Outpaint-complete the current source into a NEW 2D version, then switch
+         * the 3D source to it. Reuses the existing /api/generate/edit outpaint
+         * route (which creates the version) so the logic stays in one place.
+         * Returns true on success (and sets _currentVersion to the new version).
+         */
+        async _complete3DSource(analysis, btn) {
+            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_completing')}`;
+            const s = analysis.suggest_outpaint || {};
+            try {
+                const resp = await fetch('/api/generate/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source_image_id: this._item?.id,
+                        model: 'stable_outpaint_v1',
+                        prompt: '',  // outpaint continues the existing subject; no new content
+                        outpaint_left: s.left || 0,
+                        outpaint_right: s.right || 0,
+                        outpaint_up: s.up || 0,
+                        outpaint_down: s.down || 0,
+                        extra_params: {},
+                    }),
+                }).then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); });
+                // Refresh metadata + switch the 3D source to the new version.
+                try { this._meta = await API.gallery.get(this._item.id); } catch {}
+                if (resp.version) this._currentVersion = resp.version;
+                window.showToast?.(t('asset_viewer.three_d_src_completed'), 'success');
+                return true;
+            } catch (err) {
+                window.showToast?.(t('asset_viewer.three_d_src_failed'), 'error');
+                return false;
             }
         },
 

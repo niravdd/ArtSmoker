@@ -908,6 +908,73 @@ async def get_active_3d_jobs(asset_id: str, version: int = 1):
     return {"asset_id": asset_id, "version": version, "jobs": out}
 
 
+def _version_image_path(asset_id: str, version: int):
+    """Resolve the PNG path for a 2D version (v1 = asset.png)."""
+    fn = "asset.png" if (version or 1) == 1 else f"asset_v{version}.png"
+    return store.get_generated_file_path(asset_id, fn)
+
+
+class AnalyzeSourceRequest(BaseModel):
+    asset_id: str
+    version: int = 1
+
+
+@router.post("/analyze-source")
+async def analyze_3d_source(body: AnalyzeSourceRequest):
+    """Vision-analyze a 2D source image before image-to-3D.
+
+    Detects whether the subject is fully visible or CROPPED by the frame (which
+    would yield an incomplete 3D model — e.g. a character cropped at the waist
+    becomes legless). Returns a structured verdict the frontend uses to OFFER an
+    outpaint completion (non-blocking). Conservative by design — defaults to
+    "complete" on any uncertainty/error so it never blocks a good image.
+    """
+    img_path = _version_image_path(body.asset_id, body.version)
+    if img_path is None:
+        raise HTTPException(404, detail=f"Image not found for asset '{body.asset_id}' v{body.version}.")
+
+    meta = store.load_generation_metadata(body.asset_id) or {}
+    asset_type = (meta.get("asset_type") or "character").replace("_", " ")
+
+    try:
+        from backend.services.bedrock_client import invoke_llm
+        from backend.services.prompt_templates import get_template, get_system_prompt
+        prompt = get_template("three_d_source_analysis").format(asset_type=asset_type)
+        system = get_system_prompt("three_d_source_analysis")
+        raw = invoke_llm(prompt, system=system, complexity="complex",
+                         images=[img_path.read_bytes()], max_tokens=400, temperature=0.0)
+        # Strip any markdown fence and parse the JSON object.
+        txt = (raw or "").strip()
+        if "```" in txt:
+            txt = txt.split("```")[1].lstrip("json").strip() if txt.count("```") >= 2 else txt
+        start, end = txt.find("{"), txt.rfind("}")
+        data = json.loads(txt[start:end + 1]) if start >= 0 and end > start else {}
+    except Exception as e:
+        logger.info("3D source analysis unavailable for %s v%s (%s) — defaulting to complete",
+                    body.asset_id, body.version, e)
+        return {"complete": True, "analyzed": False}
+
+    complete = bool(data.get("complete", True))
+    outp = data.get("suggest_outpaint", {}) or {}
+    # Sanity-clamp outpaint pixels (the model returns 0-512 per edge).
+    def _clamp(v):
+        try: return max(0, min(512, int(v)))
+        except (TypeError, ValueError): return 0
+    suggest = {d: _clamp(outp.get(d, 0)) for d in ("down", "up", "left", "right")}
+    any_outpaint = any(suggest.values())
+    return {
+        "analyzed": True,
+        # Only call it incomplete if the model said so AND gave a usable outpaint
+        # direction — otherwise there's nothing actionable, so treat as complete.
+        "complete": complete or not any_outpaint,
+        "subject": data.get("subject", ""),
+        "crop_edges": data.get("crop_edges", []) or [],
+        "missing": data.get("missing", []) or [],
+        "suggest_outpaint": suggest,
+        "reason": data.get("reason", ""),
+    }
+
+
 @router.get("/variants/{asset_id}/{version}")
 async def list_3d_variants(asset_id: str, version: int):
     """List the 3D variants for an asset+version (3D sub-versioning).

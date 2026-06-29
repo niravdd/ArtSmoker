@@ -468,6 +468,13 @@
             activeJob(assetId, version = 1) {
                 return request(`/api/generate/3d/active/${encodeURIComponent(assetId)}?version=${version}`);
             },
+            /** Vision-analyze a 2D source before 3D: is the subject cropped/incomplete? */
+            analyzeSource(assetId, version = 1) {
+                return request('/api/generate/3d/analyze-source', {
+                    method: 'POST',
+                    body: { asset_id: assetId, version },
+                });
+            },
             /** List ALL in-progress 3D jobs for an asset+version (parallel jobs). */
             activeJobs(assetId, version = 1) {
                 return request(`/api/generate/3d/active-all/${encodeURIComponent(assetId)}?version=${version}`);

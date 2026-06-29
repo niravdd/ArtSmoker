@@ -1550,6 +1550,9 @@ async def edit_image(body: ImageEditRequest):
         "edit_type": purpose,
         "model": body.model,
         "model_label": label,
+        # The new version this edit created (latest). Lets callers (e.g. the
+        # 3D source-completion flow) switch to it without a second metadata fetch.
+        "version": next_version,
     }
 
 
