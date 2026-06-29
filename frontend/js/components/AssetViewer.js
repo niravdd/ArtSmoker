@@ -2072,11 +2072,16 @@
             let baseVersion = origVersion;                    // version we outpaint FROM
 
             while (true) {
-                const res = await this._outpaintOnce(baseVersion, suggestion, btn, prompt);
+                const res = await this._outpaintOnce(baseVersion, suggestion, btn, prompt, analysis);
                 if (res.status === 'failed') {
                     // Outpaint errored — revert to original, abort.
                     this._currentVersion = origVersion;
                     return false;
+                }
+                // Persist the re-review verdict onto the new version's record so the
+                // full iteration story (each result's analysis) is reviewable later.
+                if (res.newVersion && res.recheck) {
+                    try { await API.threeD.recordReview(this._item?.id, res.newVersion, res.recheck); } catch {}
                 }
                 // res: { newVersion, recheck } — a new version now exists + is current.
                 const decision = await this._showOutpaintPreview({
@@ -2110,7 +2115,7 @@
          * a new 2D version), switch _currentVersion to it, then re-analyze it.
          * Returns { status:'ok'|'failed', newVersion, recheck }.
          */
-        async _outpaintOnce(fromVersion, suggestion, btn, outpaintPrompt) {
+        async _outpaintOnce(fromVersion, suggestion, btn, outpaintPrompt, sourceAnalysis) {
             const s = suggestion || {};
             const dirs = {
                 outpaint_left: s.left || 0, outpaint_right: s.right || 0,
@@ -2139,6 +2144,12 @@
                             _meta: {
                                 trigger: '3d_source_completion',
                                 from_version: fromVersion,
+                                // What the analysis on the SOURCE detected (why we outpainted).
+                                detected: sourceAnalysis ? {
+                                    missing: sourceAnalysis.missing || [],
+                                    crop_edges: sourceAnalysis.crop_edges || [],
+                                    reason: sourceAnalysis.reason || '',
+                                } : null,
                                 directions: { left: dirs.outpaint_left, right: dirs.outpaint_right, up: dirs.outpaint_up, down: dirs.outpaint_down },
                                 prompt: (outpaintPrompt || '').trim(),
                             },

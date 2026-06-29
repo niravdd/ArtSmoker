@@ -979,6 +979,39 @@ async def analyze_3d_source(body: AnalyzeSourceRequest):
     }
 
 
+class RecordSourceReviewRequest(BaseModel):
+    asset_id: str
+    version: int
+    review: dict
+
+
+@router.post("/record-source-review")
+async def record_source_review(body: RecordSourceReviewRequest):
+    """Persist a completion re-review verdict onto a 2D version's record.
+
+    After an outpaint round, the result is re-analyzed; this stores that verdict
+    on the new version (meta.versions[].source_review) so the full iteration
+    history — each result's completeness verdict + what was still missing — is
+    reviewable later, not just shown transiently in the popup.
+    """
+    meta = store.load_generation_metadata(body.asset_id) or {}
+    versions = meta.get("versions", [])
+    r = body.review or {}
+    review = {
+        "complete": bool(r.get("complete", True)),
+        "missing": r.get("missing", []) or [],
+        "crop_edges": r.get("crop_edges", []) or [],
+        "reason": r.get("reason", ""),
+        "reviewed_at": datetime.now(timezone.utc).isoformat(),
+    }
+    for v in versions:
+        if v.get("version") == body.version:
+            v["source_review"] = review
+            store.save_generation_metadata(body.asset_id, meta)
+            return {"ok": True}
+    return {"ok": False, "detail": "version not found"}
+
+
 @router.get("/variants/{asset_id}/{version}")
 async def list_3d_variants(asset_id: str, version: int):
     """List the 3D variants for an asset+version (3D sub-versioning).

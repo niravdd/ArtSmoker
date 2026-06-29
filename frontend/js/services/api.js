@@ -475,6 +475,13 @@
                     body: { asset_id: assetId, version },
                 });
             },
+            /** Persist a completion re-review verdict onto a 2D version's record. */
+            recordReview(assetId, version, review) {
+                return request('/api/generate/3d/record-source-review', {
+                    method: 'POST',
+                    body: { asset_id: assetId, version, review },
+                });
+            },
             /** List ALL in-progress 3D jobs for an asset+version (parallel jobs). */
             activeJobs(assetId, version = 1) {
                 return request(`/api/generate/3d/active-all/${encodeURIComponent(assetId)}?version=${version}`);
