@@ -705,12 +705,9 @@ async def generate_3d(body: ThreeDGenerateRequest):
     if not endpoint_name or not enabled:
         raise HTTPException(400, detail="3D generation model is not deployed. Deploy from Custom Models first.")
 
-    # Read the source image
-    if body.version == 1:
-        image_path = store.get_generated_file_path(body.asset_id, "asset.png")
-    else:
-        image_path = store.get_generated_file_path(body.asset_id, f"asset_v{body.version}.png")
-
+    # Read the source image — resolve via the shared helper so we honor the 2D
+    # versioning convention (current version = asset.png; older = asset_v{N}.png).
+    image_path = _version_image_path(body.asset_id, body.version)
     if image_path is None:
         raise HTTPException(404, detail=f"Image not found for asset '{body.asset_id}' version {body.version}.")
 
@@ -908,10 +905,33 @@ async def get_active_3d_jobs(asset_id: str, version: int = 1):
     return {"asset_id": asset_id, "version": version, "jobs": out}
 
 
-def _version_image_path(asset_id: str, version: int):
-    """Resolve the PNG path for a 2D version (v1 = asset.png)."""
-    fn = "asset.png" if (version or 1) == 1 else f"asset_v{version}.png"
-    return store.get_generated_file_path(asset_id, fn)
+def _version_image_path(asset_id: str, version: int, meta: dict = None):
+    """Resolve the PNG path for a 2D version, ADAPTING to the existing 2D
+    versioning/file-naming convention (do not change that convention):
+
+      • the CURRENT (latest) version is always `asset.png`
+      • OLDER versions are archived as `asset_v{N}.png`
+
+    So the file for version N is `asset.png` when N is the current version, else
+    `asset_v{N}.png`. We resolve current_version from metadata; if the expected
+    file is missing we fall back across both names so a single-version asset (only
+    `asset.png`) or any edge case still resolves rather than 404-ing.
+    """
+    if meta is None:
+        meta = store.load_generation_metadata(asset_id) or {}
+    current = meta.get("current_version") or (len(meta.get("versions", [])) or 1)
+    candidates = []
+    if version and version == current:
+        candidates.append("asset.png")
+        candidates.append(f"asset_v{version}.png")
+    else:
+        candidates.append(f"asset_v{version}.png")
+        candidates.append("asset.png")
+    for fn in candidates:
+        p = store.get_generated_file_path(asset_id, fn)
+        if p is not None:
+            return p
+    return None
 
 
 class AnalyzeSourceRequest(BaseModel):

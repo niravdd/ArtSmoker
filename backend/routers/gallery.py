@@ -341,9 +341,15 @@ async def get_asset_metadata(asset_id: str):
 
 @router.get("/{asset_id}/version/{version}")
 async def get_asset_version(asset_id: str, version: int):
-    """Serve a specific PNG version of an asset."""
-    filename = f"asset_v{version}.png"
-    path = store.get_generated_file_path(asset_id, filename)
+    """Serve a specific PNG version of an asset.
+
+    Honors the 2D versioning convention: the CURRENT version lives as asset.png;
+    only OLDER versions are archived as asset_v{N}.png. Try the archived file
+    first, then fall back to asset.png (covers the current version) so callers
+    that pass the current version number still resolve.
+    """
+    path = store.get_generated_file_path(asset_id, f"asset_v{version}.png") \
+        or store.get_generated_file_path(asset_id, "asset.png")
     if path is None:
         raise HTTPException(404, detail=f"Version {version} not found for asset '{asset_id}'.")
     return FileResponse(path, media_type="image/png", filename=f"{asset_id}_v{version}.png")
