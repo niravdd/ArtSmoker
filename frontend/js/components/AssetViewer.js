@@ -1771,12 +1771,6 @@
                         <p id="av-3d-estimate" class="text-[10px] text-brand-text-dim mt-1.5"></p>
                     </div>
 
-                    <!-- Seed -->
-                    <div>
-                        <label class="text-xs text-brand-text-muted mb-1 block">${t('asset_viewer.three_d_seed')}</label>
-                        <input id="av-3d-seed" type="number" class="input text-sm w-full max-w-xs" placeholder="${t('asset_viewer.three_d_seed_placeholder')}" />
-                    </div>
-
                     <!-- Advanced (collapsible) -->
                     <details class="border border-brand-border rounded-lg">
                         <summary class="px-3 py-2 text-xs text-brand-text-muted cursor-pointer hover:text-brand-text">${t('asset_viewer.three_d_advanced')}</summary>
@@ -1809,6 +1803,11 @@
                                     <option value="256" selected>${t('asset_viewer.three_d_depth_medium')}</option>
                                     <option value="512">${t('asset_viewer.three_d_depth_high')}</option>
                                 </select>
+                            </div>
+                            <div>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_seed')}</label>
+                                <input id="av-3d-seed" type="number" class="input text-xs w-48" placeholder="${t('asset_viewer.three_d_seed_placeholder')}" />
+                                <p class="text-[9px] text-brand-text-dim mt-1 max-w-[14rem]">${t('asset_viewer.three_d_seed_hint')}</p>
                             </div>
                         </div>
                     </details>

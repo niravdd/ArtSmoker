@@ -120,6 +120,7 @@
     "three_d_quality_high": "Élevé — maillage complet (~1M faces / ~500K sommets), détail maximal",
     "three_d_seed": "Graine",
     "three_d_seed_placeholder": "Aléatoire",
+    "three_d_seed_hint": "Contrôle uniquement l'échantillonnage aléatoire — laissez vide pour un résultat différent à chaque fois, ou saisissez un nombre pour reproduire ou varier ce rendu. N'affecte pas la qualité.",
     "three_d_advanced": "Paramètres avancés",
     "three_d_steps": "Étapes d'inférence",
     "three_d_guidance": "Échelle de guidage",

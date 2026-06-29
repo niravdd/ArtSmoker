@@ -759,6 +759,7 @@
     "three_d_est_fullmesh": "Full mesh (~1M faces)",
     "three_d_seed": "Seed",
     "three_d_seed_placeholder": "Random",
+    "three_d_seed_hint": "Controls only the random sampling — leave blank for a fresh result each time, or set a number to reproduce or vary this exact run. Doesn't affect quality.",
     "three_d_advanced": "Advanced Parameters",
     "three_d_steps": "Inference Steps",
     "three_d_guidance": "Guidance Scale",

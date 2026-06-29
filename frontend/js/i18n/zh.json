@@ -120,6 +120,7 @@
     "three_d_quality_high": "高 — 完整网格（约100万面／约50万顶点），最大细节",
     "three_d_seed": "种子",
     "three_d_seed_placeholder": "随机",
+    "three_d_seed_hint": "仅控制随机采样——留空则每次生成不同结果，填入数字可复现或微调此次结果。不影响质量。",
     "three_d_advanced": "高级参数",
     "three_d_steps": "推理步数",
     "three_d_guidance": "引导比例",

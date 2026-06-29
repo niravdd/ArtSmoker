@@ -120,6 +120,7 @@
     "three_d_quality_high": "高 — フルメッシュ（約100万フェイス／約50万頂点）、最大ディテール",
     "three_d_seed": "シード",
     "three_d_seed_placeholder": "ランダム",
+    "three_d_seed_hint": "ランダムサンプリングのみを制御します。空欄にすると毎回新しい結果になり、数値を設定するとこの結果を再現または変化させられます。品質には影響しません。",
     "three_d_advanced": "詳細パラメータ",
     "three_d_steps": "推論ステップ数",
     "three_d_guidance": "ガイダンススケール",

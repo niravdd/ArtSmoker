@@ -120,6 +120,7 @@
     "three_d_quality_high": "Alto — malla completa (~1M caras / ~500K vértices), máximo detalle",
     "three_d_seed": "Semilla",
     "three_d_seed_placeholder": "Aleatorio",
+    "three_d_seed_hint": "Controla solo el muestreo aleatorio — déjalo en blanco para un resultado distinto cada vez, o pon un número para reproducir o variar esta ejecución. No afecta la calidad.",
     "three_d_advanced": "Parámetros avanzados",
     "three_d_steps": "Pasos de inferencia",
     "three_d_guidance": "Escala de guía",
