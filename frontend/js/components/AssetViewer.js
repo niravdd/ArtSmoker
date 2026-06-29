@@ -2417,7 +2417,7 @@
                             </svg>
                             ${t('asset_viewer.three_d_download')}
                         </a>
-                        <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5" ${regenInProgress ? 'disabled' : ''}>
+                        <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5">
                             ${regenBtnLabel}
                         </button>
                     </div>
