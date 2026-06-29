@@ -971,6 +971,10 @@ async def analyze_3d_source(body: AnalyzeSourceRequest):
         "crop_edges": data.get("crop_edges", []) or [],
         "missing": data.get("missing", []) or [],
         "suggest_outpaint": suggest,
+        # Suggested completion prompt for the outpaint (what to draw in the new
+        # area). The user can edit this before running; falls back to empty (the
+        # outpaint model continues the subject on its own) if not provided.
+        "outpaint_prompt": (data.get("outpaint_prompt", "") or "").strip()[:300],
         "reason": data.get("reason", ""),
     }
 

@@ -1500,6 +1500,19 @@ Because BiRefNet (MIT) does the real cutout at equal/better quality, **RMBG is n
 >
 > **Timestamps** are written timezone-aware (`datetime.now(timezone.utc)` → `…+00:00`) so the frontend renders local time correctly. (A prior naive `utcnow().isoformat()` had no zone suffix and displayed the wrong time.)
 
+### 5.10.2 Source Completion (Character/Asset → 3D)
+
+Image-to-3D can only build geometry for what is **visible** in the source image: a character cropped at the waist yields a legless mesh. Rather than force the user to frame the image precisely, ArtSmoker detects an incomplete source on 3D submit and **offers** to complete it via outpainting — turning a framing problem into an opt-in quality step.
+
+**Flow (AssetViewer 3D tab, `character` / `game_asset` only):**
+1. **Analyze** — `POST /api/generate/3d/analyze-source` sends the current 2D version's PNG to a vision LLM (the editable `three_d_source_analysis` steering template). It returns strict JSON: `{complete, subject, crop_edges[], missing[], suggest_outpaint{down/up/left/right px}, outpaint_prompt, reason}`. **Conservative by design** — defaults to `complete:true` on any uncertainty or parse/transport error, so a well-framed image is never blocked.
+2. **Offer** — if incomplete, a non-blocking dialog explains what's cropped and offers **Complete it first** / **Generate as-is** (clear secondary) / cancel. The dialog shows the LLM-**suggested completion prompt** in an **editable** field (e.g. *"the soldier's legs and combat boots, matching the armor"*); the user can edit or clear it (blank = the outpaint model just continues the subject).
+3. **Outpaint** — reuses the existing `POST /api/generate/edit` outpaint route (`model=stable_outpaint_v1`, directions from the analysis, the user's prompt), which creates a **new 2D version**. Provenance is recorded in that version's record under `edit_context` (trigger `3d_source_completion`, source version, directions, prompt) via a reserved `extra_params._meta` key that is stripped before the model call.
+4. **Preview & re-review** — after each outpaint, a **before→after preview popup** (layered above the 3D dialog) shows the source vs the result plus a **fresh re-review verdict** (re-runs `analyze-source` on the new version — the outpaint amount was an LLM *estimate*, not a measurement, so quality is verified before proceeding). The user picks: **Use this for 3D** (primary when the re-review passes), **Extend again** (primary when still cropped — re-outpaint with tweakable directions + editable prompt; **unlimited rounds**, each a new version + re-review + re-preview), or **Discard & keep original** (**soft discard** — reverts the 3D source to the pre-outpaint version; the outpainted version remains in history).
+5. **Generate** — the 3D job is submitted against whichever version the user accepted.
+
+The whole pre-check is skipped on retry and is purely a pre-submit gate — the happy path for a complete image is unchanged.
+
 ### 5.11 Async Jobs (Self-Hosted Model Generation)
 
 Non-blocking generation for self-hosted models on Amazon SageMaker async endpoints. When a user generates with a custom model, the request is submitted to S3 and returns immediately — the UI tracks progress without blocking.

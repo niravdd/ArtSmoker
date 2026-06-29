@@ -41,12 +41,14 @@ Return STRICT JSON with exactly these keys:
   "crop_edges": ["bottom"|"top"|"left"|"right"],   // frame edges where the subject is cut off; [] if none
   "missing": ["legs","feet"],             // body parts/sections not visible due to cropping; [] if none
   "suggest_outpaint": {{"down": 0-512, "up": 0-512, "left": 0-512, "right": 0-512}}, // px to extend per edge to reveal the rest; 0 where not needed
+  "outpaint_prompt": "short description of what to draw in the extended area",  // e.g. "the soldier's legs and combat boots, matching the armor"; "" if complete
   "reason": "one short sentence a user can read"
 }}
 
 Rules:
-- If the subject is fully visible (head-to-toe for a character, whole object for a prop), set complete=true, empty arrays, all outpaint values 0.
+- If the subject is fully visible (head-to-toe for a character, whole object for a prop), set complete=true, empty arrays, all outpaint values 0, outpaint_prompt "".
 - Only suggest outpaint on edges where the subject is genuinely cut off by the frame.
+- outpaint_prompt should describe the MISSING parts to generate, consistent with the visible subject's style/materials (do NOT redescribe the whole image). Keep it under ~120 chars.
 - Be conservative: when in doubt, prefer complete=true (avoid false alarms on well-framed art).
 - Output ONLY the JSON object.""",
     },

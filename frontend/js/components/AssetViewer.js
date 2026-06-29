@@ -1957,13 +1957,14 @@
                         analysis = await API.threeD.analyzeSource(this._item?.id, this._currentVersion || 1);
                     } catch {}
                     if (analysis && analysis.analyzed && analysis.complete === false) {
-                        const choice = await this._show3DSourceDialog(analysis);
-                        if (choice === 'cancel') { this._reset3DGenerateBtn(btn); return; }
-                        if (choice === 'complete') {
+                        const decision = await this._show3DSourceDialog(analysis);
+                        if (decision.action === 'cancel') { this._reset3DGenerateBtn(btn); return; }
+                        if (decision.action === 'complete') {
                             // Outpaint → preview → decide (iterate as needed). Returns
                             // true to proceed to 3D (against whichever version is now
-                            // current), false to abort.
-                            const proceed = await this._runOutpaintCompletion(analysis, btn);
+                            // current), false to abort. The user's (edited) completion
+                            // prompt seeds the first outpaint.
+                            const proceed = await this._runOutpaintCompletion(analysis, btn, decision.prompt);
                             if (!proceed) { this._reset3DGenerateBtn(btn); return; }
                         }
                         // 'as-is' → just proceed with the current version.
@@ -2011,14 +2012,17 @@
         },
 
         /**
-         * Modal offering to complete a cropped source before 3D. Resolves to
-         * 'as-is' (default), 'complete' (outpaint), or 'cancel'. Non-blocking by
-         * design — pre-selects nothing destructive; "Generate as-is" is primary.
+         * Modal offering to complete a cropped source before 3D. The completion
+         * PROMPT is LLM-suggested but user-editable (left blank = the outpaint
+         * model just continues the subject). Resolves to {action, prompt} where
+         * action is 'complete' | 'as-is' | 'cancel'. Non-blocking; "Generate
+         * as-is" stays a clear secondary, nothing destructive is pre-selected.
          */
         _show3DSourceDialog(analysis) {
             return new Promise((resolve) => {
                 const missing = (analysis.missing || []).join(', ');
                 const reason = analysis.reason || t('asset_viewer.three_d_src_default_reason');
+                const suggestedPrompt = analysis.outpaint_prompt || '';
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[130] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
                 backdrop.innerHTML = `
@@ -2032,6 +2036,11 @@
                             </div>
                         </div>
                         <p class="text-[11px] text-brand-text-dim">${t('asset_viewer.three_d_src_explain')}</p>
+                        <div>
+                            <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('asset_viewer.three_d_src_prompt_label')}</label>
+                            <textarea id="av-3d-src-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_prompt_ph')}">${this._esc(suggestedPrompt)}</textarea>
+                            <p class="text-[9px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_src_prompt_hint')}</p>
+                        </div>
                         <div class="flex flex-col gap-2">
                             <button class="av-3d-src-complete btn btn-sm bg-brand-accent hover:bg-brand-accent-hover text-white rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_complete')}</button>
                             <button class="av-3d-src-asis btn btn-sm btn-secondary rounded-lg py-2 text-xs">${t('asset_viewer.three_d_src_asis')}</button>
@@ -2039,7 +2048,8 @@
                         </div>
                         <p class="text-[9px] text-brand-text-dim text-center">${t('asset_viewer.three_d_src_note')}</p>
                     </div>`;
-                const done = (v) => { backdrop.remove(); resolve(v); };
+                const getPrompt = () => backdrop.querySelector('#av-3d-src-prompt')?.value || '';
+                const done = (action) => { const p = getPrompt(); backdrop.remove(); resolve({ action, prompt: p }); };
                 backdrop.querySelector('.av-3d-src-complete').addEventListener('click', () => done('complete'));
                 backdrop.querySelector('.av-3d-src-asis').addEventListener('click', () => done('as-is'));
                 backdrop.querySelector('.av-3d-src-cancel').addEventListener('click', () => done('cancel'));
@@ -2055,13 +2065,14 @@
          * Keeps _currentVersion pointed at whatever the user accepts. Returns true
          * to proceed to 3D (against the current version), false to abort.
          */
-        async _runOutpaintCompletion(analysis, btn) {
+        async _runOutpaintCompletion(analysis, btn, initialPrompt) {
             const origVersion = this._currentVersion || 1;   // for soft-discard revert
             let suggestion = analysis.suggest_outpaint || {};
+            let prompt = (initialPrompt !== undefined ? initialPrompt : analysis.outpaint_prompt) || '';
             let baseVersion = origVersion;                    // version we outpaint FROM
 
             while (true) {
-                const res = await this._outpaintOnce(baseVersion, suggestion, btn);
+                const res = await this._outpaintOnce(baseVersion, suggestion, btn, prompt);
                 if (res.status === 'failed') {
                     // Outpaint errored — revert to original, abort.
                     this._currentVersion = origVersion;
@@ -2073,6 +2084,7 @@
                     afterVersion: res.newVersion,
                     recheck: res.recheck,
                     suggestion,
+                    prompt: res.recheck?.outpaint_prompt || prompt,
                 });
                 if (decision.action === 'use') {
                     this._currentVersion = res.newVersion;
@@ -2085,9 +2097,10 @@
                     return false;
                 }
                 // 'extend' → iterate: outpaint AGAIN from the new version, using the
-                // user's (possibly tweaked) directions. Unlimited rounds.
+                // user's (possibly tweaked) directions + prompt. Unlimited rounds.
                 baseVersion = res.newVersion;
                 suggestion = decision.suggestion || res.recheck?.suggest_outpaint || suggestion;
+                prompt = decision.prompt !== undefined ? decision.prompt : prompt;
                 if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_completing')}`;
             }
         },
@@ -2097,7 +2110,7 @@
          * a new 2D version), switch _currentVersion to it, then re-analyze it.
          * Returns { status:'ok'|'failed', newVersion, recheck }.
          */
-        async _outpaintOnce(fromVersion, suggestion, btn) {
+        async _outpaintOnce(fromVersion, suggestion, btn, outpaintPrompt) {
             const s = suggestion || {};
             const dirs = {
                 outpaint_left: s.left || 0, outpaint_right: s.right || 0,
@@ -2116,9 +2129,20 @@
                     body: JSON.stringify({
                         source_image_id: this._item?.id,
                         model: 'stable_outpaint_v1',
-                        prompt: '',
+                        // Completion prompt: LLM-suggested, user-editable. Empty =
+                        // let the model continue the subject on its own.
+                        prompt: (outpaintPrompt || '').trim(),
                         ...dirs,
-                        extra_params: {},
+                        // _meta is stripped server-side into the version record (not
+                        // sent to the model) — provenance for this 3D-completion edit.
+                        extra_params: {
+                            _meta: {
+                                trigger: '3d_source_completion',
+                                from_version: fromVersion,
+                                directions: { left: dirs.outpaint_left, right: dirs.outpaint_right, up: dirs.outpaint_up, down: dirs.outpaint_down },
+                                prompt: (outpaintPrompt || '').trim(),
+                            },
+                        },
                     }),
                 }).then(async r => {
                     if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `${r.status}`); }
@@ -2145,7 +2169,7 @@
          * user adjust the next extend amount. Resolves:
          *   {action:'use'} | {action:'discard'} | {action:'extend', suggestion:{...}}
          */
-        _showOutpaintPreview({ beforeVersion, afterVersion, recheck, suggestion }) {
+        _showOutpaintPreview({ beforeVersion, afterVersion, recheck, suggestion, prompt }) {
             return new Promise((resolve) => {
                 const id = encodeURIComponent(this._item?.id);
                 const beforeUrl = `/api/gallery/${id}/version/${beforeVersion}?t=${Date.now()}`;
@@ -2179,10 +2203,16 @@
                         </div>
                         <details class="border border-brand-border rounded-lg">
                             <summary class="px-3 py-2 text-[11px] text-brand-text-muted cursor-pointer">${t('asset_viewer.three_d_src_pv_adjust')}</summary>
-                            <div class="px-3 pb-3 pt-1 grid grid-cols-4 gap-2">
-                                ${['left','right','up','down'].map(d => `
-                                    <div><label class="text-[9px] text-brand-text-muted">${t('asset_viewer.outpaint_' + d)}</label>
-                                    <input id="av-pv-${d}" type="number" min="0" max="512" value="${sg[d] || 0}" class="input text-xs w-full" /></div>`).join('')}
+                            <div class="px-3 pb-3 pt-1 space-y-2">
+                                <div>
+                                    <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_src_prompt_label')}</label>
+                                    <textarea id="av-pv-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_prompt_ph')}">${this._esc(prompt || '')}</textarea>
+                                </div>
+                                <div class="grid grid-cols-4 gap-2">
+                                    ${['left','right','up','down'].map(d => `
+                                        <div><label class="text-[9px] text-brand-text-muted">${t('asset_viewer.outpaint_' + d)}</label>
+                                        <input id="av-pv-${d}" type="number" min="0" max="512" value="${sg[d] || 0}" class="input text-xs w-full" /></div>`).join('')}
+                                </div>
                             </div>
                         </details>
                         <div class="flex flex-col gap-2">
@@ -2196,9 +2226,10 @@
                     const g = (d) => { const n = parseInt(backdrop.querySelector(`#av-pv-${d}`)?.value || '0', 10); return Number.isFinite(n) ? Math.max(0, Math.min(512, n)) : 0; };
                     return { left: g('left'), right: g('right'), up: g('up'), down: g('down') };
                 };
+                const readPrompt = () => backdrop.querySelector('#av-pv-prompt')?.value || '';
                 const done = (v) => { backdrop.remove(); resolve(v); };
                 backdrop.querySelector('.av-pv-use').addEventListener('click', () => done({ action: 'use' }));
-                backdrop.querySelector('.av-pv-extend').addEventListener('click', () => done({ action: 'extend', suggestion: readDirs() }));
+                backdrop.querySelector('.av-pv-extend').addEventListener('click', () => done({ action: 'extend', suggestion: readDirs(), prompt: readPrompt() }));
                 backdrop.querySelector('.av-pv-discard').addEventListener('click', () => done({ action: 'discard' }));
                 backdrop.addEventListener('click', (e) => { if (e.target === backdrop) done({ action: 'discard' }); });
                 document.body.appendChild(backdrop);

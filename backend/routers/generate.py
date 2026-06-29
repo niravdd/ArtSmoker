@@ -1358,8 +1358,13 @@ async def edit_image(body: ImageEditRequest):
         except Exception:
             raise HTTPException(400, detail="Invalid base64 mask data")
 
-    # Build extra params for outpainting
-    extra = body.extra_params or {}
+    # Build extra params for outpainting.
+    # `_meta` is a RESERVED provenance key (not a model param): callers (e.g. the
+    # Character→3D source-completion flow) stash context here to record in the
+    # version metadata. Pull it out BEFORE building the model call so it never
+    # leaks to the image API.
+    extra = dict(body.extra_params or {})
+    edit_meta = extra.pop("_meta", None)
     if purpose == "outpainting":
         if body.outpaint_left > 0:
             extra["left"] = body.outpaint_left
@@ -1526,7 +1531,10 @@ async def edit_image(body: ImageEditRequest):
         "model_label": label,
         "region": body.region or model_config.get("region", ""),
         "seed": body.seed,
-        "extra_params": body.extra_params,
+        "extra_params": extra if extra else None,
+        # Provenance for programmatic edits (e.g. 3D source-completion outpaint):
+        # what triggered it, the analysis verdict, directions + prompt used.
+        **({"edit_context": edit_meta} if edit_meta else {}),
         "timestamp": datetime.utcnow().isoformat(),
     })
 
