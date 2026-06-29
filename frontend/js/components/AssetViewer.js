@@ -2421,7 +2421,7 @@
                     </div>
                     ${toolsHtml}
                     <div class="flex items-center justify-center gap-3">
-                        <a href="${glbUrl}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
+                        <a id="av-3d-download" href="${glbUrl}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
@@ -2567,13 +2567,26 @@
                 if (setDefaultBtn) setDefaultBtn.classList.toggle('hidden', previewId === defaultId);
             };
 
+            // Point both the viewer AND the Download GLB link at a variant, so
+            // "Download GLB" always grabs exactly what's on screen (not the default).
+            const dlLink = container.querySelector('#av-3d-download');
+            const variantUrl = (vid) => `/api/gallery/${encodeURIComponent(assetId)}/3d/${ver}?variant=${encodeURIComponent(vid)}`;
+            const showVariant = (vid) => {
+                previewId = vid;
+                if (viewer) viewer.src = `${variantUrl(vid)}&t=${Date.now()}`;
+                if (dlLink) {
+                    dlLink.href = variantUrl(vid);
+                    dlLink.setAttribute('download', `${assetId}_${vid}.glb`);
+                }
+                refreshButtons();
+            };
+            // Initialize the download link to the default variant currently shown.
+            if (dlLink && defaultId) {
+                dlLink.href = variantUrl(defaultId);
+                dlLink.setAttribute('download', `${assetId}_${defaultId}.glb`);
+            }
             bar.querySelectorAll('.av-3d-variant-btn').forEach((btn) => {
-                btn.addEventListener('click', () => {
-                    previewId = btn.dataset.variant;
-                    // Swap the model-viewer source to the chosen variant.
-                    if (viewer) viewer.src = `/api/gallery/${encodeURIComponent(assetId)}/3d/${ver}?variant=${encodeURIComponent(previewId)}&t=${Date.now()}`;
-                    refreshButtons();
-                });
+                btn.addEventListener('click', () => showVariant(btn.dataset.variant));
             });
 
             setDefaultBtn?.addEventListener('click', async () => {
