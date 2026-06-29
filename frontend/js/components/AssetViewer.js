@@ -1960,10 +1960,11 @@
                         const choice = await this._show3DSourceDialog(analysis);
                         if (choice === 'cancel') { this._reset3DGenerateBtn(btn); return; }
                         if (choice === 'complete') {
-                            const ok = await this._complete3DSource(analysis, btn);
-                            if (!ok) { this._reset3DGenerateBtn(btn); return; }
-                            // _complete3DSource switched _currentVersion to the new
-                            // outpainted version; fall through to submit against it.
+                            // Outpaint → preview → decide (iterate as needed). Returns
+                            // true to proceed to 3D (against whichever version is now
+                            // current), false to abort.
+                            const proceed = await this._runOutpaintCompletion(analysis, btn);
+                            if (!proceed) { this._reset3DGenerateBtn(btn); return; }
                         }
                         // 'as-is' → just proceed with the current version.
                     }
@@ -2048,14 +2049,66 @@
         },
 
         /**
-         * Outpaint-complete the current source into a NEW 2D version, then switch
-         * the 3D source to it. Reuses the existing /api/generate/edit outpaint
-         * route (which creates the version) so the logic stays in one place.
-         * Returns true on success (and sets _currentVersion to the new version).
+         * Orchestrate outpaint completion with a preview-and-decide loop.
+         * Each round: outpaint → re-analyze → show a before/after preview popup
+         * with the verdict → user picks Use / Extend again (tweakable) / Discard.
+         * Keeps _currentVersion pointed at whatever the user accepts. Returns true
+         * to proceed to 3D (against the current version), false to abort.
          */
-        async _complete3DSource(analysis, btn) {
+        async _runOutpaintCompletion(analysis, btn) {
+            const origVersion = this._currentVersion || 1;   // for soft-discard revert
+            let suggestion = analysis.suggest_outpaint || {};
+            let baseVersion = origVersion;                    // version we outpaint FROM
+
+            while (true) {
+                const res = await this._outpaintOnce(baseVersion, suggestion, btn);
+                if (res.status === 'failed') {
+                    // Outpaint errored — revert to original, abort.
+                    this._currentVersion = origVersion;
+                    return false;
+                }
+                // res: { newVersion, recheck } — a new version now exists + is current.
+                const decision = await this._showOutpaintPreview({
+                    beforeVersion: baseVersion,
+                    afterVersion: res.newVersion,
+                    recheck: res.recheck,
+                    suggestion,
+                });
+                if (decision.action === 'use') {
+                    this._currentVersion = res.newVersion;
+                    return true;
+                }
+                if (decision.action === 'discard') {
+                    // Soft discard: revert the 3D source to the original; the
+                    // outpainted version stays in history (usable/deletable later).
+                    this._currentVersion = origVersion;
+                    return false;
+                }
+                // 'extend' → iterate: outpaint AGAIN from the new version, using the
+                // user's (possibly tweaked) directions. Unlimited rounds.
+                baseVersion = res.newVersion;
+                suggestion = decision.suggestion || res.recheck?.suggest_outpaint || suggestion;
+                if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_completing')}`;
+            }
+        },
+
+        /**
+         * One outpaint pass: extend `fromVersion` by the given directions (creates
+         * a new 2D version), switch _currentVersion to it, then re-analyze it.
+         * Returns { status:'ok'|'failed', newVersion, recheck }.
+         */
+        async _outpaintOnce(fromVersion, suggestion, btn) {
+            const s = suggestion || {};
+            const dirs = {
+                outpaint_left: s.left || 0, outpaint_right: s.right || 0,
+                outpaint_up: s.up || 0, outpaint_down: s.down || 0,
+            };
+            if (!Object.values(dirs).some(v => v > 0)) {
+                window.showToast?.(t('asset_viewer.three_d_src_nodir'), 'warning');
+                return { status: 'failed' };
+            }
             if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_completing')}`;
-            const s = analysis.suggest_outpaint || {};
+            let newVersion;
             try {
                 const resp = await fetch('/api/generate/edit', {
                     method: 'POST',
@@ -2063,24 +2116,95 @@
                     body: JSON.stringify({
                         source_image_id: this._item?.id,
                         model: 'stable_outpaint_v1',
-                        prompt: '',  // outpaint continues the existing subject; no new content
-                        outpaint_left: s.left || 0,
-                        outpaint_right: s.right || 0,
-                        outpaint_up: s.up || 0,
-                        outpaint_down: s.down || 0,
+                        prompt: '',
+                        ...dirs,
                         extra_params: {},
                     }),
-                }).then(r => { if (!r.ok) throw new Error(`${r.status}`); return r.json(); });
-                // Refresh metadata + switch the 3D source to the new version.
-                try { this._meta = await API.gallery.get(this._item.id); } catch {}
-                if (resp.version) this._currentVersion = resp.version;
-                window.showToast?.(t('asset_viewer.three_d_src_completed'), 'success');
-                return true;
+                }).then(async r => {
+                    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `${r.status}`); }
+                    return r.json();
+                });
+                newVersion = resp.version;
             } catch (err) {
-                window.showToast?.(t('asset_viewer.three_d_src_failed'), 'error');
-                return false;
+                window.showToast?.(t('asset_viewer.three_d_src_failed') + (err.message ? ': ' + err.message : ''), 'error');
+                return { status: 'failed' };
             }
+            try { this._meta = await API.gallery.get(this._item.id); } catch {}
+            if (newVersion) this._currentVersion = newVersion;
+            window.Gallery?.refresh?.();
+            // Re-review the result (one analysis pass; the popup shows the verdict).
+            let recheck = null;
+            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
+            try { recheck = await API.threeD.analyzeSource(this._item?.id, newVersion || 1); } catch {}
+            return { status: 'ok', newVersion, recheck };
         },
+
+        /**
+         * Before/after preview popup (layered above the 3D dialog). Shows the
+         * source vs the outpainted result + the LLM re-review verdict, and lets the
+         * user adjust the next extend amount. Resolves:
+         *   {action:'use'} | {action:'discard'} | {action:'extend', suggestion:{...}}
+         */
+        _showOutpaintPreview({ beforeVersion, afterVersion, recheck, suggestion }) {
+            return new Promise((resolve) => {
+                const id = encodeURIComponent(this._item?.id);
+                const beforeUrl = `/api/gallery/${id}/version/${beforeVersion}?t=${Date.now()}`;
+                const afterUrl = `/api/gallery/${id}/version/${afterVersion}?t=${Date.now()}`;
+                const good = !(recheck && recheck.analyzed && recheck.complete === false);
+                const verdict = good
+                    ? `<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`
+                    : `<span class="text-amber-400">⚠ ${this._esc(recheck?.reason || t('asset_viewer.three_d_src_still'))}</span>`;
+                const sg = suggestion || {};
+                const backdrop = document.createElement('div');
+                backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
+                backdrop.innerHTML = `
+                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full p-5 space-y-4">
+                        <div>
+                            <h3 class="text-sm font-semibold text-brand-text">${t('asset_viewer.three_d_src_pv_title')}</h3>
+                            <p class="text-xs mt-1">${verdict}</p>
+                        </div>
+                        <div class="grid grid-cols-2 gap-3">
+                            <div class="space-y-1">
+                                <p class="text-[10px] text-brand-text-muted uppercase tracking-wider text-center">${t('asset_viewer.three_d_src_pv_before')}</p>
+                                <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-border" style="height: 300px;">
+                                    <img src="${beforeUrl}" class="w-full h-full object-contain" alt="before" />
+                                </div>
+                            </div>
+                            <div class="space-y-1">
+                                <p class="text-[10px] text-brand-accent uppercase tracking-wider text-center">${t('asset_viewer.three_d_src_pv_after')}</p>
+                                <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40" style="height: 300px;">
+                                    <img src="${afterUrl}" class="w-full h-full object-contain" alt="after" />
+                                </div>
+                            </div>
+                        </div>
+                        <details class="border border-brand-border rounded-lg">
+                            <summary class="px-3 py-2 text-[11px] text-brand-text-muted cursor-pointer">${t('asset_viewer.three_d_src_pv_adjust')}</summary>
+                            <div class="px-3 pb-3 pt-1 grid grid-cols-4 gap-2">
+                                ${['left','right','up','down'].map(d => `
+                                    <div><label class="text-[9px] text-brand-text-muted">${t('asset_viewer.outpaint_' + d)}</label>
+                                    <input id="av-pv-${d}" type="number" min="0" max="512" value="${sg[d] || 0}" class="input text-xs w-full" /></div>`).join('')}
+                            </div>
+                        </details>
+                        <div class="flex flex-col gap-2">
+                            <button class="av-pv-use btn btn-sm ${good ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_pv_use')}</button>
+                            <button class="av-pv-extend btn btn-sm ${good ? 'btn-secondary' : 'bg-brand-accent hover:bg-brand-accent-hover text-white'} rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_pv_extend')}</button>
+                            <button class="av-pv-discard text-[11px] text-brand-text-muted hover:text-red-400 mt-1">${t('asset_viewer.three_d_src_pv_discard')}</button>
+                        </div>
+                        <p class="text-[9px] text-brand-text-dim text-center">${t('asset_viewer.three_d_src_pv_note')}</p>
+                    </div>`;
+                const readDirs = () => {
+                    const g = (d) => { const n = parseInt(backdrop.querySelector(`#av-pv-${d}`)?.value || '0', 10); return Number.isFinite(n) ? Math.max(0, Math.min(512, n)) : 0; };
+                    return { left: g('left'), right: g('right'), up: g('up'), down: g('down') };
+                };
+                const done = (v) => { backdrop.remove(); resolve(v); };
+                backdrop.querySelector('.av-pv-use').addEventListener('click', () => done({ action: 'use' }));
+                backdrop.querySelector('.av-pv-extend').addEventListener('click', () => done({ action: 'extend', suggestion: readDirs() }));
+                backdrop.querySelector('.av-pv-discard').addEventListener('click', () => done({ action: 'discard' }));
+                backdrop.addEventListener('click', (e) => { if (e.target === backdrop) done({ action: 'discard' }); });
+                document.body.appendChild(backdrop);
+            });
+        },
+
 
         _render3DPending(container, jobId) {
             container.innerHTML = `

@@ -1369,6 +1369,15 @@ async def edit_image(body: ImageEditRequest):
             extra["up"] = body.outpaint_up
         if body.outpaint_down > 0:
             extra["down"] = body.outpaint_down
+        # Guard up-front: the outpaint API requires at least one non-zero
+        # direction. Without this the request reaches Bedrock and comes back as a
+        # ValidationException that fell through to a generic 502. Return a clean,
+        # actionable 400 instead.
+        if not any(k in extra for k in ("left", "right", "up", "down")):
+            raise HTTPException(
+                400,
+                detail="Nothing to extend — set at least one direction (left, right, up or down) to a non-zero amount.",
+            )
 
     # Translate non-English edit prompts — preserve originals for metadata
     from backend.services.prompt_translator import translate_to_english
@@ -1437,6 +1446,10 @@ async def edit_image(body: ImageEditRequest):
         )
     except Exception as exc:
         logger.error("Image edit failed: %s", exc)
+        # A model ValidationException is a bad-input problem (400), not a gateway
+        # failure (502) — surface the underlying detail so the UI can show it.
+        if "ValidationException" in type(exc).__name__ or "ValidationException" in str(exc):
+            raise HTTPException(400, detail=f"Image editing rejected: {exc}")
         raise HTTPException(502, detail=f"Image editing failed: {exc}")
 
     # ── Versioned save: keep all previous versions, latest is always asset.png ──
