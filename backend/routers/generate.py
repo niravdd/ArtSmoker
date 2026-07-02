@@ -1311,6 +1311,11 @@ class ImageEditRequest(BaseModel):
     """Request for image editing services (inpaint, outpaint, erase, etc.)."""
     source_image_id: str  # Gallery asset ID to edit
     model: str  # Registry key of the editing model (e.g. 'stability_inpaint')
+    # Optional: edit a SPECIFIC version instead of the current one. Used by the
+    # 3D source-completion flow to always re-outpaint from the ORIGINAL cropped
+    # version (never the already-outpainted result), so the canvas never
+    # compounds. Omitted → edits the current version (asset.png), as before.
+    source_version: int | None = None
     prompt: str = ""  # What to generate (required for inpaint, optional for erase)
     negative_prompt: str = ""
     mask: str | None = None  # Base64-encoded mask image (white = edit area)
@@ -1343,8 +1348,18 @@ async def edit_image(body: ImageEditRequest):
     purpose = model_config.get("model_purpose", "")
     label = model_config.get("label", body.model)
 
-    # Load source image from gallery
-    source_path = store.get_generated_file_path(body.source_image_id, "asset.png")
+    # Load source image from gallery. Default = current version (asset.png).
+    # When source_version is given, honor the 2D versioning convention: the
+    # current version lives as asset.png; older versions are archived as
+    # asset_v{N}.png. Try the archived name, then fall back to asset.png.
+    source_path = None
+    if body.source_version:
+        src_meta = store.load_generation_metadata(body.source_image_id) or {}
+        cur = src_meta.get("current_version") or (len(src_meta.get("versions", [])) or 1)
+        if body.source_version != cur:
+            source_path = store.get_generated_file_path(body.source_image_id, f"asset_v{body.source_version}.png")
+    if source_path is None:
+        source_path = store.get_generated_file_path(body.source_image_id, "asset.png")
     if source_path is None:
         raise HTTPException(404, detail=f"Source image not found: {body.source_image_id}")
     source_bytes = source_path.read_bytes()

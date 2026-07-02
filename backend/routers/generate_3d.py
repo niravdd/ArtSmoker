@@ -995,6 +995,13 @@ async def analyze_3d_source(body: AnalyzeSourceRequest):
         # area). The user can edit this before running; falls back to empty (the
         # outpaint model continues the subject on its own) if not provided.
         "outpaint_prompt": (data.get("outpaint_prompt", "") or "").strip()[:300],
+        # Failure classification for the preview popup's verdict-driven actions:
+        #   cropped  → subject still cut off → offer "Extend more" (bigger outpaint
+        #              from the ORIGINAL, never compounding the prior extension)
+        #   artifact → in-frame but content is wrong → offer inline inpaint (mask + fix)
+        #   none     → looks good
+        "defect": (data.get("defect", "") or "").strip().lower() or ("cropped" if (not (complete or not any_outpaint)) else "none"),
+        "defect_area": (data.get("defect_area", "") or "").strip()[:200],
         "reason": data.get("reason", ""),
     }
 

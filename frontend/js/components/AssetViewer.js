@@ -2076,47 +2076,62 @@
          * to proceed to 3D (against the current version), false to abort.
          */
         async _runOutpaintCompletion(analysis, btn, initialPrompt) {
-            const origVersion = this._currentVersion || 1;   // for soft-discard revert
+            // origVersion = the cropped source we started from. CRITICAL: every
+            // OUTPAINT always extends origVersion (never the previous outpaint) so
+            // the canvas never compounds — re-extending just redoes it larger from
+            // the original. INPAINT, by contrast, fixes content on the CURRENT
+            // shown version. shownVersion tracks what's on screen at each step.
+            const origVersion = this._currentVersion || 1;   // soft-discard revert target
             let suggestion = analysis.suggest_outpaint || {};
             let prompt = (initialPrompt !== undefined ? initialPrompt : analysis.outpaint_prompt) || '';
-            let baseVersion = origVersion;                    // version we outpaint FROM
+            let shownVersion = origVersion;   // version currently displayed in the popup
+            let lastReview = analysis;
+
+            const _persistReview = async (ver, review) => {
+                if (ver && review) { try { await API.threeD.recordReview(this._item?.id, ver, review); } catch {} }
+            };
 
             while (true) {
-                const res = await this._outpaintOnce(baseVersion, suggestion, btn, prompt, analysis);
-                if (res.status === 'failed') {
-                    // Outpaint errored — revert to original, abort.
-                    this._currentVersion = origVersion;
-                    return false;
+                // ── OUTPAINT pass: always from the ORIGINAL, never compounding ──
+                const res = await this._outpaintOnce(origVersion, suggestion, btn, prompt, analysis);
+                if (res.status === 'failed') { this._currentVersion = origVersion; return false; }
+                await _persistReview(res.newVersion, res.recheck);
+                shownVersion = res.newVersion;
+                lastReview = res.recheck || {};
+
+                // ── Preview + decide (verdict-driven), looping on inpaint fixes ──
+                while (true) {
+                    const decision = await this._showOutpaintPreview({
+                        beforeVersion: origVersion,   // always compare against the source
+                        afterVersion: shownVersion,
+                        recheck: lastReview,
+                        suggestion,
+                        prompt: (lastReview && lastReview.outpaint_prompt) || prompt,
+                    });
+
+                    if (decision.action === 'use') { this._currentVersion = shownVersion; return true; }
+                    if (decision.action === 'discard') { this._currentVersion = origVersion; return false; }
+
+                    if (decision.action === 'extend') {
+                        // Re-outpaint from ORIGINAL with the (larger) amount + prompt.
+                        // Break the inner loop → the outer loop re-runs _outpaintOnce(origVersion).
+                        suggestion = decision.suggestion || suggestion;
+                        prompt = decision.prompt !== undefined ? decision.prompt : prompt;
+                        break;
+                    }
+
+                    if (decision.action === 'inpaint') {
+                        // Fix content on the CURRENT shown version with the user's
+                        // brushed mask. Stays in the popup loop — creates a new
+                        // version, re-reviews, re-previews (no canvas growth).
+                        const inp = await this._inpaintOnce(shownVersion, decision.mask, decision.prompt, btn);
+                        if (inp.status === 'failed') { continue; }   // stay on current preview
+                        await _persistReview(inp.newVersion, inp.recheck);
+                        shownVersion = inp.newVersion;
+                        lastReview = inp.recheck || {};
+                        continue;   // re-open preview on the inpainted result
+                    }
                 }
-                // Persist the re-review verdict onto the new version's record so the
-                // full iteration story (each result's analysis) is reviewable later.
-                if (res.newVersion && res.recheck) {
-                    try { await API.threeD.recordReview(this._item?.id, res.newVersion, res.recheck); } catch {}
-                }
-                // res: { newVersion, recheck } — a new version now exists + is current.
-                const decision = await this._showOutpaintPreview({
-                    beforeVersion: baseVersion,
-                    afterVersion: res.newVersion,
-                    recheck: res.recheck,
-                    suggestion,
-                    prompt: res.recheck?.outpaint_prompt || prompt,
-                });
-                if (decision.action === 'use') {
-                    this._currentVersion = res.newVersion;
-                    return true;
-                }
-                if (decision.action === 'discard') {
-                    // Soft discard: revert the 3D source to the original; the
-                    // outpainted version stays in history (usable/deletable later).
-                    this._currentVersion = origVersion;
-                    return false;
-                }
-                // 'extend' → iterate: outpaint AGAIN from the new version, using the
-                // user's (possibly tweaked) directions + prompt. Unlimited rounds.
-                baseVersion = res.newVersion;
-                suggestion = decision.suggestion || res.recheck?.suggest_outpaint || suggestion;
-                prompt = decision.prompt !== undefined ? decision.prompt : prompt;
-                if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_completing')}`;
             }
         },
 
@@ -2144,6 +2159,9 @@
                     body: JSON.stringify({
                         source_image_id: this._item?.id,
                         model: 'stable_outpaint_v1',
+                        // Always extend the ORIGINAL cropped version (not a prior
+                        // outpaint), so re-extending never compounds the canvas.
+                        source_version: fromVersion,
                         // Completion prompt: LLM-suggested, user-editable. Empty =
                         // let the model continue the subject on its own.
                         prompt: (outpaintPrompt || '').trim(),
@@ -2185,6 +2203,53 @@
         },
 
         /**
+         * One inpaint pass: fix content on `fromVersion` using the user-brushed
+         * mask (base64 PNG) + prompt (creates a new 2D version), then re-analyze.
+         * Does NOT change canvas size — repairs bad content within the frame.
+         * Returns { status:'ok'|'failed', newVersion, recheck }.
+         */
+        async _inpaintOnce(fromVersion, maskB64, inpaintPrompt, btn) {
+            if (!maskB64) { window.showToast?.(t('asset_viewer.three_d_src_nomask'), 'warning'); return { status: 'failed' }; }
+            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_fixing')}`;
+            let newVersion;
+            try {
+                const resp = await fetch('/api/generate/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source_image_id: this._item?.id,
+                        model: 'stable_image_inpaint_v1',
+                        source_version: fromVersion,   // fix the current shown result
+                        prompt: (inpaintPrompt || '').trim(),
+                        mask: maskB64,
+                        extra_params: {
+                            _meta: {
+                                trigger: '3d_source_completion',
+                                op: 'inpaint',
+                                from_version: fromVersion,
+                                prompt: (inpaintPrompt || '').trim(),
+                            },
+                        },
+                    }),
+                }).then(async r => {
+                    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `${r.status}`); }
+                    return r.json();
+                });
+                newVersion = resp.version;
+            } catch (err) {
+                window.showToast?.(t('asset_viewer.three_d_src_fix_failed') + (err.message ? ': ' + err.message : ''), 'error');
+                return { status: 'failed' };
+            }
+            try { this._meta = await API.gallery.get(this._item.id); } catch {}
+            if (newVersion) this._currentVersion = newVersion;
+            window.Gallery?.refresh?.();
+            let recheck = null;
+            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
+            try { recheck = await API.threeD.analyzeSource(this._item?.id, newVersion || 1); } catch {}
+            return { status: 'ok', newVersion, recheck };
+        },
+
+        /**
          * Before/after preview popup (layered above the 3D dialog). Shows the
          * source vs the outpainted result + the LLM re-review verdict, and lets the
          * user adjust the next extend amount. Resolves:
@@ -2195,7 +2260,10 @@
                 const id = encodeURIComponent(this._item?.id);
                 const beforeUrl = `/api/gallery/${id}/version/${beforeVersion}?t=${Date.now()}`;
                 const afterUrl = `/api/gallery/${id}/version/${afterVersion}?t=${Date.now()}`;
-                const good = !(recheck && recheck.analyzed && recheck.complete === false);
+                // Verdict → default action: good=Use, cropped=Extend, artifact=Fix (inpaint).
+                const defect = (recheck && recheck.analyzed && recheck.complete === false)
+                    ? (recheck.defect === 'artifact' ? 'artifact' : 'cropped') : 'none';
+                const good = defect === 'none';
                 const verdict = good
                     ? `<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`
                     : `<span class="text-amber-400">⚠ ${this._esc(recheck?.reason || t('asset_viewer.three_d_src_still'))}</span>`;
@@ -2203,7 +2271,7 @@
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
                 backdrop.innerHTML = `
-                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full p-5 space-y-4">
+                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
                         <div>
                             <h3 class="text-sm font-semibold text-brand-text">${t('asset_viewer.three_d_src_pv_title')}</h3>
                             <p class="text-xs mt-1">${verdict}</p>
@@ -2217,12 +2285,29 @@
                             </div>
                             <div class="space-y-1">
                                 <p class="text-[10px] text-brand-accent uppercase tracking-wider text-center">${t('asset_viewer.three_d_src_pv_after')}</p>
-                                <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40" style="height: 300px;">
-                                    <img src="${afterUrl}" class="w-full h-full object-contain" alt="after" />
+                                <!-- After view doubles as the inpaint mask canvas when fixing content. -->
+                                <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center" style="height: 300px;">
+                                    <img id="av-pv-after-img" src="${afterUrl}" class="w-full h-full object-contain ${defect === 'artifact' ? 'hidden' : ''}" alt="after" crossorigin="anonymous" />
+                                    <canvas id="av-pv-mask" class="cursor-crosshair ${defect === 'artifact' ? '' : 'hidden'}" style="max-width:100%; max-height:300px;"></canvas>
                                 </div>
                             </div>
                         </div>
-                        <details class="border border-brand-border rounded-lg">
+
+                        ${defect === 'artifact' ? `
+                        <!-- Inpaint fix: brush over the bad region, describe the fix. -->
+                        <div class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                            <div class="flex items-center justify-between">
+                                <p class="text-[11px] text-amber-400">${t('asset_viewer.three_d_src_pv_fix_hint')}</p>
+                                <div class="flex items-center gap-2">
+                                    <label class="text-[9px] text-brand-text-muted">${t('asset_viewer.brush_size')}</label>
+                                    <input id="av-pv-brush" type="range" min="8" max="80" value="28" class="w-20" />
+                                    <button class="av-pv-mask-clear text-[10px] text-brand-text-muted hover:text-brand-text underline">${t('asset_viewer.clear_mask')}</button>
+                                </div>
+                            </div>
+                            <textarea id="av-pv-fix-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_fix_ph')}">${this._esc(recheck?.defect_area ? ('fix ' + recheck.defect_area) : (prompt || ''))}</textarea>
+                        </div>` : ''}
+
+                        <details class="border border-brand-border rounded-lg" ${defect === 'cropped' ? 'open' : ''}>
                             <summary class="px-3 py-2 text-[11px] text-brand-text-muted cursor-pointer">${t('asset_viewer.three_d_src_pv_adjust')}</summary>
                             <div class="px-3 pb-3 pt-1 space-y-2">
                                 <div>
@@ -2234,27 +2319,80 @@
                                         <div><label class="text-[9px] text-brand-text-muted">${t('asset_viewer.outpaint_' + d)}</label>
                                         <input id="av-pv-${d}" type="number" min="0" max="512" value="${sg[d] || 0}" class="input text-xs w-full" /></div>`).join('')}
                                 </div>
+                                <p class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_src_pv_extend_note')}</p>
                             </div>
                         </details>
+
                         <div class="flex flex-col gap-2">
                             <button class="av-pv-use btn btn-sm ${good ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_pv_use')}</button>
-                            <button class="av-pv-extend btn btn-sm ${good ? 'btn-secondary' : 'bg-brand-accent hover:bg-brand-accent-hover text-white'} rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_pv_extend')}</button>
+                            ${defect === 'artifact'
+                                ? `<button class="av-pv-fix btn btn-sm bg-brand-accent hover:bg-brand-accent-hover text-white rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_pv_fix')}</button>`
+                                : `<button class="av-pv-extend btn btn-sm ${good ? 'btn-secondary' : 'bg-brand-accent hover:bg-brand-accent-hover text-white'} rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_pv_extend')}</button>`}
                             <button class="av-pv-discard text-[11px] text-brand-text-muted hover:text-red-400 mt-1">${t('asset_viewer.three_d_src_pv_discard')}</button>
                         </div>
                         <p class="text-[9px] text-brand-text-dim text-center">${t('asset_viewer.three_d_src_pv_note')}</p>
                     </div>`;
+
                 const readDirs = () => {
                     const g = (d) => { const n = parseInt(backdrop.querySelector(`#av-pv-${d}`)?.value || '0', 10); return Number.isFinite(n) ? Math.max(0, Math.min(512, n)) : 0; };
                     return { left: g('left'), right: g('right'), up: g('up'), down: g('down') };
                 };
-                const readPrompt = () => backdrop.querySelector('#av-pv-prompt')?.value || '';
                 const done = (v) => { backdrop.remove(); resolve(v); };
+
+                // Wire the inline mask painter only in the artifact (inpaint) case.
+                let maskCanvas = null;
+                if (defect === 'artifact') {
+                    maskCanvas = backdrop.querySelector('#av-pv-mask');
+                    this._wirePreviewMask(maskCanvas, afterUrl, backdrop.querySelector('#av-pv-brush'));
+                    backdrop.querySelector('.av-pv-mask-clear')?.addEventListener('click', () => {
+                        if (maskCanvas?._baseImageData) maskCanvas.getContext('2d').putImageData(maskCanvas._baseImageData, 0, 0);
+                    });
+                    backdrop.querySelector('.av-pv-fix')?.addEventListener('click', () => {
+                        const m = this._extractMask(maskCanvas);
+                        if (m.isEmpty) { window.showToast?.(t('asset_viewer.three_d_src_nomask'), 'warning'); return; }
+                        done({ action: 'inpaint', mask: m.data, prompt: backdrop.querySelector('#av-pv-fix-prompt')?.value || '' });
+                    });
+                }
+
                 backdrop.querySelector('.av-pv-use').addEventListener('click', () => done({ action: 'use' }));
-                backdrop.querySelector('.av-pv-extend').addEventListener('click', () => done({ action: 'extend', suggestion: readDirs(), prompt: readPrompt() }));
+                backdrop.querySelector('.av-pv-extend')?.addEventListener('click', () =>
+                    done({ action: 'extend', suggestion: readDirs(), prompt: backdrop.querySelector('#av-pv-prompt')?.value || '' }));
                 backdrop.querySelector('.av-pv-discard').addEventListener('click', () => done({ action: 'discard' }));
                 backdrop.addEventListener('click', (e) => { if (e.target === backdrop) done({ action: 'discard' }); });
                 document.body.appendChild(backdrop);
             });
+        },
+
+        /**
+         * Wire an inline mask-paint canvas over an image (reuses the same red-brush
+         * + base-image-diff approach as the Edit tab, so _extractMask works on it).
+         */
+        _wirePreviewMask(canvas, imgUrl, brushSlider) {
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            let painting = false, brushSize = 28;
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                const maxW = 380, maxH = 300;
+                const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+                canvas.width = img.width * scale;
+                canvas.height = img.height * scale;
+                canvas._imgScale = scale; canvas._imgW = img.width; canvas._imgH = img.height;
+                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                canvas._baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            };
+            img.src = imgUrl;
+            brushSlider?.addEventListener('input', () => { brushSize = parseInt(brushSlider.value, 10) || 28; });
+            const paintAt = (x, y) => {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = 'rgba(255, 100, 100, 0.5)';
+                ctx.beginPath(); ctx.arc(x, y, brushSize / 2, 0, Math.PI * 2); ctx.fill();
+            };
+            const pos = (e) => { const r = canvas.getBoundingClientRect(); return [(e.clientX - r.left) * (canvas.width / r.width), (e.clientY - r.top) * (canvas.height / r.height)]; };
+            canvas.addEventListener('mousedown', (e) => { painting = true; paintAt(...pos(e)); });
+            canvas.addEventListener('mousemove', (e) => { if (painting) paintAt(...pos(e)); });
+            window.addEventListener('mouseup', () => { painting = false; });
         },
 
 

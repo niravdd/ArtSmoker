@@ -42,14 +42,17 @@ Return STRICT JSON with exactly these keys:
   "missing": ["legs","feet"],             // body parts/sections not visible due to cropping; [] if none
   "suggest_outpaint": {{"down": 0-512, "up": 0-512, "left": 0-512, "right": 0-512}}, // px to extend per edge to reveal the rest; 0 where not needed
   "outpaint_prompt": "describe the missing parts to draw (with helpful material/style detail, scoped to the new area)",  // e.g. "the soldier's legs in matching navy trousers and combat boots"; "" if complete
+  "defect": "none|cropped|artifact",      // none = looks good; cropped = subject still cut off at an edge (needs a bigger extension); artifact = subject IS fully in-frame but part of it looks wrong/garbled/blurred/mismatched (needs a localized fix, not more extension)
+  "defect_area": "short phrase naming where the artifact is, e.g. 'the lower legs and boots'",  // only when defect=artifact; "" otherwise
   "reason": "one short sentence a user can read"
 }}
 
 Rules:
-- If the subject is fully visible (head-to-toe for a character, whole object for a prop), set complete=true, empty arrays, all outpaint values 0, outpaint_prompt "".
-- Only suggest outpaint on edges where the subject is genuinely cut off by the frame.
-- outpaint_prompt: describe what to draw in the EXTENDED AREA — the missing parts plus enough material/colour/style detail to blend seamlessly with the visible subject (the outpaint model sees the image and continues it, so a focused descriptive phrase helps). Stay scoped to the new region: do NOT re-describe the whole scene, background, camera or pose. A concise phrase is usually enough, but include detail where it aids continuity. e.g. "the soldier's legs in matching navy trousers and worn combat boots".
-- Be conservative: when in doubt, prefer complete=true (avoid false alarms on well-framed art).
+- If the subject is fully visible AND looks correct (head-to-toe for a character, whole object for a prop, no garbled/blurred regions), set complete=true, defect="none", empty arrays, all outpaint values 0, outpaint_prompt "", defect_area "".
+- Only suggest outpaint on edges where the subject is genuinely cut off by the frame → defect="cropped".
+- If the subject is fully in-frame but a region looks wrong (garbled anatomy, blur, seam, mismatched style from a prior edit), set complete=false, defect="artifact", all suggest_outpaint 0 (do NOT extend — extending won't fix bad content), and name the bad region in defect_area. This signals a localized inpaint fix, not more outpainting.
+- outpaint_prompt (defect=cropped only): describe what to draw in the EXTENDED AREA — the missing parts plus enough material/colour/style detail to blend seamlessly with the visible subject. Stay scoped to the new region: do NOT re-describe the whole scene, camera or pose. e.g. "the soldier's legs in matching navy trousers and worn combat boots".
+- Be conservative: when in doubt, prefer complete=true / defect="none" (avoid false alarms on well-framed art).
 - Output ONLY the JSON object.""",
     },
     "image_refine_single": {
