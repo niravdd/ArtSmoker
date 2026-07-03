@@ -1839,13 +1839,16 @@
                         </div>
                     </details>
 
-                    <!-- Generate button -->
+                    <!-- Generate button. Its label reflects what the click does first:
+                         "Run checks" when the AI completeness check will run (it then
+                         shows the review dialog), else "Generate 3D Model". Updated live
+                         when the re-check box toggles (see wiring below). -->
                     <div class="flex items-center gap-3">
                         <button id="av-3d-generate" class="btn btn-primary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                             </svg>
-                            ${t('asset_viewer.three_d_generate')}
+                            <span id="av-3d-generate-label">${t('asset_viewer.three_d_run_checks')}</span>
                         </button>
                     </div>
                     <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_async_note')}</p>
@@ -1958,8 +1961,12 @@
 
             applyPreset();  // sync advanced fields + estimate to the default (High)
 
-            // Generate button
+            // Generate button + its context-aware label. The label reflects the
+            // first action: "Run checks" when the AI check will run, else "Generate
+            // 3D Model". Toggling the re-check box flips it live.
             container.querySelector('#av-3d-generate')?.addEventListener('click', () => this._submit3DGeneration());
+            container.querySelector('#av-3d-recheck')?.addEventListener('change', () => this._update3DGenerateLabel(container));
+            this._update3DGenerateLabel(container);
 
             // Manual "complete/extend source" — the safety net for when auto-detection
             // misses a crop. Always opens the completion flow: analyze for a starting
@@ -1977,7 +1984,7 @@
                 const sg = analysis.suggest_outpaint || {};
                 if (!(sg.down || sg.up || sg.left || sg.right)) analysis.suggest_outpaint = { down: 256, up: 0, left: 0, right: 0 };
                 if (link) link.textContent = orig;
-                await this._runOutpaintCompletion(analysis, null, analysis.outpaint_prompt || '');
+                await this._reviewSourceBeforeGen(analysis, null, analysis.outpaint_prompt || '');
                 // Back to the form (user decides whether to Generate now).
             });
         },
@@ -1990,37 +1997,46 @@
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
 
-            // ── Source completeness pre-check (outpaint-completion offer) ──────
-            // Before dispatching, vision-check whether the source image's subject
-            // is cropped by the frame (→ an incomplete/legless 3D model). If so,
-            // offer to outpaint-complete it into a new 2D version first. Opt-in,
-            // non-blocking; only for subject-centric types; skipped on retry.
-            // Regen opt-out: the form's "re-check source" checkbox (regen only)
-            // lets the user skip the AI check to save credits on an already-good
-            // source. First-time generate always checks (no checkbox present).
-            const recheckBox = container?.querySelector('#av-3d-recheck');
-            const wantCheck = !recheckBox || recheckBox.checked;
-            if (!skipSourceCheck && wantCheck) {
+            // ── Source review before 3D (always confirm, never silent) ─────────
+            // For subject-centric types we ALWAYS show the exact image that will
+            // become the 3D model and let the user confirm / extend / fix / cancel.
+            // The "re-check source" checkbox only controls whether we spend AI
+            // credits on the completeness VERDICT inside that dialog: checked → run
+            // the vision analysis and pre-highlight the recommended action; unchecked
+            // → still show the image, just without an AI verdict ("review & decide").
+            // skipSourceCheck bypasses the whole step (e.g. internal re-dispatch).
+            if (!skipSourceCheck) {
                 const t3 = this._meta?.asset_type;
-                if (t3 === 'character' || t3 === 'game_asset') {
+                const recheckBox = container?.querySelector('#av-3d-recheck');
+                const wantCheck = !recheckBox || recheckBox.checked;
+                if ((t3 === 'character' || t3 === 'game_asset') && wantCheck) {
+                    // 1) BACKGROUND REMOVAL FIRST — before the AI review AND before we
+                    //    show the confirm image. A busy background both confuses the
+                    //    "is the subject complete?" judgment and complicates any later
+                    //    outpaint. Stripping it up front means the review, the confirm
+                    //    preview, and the 3D input are all the same clean cutout. Runs
+                    //    once (skipped if already background-free); non-fatal.
+                    btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_removing_bg')}`;
+                    if (!this._isBackgroundFree(this._currentVersion || 1)) {
+                        const bg = await this._removeBgOnce(this._currentVersion || 1, btn);
+                        if (bg.status === 'ok' && bg.newVersion) this._currentVersion = bg.newVersion;
+                    }
+                    // 2) AI completeness review on the CLEAN cutout.
+                    btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
                     let analysis = null;
                     try {
                         analysis = await API.threeD.analyzeSource(this._item?.id, this._currentVersion || 1);
                     } catch {}
-                    if (analysis && analysis.analyzed && analysis.complete === false) {
-                        const decision = await this._show3DSourceDialog(analysis);
-                        if (decision.action === 'cancel') { this._reset3DGenerateBtn(btn); return; }
-                        if (decision.action === 'complete') {
-                            // Outpaint → preview → decide (iterate as needed). Returns
-                            // true to proceed to 3D (against whichever version is now
-                            // current), false to abort. The user's (edited) completion
-                            // prompt seeds the first outpaint.
-                            const proceed = await this._runOutpaintCompletion(analysis, btn, decision.prompt);
-                            if (!proceed) { this._reset3DGenerateBtn(btn); return; }
-                        }
-                        // 'as-is' → just proceed with the current version.
-                    }
+                    // 3) Confirm hub: use as-is / extend / fix / cancel. Returns true to
+                    //    proceed (against whatever version is now current), false to abort.
+                    const proceed = await this._reviewSourceBeforeGen(
+                        analysis || { analyzed: false }, btn,
+                        (analysis && analysis.outpaint_prompt) || '');
+                    if (!proceed) { this._reset3DGenerateBtn(btn); return; }
+                    btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
                 }
+                // Unchecked (or non-subject type) → straight to generation. The server-
+                // side 3D handler strips the background itself, so no local step needed.
             }
 
             const payload = {
@@ -2059,54 +2075,26 @@
         _reset3DGenerateBtn(btn) {
             if (!btn) return;
             btn.disabled = false;
-            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> ${t('asset_viewer.three_d_generate')}`;
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> <span id="av-3d-generate-label"></span>`;
+            this._update3DGenerateLabel(btn.closest('#av-3d-content') || document);
         },
 
         /**
-         * Modal offering to complete a cropped source before 3D. The completion
-         * PROMPT is LLM-suggested but user-editable (left blank = the outpaint
-         * model just continues the subject). Resolves to {action, prompt} where
-         * action is 'complete' | 'as-is' | 'cancel'. Non-blocking; "Generate
-         * as-is" stays a clear secondary, nothing destructive is pre-selected.
+         * Set the Generate button's label to reflect what its click does FIRST:
+         * "Run checks" when the AI completeness check will run (→ review dialog),
+         * otherwise "Generate 3D Model". Only subject-centric types run a check;
+         * the check is skipped when the re-check box (regen) is unchecked.
          */
-        _show3DSourceDialog(analysis) {
-            return new Promise((resolve) => {
-                const missing = (analysis.missing || []).join(', ');
-                const reason = analysis.reason || t('asset_viewer.three_d_src_default_reason');
-                const suggestedPrompt = analysis.outpaint_prompt || '';
-                const backdrop = document.createElement('div');
-                backdrop.className = 'fixed inset-0 z-[130] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
-                backdrop.innerHTML = `
-                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
-                        <div class="flex items-start gap-3">
-                            <svg class="w-5 h-5 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                            <div>
-                                <h3 class="text-sm font-semibold text-brand-text">${t('asset_viewer.three_d_src_title')}</h3>
-                                <p class="text-xs text-brand-text-muted mt-1">${this._esc(reason)}</p>
-                                ${missing ? `<p class="text-[11px] text-amber-400/90 mt-1">${t('asset_viewer.three_d_src_missing')}: ${this._esc(missing)}</p>` : ''}
-                            </div>
-                        </div>
-                        <p class="text-[11px] text-brand-text-dim">${t('asset_viewer.three_d_src_explain')}</p>
-                        <div>
-                            <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('asset_viewer.three_d_src_prompt_label')}</label>
-                            <textarea id="av-3d-src-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_prompt_ph')}">${this._esc(suggestedPrompt)}</textarea>
-                            <p class="text-[9px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_src_prompt_hint')}</p>
-                        </div>
-                        <div class="flex flex-col gap-2">
-                            <button class="av-3d-src-complete btn btn-sm bg-brand-accent hover:bg-brand-accent-hover text-white rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_complete')}</button>
-                            <button class="av-3d-src-asis btn btn-sm btn-secondary rounded-lg py-2 text-xs">${t('asset_viewer.three_d_src_asis')}</button>
-                            <button class="av-3d-src-cancel text-[11px] text-brand-text-muted hover:text-brand-text mt-1">${t('prompt_designer.cancel')}</button>
-                        </div>
-                        <p class="text-[9px] text-brand-text-dim text-center">${t('asset_viewer.three_d_src_note')}</p>
-                    </div>`;
-                const getPrompt = () => backdrop.querySelector('#av-3d-src-prompt')?.value || '';
-                const done = (action) => { const p = getPrompt(); backdrop.remove(); resolve({ action, prompt: p }); };
-                backdrop.querySelector('.av-3d-src-complete').addEventListener('click', () => done('complete'));
-                backdrop.querySelector('.av-3d-src-asis').addEventListener('click', () => done('as-is'));
-                backdrop.querySelector('.av-3d-src-cancel').addEventListener('click', () => done('cancel'));
-                backdrop.addEventListener('click', (e) => { if (e.target === backdrop) done('cancel'); });
-                document.body.appendChild(backdrop);
-            });
+        _update3DGenerateLabel(scope) {
+            const label = scope?.querySelector?.('#av-3d-generate-label');
+            if (!label) return;
+            const t3 = this._meta?.asset_type;
+            const subjectCentric = (t3 === 'character' || t3 === 'game_asset');
+            const recheckBox = scope.querySelector?.('#av-3d-recheck');
+            const wantCheck = !recheckBox || recheckBox.checked;
+            label.textContent = (subjectCentric && wantCheck)
+                ? t('asset_viewer.three_d_run_checks')
+                : t('asset_viewer.three_d_generate');
         },
 
         /**
@@ -2116,63 +2104,127 @@
          * Keeps _currentVersion pointed at whatever the user accepts. Returns true
          * to proceed to 3D (against the current version), false to abort.
          */
-        async _runOutpaintCompletion(analysis, btn, initialPrompt) {
-            // origVersion = the cropped source we started from. CRITICAL: every
-            // OUTPAINT always extends origVersion (never the previous outpaint) so
-            // the canvas never compounds — re-extending just redoes it larger from
-            // the original. INPAINT, by contrast, fixes content on the CURRENT
-            // shown version. shownVersion tracks what's on screen at each step.
-            const origVersion = this._currentVersion || 1;   // soft-discard revert target
-            let suggestion = analysis.suggest_outpaint || {};
-            let prompt = (initialPrompt !== undefined ? initialPrompt : analysis.outpaint_prompt) || '';
-            let shownVersion = origVersion;   // version currently displayed in the popup
-            let lastReview = analysis;
+        async _reviewSourceBeforeGen(analysis, btn, initialPrompt) {
+            // PREVIEW-FIRST source review. Whenever the pre-gen check runs we ALWAYS
+            // show the user the exact image that will become the 3D model, with the
+            // AI verdict, and let them decide — proceed as-is, extend, fix, or cancel.
+            // Nothing happens to the image until the user explicitly extends/fixes.
+            //
+            // origVersion = the version we outpaint FROM. Every OUTPAINT extends
+            // origVersion (never a prior outpaint) so the canvas never compounds.
+            // INPAINT fixes content on the CURRENT shown version. shownVersion is
+            // what's on screen; when it equals origVersion the popup is in single-
+            // image "confirm" mode (nothing generated yet).
+            let origVersion = this._currentVersion || 1;   // cancel/discard revert target
+            let shownVersion = origVersion;
+            let suggestion = analysis?.suggest_outpaint || {};
+            let prompt = (initialPrompt !== undefined ? initialPrompt : analysis?.outpaint_prompt) || '';
+            let lastReview = analysis || { analyzed: false };
+            let bgRemoved = false;   // strip BG once, lazily, before the first outpaint
 
             const _persistReview = async (ver, review) => {
                 if (ver && review) { try { await API.threeD.recordReview(this._item?.id, ver, review); } catch {} }
             };
 
             while (true) {
-                // ── OUTPAINT pass: always from the ORIGINAL, never compounding ──
-                const res = await this._outpaintOnce(origVersion, suggestion, btn, prompt, analysis);
-                if (res.status === 'failed') { this._currentVersion = origVersion; return false; }
-                await _persistReview(res.newVersion, res.recheck);
-                shownVersion = res.newVersion;
-                lastReview = res.recheck || {};
+                const decision = await this._showOutpaintPreview({
+                    beforeVersion: origVersion,
+                    afterVersion: shownVersion,
+                    recheck: lastReview,
+                    suggestion,
+                    prompt: (lastReview && lastReview.outpaint_prompt) || prompt,
+                    confirmMode: shownVersion === origVersion,   // single image, nothing done yet
+                });
 
-                // ── Preview + decide (verdict-driven), looping on inpaint fixes ──
-                while (true) {
-                    const decision = await this._showOutpaintPreview({
-                        beforeVersion: origVersion,   // always compare against the source
-                        afterVersion: shownVersion,
-                        recheck: lastReview,
-                        suggestion,
-                        prompt: (lastReview && lastReview.outpaint_prompt) || prompt,
-                    });
-
-                    if (decision.action === 'use') { this._currentVersion = shownVersion; return true; }
-                    if (decision.action === 'discard') { this._currentVersion = origVersion; return false; }
-
-                    if (decision.action === 'extend') {
-                        // Re-outpaint from ORIGINAL with the (larger) amount + prompt.
-                        // Break the inner loop → the outer loop re-runs _outpaintOnce(origVersion).
-                        suggestion = decision.suggestion || suggestion;
-                        prompt = decision.prompt !== undefined ? decision.prompt : prompt;
-                        break;
-                    }
-
-                    if (decision.action === 'inpaint') {
-                        // Fix content on the CURRENT shown version with the user's
-                        // brushed mask. Stays in the popup loop — creates a new
-                        // version, re-reviews, re-previews (no canvas growth).
-                        const inp = await this._inpaintOnce(shownVersion, decision.mask, decision.prompt, btn);
-                        if (inp.status === 'failed') { continue; }   // stay on current preview
-                        await _persistReview(inp.newVersion, inp.recheck);
-                        shownVersion = inp.newVersion;
-                        lastReview = inp.recheck || {};
-                        continue;   // re-open preview on the inpainted result
-                    }
+                if (decision.action === 'use') { this._currentVersion = shownVersion; return true; }
+                // 'cancel' (confirm mode) and 'discard' (post-edit) both abort the
+                // completion and keep the original as the 3D source.
+                if (decision.action === 'cancel' || decision.action === 'discard') {
+                    this._currentVersion = origVersion; return false;
                 }
+
+                if (decision.action === 'extend') {
+                    // Background was already stripped up front (before the review), so
+                    // origVersion is a clean cutout and the outpaint extends just the
+                    // subject. As a safety net (e.g. the manual-complete entry, which
+                    // skips the up-front step), strip it here once if still present.
+                    if (!bgRemoved && !this._isBackgroundFree(origVersion)) {
+                        const bg = await this._removeBgOnce(origVersion, btn);
+                        if (bg.status === 'ok' && bg.newVersion) origVersion = bg.newVersion;
+                        bgRemoved = true;
+                    }
+                    suggestion = decision.suggestion || suggestion;
+                    prompt = decision.prompt !== undefined ? decision.prompt : prompt;
+                    // OUTPAINT pass: always from origVersion (never compounding).
+                    const res = await this._outpaintOnce(origVersion, suggestion, btn, prompt, analysis);
+                    if (res.status === 'failed') { continue; }   // re-show confirm
+                    await _persistReview(res.newVersion, res.recheck);
+                    shownVersion = res.newVersion;
+                    lastReview = res.recheck || {};
+                    continue;
+                }
+
+                if (decision.action === 'inpaint') {
+                    // Fix content on the CURRENT shown version with the brushed mask
+                    // (no canvas growth). Works even in confirm mode — the user can
+                    // touch up the original source directly.
+                    const inp = await this._inpaintOnce(shownVersion, decision.mask, decision.prompt, btn);
+                    if (inp.status === 'failed') { continue; }
+                    await _persistReview(inp.newVersion, inp.recheck);
+                    shownVersion = inp.newVersion;
+                    lastReview = inp.recheck || {};
+                    continue;
+                }
+            }
+        },
+
+        /**
+         * Has this version already had its background removed? Checks the version
+         * record's type/edit provenance so we don't strip an already-transparent
+         * image (which would be a no-op API call and an extra version).
+         */
+        _isBackgroundFree(version) {
+            const versions = this._meta?.versions || [];
+            const v = versions.find(x => x.version === version);
+            if (!v) return false;
+            const type = (v.type || '').toLowerCase();
+            const trigger = (v.edit_context && v.edit_context.op) || '';
+            return type === 'remove_background' || trigger === 'remove_background'
+                || this._meta?.remove_background === true;
+        },
+
+        /**
+         * Remove the background from `fromVersion` into a NEW 2D version, then make
+         * it current. Runs before outpaint so the model extends a clean cutout, not
+         * a busy scene (and it's what image-to-3D needs regardless). Non-fatal.
+         * Returns { status:'ok'|'skipped'|'failed', newVersion }.
+         */
+        async _removeBgOnce(fromVersion, btn) {
+            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_removing_bg')}`;
+            try {
+                const resp = await fetch('/api/generate/edit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        source_image_id: this._item?.id,
+                        model: 'stable_image_remove_background_v1',
+                        source_version: fromVersion,
+                        extra_params: {
+                            _meta: { trigger: '3d_source_completion', op: 'remove_background', from_version: fromVersion },
+                        },
+                    }),
+                }).then(async r => {
+                    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `${r.status}`); }
+                    return r.json();
+                });
+                try { this._meta = await API.gallery.get(this._item.id); } catch {}
+                if (resp.version) this._currentVersion = resp.version;
+                window.Gallery?.refresh?.();
+                return { status: 'ok', newVersion: resp.version };
+            } catch (err) {
+                // Non-fatal — fall back to outpainting the original (with background).
+                window.showToast?.(t('asset_viewer.three_d_src_removing_bg') + ' — ' + (err.message || 'skipped'), 'warning');
+                return { status: 'failed' };
             }
         },
 
@@ -2291,52 +2343,63 @@
         },
 
         /**
-         * Before/after preview popup (layered above the 3D dialog). Shows the
-         * source vs the outpainted result + the LLM re-review verdict, and lets the
-         * user adjust the next extend amount. Resolves:
-         *   {action:'use'} | {action:'discard'} | {action:'extend', suggestion:{...}}
+         * Source-review popup (layered above the 3D dialog). Two modes:
+         *   • confirmMode=true  — single image: the EXACT source that will become the
+         *     3D model, with the AI verdict. Nothing has been generated yet. Actions:
+         *     Use as-is / Extend it / Fix a spot / Cancel.
+         *   • confirmMode=false — before/after: source vs the just-outpainted result,
+         *     with the re-review verdict. Actions: Use / Extend again / Fix / Discard.
+         * Resolves: {action:'use'|'cancel'|'discard'|'extend'|'inpaint', ...}.
          */
-        _showOutpaintPreview({ beforeVersion, afterVersion, recheck, suggestion, prompt }) {
+        _showOutpaintPreview({ beforeVersion, afterVersion, recheck, suggestion, prompt, confirmMode = false }) {
             return new Promise((resolve) => {
                 const id = encodeURIComponent(this._item?.id);
                 const beforeUrl = `/api/gallery/${id}/version/${beforeVersion}?t=${Date.now()}`;
                 const afterUrl = `/api/gallery/${id}/version/${afterVersion}?t=${Date.now()}`;
-                // Verdict → default action: good=Use, cropped=Extend, artifact=Fix (inpaint).
-                const defect = (recheck && recheck.analyzed && recheck.complete === false)
+                // Verdict → default highlighted action: good=Use, cropped=Extend,
+                // artifact=Fix. When the source couldn't be analyzed we show a neutral
+                // "review & decide" note and default to Use (nothing is forced).
+                const analyzed = !!(recheck && recheck.analyzed);
+                const defect = (analyzed && recheck.complete === false)
                     ? (recheck.defect === 'artifact' ? 'artifact' : 'cropped') : 'none';
                 const good = defect === 'none';
-                const verdict = good
-                    ? `<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`
-                    : `<span class="text-amber-400">⚠ ${this._esc(recheck?.reason || t('asset_viewer.three_d_src_still'))}</span>`;
+                const verdict = !analyzed
+                    ? `<span class="text-brand-text-muted">${t('asset_viewer.three_d_src_pv_unchecked')}</span>`
+                    : (good
+                        ? `<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`
+                        : `<span class="text-amber-400">⚠ ${this._esc(recheck?.reason || t('asset_viewer.three_d_src_still'))}</span>`);
                 const sg = suggestion || {};
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
                 backdrop.innerHTML = `
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
                         <div>
-                            <h3 class="text-sm font-semibold text-brand-text">${t('asset_viewer.three_d_src_pv_title')}</h3>
+                            <h3 class="text-sm font-semibold text-brand-text">${confirmMode ? t('asset_viewer.three_d_src_pv_confirm_title') : t('asset_viewer.three_d_src_pv_title')}</h3>
                             <p class="text-xs mt-1">${verdict}</p>
+                            ${confirmMode ? `<p class="text-[11px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_src_pv_confirm_sub')}</p>` : ''}
                         </div>
-                        <div class="grid grid-cols-2 gap-3">
+                        <div class="grid ${confirmMode ? 'grid-cols-1' : 'grid-cols-2'} gap-3">
+                            ${confirmMode ? '' : `
                             <div class="space-y-1">
                                 <p class="text-[10px] text-brand-text-muted uppercase tracking-wider text-center">${t('asset_viewer.three_d_src_pv_before')}</p>
                                 <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-border" style="height: 300px;">
                                     <img src="${beforeUrl}" class="w-full h-full object-contain" alt="before" />
                                 </div>
-                            </div>
+                            </div>`}
                             <div class="space-y-1">
-                                <p class="text-[10px] text-brand-accent uppercase tracking-wider text-center">${t('asset_viewer.three_d_src_pv_after')}</p>
-                                <!-- After view doubles as the inpaint mask canvas when fixing content. -->
+                                ${confirmMode ? '' : `<p class="text-[10px] text-brand-accent uppercase tracking-wider text-center">${t('asset_viewer.three_d_src_pv_after')}</p>`}
+                                <!-- This view doubles as the inpaint mask canvas when fixing content. -->
                                 <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center" style="height: 300px;">
-                                    <img id="av-pv-after-img" src="${afterUrl}" class="w-full h-full object-contain ${defect === 'artifact' ? 'hidden' : ''}" alt="after" crossorigin="anonymous" />
+                                    <img id="av-pv-after-img" src="${afterUrl}" class="w-full h-full object-contain ${defect === 'artifact' ? 'hidden' : ''}" alt="source" crossorigin="anonymous" />
                                     <canvas id="av-pv-mask" class="cursor-crosshair ${defect === 'artifact' ? '' : 'hidden'}" style="max-width:100%; max-height:300px;"></canvas>
                                 </div>
                             </div>
                         </div>
 
-                        ${defect === 'artifact' ? `
-                        <!-- Inpaint fix: brush over the bad region, describe the fix. -->
-                        <div class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2">
+                        <!-- Inpaint fix: brush over any region, describe the fix. Available for ANY
+                             verdict (not just detected artifacts) — the user can always touch up a
+                             spot. Hidden until fix mode is toggled on (auto-on for artifact verdicts). -->
+                        <div id="av-pv-fix-panel" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2 ${defect === 'artifact' ? '' : 'hidden'}">
                             <div class="flex items-center justify-between">
                                 <p class="text-[11px] text-amber-400">${t('asset_viewer.three_d_src_pv_fix_hint')}</p>
                                 <div class="flex items-center gap-2">
@@ -2346,9 +2409,9 @@
                                 </div>
                             </div>
                             <textarea id="av-pv-fix-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_fix_ph')}">${this._esc(recheck?.defect_area ? ('fix ' + recheck.defect_area) : (prompt || ''))}</textarea>
-                        </div>` : ''}
+                        </div>
 
-                        <details class="border border-brand-border rounded-lg" ${defect === 'cropped' ? 'open' : ''}>
+                        <details id="av-pv-extend-panel" class="border border-brand-border rounded-lg ${defect === 'artifact' ? 'hidden' : ''}" ${defect === 'cropped' ? 'open' : ''}>
                             <summary class="px-3 py-2 text-[11px] text-brand-text-muted cursor-pointer">${t('asset_viewer.three_d_src_pv_adjust')}</summary>
                             <div class="px-3 pb-3 pt-1 space-y-2">
                                 <div>
@@ -2364,14 +2427,18 @@
                             </div>
                         </details>
 
-                        <div class="flex flex-col gap-2">
-                            <button class="av-pv-use btn btn-sm ${good ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_pv_use')}</button>
-                            ${defect === 'artifact'
-                                ? `<button class="av-pv-fix btn btn-sm bg-brand-accent hover:bg-brand-accent-hover text-white rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_pv_fix')}</button>`
-                                : `<button class="av-pv-extend btn btn-sm ${good ? 'btn-secondary' : 'bg-brand-accent hover:bg-brand-accent-hover text-white'} rounded-lg py-2 text-xs font-medium">${t('asset_viewer.three_d_src_pv_extend')}</button>`}
-                            <button class="av-pv-discard text-[11px] text-brand-text-muted hover:text-red-400 mt-1">${t('asset_viewer.three_d_src_pv_discard')}</button>
+                        <!-- Three actions in one compact row (taller + narrower, not full-width bars):
+                             Use · Extend · Fix. Fix is a mode toggle — it reveals the brush panel and
+                             re-labels itself to confirm the masked repair; it's available for ANY verdict.
+                             In confirm mode "Extend it" starts the (first) outpaint; after an outpaint it
+                             becomes "Extend again". -->
+                        <div class="grid grid-cols-3 gap-2">
+                            <button class="av-pv-use btn btn-sm ${good ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${confirmMode ? t('asset_viewer.three_d_src_asis') : t('asset_viewer.three_d_src_pv_use')}</button>
+                            <button class="av-pv-extend btn btn-sm ${(!good && defect === 'cropped') ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${confirmMode ? t('asset_viewer.three_d_src_pv_extend_it') : t('asset_viewer.three_d_src_pv_extend')}</button>
+                            <button class="av-pv-fix btn btn-sm ${defect === 'artifact' ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${defect === 'artifact' ? t('asset_viewer.three_d_src_pv_fix') : t('asset_viewer.three_d_src_pv_fix_toggle')}</button>
                         </div>
-                        <p class="text-[9px] text-brand-text-dim text-center">${t('asset_viewer.three_d_src_pv_note')}</p>
+                        <button class="av-pv-discard text-[11px] text-brand-text-muted hover:text-red-400 w-full text-center">${confirmMode ? t('asset_viewer.three_d_src_pv_cancel') : t('asset_viewer.three_d_src_pv_discard')}</button>
+                        ${confirmMode ? '' : `<p class="text-[9px] text-brand-text-dim text-center">${t('asset_viewer.three_d_src_pv_note')}</p>`}
                     </div>`;
 
                 const readDirs = () => {
@@ -2380,26 +2447,65 @@
                 };
                 const done = (v) => { backdrop.remove(); resolve(v); };
 
-                // Wire the inline mask painter only in the artifact (inpaint) case.
-                let maskCanvas = null;
-                if (defect === 'artifact') {
-                    maskCanvas = backdrop.querySelector('#av-pv-mask');
-                    this._wirePreviewMask(maskCanvas, afterUrl, backdrop.querySelector('#av-pv-brush'));
-                    backdrop.querySelector('.av-pv-mask-clear')?.addEventListener('click', () => {
-                        if (maskCanvas?._baseImageData) maskCanvas.getContext('2d').putImageData(maskCanvas._baseImageData, 0, 0);
-                    });
-                    backdrop.querySelector('.av-pv-fix')?.addEventListener('click', () => {
-                        const m = this._extractMask(maskCanvas);
-                        if (m.isEmpty) { window.showToast?.(t('asset_viewer.three_d_src_nomask'), 'warning'); return; }
-                        done({ action: 'inpaint', mask: m.data, prompt: backdrop.querySelector('#av-pv-fix-prompt')?.value || '' });
-                    });
-                }
+                // Fix (inpaint) mode. For an 'artifact' verdict it starts ON (brush
+                // panel visible, mask painter live). For any other verdict it starts
+                // OFF and the Fix button toggles it ON first, THEN a second click
+                // confirms the masked repair — so the user can always touch up a spot,
+                // regardless of the auto verdict.
+                const fixPanel = backdrop.querySelector('#av-pv-fix-panel');
+                const extendPanel = backdrop.querySelector('#av-pv-extend-panel');
+                const afterImg = backdrop.querySelector('#av-pv-after-img');
+                const maskCanvas = backdrop.querySelector('#av-pv-mask');
+                const fixBtn = backdrop.querySelector('.av-pv-fix');
+                let fixMode = defect === 'artifact';
+                let maskWired = false;
+
+                const enableFixMode = () => {
+                    fixMode = true;
+                    fixPanel?.classList.remove('hidden');
+                    extendPanel?.classList.add('hidden');
+                    afterImg?.classList.add('hidden');
+                    maskCanvas?.classList.remove('hidden');
+                    fixBtn.textContent = t('asset_viewer.three_d_src_pv_fix');
+                    fixBtn.classList.add('bg-brand-accent', 'hover:bg-brand-accent-hover', 'text-white');
+                    fixBtn.classList.remove('btn-secondary');
+                    if (!maskWired) {
+                        this._wirePreviewMask(maskCanvas, afterUrl, backdrop.querySelector('#av-pv-brush'));
+                        maskWired = true;
+                    }
+                };
+                if (fixMode) enableFixMode();
+
+                backdrop.querySelector('.av-pv-mask-clear')?.addEventListener('click', () => {
+                    if (maskCanvas?._baseImageData) maskCanvas.getContext('2d').putImageData(maskCanvas._baseImageData, 0, 0);
+                });
+                fixBtn?.addEventListener('click', () => {
+                    if (!fixMode) { enableFixMode(); return; }   // first click: enter fix mode
+                    const m = this._extractMask(maskCanvas);
+                    if (m.isEmpty) { window.showToast?.(t('asset_viewer.three_d_src_nomask'), 'warning'); return; }
+                    done({ action: 'inpaint', mask: m.data, prompt: backdrop.querySelector('#av-pv-fix-prompt')?.value || '' });
+                });
 
                 backdrop.querySelector('.av-pv-use').addEventListener('click', () => done({ action: 'use' }));
-                backdrop.querySelector('.av-pv-extend')?.addEventListener('click', () =>
-                    done({ action: 'extend', suggestion: readDirs(), prompt: backdrop.querySelector('#av-pv-prompt')?.value || '' }));
-                backdrop.querySelector('.av-pv-discard').addEventListener('click', () => done({ action: 'discard' }));
-                backdrop.addEventListener('click', (e) => { if (e.target === backdrop) done({ action: 'discard' }); });
+                backdrop.querySelector('.av-pv-extend')?.addEventListener('click', () => {
+                    const dirs = readDirs();
+                    // If no extension amount is set yet (e.g. a "looks complete" verdict
+                    // where the user still wants to extend), don't fail — open the
+                    // adjustment panel seeded with a sensible default so they can dial it.
+                    if (!Object.values(dirs).some(v => v > 0)) {
+                        extendPanel?.classList.remove('hidden');
+                        if (extendPanel) extendPanel.open = true;
+                        const downInput = backdrop.querySelector('#av-pv-down');
+                        if (downInput && !parseInt(downInput.value, 10)) { downInput.value = 256; downInput.focus(); }
+                        return;
+                    }
+                    done({ action: 'extend', suggestion: dirs, prompt: backdrop.querySelector('#av-pv-prompt')?.value || '' });
+                });
+                // Confirm mode → Cancel (nothing generated, keep original); after an
+                // outpaint → Discard (drop the result, keep original as 3D source).
+                const bail = () => done({ action: confirmMode ? 'cancel' : 'discard' });
+                backdrop.querySelector('.av-pv-discard').addEventListener('click', bail);
+                backdrop.addEventListener('click', (e) => { if (e.target === backdrop) bail(); });
                 document.body.appendChild(backdrop);
             });
         },

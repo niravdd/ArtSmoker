@@ -142,7 +142,7 @@
     "three_d_not_generated": "このバージョンの3Dモデルはまだ生成されていません。",
     "three_d_failed": "3D生成に失敗しました",
     "three_d_version_note": "現在選択中の画像バージョンから生成します。",
-    "three_d_recheck_label": "生成前にソースの完全性を再チェック（AIクレジットを使用）",
+    "three_d_recheck_label": "AIによる完全性チェックを実行（クレジット消費）— いずれの場合も画像を確認します",
     "three_d_manual_complete_q": "被写体が見切れている？",
     "three_d_manual_complete": "補完／拡張する",
     "meta_prompt_lineage": "プロンプト系譜",
@@ -276,7 +276,15 @@
     "three_d_lic_not_recorded": "このパイプラインにはデプロイ時の同意記録がありません",
     "three_d_lic_view": "ライセンスを表示",
     "three_d_lic_note": "デプロイ時に同意済み。生成にはその条件が適用されます。",
-    "three_d_lic_commercial_full": "商用利用可"
+    "three_d_lic_commercial_full": "商用利用可",
+    "three_d_src_pv_fix_toggle": "部分修正",
+    "three_d_src_removing_bg": "背景を削除中…",
+    "three_d_src_pv_confirm_title": "3Dモデルに使う画像を確認",
+    "three_d_src_pv_confirm_sub": "この画像が3Dモデルに変換されます。そのまま使うか、先に拡張・修正できます。",
+    "three_d_src_pv_unchecked": "自動チェックできませんでした。画像を確認して判断してください。",
+    "three_d_src_pv_cancel": "キャンセル",
+    "three_d_src_pv_extend_it": "拡張する",
+    "three_d_run_checks": "チェックを実行"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",

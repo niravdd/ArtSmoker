@@ -142,7 +142,7 @@
     "three_d_not_generated": "此版本尚未生成 3D 模型。",
     "three_d_failed": "3D 生成失败",
     "three_d_version_note": "从当前选择的图像版本生成。",
-    "three_d_recheck_label": "生成前重新检查源图完整性（消耗 AI 额度）",
+    "three_d_recheck_label": "运行 AI 完整性检查（消耗额度）——两种情况下你都会确认图像",
     "three_d_manual_complete_q": "主体被裁剪？",
     "three_d_manual_complete": "补全 / 扩展",
     "meta_prompt_lineage": "提示词溯源",
@@ -276,7 +276,15 @@
     "three_d_lic_not_recorded": "此流程没有部署时接受许可证的记录",
     "three_d_lic_view": "查看许可证",
     "three_d_lic_note": "已在部署时接受；生成将使用这些条款。",
-    "three_d_lic_commercial_full": "可用于商业用途"
+    "three_d_lic_commercial_full": "可用于商业用途",
+    "three_d_src_pv_fix_toggle": "修补局部",
+    "three_d_src_removing_bg": "正在移除背景…",
+    "three_d_src_pv_confirm_title": "确认用于 3D 模型的图像",
+    "three_d_src_pv_confirm_sub": "这张图像将被转换为 3D 模型。可直接使用，或先扩展/修补。",
+    "three_d_src_pv_unchecked": "无法自动检查——请查看图像并决定。",
+    "three_d_src_pv_cancel": "取消",
+    "three_d_src_pv_extend_it": "扩展",
+    "three_d_run_checks": "运行检查"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",

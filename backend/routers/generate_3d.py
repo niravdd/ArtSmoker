@@ -934,6 +934,57 @@ def _version_image_path(asset_id: str, version: int, meta: dict = None):
     return None
 
 
+def _alpha_edge_crop(img_bytes: bytes, touch_frac: float = 0.04, margin_px: int = 2):
+    """Deterministic crop detection from a background-removed (RGBA) cutout.
+
+    Once the background is gone, the subject's silhouette is the alpha channel.
+    If that silhouette RUNS INTO a frame edge (a meaningful fraction of the edge
+    row/column is opaque with ~no transparent margin), the subject is cut off
+    there — provable, no LLM guessing. This is far more reliable than a vision
+    model on a plain cutout (the empty void below e.g. a pair of boots often
+    fools the LLM into "complete"). Returns None for non-transparent images (no
+    alpha signal to trust) or on any error, so callers fall back to the LLM.
+
+    Returns { "crop_edges": [...], "suggest_outpaint": {down,up,left,right} } or None.
+    """
+    try:
+        import io
+        import numpy as np
+        from PIL import Image
+        im = Image.open(io.BytesIO(img_bytes)).convert("RGBA")
+        alpha = np.asarray(im.split()[-1])
+        H, W = alpha.shape
+        # No real transparency (fully opaque) → not a cutout; no signal to use.
+        if (alpha > 16).mean() > 0.98:
+            return None
+        opaque = alpha > 16
+        edges = {
+            "up":    opaque[0, :].mean(),
+            "down":  opaque[-1, :].mean(),
+            "left":  opaque[:, 0].mean(),
+            "right": opaque[:, -1].mean(),
+        }
+        # A transparent margin (in px) between the silhouette and each edge; if the
+        # edge itself carries enough opaque pixels, the margin is ~0 → cropped there.
+        cols_any = opaque.any(axis=0)
+        rows_any = opaque.any(axis=1)
+        crop_edges, suggest = [], {"down": 0, "up": 0, "left": 0, "right": 0}
+        # Extension size scales with how much the subject fills the frame (a bigger
+        # subject needs a bigger reveal); clamp to the model's 0-512 range.
+        for edge, frac in edges.items():
+            if frac >= touch_frac:
+                crop_edges.append(edge)
+        # Map edges → outpaint directions with a sensible default reveal (256px),
+        # larger (384px) when the subject dominates that edge (>25% opaque).
+        for edge in crop_edges:
+            suggest[edge] = 384 if edges[edge] > 0.25 else 256
+        if not crop_edges:
+            return None
+        return {"crop_edges": crop_edges, "suggest_outpaint": suggest}
+    except Exception:
+        return None
+
+
 class AnalyzeSourceRequest(BaseModel):
     asset_id: str
     version: int = 1
@@ -955,11 +1006,22 @@ async def analyze_3d_source(body: AnalyzeSourceRequest):
 
     meta = store.load_generation_metadata(body.asset_id) or {}
     asset_type = (meta.get("asset_type") or "character").replace("_", " ")
+    # Feed the ORIGINAL generation prompt so the LLM judges completeness against
+    # the intended subject (any subject — living, object, fictional, any/no
+    # limbs), not against a fixed human body plan. Prefer the richest description
+    # available, falling back to the raw user prompt.
+    source_prompt = (
+        (meta.get("refined_prompt") or meta.get("enhanced_prompt")
+         or meta.get("recomposed_prompt") or meta.get("prompt")
+         or meta.get("original_prompt") or "").strip()
+        or "(no prompt recorded — judge purely from the image)"
+    )[:1200]
 
     try:
         from backend.services.bedrock_client import invoke_llm
         from backend.services.prompt_templates import get_template, get_system_prompt
-        prompt = get_template("three_d_source_analysis").format(asset_type=asset_type)
+        prompt = get_template("three_d_source_analysis").format(
+            asset_type=asset_type, source_prompt=source_prompt)
         system = get_system_prompt("three_d_source_analysis")
         raw = invoke_llm(prompt, system=system, complexity="complex",
                          images=[img_path.read_bytes()], max_tokens=400, temperature=0.0)
@@ -981,14 +1043,40 @@ async def analyze_3d_source(body: AnalyzeSourceRequest):
         try: return max(0, min(512, int(v)))
         except (TypeError, ValueError): return 0
     suggest = {d: _clamp(outp.get(d, 0)) for d in ("down", "up", "left", "right")}
+    crop_edges = data.get("crop_edges", []) or []
+
+    # ── Deterministic alpha-edge crop check (OVERRIDES the LLM when it fires) ──
+    # If the source is a background-removed cutout, the silhouette touching a
+    # frame edge is provable proof of a crop — more reliable than the vision
+    # model, which is easily fooled by the empty void below a cutout subject
+    # (it reads the void as "ground/margin" and says complete). When the alpha
+    # check finds a cropped edge, trust it over the LLM.
+    alpha = _alpha_edge_crop(img_path.read_bytes())
+    alpha_override = bool(alpha and alpha["crop_edges"])
+    if alpha_override:
+        complete = False
+        crop_edges = sorted(set(crop_edges) | set(alpha["crop_edges"]))
+        for d, v in alpha["suggest_outpaint"].items():
+            # Prefer the larger of (LLM suggestion, deterministic default).
+            suggest[d] = max(suggest.get(d, 0), _clamp(v))
+
     any_outpaint = any(suggest.values())
+    # When the alpha check overrides a "complete" LLM verdict, force a cropped
+    # defect + a truthful reason (the LLM's "looks complete" text would mislead).
+    llm_defect = (data.get("defect", "") or "").strip().lower()
+    if alpha_override:
+        defect = "cropped"
+        reason = "The subject's silhouette runs into the frame edge (" + ", ".join(crop_edges) + "), so part of it is cut off."
+    else:
+        defect = llm_defect or ("cropped" if (not (complete or not any_outpaint)) else "none")
+        reason = data.get("reason", "")
     return {
         "analyzed": True,
         # Only call it incomplete if the model said so AND gave a usable outpaint
         # direction — otherwise there's nothing actionable, so treat as complete.
         "complete": complete or not any_outpaint,
         "subject": data.get("subject", ""),
-        "crop_edges": data.get("crop_edges", []) or [],
+        "crop_edges": crop_edges,
         "missing": data.get("missing", []) or [],
         "suggest_outpaint": suggest,
         # Suggested completion prompt for the outpaint (what to draw in the new
@@ -1000,9 +1088,9 @@ async def analyze_3d_source(body: AnalyzeSourceRequest):
         #              from the ORIGINAL, never compounding the prior extension)
         #   artifact → in-frame but content is wrong → offer inline inpaint (mask + fix)
         #   none     → looks good
-        "defect": (data.get("defect", "") or "").strip().lower() or ("cropped" if (not (complete or not any_outpaint)) else "none"),
+        "defect": defect,
         "defect_area": (data.get("defect_area", "") or "").strip()[:200],
-        "reason": data.get("reason", ""),
+        "reason": reason,
     }
 
 

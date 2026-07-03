@@ -142,7 +142,7 @@
     "three_d_not_generated": "Aucun modèle 3D n'a été généré pour cette version.",
     "three_d_failed": "Échec de la génération 3D",
     "three_d_version_note": "Génère à partir de la version d'image actuellement sélectionnée.",
-    "three_d_recheck_label": "Revérifier l'intégrité de la source avant de générer (consomme des crédits IA)",
+    "three_d_recheck_label": "Lancer la vérification IA de complétude (utilise des crédits) — vous confirmerez l’image dans tous les cas",
     "three_d_manual_complete_q": "Sujet coupé ?",
     "three_d_manual_complete": "Compléter / étendre",
     "meta_prompt_lineage": "Lignée du prompt",
@@ -276,7 +276,15 @@
     "three_d_lic_not_recorded": "Aucune acceptation enregistrée au déploiement pour ce pipeline",
     "three_d_lic_view": "Voir la licence",
     "three_d_lic_note": "Acceptée au moment du déploiement ; la génération applique ces conditions.",
-    "three_d_lic_commercial_full": "Usage commercial autorisé"
+    "three_d_lic_commercial_full": "Usage commercial autorisé",
+    "three_d_src_pv_fix_toggle": "Corriger une zone",
+    "three_d_src_removing_bg": "Suppression de l’arrière-plan…",
+    "three_d_src_pv_confirm_title": "Confirmez l’image pour votre modèle 3D",
+    "three_d_src_pv_confirm_sub": "C’est l’image qui sera transformée en modèle 3D. Utilisez-la telle quelle, ou étendez / corrigez-la d’abord.",
+    "three_d_src_pv_unchecked": "Vérification automatique impossible — examinez l’image et décidez.",
+    "three_d_src_pv_cancel": "Annuler",
+    "three_d_src_pv_extend_it": "Étendre",
+    "three_d_run_checks": "Lancer les vérifications"
   },
   "chat_studio": {
     "attach_image": "Joindre une image (pour les modèles de vision)",

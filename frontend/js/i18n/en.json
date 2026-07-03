@@ -834,7 +834,7 @@
     "three_d_not_generated": "No 3D model has been generated for this version.",
     "three_d_failed": "3D generation failed",
     "three_d_version_note": "Generates from the currently selected image version.",
-    "three_d_recheck_label": "Re-check source completeness before generating (uses AI credits)",
+    "three_d_recheck_label": "Run AI completeness check (uses credits) — you'll still confirm the image either way",
     "three_d_manual_complete_q": "Subject cut off?",
     "three_d_manual_complete": "Complete / extend it",
     "meta_prompt_lineage": "Prompt Lineage",
@@ -893,7 +893,15 @@
     "three_d_lic_not_recorded": "No deploy-time acceptance on record for this pipeline",
     "three_d_lic_view": "View license",
     "three_d_lic_note": "Accepted at deploy time; generating uses those terms.",
-    "three_d_lic_commercial_full": "Commercial use OK"
+    "three_d_lic_commercial_full": "Commercial use OK",
+    "three_d_src_pv_fix_toggle": "Fix a spot",
+    "three_d_src_removing_bg": "Removing background…",
+    "three_d_src_pv_confirm_title": "Confirm the image for your 3D model",
+    "three_d_src_pv_confirm_sub": "This is the image that will be turned into a 3D model. Use it as-is, or extend / fix it first.",
+    "three_d_src_pv_unchecked": "Couldn't auto-check — review the image and decide.",
+    "three_d_src_pv_cancel": "Cancel",
+    "three_d_src_pv_extend_it": "Extend it",
+    "three_d_run_checks": "Run checks"
   },
   "model_settings": {
     "title": "Model Settings",

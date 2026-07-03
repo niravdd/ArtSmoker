@@ -142,7 +142,7 @@
     "three_d_not_generated": "이 버전에 대한 3D 모델이 아직 생성되지 않았습니다.",
     "three_d_failed": "3D 생성 실패",
     "three_d_version_note": "현재 선택된 이미지 버전에서 생성합니다.",
-    "three_d_recheck_label": "생성 전 소스 완전성 재확인 (AI 크레딧 사용)",
+    "three_d_recheck_label": "AI 완전성 검사 실행(크레딧 사용) — 어느 경우든 이미지를 확인합니다",
     "three_d_manual_complete_q": "피사체가 잘렸나요?",
     "three_d_manual_complete": "완성 / 확장하기",
     "meta_prompt_lineage": "프롬프트 계보",
@@ -276,7 +276,15 @@
     "three_d_lic_not_recorded": "이 파이프라인에 대한 배포 시점 동의 기록이 없습니다",
     "three_d_lic_view": "라이선스 보기",
     "three_d_lic_note": "배포 시점에 동의했으며, 생성 시 해당 약관이 적용됩니다.",
-    "three_d_lic_commercial_full": "상업적 이용 가능"
+    "three_d_lic_commercial_full": "상업적 이용 가능",
+    "three_d_src_pv_fix_toggle": "부분 수정",
+    "three_d_src_removing_bg": "배경 제거 중…",
+    "three_d_src_pv_confirm_title": "3D 모델에 사용할 이미지 확인",
+    "three_d_src_pv_confirm_sub": "이 이미지가 3D 모델로 변환됩니다. 그대로 사용하거나 먼저 확장·수정할 수 있습니다.",
+    "three_d_src_pv_unchecked": "자동 검사를 할 수 없습니다 — 이미지를 확인하고 결정하세요.",
+    "three_d_src_pv_cancel": "취소",
+    "three_d_src_pv_extend_it": "확장하기",
+    "three_d_run_checks": "검사 실행"
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",

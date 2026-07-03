@@ -27,39 +27,49 @@ _DEFAULTS = {
         "label": "3D Source Completeness Analysis",
         "description": "Vision analysis of a 2D image before image-to-3D, to detect whether the subject is cropped/incomplete so we can offer outpaint completion.",
         "used_by": "3D Generator — pre-submit source check (generate_3d.analyze_source)",
-        "variables": ["{asset_type}"],
+        "variables": ["{asset_type}", "{source_prompt}"],
         "model": "complex LLM (with vision)",
-        "system_prompt": "You are a 3D-asset pipeline reviewer. You judge whether a single 2D image is a COMPLETE depiction of its subject — suitable to convert into a full 3D model — or whether the subject is CROPPED by the image frame (parts cut off at an edge). Image-to-3D can only build geometry for what is visible, so a subject cropped at the bottom yields a legless/footless model. Respond with STRICT JSON only — no prose, no markdown.",
-        "text": """Analyze this image of a {asset_type} for image-to-3D conversion.
+        "system_prompt": "You are a 3D-asset pipeline reviewer. Image-to-3D builds geometry ONLY for what is visible in the single 2D image — anything cut off by the frame, or rendered as a broken/garbled region, becomes a broken 3D model. Your job is to decide whether this image is a COMPLETE, clean depiction of its INTENDED subject, ready to convert into a full 3D model. Reason from the intended subject, not from any fixed body plan — the subject may be a living thing, an object, a vehicle, a creature, or an abstract fictional thing, with any number of limbs/parts or none. Respond with STRICT JSON only — no prose, no markdown.",
+        "text": """Analyze this image for image-to-3D conversion.
 
-Decide if the MAIN SUBJECT is fully visible, or cropped by the frame edges (parts cut off). Focus ONLY on framing/cropping — do NOT flag stylistic choices, partial occlusion by other objects, or intentionally abstract art.
+INTENDED SUBJECT (what the user asked to generate — use this as your reference for what SHOULD be present):
+"{source_prompt}"
 
-First, GROUND YOUR JUDGMENT by observing the bottom edge before deciding:
-- lowest_visible_part: literally name the lowest part of the subject you can see (e.g. "mid-thigh", "knees", "ankles", "full boots with ground below"). Do NOT assume feet are present if you cannot actually see them.
-- bottom_gap: is there visible ground/floor/background BETWEEN the subject's lowest point and the bottom frame edge? true/false. If false for a standing figure, it is cropped.
+Asset category (a loose hint only, do not over-rely on it): {asset_type}
+
+Your task: decide whether the image shows the intended subject COMPLETELY and cleanly, so a 3D model of it would be whole. Two independent failure modes to check:
+
+1. CROPPED — some part of the intended subject is cut off by a frame edge (runs into / is sliced by the top, bottom, left or right border). This is the most common and most-missed case. Extending the canvas (outpaint) reveals the missing part.
+
+2. BROKEN — the whole subject is inside the frame, but a region of it is garbled, malformed, blurred, fused, duplicated, or otherwise wrong (bad anatomy, a melted prop, a seam from a prior edit, a limb merging into the background). Extending won't help — this needs a localized repaint (inpaint).
+
+How to reason (generically — do NOT assume a human body plan):
+- Form a mental model of the WHOLE intended subject from the prompt + what you see (its natural silhouette, extent, and expected parts — whatever those are for THIS subject).
+- Then check whether that whole thing is present and correct in the frame. A dragon needs its tail and wings; a car needs all four wheels and both bumpers; a standing figure needs to reach its base/feet with a margin below; a tree needs its canopy and trunk base. If any expected part meets a frame edge instead of ending inside the frame, it is CROPPED. If any part is present but rendered wrong, it is BROKEN.
+- Do NOT flag intentional style, deliberate abstraction, background objects, or a subject that is simply small-in-frame but whole.
 
 Return STRICT JSON with exactly these keys:
 {{
-  "lowest_visible_part": "e.g. mid-thigh / knees / full boots with ground below",
-  "bottom_gap": true|false,               // ground visible below the subject (false → cropped at bottom for a standing figure)
-  "complete": true|false,                 // true if the whole subject is in-frame
-  "subject": "short noun, e.g. 'humanoid character'",
+  "subject": "short noun naming the subject as you see it, grounded in the prompt (e.g. 'armored diver', 'four-wheeled buggy', 'winged dragon')",
+  "expected_extent": "one phrase describing what the WHOLE subject should include, so completeness is checkable (e.g. 'full body head-to-feet with ground below', 'entire vehicle incl. all wheels', 'creature incl. tail and both wings')",
+  "observed": "what you actually see relative to that extent — name any part that meets/exits a frame edge or looks broken (e.g. 'legs run off the bottom edge', 'rear wheel cut at right', 'all present and clean')",
+  "complete": true|false,                 // true only if the whole intended subject is in-frame AND clean
   "crop_edges": ["bottom"|"top"|"left"|"right"],   // frame edges where the subject is cut off; [] if none
-  "missing": ["legs","feet"],             // body parts/sections not visible due to cropping; [] if none
-  "suggest_outpaint": {{"down": 0-512, "up": 0-512, "left": 0-512, "right": 0-512}}, // px to extend per edge to reveal the rest; 0 where not needed
-  "outpaint_prompt": "describe the missing parts to draw (with helpful material/style detail, scoped to the new area)",  // e.g. "the soldier's legs in matching navy trousers and combat boots"; "" if complete
-  "defect": "none|cropped|artifact",      // none = looks good; cropped = subject still cut off at an edge (needs a bigger extension); artifact = subject IS fully in-frame but part of it looks wrong/garbled/blurred/mismatched (needs a localized fix, not more extension)
-  "defect_area": "short phrase naming where the artifact is, e.g. 'the lower legs and boots'",  // only when defect=artifact; "" otherwise
+  "missing": ["short parts, e.g. 'legs','tail','rear wheel'"],   // parts of the intended subject not fully visible; [] if none
+  "suggest_outpaint": {{"down": 0-512, "up": 0-512, "left": 0-512, "right": 0-512}}, // px to extend per cropped edge to reveal the rest; 0 where not needed
+  "outpaint_prompt": "describe what to draw in the EXTENDED area (the missing parts + material/colour/style detail to blend), scoped to the new region; '' if not cropped",
+  "defect": "none|cropped|artifact",      // none = complete & clean; cropped = part cut off by frame (outpaint); artifact = fully in-frame but a region is broken (inpaint)
+  "defect_area": "short phrase naming the broken region (defect=artifact only; '' otherwise)",
   "reason": "one short sentence a user can read"
 }}
 
 Rules:
-- CROP TEST (do this first, carefully — this is the most common and most-missed case): trace the subject to every frame edge. For a person/character/creature the WHOLE body must be inside the frame — head/hair at top AND the feet/paws/base clearly ending ABOVE the bottom edge with visible ground or gap beneath. If the body runs INTO the bottom edge (legs, shins, or feet touch or are cut by the frame boundary), it IS cropped — set defect="cropped" even if the pose looks otherwise natural. A standing figure whose feet you cannot fully see is cropped. Do the same for every edge (arms/weapons cut at the sides, head cut at top).
-- If the subject is fully visible AND looks correct (a character shown head-to-toe with feet and a margin below them; a whole object/prop; no garbled/blurred regions), set complete=true, defect="none", empty arrays, all outpaint values 0, outpaint_prompt "", defect_area "".
-- Only suggest outpaint on edges where the subject is genuinely cut off by the frame → defect="cropped".
-- If the subject is fully in-frame but a region looks wrong (garbled anatomy, blur, seam, mismatched style from a prior edit), set complete=false, defect="artifact", all suggest_outpaint 0 (do NOT extend — extending won't fix bad content), and name the bad region in defect_area. This signals a localized inpaint fix, not more outpainting.
-- outpaint_prompt (defect=cropped only): describe what to draw in the EXTENDED AREA — the missing parts plus enough material/colour/style detail to blend seamlessly with the visible subject. Stay scoped to the new region: do NOT re-describe the whole scene, camera or pose. e.g. "the soldier's legs in matching navy trousers and worn combat boots".
-- Be conservative: when in doubt, prefer complete=true / defect="none" (avoid false alarms on well-framed art).
+- Judge completeness against the INTENDED subject and its own natural form — never against a fixed 'head/torso/legs' template. Count only the parts THIS subject should have.
+- CROP TEST first: trace the subject to all four edges. Any expected part touching or sliced by an edge → defect="cropped", list the edge in crop_edges, set the matching suggest_outpaint direction, and describe the missing part in outpaint_prompt. (For a standing figure, feet you cannot fully see with a gap beneath = cropped.)
+- If fully in-frame but a region is malformed/garbled/blurred/fused/duplicated → complete=false, defect="artifact", all suggest_outpaint 0 (extending won't fix content), name the region in defect_area.
+- If the whole intended subject is present and clean → complete=true, defect="none", empty arrays, all outpaint values 0, outpaint_prompt "", defect_area "".
+- outpaint_prompt (cropped only): describe ONLY the extended region — the missing parts plus enough material/colour/style detail to blend seamlessly. Do NOT re-describe the whole scene, camera, or pose.
+- Be conservative: when genuinely unsure, prefer complete=true / defect="none" (avoid false alarms on well-framed, clean art).
 - Output ONLY the JSON object.""",
     },
     "image_refine_single": {

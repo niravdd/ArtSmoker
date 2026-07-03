@@ -779,7 +779,7 @@
     "three_d_not_generated": "इस संस्करण के लिए कोई 3D मॉडल नहीं बनाया गया है।",
     "three_d_failed": "3D निर्माण विफल",
     "three_d_version_note": "वर्तमान में चयनित चित्र संस्करण से बनाता है।",
-    "three_d_recheck_label": "जनरेट करने से पहले स्रोत की पूर्णता पुनः जाँचें (AI क्रेडिट खर्च होता है)",
+    "three_d_recheck_label": "AI पूर्णता जाँच चलाएँ (क्रेडिट लगेंगे) — दोनों स्थिति में आप छवि की पुष्टि करेंगे",
     "three_d_manual_complete_q": "विषय कटा हुआ है?",
     "three_d_manual_complete": "पूरा करें / बढ़ाएँ",
     "meta_prompt_lineage": "प्रॉम्प्ट वंशावली",
@@ -892,7 +892,15 @@
     "three_d_lic_not_recorded": "इस पाइपलाइन के लिए डिप्लॉय-समय की स्वीकृति रिकॉर्ड में नहीं है",
     "three_d_lic_view": "लाइसेंस देखें",
     "three_d_lic_note": "डिप्लॉय के समय स्वीकृत; जनरेट करने पर वही शर्तें लागू होती हैं।",
-    "three_d_lic_commercial_full": "वाणिज्यिक उपयोग की अनुमति है"
+    "three_d_lic_commercial_full": "वाणिज्यिक उपयोग की अनुमति है",
+    "three_d_src_pv_fix_toggle": "स्पॉट ठीक करें",
+    "three_d_src_removing_bg": "पृष्ठभूमि हटाई जा रही है…",
+    "three_d_src_pv_confirm_title": "अपने 3D मॉडल के लिए छवि की पुष्टि करें",
+    "three_d_src_pv_confirm_sub": "यही छवि 3D मॉडल में बदली जाएगी। इसे वैसे ही उपयोग करें, या पहले बढ़ाएँ / ठीक करें।",
+    "three_d_src_pv_unchecked": "स्वतः जाँच नहीं हो सकी — छवि देखें और निर्णय लें।",
+    "three_d_src_pv_cancel": "रद्द करें",
+    "three_d_src_pv_extend_it": "बढ़ाएँ",
+    "three_d_run_checks": "जाँच चलाएँ"
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",
