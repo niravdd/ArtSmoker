@@ -2287,12 +2287,30 @@
             }
             try { this._meta = await API.gallery.get(this._item.id); } catch {}
             if (newVersion) this._currentVersion = newVersion;
+            // Stability's outpaint always RE-RENDERS a background into the extended
+            // canvas (it can't emit transparency), so the result comes back with a
+            // scene even though we fed it a clean cutout. Strip it again to restore
+            // the cutout — keeps the working image transparent AND lets the alpha
+            // crop detector run on the re-review. Non-fatal.
+            newVersion = await this._restripBg(newVersion, btn);
             window.Gallery?.refresh?.();
             // Re-review the result (one analysis pass; the popup shows the verdict).
             let recheck = null;
             if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
             try { recheck = await API.threeD.analyzeSource(this._item?.id, newVersion || 1); } catch {}
             return { status: 'ok', newVersion, recheck };
+        },
+
+        /**
+         * Re-strip the background from a just-edited version (Stability edit models
+         * bake a background back in). Returns the new clean-cutout version, or the
+         * input version unchanged if removal is skipped/fails. Updates _currentVersion
+         * and _meta so callers see the cutout.
+         */
+        async _restripBg(version, btn) {
+            if (!version) return version;
+            const bg = await this._removeBgOnce(version, btn);
+            return (bg.status === 'ok' && bg.newVersion) ? bg.newVersion : version;
         },
 
         /**
@@ -2335,6 +2353,9 @@
             }
             try { this._meta = await API.gallery.get(this._item.id); } catch {}
             if (newVersion) this._currentVersion = newVersion;
+            // Same as outpaint: Stability's inpaint re-bakes a background, so strip
+            // it again to keep a clean cutout for both display and the alpha check.
+            newVersion = await this._restripBg(newVersion, btn);
             window.Gallery?.refresh?.();
             let recheck = null;
             if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
