@@ -1706,7 +1706,8 @@
             }
         },
 
-        _render3DForm(container, instances = []) {
+        _render3DForm(container, instances = [], isRegen = false) {
+            this._is3DRegen = isRegen;
             // Model chooser — only shown when more than one TripoSG instance is
             // deployed (mirrors the Image Studio model chooser). With 0 or 1
             // instance there's nothing to choose, so the server default is used.
@@ -1758,6 +1759,21 @@
                 <div class="space-y-4">
                     <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_version_note')}</p>
                     ${chooserHtml}
+                    <!-- Source-completion controls. The auto-check (vision) can miss a
+                         cropped subject, so we ALSO offer a manual entry point that's
+                         always available. On regenerate the auto-check is opt-in
+                         (costs AI credits) since the source is often already fine. -->
+                    <div class="rounded-lg border border-brand-border/50 bg-brand-bg/30 px-3 py-2 space-y-1.5">
+                        ${isRegen ? `
+                        <label class="flex items-center gap-2 cursor-pointer">
+                            <input id="av-3d-recheck" type="checkbox" checked class="accent-brand-accent" />
+                            <span class="text-[11px] text-brand-text">${t('asset_viewer.three_d_recheck_label')}</span>
+                        </label>` : ''}
+                        <div class="flex items-center gap-2 text-[11px]">
+                            <span class="text-brand-text-muted">${t('asset_viewer.three_d_manual_complete_q')}</span>
+                            <button id="av-3d-manual-complete" class="text-brand-accent hover:underline">${t('asset_viewer.three_d_manual_complete')}</button>
+                        </div>
+                    </div>
                     <!-- License + save-as choice sit SIDE-BY-SIDE (wrap on narrow
                          widths) to keep the form compact instead of stacking tall. -->
                     <div class="flex flex-wrap items-stretch gap-3">
@@ -1944,6 +1960,26 @@
 
             // Generate button
             container.querySelector('#av-3d-generate')?.addEventListener('click', () => this._submit3DGeneration());
+
+            // Manual "complete/extend source" — the safety net for when auto-detection
+            // misses a crop. Always opens the completion flow: analyze for a starting
+            // suggestion, but proceed even if the verdict is "complete" (the user knows
+            // better). Falls back to a sensible default extension the user tunes in the
+            // preview popup. Does NOT auto-submit 3D — returns to the form afterwards.
+            container.querySelector('#av-3d-manual-complete')?.addEventListener('click', async () => {
+                const link = container.querySelector('#av-3d-manual-complete');
+                const orig = link ? link.textContent : '';
+                if (link) link.textContent = t('asset_viewer.three_d_src_reviewing');
+                let analysis = {};
+                try { analysis = await API.threeD.analyzeSource(this._item?.id, this._currentVersion || 1) || {}; } catch {}
+                // Seed a default extension if the LLM didn't suggest one (manual intent
+                // overrides a "complete" verdict) — down is the common crop for characters.
+                const sg = analysis.suggest_outpaint || {};
+                if (!(sg.down || sg.up || sg.left || sg.right)) analysis.suggest_outpaint = { down: 256, up: 0, left: 0, right: 0 };
+                if (link) link.textContent = orig;
+                await this._runOutpaintCompletion(analysis, null, analysis.outpaint_prompt || '');
+                // Back to the form (user decides whether to Generate now).
+            });
         },
 
         async _submit3DGeneration(skipSourceCheck) {
@@ -1959,7 +1995,12 @@
             // is cropped by the frame (→ an incomplete/legless 3D model). If so,
             // offer to outpaint-complete it into a new 2D version first. Opt-in,
             // non-blocking; only for subject-centric types; skipped on retry.
-            if (!skipSourceCheck) {
+            // Regen opt-out: the form's "re-check source" checkbox (regen only)
+            // lets the user skip the AI check to save credits on an already-good
+            // source. First-time generate always checks (no checkbox present).
+            const recheckBox = container?.querySelector('#av-3d-recheck');
+            const wantCheck = !recheckBox || recheckBox.checked;
+            if (!skipSourceCheck && wantCheck) {
                 const t3 = this._meta?.asset_type;
                 if (t3 === 'character' || t3 === 'game_asset') {
                     let analysis = null;
@@ -2624,7 +2665,7 @@
                         const resp = await API.threeD.instances();
                         instances = (resp?.instances || []).filter(i => i.available);
                     } catch {}
-                    this._render3DForm(container, instances);
+                    this._render3DForm(container, instances, /* isRegen */ true);
                 } catch (err) {
                     window.showToast?.(t('asset_viewer.three_d_not_deployed'), 'warning');
                 }

@@ -34,8 +34,14 @@ _DEFAULTS = {
 
 Decide if the MAIN SUBJECT is fully visible, or cropped by the frame edges (parts cut off). Focus ONLY on framing/cropping — do NOT flag stylistic choices, partial occlusion by other objects, or intentionally abstract art.
 
+First, GROUND YOUR JUDGMENT by observing the bottom edge before deciding:
+- lowest_visible_part: literally name the lowest part of the subject you can see (e.g. "mid-thigh", "knees", "ankles", "full boots with ground below"). Do NOT assume feet are present if you cannot actually see them.
+- bottom_gap: is there visible ground/floor/background BETWEEN the subject's lowest point and the bottom frame edge? true/false. If false for a standing figure, it is cropped.
+
 Return STRICT JSON with exactly these keys:
 {{
+  "lowest_visible_part": "e.g. mid-thigh / knees / full boots with ground below",
+  "bottom_gap": true|false,               // ground visible below the subject (false → cropped at bottom for a standing figure)
   "complete": true|false,                 // true if the whole subject is in-frame
   "subject": "short noun, e.g. 'humanoid character'",
   "crop_edges": ["bottom"|"top"|"left"|"right"],   // frame edges where the subject is cut off; [] if none
@@ -48,7 +54,8 @@ Return STRICT JSON with exactly these keys:
 }}
 
 Rules:
-- If the subject is fully visible AND looks correct (head-to-toe for a character, whole object for a prop, no garbled/blurred regions), set complete=true, defect="none", empty arrays, all outpaint values 0, outpaint_prompt "", defect_area "".
+- CROP TEST (do this first, carefully — this is the most common and most-missed case): trace the subject to every frame edge. For a person/character/creature the WHOLE body must be inside the frame — head/hair at top AND the feet/paws/base clearly ending ABOVE the bottom edge with visible ground or gap beneath. If the body runs INTO the bottom edge (legs, shins, or feet touch or are cut by the frame boundary), it IS cropped — set defect="cropped" even if the pose looks otherwise natural. A standing figure whose feet you cannot fully see is cropped. Do the same for every edge (arms/weapons cut at the sides, head cut at top).
+- If the subject is fully visible AND looks correct (a character shown head-to-toe with feet and a margin below them; a whole object/prop; no garbled/blurred regions), set complete=true, defect="none", empty arrays, all outpaint values 0, outpaint_prompt "", defect_area "".
 - Only suggest outpaint on edges where the subject is genuinely cut off by the frame → defect="cropped".
 - If the subject is fully in-frame but a region looks wrong (garbled anatomy, blur, seam, mismatched style from a prior edit), set complete=false, defect="artifact", all suggest_outpaint 0 (do NOT extend — extending won't fix bad content), and name the bad region in defect_area. This signals a localized inpaint fix, not more outpainting.
 - outpaint_prompt (defect=cropped only): describe what to draw in the EXTENDED AREA — the missing parts plus enough material/colour/style detail to blend seamlessly with the visible subject. Stay scoped to the new region: do NOT re-describe the whole scene, camera or pose. e.g. "the soldier's legs in matching navy trousers and worn combat boots".
