@@ -475,10 +475,15 @@
                     body: { asset_id: assetId, version },
                 });
             },
-            /** URL of the EXACT background-removed image that goes to the 3D pipeline
-             *  for a version (cached server-side; removes BG once if needed). */
+            /** URL of the EXACT prepared image that goes to the 3D pipeline for a
+             *  version (bg-removed cutout or Extend/Fill result; sidecar, not a version). */
             sourcePreviewUrl(assetId, version = 1) {
                 return `/api/generate/3d/source-preview/${encodeURIComponent(assetId)}/${version}`;
+            },
+            /** Prepare a version's 3D source in place via sidecars (no 2D versions).
+             *  op: 'cutout' | 'extend' | 'inpaint' | 'reset'. Returns { ok, analysis }. */
+            prepareSource(body) {
+                return request('/api/generate/3d/prepare-source', { method: 'POST', body });
             },
             /** Persist a completion re-review verdict onto a 2D version's record. */
             recordReview(assetId, version, review) {

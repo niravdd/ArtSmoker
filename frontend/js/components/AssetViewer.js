@@ -2128,41 +2128,42 @@
         },
 
         /**
-         * Open the source-review workflow (explicit, optional). Removes the
-         * background, runs the AI completeness check, then shows the review dialog
-         * where the user iterates Extend / Fill until satisfied and clicks "Use this
-         * image". On approval, marks the version reviewed and refreshes the form.
-         * NEVER triggers 3D generation — that's the form's Generate button alone.
+         * Open the source-review workflow (explicit, optional). Ensures the
+         * background-removed cutout exists (sidecar cache — NOT a version), runs the
+         * AI completeness check, then opens the self-contained review dialog where
+         * the user iterates Extend / Fill until satisfied and clicks "Use this
+         * image". All work goes through /prepare-source sidecars — NO 2D versions
+         * are created. NEVER triggers 3D generation (that's the form's Generate btn).
          */
         async _reviewSource(reviewBtn) {
             if (reviewBtn?.disabled) return;
-            const container = this._overlay?.querySelector('#av-3d-content');
             if (reviewBtn) {
                 reviewBtn.disabled = true;
-                reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
+                reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_removing_bg')}`;
             }
             // Re-sync to the true current version (backend truth) before reviewing.
             try {
                 this._meta = await API.gallery.get(this._item.id);
                 if (this._meta?.current_version) this._currentVersion = this._meta.current_version;
             } catch {}
-            // 1) Background removal first (clean cutout for both the AI check and the
-            //    confirm preview). Once (skipped if already background-free).
-            if (reviewBtn) reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_removing_bg')}`;
-            if (!this._isBackgroundFree(this._currentVersion || 1)) {
-                const bg = await this._removeBgOnce(this._currentVersion || 1, reviewBtn);
-                if (bg.status === 'ok' && bg.newVersion) this._currentVersion = bg.newVersion;
-            }
-            // 2) AI completeness review on the clean cutout.
-            if (reviewBtn) reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
+            const version = this._currentVersion || 1;
+            // Ensure the cutout exists + get an initial completeness verdict. One call
+            // (op:'cutout') removes BG once (cached) and returns the analysis. Retry
+            // once on a transient failure before falling back to "review & decide".
             let analysis = null;
-            try { analysis = await API.threeD.analyzeSource(this._item?.id, this._currentVersion || 1); } catch {}
-            // 3) Review dialog: iterate Extend / Fill until satisfied → "Use this image".
-            const approved = await this._reviewSourceBeforeGen(
-                analysis || { analyzed: false }, reviewBtn,
-                (analysis && analysis.outpaint_prompt) || '');
-            if (approved) this._sourceApprovedVersion = this._currentVersion || 1;
-            // Rebuild the form on the (possibly new) approved version.
+            for (let attempt = 0; attempt < 2 && !(analysis && analysis.analyzed); attempt++) {
+                try {
+                    const r = await API.threeD.prepareSource({ asset_id: this._item?.id, version, op: 'cutout' });
+                    analysis = r?.analysis || null;
+                } catch (e) {
+                    console.warn('[3D] source prepare/analysis failed (attempt ' + (attempt + 1) + ')', e);
+                }
+            }
+            // Self-contained review dialog — stays open through every Extend/Fill,
+            // shows progress in place, resolves only on "Use this image" / "Cancel".
+            const approved = await this._showSourceReview(version, analysis || { analyzed: false });
+            if (approved) this._sourceApprovedVersion = version;
+            // Rebuild the form (refreshes the SOURCE preview to the prepared image).
             this._update3DContent();
         },
 
@@ -2227,459 +2228,224 @@
         },
 
         /**
-         * Orchestrate outpaint completion with a preview-and-decide loop.
-         * Each round: outpaint → re-analyze → show a before/after preview popup
-         * with the verdict → user picks Use / Extend again (tweakable) / Discard.
-         * Keeps _currentVersion pointed at whatever the user accepts. Returns true
-         * to proceed to 3D (against the current version), false to abort.
+         * Self-contained source-review dialog. Opens ONCE and STAYS OPEN through
+         * every Extend/Fill iteration — each op runs against the sidecar-based
+         * /prepare-source (NO 2D versions), shows an in-progress overlay in place,
+         * then refreshes the shown image + verdict without closing. Resolves only on
+         * "Use this image" (true) or "Cancel" (false). Fixes the old flow where the
+         * dialog closed during the op and looked like it jumped to the gallery.
+         *
+         * Ops (all via API.threeD.prepareSource, keyed to `version`):
+         *   extend  → outpaint the CUTOUT (never compounding) → re-strip → __source
+         *   inpaint → fill/replace a masked region of the current source → __source
+         *   reset   → drop __source, revert to the plain cutout
          */
-        async _reviewSourceBeforeGen(analysis, btn, initialPrompt) {
-            // PREVIEW-FIRST source review. Whenever the pre-gen check runs we ALWAYS
-            // show the user the exact image that will become the 3D model, with the
-            // AI verdict, and let them decide — proceed as-is, extend, fix, or cancel.
-            // Nothing happens to the image until the user explicitly extends/fixes.
-            //
-            // origVersion = the version we outpaint FROM. Every OUTPAINT extends
-            // origVersion (never a prior outpaint) so the canvas never compounds.
-            // INPAINT fixes content on the CURRENT shown version. shownVersion is
-            // what's on screen; when it equals origVersion the popup is in single-
-            // image "confirm" mode (nothing generated yet).
-            let origVersion = this._currentVersion || 1;   // cancel/discard revert target
-            let shownVersion = origVersion;
-            let suggestion = analysis?.suggest_outpaint || {};
-            let prompt = (initialPrompt !== undefined ? initialPrompt : analysis?.outpaint_prompt) || '';
-            let lastReview = analysis || { analyzed: false };
-            let bgRemoved = false;   // strip BG once, lazily, before the first outpaint
-
-            const _persistReview = async (ver, review) => {
-                if (ver && review) { try { await API.threeD.recordReview(this._item?.id, ver, review); } catch {} }
-            };
-
-            while (true) {
-                const decision = await this._showOutpaintPreview({
-                    beforeVersion: origVersion,
-                    afterVersion: shownVersion,
-                    recheck: lastReview,
-                    suggestion,
-                    prompt: (lastReview && lastReview.outpaint_prompt) || prompt,
-                    confirmMode: shownVersion === origVersion,   // single image, nothing done yet
-                });
-
-                if (decision.action === 'use') { this._currentVersion = shownVersion; return true; }
-                // 'cancel' (confirm mode) and 'discard' (post-edit) both abort the
-                // completion and keep the original as the 3D source.
-                if (decision.action === 'cancel' || decision.action === 'discard') {
-                    this._currentVersion = origVersion; return false;
-                }
-
-                if (decision.action === 'extend') {
-                    // Background was already stripped up front (before the review), so
-                    // origVersion is a clean cutout and the outpaint extends just the
-                    // subject. As a safety net (e.g. the manual-complete entry, which
-                    // skips the up-front step), strip it here once if still present.
-                    if (!bgRemoved && !this._isBackgroundFree(origVersion)) {
-                        const bg = await this._removeBgOnce(origVersion, btn);
-                        if (bg.status === 'ok' && bg.newVersion) origVersion = bg.newVersion;
-                        bgRemoved = true;
-                    }
-                    suggestion = decision.suggestion || suggestion;
-                    prompt = decision.prompt !== undefined ? decision.prompt : prompt;
-                    // OUTPAINT pass: always from origVersion (never compounding).
-                    const res = await this._outpaintOnce(origVersion, suggestion, btn, prompt, analysis);
-                    if (res.status === 'failed') { continue; }   // re-show confirm
-                    await _persistReview(res.newVersion, res.recheck);
-                    shownVersion = res.newVersion;
-                    lastReview = res.recheck || {};
-                    continue;
-                }
-
-                if (decision.action === 'inpaint') {
-                    // Fix content on the CURRENT shown version with the brushed mask
-                    // (no canvas growth). Works even in confirm mode — the user can
-                    // touch up the original source directly.
-                    const inp = await this._inpaintOnce(shownVersion, decision.mask, decision.prompt, btn);
-                    if (inp.status === 'failed') { continue; }
-                    await _persistReview(inp.newVersion, inp.recheck);
-                    shownVersion = inp.newVersion;
-                    lastReview = inp.recheck || {};
-                    continue;
-                }
-            }
-        },
-
-        /**
-         * Has this version already had its background removed? Checks the version
-         * record's type/edit provenance so we don't strip an already-transparent
-         * image (which would be a no-op API call and an extra version).
-         */
-        _isBackgroundFree(version) {
-            const versions = this._meta?.versions || [];
-            const v = versions.find(x => x.version === version);
-            if (!v) return false;
-            const type = (v.type || '').toLowerCase();
-            const trigger = (v.edit_context && v.edit_context.op) || '';
-            return type === 'remove_background' || trigger === 'remove_background'
-                || this._meta?.remove_background === true;
-        },
-
-        /**
-         * Remove the background from `fromVersion` into a NEW 2D version, then make
-         * it current. Runs before outpaint so the model extends a clean cutout, not
-         * a busy scene (and it's what image-to-3D needs regardless). Non-fatal.
-         * Returns { status:'ok'|'skipped'|'failed', newVersion }.
-         */
-        async _removeBgOnce(fromVersion, btn) {
-            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_removing_bg')}`;
-            try {
-                const resp = await fetch('/api/generate/edit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        source_image_id: this._item?.id,
-                        model: 'stable_image_remove_background_v1',
-                        source_version: fromVersion,
-                        extra_params: {
-                            _meta: { trigger: '3d_source_completion', op: 'remove_background', from_version: fromVersion },
-                        },
-                    }),
-                }).then(async r => {
-                    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `${r.status}`); }
-                    return r.json();
-                });
-                try { this._meta = await API.gallery.get(this._item.id); } catch {}
-                if (resp.version) this._currentVersion = resp.version;
-                window.Gallery?.refresh?.();
-                return { status: 'ok', newVersion: resp.version };
-            } catch (err) {
-                // Non-fatal — fall back to outpainting the original (with background).
-                window.showToast?.(t('asset_viewer.three_d_src_removing_bg') + ' — ' + (err.message || 'skipped'), 'warning');
-                return { status: 'failed' };
-            }
-        },
-
-        /**
-         * One outpaint pass: extend `fromVersion` by the given directions (creates
-         * a new 2D version), switch _currentVersion to it, then re-analyze it.
-         * Returns { status:'ok'|'failed', newVersion, recheck }.
-         */
-        async _outpaintOnce(fromVersion, suggestion, btn, outpaintPrompt, sourceAnalysis) {
-            const s = suggestion || {};
-            const dirs = {
-                outpaint_left: s.left || 0, outpaint_right: s.right || 0,
-                outpaint_up: s.up || 0, outpaint_down: s.down || 0,
-            };
-            if (!Object.values(dirs).some(v => v > 0)) {
-                window.showToast?.(t('asset_viewer.three_d_src_nodir'), 'warning');
-                return { status: 'failed' };
-            }
-            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_completing')}`;
-            let newVersion;
-            try {
-                const resp = await fetch('/api/generate/edit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        source_image_id: this._item?.id,
-                        model: 'stable_outpaint_v1',
-                        // Always extend the ORIGINAL cropped version (not a prior
-                        // outpaint), so re-extending never compounds the canvas.
-                        source_version: fromVersion,
-                        // Completion prompt: LLM-suggested, user-editable. Empty =
-                        // let the model continue the subject on its own.
-                        prompt: (outpaintPrompt || '').trim(),
-                        ...dirs,
-                        // _meta is stripped server-side into the version record (not
-                        // sent to the model) — provenance for this 3D-completion edit.
-                        extra_params: {
-                            _meta: {
-                                trigger: '3d_source_completion',
-                                from_version: fromVersion,
-                                // What the analysis on the SOURCE detected (why we outpainted).
-                                detected: sourceAnalysis ? {
-                                    missing: sourceAnalysis.missing || [],
-                                    crop_edges: sourceAnalysis.crop_edges || [],
-                                    reason: sourceAnalysis.reason || '',
-                                } : null,
-                                directions: { left: dirs.outpaint_left, right: dirs.outpaint_right, up: dirs.outpaint_up, down: dirs.outpaint_down },
-                                prompt: (outpaintPrompt || '').trim(),
-                            },
-                        },
-                    }),
-                }).then(async r => {
-                    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `${r.status}`); }
-                    return r.json();
-                });
-                newVersion = resp.version;
-            } catch (err) {
-                window.showToast?.(t('asset_viewer.three_d_src_failed') + (err.message ? ': ' + err.message : ''), 'error');
-                return { status: 'failed' };
-            }
-            try { this._meta = await API.gallery.get(this._item.id); } catch {}
-            if (newVersion) this._currentVersion = newVersion;
-            // Stability's outpaint always RE-RENDERS a background into the extended
-            // canvas (it can't emit transparency), so the result comes back with a
-            // scene even though we fed it a clean cutout. Strip it again to restore
-            // the cutout — keeps the working image transparent AND lets the alpha
-            // crop detector run on the re-review. Non-fatal.
-            newVersion = await this._restripBg(newVersion, btn);
-            window.Gallery?.refresh?.();
-            // Re-review the result (one analysis pass; the popup shows the verdict).
-            let recheck = null;
-            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
-            try { recheck = await API.threeD.analyzeSource(this._item?.id, newVersion || 1); } catch {}
-            return { status: 'ok', newVersion, recheck };
-        },
-
-        /**
-         * Re-strip the background from a just-edited version (Stability edit models
-         * bake a background back in). Returns the new clean-cutout version, or the
-         * input version unchanged if removal is skipped/fails. Updates _currentVersion
-         * and _meta so callers see the cutout.
-         */
-        async _restripBg(version, btn) {
-            if (!version) return version;
-            const bg = await this._removeBgOnce(version, btn);
-            return (bg.status === 'ok' && bg.newVersion) ? bg.newVersion : version;
-        },
-
-        /**
-         * One inpaint pass: fix content on `fromVersion` using the user-brushed
-         * mask (base64 PNG) + prompt (creates a new 2D version), then re-analyze.
-         * Does NOT change canvas size — repairs bad content within the frame.
-         * Returns { status:'ok'|'failed', newVersion, recheck }.
-         */
-        async _inpaintOnce(fromVersion, maskB64, inpaintPrompt, btn) {
-            if (!maskB64) { window.showToast?.(t('asset_viewer.three_d_src_nomask'), 'warning'); return { status: 'failed' }; }
-            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_fixing')}`;
-            let newVersion;
-            try {
-                const resp = await fetch('/api/generate/edit', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        source_image_id: this._item?.id,
-                        model: 'stable_image_inpaint_v1',
-                        source_version: fromVersion,   // fix the current shown result
-                        prompt: (inpaintPrompt || '').trim(),
-                        mask: maskB64,
-                        extra_params: {
-                            _meta: {
-                                trigger: '3d_source_completion',
-                                op: 'inpaint',
-                                from_version: fromVersion,
-                                prompt: (inpaintPrompt || '').trim(),
-                            },
-                        },
-                    }),
-                }).then(async r => {
-                    if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `${r.status}`); }
-                    return r.json();
-                });
-                newVersion = resp.version;
-            } catch (err) {
-                window.showToast?.(t('asset_viewer.three_d_src_fix_failed') + (err.message ? ': ' + err.message : ''), 'error');
-                return { status: 'failed' };
-            }
-            try { this._meta = await API.gallery.get(this._item.id); } catch {}
-            if (newVersion) this._currentVersion = newVersion;
-            // Same as outpaint: Stability's inpaint re-bakes a background, so strip
-            // it again to keep a clean cutout for both display and the alpha check.
-            newVersion = await this._restripBg(newVersion, btn);
-            window.Gallery?.refresh?.();
-            let recheck = null;
-            if (btn) btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
-            try { recheck = await API.threeD.analyzeSource(this._item?.id, newVersion || 1); } catch {}
-            return { status: 'ok', newVersion, recheck };
-        },
-
-        /**
-         * Source-review popup (layered above the 3D dialog). Two modes:
-         *   • confirmMode=true  — single image: the EXACT source that will become the
-         *     3D model, with the AI verdict. Nothing has been generated yet. Actions:
-         *     Use as-is / Extend it / Fix a spot / Cancel.
-         *   • confirmMode=false — before/after: source vs the just-outpainted result,
-         *     with the re-review verdict. Actions: Use / Extend again / Fix / Discard.
-         * Resolves: {action:'use'|'cancel'|'discard'|'extend'|'inpaint', ...}.
-         */
-        _showOutpaintPreview({ beforeVersion, afterVersion, recheck, suggestion, prompt, confirmMode = false }) {
+        _showSourceReview(version, analysis) {
             return new Promise((resolve) => {
                 const id = encodeURIComponent(this._item?.id);
-                const beforeUrl = `/api/gallery/${id}/version/${beforeVersion}?t=${Date.now()}`;
-                const afterUrl = `/api/gallery/${id}/version/${afterVersion}?t=${Date.now()}`;
-                // Verdict → default highlighted action: good=Use, cropped=Extend,
-                // artifact=Fix. When the source couldn't be analyzed we show a neutral
-                // "review & decide" note and default to Use (nothing is forced).
-                const analyzed = !!(recheck && recheck.analyzed);
-                const defect = (analyzed && recheck.complete === false)
-                    ? (recheck.defect === 'artifact' ? 'artifact' : 'cropped') : 'none';
-                const good = defect === 'none';
-                const verdict = !analyzed
-                    ? `<span class="text-brand-text-muted">${t('asset_viewer.three_d_src_pv_unchecked')}</span>`
-                    : (good
-                        ? `<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`
-                        : `<span class="text-amber-400">⚠ ${this._esc(recheck?.reason || t('asset_viewer.three_d_src_still'))}</span>`);
-                const sg = suggestion || {};
+                const srcUrlFor = () => API.threeD.sourcePreviewUrl(this._item?.id, version) + `?t=${Date.now()}`;
+
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
                 backdrop.innerHTML = `
-                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
+                    <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto relative">
                         <div>
-                            <h3 class="text-sm font-semibold text-brand-text">${confirmMode ? t('asset_viewer.three_d_src_pv_confirm_title') : t('asset_viewer.three_d_src_pv_title')}</h3>
-                            <p class="text-xs mt-1">${verdict}</p>
-                            ${confirmMode ? `<p class="text-[11px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_src_pv_confirm_sub')} ${t('asset_viewer.three_d_src_pv_confirm_sub2')}</p>` : ''}
+                            <h3 class="text-sm font-semibold text-brand-text">${t('asset_viewer.three_d_src_pv_confirm_title')}</h3>
+                            <p id="av-sr-verdict" class="text-xs mt-1"></p>
+                            <p class="text-[11px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_src_pv_confirm_sub')} ${t('asset_viewer.three_d_src_pv_confirm_sub2')}</p>
                         </div>
-                        <div class="grid ${confirmMode ? 'grid-cols-1' : 'grid-cols-2'} gap-3">
-                            ${confirmMode ? '' : `
-                            <div class="space-y-1">
-                                <p class="text-[10px] text-brand-text-muted uppercase tracking-wider text-center">${t('asset_viewer.three_d_src_pv_before')}</p>
-                                <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-border" style="height: 300px;">
-                                    <img src="${beforeUrl}" class="w-full h-full object-contain" alt="before" />
-                                </div>
-                            </div>`}
-                            <div class="space-y-1">
-                                ${confirmMode ? '' : `<p class="text-[10px] text-brand-accent uppercase tracking-wider text-center">${t('asset_viewer.three_d_src_pv_after')}</p>`}
-                                <!-- This view doubles as the inpaint mask canvas when fixing content,
-                                     and (confirm mode) hosts the measurement ruler + extension-band
-                                     overlay drawn on #av-pv-measure. -->
-                                <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center relative" style="height: 300px;">
-                                    <img id="av-pv-after-img" src="${afterUrl}" class="w-full h-full object-contain ${(defect === 'artifact' || confirmMode) ? 'hidden' : ''}" alt="source" crossorigin="anonymous" />
-                                    <canvas id="av-pv-mask" class="cursor-crosshair ${defect === 'artifact' ? '' : 'hidden'}" style="max-width:100%; max-height:300px;"></canvas>
-                                    <canvas id="av-pv-measure" class="absolute inset-0 w-full h-full pointer-events-none ${confirmMode ? '' : 'hidden'}"></canvas>
-                                </div>
-                            </div>
+                        <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center relative" style="height: 300px;">
+                            <img id="av-sr-img" src="${srcUrlFor()}" class="w-full h-full object-contain" alt="3D source" crossorigin="anonymous" />
+                            <canvas id="av-sr-mask" class="cursor-crosshair hidden" style="max-width:100%; max-height:300px;"></canvas>
+                            <canvas id="av-sr-measure" class="absolute inset-0 w-full h-full pointer-events-none hidden"></canvas>
                         </div>
-                        ${confirmMode ? `
-                        <!-- Measurement stats: image size, subject fill %, per-edge margin. Populated
-                             from the alpha silhouette once the source loads (generic for any subject). -->
-                        <div id="av-pv-stats" class="text-[10px] text-brand-text-muted flex flex-wrap items-center gap-x-4 gap-y-1 px-1"></div>` : ''}
+                        <div id="av-sr-stats" class="text-[10px] text-brand-text-muted flex flex-wrap items-center gap-x-4 gap-y-1 px-1 hidden"></div>
 
-                        <!-- Inpaint fix: brush over any region, describe the fix. Available for ANY
-                             verdict (not just detected artifacts) — the user can always touch up a
-                             spot. Hidden until fix mode is toggled on (auto-on for artifact verdicts). -->
-                        <div id="av-pv-fix-panel" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2 ${defect === 'artifact' ? '' : 'hidden'}">
+                        <!-- Fill / Replace panel (mask brush) — hidden until Fill is chosen. -->
+                        <div id="av-sr-fill-panel" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2 hidden">
                             <div class="flex items-center justify-between">
                                 <p class="text-[11px] text-amber-400">${t('asset_viewer.three_d_src_pv_fix_hint')}</p>
                                 <div class="flex items-center gap-2">
                                     <label class="text-[9px] text-brand-text-muted">${t('asset_viewer.brush_size')}</label>
-                                    <input id="av-pv-brush" type="range" min="8" max="80" value="28" class="w-20" />
-                                    <button class="av-pv-mask-clear text-[10px] text-brand-text-muted hover:text-brand-text underline">${t('asset_viewer.clear_mask')}</button>
+                                    <input id="av-sr-brush" type="range" min="8" max="80" value="28" class="w-20" />
+                                    <button class="av-sr-mask-clear text-[10px] text-brand-text-muted hover:text-brand-text underline">${t('asset_viewer.clear_mask')}</button>
                                 </div>
                             </div>
-                            <textarea id="av-pv-fix-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_fix_ph')}">${this._esc(recheck?.defect_area ? ('fix ' + recheck.defect_area) : (prompt || ''))}</textarea>
+                            <textarea id="av-sr-fill-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_fix_ph')}"></textarea>
                         </div>
 
-                        <details id="av-pv-extend-panel" class="border border-brand-border rounded-lg ${defect === 'artifact' ? 'hidden' : ''}" ${defect === 'cropped' ? 'open' : ''}>
+                        <!-- Extend panel (directions) — hidden until Extend is chosen. -->
+                        <details id="av-sr-extend-panel" class="border border-brand-border rounded-lg hidden">
                             <summary class="px-3 py-2 text-[11px] text-brand-text-muted cursor-pointer">${t('asset_viewer.three_d_src_pv_adjust')}</summary>
                             <div class="px-3 pb-3 pt-1 space-y-2">
                                 <div>
                                     <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_src_prompt_label')}</label>
-                                    <textarea id="av-pv-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_prompt_ph')}">${this._esc(prompt || '')}</textarea>
+                                    <textarea id="av-sr-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_prompt_ph')}"></textarea>
                                 </div>
                                 <div class="grid grid-cols-4 gap-2">
-                                    ${['left','right','up','down'].map(d => `
-                                        <div><label class="text-[9px] text-brand-text-muted">${t('asset_viewer.outpaint_' + d)}</label>
-                                        <input id="av-pv-${d}" type="number" min="0" max="512" value="${sg[d] || 0}" class="input text-xs w-full" /></div>`).join('')}
+                                    ${['left','right','up','down'].map(dd => `
+                                        <div><label class="text-[9px] text-brand-text-muted">${t('asset_viewer.outpaint_' + dd)}</label>
+                                        <input id="av-sr-${dd}" type="number" min="0" max="2000" value="0" class="input text-xs w-full" /></div>`).join('')}
                                 </div>
                                 <p class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_src_pv_extend_note')}</p>
                             </div>
                         </details>
 
-                        <!-- Three actions in one compact row (taller + narrower, not full-width bars):
-                             Use · Extend · Fix. Fix is a mode toggle — it reveals the brush panel and
-                             re-labels itself to confirm the masked repair; it's available for ANY verdict.
-                             In confirm mode "Extend it" starts the (first) outpaint; after an outpaint it
-                             becomes "Extend again". -->
+                        <!-- Actions: Use this image · Extend · Fill/Replace -->
                         <div class="grid grid-cols-3 gap-2">
-                            <button class="av-pv-use btn btn-sm ${good ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_approve')}</button>
-                            <button class="av-pv-extend btn btn-sm ${(!good && defect === 'cropped') ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${confirmMode ? t('asset_viewer.three_d_src_pv_extend_it') : t('asset_viewer.three_d_src_pv_extend')}</button>
-                            <button class="av-pv-fix btn btn-sm ${defect === 'artifact' ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_fill')}</button>
+                            <button class="av-sr-use btn btn-sm bg-brand-accent hover:bg-brand-accent-hover text-white rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_approve')}</button>
+                            <button class="av-sr-extend btn btn-sm btn-secondary rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_extend_it')}</button>
+                            <button class="av-sr-fill btn btn-sm btn-secondary rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_fill')}</button>
                         </div>
-                        <button class="av-pv-discard text-[11px] text-brand-text-muted hover:text-red-400 w-full text-center">${confirmMode ? t('asset_viewer.three_d_src_pv_cancel') : t('asset_viewer.three_d_src_pv_discard')}</button>
-                        ${confirmMode ? '' : `<p class="text-[9px] text-brand-text-dim text-center">${t('asset_viewer.three_d_src_pv_note')}</p>`}
+                        <button class="av-sr-cancel text-[11px] text-brand-text-muted hover:text-red-400 w-full text-center">${t('asset_viewer.three_d_src_pv_cancel')}</button>
+
+                        <!-- In-progress overlay — keeps the dialog OPEN with clear feedback
+                             while an Extend/Fill runs (no close, no gallery jump). -->
+                        <div id="av-sr-busy" class="absolute inset-0 rounded-xl bg-brand-surface/80 backdrop-blur-sm flex-col items-center justify-center gap-3" style="display:none;">
+                            <div class="loading-spinner w-8 h-8 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
+                            <p id="av-sr-busy-text" class="text-xs text-brand-text"></p>
+                        </div>
                     </div>`;
 
+                const $ = (sel) => backdrop.querySelector(sel);
+                const imgEl = $('#av-sr-img'), maskCanvas = $('#av-sr-mask');
+                const measureCanvas = $('#av-sr-measure'), statsEl = $('#av-sr-stats');
+                const fillPanel = $('#av-sr-fill-panel'), extendPanel = $('#av-sr-extend-panel');
+                const useBtn = $('.av-sr-use'), extendBtn = $('.av-sr-extend'), fillBtn = $('.av-sr-fill');
+                const busy = $('#av-sr-busy'), busyText = $('#av-sr-busy-text');
+                let fillMode = false, maskWired = false, working = false;
+
+                const done = (v) => { this._redrawMeasurement = null; backdrop.remove(); resolve(v); };
+                const setBusy = (on, text) => {
+                    working = on;
+                    busy.style.display = on ? 'flex' : 'none';
+                    if (text) busyText.textContent = text;
+                    [useBtn, extendBtn, fillBtn].forEach(b => { if (b) b.disabled = on; });
+                };
                 const readDirs = () => {
-                    const g = (d) => { const n = parseInt(backdrop.querySelector(`#av-pv-${d}`)?.value || '0', 10); return Number.isFinite(n) ? Math.max(0, Math.min(512, n)) : 0; };
+                    const g = (dd) => { const n = parseInt($(`#av-sr-${dd}`)?.value || '0', 10); return Number.isFinite(n) ? Math.max(0, Math.min(2000, n)) : 0; };
                     return { left: g('left'), right: g('right'), up: g('up'), down: g('down') };
                 };
-                const done = (v) => { this._redrawMeasurement = null; backdrop.remove(); resolve(v); };
 
-                // Fix (inpaint) mode. For an 'artifact' verdict it starts ON (brush
-                // panel visible, mask painter live). For any other verdict it starts
-                // OFF and the Fix button toggles it ON first, THEN a second click
-                // confirms the masked repair — so the user can always touch up a spot,
-                // regardless of the auto verdict.
-                const fixPanel = backdrop.querySelector('#av-pv-fix-panel');
-                const extendPanel = backdrop.querySelector('#av-pv-extend-panel');
-                const afterImg = backdrop.querySelector('#av-pv-after-img');
-                const maskCanvas = backdrop.querySelector('#av-pv-mask');
-                const fixBtn = backdrop.querySelector('.av-pv-fix');
-                let fixMode = defect === 'artifact';
-                let maskWired = false;
-
-                const measureCanvas = backdrop.querySelector('#av-pv-measure');
-                const enableFixMode = () => {
-                    fixMode = true;
-                    fixPanel?.classList.remove('hidden');
-                    extendPanel?.classList.add('hidden');
-                    afterImg?.classList.add('hidden');
-                    // Fix mode paints on the mask canvas (which renders the image
-                    // itself) — hide the measurement overlay so it isn't on top.
-                    measureCanvas?.classList.add('hidden');
-                    maskCanvas?.classList.remove('hidden');
-                    fixBtn.textContent = t('asset_viewer.three_d_src_pv_fill');
-                    fixBtn.classList.add('bg-brand-accent', 'hover:bg-brand-accent-hover', 'text-white');
-                    fixBtn.classList.remove('btn-secondary');
-                    if (!maskWired) {
-                        this._wirePreviewMask(maskCanvas, afterUrl, backdrop.querySelector('#av-pv-brush'));
-                        maskWired = true;
-                    }
+                // Render the current verdict line from an analysis object.
+                const renderVerdict = (a) => {
+                    const analyzed = !!(a && a.analyzed);
+                    const defect = (analyzed && a.complete === false) ? (a.defect === 'artifact' ? 'artifact' : 'cropped') : 'none';
+                    const el = $('#av-sr-verdict');
+                    if (!analyzed) el.innerHTML = `<span class="text-brand-text-muted">${t('asset_viewer.three_d_src_pv_unchecked')}</span>`;
+                    else if (defect === 'none') el.innerHTML = `<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`;
+                    else el.innerHTML = `<span class="text-amber-400">⚠ ${this._esc(a.reason || t('asset_viewer.three_d_src_still'))}</span>`;
+                    return { analyzed, defect };
                 };
-                if (fixMode) enableFixMode();
 
-                // Measurement overlay (confirm mode only): ruler + per-edge margin
-                // callouts + a live band previewing where the entered extension lands.
-                // Redraws whenever a direction input changes.
-                if (confirmMode) {
-                    this._wireMeasurement(backdrop, afterUrl, readDirs);
-                    ['left', 'right', 'up', 'down'].forEach(d => {
-                        backdrop.querySelector(`#av-pv-${d}`)?.addEventListener('input', () => this._redrawMeasurement?.());
-                    });
-                }
+                // Refresh the shown image + measurement after a prepare op.
+                const refreshImage = () => {
+                    const url = srcUrlFor();
+                    imgEl.src = url;
+                    // Re-measure once the new image decodes.
+                    this._wireMeasurement(backdrop, url, readDirs, { img: '#av-sr-img', measure: '#av-sr-measure', stats: '#av-sr-stats' });
+                };
 
-                backdrop.querySelector('.av-pv-mask-clear')?.addEventListener('click', () => {
+                // Seed the extend prompt/dirs from the (initial) analysis suggestion.
+                const seedFromAnalysis = (a) => {
+                    const sg = (a && a.suggest_outpaint) || {};
+                    ['left', 'right', 'up', 'down'].forEach(dd => { const el = $(`#av-sr-${dd}`); if (el) el.value = sg[dd] || 0; });
+                    const p = $('#av-sr-prompt'); if (p && a && a.outpaint_prompt) p.value = a.outpaint_prompt;
+                };
+
+                let lastAnalysis = analysis;
+                const { defect: initialDefect } = renderVerdict(analysis);
+                seedFromAnalysis(analysis);
+                // Wire measurement (hidden until Extend). Draw once image decodes.
+                this._wireMeasurement(backdrop, srcUrlFor(), readDirs, { img: '#av-sr-img', measure: '#av-sr-measure', stats: '#av-sr-stats' });
+
+                // ── Fill (inpaint) mode toggle ──
+                const enableFillMode = () => {
+                    fillMode = true;
+                    fillPanel.classList.remove('hidden');
+                    extendPanel.classList.add('hidden');
+                    measureCanvas.classList.add('hidden'); statsEl.classList.add('hidden');
+                    imgEl.classList.add('hidden');
+                    maskCanvas.classList.remove('hidden');
+                    fillBtn.classList.add('bg-brand-accent', 'hover:bg-brand-accent-hover', 'text-white');
+                    fillBtn.classList.remove('btn-secondary');
+                    if (!maskWired) { this._wirePreviewMask(maskCanvas, imgEl.src, $('#av-sr-brush')); maskWired = true; }
+                };
+                const disableFillMode = () => {
+                    fillMode = false; maskWired = false;
+                    fillPanel.classList.add('hidden');
+                    maskCanvas.classList.add('hidden'); imgEl.classList.remove('hidden');
+                    fillBtn.classList.remove('bg-brand-accent', 'hover:bg-brand-accent-hover', 'text-white');
+                    fillBtn.classList.add('btn-secondary');
+                };
+
+                $('.av-sr-mask-clear')?.addEventListener('click', () => {
                     if (maskCanvas?._baseImageData) maskCanvas.getContext('2d').putImageData(maskCanvas._baseImageData, 0, 0);
                 });
-                fixBtn?.addEventListener('click', () => {
-                    if (!fixMode) { enableFixMode(); return; }   // first click: enter fix mode
-                    const m = this._extractMask(maskCanvas);
-                    if (m.isEmpty) { window.showToast?.(t('asset_viewer.three_d_src_nomask'), 'warning'); return; }
-                    done({ action: 'inpaint', mask: m.data, prompt: backdrop.querySelector('#av-pv-fix-prompt')?.value || '' });
-                });
 
-                backdrop.querySelector('.av-pv-use').addEventListener('click', () => done({ action: 'use' }));
-                backdrop.querySelector('.av-pv-extend')?.addEventListener('click', () => {
+                // ── Run a prepare op (extend/inpaint) IN PLACE, dialog stays open ──
+                const runOp = async (payload, busyMsg) => {
+                    if (working) return;
+                    setBusy(true, busyMsg);
+                    try {
+                        const r = await API.threeD.prepareSource({ asset_id: this._item?.id, version, ...payload });
+                        lastAnalysis = r?.analysis || lastAnalysis;
+                        disableFillMode();
+                        refreshImage();
+                        renderVerdict(lastAnalysis);
+                        seedFromAnalysis(lastAnalysis);
+                    } catch (e) {
+                        window.showToast?.(t('asset_viewer.three_d_src_failed') + (e.message ? ': ' + e.message : ''), 'error');
+                    } finally {
+                        setBusy(false);
+                    }
+                };
+
+                // Extend: first click reveals the panel + ruler; with an amount set, runs.
+                extendBtn.addEventListener('click', () => {
+                    if (working) return;
+                    if (fillMode) disableFillMode();
                     const dirs = readDirs();
-                    // If no extension amount is set yet (e.g. a "looks complete" verdict
-                    // where the user still wants to extend), don't fail — open the
-                    // adjustment panel seeded with a sensible default so they can dial it.
                     if (!Object.values(dirs).some(v => v > 0)) {
-                        extendPanel?.classList.remove('hidden');
-                        if (extendPanel) extendPanel.open = true;
-                        const downInput = backdrop.querySelector('#av-pv-down');
+                        extendPanel.classList.remove('hidden'); extendPanel.open = true;
+                        this._showMeasurement(backdrop);
+                        const downInput = $('#av-sr-down');
                         if (downInput && !parseInt(downInput.value, 10)) { downInput.value = 256; downInput.focus(); }
+                        this._redrawMeasurement?.();
                         return;
                     }
-                    done({ action: 'extend', suggestion: dirs, prompt: backdrop.querySelector('#av-pv-prompt')?.value || '' });
+                    runOp({ op: 'extend', ...dirs, prompt: $('#av-sr-prompt')?.value || '' },
+                        t('asset_viewer.three_d_src_completing'));
                 });
-                // Confirm mode → Cancel (nothing generated, keep original); after an
-                // outpaint → Discard (drop the result, keep original as 3D source).
-                const bail = () => done({ action: confirmMode ? 'cancel' : 'discard' });
-                backdrop.querySelector('.av-pv-discard').addEventListener('click', bail);
-                backdrop.addEventListener('click', (e) => { if (e.target === backdrop) bail(); });
+                // Live measurement redraw as the user tweaks amounts.
+                ['left', 'right', 'up', 'down'].forEach(dd => {
+                    $(`#av-sr-${dd}`)?.addEventListener('input', () => this._redrawMeasurement?.());
+                });
+
+                // Fill: first click enters mask mode; second (with a mask) runs.
+                fillBtn.addEventListener('click', () => {
+                    if (working) return;
+                    if (!fillMode) { enableFillMode(); return; }
+                    const m = this._extractMask(maskCanvas);
+                    if (m.isEmpty) { window.showToast?.(t('asset_viewer.three_d_src_nomask'), 'warning'); return; }
+                    runOp({ op: 'inpaint', mask: m.data, prompt: $('#av-sr-fill-prompt')?.value || '' },
+                        t('asset_viewer.three_d_src_fixing'));
+                });
+
+                useBtn.addEventListener('click', () => { if (!working) done(true); });
+                const cancel = () => { if (!working) done(false); };
+                $('.av-sr-cancel').addEventListener('click', cancel);
+                backdrop.addEventListener('click', (e) => { if (e.target === backdrop) cancel(); });
+
                 document.body.appendChild(backdrop);
+                // If the initial verdict says cropped, reveal the extend panel + ruler.
+                if (initialDefect === 'cropped') {
+                    extendPanel.classList.remove('hidden'); extendPanel.open = true;
+                    this._showMeasurement(backdrop);
+                }
             });
         },
+
 
         /**
          * Wire an inline mask-paint canvas over an image (reuses the same red-brush
@@ -2723,8 +2489,8 @@
          * `readDirs()` returns the current {left,right,up,down} extension in px.
          */
         _wireMeasurement(backdrop, imgUrl, readDirs) {
-            const overlay = backdrop.querySelector('#av-pv-measure');
-            const statsEl = backdrop.querySelector('#av-pv-stats');
+            const overlay = backdrop.querySelector('#av-sr-measure');
+            const statsEl = backdrop.querySelector('#av-sr-stats');
             const wrap = overlay?.parentElement;   // the fixed-height preview box
             if (!overlay || !wrap) return;
             const img = new Image();
@@ -2758,7 +2524,6 @@
                     }
                 } catch { /* cross-origin / decode issue → ruler only, no margins */ }
                 overlay._img = { W, H, bbox, hasAlpha };
-                overlay._imgEl = img;   // drawn onto the overlay so image + ruler share one space
 
                 // Stats line.
                 if (statsEl) {
@@ -2777,19 +2542,32 @@
                         html += `<span class="flex items-center gap-2"><span class="text-brand-text">${t('asset_viewer.three_d_measure_margins')}:</span> `
                             + ['up', 'down', 'left', 'right'].map(e => marginChip(e, bbox[{ up: 'top', down: 'bottom', left: 'left', right: 'right' }[e]])).join(' · ')
                             + `</span>`;
-                        html += `<span id="av-pv-newsize" class="text-brand-accent"></span>`;
+                        html += `<span id="av-sr-newsize" class="text-brand-accent"></span>`;
                         statsEl.innerHTML = `<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${html}</div>`
                             + `<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_hint')}</div>`;
                     } else {
                         statsEl.innerHTML = `<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${html}`
-                            + `<span id="av-pv-newsize" class="text-brand-accent"></span></div>`
+                            + `<span id="av-sr-newsize" class="text-brand-accent"></span></div>`
                             + `<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_nobg')}</div>`;
                     }
                 }
-                this._redrawMeasurement = () => this._drawMeasurement(overlay, wrap, readDirs, backdrop);
+                // Draw only when the overlay is actually shown — it stays hidden on
+                // the plain confirm view and is revealed when the user chooses Extend.
+                this._redrawMeasurement = () => {
+                    if (overlay.classList.contains('hidden')) return;
+                    this._drawMeasurement(overlay, wrap, readDirs, backdrop);
+                };
                 this._redrawMeasurement();
             };
             img.src = imgUrl;
+        },
+
+        /** Reveal the measurement ruler/overlay + stats (called when the user opts to
+         *  Extend, so the plain confirm view isn't cluttered by dimensions upfront). */
+        _showMeasurement(backdrop) {
+            backdrop.querySelector('#av-sr-measure')?.classList.remove('hidden');
+            backdrop.querySelector('#av-sr-stats')?.classList.remove('hidden');
+            this._redrawMeasurement?.();
         },
 
         /**
@@ -2803,10 +2581,13 @@
             if (!meta) return;
             const { W, H, bbox } = meta;
             const d = readDirs();
-            // Future canvas dimensions (current image + extensions).
-            const fW = W + d.left + d.right, fH = H + d.top + d.down;
-            // Size the overlay canvas to its displayed box (device-pixel-crisp).
             const rect = wrap.getBoundingClientRect();
+            // The dialog may not be laid out yet (cached image → onload before the
+            // dialog is in the DOM). Retry next frame until the box has a real size.
+            if (rect.width < 2 || rect.height < 2) {
+                requestAnimationFrame(() => this._redrawMeasurement && this._redrawMeasurement());
+                return;
+            }
             const dpr = window.devicePixelRatio || 1;
             overlay.width = Math.round(rect.width * dpr);
             overlay.height = Math.round(rect.height * dpr);
@@ -2814,67 +2595,60 @@
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, rect.width, rect.height);
 
-            // Fit the FUTURE canvas inside the box with a margin for the ruler.
-            const pad = 26;
-            const availW = rect.width - pad * 2, availH = rect.height - pad * 2;
-            const scale = Math.min(availW / fW, availH / fH);
-            const drawW = fW * scale, drawH = fH * scale;
-            const ox = (rect.width - drawW) / 2, oy = (rect.height - drawH) / 2;
-            // Current image sits inside the future canvas, offset by up/left extension.
-            const imgX = ox + d.left * scale, imgY = oy + d.top * scale;
-            const imgW = W * scale, imgH = H * scale;
+            // The visible <img> renders the picture via HTML (reliable). We annotate
+            // OVER it, matching its object-contain placement inside the box: the image
+            // is centered and scaled to fit, leaving letterbox margins we draw the
+            // extension bands into. imgScale = displayed px per image px.
+            const imgScale = Math.min(rect.width / W, rect.height / H);
+            const imgW = W * imgScale, imgH = H * imgScale;
+            const imgX = (rect.width - imgW) / 2, imgY = (rect.height - imgH) / 2;
+            const toX = (ix) => imgX + ix * imgScale;
+            const toY = (iy) => imgY + iy * imgScale;
 
-            // Draw the current image in its place inside the future canvas, so the
-            // image, ruler, bands, and bbox all share one coordinate space (the
-            // underlying <img> is hidden in confirm mode).
-            if (overlay._imgEl) {
-                try { ctx.drawImage(overlay._imgEl, imgX, imgY, imgW, imgH); } catch { /* not decoded yet */ }
-            }
-
-            // Extension bands (where NEW pixels will be generated).
-            ctx.fillStyle = 'rgba(124, 104, 238, 0.22)';
-            if (d.top > 0) ctx.fillRect(ox, oy, drawW, d.top * scale);
-            if (d.down > 0) ctx.fillRect(ox, imgY + imgH, drawW, d.down * scale);
-            if (d.left > 0) ctx.fillRect(ox, oy, d.left * scale, drawH);
-            if (d.right > 0) ctx.fillRect(imgX + imgW, oy, d.right * scale, drawH);
+            // Extension bands (where NEW pixels will be generated) — drawn in the
+            // letterbox space just outside the image edge, clamped to the box.
+            ctx.fillStyle = 'rgba(124, 104, 238, 0.28)';
+            const bandUp = Math.min(d.top * imgScale, imgY);
+            const bandDown = Math.min(d.down * imgScale, rect.height - (imgY + imgH));
+            const bandLeft = Math.min(d.left * imgScale, imgX);
+            const bandRight = Math.min(d.right * imgScale, rect.width - (imgX + imgW));
+            if (d.top > 0) ctx.fillRect(imgX, imgY - bandUp, imgW, bandUp);
+            if (d.down > 0) ctx.fillRect(imgX, imgY + imgH, imgW, bandDown);
+            if (d.left > 0) ctx.fillRect(imgX - bandLeft, imgY, bandLeft, imgH);
+            if (d.right > 0) ctx.fillRect(imgX + imgW, imgY, bandRight, imgH);
 
             // Current-image frame.
-            ctx.strokeStyle = 'rgba(160,170,190,0.8)'; ctx.lineWidth = 1;
+            ctx.strokeStyle = 'rgba(160,170,190,0.85)'; ctx.lineWidth = 1;
             ctx.strokeRect(imgX + 0.5, imgY + 0.5, imgW, imgH);
-            // Future-canvas frame (dashed accent).
-            ctx.save();
-            ctx.strokeStyle = 'rgba(124, 104, 238, 0.9)'; ctx.setLineDash([4, 3]);
-            ctx.strokeRect(ox + 0.5, oy + 0.5, drawW, drawH);
-            ctx.restore();
 
-            // Subject bbox (if we measured a silhouette) — dashed emerald box.
+            // Subject bbox (if a silhouette was measured) — dashed emerald box.
             if (bbox) {
                 ctx.save();
-                ctx.strokeStyle = 'rgba(52, 211, 153, 0.85)'; ctx.setLineDash([3, 2]); ctx.lineWidth = 1;
-                ctx.strokeRect(imgX + bbox.left * scale + 0.5, imgY + bbox.top * scale + 0.5,
-                    bbox.w * scale, bbox.h * scale);
+                ctx.strokeStyle = 'rgba(52, 211, 153, 0.9)'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
+                ctx.strokeRect(toX(bbox.left) + 0.5, toY(bbox.top) + 0.5, bbox.w * imgScale, bbox.h * imgScale);
                 ctx.restore();
             }
 
-            // Ruler ticks along the top + left edges (true-pixel labels of the future canvas).
-            ctx.fillStyle = 'rgba(180,188,208,0.9)'; ctx.strokeStyle = 'rgba(120,128,148,0.6)';
+            // Ruler ticks along the top + left edges of the IMAGE (true image pixels).
+            ctx.fillStyle = 'rgba(210,215,230,0.9)'; ctx.strokeStyle = 'rgba(150,158,178,0.7)';
             ctx.lineWidth = 1; ctx.font = '9px ui-monospace, monospace';
-            const step = fW > 1400 ? 512 : 256;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
-            for (let px = 0; px <= fW; px += step) {
-                const x = ox + px * scale;
-                ctx.beginPath(); ctx.moveTo(x, oy); ctx.lineTo(x, oy - 4); ctx.stroke();
-                ctx.fillText(String(px), x, oy - 5);
+            const step = W > 1400 ? 512 : 256;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+            for (let px = 0; px <= W; px += step) {
+                const x = toX(px);
+                ctx.beginPath(); ctx.moveTo(x, toY(0)); ctx.lineTo(x, toY(0) + 6); ctx.stroke();
+                ctx.fillText(String(px), x, toY(0) + 7);
             }
-            ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
-            for (let py = 0; py <= fH; py += step) {
-                const y = oy + py * scale;
-                ctx.beginPath(); ctx.moveTo(ox, y); ctx.lineTo(ox - 4, y); ctx.stroke();
-                ctx.fillText(String(py), ox - 5, y);
+            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+            for (let py = 0; py <= H; py += step) {
+                const y = toY(py);
+                ctx.beginPath(); ctx.moveTo(toX(0), y); ctx.lineTo(toX(0) + 6, y); ctx.stroke();
+                ctx.fillText(String(py), toX(0) + 8, y);
             }
 
             // Live "new canvas size" readout in the stats line.
-            const newSizeEl = backdrop.querySelector('#av-pv-newsize');
+            const fW = W + d.left + d.right, fH = H + d.top + d.down;
+            const newSizeEl = backdrop.querySelector('#av-sr-newsize');
             if (newSizeEl) {
                 newSizeEl.textContent = (d.left || d.right || d.top || d.down)
                     ? `${t('asset_viewer.three_d_measure_newsize')} ${fW}×${fH}px`

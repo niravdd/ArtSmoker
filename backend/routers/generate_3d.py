@@ -715,9 +715,11 @@ async def generate_3d(body: ThreeDGenerateRequest):
     if not endpoint_name or not enabled:
         raise HTTPException(400, detail="3D generation model is not deployed. Deploy from Custom Models first.")
 
-    # Read the source image — resolve via the shared helper so we honor the 2D
-    # versioning convention (current version = asset.png; older = asset_v{N}.png).
-    image_path = _version_image_path(body.asset_id, body.version)
+    # Read the PREPARED 3D source for this version: the __source sidecar (Extend/
+    # Fill result) if present, else the cached __cutout, else the raw version. This
+    # is how the "Improve the Source" work reaches 3D WITHOUT creating 2D versions.
+    # (The handler also strips BG server-side, so a raw version still works.)
+    image_path = _prepared_source_path(body.asset_id, body.version)
     if image_path is None:
         raise HTTPException(404, detail=f"Image not found for asset '{body.asset_id}' version {body.version}.")
 
@@ -995,6 +997,45 @@ def _alpha_edge_crop(img_bytes: bytes, touch_frac: float = 0.04, margin_px: int 
         return None
 
 
+def _fit_image_for_vision(img_bytes: bytes, max_bytes: int = 3_600_000, max_dim: int = 2048) -> bytes:
+    """Downscale/re-encode an image so it fits under Bedrock's vision limit.
+
+    Bedrock Converse rejects images over 5 MB — but that limit is measured on the
+    BASE64-encoded payload, which is ~1.34× the raw bytes. So a 4.3 MB PNG becomes
+    ~5.7 MB base64 and still fails. Hence max_bytes defaults to ~3.6 MB raw
+    (×1.34 ≈ 4.8 MB base64, safely under 5 MB). Background-removed cutouts are
+    large lossless RGBA PNGs (a 1536×1792 cutout is 4–6 MB raw), so a raw send
+    fails with a ValidationException and the whole analysis silently defaults to
+    "complete". This shrinks the longest side to `max_dim` and, if still too big,
+    steps the dimensions down until the PNG is under `max_bytes` — preserving
+    transparency (kept as PNG) so the alpha silhouette the model reasons about is
+    intact. Returns the original bytes unchanged if already small enough or on any
+    error (caller still guards)."""
+    if len(img_bytes) <= max_bytes:
+        return img_bytes
+    try:
+        import io
+        from PIL import Image
+        im = Image.open(io.BytesIO(img_bytes))
+        has_alpha = im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info)
+        im = im.convert("RGBA" if has_alpha else "RGB")
+        # Cap the longest side, then keep halving until under the byte budget.
+        w, h = im.size
+        if max(w, h) > max_dim:
+            scale = max_dim / max(w, h)
+            im = im.resize((max(1, int(w * scale)), max(1, int(h * scale))), Image.LANCZOS)
+        for _ in range(6):
+            buf = io.BytesIO()
+            im.save(buf, format="PNG", optimize=True)
+            data = buf.getvalue()
+            if len(data) <= max_bytes:
+                return data
+            im = im.resize((max(1, im.width * 3 // 4), max(1, im.height * 3 // 4)), Image.LANCZOS)
+        return data  # best effort after the loop
+    except Exception:
+        return img_bytes
+
+
 def _version_is_bg_free(asset_id: str, version: int, meta: dict = None) -> bool:
     """Whether a 2D version is already a background-free cutout (per its edit
     provenance), so we can serve it directly without another removal."""
@@ -1008,44 +1049,170 @@ def _version_is_bg_free(asset_id: str, version: int, meta: dict = None) -> bool:
     return False
 
 
-@router.get("/source-preview/{asset_id}/{version}")
-async def source_preview(asset_id: str, version: int):
-    """Serve the EXACT image that will go to the 3D pipeline for a version — with
-    the background removed — so the 3D form can show the user precisely what gets
-    converted, even without opening the review dialog.
+# ── Source sidecars (3D-only, never versions) ──────────────────────────────
+# The "Improve the Source" flow prepares an image for 3D WITHOUT creating 2D
+# versions (the user didn't ask to version it; only the Edit tab does that).
+# Two sidecar files per source version, keyed to it:
+#   asset_v{N}__cutout.png   — background-removed cutout of version N (immutable
+#                              cache; removal runs at most once, reused on every
+#                              Generate/Regenerate).
+#   asset_v{N}__source.png   — the PREPARED 3D source: starts as the cutout, then
+#                              Extend/Fill OVERWRITE it (no accumulation — at most
+#                              one working file; re-extend always redoes from the
+#                              cutout so the canvas never compounds).
+# 3D generation reads __source (falling back to __cutout, then the raw version).
 
-    Cost-aware caching: if the version is already a clean cutout, serve it as-is.
-    Otherwise remove the background ONCE and cache the result to a sidecar file
-    (`asset_v{N}__cutout.png`) — NOT a new version, so version history stays clean
-    and the paid removal runs at most once per version. Falls back to the original
-    image if removal fails (non-fatal), so the panel always shows something.
-    """
-    from fastapi.responses import FileResponse
-    meta = store.load_generation_metadata(asset_id) or {}
+def _sidecar_name(version: int, kind: str) -> str:
+    return f"asset_v{version}__{kind}.png"
+
+
+def _ensure_cutout(asset_id: str, version: int, meta: dict = None) -> "Path | None":
+    """Return the path to version N's background-removed cutout, creating+caching
+    it once if needed. If the version is already background-free, that file IS the
+    cutout. Returns None only if the source image can't be found. Non-fatal on a
+    removal error (returns the original path so callers still have an image)."""
+    if meta is None:
+        meta = store.load_generation_metadata(asset_id) or {}
     src = _version_image_path(asset_id, version, meta)
     if src is None:
-        raise HTTPException(404, detail=f"Image not found for asset '{asset_id}' v{version}.")
-
-    # Already a cutout → serve directly.
+        return None
     if _version_is_bg_free(asset_id, version, meta):
-        return FileResponse(src, media_type="image/png")
-
-    # Cached sidecar from a prior preview → reuse (no repeat spend).
-    cutout_name = f"asset_v{version}__cutout.png"
-    cached = store.get_generated_file_path(asset_id, cutout_name)
+        return src
+    cached = store.get_generated_file_path(asset_id, _sidecar_name(version, "cutout"))
     if cached is not None:
-        return FileResponse(cached, media_type="image/png")
-
-    # Remove background once, cache it. Non-fatal: on failure, serve the original.
+        return cached
     try:
         from backend.services.post_processor import remove_background
         out = remove_background(src.read_bytes())
-        saved = store.save_generated_image(asset_id, cutout_name, out)
-        return FileResponse(saved, media_type="image/png")
+        return store.save_generated_image(asset_id, _sidecar_name(version, "cutout"), out)
     except Exception as e:
-        logger.info("Source preview BG-removal failed for %s v%s (%s) — serving original",
-                    asset_id, version, e)
-        return FileResponse(src, media_type="image/png")
+        logger.info("Cutout BG-removal failed for %s v%s (%s) — using original", asset_id, version, e)
+        return src
+
+
+def _prepared_source_path(asset_id: str, version: int, meta: dict = None):
+    """The image 3D should consume for version N: the prepared __source sidecar if
+    it exists (user ran Extend/Fill), else the cached __cutout, else the raw
+    version. This is the single resolver used by both the preview and generation."""
+    if meta is None:
+        meta = store.load_generation_metadata(asset_id) or {}
+    for kind in ("source", "cutout"):
+        p = store.get_generated_file_path(asset_id, _sidecar_name(version, kind))
+        if p is not None:
+            return p
+    return _version_image_path(asset_id, version, meta)
+
+
+@router.get("/source-preview/{asset_id}/{version}")
+async def source_preview(asset_id: str, version: int):
+    """Serve the EXACT image that will go to the 3D pipeline for a version — the
+    prepared __source sidecar if present, otherwise the background-removed cutout
+    (created+cached once). Never creates a 2D version. Lets the 3D form show the
+    user precisely what gets converted, even without opening the review dialog."""
+    from fastapi.responses import FileResponse
+    meta = store.load_generation_metadata(asset_id) or {}
+    # Prefer an already-prepared source (Extend/Fill result); else ensure the cutout.
+    prepared = store.get_generated_file_path(asset_id, _sidecar_name(version, "source"))
+    path = prepared or _ensure_cutout(asset_id, version, meta)
+    if path is None:
+        raise HTTPException(404, detail=f"Image not found for asset '{asset_id}' v{version}.")
+    return FileResponse(path, media_type="image/png")
+
+
+class PrepareSourceRequest(BaseModel):
+    asset_id: str
+    version: int = 1
+    op: str                         # "cutout" | "extend" | "inpaint" | "reset"
+    prompt: str = ""
+    # Extend (outpaint) directions in px.
+    up: int = 0
+    down: int = 0
+    left: int = 0
+    right: int = 0
+    mask: str | None = None         # base64 PNG mask (inpaint only)
+
+
+@router.post("/prepare-source")
+async def prepare_source(body: PrepareSourceRequest):
+    """Prepare a version's 3D source IN PLACE via sidecar files — NO 2D versions.
+
+    op:
+      • cutout  — ensure the background-removed cutout exists (idempotent cache).
+      • extend  — outpaint the CUTOUT (never a prior extension → no compounding),
+                  re-strip its background, and save as the prepared __source.
+      • inpaint — fill/replace a masked region of the CURRENT prepared source,
+                  re-strip, save back to __source.
+      • reset   — drop the prepared __source (revert to the plain cutout).
+
+    Returns { ok, analysis } where analysis is the completeness re-review of the
+    resulting source, so the caller can show the verdict without a second call.
+    """
+    from backend.services.bedrock_client import invoke_image_model
+    from backend.services.post_processor import remove_background, _find_model_key_by_purpose
+    import base64 as _b64
+
+    meta = store.load_generation_metadata(body.asset_id) or {}
+    aid, ver = body.asset_id, body.version
+
+    if body.op == "reset":
+        p = store.get_generated_file_path(aid, _sidecar_name(ver, "source"))
+        if p is not None:
+            try: p.unlink()
+            except Exception: pass
+        return {"ok": True}
+
+    # Base cutout (created/cached once) — the immutable clean starting point.
+    cutout = _ensure_cutout(aid, ver, meta)
+    if cutout is None:
+        raise HTTPException(404, detail=f"Image not found for asset '{aid}' v{ver}.")
+
+    if body.op == "cutout":
+        return {"ok": True, "analysis": _analyze_source_bytes(cutout.read_bytes(), meta)}
+
+    try:
+        if body.op == "extend":
+            dirs = {k: max(0, min(2000, int(getattr(body, k) or 0)))
+                    for k in ("up", "down", "left", "right")}
+            if not any(dirs.values()):
+                raise HTTPException(400, detail="Set at least one extend direction (up/down/left/right).")
+            key = _find_model_key_by_purpose("outpainting")
+            if not key:
+                raise HTTPException(400, detail="No outpainting model available.")
+            # ALWAYS extend the CUTOUT (never a prior __source) so the canvas never
+            # compounds — re-extend just redoes it larger from the clean base.
+            out = invoke_image_model(
+                key, (body.prompt or "").strip(), source_image=cutout.read_bytes(),
+                extra_params={k: v for k, v in dirs.items() if v > 0},
+            )
+        elif body.op == "inpaint":
+            if not body.mask:
+                raise HTTPException(400, detail="A mask is required to fill/replace a region.")
+            key = _find_model_key_by_purpose("inpainting")
+            if not key:
+                raise HTTPException(400, detail="No inpainting model available.")
+            # Fill/replace works on the CURRENT prepared source (or the cutout if none).
+            base = store.get_generated_file_path(aid, _sidecar_name(ver, "source")) or cutout
+            out = invoke_image_model(
+                key, (body.prompt or "").strip(), source_image=base.read_bytes(),
+                mask_image=_b64.b64decode(body.mask),
+            )
+        else:
+            raise HTTPException(400, detail=f"Unknown op '{body.op}'.")
+    except HTTPException:
+        raise
+    except Exception as e:
+        # Surface a validation-style error as 400, else 502.
+        msg = str(e)
+        code = 400 if "ValidationException" in type(e).__name__ or "ValidationException" in msg else 502
+        raise HTTPException(code, detail=f"Source {body.op} failed: {msg}")
+
+    # Stability edit models re-bake a background, so re-strip to keep a clean cutout.
+    try:
+        out = remove_background(out)
+    except Exception as e:
+        logger.info("Post-%s re-strip failed for %s v%s (%s) — keeping as-is", body.op, aid, ver, e)
+    saved = store.save_generated_image(aid, _sidecar_name(ver, "source"), out)
+    return {"ok": True, "analysis": _analyze_source_bytes(saved.read_bytes(), meta)}
 
 
 class AnalyzeSourceRequest(BaseModel):
@@ -1053,26 +1220,13 @@ class AnalyzeSourceRequest(BaseModel):
     version: int = 1
 
 
-@router.post("/analyze-source")
-async def analyze_3d_source(body: AnalyzeSourceRequest):
-    """Vision-analyze a 2D source image before image-to-3D.
-
-    Detects whether the subject is fully visible or CROPPED by the frame (which
-    would yield an incomplete 3D model — e.g. a character cropped at the waist
-    becomes legless). Returns a structured verdict the frontend uses to OFFER an
-    outpaint completion (non-blocking). Conservative by design — defaults to
-    "complete" on any uncertainty/error so it never blocks a good image.
-    """
-    img_path = _version_image_path(body.asset_id, body.version)
-    if img_path is None:
-        raise HTTPException(404, detail=f"Image not found for asset '{body.asset_id}' v{body.version}.")
-
-    meta = store.load_generation_metadata(body.asset_id) or {}
+def _analyze_source_bytes(img_bytes: bytes, meta: dict) -> dict:
+    """Core completeness analysis on raw image bytes (shared by /analyze-source and
+    /prepare-source). Vision LLM + deterministic alpha-edge override. Conservative:
+    defaults to complete/analyzed=false on any error so it never blocks a good image."""
     asset_type = (meta.get("asset_type") or "character").replace("_", " ")
     # Feed the ORIGINAL generation prompt so the LLM judges completeness against
-    # the intended subject (any subject — living, object, fictional, any/no
-    # limbs), not against a fixed human body plan. Prefer the richest description
-    # available, falling back to the raw user prompt.
+    # the intended subject (any subject — living, object, fictional, any/no limbs).
     source_prompt = (
         (meta.get("refined_prompt") or meta.get("enhanced_prompt")
          or meta.get("recomposed_prompt") or meta.get("prompt")
@@ -1086,46 +1240,41 @@ async def analyze_3d_source(body: AnalyzeSourceRequest):
         prompt = get_template("three_d_source_analysis").format(
             asset_type=asset_type, source_prompt=source_prompt)
         system = get_system_prompt("three_d_source_analysis")
+        # Fit under Bedrock's 5 MB vision limit — BG-removed cutouts are large RGBA
+        # PNGs (~6.6 MB) that otherwise fail with a ValidationException, silently
+        # defaulting the whole analysis to "complete".
+        vision_bytes = _fit_image_for_vision(img_bytes)
         raw = invoke_llm(prompt, system=system, complexity="complex",
-                         images=[img_path.read_bytes()], max_tokens=400, temperature=0.0)
-        # Strip any markdown fence and parse the JSON object.
+                         images=[vision_bytes], max_tokens=400, temperature=0.0)
         txt = (raw or "").strip()
         if "```" in txt:
             txt = txt.split("```")[1].lstrip("json").strip() if txt.count("```") >= 2 else txt
         start, end = txt.find("{"), txt.rfind("}")
         data = json.loads(txt[start:end + 1]) if start >= 0 and end > start else {}
     except Exception as e:
-        logger.info("3D source analysis unavailable for %s v%s (%s) — defaulting to complete",
-                    body.asset_id, body.version, e)
+        logger.info("3D source analysis unavailable (%s) — defaulting to complete", e)
         return {"complete": True, "analyzed": False}
 
     complete = bool(data.get("complete", True))
     outp = data.get("suggest_outpaint", {}) or {}
-    # Sanity-clamp outpaint pixels (the model returns 0-512 per edge).
     def _clamp(v):
         try: return max(0, min(512, int(v)))
         except (TypeError, ValueError): return 0
     suggest = {d: _clamp(outp.get(d, 0)) for d in ("down", "up", "left", "right")}
     crop_edges = data.get("crop_edges", []) or []
 
-    # ── Deterministic alpha-edge crop check (OVERRIDES the LLM when it fires) ──
-    # If the source is a background-removed cutout, the silhouette touching a
-    # frame edge is provable proof of a crop — more reliable than the vision
-    # model, which is easily fooled by the empty void below a cutout subject
-    # (it reads the void as "ground/margin" and says complete). When the alpha
-    # check finds a cropped edge, trust it over the LLM.
-    alpha = _alpha_edge_crop(img_path.read_bytes())
+    # Deterministic alpha-edge crop check OVERRIDES the LLM when it fires (a
+    # silhouette touching a frame edge is provable, unlike the LLM which is fooled
+    # by the empty void below a cutout subject).
+    alpha = _alpha_edge_crop(img_bytes)
     alpha_override = bool(alpha and alpha["crop_edges"])
     if alpha_override:
         complete = False
         crop_edges = sorted(set(crop_edges) | set(alpha["crop_edges"]))
         for d, v in alpha["suggest_outpaint"].items():
-            # Prefer the larger of (LLM suggestion, deterministic default).
             suggest[d] = max(suggest.get(d, 0), _clamp(v))
 
     any_outpaint = any(suggest.values())
-    # When the alpha check overrides a "complete" LLM verdict, force a cropped
-    # defect + a truthful reason (the LLM's "looks complete" text would mislead).
     llm_defect = (data.get("defect", "") or "").strip().lower()
     if alpha_override:
         defect = "cropped"
@@ -1135,26 +1284,29 @@ async def analyze_3d_source(body: AnalyzeSourceRequest):
         reason = data.get("reason", "")
     return {
         "analyzed": True,
-        # Only call it incomplete if the model said so AND gave a usable outpaint
-        # direction — otherwise there's nothing actionable, so treat as complete.
         "complete": complete or not any_outpaint,
         "subject": data.get("subject", ""),
         "crop_edges": crop_edges,
         "missing": data.get("missing", []) or [],
         "suggest_outpaint": suggest,
-        # Suggested completion prompt for the outpaint (what to draw in the new
-        # area). The user can edit this before running; falls back to empty (the
-        # outpaint model continues the subject on its own) if not provided.
         "outpaint_prompt": (data.get("outpaint_prompt", "") or "").strip()[:300],
-        # Failure classification for the preview popup's verdict-driven actions:
-        #   cropped  → subject still cut off → offer "Extend more" (bigger outpaint
-        #              from the ORIGINAL, never compounding the prior extension)
-        #   artifact → in-frame but content is wrong → offer inline inpaint (mask + fix)
-        #   none     → looks good
         "defect": defect,
         "defect_area": (data.get("defect_area", "") or "").strip()[:200],
         "reason": reason,
     }
+
+
+@router.post("/analyze-source")
+async def analyze_3d_source(body: AnalyzeSourceRequest):
+    """Vision-analyze a version's PREPARED 3D source (cutout/__source sidecar) for
+    completeness, so the UI can offer an outpaint/fill completion. Conservative —
+    defaults to "complete" on any uncertainty so it never blocks a good image."""
+    meta = store.load_generation_metadata(body.asset_id) or {}
+    # Analyze exactly what 3D will consume: the prepared source (or cutout).
+    img_path = _prepared_source_path(body.asset_id, body.version, meta)
+    if img_path is None:
+        raise HTTPException(404, detail=f"Image not found for asset '{body.asset_id}' v{body.version}.")
+    return _analyze_source_bytes(img_path.read_bytes(), meta)
 
 
 class RecordSourceReviewRequest(BaseModel):
