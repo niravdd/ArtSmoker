@@ -284,7 +284,9 @@
     "three_d_src_pv_unchecked": "自動チェックできませんでした。画像を確認して判断してください。",
     "three_d_src_pv_cancel": "キャンセル",
     "three_d_src_pv_extend_it": "拡張する",
-    "three_d_run_checks": "チェックを実行"
+    "three_d_run_checks": "チェックを実行",
+    "three_d_src_pv_approve": "この画像を使う",
+    "three_d_src_pv_confirm_sub2": "ここで承認し、フォームの「3Dモデルを生成」をクリックします。"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",

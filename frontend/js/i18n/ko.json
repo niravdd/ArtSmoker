@@ -284,7 +284,9 @@
     "three_d_src_pv_unchecked": "자동 검사를 할 수 없습니다 — 이미지를 확인하고 결정하세요.",
     "three_d_src_pv_cancel": "취소",
     "three_d_src_pv_extend_it": "확장하기",
-    "three_d_run_checks": "검사 실행"
+    "three_d_run_checks": "검사 실행",
+    "three_d_src_pv_approve": "이 이미지 사용",
+    "three_d_src_pv_confirm_sub2": "여기서 승인한 뒤 양식에서 ‘3D 모델 생성’을 클릭하세요."
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",

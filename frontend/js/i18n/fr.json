@@ -284,7 +284,9 @@
     "three_d_src_pv_unchecked": "Vérification automatique impossible — examinez l’image et décidez.",
     "three_d_src_pv_cancel": "Annuler",
     "three_d_src_pv_extend_it": "Étendre",
-    "three_d_run_checks": "Lancer les vérifications"
+    "three_d_run_checks": "Lancer les vérifications",
+    "three_d_src_pv_approve": "Utiliser cette image",
+    "three_d_src_pv_confirm_sub2": "Approuvez ici, puis cliquez sur « Générer le modèle 3D » dans le formulaire."
   },
   "chat_studio": {
     "attach_image": "Joindre une image (pour les modèles de vision)",

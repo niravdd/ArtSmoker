@@ -900,7 +900,9 @@
     "three_d_src_pv_unchecked": "स्वतः जाँच नहीं हो सकी — छवि देखें और निर्णय लें।",
     "three_d_src_pv_cancel": "रद्द करें",
     "three_d_src_pv_extend_it": "बढ़ाएँ",
-    "three_d_run_checks": "जाँच चलाएँ"
+    "three_d_run_checks": "जाँच चलाएँ",
+    "three_d_src_pv_approve": "इस छवि का उपयोग करें",
+    "three_d_src_pv_confirm_sub2": "यहाँ स्वीकृत करें, फिर फ़ॉर्म पर ‘3D मॉडल बनाएँ’ पर क्लिक करें।"
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",

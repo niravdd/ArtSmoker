@@ -284,7 +284,9 @@
     "three_d_src_pv_unchecked": "无法自动检查——请查看图像并决定。",
     "three_d_src_pv_cancel": "取消",
     "three_d_src_pv_extend_it": "扩展",
-    "three_d_run_checks": "运行检查"
+    "three_d_run_checks": "运行检查",
+    "three_d_src_pv_approve": "使用此图像",
+    "three_d_src_pv_confirm_sub2": "在此确认，然后在表单上点击“生成 3D 模型”。"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",

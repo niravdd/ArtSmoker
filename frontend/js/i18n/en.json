@@ -901,7 +901,9 @@
     "three_d_src_pv_unchecked": "Couldn't auto-check — review the image and decide.",
     "three_d_src_pv_cancel": "Cancel",
     "three_d_src_pv_extend_it": "Extend it",
-    "three_d_run_checks": "Run checks"
+    "three_d_run_checks": "Run checks",
+    "three_d_src_pv_approve": "Use this image",
+    "three_d_src_pv_confirm_sub2": "Approve it here, then click Generate 3D Model on the form."
   },
   "model_settings": {
     "title": "Model Settings",

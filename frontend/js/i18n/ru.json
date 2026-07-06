@@ -900,7 +900,9 @@
     "three_d_src_pv_unchecked": "Не удалось проверить автоматически — просмотрите изображение и решите.",
     "three_d_src_pv_cancel": "Отмена",
     "three_d_src_pv_extend_it": "Расширить",
-    "three_d_run_checks": "Запустить проверки"
+    "three_d_run_checks": "Запустить проверки",
+    "three_d_src_pv_approve": "Использовать это изображение",
+    "three_d_src_pv_confirm_sub2": "Подтвердите здесь, затем нажмите «Сгенерировать 3D-модель» в форме."
   },
   "model_settings": {
     "title": "Настройки моделей",

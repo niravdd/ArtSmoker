@@ -951,8 +951,11 @@
                     if (svgBadge) svgBadge.textContent = versions.length > 1 ? `(${vLabel})` : '';
                     if (metaBadge) metaBadge.textContent = versions.length > 1 ? `(${vLabel})` : '';
 
-                    // Refresh 3D tab state for the selected version
+                    // Refresh 3D tab state for the selected version. Switching to a
+                    // different version clears any prior source approval so that
+                    // version gets its own review before generating.
                     this._currentVersion = version;
+                    if (this._sourceApprovedVersion !== version) this._sourceApprovedVersion = null;
                     this._update3DContent();
 
                     // Update metadata tab to show this version's info
@@ -1611,6 +1614,12 @@
             this._3dPollTimer = null;
             this._3dJobId = null;
             this._currentVersion = null;
+            // Version number whose source has been reviewed+approved in the confirm
+            // dialog. When it equals _currentVersion, the Generate button generates
+            // directly (no re-review) — the review dialog NEVER triggers generation
+            // itself; it only prepares/approves the image and returns to the form,
+            // which is the single place generation is fired. null = not yet reviewed.
+            this._sourceApprovedVersion = null;
             if (!window._3dActiveJobs) window._3dActiveJobs = {};
         },
 
@@ -1984,8 +1993,12 @@
                 const sg = analysis.suggest_outpaint || {};
                 if (!(sg.down || sg.up || sg.left || sg.right)) analysis.suggest_outpaint = { down: 256, up: 0, left: 0, right: 0 };
                 if (link) link.textContent = orig;
-                await this._reviewSourceBeforeGen(analysis, null, analysis.outpaint_prompt || '');
-                // Back to the form (user decides whether to Generate now).
+                const approved = await this._reviewSourceBeforeGen(analysis, null, analysis.outpaint_prompt || '');
+                // On approval, mark the shown version approved so the single Generate
+                // button generates it directly (no second review). Refresh the form to
+                // flip the button label. Generation still happens ONLY on that button.
+                if (approved) this._sourceApprovedVersion = this._currentVersion || 1;
+                this._update3DContent();
             });
         },
 
@@ -1997,19 +2010,38 @@
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
 
-            // ── Source review before 3D (always confirm, never silent) ─────────
-            // For subject-centric types we ALWAYS show the exact image that will
-            // become the 3D model and let the user confirm / extend / fix / cancel.
-            // The "re-check source" checkbox only controls whether we spend AI
-            // credits on the completeness VERDICT inside that dialog: checked → run
-            // the vision analysis and pre-highlight the recommended action; unchecked
-            // → still show the image, just without an AI verdict ("review & decide").
-            // skipSourceCheck bypasses the whole step (e.g. internal re-dispatch).
+            // Re-sync to the TRUE current version before anything else. The backend's
+            // current_version is the single source of truth — it advances on every
+            // edit (outpaint/inpaint/bg-removal) and asset.png always IS the current
+            // version. The local _currentVersion counter is written by many paths
+            // (switcher, edit loop, restrip) and can lag behind, which made the
+            // confirm dialog re-anchor on a stale, already-superseded version. Reload
+            // meta and adopt its current_version so generate + the review always start
+            // from the image the user actually last accepted.
+            try {
+                this._meta = await API.gallery.get(this._item.id);
+                if (this._meta?.current_version) this._currentVersion = this._meta.current_version;
+            } catch {}
+
+            // ── Source review before 3D — SEPARATE STEP, never generates ───────
+            // The review dialog only PREPARES + APPROVES the image, then returns to
+            // the form. Generation is triggered ONLY here on the form (one place),
+            // so the user always sees the job strip update — no hidden triggers from
+            // inside a modal. Flow: first click on a subject-centric type with the
+            // check on → BG-removal + AI review + confirm dialog; on approval we mark
+            // the version approved, refresh the form, and STOP (button now reads
+            // "Generate 3D Model"). The user's next click actually generates.
+            // skipSourceCheck bypasses review entirely (e.g. internal re-dispatch).
             if (!skipSourceCheck) {
                 const t3 = this._meta?.asset_type;
                 const recheckBox = container?.querySelector('#av-3d-recheck');
                 const wantCheck = !recheckBox || recheckBox.checked;
-                if ((t3 === 'character' || t3 === 'game_asset') && wantCheck) {
+                const subjectCentric = (t3 === 'character' || t3 === 'game_asset');
+                // Needs review only if it's a subject type, the check is on, and this
+                // exact version hasn't already been approved in this session.
+                const needsReview = subjectCentric && wantCheck
+                    && this._sourceApprovedVersion !== (this._currentVersion || 1);
+                if (needsReview) {
                     // 1) BACKGROUND REMOVAL FIRST — before the AI review AND before we
                     //    show the confirm image. A busy background both confuses the
                     //    "is the subject complete?" judgment and complicates any later
@@ -2027,16 +2059,22 @@
                     try {
                         analysis = await API.threeD.analyzeSource(this._item?.id, this._currentVersion || 1);
                     } catch {}
-                    // 3) Confirm hub: use as-is / extend / fix / cancel. Returns true to
-                    //    proceed (against whatever version is now current), false to abort.
-                    const proceed = await this._reviewSourceBeforeGen(
+                    // 3) Confirm hub: extend / fix / approve / cancel. Returns true when
+                    //    the user approved the shown image, false if they cancelled.
+                    const approved = await this._reviewSourceBeforeGen(
                         analysis || { analyzed: false }, btn,
                         (analysis && analysis.outpaint_prompt) || '');
-                    if (!proceed) { this._reset3DGenerateBtn(btn); return; }
-                    btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
+                    if (!approved) { this._reset3DGenerateBtn(btn); return; }
+                    // Approved → record it, rebuild the form on the approved version,
+                    // and STOP. Do NOT generate from here; the user now clicks the
+                    // (single) Generate button, which fires with visible job feedback.
+                    this._sourceApprovedVersion = this._currentVersion || 1;
+                    this._reset3DGenerateBtn(btn);
+                    this._update3DContent();
+                    return;
                 }
-                // Unchecked (or non-subject type) → straight to generation. The server-
-                // side 3D handler strips the background itself, so no local step needed.
+                // Not needing review (unchecked, non-subject, or already approved) →
+                // fall through to generation. Server-side 3D handler strips BG itself.
             }
 
             const payload = {
@@ -2081,9 +2119,10 @@
 
         /**
          * Set the Generate button's label to reflect what its click does FIRST:
-         * "Run checks" when the AI completeness check will run (→ review dialog),
-         * otherwise "Generate 3D Model". Only subject-centric types run a check;
-         * the check is skipped when the re-check box (regen) is unchecked.
+         *   • "Run checks" — a review will run (subject-centric, check on, and this
+         *     version not yet approved). Clicking opens the review dialog.
+         *   • "Generate 3D Model" — no review pending (unchecked, non-subject, or the
+         *     shown version was already approved). Clicking generates directly.
          */
         _update3DGenerateLabel(scope) {
             const label = scope?.querySelector?.('#av-3d-generate-label');
@@ -2092,7 +2131,9 @@
             const subjectCentric = (t3 === 'character' || t3 === 'game_asset');
             const recheckBox = scope.querySelector?.('#av-3d-recheck');
             const wantCheck = !recheckBox || recheckBox.checked;
-            label.textContent = (subjectCentric && wantCheck)
+            const alreadyApproved = this._sourceApprovedVersion === (this._currentVersion || 1);
+            const willReview = subjectCentric && wantCheck && !alreadyApproved;
+            label.textContent = willReview
                 ? t('asset_viewer.three_d_run_checks')
                 : t('asset_viewer.three_d_generate');
         },
@@ -2397,7 +2438,7 @@
                         <div>
                             <h3 class="text-sm font-semibold text-brand-text">${confirmMode ? t('asset_viewer.three_d_src_pv_confirm_title') : t('asset_viewer.three_d_src_pv_title')}</h3>
                             <p class="text-xs mt-1">${verdict}</p>
-                            ${confirmMode ? `<p class="text-[11px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_src_pv_confirm_sub')}</p>` : ''}
+                            ${confirmMode ? `<p class="text-[11px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_src_pv_confirm_sub')} ${t('asset_viewer.three_d_src_pv_confirm_sub2')}</p>` : ''}
                         </div>
                         <div class="grid ${confirmMode ? 'grid-cols-1' : 'grid-cols-2'} gap-3">
                             ${confirmMode ? '' : `
@@ -2454,7 +2495,7 @@
                              In confirm mode "Extend it" starts the (first) outpaint; after an outpaint it
                              becomes "Extend again". -->
                         <div class="grid grid-cols-3 gap-2">
-                            <button class="av-pv-use btn btn-sm ${good ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${confirmMode ? t('asset_viewer.three_d_src_asis') : t('asset_viewer.three_d_src_pv_use')}</button>
+                            <button class="av-pv-use btn btn-sm ${good ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_approve')}</button>
                             <button class="av-pv-extend btn btn-sm ${(!good && defect === 'cropped') ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${confirmMode ? t('asset_viewer.three_d_src_pv_extend_it') : t('asset_viewer.three_d_src_pv_extend')}</button>
                             <button class="av-pv-fix btn btn-sm ${defect === 'artifact' ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${defect === 'artifact' ? t('asset_viewer.three_d_src_pv_fix') : t('asset_viewer.three_d_src_pv_fix_toggle')}</button>
                         </div>
