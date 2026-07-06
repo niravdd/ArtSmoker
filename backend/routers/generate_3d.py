@@ -525,8 +525,13 @@ def _pipeline_info(key: str, cfg: dict) -> dict:
             accepted = acceptances.get(catalog_key) or acceptances.get(key)
         else:
             # TripoSG: the active TEXTURE BACKEND carries the license that matters.
-            tex_backend = dep.get("texture_backend") or ""
-            tb = ((cat.get("texture_backends", {}).get("options", {}) or {}).get(tex_backend, {}) or {})
+            # Fall back to the catalog's DEFAULT backend when the deployment didn't
+            # persist an explicit choice (older TripoSG deploys stored no
+            # texture_backend, but generation still uses the default) — otherwise the
+            # license summary comes back empty and the panel silently hides.
+            tex_cfg = cat.get("texture_backends", {}) or {}
+            tex_backend = dep.get("texture_backend") or tex_cfg.get("default") or ""
+            tb = ((tex_cfg.get("options", {}) or {}).get(tex_backend, {}) or {})
             lic = tb.get("license", {}) or {}
             license_name = lic.get("name", "")
             license_url = lic.get("url", "")
@@ -604,7 +609,12 @@ async def list_3d_instances(verify: bool = True):
             from backend.services.custom_models import get_catalog_model
             cat = get_catalog_model(cfg.get("catalog_key", "triposg")) or {}
             cost_per_hr = (cat.get("pricing", {}).get("instance_cost_per_hour", {}) or {}).get(inst_type)
-            tb_opts = (cat.get("texture_backends", {}).get("options", {}) or {})
+            tex_cfg = cat.get("texture_backends", {}) or {}
+            tb_opts = tex_cfg.get("options", {}) or {}
+            # Same default fallback as the license summary: an unset texture_backend
+            # means the catalog default is used at generation time.
+            if not tex_backend:
+                tex_backend = tex_cfg.get("default") or ""
             if tex_backend and tex_backend in tb_opts:
                 latency_s = tb_opts[tex_backend].get("typical_latency_seconds")
             if latency_s is None:
@@ -983,6 +993,59 @@ def _alpha_edge_crop(img_bytes: bytes, touch_frac: float = 0.04, margin_px: int 
         return {"crop_edges": crop_edges, "suggest_outpaint": suggest}
     except Exception:
         return None
+
+
+def _version_is_bg_free(asset_id: str, version: int, meta: dict = None) -> bool:
+    """Whether a 2D version is already a background-free cutout (per its edit
+    provenance), so we can serve it directly without another removal."""
+    if meta is None:
+        meta = store.load_generation_metadata(asset_id) or {}
+    for v in (meta.get("versions") or []):
+        if v.get("version") == version:
+            ec = v.get("edit_context") or {}
+            return (v.get("type") == "remove_background"
+                    or ec.get("op") == "remove_background")
+    return False
+
+
+@router.get("/source-preview/{asset_id}/{version}")
+async def source_preview(asset_id: str, version: int):
+    """Serve the EXACT image that will go to the 3D pipeline for a version — with
+    the background removed — so the 3D form can show the user precisely what gets
+    converted, even without opening the review dialog.
+
+    Cost-aware caching: if the version is already a clean cutout, serve it as-is.
+    Otherwise remove the background ONCE and cache the result to a sidecar file
+    (`asset_v{N}__cutout.png`) — NOT a new version, so version history stays clean
+    and the paid removal runs at most once per version. Falls back to the original
+    image if removal fails (non-fatal), so the panel always shows something.
+    """
+    from fastapi.responses import FileResponse
+    meta = store.load_generation_metadata(asset_id) or {}
+    src = _version_image_path(asset_id, version, meta)
+    if src is None:
+        raise HTTPException(404, detail=f"Image not found for asset '{asset_id}' v{version}.")
+
+    # Already a cutout → serve directly.
+    if _version_is_bg_free(asset_id, version, meta):
+        return FileResponse(src, media_type="image/png")
+
+    # Cached sidecar from a prior preview → reuse (no repeat spend).
+    cutout_name = f"asset_v{version}__cutout.png"
+    cached = store.get_generated_file_path(asset_id, cutout_name)
+    if cached is not None:
+        return FileResponse(cached, media_type="image/png")
+
+    # Remove background once, cache it. Non-fatal: on failure, serve the original.
+    try:
+        from backend.services.post_processor import remove_background
+        out = remove_background(src.read_bytes())
+        saved = store.save_generated_image(asset_id, cutout_name, out)
+        return FileResponse(saved, media_type="image/png")
+    except Exception as e:
+        logger.info("Source preview BG-removal failed for %s v%s (%s) — serving original",
+                    asset_id, version, e)
+        return FileResponse(src, media_type="image/png")
 
 
 class AnalyzeSourceRequest(BaseModel):

@@ -475,6 +475,11 @@
                     body: { asset_id: assetId, version },
                 });
             },
+            /** URL of the EXACT background-removed image that goes to the 3D pipeline
+             *  for a version (cached server-side; removes BG once if needed). */
+            sourcePreviewUrl(assetId, version = 1) {
+                return `/api/generate/3d/source-preview/${encodeURIComponent(assetId)}/${version}`;
+            },
             /** Persist a completion re-review verdict onto a 2D version's record. */
             recordReview(assetId, version, review) {
                 return request('/api/generate/3d/record-source-review', {

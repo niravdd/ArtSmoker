@@ -96,7 +96,7 @@
             const overlay = document.createElement('div');
             overlay.className = 'modal-overlay fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
             overlay.innerHTML = `
-                <div class="modal-content bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-4xl w-full max-h-[92vh] flex flex-col overflow-hidden">
+                <div class="modal-content bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
                         <h2 class="text-lg font-semibold truncate flex-1">${this._esc(item.png_filename || t('asset_viewer.generated_asset'))}</h2>
@@ -165,6 +165,11 @@
                                 <div id="av-zoom-container" class="preview-checkerboard rounded-lg overflow-hidden" style="position:relative; height: 65vh; min-height: 300px;">
                                     <img id="av-zoom-img" src="${pngUrl}" alt="Generated PNG" loading="lazy"
                                          style="transform-origin: 0 0; transition: transform 0.1s ease-out; max-width: none;" />
+                                    <!-- Measurement overlay: tracks the image's zoom/pan/fit transform,
+                                         drawing a ruler + subject bounding box + per-edge margins. Hidden
+                                         until toggled via the Measure button. pointer-events-none so it
+                                         never blocks pan/zoom. -->
+                                    <canvas id="av-zoom-measure" class="absolute inset-0 w-full h-full pointer-events-none hidden"></canvas>
                                 </div>
                                 <!-- Image info bar — model, style, date -->
                                 <div id="av-image-info" class="flex items-center gap-3 mt-2 text-[10px] text-brand-text-muted"></div>
@@ -179,6 +184,11 @@
                                     </button>
                                     <button id="av-zoom-fit" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="${t('asset_viewer.zoom_fit_title')}">${t('asset_viewer.zoom_fit')}</button>
                                     <button id="av-zoom-actual" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="${t('asset_viewer.zoom_actual_title')}">${t('asset_viewer.zoom_1to1')}</button>
+                                    <span class="w-px h-4 bg-white/20 mx-0.5"></span>
+                                    <button id="av-zoom-measure-btn" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white flex items-center gap-1" title="${t('asset_viewer.measure_title')}">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 7v10M4 7L2 9m18-2v10m0-10l2 2M7 7v3m5-3v5m5-5v3"/></svg>
+                                        ${t('asset_viewer.measure')}
+                                    </button>
                                 </div>
                             </div>
                         </div>
@@ -1504,6 +1514,15 @@
             const btnOut = this._overlay.querySelector('#av-zoom-out');
             let _fitScale = 1; // Track what "fit" scale is
 
+            // Measurement overlay (Measure toggle). Tracks the SAME pan/scale as the
+            // image so the ruler, subject bounding box, and per-edge margins stay
+            // pinned to the image at any zoom/pan/fit. Generic: measures whatever
+            // alpha silhouette exists (any subject), or ruler-only when opaque.
+            const measureCanvas = this._overlay.querySelector('#av-zoom-measure');
+            const measureBtn = this._overlay.querySelector('#av-zoom-measure-btn');
+            let measureOn = false;
+            let _bbox = null, _measured = false;   // subject bbox in image px
+
             const _activeClass = 'bg-white/30 text-white';
             const _clearActive = () => {
                 [btnFit, btnActual, btnIn, btnOut].forEach(b => {
@@ -1511,9 +1530,98 @@
                 });
             };
 
+            const drawMeasure = () => {
+                if (!measureCanvas || !measureOn) return;
+                const iW = img.naturalWidth, iH = img.naturalHeight;
+                if (!iW || !iH) return;
+                const rect = container.getBoundingClientRect();
+                const dpr = window.devicePixelRatio || 1;
+                if (measureCanvas.width !== Math.round(rect.width * dpr) || measureCanvas.height !== Math.round(rect.height * dpr)) {
+                    measureCanvas.width = Math.round(rect.width * dpr);
+                    measureCanvas.height = Math.round(rect.height * dpr);
+                }
+                const ctx = measureCanvas.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.clearRect(0, 0, rect.width, rect.height);
+                // Image → container space: same transform the <img> uses.
+                const toX = (ix) => panX + ix * scale;
+                const toY = (iy) => panY + iy * scale;
+                // Image frame.
+                ctx.strokeStyle = 'rgba(160,170,190,0.7)'; ctx.lineWidth = 1;
+                ctx.strokeRect(toX(0) + 0.5, toY(0) + 0.5, iW * scale, iH * scale);
+                // Subject bbox (if measured) + margin labels.
+                if (_bbox) {
+                    ctx.save();
+                    ctx.strokeStyle = 'rgba(52, 211, 153, 0.9)'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
+                    ctx.strokeRect(toX(_bbox.x) + 0.5, toY(_bbox.y) + 0.5, _bbox.w * scale, _bbox.h * scale);
+                    ctx.restore();
+                    ctx.fillStyle = 'rgba(255,255,255,0.92)'; ctx.font = '11px ui-monospace, monospace';
+                    const lbl = (txt, x, y, align) => {
+                        ctx.textAlign = align || 'center'; ctx.textBaseline = 'middle';
+                        const w = ctx.measureText(txt).width;
+                        const px = align === 'left' ? x : align === 'right' ? x - w : x - w / 2;
+                        ctx.fillStyle = 'rgba(0,0,0,0.55)'; ctx.fillRect(px - 3, y - 8, w + 6, 16);
+                        ctx.fillStyle = 'rgba(255,255,255,0.95)'; ctx.fillText(txt, x, y);
+                    };
+                    const mUp = _bbox.y, mDown = iH - (_bbox.y + _bbox.h);
+                    const mLeft = _bbox.x, mRight = iW - (_bbox.x + _bbox.w);
+                    const cropTag = (v) => v <= 1 ? ' ⚠' : '';
+                    lbl(`↑ ${mUp}px${cropTag(mUp)}`, toX(_bbox.x + _bbox.w / 2), toY(_bbox.y / 2));
+                    lbl(`↓ ${mDown}px${cropTag(mDown)}`, toX(_bbox.x + _bbox.w / 2), toY(_bbox.y + _bbox.h + mDown / 2));
+                    lbl(`← ${mLeft}px${cropTag(mLeft)}`, toX(_bbox.x / 2), toY(_bbox.y + _bbox.h / 2));
+                    lbl(`${mRight}px${cropTag(mRight)} →`, toX(_bbox.x + _bbox.w + mRight / 2), toY(_bbox.y + _bbox.h / 2));
+                }
+                // Ruler ticks along top + left edges (true image pixels).
+                ctx.fillStyle = 'rgba(210,215,230,0.85)'; ctx.strokeStyle = 'rgba(150,158,178,0.6)'; ctx.lineWidth = 1;
+                ctx.font = '9px ui-monospace, monospace';
+                const step = iW > 1400 ? 512 : 256;
+                ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+                for (let px = 0; px <= iW; px += step) {
+                    const x = toX(px);
+                    ctx.beginPath(); ctx.moveTo(x, toY(0)); ctx.lineTo(x, toY(0) + 6); ctx.stroke();
+                    ctx.fillText(String(px), x, toY(0) + 7);
+                }
+                ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+                for (let py = 0; py <= iH; py += step) {
+                    const y = toY(py);
+                    ctx.beginPath(); ctx.moveTo(toX(0), y); ctx.lineTo(toX(0) + 6, y); ctx.stroke();
+                    ctx.fillText(String(py), toX(0) + 8, y);
+                }
+                // Size caption.
+                ctx.fillStyle = 'rgba(255,255,255,0.9)'; ctx.font = '10px ui-monospace, monospace';
+                ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
+                ctx.fillText(`${iW}×${iH}px`, 6, rect.height - 4);
+            };
+
+            const measureImage = () => {
+                if (_measured) return;
+                const iW = img.naturalWidth, iH = img.naturalHeight;
+                if (!iW || !iH) return;
+                _measured = true;
+                try {
+                    const s = Math.min(1, 256 / Math.max(iW, iH));
+                    const sw = Math.max(1, Math.round(iW * s)), sh = Math.max(1, Math.round(iH * s));
+                    const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+                    const cx = c.getContext('2d', { willReadFrequently: true });
+                    cx.drawImage(img, 0, 0, sw, sh);
+                    const px = cx.getImageData(0, 0, sw, sh).data;
+                    let minX = sw, minY = sh, maxX = -1, maxY = -1, transparent = 0;
+                    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+                        if (px[(y * sw + x) * 4 + 3] <= 16) { transparent++; continue; }
+                        if (x < minX) minX = x; if (x > maxX) maxX = x;
+                        if (y < minY) minY = y; if (y > maxY) maxY = y;
+                    }
+                    if ((transparent / (sw * sh)) > 0.02 && maxX >= 0) {
+                        _bbox = { x: Math.round(minX / s), y: Math.round(minY / s),
+                            w: Math.round((maxX - minX + 1) / s), h: Math.round((maxY - minY + 1) / s) };
+                    } else { _bbox = null; }  // opaque image → ruler only
+                } catch { _bbox = null; }
+            };
+
             const updateTransform = () => {
                 img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
                 if (levelEl) levelEl.textContent = `${Math.round(scale * 100)}%`;
+                drawMeasure();
 
                 // Highlight the active mode button
                 _clearActive();
@@ -1524,6 +1632,21 @@
                     btnActual.classList.add(..._activeClass.split(' '));
                 }
             };
+
+            // Measure toggle.
+            measureBtn?.addEventListener('click', () => {
+                measureOn = !measureOn;
+                measureCanvas?.classList.toggle('hidden', !measureOn);
+                measureBtn.classList.toggle('bg-white/30', measureOn);
+                measureBtn.classList.toggle('text-white', measureOn);
+                if (measureOn) {
+                    // Measure once the image is decoded (may be lazy-loaded).
+                    if (img.complete && img.naturalWidth > 0) { measureImage(); drawMeasure(); }
+                    else img.addEventListener('load', () => { measureImage(); drawMeasure(); }, { once: true });
+                }
+            });
+            // Redraw on window resize (container size changes → recompute overlay).
+            window.addEventListener('resize', () => { if (measureOn) drawMeasure(); });
 
             const fitToView = () => {
                 const cW = container.clientWidth;
@@ -1715,8 +1838,7 @@
             }
         },
 
-        _render3DForm(container, instances = [], isRegen = false) {
-            this._is3DRegen = isRegen;
+        _render3DForm(container, instances = []) {
             // Model chooser — only shown when more than one TripoSG instance is
             // deployed (mirrors the Image Studio model chooser). With 0 or 1
             // instance there's nothing to choose, so the server default is used.
@@ -1764,25 +1886,34 @@
                     </div>
             ` : '';
 
+            // The EXACT background-removed image that will go to the 3D pipeline,
+            // shown on the right so the user is crystal-clear on the pipeline input
+            // without opening Review. Server caches the cutout (removes BG once).
+            const previewUrl = API.threeD.sourcePreviewUrl(this._item?.id, this._currentVersion || 1) + `?t=${Date.now()}`;
+            const isSubject = (this._meta?.asset_type === 'character' || this._meta?.asset_type === 'game_asset');
+            const previewPanelHtml = `
+                <div class="w-full lg:w-64 lg:flex-shrink-0 space-y-2">
+                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_preview_title')}</p>
+                    <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-border flex items-center justify-center" style="height: 220px;">
+                        <img id="av-3d-preview-img" src="${previewUrl}" class="w-full h-full object-contain" alt="3D source" />
+                    </div>
+                    <p class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_preview_note')}</p>
+                    ${isSubject ? `
+                    <!-- Improve the Source sits WITH the image it acts on (most intuitive
+                         placement) — the sole instance; not duplicated in the button row. -->
+                    <button id="av-3d-review" class="btn btn-sm bg-cyan-600 hover:bg-cyan-500 text-white w-full flex items-center justify-center gap-1.5">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/></svg>
+                        <span>${t('asset_viewer.three_d_improve_btn')}</span>
+                    </button>
+                    <p id="av-3d-review-status" class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_review_hint')}</p>` : ''}
+                </div>`;
+
             container.innerHTML = `
-                <div class="space-y-4">
+                <div class="flex flex-col lg:flex-row gap-5">
+                  <!-- LEFT: controls -->
+                  <div class="flex-1 min-w-0 space-y-4">
                     <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_version_note')}</p>
                     ${chooserHtml}
-                    <!-- Source-completion controls. The auto-check (vision) can miss a
-                         cropped subject, so we ALSO offer a manual entry point that's
-                         always available. On regenerate the auto-check is opt-in
-                         (costs AI credits) since the source is often already fine. -->
-                    <div class="rounded-lg border border-brand-border/50 bg-brand-bg/30 px-3 py-2 space-y-1.5">
-                        ${isRegen ? `
-                        <label class="flex items-center gap-2 cursor-pointer">
-                            <input id="av-3d-recheck" type="checkbox" checked class="accent-brand-accent" />
-                            <span class="text-[11px] text-brand-text">${t('asset_viewer.three_d_recheck_label')}</span>
-                        </label>` : ''}
-                        <div class="flex items-center gap-2 text-[11px]">
-                            <span class="text-brand-text-muted">${t('asset_viewer.three_d_manual_complete_q')}</span>
-                            <button id="av-3d-manual-complete" class="text-brand-accent hover:underline">${t('asset_viewer.three_d_manual_complete')}</button>
-                        </div>
-                    </div>
                     <!-- License + save-as choice sit SIDE-BY-SIDE (wrap on narrow
                          widths) to keep the form compact instead of stacking tall. -->
                     <div class="flex flex-wrap items-stretch gap-3">
@@ -1848,19 +1979,21 @@
                         </div>
                     </details>
 
-                    <!-- Generate button. Its label reflects what the click does first:
-                         "Run checks" when the AI completeness check will run (it then
-                         shows the review dialog), else "Generate 3D Model". Updated live
-                         when the re-check box toggles (see wiring below). -->
-                    <div class="flex items-center gap-3">
+                    <!-- Generate — the ONE place a 3D job is triggered. "Improve the
+                         Source" lives with the preview image (right panel), so this row
+                         is just the single Generate action, matching the other studios. -->
+                    <div class="flex items-center gap-3 flex-wrap">
                         <button id="av-3d-generate" class="btn btn-primary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                             </svg>
-                            <span id="av-3d-generate-label">${t('asset_viewer.three_d_run_checks')}</span>
+                            <span>${t('asset_viewer.three_d_generate')}</span>
                         </button>
                     </div>
                     <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_async_note')}</p>
+                  </div>
+                  <!-- RIGHT: exact pipeline-input preview (bg-removed). -->
+                  ${previewPanelHtml}
                 </div>
             `;
 
@@ -1970,39 +2103,70 @@
 
             applyPreset();  // sync advanced fields + estimate to the default (High)
 
-            // Generate button + its context-aware label. The label reflects the
-            // first action: "Run checks" when the AI check will run, else "Generate
-            // 3D Model". Toggling the re-check box flips it live.
+            // Generate button — always generates directly (source review is a
+            // separate, explicit step via the Review button). This is the ONLY 3D
+            // trigger; nothing else fires a job.
             container.querySelector('#av-3d-generate')?.addEventListener('click', () => this._submit3DGeneration());
-            container.querySelector('#av-3d-recheck')?.addEventListener('change', () => this._update3DGenerateLabel(container));
-            this._update3DGenerateLabel(container);
 
-            // Manual "complete/extend source" — the safety net for when auto-detection
-            // misses a crop. Always opens the completion flow: analyze for a starting
-            // suggestion, but proceed even if the verdict is "complete" (the user knows
-            // better). Falls back to a sensible default extension the user tunes in the
-            // preview popup. Does NOT auto-submit 3D — returns to the form afterwards.
-            container.querySelector('#av-3d-manual-complete')?.addEventListener('click', async () => {
-                const link = container.querySelector('#av-3d-manual-complete');
-                const orig = link ? link.textContent : '';
-                if (link) link.textContent = t('asset_viewer.three_d_src_reviewing');
-                let analysis = {};
-                try { analysis = await API.threeD.analyzeSource(this._item?.id, this._currentVersion || 1) || {}; } catch {}
-                // Seed a default extension if the LLM didn't suggest one (manual intent
-                // overrides a "complete" verdict) — down is the common crop for characters.
-                const sg = analysis.suggest_outpaint || {};
-                if (!(sg.down || sg.up || sg.left || sg.right)) analysis.suggest_outpaint = { down: 256, up: 0, left: 0, right: 0 };
-                if (link) link.textContent = orig;
-                const approved = await this._reviewSourceBeforeGen(analysis, null, analysis.outpaint_prompt || '');
-                // On approval, mark the shown version approved so the single Generate
-                // button generates it directly (no second review). Refresh the form to
-                // flip the button label. Generation still happens ONLY on that button.
-                if (approved) this._sourceApprovedVersion = this._currentVersion || 1;
-                this._update3DContent();
-            });
+            // Review source button — opens the review dialog (Extend / Fill until
+            // satisfied), then returns to this form. Never triggers generation.
+            const reviewBtn = container.querySelector('#av-3d-review');
+            reviewBtn?.addEventListener('click', () => this._reviewSource(reviewBtn));
+            this._update3DReviewStatus(container);
         },
 
-        async _submit3DGeneration(skipSourceCheck) {
+        /** Reflect whether the current version's source has been reviewed this session. */
+        _update3DReviewStatus(scope) {
+            const el = scope?.querySelector?.('#av-3d-review-status');
+            if (!el) return;
+            const done = this._sourceApprovedVersion === (this._currentVersion || 1);
+            el.textContent = done
+                ? '✓ ' + t('asset_viewer.three_d_review_done')
+                : t('asset_viewer.three_d_review_hint');
+            el.classList.toggle('text-emerald-400', done);
+            el.classList.toggle('text-brand-text-dim', !done);
+        },
+
+        /**
+         * Open the source-review workflow (explicit, optional). Removes the
+         * background, runs the AI completeness check, then shows the review dialog
+         * where the user iterates Extend / Fill until satisfied and clicks "Use this
+         * image". On approval, marks the version reviewed and refreshes the form.
+         * NEVER triggers 3D generation — that's the form's Generate button alone.
+         */
+        async _reviewSource(reviewBtn) {
+            if (reviewBtn?.disabled) return;
+            const container = this._overlay?.querySelector('#av-3d-content');
+            if (reviewBtn) {
+                reviewBtn.disabled = true;
+                reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
+            }
+            // Re-sync to the true current version (backend truth) before reviewing.
+            try {
+                this._meta = await API.gallery.get(this._item.id);
+                if (this._meta?.current_version) this._currentVersion = this._meta.current_version;
+            } catch {}
+            // 1) Background removal first (clean cutout for both the AI check and the
+            //    confirm preview). Once (skipped if already background-free).
+            if (reviewBtn) reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_removing_bg')}`;
+            if (!this._isBackgroundFree(this._currentVersion || 1)) {
+                const bg = await this._removeBgOnce(this._currentVersion || 1, reviewBtn);
+                if (bg.status === 'ok' && bg.newVersion) this._currentVersion = bg.newVersion;
+            }
+            // 2) AI completeness review on the clean cutout.
+            if (reviewBtn) reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
+            let analysis = null;
+            try { analysis = await API.threeD.analyzeSource(this._item?.id, this._currentVersion || 1); } catch {}
+            // 3) Review dialog: iterate Extend / Fill until satisfied → "Use this image".
+            const approved = await this._reviewSourceBeforeGen(
+                analysis || { analyzed: false }, reviewBtn,
+                (analysis && analysis.outpaint_prompt) || '');
+            if (approved) this._sourceApprovedVersion = this._currentVersion || 1;
+            // Rebuild the form on the (possibly new) approved version.
+            this._update3DContent();
+        },
+
+        async _submit3DGeneration() {
             const container = this._overlay?.querySelector('#av-3d-content');
             const btn = container?.querySelector('#av-3d-generate');
             if (!btn || btn.disabled) return;
@@ -2010,72 +2174,18 @@
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
 
-            // Re-sync to the TRUE current version before anything else. The backend's
+            // Re-sync to the TRUE current version before generating. The backend's
             // current_version is the single source of truth — it advances on every
             // edit (outpaint/inpaint/bg-removal) and asset.png always IS the current
-            // version. The local _currentVersion counter is written by many paths
-            // (switcher, edit loop, restrip) and can lag behind, which made the
-            // confirm dialog re-anchor on a stale, already-superseded version. Reload
-            // meta and adopt its current_version so generate + the review always start
-            // from the image the user actually last accepted.
+            // version. The local _currentVersion counter is written by many paths and
+            // can lag behind, so adopt the backend value to generate from the image
+            // the user actually last accepted. Source review is a SEPARATE explicit
+            // step (the Review button) — generation never triggers it, and this button
+            // is the ONE place a 3D job starts (visible job-strip feedback).
             try {
                 this._meta = await API.gallery.get(this._item.id);
                 if (this._meta?.current_version) this._currentVersion = this._meta.current_version;
             } catch {}
-
-            // ── Source review before 3D — SEPARATE STEP, never generates ───────
-            // The review dialog only PREPARES + APPROVES the image, then returns to
-            // the form. Generation is triggered ONLY here on the form (one place),
-            // so the user always sees the job strip update — no hidden triggers from
-            // inside a modal. Flow: first click on a subject-centric type with the
-            // check on → BG-removal + AI review + confirm dialog; on approval we mark
-            // the version approved, refresh the form, and STOP (button now reads
-            // "Generate 3D Model"). The user's next click actually generates.
-            // skipSourceCheck bypasses review entirely (e.g. internal re-dispatch).
-            if (!skipSourceCheck) {
-                const t3 = this._meta?.asset_type;
-                const recheckBox = container?.querySelector('#av-3d-recheck');
-                const wantCheck = !recheckBox || recheckBox.checked;
-                const subjectCentric = (t3 === 'character' || t3 === 'game_asset');
-                // Needs review only if it's a subject type, the check is on, and this
-                // exact version hasn't already been approved in this session.
-                const needsReview = subjectCentric && wantCheck
-                    && this._sourceApprovedVersion !== (this._currentVersion || 1);
-                if (needsReview) {
-                    // 1) BACKGROUND REMOVAL FIRST — before the AI review AND before we
-                    //    show the confirm image. A busy background both confuses the
-                    //    "is the subject complete?" judgment and complicates any later
-                    //    outpaint. Stripping it up front means the review, the confirm
-                    //    preview, and the 3D input are all the same clean cutout. Runs
-                    //    once (skipped if already background-free); non-fatal.
-                    btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_removing_bg')}`;
-                    if (!this._isBackgroundFree(this._currentVersion || 1)) {
-                        const bg = await this._removeBgOnce(this._currentVersion || 1, btn);
-                        if (bg.status === 'ok' && bg.newVersion) this._currentVersion = bg.newVersion;
-                    }
-                    // 2) AI completeness review on the CLEAN cutout.
-                    btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_reviewing')}`;
-                    let analysis = null;
-                    try {
-                        analysis = await API.threeD.analyzeSource(this._item?.id, this._currentVersion || 1);
-                    } catch {}
-                    // 3) Confirm hub: extend / fix / approve / cancel. Returns true when
-                    //    the user approved the shown image, false if they cancelled.
-                    const approved = await this._reviewSourceBeforeGen(
-                        analysis || { analyzed: false }, btn,
-                        (analysis && analysis.outpaint_prompt) || '');
-                    if (!approved) { this._reset3DGenerateBtn(btn); return; }
-                    // Approved → record it, rebuild the form on the approved version,
-                    // and STOP. Do NOT generate from here; the user now clicks the
-                    // (single) Generate button, which fires with visible job feedback.
-                    this._sourceApprovedVersion = this._currentVersion || 1;
-                    this._reset3DGenerateBtn(btn);
-                    this._update3DContent();
-                    return;
-                }
-                // Not needing review (unchecked, non-subject, or already approved) →
-                // fall through to generation. Server-side 3D handler strips BG itself.
-            }
 
             const payload = {
                 asset_id: this._item?.id,
@@ -2113,29 +2223,7 @@
         _reset3DGenerateBtn(btn) {
             if (!btn) return;
             btn.disabled = false;
-            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> <span id="av-3d-generate-label"></span>`;
-            this._update3DGenerateLabel(btn.closest('#av-3d-content') || document);
-        },
-
-        /**
-         * Set the Generate button's label to reflect what its click does FIRST:
-         *   • "Run checks" — a review will run (subject-centric, check on, and this
-         *     version not yet approved). Clicking opens the review dialog.
-         *   • "Generate 3D Model" — no review pending (unchecked, non-subject, or the
-         *     shown version was already approved). Clicking generates directly.
-         */
-        _update3DGenerateLabel(scope) {
-            const label = scope?.querySelector?.('#av-3d-generate-label');
-            if (!label) return;
-            const t3 = this._meta?.asset_type;
-            const subjectCentric = (t3 === 'character' || t3 === 'game_asset');
-            const recheckBox = scope.querySelector?.('#av-3d-recheck');
-            const wantCheck = !recheckBox || recheckBox.checked;
-            const alreadyApproved = this._sourceApprovedVersion === (this._currentVersion || 1);
-            const willReview = subjectCentric && wantCheck && !alreadyApproved;
-            label.textContent = willReview
-                ? t('asset_viewer.three_d_run_checks')
-                : t('asset_viewer.three_d_generate');
+            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> <span>${t('asset_viewer.three_d_generate')}</span>`;
         },
 
         /**
@@ -2450,13 +2538,20 @@
                             </div>`}
                             <div class="space-y-1">
                                 ${confirmMode ? '' : `<p class="text-[10px] text-brand-accent uppercase tracking-wider text-center">${t('asset_viewer.three_d_src_pv_after')}</p>`}
-                                <!-- This view doubles as the inpaint mask canvas when fixing content. -->
-                                <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center" style="height: 300px;">
-                                    <img id="av-pv-after-img" src="${afterUrl}" class="w-full h-full object-contain ${defect === 'artifact' ? 'hidden' : ''}" alt="source" crossorigin="anonymous" />
+                                <!-- This view doubles as the inpaint mask canvas when fixing content,
+                                     and (confirm mode) hosts the measurement ruler + extension-band
+                                     overlay drawn on #av-pv-measure. -->
+                                <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center relative" style="height: 300px;">
+                                    <img id="av-pv-after-img" src="${afterUrl}" class="w-full h-full object-contain ${(defect === 'artifact' || confirmMode) ? 'hidden' : ''}" alt="source" crossorigin="anonymous" />
                                     <canvas id="av-pv-mask" class="cursor-crosshair ${defect === 'artifact' ? '' : 'hidden'}" style="max-width:100%; max-height:300px;"></canvas>
+                                    <canvas id="av-pv-measure" class="absolute inset-0 w-full h-full pointer-events-none ${confirmMode ? '' : 'hidden'}"></canvas>
                                 </div>
                             </div>
                         </div>
+                        ${confirmMode ? `
+                        <!-- Measurement stats: image size, subject fill %, per-edge margin. Populated
+                             from the alpha silhouette once the source loads (generic for any subject). -->
+                        <div id="av-pv-stats" class="text-[10px] text-brand-text-muted flex flex-wrap items-center gap-x-4 gap-y-1 px-1"></div>` : ''}
 
                         <!-- Inpaint fix: brush over any region, describe the fix. Available for ANY
                              verdict (not just detected artifacts) — the user can always touch up a
@@ -2497,7 +2592,7 @@
                         <div class="grid grid-cols-3 gap-2">
                             <button class="av-pv-use btn btn-sm ${good ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_approve')}</button>
                             <button class="av-pv-extend btn btn-sm ${(!good && defect === 'cropped') ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${confirmMode ? t('asset_viewer.three_d_src_pv_extend_it') : t('asset_viewer.three_d_src_pv_extend')}</button>
-                            <button class="av-pv-fix btn btn-sm ${defect === 'artifact' ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${defect === 'artifact' ? t('asset_viewer.three_d_src_pv_fix') : t('asset_viewer.three_d_src_pv_fix_toggle')}</button>
+                            <button class="av-pv-fix btn btn-sm ${defect === 'artifact' ? 'bg-brand-accent hover:bg-brand-accent-hover text-white' : 'btn-secondary'} rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_fill')}</button>
                         </div>
                         <button class="av-pv-discard text-[11px] text-brand-text-muted hover:text-red-400 w-full text-center">${confirmMode ? t('asset_viewer.three_d_src_pv_cancel') : t('asset_viewer.three_d_src_pv_discard')}</button>
                         ${confirmMode ? '' : `<p class="text-[9px] text-brand-text-dim text-center">${t('asset_viewer.three_d_src_pv_note')}</p>`}
@@ -2507,7 +2602,7 @@
                     const g = (d) => { const n = parseInt(backdrop.querySelector(`#av-pv-${d}`)?.value || '0', 10); return Number.isFinite(n) ? Math.max(0, Math.min(512, n)) : 0; };
                     return { left: g('left'), right: g('right'), up: g('up'), down: g('down') };
                 };
-                const done = (v) => { backdrop.remove(); resolve(v); };
+                const done = (v) => { this._redrawMeasurement = null; backdrop.remove(); resolve(v); };
 
                 // Fix (inpaint) mode. For an 'artifact' verdict it starts ON (brush
                 // panel visible, mask painter live). For any other verdict it starts
@@ -2522,13 +2617,17 @@
                 let fixMode = defect === 'artifact';
                 let maskWired = false;
 
+                const measureCanvas = backdrop.querySelector('#av-pv-measure');
                 const enableFixMode = () => {
                     fixMode = true;
                     fixPanel?.classList.remove('hidden');
                     extendPanel?.classList.add('hidden');
                     afterImg?.classList.add('hidden');
+                    // Fix mode paints on the mask canvas (which renders the image
+                    // itself) — hide the measurement overlay so it isn't on top.
+                    measureCanvas?.classList.add('hidden');
                     maskCanvas?.classList.remove('hidden');
-                    fixBtn.textContent = t('asset_viewer.three_d_src_pv_fix');
+                    fixBtn.textContent = t('asset_viewer.three_d_src_pv_fill');
                     fixBtn.classList.add('bg-brand-accent', 'hover:bg-brand-accent-hover', 'text-white');
                     fixBtn.classList.remove('btn-secondary');
                     if (!maskWired) {
@@ -2537,6 +2636,16 @@
                     }
                 };
                 if (fixMode) enableFixMode();
+
+                // Measurement overlay (confirm mode only): ruler + per-edge margin
+                // callouts + a live band previewing where the entered extension lands.
+                // Redraws whenever a direction input changes.
+                if (confirmMode) {
+                    this._wireMeasurement(backdrop, afterUrl, readDirs);
+                    ['left', 'right', 'up', 'down'].forEach(d => {
+                        backdrop.querySelector(`#av-pv-${d}`)?.addEventListener('input', () => this._redrawMeasurement?.());
+                    });
+                }
 
                 backdrop.querySelector('.av-pv-mask-clear')?.addEventListener('click', () => {
                     if (maskCanvas?._baseImageData) maskCanvas.getContext('2d').putImageData(maskCanvas._baseImageData, 0, 0);
@@ -2602,6 +2711,175 @@
             canvas.addEventListener('mousedown', (e) => { painting = true; paintAt(...pos(e)); });
             canvas.addEventListener('mousemove', (e) => { if (painting) paintAt(...pos(e)); });
             window.addEventListener('mouseup', () => { painting = false; });
+        },
+
+        /**
+         * Measurement overlay for the confirm dialog: reads the source image's alpha
+         * silhouette to report its true pixel size, how much of the frame the subject
+         * fills, and the transparent margin (px) on each edge — then draws a ruler,
+         * per-edge margin callouts, and a live band previewing where the entered
+         * extension will land. Fully generic: it measures whatever silhouette exists,
+         * so it works for any character/object/asset, not just the test soldier.
+         * `readDirs()` returns the current {left,right,up,down} extension in px.
+         */
+        _wireMeasurement(backdrop, imgUrl, readDirs) {
+            const overlay = backdrop.querySelector('#av-pv-measure');
+            const statsEl = backdrop.querySelector('#av-pv-stats');
+            const wrap = overlay?.parentElement;   // the fixed-height preview box
+            if (!overlay || !wrap) return;
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                const W = img.naturalWidth, H = img.naturalHeight;
+                // Measure the alpha silhouette (bbox + per-edge transparent margin).
+                let bbox = null, hasAlpha = false;
+                try {
+                    const s = Math.min(1, 256 / Math.max(W, H));  // downscale for a fast scan
+                    const sw = Math.max(1, Math.round(W * s)), sh = Math.max(1, Math.round(H * s));
+                    const c = document.createElement('canvas'); c.width = sw; c.height = sh;
+                    const cx = c.getContext('2d', { willReadFrequently: true });
+                    cx.drawImage(img, 0, 0, sw, sh);
+                    const px = cx.getImageData(0, 0, sw, sh).data;
+                    let minX = sw, minY = sh, maxX = -1, maxY = -1, transparent = 0, total = sw * sh;
+                    for (let y = 0; y < sh; y++) for (let x = 0; x < sw; x++) {
+                        const a = px[(y * sw + x) * 4 + 3];
+                        if (a <= 16) { transparent++; continue; }
+                        if (x < minX) minX = x; if (x > maxX) maxX = x;
+                        if (y < minY) minY = y; if (y > maxY) maxY = y;
+                    }
+                    hasAlpha = (transparent / total) > 0.02 && maxX >= 0;  // a real cutout
+                    if (hasAlpha) {
+                        // Scale the small-scan bbox back up to true image pixels.
+                        bbox = {
+                            left: Math.round(minX / s), right: Math.round(W - (maxX + 1) / s),
+                            top: Math.round(minY / s), bottom: Math.round(H - (maxY + 1) / s),
+                            w: Math.round((maxX - minX + 1) / s), h: Math.round((maxY - minY + 1) / s),
+                        };
+                    }
+                } catch { /* cross-origin / decode issue → ruler only, no margins */ }
+                overlay._img = { W, H, bbox, hasAlpha };
+                overlay._imgEl = img;   // drawn onto the overlay so image + ruler share one space
+
+                // Stats line.
+                if (statsEl) {
+                    const pct = bbox
+                        ? `${Math.round(100 * bbox.w / W)}% × ${Math.round(100 * bbox.h / H)}%`
+                        : '—';
+                    const marginChip = (edge, val) => {
+                        const cropped = val <= 1;
+                        const cls = cropped ? 'text-amber-400' : 'text-brand-text';
+                        const tag = cropped ? ` ${t('asset_viewer.three_d_measure_cropped')}` : '';
+                        return `<span class="${cls}">${t('asset_viewer.outpaint_' + edge)} ${val}px${tag}</span>`;
+                    };
+                    let html = `<span><span class="text-brand-text">${t('asset_viewer.three_d_measure_size')}</span> ${W}×${H}px</span>`;
+                    if (bbox) {
+                        html += `<span><span class="text-brand-text">${t('asset_viewer.three_d_measure_fill')}</span> ${pct}</span>`;
+                        html += `<span class="flex items-center gap-2"><span class="text-brand-text">${t('asset_viewer.three_d_measure_margins')}:</span> `
+                            + ['up', 'down', 'left', 'right'].map(e => marginChip(e, bbox[{ up: 'top', down: 'bottom', left: 'left', right: 'right' }[e]])).join(' · ')
+                            + `</span>`;
+                        html += `<span id="av-pv-newsize" class="text-brand-accent"></span>`;
+                        statsEl.innerHTML = `<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${html}</div>`
+                            + `<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_hint')}</div>`;
+                    } else {
+                        statsEl.innerHTML = `<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${html}`
+                            + `<span id="av-pv-newsize" class="text-brand-accent"></span></div>`
+                            + `<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_nobg')}</div>`;
+                    }
+                }
+                this._redrawMeasurement = () => this._drawMeasurement(overlay, wrap, readDirs, backdrop);
+                this._redrawMeasurement();
+            };
+            img.src = imgUrl;
+        },
+
+        /**
+         * Draw the ruler + margin callouts + live extension band onto the overlay
+         * canvas. Everything is laid out in the FUTURE-canvas coordinate space (the
+         * current image plus the entered extension on each side), so the band shows
+         * exactly where new pixels go and the ruler ticks read true pixels.
+         */
+        _drawMeasurement(overlay, wrap, readDirs, backdrop) {
+            const meta = overlay._img;
+            if (!meta) return;
+            const { W, H, bbox } = meta;
+            const d = readDirs();
+            // Future canvas dimensions (current image + extensions).
+            const fW = W + d.left + d.right, fH = H + d.top + d.down;
+            // Size the overlay canvas to its displayed box (device-pixel-crisp).
+            const rect = wrap.getBoundingClientRect();
+            const dpr = window.devicePixelRatio || 1;
+            overlay.width = Math.round(rect.width * dpr);
+            overlay.height = Math.round(rect.height * dpr);
+            const ctx = overlay.getContext('2d');
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            ctx.clearRect(0, 0, rect.width, rect.height);
+
+            // Fit the FUTURE canvas inside the box with a margin for the ruler.
+            const pad = 26;
+            const availW = rect.width - pad * 2, availH = rect.height - pad * 2;
+            const scale = Math.min(availW / fW, availH / fH);
+            const drawW = fW * scale, drawH = fH * scale;
+            const ox = (rect.width - drawW) / 2, oy = (rect.height - drawH) / 2;
+            // Current image sits inside the future canvas, offset by up/left extension.
+            const imgX = ox + d.left * scale, imgY = oy + d.top * scale;
+            const imgW = W * scale, imgH = H * scale;
+
+            // Draw the current image in its place inside the future canvas, so the
+            // image, ruler, bands, and bbox all share one coordinate space (the
+            // underlying <img> is hidden in confirm mode).
+            if (overlay._imgEl) {
+                try { ctx.drawImage(overlay._imgEl, imgX, imgY, imgW, imgH); } catch { /* not decoded yet */ }
+            }
+
+            // Extension bands (where NEW pixels will be generated).
+            ctx.fillStyle = 'rgba(124, 104, 238, 0.22)';
+            if (d.top > 0) ctx.fillRect(ox, oy, drawW, d.top * scale);
+            if (d.down > 0) ctx.fillRect(ox, imgY + imgH, drawW, d.down * scale);
+            if (d.left > 0) ctx.fillRect(ox, oy, d.left * scale, drawH);
+            if (d.right > 0) ctx.fillRect(imgX + imgW, oy, d.right * scale, drawH);
+
+            // Current-image frame.
+            ctx.strokeStyle = 'rgba(160,170,190,0.8)'; ctx.lineWidth = 1;
+            ctx.strokeRect(imgX + 0.5, imgY + 0.5, imgW, imgH);
+            // Future-canvas frame (dashed accent).
+            ctx.save();
+            ctx.strokeStyle = 'rgba(124, 104, 238, 0.9)'; ctx.setLineDash([4, 3]);
+            ctx.strokeRect(ox + 0.5, oy + 0.5, drawW, drawH);
+            ctx.restore();
+
+            // Subject bbox (if we measured a silhouette) — dashed emerald box.
+            if (bbox) {
+                ctx.save();
+                ctx.strokeStyle = 'rgba(52, 211, 153, 0.85)'; ctx.setLineDash([3, 2]); ctx.lineWidth = 1;
+                ctx.strokeRect(imgX + bbox.left * scale + 0.5, imgY + bbox.top * scale + 0.5,
+                    bbox.w * scale, bbox.h * scale);
+                ctx.restore();
+            }
+
+            // Ruler ticks along the top + left edges (true-pixel labels of the future canvas).
+            ctx.fillStyle = 'rgba(180,188,208,0.9)'; ctx.strokeStyle = 'rgba(120,128,148,0.6)';
+            ctx.lineWidth = 1; ctx.font = '9px ui-monospace, monospace';
+            const step = fW > 1400 ? 512 : 256;
+            ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+            for (let px = 0; px <= fW; px += step) {
+                const x = ox + px * scale;
+                ctx.beginPath(); ctx.moveTo(x, oy); ctx.lineTo(x, oy - 4); ctx.stroke();
+                ctx.fillText(String(px), x, oy - 5);
+            }
+            ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+            for (let py = 0; py <= fH; py += step) {
+                const y = oy + py * scale;
+                ctx.beginPath(); ctx.moveTo(ox, y); ctx.lineTo(ox - 4, y); ctx.stroke();
+                ctx.fillText(String(py), ox - 5, y);
+            }
+
+            // Live "new canvas size" readout in the stats line.
+            const newSizeEl = backdrop.querySelector('#av-pv-newsize');
+            if (newSizeEl) {
+                newSizeEl.textContent = (d.left || d.right || d.top || d.down)
+                    ? `${t('asset_viewer.three_d_measure_newsize')} ${fW}×${fH}px`
+                    : '';
+            }
         },
 
 
@@ -2833,7 +3111,7 @@
                         const resp = await API.threeD.instances();
                         instances = (resp?.instances || []).filter(i => i.available);
                     } catch {}
-                    this._render3DForm(container, instances, /* isRegen */ true);
+                    this._render3DForm(container, instances);
                 } catch (err) {
                     window.showToast?.(t('asset_viewer.three_d_not_deployed'), 'warning');
                 }
