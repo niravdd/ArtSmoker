@@ -29,7 +29,7 @@
                             <p class="text-sm text-brand-text-muted mt-1">${t('gallery.subtitle')}</p>
                         </div>
                         <div class="flex items-center gap-2">
-                            <button id="gal-import-btn" class="btn btn-secondary btn-sm">
+                            <button id="gal-import-btn" class="btn btn-sm bg-cyan-600 hover:bg-cyan-500 text-white">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                                 </svg>
