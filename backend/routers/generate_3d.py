@@ -105,13 +105,16 @@ def _delete_persisted_3d_job(job_id: str) -> None:
         logger.debug("Failed to delete persisted 3D job %s: %s", job_id, e)
 
 
-def load_persisted_3d_jobs() -> None:
+def load_persisted_3d_jobs() -> int:
     """Restore 3D jobs from S3 on startup (called from app startup).
 
     Loads in-progress jobs into _3d_jobs so they survive a server restart.
     Prunes stale records: terminal (complete/failed) jobs and stuck jobs
     (submitted/generating with no update for >2h) are deleted from S3 so
     they don't accumulate — complements the 1-day S3 lifecycle rule.
+
+    Returns the number of ACTIVE (still in-progress) jobs restored, so the caller
+    can start the poller only when there's work — no idle thread otherwise.
     """
     try:
         from datetime import datetime as _dt, timezone as _tz
@@ -153,8 +156,10 @@ def load_persisted_3d_jobs() -> None:
             loaded += 1
         if loaded or pruned:
             logger.info("3D jobs restored: %d active, %d stale pruned", loaded, pruned)
+        return loaded
     except Exception as e:
         logger.debug("Failed to load persisted 3D jobs: %s", e)
+        return 0
 
 
 # The two image-to-3D pipelines a user can deploy + their generate-time identity.
@@ -832,6 +837,10 @@ async def generate_3d(body: ThreeDGenerateRequest):
     }
     _3d_jobs[job_id] = job
     _persist_3d_job(job)  # survive server restart
+    # Ensure the background poller is running to finalize this job even if the
+    # browser closes. The poller self-stops when idle, so submits are the on-
+    # demand trigger (mirrors the 2D _ensure_poller on submit). Idempotent.
+    start_3d_poller()
 
     # Dev-box convenience: auto-pin the endpoint warm (non-cumulative). Shares
     # the same helper as 2D async jobs. No-op outside dev mode.
@@ -1723,16 +1732,22 @@ def _3d_poll_loop():
         try:
             pending = [j for j in list(_3d_jobs.values())
                        if j.get("status") not in ("complete", "failed")]
-            if pending:
-                s3 = boto3.client("s3", region_name=_get_region())
-                for job in pending:
-                    if _3d_poller_stop.is_set():
-                        break
-                    try:
-                        _check_3d_job(job, s3)
-                    except Exception as e:
-                        logger.warning("3D job poll error (%s): %s",
-                                       job.get("job_id"), e)
+            # Self-stop when there are no pending jobs left — don't idle a thread
+            # polling S3 with nothing to finalize. It restarts on the next 3D
+            # submit (start_3d_poller). Mirrors the 2D poller + the boot gate:
+            # a poller runs only while there's work.
+            if not pending:
+                logger.info("3D job poller stopping — no in-progress jobs left")
+                break
+            s3 = boto3.client("s3", region_name=_get_region())
+            for job in pending:
+                if _3d_poller_stop.is_set():
+                    break
+                try:
+                    _check_3d_job(job, s3)
+                except Exception as e:
+                    logger.warning("3D job poll error (%s): %s",
+                                   job.get("job_id"), e)
         except Exception as e:
             logger.debug("3D poll loop iteration error: %s", e)
         # 15s cadence: brisk enough that a finished GLB is saved promptly, but
@@ -1755,7 +1770,16 @@ def start_3d_poller() -> None:
     _3d_poller_thread = _threading.Thread(
         target=_3d_poll_loop, daemon=True, name="three-d-job-poller")
     _3d_poller_thread.start()
-    logger.info("3D job poller started")
+    # One actionable line reporting what it found + what it will do (not just
+    # "started"). Pending = jobs it will watch S3 for and finalize.
+    pending = [j for j in _3d_jobs.values() if j.get("status") not in ("complete", "failed")]
+    if pending:
+        logger.info("3D job poller started — watching %d in-progress job(s) (%s); polling S3 every "
+                    "15s to download + finalize each GLB as it lands",
+                    len(pending), ", ".join(j.get("job_id", "?") for j in pending))
+    else:
+        logger.info("3D job poller started — no in-progress jobs; idle-watching, will finalize "
+                    "any new job's GLB from S3 every 15s")
 
 
 def stop_3d_poller() -> None:

@@ -318,6 +318,15 @@ def _ensure_poller():
     _poller_stop.clear()
     _poller_thread = threading.Thread(target=_poll_loop, daemon=True, name="async-job-poller")
     _poller_thread.start()
+    # One actionable line, mirroring the 3D poller: what it found + what it'll do.
+    pending = [j for j in _jobs.values() if j["status"] in (PENDING, GENERATING)]
+    if pending:
+        logger.info("Async job poller started — watching %d in-progress job(s) (%s); polling S3 every "
+                    "30s to download + finalize each output as it lands",
+                    len(pending), ", ".join(str(j.get("job_id", "?")) for j in pending))
+    else:
+        logger.info("Async job poller started — no in-progress jobs; idle-watching, will finalize "
+                    "any new job's output from S3 every 30s")
 
 
 def stop_poller():
@@ -348,6 +357,14 @@ def _poll_loop():
         if not pending:
             _flush_background_costs_if_due()
             _check_warm_period_closures()
+            # Self-stop when there is genuinely nothing left to do — no pending
+            # jobs AND no open warm period (which still needs cost/closure
+            # housekeeping). Avoids a thread idling forever after work drains; it
+            # restarts on the next job submit (_ensure_poller). Mirrors the boot
+            # gate: a poller runs only while there's work.
+            if not _endpoint_warm_state:
+                logger.info("Async job poller stopping — no in-progress jobs or warm endpoints left")
+                break
             _poller_stop.wait(timeout=5)
             continue
 
