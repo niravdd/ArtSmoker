@@ -120,7 +120,7 @@ FastAPI Backend (Python)
     +-- /api/type-studio    — Text overlay: font listing, AI layout, preview/render
     +-- /api/transcribe     — Voice-to-text via Nova Sonic
     +-- /api/refine-prompt  — LLM prompt improvement (preview)
-    +-- /api/gallery        — Generated asset browsing + file serving + bulk delete
+    +-- /api/gallery        — Generated asset browsing + file serving + bulk delete + image import
     +-- /api/video          — Video generation (async), job polling, MP4/thumbnail serving
     +-- /api/browse         — Server-side file browser (local + S3) + bucket creation
     +-- /api/admin          — Model registry management + Bedrock discovery + video settings
@@ -692,6 +692,7 @@ If there is only one option, the options row is hidden. If there is only one var
 **Gallery** (`#gallery`) — Unified grid of all generated images and videos sorted newest-first. Features a **Media filter** (All / 2D Artwork / Video), style filter, asset type filter, and search. Images load immediately; videos display thumbnails with play overlay, VIDEO badge, and duration indicator. Click a video to open the player modal. Backend always reads metadata fresh from disk. Supports pagination via `limit` and `offset` query parameters. Auto-refreshes via `onShow()` when navigating back, and after image edits or video generation completes.
 - **Search bar**: Instant filtering across prompts, style names, and asset types as the user types.
 - **Multi-select**: Checkboxes on each asset card for bulk selection. A **"Delete Selected"** button triggers `DELETE /api/gallery/` with `{ids: [...]}` for bulk deletion.
+- **Import Image**: An **"Import Image"** button (Gallery header) opens a modal (drag-drop or click-to-browse) that uploads an existing image via `POST /api/gallery/import` (multipart). The user must pick an **asset type** (required — no default; Character/Game Asset enable image-to-3D). Optional title and IP-declaration checkboxes. The backend normalizes the upload to PNG (via Pillow, any input format; EXIF stripped; alpha preserved), then writes the SAME on-disk structure as a generated asset (`data/generated/import_{uuid}/` with `asset.png` + `metadata.json`) so all downstream features (edit, versioning, image-to-3D, source review) work identically. The metadata carries `imported: true`, `image_model: "imported"`, `model_label: "Imported image"`, an empty `prompt` (the optional title doubles as the display prompt), captured `width`/`height`, and no `async_status` (treated as a complete/sync asset). No AI is invoked. Imported assets show an emerald **"Imported"** badge on the gallery card and in the AssetViewer info bar. The gallery refreshes and opens the new asset on success.
 - Click any asset to open the AssetViewer.
 
 **AssetViewer** — Full-size preview with zoom/pan and image editing. Fetches full metadata from `GET /api/gallery/{id}` on open. Four tabs:
@@ -818,7 +819,7 @@ Each step is independently fault-tolerant — failures are logged but do not abo
 - `asset.svg` — optional SVG conversion.
 - `metadata.json` — full generation metadata (prompt, enhanced_prompt, recomposed_prompt, decomposed_data, style_id, asset_type, seed, filenames, etc.).
 
-Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}`.
+Asset IDs follow the pattern `{batch_uuid}_o{option_index}_v{variant_index}` for generated assets, and `import_{uuid}` for images brought in via the Gallery's Import Image feature (see §4.6). Imported assets share the identical directory structure (`asset.png` + `metadata.json`) and are flagged `imported: true` in metadata, so every downstream feature treats them exactly like generated assets.
 
 ### 4.11 Model Registry
 

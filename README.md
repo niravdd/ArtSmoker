@@ -94,6 +94,7 @@ For teams that want every generated asset to match an existing art style — upl
 - ✍️ **Type Studio** — AI-designed text overlays with font picker
 - 💬 **Chat Studio** — Multi-model LLM chat with streaming, markdown, code highlighting, vision, sessions, context compaction
 - 📁 **Unified Gallery** — Browse images + videos, media filter, search, download, delete
+- 📥 **Import Image** — Bring an existing image (any format) into the Gallery as a first-class asset. Auto-converted to PNG, tagged with an asset type you choose, and immediately editable and 3D-ready — everything (versioning, editing, image-to-3D) works exactly as it does for a generated image
 - ✏️ **Image Editing** — Inpainting, outpainting, erase, search & replace, recolor (in AssetViewer)
 - 🔄 **Real-time progress** — SSE streaming with retry/throttle visibility
 - 🛡️ **Smart moderation** — Canary testing, auto model switching, AI-assisted rewriting
@@ -136,7 +137,7 @@ For teams that want every generated asset to match an existing art style — upl
 
 ![Style Library — Reference images, import options, and analysis data](docs/images/style-library-bottom.png)
 
-**Gallery** — Unified view of all generated images and videos with media type filter, style filter, search, and sorting. Click any asset to open the full viewer.
+**Gallery** — Unified view of all generated images and videos with media type filter, style filter, search, and sorting. Click any asset to open the full viewer. The **Import Image** button brings an existing image into the gallery — pick an asset type (Character/Game Asset enable 3D), and it's converted to PNG and made instantly editable and 3D-ready.
 
 ![Gallery — Generated assets grid with filters](docs/images/gallery.png)
 

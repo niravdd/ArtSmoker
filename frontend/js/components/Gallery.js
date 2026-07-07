@@ -28,12 +28,20 @@
                             <h1 class="text-2xl font-bold">${t('gallery.title')}</h1>
                             <p class="text-sm text-brand-text-muted mt-1">${t('gallery.subtitle')}</p>
                         </div>
-                        <a href="#image-studio" class="btn btn-primary btn-sm">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
-                            </svg>
-                            ${t('gallery.generate_new')}
-                        </a>
+                        <div class="flex items-center gap-2">
+                            <button id="gal-import-btn" class="btn btn-secondary btn-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
+                                </svg>
+                                ${t('gallery.import_image')}
+                            </button>
+                            <a href="#image-studio" class="btn btn-primary btn-sm">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                                </svg>
+                                ${t('gallery.generate_new')}
+                            </a>
+                        </div>
                     </div>
 
                     <!-- Selection bar (hidden until items are selected) -->
@@ -161,8 +169,123 @@
             });
             document.getElementById('gal-delete-btn')?.addEventListener('click', () => this._handleDelete());
 
+            // Import an existing image into the gallery
+            document.getElementById('gal-import-btn')?.addEventListener('click', () => this._openImportModal());
+
             // Load items
             await this._loadItems(true);
+        },
+
+        /** Import-image modal: upload a file + set its asset type, then it becomes a
+         *  first-class gallery asset (editable, 3D-capable) exactly like a generated one. */
+        _openImportModal() {
+            // Asset types offered — reuse the gallery filter labels. Character/game
+            // asset enable 3D (noted in the hint below).
+            const TYPES = [
+                ['character', t('gallery.filter_character')],
+                ['game_asset', t('gallery.filter_game_asset')],
+                ['environment', t('gallery.filter_environment')],
+                ['icon', t('gallery.filter_icon')],
+                ['marketing_banner', t('gallery.filter_marketing_banner')],
+                ['photorealistic', t('gallery.filter_photorealistic')],
+            ];
+            const backdrop = document.createElement('div');
+            backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
+            backdrop.innerHTML = `
+                <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
+                    <div>
+                        <h3 class="text-sm font-semibold text-brand-text">${t('gallery.import_title')}</h3>
+                        <p class="text-[11px] text-brand-text-dim mt-1">${t('gallery.import_subtitle')}</p>
+                    </div>
+                    <!-- Drop zone (click to browse or drag-drop) -->
+                    <div id="gi-drop" class="rounded-lg border-2 border-dashed border-brand-border hover:border-brand-accent/60 cursor-pointer transition-colors flex items-center justify-center text-center p-4" style="min-height: 200px;">
+                        <img id="gi-preview" class="hidden max-h-64 w-auto rounded-lg object-contain" alt="preview" />
+                        <p id="gi-drop-text" class="text-xs text-brand-text-muted px-6">${t('gallery.import_drop')}</p>
+                    </div>
+                    <input id="gi-file" type="file" accept="image/*" class="hidden" />
+                    <div>
+                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('gallery.import_asset_type')}</label>
+                        <select id="gi-type" class="input text-sm w-full">
+                            <option value="">${t('gallery.import_asset_type_ph')}</option>
+                            ${TYPES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('')}
+                        </select>
+                        <p class="text-[9px] text-brand-text-dim mt-1">${t('gallery.import_asset_type_hint')}</p>
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('gallery.import_title_label')}</label>
+                        <input id="gi-title" type="text" class="input text-sm w-full" placeholder="${t('gallery.import_title_ph')}" />
+                    </div>
+                    <div class="flex flex-wrap gap-4">
+                        <label class="flex items-center gap-2 cursor-pointer text-[11px] text-brand-text">
+                            <input id="gi-ip-owned" type="checkbox" class="accent-brand-accent" /> ${t('gallery.import_ip_owned')}
+                        </label>
+                        <label class="flex items-center gap-2 cursor-pointer text-[11px] text-brand-text">
+                            <input id="gi-ip-licensed" type="checkbox" class="accent-brand-accent" /> ${t('gallery.import_ip_licensed')}
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button id="gi-submit" class="btn btn-primary btn-sm flex-1" disabled>${t('gallery.import_submit')}</button>
+                        <button id="gi-cancel" class="btn btn-secondary btn-sm">${t('prompt_designer.cancel')}</button>
+                    </div>
+                </div>`;
+
+            const $ = (s) => backdrop.querySelector(s);
+            const fileInput = $('#gi-file'), dropZone = $('#gi-drop');
+            const preview = $('#gi-preview'), dropText = $('#gi-drop-text');
+            const typeSel = $('#gi-type'), submitBtn = $('#gi-submit');
+            let chosenFile = null;
+
+            const refreshSubmit = () => { submitBtn.disabled = !(chosenFile && typeSel.value); };
+            const setFile = (f) => {
+                if (!f || !f.type.startsWith('image/')) { window.showToast?.(t('gallery.import_pick_file'), 'warning'); return; }
+                chosenFile = f;
+                const url = URL.createObjectURL(f);
+                preview.src = url; preview.classList.remove('hidden'); dropText.classList.add('hidden');
+                refreshSubmit();
+            };
+
+            dropZone.addEventListener('click', () => fileInput.click());
+            fileInput.addEventListener('change', (e) => setFile(e.target.files?.[0]));
+            ['dragover', 'dragenter'].forEach(ev => dropZone.addEventListener(ev, (e) => {
+                e.preventDefault(); dropZone.classList.add('border-brand-accent');
+            }));
+            ['dragleave', 'drop'].forEach(ev => dropZone.addEventListener(ev, (e) => {
+                e.preventDefault(); dropZone.classList.remove('border-brand-accent');
+            }));
+            dropZone.addEventListener('drop', (e) => setFile(e.dataTransfer?.files?.[0]));
+            typeSel.addEventListener('change', refreshSubmit);
+
+            const close = () => backdrop.remove();
+            $('#gi-cancel').addEventListener('click', close);
+            backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
+
+            submitBtn.addEventListener('click', async () => {
+                if (!chosenFile) { window.showToast?.(t('gallery.import_pick_file'), 'warning'); return; }
+                if (!typeSel.value) { window.showToast?.(t('gallery.import_pick_type'), 'warning'); return; }
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = `<span class="spinner-sm"></span> ${t('gallery.import_importing')}`;
+                try {
+                    const item = await API.gallery.import(chosenFile, {
+                        assetType: typeSel.value,
+                        title: $('#gi-title').value || '',
+                        ipOwned: $('#gi-ip-owned').checked,
+                        ipLicensed: $('#gi-ip-licensed').checked,
+                    });
+                    window.showToast?.(t('gallery.import_success'), 'success');
+                    close();
+                    await this.refresh();
+                    // Open the freshly imported asset so the user can act on it immediately.
+                    const fresh = (this._items || []).find(i => i.id === item.id) || item;
+                    fresh._media = 'image';
+                    window.AssetViewer?.open?.(fresh, this._items || [fresh], 0);
+                } catch (err) {
+                    window.showToast?.(t('gallery.import_failed') + ': ' + (err.message || ''), 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = t('gallery.import_submit');
+                }
+            });
+
+            document.body.appendChild(backdrop);
         },
 
         /** Called when navigating back to gallery (view already cached) */
@@ -494,7 +617,9 @@
                     <div class="p-4 space-y-2">
                         <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${this._esc(truncPrompt) || `<em class="text-brand-text-muted">${t('gallery.no_prompt')}</em>`}</p>
                         <div class="flex items-center flex-wrap gap-2 text-xs text-brand-text-muted">
-                            ${item.model_label ? `<span class="badge badge-indigo">${this._esc(item.model_label)}</span>` : ''}
+                            ${item.image_model === 'imported'
+                                ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>`
+                                : (item.model_label ? `<span class="badge badge-indigo">${this._esc(item.model_label)}</span>` : '')}
                             ${styleName ? `<span class="badge badge-indigo">${this._esc(styleName)}</span>` : ''}
                             ${item.asset_type && item.asset_type !== 'video' ? `<span class="badge badge-indigo">${this._esc(item.asset_type)}</span>` : ''}
                             ${createdAt ? `<span>${createdAt}</span>` : ''}

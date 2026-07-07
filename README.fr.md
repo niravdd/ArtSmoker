@@ -96,6 +96,7 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 - ✍️ **Type Studio** — Superpositions de texte conçues par l'IA avec sélecteur de polices
 - 💬 **Chat Studio** — Chat LLM multi-modèle avec streaming, Markdown, coloration syntaxique, vision, sessions, compactage de contexte
 - 📁 **Galerie unifiée** — Parcourez images + vidéos, filtre par média, recherche, téléchargement, suppression
+- 📥 **Importer une image** — Intégrez une image existante (tout format) dans la galerie comme un asset à part entière. Convertie automatiquement en PNG, associée au type d'asset que vous choisissez, et immédiatement éditable et prête pour la 3D — tout (versionnage, édition, image-vers-3D) fonctionne comme pour une image générée
 - ✏️ **Édition d'images** — Inpainting, outpainting, effacement, recherche et remplacement, recoloration (dans l'AssetViewer)
 - 🔄 **Progression en temps réel** — Streaming SSE avec visibilité des tentatives/limitations
 - 🛡️ **Modération intelligente** — Test canari, changement automatique de modèle, réécriture assistée par l'IA
@@ -138,7 +139,7 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 
 ![Style Library — Images de référence, options d'importation et données d'analyse](docs/images/style-library-bottom.png)
 
-**Galerie** — Vue unifiée de toutes les images et vidéos générées avec filtre par type de média, filtre par style, recherche et tri. Cliquez sur n'importe quel asset pour ouvrir la vue complète.
+**Galerie** — Vue unifiée de toutes les images et vidéos générées avec filtre par type de média, filtre par style, recherche et tri. Cliquez sur n'importe quel asset pour ouvrir la vue complète. Le bouton **Importer une image** ajoute une image existante à la galerie — choisissez un type d'asset (Personnage／Asset de jeu activent la 3D), elle est convertie en PNG et immédiatement éditable et prête pour la 3D.
 
 ![Galerie — Grille d'assets générés avec filtres](docs/images/gallery.png)
 

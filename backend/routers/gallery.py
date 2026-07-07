@@ -1,12 +1,15 @@
 """Gallery router — browse, filter, and serve generated assets."""
 
+import io
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+from uuid import uuid4
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
+from backend.models.generation_request import AssetType
 from backend.models.generation_result import GalleryItem
 from backend.storage.local_store import store
 
@@ -24,6 +27,94 @@ def _get_meta(asset_id: str) -> dict | None:
     if meta is not None:
         _meta_cache[asset_id] = meta
     return meta
+
+
+@router.post("/import", response_model=GalleryItem)
+async def import_image(
+    file: UploadFile = File(...),
+    asset_type: str = Form(...),
+    title: str = Form(""),
+    ip_owned: bool = Form(False),
+    ip_licensed: bool = Form(False),
+):
+    """Import an existing image into the gallery as a first-class asset.
+
+    Produces exactly the same on-disk structure as a generated asset (a
+    data/generated/{id}/ dir with asset.png + metadata.json), so ALL downstream
+    features — edit, versioning, 3D generation, source review — work unchanged.
+    The image is normalized to PNG (the app's single image format) regardless of
+    the uploaded format, EXIF is dropped, and the asset is flagged `imported` so
+    the UI can distinguish it from a generated one. No AI is invoked; the prompt
+    is empty (the user's optional title is stored as the prompt for display).
+    """
+    # Validate asset_type against the known enum (drives 3D eligibility + filters).
+    try:
+        atype = AssetType(asset_type).value
+    except ValueError:
+        raise HTTPException(400, detail=f"Invalid asset_type '{asset_type}'.")
+
+    raw = await file.read()
+    if not raw:
+        raise HTTPException(400, detail="Empty file.")
+
+    # Normalize to PNG via Pillow — accepts JPG/WebP/etc., strips metadata, and
+    # guarantees the PNG-only invariant the rest of the pipeline relies on.
+    try:
+        from PIL import Image
+        im = Image.open(io.BytesIO(raw))
+        im.load()
+        has_alpha = im.mode in ("RGBA", "LA") or (im.mode == "P" and "transparency" in im.info)
+        im = im.convert("RGBA" if has_alpha else "RGB")
+        width, height = im.size
+        buf = io.BytesIO()
+        im.save(buf, format="PNG")
+        png_bytes = buf.getvalue()
+    except Exception as e:
+        raise HTTPException(400, detail=f"Not a readable image: {e}")
+
+    asset_id = f"import_{uuid4().hex[:12]}"
+    store.save_generated_image(asset_id, "asset.png", png_bytes)
+
+    title = (title or "").strip()
+    orig_name = (file.filename or "").strip()
+    now = datetime.now(timezone.utc).isoformat()
+    store.save_generation_metadata(asset_id, {
+        "id": asset_id,
+        # Flag + provenance so the UI can badge it and downstream can reason about it.
+        "imported": True,
+        "import_filename": orig_name,
+        # Empty prompt (no AI ran); the optional title doubles as the display prompt.
+        "prompt": title,
+        "original_prompt": title,
+        "enhanced_prompt": "",
+        "negative_prompt": "",
+        "asset_type": atype,
+        # Sentinel model identity — not a registry key; gallery/AssetViewer show the label.
+        "image_model": "imported",
+        "model_label": "Imported image",
+        "width": width,
+        "height": height,
+        "ip_owned": bool(ip_owned),
+        "ip_licensed": bool(ip_licensed),
+        "png_path": f"/api/gallery/{asset_id}/png",
+        "png_filename": (orig_name if orig_name.lower().endswith(".png") else f"{asset_id}.png"),
+        "created_at": now,
+        # No async_status → treated as a complete/sync asset. Empty cost history.
+        "cost_history": [],
+    })
+    logger.info("Imported image → %s (%dx%d, type=%s)", asset_id, width, height, atype)
+
+    return GalleryItem(
+        id=asset_id,
+        prompt=title,
+        asset_type=atype,
+        image_model="imported",
+        model_label="Imported image",
+        png_url=f"/api/gallery/{asset_id}/png",
+        svg_url=None,
+        created_at=datetime.fromisoformat(now),
+        async_status=None,
+    )
 
 
 @router.get("/")

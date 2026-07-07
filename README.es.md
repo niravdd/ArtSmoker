@@ -96,6 +96,7 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 - ✍️ **Type Studio** — Superposiciones de texto diseñadas por IA con selector de fuentes
 - 💬 **Chat Studio** — Chat LLM multimodelo con streaming, Markdown, resaltado de código, visión, sesiones, compactación de contexto
 - 📁 **Galería unificada** — Explore imágenes + videos, filtro de medios, búsqueda, descarga, eliminación
+- 📥 **Importar imagen** — Lleva una imagen existente (cualquier formato) a la galería como un recurso de primera clase. Se convierte automáticamente a PNG, se etiqueta con el tipo de recurso que elijas y queda lista para editar y para 3D — todo (versionado, edición, imagen-a-3D) funciona igual que con una imagen generada
 - ✏️ **Edición de imágenes** — Inpainting, outpainting, borrado, búsqueda y reemplazo, recoloración (en AssetViewer)
 - 🔄 **Progreso en tiempo real** — Streaming SSE con visibilidad de reintentos/throttle
 - 🛡️ **Moderación inteligente** — Prueba canary, cambio automático de modelo, reescritura asistida por IA
@@ -138,7 +139,7 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 
 ![Style Library — Imágenes de referencia, opciones de importación y datos de análisis](docs/images/style-library-bottom.png)
 
-**Galería** — Vista unificada de todas las imágenes y videos generados con filtro de tipo de medio, filtro de estilo, búsqueda y ordenamiento. Haga clic en cualquier recurso para abrir el visor completo.
+**Galería** — Vista unificada de todas las imágenes y videos generados con filtro de tipo de medio, filtro de estilo, búsqueda y ordenamiento. Haga clic en cualquier recurso para abrir el visor completo. El botón **Importar imagen** lleva una imagen existente a la galería — elige un tipo de recurso (Personaje／Recurso de juego habilitan 3D), se convierte a PNG y queda lista para editar y para 3D.
 
 ![Galería — Cuadrícula de recursos generados con filtros](docs/images/gallery.png)
 

@@ -268,6 +268,18 @@
                 return request(`/api/gallery/${encodeURIComponent(id)}`);
             },
 
+            /** Import an existing image file into the gallery as a first-class asset.
+             *  Multipart upload (mirrors styles.uploadReferences). Returns a GalleryItem. */
+            import(file, { assetType, title = '', ipOwned = false, ipLicensed = false } = {}) {
+                const fd = new FormData();
+                fd.append('file', file);
+                fd.append('asset_type', assetType);
+                fd.append('title', title);
+                fd.append('ip_owned', ipOwned ? 'true' : 'false');
+                fd.append('ip_licensed', ipLicensed ? 'true' : 'false');
+                return request('/api/gallery/import', { method: 'POST', body: fd });
+            },
+
             /** Delete one or more gallery assets permanently */
             delete(ids) {
                 return request('/api/gallery/', {
