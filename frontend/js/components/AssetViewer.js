@@ -944,12 +944,19 @@
                     const v = versions.find(vv => vv.version === version);
                     const vLabel = version === 1 ? t('asset_viewer.version_original') : `v${version}`;
 
-                    // Update PNG image
+                    // Keep _currentVersion in sync FIRST so the Edit tab + 3D tab
+                    // resolve against the chosen version (used below and by Edit).
+                    this._currentVersion = version;
+
+                    // Update PNG image, then re-fit the zoom viewer to the new image
+                    // (a taller extended version would otherwise overflow / sit
+                    // off-centre with the previous version's scale & pan).
                     const img = this._overlay?.querySelector('#av-zoom-img');
                     if (img) {
                         img.src = version === currentVersion
                             ? `/api/gallery/${assetId}/png?t=${Date.now()}`
                             : `/api/gallery/${assetId}/version/${version}?t=${Date.now()}`;
+                        this._refitZoomOnLoad?.();
                     }
 
                     // Update SVG image
@@ -959,6 +966,11 @@
                             ? `/api/gallery/${assetId}/svg?t=${Date.now()}`
                             : `/api/gallery/${assetId}/version-svg/${version}?t=${Date.now()}`;
                     }
+
+                    // Update the Edit tab's mask canvas to the selected version so
+                    // edits act on what the user sees (was stuck on the first-loaded
+                    // version). Clears any in-progress mask.
+                    this._loadEditCanvasImage?.();
 
                     // Update tab version badges
                     const pngBadge = this._overlay?.querySelector('#av-tab-version-badge');
@@ -970,8 +982,8 @@
 
                     // Refresh 3D tab state for the selected version. Switching to a
                     // different version clears any prior source approval so that
-                    // version gets its own review before generating.
-                    this._currentVersion = version;
+                    // version gets its own review before generating. (_currentVersion
+                    // was already set above so Edit/3D resolve the right version.)
                     if (this._sourceApprovedVersion !== version) this._sourceApprovedVersion = null;
                     this._update3DContent();
 
@@ -1212,22 +1224,33 @@
             let brushSize = 20;
             let editMode = 'inpaint';
 
-            // Load source image onto canvas
-            const img = new Image();
-            img.crossOrigin = 'anonymous';
-            img.onload = () => {
-                // Scale canvas to fit while maintaining aspect ratio
-                const maxW = 600, maxH = 400;
-                const scale = Math.min(maxW / img.width, maxH / img.height, 1);
-                canvas.width = img.width * scale;
-                canvas.height = img.height * scale;
-                canvas._imgScale = scale;
-                canvas._imgW = img.width;
-                canvas._imgH = img.height;
-                ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-                canvas._baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            // Load the SELECTED version's image onto the mask canvas. Re-callable so
+            // the Edit tab always shows/edits the version chosen in the version bar
+            // (not whatever was loaded first). Clears any painted mask on reload.
+            this._loadEditCanvasImage = () => {
+                const ver = this._currentVersion || (this._meta?.current_version) || 1;
+                const cur = (this._meta?.current_version) || (this._meta?.versions?.length || 1);
+                const id = encodeURIComponent(this._item?.id || '');
+                const url = (ver === cur)
+                    ? `/api/gallery/${id}/png?t=${Date.now()}`
+                    : `/api/gallery/${id}/version/${ver}?t=${Date.now()}`;
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    // Scale canvas to fit while maintaining aspect ratio
+                    const maxW = 600, maxH = 400;
+                    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+                    canvas.width = img.width * scale;
+                    canvas.height = img.height * scale;
+                    canvas._imgScale = scale;
+                    canvas._imgW = img.width;
+                    canvas._imgH = img.height;
+                    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                    canvas._baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                };
+                img.src = url;
             };
-            img.src = this._item?.png_url || '';
+            this._loadEditCanvasImage();
 
             // Brush size
             brushSlider?.addEventListener('input', () => {
@@ -1377,6 +1400,11 @@
 
                     const payload = {
                         source_image_id: this._item?.id,
+                        // Edit the VERSION the user selected in the version bar, not
+                        // always the latest. The backend honors source_version and
+                        // archives correctly; omitting it defaulted every edit to the
+                        // current version (asset.png) regardless of the tab selection.
+                        source_version: this._currentVersion || undefined,
                         model: model,
                         prompt: prompt,
                         mask: maskB64,
@@ -1698,6 +1726,16 @@
                 img.addEventListener('load', () => requestAnimationFrame(doFit), { once: true });
             }
 
+            // Re-fit when the image SOURCE changes (e.g. switching to a taller
+            // extended version) — without this the viewer kept the prior version's
+            // scale/pan and the new image overflowed or sat off-centre. Callable
+            // from the version switcher; waits for the new image to decode.
+            this._refitZoomOnLoad = () => {
+                const run = () => requestAnimationFrame(doFit);
+                if (img.complete && img.naturalWidth > 0) run();
+                else img.addEventListener('load', run, { once: true });
+            };
+
             // Mouse wheel zoom (centered on cursor)
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
@@ -1765,6 +1803,10 @@
             // itself; it only prepares/approves the image and returns to the form,
             // which is the single place generation is fired. null = not yet reviewed.
             this._sourceApprovedVersion = null;
+            // Per-version flag: the background-removed cutout already exists (cached
+            // server-side), so re-opening review won't re-remove BG — used only to
+            // pick an accurate button label ("Reviewing…" vs "Removing background…").
+            this._sourceCutoutReady = {};
             if (!window._3dActiveJobs) window._3dActiveJobs = {};
         },
 
@@ -2168,16 +2210,31 @@
          */
         async _reviewSource(reviewBtn) {
             if (reviewBtn?.disabled) return;
-            if (reviewBtn) {
-                reviewBtn.disabled = true;
-                reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_src_removing_bg')}`;
-            }
             // Re-sync to the true current version (backend truth) before reviewing.
             try {
                 this._meta = await API.gallery.get(this._item.id);
                 if (this._meta?.current_version) this._currentVersion = this._meta.current_version;
             } catch {}
             const version = this._currentVersion || 1;
+            // Label the button for what's ACTUALLY about to happen. BG removal is a
+            // cached, at-most-once step (server reuses the __cutout sidecar and skips
+            // it entirely when the version is already background-free) — so only show
+            // "Removing background…" the FIRST time, when no cutout exists yet.
+            // Otherwise this is just a re-analysis, so show "Reviewing…".
+            if (reviewBtn) {
+                reviewBtn.disabled = true;
+                // No removal needed if we've already prepared the cutout this session
+                // OR the current version is itself a background-removed edit (the
+                // server serves it directly, skipping removal). Check the version's
+                // recorded type/op — mirrors the backend's _version_is_bg_free.
+                const vrec = (this._meta?.versions || []).find(v => v.version === version);
+                const alreadyBgFree = vrec && (vrec.type === 'remove_background'
+                    || (vrec.edit_context && vrec.edit_context.op === 'remove_background'));
+                const needsBgRemoval = !this._sourceCutoutReady?.[version] && !alreadyBgFree;
+                reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${needsBgRemoval
+                    ? t('asset_viewer.three_d_src_removing_bg')
+                    : t('asset_viewer.three_d_src_reviewing')}`;
+            }
             // Ensure the cutout exists + get an initial completeness verdict. One call
             // (op:'cutout') removes BG once (cached) and returns the analysis. Retry
             // once on a transient failure before falling back to "review & decide".
@@ -2186,6 +2243,10 @@
                 try {
                     const r = await API.threeD.prepareSource({ asset_id: this._item?.id, version, op: 'cutout' });
                     analysis = r?.analysis || null;
+                    // The cutout now exists (cached server-side) — future reviews of
+                    // this version won't re-remove the background, so label them
+                    // "Reviewing…" rather than "Removing background…".
+                    (this._sourceCutoutReady = this._sourceCutoutReady || {})[version] = true;
                 } catch (e) {
                     console.warn('[3D] source prepare/analysis failed (attempt ' + (attempt + 1) + ')', e);
                 }
