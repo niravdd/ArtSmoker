@@ -455,6 +455,8 @@ ArtSmoker는 **로컬/신뢰 네트워크 개발 도구**로 설계되었습니�
 >
 > **AI 모델 및 서비스 약관**: 생성 콘텐츠는 Amazon Bedrock을 통해 접근할 수 있는 기반 AI 모델 제공업체의 서비스 약관 및 허용 사용 정책의 적용을 받습니다.
 >
+> **비용은 추정치일 뿐 — 본인의 지출을 직접 모니터링하세요**: ArtSmoker에 표시되는 모든 비용(이미지·동영상·토큰 단위, 3D 연산, 배포, 세션/에셋 합계)은 AWS 공시 가격과 예상 사용량으로 계산한 **참고용 추정치**입니다. 실제 청구액에 대한 **청구서도 보증도 아닙니다**. 실제 비용은 AWS 계정 가격, 리전, 할인, 세금, 데이터 전송, 엔드포인트 가동 시간(유휴/웜 상태의 SageMaker 인스턴스 포함), 오토스케일링 동작 등 본 도구 외의 요인에 따라 달라집니다. **본인의 AWS 지출 모니터링과 관리는 전적으로 사용자 책임입니다** — [AWS 청구 콘솔](https://console.aws.amazon.com/billing/), [AWS Cost Explorer](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/), [예산/청구 경보](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)로 실제 요금을 추적하고 상한을 설정하세요. 특히 자체 호스팅 SageMaker 엔드포인트는 배포되거나 웜 상태로 유지되는 동안 유휴 상태에서도 계속 과금됩니다 — 사용 후 반드시 teardown 하세요. 작성자와 기여자는 본 소프트웨어 사용으로 발생한 어떠한 AWS 요금에도 책임을 지지 않습니다.
+>
 > **무보증**: 이 소프트웨어는 어떠한 종류의 보증 없이 "있는 그대로" 제공됩니다. 전체 조건은 [LICENSE](LICENSE)를 참조하세요.
 
 ## 📌 14. 전체 사양서

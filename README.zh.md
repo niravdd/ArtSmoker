@@ -455,6 +455,8 @@ ArtSmoker 设计为**本地/受信网络开发工具** —— 在开发者自己
 >
 > **AI 模型和服务条款**：生成内容受通过 Amazon Bedrock 访问的底层 AI 模型供应商的服务条款和可接受使用政策的约束。
 >
+> **费用仅为估算——请自行监控支出**：ArtSmoker 中显示的所有费用（每张图像、每个视频、每个令牌、3D 计算、部署以及会话/资产合计）均为**仅供参考的估算值**，根据 AWS 公布价格和预期用量计算得出。它**不是账单，也不保证**你的实际费用。实际成本取决于你的 AWS 账户价格、区域、折扣、税费、数据传输、端点运行时间（包括空闲/预热的 SageMaker 实例）、自动扩缩行为以及本工具无法控制的因素。**你需自行负责监控和控制自己的 AWS 支出**——请使用 [AWS 账单控制台](https://console.aws.amazon.com/billing/)、[AWS Cost Explorer](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/) 和[预算/账单告警](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-managing-costs.html)来跟踪并限制实际费用。尤其是自托管的 SageMaker 端点，只要处于部署或预热状态，即使空闲也会持续计费——用完请务必拆除。作者与贡献者对因使用本软件而产生的任何 AWS 费用不承担任何责任。
+>
 > **无保证**：本软件按"现状"提供，不附带任何形式的保证。完整条款请参阅 [LICENSE](LICENSE)。
 
 ## 📌 14. 完整规格说明
