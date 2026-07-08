@@ -1118,8 +1118,19 @@
                 }
             });
 
-            // Arrow keys for prev/next
+            // Arrow keys for prev/next (gallery navigation). Guard against two cases
+            // where arrows must NOT navigate the underlying image:
+            //  1. Focus is in an editable field (text/number input, textarea,
+            //     contenteditable) — arrows move the caret / adjust the value there.
+            //  2. A layered dialog is open above the viewer (e.g. the source-review
+            //     popup at z-[130]) — its own inputs own the keystrokes.
             this._navKeyHandler = (e) => {
+                if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+                const el = document.activeElement;
+                const tag = (el?.tagName || '').toLowerCase();
+                if (tag === 'input' || tag === 'textarea' || tag === 'select' || el?.isContentEditable) return;
+                // Any modal layered above the viewer (z >= 130) → let it handle keys.
+                if (document.querySelector('.fixed.z-\\[130\\], .fixed.z-\\[140\\]')) return;
                 if (e.key === 'ArrowLeft' && this._list && this._listIndex > 0) {
                     this._listIndex--;
                     this._navigateTo(this._list[this._listIndex]);
