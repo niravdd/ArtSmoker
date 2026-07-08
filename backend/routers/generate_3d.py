@@ -1646,6 +1646,12 @@ def _finalize_3d_job(job: dict, s3) -> dict:
         _instance = (_cfg or {}).get("deployment", {}).get("instance_type", "")
         _ptype = _3D_CATALOG_KEYS.get((_cfg or {}).get("catalog_key", ""), "triposg")
         _pinfo = _pipeline_info(job.get("model_key"), _cfg) if _cfg else {}
+        # Whether the texture bake actually succeeded. The handler returns
+        # textured=false when it fell back to a neutral-gray untextured mesh (bake
+        # error). Default True for older/missing output so we never mislabel a good
+        # mesh. Recorded so the AssetViewer can show a clear fallback notice — the
+        # user still gets a usable mesh (no wasted time/cost), just informed.
+        _textured = bool(output_data.get("textured", True))
         if _ptype == "trellis2_full":
             # Standalone full TRELLIS.2 — geometry AND texture from one model; no
             # separate texture-backend choice.
@@ -1654,7 +1660,8 @@ def _finalize_3d_job(job: dict, s3) -> dict:
                 "texture_backend": "trellis2_full",
                 "texture_label": "TRELLIS.2 (integrated SLAT PBR)",
                 "instance_type": _instance,
-                "has_pbr": bool(output_data.get("has_pbr", True)),
+                "textured": _textured,
+                "has_pbr": _textured and bool(output_data.get("has_pbr", True)),
                 "rasterizer": output_data.get("rasterizer", ""),
             }
         else:
@@ -1665,7 +1672,8 @@ def _finalize_3d_job(job: dict, s3) -> dict:
                 "texture_backend": _tex_backend,
                 "texture_label": _TEX_LABELS.get(_tex_backend, _tex_backend),
                 "instance_type": _instance,
-                "has_pbr": bool(output_data.get("has_pbr") or output_data.get("normal_map")),
+                "textured": _textured,
+                "has_pbr": _textured and bool(output_data.get("has_pbr") or output_data.get("normal_map")),
                 "rasterizer": output_data.get("rasterizer", ""),
             }
         # Record the user's pipeline choice + the license they accepted at deploy

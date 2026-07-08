@@ -932,7 +932,8 @@
     "three_d_preview_title": "Source for 3D",
     "three_d_preview_note": "Exact input to the 3D pipeline — background removed.",
     "three_d_improve_btn": "Improve the Source",
-    "meta_cost_total": "Total"
+    "meta_cost_total": "Total",
+    "three_d_untextured_notice": "Texturing didn't complete for this model, so a plain (untextured) mesh was produced. It's still usable as-is — regenerate to try texturing again."
   },
   "model_settings": {
     "title": "Model Settings",

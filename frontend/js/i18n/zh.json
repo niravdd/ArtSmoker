@@ -296,7 +296,8 @@
     "three_d_preview_title": "3D 源图像",
     "three_d_preview_note": "3D 管线的实际输入——已移除背景。",
     "three_d_improve_btn": "改进源图像",
-    "meta_cost_total": "合计"
+    "meta_cost_total": "合计",
+    "three_d_untextured_notice": "该模型的贴图未能完成，因此生成了无贴图的网格。它仍可直接使用——重新生成可再次尝试贴图。"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",

@@ -296,7 +296,8 @@
     "three_d_preview_title": "3D 소스",
     "three_d_preview_note": "3D 파이프라인의 실제 입력 — 배경 제거됨.",
     "three_d_improve_btn": "소스 개선",
-    "meta_cost_total": "합계"
+    "meta_cost_total": "합계",
+    "three_d_untextured_notice": "이 모델의 텍스처링이 완료되지 않아 텍스처 없는 메시가 생성되었습니다. 그대로 사용할 수 있으며, 다시 생성하면 텍스처링을 재시도합니다."
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",
