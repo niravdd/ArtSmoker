@@ -294,13 +294,13 @@
                          their own actions (the 3D tab has its own Download GLB). The
                          tab handler toggles #av-image-downloads visibility. -->
                     <div id="av-image-downloads" class="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border">
-                        <a href="${pngUrl}" download="${this._esc(item.png_filename || 'asset.png')}" class="btn btn-secondary btn-sm">
+                        <a id="av-download-png" href="${pngUrl}" download="${this._esc(item.png_filename || 'asset.png')}" class="btn btn-secondary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
                             ${t('asset_viewer.download_png')}
                         </a>
-                        <a href="${svgUrl}" download="${this._esc(item.svg_filename || 'asset.svg')}" class="btn btn-secondary btn-sm btn-dl-svg">
+                        <a id="av-download-svg" href="${svgUrl}" download="${this._esc(item.svg_filename || 'asset.svg')}" class="btn btn-secondary btn-sm btn-dl-svg">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
@@ -971,6 +971,25 @@
                     // edits act on what the user sees (was stuck on the first-loaded
                     // version). Clears any in-progress mask.
                     this._loadEditCanvasImage?.();
+
+                    // Point the PNG/SVG download links at the SELECTED version — they
+                    // were frozen at the current version (asset.png/svg) and ignored
+                    // the version bar, so downloading "Original" gave the latest.
+                    const dlPng = this._overlay?.querySelector('#av-download-png');
+                    const dlSvg = this._overlay?.querySelector('#av-download-svg');
+                    const vSuffix = version === 1 ? 'original' : `v${version}`;
+                    if (dlPng) {
+                        dlPng.href = version === currentVersion
+                            ? `/api/gallery/${assetId}/png?t=${Date.now()}`
+                            : `/api/gallery/${assetId}/version/${version}?t=${Date.now()}`;
+                        dlPng.setAttribute('download', `${assetId}_${vSuffix}.png`);
+                    }
+                    if (dlSvg) {
+                        dlSvg.href = version === currentVersion
+                            ? `/api/gallery/${assetId}/svg?t=${Date.now()}`
+                            : `/api/gallery/${assetId}/version-svg/${version}?t=${Date.now()}`;
+                        dlSvg.setAttribute('download', `${assetId}_${vSuffix}.svg`);
+                    }
 
                     // Update tab version badges
                     const pngBadge = this._overlay?.querySelector('#av-tab-version-badge');
