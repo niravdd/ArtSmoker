@@ -318,6 +318,18 @@
             const container = this._overlay?.querySelector('#asset-meta-content');
             if (!container) return;
 
+            // Now that metadata (versions, prompt slug, timestamps) is loaded, set
+            // the initial PNG/SVG download filenames for the current version — the
+            // static render couldn't (no meta yet). Version switches update these too.
+            try {
+                const curV = meta.current_version || (meta.versions?.length || 1);
+                const vrec = (meta.versions || []).find(v => v.version === curV);
+                const dlPng = this._overlay?.querySelector('#av-download-png');
+                const dlSvg = this._overlay?.querySelector('#av-download-svg');
+                if (dlPng) dlPng.setAttribute('download', this._versionDownloadName('png', curV, vrec));
+                if (dlSvg) dlSvg.setAttribute('download', this._versionDownloadName('svg', curV, vrec));
+            } catch {}
+
             const createdAt = meta.created_at ? window.formatTimestamp(meta.created_at) : 'N/A';
             const createdDate = meta.created_at ? window.formatDate(meta.created_at) : '';
             const isTypeStudio = meta.type === 'type-studio';
@@ -977,18 +989,17 @@
                     // the version bar, so downloading "Original" gave the latest.
                     const dlPng = this._overlay?.querySelector('#av-download-png');
                     const dlSvg = this._overlay?.querySelector('#av-download-svg');
-                    const vSuffix = version === 1 ? 'original' : `v${version}`;
                     if (dlPng) {
                         dlPng.href = version === currentVersion
                             ? `/api/gallery/${assetId}/png?t=${Date.now()}`
                             : `/api/gallery/${assetId}/version/${version}?t=${Date.now()}`;
-                        dlPng.setAttribute('download', `${assetId}_${vSuffix}.png`);
+                        dlPng.setAttribute('download', this._versionDownloadName('png', version, v));
                     }
                     if (dlSvg) {
                         dlSvg.href = version === currentVersion
                             ? `/api/gallery/${assetId}/svg?t=${Date.now()}`
                             : `/api/gallery/${assetId}/version-svg/${version}?t=${Date.now()}`;
-                        dlSvg.setAttribute('download', `${assetId}_${vSuffix}.svg`);
+                        dlSvg.setAttribute('download', this._versionDownloadName('svg', version, v));
                     }
 
                     // Update tab version badges
@@ -3135,6 +3146,32 @@
             const div = document.createElement('div');
             div.textContent = str || '';
             return div.innerHTML;
+        },
+
+        /** Build a download filename for a specific version: a readable prompt slug
+         *  (from png_filename, minus its opt/var suffix + extension) + version label
+         *  + the version's own timestamp, e.g.
+         *  "a-young-athletic-male-soldier_v3_20260706-042211.png". Falls back to the
+         *  asset id when no slug is available. Filesystem-safe. */
+        _versionDownloadName(ext, version, vrec) {
+            const meta = this._meta || {};
+            // Base slug from png_filename ("slug_opt1_var2.png") → "slug", else id.
+            let slug = (meta.png_filename || '').replace(/\.[a-z0-9]+$/i, '')
+                .replace(/_opt\d+_var\d+$/i, '').trim();
+            if (!slug) slug = (this._item?.id || 'asset');
+            const vLabel = version === 1 ? 'original' : `v${version}`;
+            // Compact timestamp from the version's own timestamp (fallback: created_at).
+            let ts = '';
+            const raw = (vrec && vrec.timestamp) || meta.created_at || '';
+            if (raw) {
+                const d = new Date(raw);
+                if (!isNaN(d)) {
+                    const p = (n) => String(n).padStart(2, '0');
+                    ts = `_${d.getFullYear()}${p(d.getMonth() + 1)}${p(d.getDate())}-${p(d.getHours())}${p(d.getMinutes())}${p(d.getSeconds())}`;
+                }
+            }
+            const safe = `${slug}_${vLabel}${ts}.${ext}`.replace(/[^\w.\-]+/g, '-').replace(/-+/g, '-');
+            return safe;
         },
 
         _renderDecomposed(data) {
