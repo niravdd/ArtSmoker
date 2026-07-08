@@ -104,6 +104,14 @@ async def import_image(
     })
     logger.info("Imported image → %s (%dx%d, type=%s)", asset_id, width, height, atype)
 
+    # Telemetry: user brought their own asset (no cost — no AI). Non-fatal.
+    try:
+        from backend.services.telemetry import track_image_import
+        src_fmt = (orig_name.rsplit(".", 1)[-1].lower() if "." in orig_name else "")
+        track_image_import(asset_type=atype, source_format=src_fmt)
+    except Exception:
+        pass
+
     return GalleryItem(
         id=asset_id,
         prompt=title,

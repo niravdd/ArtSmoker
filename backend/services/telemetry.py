@@ -242,6 +242,25 @@ def track_custom_model_teardown(model: str = ""):
     _track(f"{studio}.custom.teardown", model=model)
 
 
+# ── Image-to-3D Events ───────────────────────────────────────────────
+# 3D runs on a self-hosted GPU SageMaker endpoint. Action event at submit
+# (cost=0); the actual GPU compute cost is reported at completion via
+# track_custom_model_invoke + image_studio.cost (see generate_3d._track_3d_completion).
+
+def track_3d_generation(model: str = "", pipeline: str = "", asset_type: str = "",
+                        quality: str = "", instance: str = ""):
+    """Image-to-3D generation submitted. No cost — compute cost sent at completion."""
+    _track("image_studio.three_d.generate", model=model, cost_usd=0,
+           pipeline=pipeline, asset_type=asset_type, quality=quality, instance=instance)
+
+
+# ── Gallery Import Event ─────────────────────────────────────────────
+
+def track_image_import(asset_type: str = "", source_format: str = ""):
+    """User imported an existing image into the gallery (no AI, no cost)."""
+    _track("gallery.import", asset_type=asset_type, source_format=source_format)
+
+
 # ── Adoption Funnel Events ───────────────────────────────────────────
 # Track first-time milestones in the user journey from install to active use.
 # Each milestone fires ONCE per install (tracked via local flag file).

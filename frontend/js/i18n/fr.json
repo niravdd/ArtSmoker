@@ -295,7 +295,8 @@
     "measure_title": "Basculer la superposition de mesure (taille, limites du sujet, marges)",
     "three_d_preview_title": "Source pour la 3D",
     "three_d_preview_note": "Entrée exacte du pipeline 3D — arrière-plan supprimé.",
-    "three_d_improve_btn": "Améliorer la source"
+    "three_d_improve_btn": "Améliorer la source",
+    "meta_cost_total": "Total"
   },
   "chat_studio": {
     "attach_image": "Joindre une image (pour les modèles de vision)",

@@ -295,7 +295,8 @@
     "measure_title": "切换测量叠加层（尺寸、主体范围、边距）",
     "three_d_preview_title": "3D 源图像",
     "three_d_preview_note": "3D 管线的实际输入——已移除背景。",
-    "three_d_improve_btn": "改进源图像"
+    "three_d_improve_btn": "改进源图像",
+    "meta_cost_total": "合计"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",

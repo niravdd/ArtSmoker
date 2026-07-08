@@ -931,7 +931,8 @@
     "measure_title": "Toggle measurement overlay (size, subject bounds, margins)",
     "three_d_preview_title": "Source for 3D",
     "three_d_preview_note": "Exact input to the 3D pipeline — background removed.",
-    "three_d_improve_btn": "Improve the Source"
+    "three_d_improve_btn": "Improve the Source",
+    "meta_cost_total": "Total"
   },
   "model_settings": {
     "title": "Model Settings",

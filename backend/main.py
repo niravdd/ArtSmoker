@@ -212,7 +212,7 @@ async def lifespan(app: FastAPI):
                 _sync_progress("Discovering model availability in Amazon Bedrock in your AWS account...")
                 logger.info("Auto-Sync: %s", _server_state["sync_message"])
 
-                from backend.routers.admin import refresh_all_regions, _get_bedrock_regions, _fetch_image_pricing
+                from backend.routers.admin import refresh_all_regions, _get_bedrock_regions, _fetch_image_pricing, _fetch_sagemaker_pricing
                 from backend.services.model_registry import get_registry, _save as _reg_save
                 _reg_save._silent = True
 
@@ -229,6 +229,11 @@ async def lifespan(app: FastAPI):
                     pricing_data = _fetch_image_pricing()
                     if pricing_data:
                         registry["image_pricing"] = pricing_data
+                        _reg_save()
+                    # Per-region SageMaker instance pricing (custom-model + 3D compute cost).
+                    sm_pricing = _fetch_sagemaker_pricing(all_regions)
+                    if sm_pricing:
+                        registry["sagemaker_pricing"] = sm_pricing
                         _reg_save()
                     _sync_progress(f"Scanning {len(all_regions)} regions for available models...")
 

@@ -254,6 +254,21 @@ def _get_openai_client(region: str):
 
 # ── Invokers (one per Mantle API surface) ───────────────────────────────────
 
+def _capture_usage(usage_out: dict | None, usage_obj) -> None:
+    """Copy input/output token counts from a provider usage object into usage_out
+    (so the caller can compute cost). Handles OpenAI (prompt_tokens/completion_tokens),
+    Responses (input_tokens/output_tokens), and Anthropic (input_tokens/output_tokens)
+    shapes. No-op if usage_out is None or the object is missing fields."""
+    if usage_out is None or usage_obj is None:
+        return
+    def _get(o, name):
+        return getattr(o, name, None) if not isinstance(o, dict) else o.get(name)
+    inp = _get(usage_obj, "prompt_tokens") or _get(usage_obj, "input_tokens") or 0
+    out = _get(usage_obj, "completion_tokens") or _get(usage_obj, "output_tokens") or 0
+    usage_out["input_tokens"] = int(inp or 0)
+    usage_out["output_tokens"] = int(out or 0)
+
+
 def invoke_chat_completions(
     model_id: str,
     messages: list[dict],
@@ -262,9 +277,11 @@ def invoke_chat_completions(
     max_tokens: int = 4096,
     temperature: float | None = None,
     extra: dict | None = None,
+    usage_out: dict | None = None,
 ) -> str:
     """OpenAI Chat Completions on Mantle. ``messages`` are OpenAI-format
-    ({role, content}). Returns the assistant text."""
+    ({role, content}). Returns the assistant text. If ``usage_out`` is provided,
+    it's populated with input_tokens/output_tokens for cost tracking."""
     kwargs: dict = {"model": model_id, "messages": messages, "max_completion_tokens": max_tokens}
     if temperature is not None:
         kwargs["temperature"] = temperature
@@ -273,6 +290,7 @@ def invoke_chat_completions(
 
     def _do(client):
         resp = client.chat.completions.create(**kwargs)
+        _capture_usage(usage_out, getattr(resp, "usage", None))
         return resp.choices[0].message.content or ""
 
     return _mantle_call(region or settings.aws_region_models, _do)
@@ -286,12 +304,14 @@ def invoke_responses(
     max_output_tokens: int = 4096,
     store: bool = False,
     extra: dict | None = None,
+    usage_out: dict | None = None,
 ) -> str:
     """OpenAI Responses API on Mantle (required by frontier models e.g. GPT-5.x).
 
     ``store`` defaults to False so Bedrock retains no conversation data unless
     the caller opts in (the OpenAI default is True; we choose privacy-first).
-    Returns the aggregated output text.
+    Returns the aggregated output text. If ``usage_out`` is provided, it's
+    populated with input_tokens/output_tokens for cost tracking.
     """
     kwargs: dict = {
         "model": model_id,
@@ -304,6 +324,7 @@ def invoke_responses(
 
     def _do(client):
         resp = client.responses.create(**kwargs)
+        _capture_usage(usage_out, getattr(resp, "usage", None))
         # output_text is the SDK's convenience aggregation of text output items.
         return getattr(resp, "output_text", "") or ""
 
@@ -319,12 +340,14 @@ def invoke_messages(
     max_tokens: int = 4096,
     temperature: float | None = None,
     extra: dict | None = None,
+    usage_out: dict | None = None,
 ) -> str:
     """Anthropic Messages API on Mantle (e.g. Claude Mythos is Messages-only).
 
     Uses the OpenAI SDK's raw request path against the ``/anthropic/v1/messages``
     route so we don't need a second SDK. ``messages`` are Anthropic-format
-    ({role, content}). Returns the concatenated text blocks.
+    ({role, content}). Returns the concatenated text blocks. If ``usage_out`` is
+    provided, it's populated with input_tokens/output_tokens for cost tracking.
     """
     m_region = mantle_region_for(region or settings.aws_region_models)
     import requests
@@ -347,6 +370,7 @@ def invoke_messages(
         resp = requests.post(url, json=body, headers=headers, timeout=120)
         resp.raise_for_status()
         data = resp.json()
+        _capture_usage(usage_out, data.get("usage"))
         return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
 
     token = get_bedrock_token(m_region)

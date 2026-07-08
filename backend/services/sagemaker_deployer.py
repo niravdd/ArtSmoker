@@ -1878,10 +1878,12 @@ def reset_warm_mode(model_key: str, cooldown_seconds: int | None = None,
     if not endpoint_name:
         raise RuntimeError(f"No deployed endpoint found for {model_key}")
 
+    # Capture the marker (before it's cleared) — needed for both the cooldown and
+    # the actual warm-window cost accounting below.
+    from .model_registry import get_warm_markers
+    marker = get_warm_markers().get(endpoint_name, {}) or {}
     if cooldown_seconds is None:
         # Prefer the cooldown recorded when warm was set; fall back to catalog.
-        from .model_registry import get_warm_markers
-        marker = get_warm_markers().get(endpoint_name, {})
         cooldown_seconds = marker.get("cooldown_seconds") or _warm_revert_cooldown(endpoint_name)
 
     # Cancel any in-process revert timer.
@@ -1899,6 +1901,41 @@ def reset_warm_mode(model_key: str, cooldown_seconds: int | None = None,
     except Exception as e:
         logger.warning("reset_warm_mode: re-applying autoscaling for %s failed: %s",
                        endpoint_name, e)
+
+    # ── Keep-warm cost accounting ───────────────────────────────────────────
+    # A pinned endpoint bills one instance for the whole warm window (up to 8h of
+    # GPU time) — previously untracked. On revert, price the ACTUAL warm duration
+    # (marker.set_at → now) at the deployed instance's per-region rate and record
+    # it as background infra cost + a telemetry event. Non-fatal.
+    try:
+        set_at = marker.get("set_at", "")
+        mkey = marker.get("model_key") or model_key
+        if set_at:
+            warmed = datetime.fromisoformat(set_at)
+            if warmed.tzinfo is None:
+                warmed = warmed.replace(tzinfo=timezone.utc)
+            warm_seconds = max(0.0, (datetime.now(timezone.utc) - warmed).total_seconds())
+            from .model_registry import get_registry
+            from .custom_models import get_instance_hourly_rate
+            reg = get_registry()
+            inst, dep_region = "", ""
+            for section in ("image_models", "video_models", "post_processing"):
+                dep = reg.get(section, {}).get(mkey, {}).get("deployment", {}) if mkey else {}
+                if dep.get("instance_type"):
+                    inst, dep_region = dep["instance_type"], dep.get("region", "")
+                    break
+            rate = get_instance_hourly_rate(inst, None, dep_region)
+            warm_cost = round((warm_seconds / 3600.0) * rate, 6) if rate else 0.0
+            if warm_cost > 0:
+                from .cost_tracker import add_background_cost
+                add_background_cost("keep_warm_infra", warm_cost,
+                                    f"{mkey} keep-warm {warm_seconds/3600:.2f}h @ ${rate:.2f}/hr")
+                from .telemetry import track_custom_model_invoke
+                track_custom_model_invoke(model=mkey, cost_usd=warm_cost,
+                                          latency_ms=int(warm_seconds * 1000),
+                                          predictor_type="keep_warm")
+    except Exception as e:
+        logger.debug("Keep-warm cost accounting failed for %s: %s", endpoint_name, e)
 
     from .model_registry import clear_warm_marker
     clear_warm_marker(endpoint_name)

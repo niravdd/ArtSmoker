@@ -295,7 +295,8 @@
     "measure_title": "측정 오버레이 전환(크기, 피사체 범위, 여백)",
     "three_d_preview_title": "3D 소스",
     "three_d_preview_note": "3D 파이프라인의 실제 입력 — 배경 제거됨.",
-    "three_d_improve_btn": "소스 개선"
+    "three_d_improve_btn": "소스 개선",
+    "meta_cost_total": "합계"
   },
   "chat_studio": {
     "attach_image": "이미지 첨부 (비전 모델용)",

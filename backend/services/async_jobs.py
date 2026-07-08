@@ -841,45 +841,35 @@ def _calculate_compute_cost(model_key: str, duration_seconds: float) -> float:
     from backend.services.custom_models import get_catalog_model
     from backend.services.model_registry import get_registry
 
-    # Try catalog first (has instance_cost_per_hour)
+    # Hourly rate — REGISTRY ONLY (never hardcoded). Prefer the DEPLOYED instance
+    # type's rate (what's actually billing); fall back to the catalog's
+    # recommended instance. All rates come from the catalog's
+    # pricing.instance_cost_per_hour via the shared resolver, so updating the
+    # registry updates every cost computation at once.
+    from backend.services.custom_models import get_instance_hourly_rate
     catalog_model = get_catalog_model(model_key)
-    hourly_rate = 0.0
-
+    catalog_key = None
     if catalog_model:
-        pricing = catalog_model.get("pricing", {})
-        instance_costs = pricing.get("instance_cost_per_hour", {})
+        # get_catalog_model is keyed by catalog_key already in most flows; but the
+        # deployed model_key may differ, so resolve the catalog_key from the model.
+        catalog_key = (catalog_model.get("catalog_key")
+                       or get_registry().get("image_models", {}).get(model_key, {}).get("catalog_key")
+                       or get_registry().get("video_models", {}).get(model_key, {}).get("catalog_key"))
+
+    registry = get_registry()
+    deployed_instance = ""
+    deployed_region = ""
+    for section in ("image_models", "video_models"):
+        dep = registry.get(section, {}).get(model_key, {}).get("deployment", {})
+        if dep.get("instance_type"):
+            deployed_instance = dep["instance_type"]
+            deployed_region = dep.get("region", "")
+            break
+
+    hourly_rate = get_instance_hourly_rate(deployed_instance, catalog_key, deployed_region)
+    if hourly_rate == 0 and catalog_model:
         recommended = catalog_model.get("requirements", {}).get("recommended_instance", "")
-
-        # Use the recommended instance's hourly rate
-        if recommended and recommended in instance_costs:
-            hourly_rate = instance_costs[recommended]
-        elif instance_costs:
-            # Fallback: use the first (cheapest) instance rate
-            hourly_rate = min(instance_costs.values())
-
-    if hourly_rate == 0:
-        # Fallback: check deployed instance type in registry
-        registry = get_registry()
-        for section in ("image_models", "video_models"):
-            reg_model = registry.get(section, {}).get(model_key, {})
-            if reg_model.get("deployment", {}).get("instance_type"):
-                # Default rates for common instances
-                instance_type = reg_model["deployment"]["instance_type"]
-                default_rates = {
-                    "ml.g5.xlarge": 1.41,
-                    "ml.g5.2xlarge": 2.82,
-                    "ml.g5.4xlarge": 4.44,
-                    "ml.g6e.xlarge": 2.61,
-                    "ml.g6e.2xlarge": 2.8,
-                    "ml.g6e.4xlarge": 3.76,
-                    "ml.g6e.8xlarge": 5.66,
-                    "ml.g7e.2xlarge": 4.37,
-                    "ml.g7e.4xlarge": 5.19,
-                    "ml.g7e.8xlarge": 6.85,
-                    "ml.g7e.12xlarge": 10.75,
-                }
-                hourly_rate = default_rates.get(instance_type, 1.50)
-                break
+        hourly_rate = get_instance_hourly_rate(recommended, catalog_key, deployed_region)
 
     # Prorate: cost = (duration_seconds / 3600) * hourly_rate
     generation_cost = (duration_seconds / 3600.0) * hourly_rate

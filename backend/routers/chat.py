@@ -85,10 +85,13 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
     def generate():
         start = time.time()
         full = ""
+        in_tok = 0
+        out_tok = 0
         try:
             from backend.services import mantle_client as mc
             client = mc._get_openai_client(region)
             if invoke_api == "responses":
+                # include_usage → the terminal event carries token counts.
                 stream = client.responses.create(
                     model=model_id, input=msgs,
                     max_output_tokens=req.max_tokens, store=False, stream=True)
@@ -97,18 +100,28 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
                     if isinstance(delta, str) and delta:
                         full += delta
                         yield sse({"type": "delta", "text": delta})
+                    # Final "response.completed" event exposes cumulative usage.
+                    ev_resp = getattr(event, "response", None)
+                    ev_usage = getattr(ev_resp, "usage", None) if ev_resp else None
+                    if ev_usage is not None:
+                        in_tok = getattr(ev_usage, "input_tokens", 0) or 0
+                        out_tok = getattr(ev_usage, "output_tokens", 0) or 0
             elif invoke_api == "messages":
                 # Non-streaming Messages → single delta (keeps deps minimal).
+                _u = {}
                 text = mc.invoke_messages(
                     model_id, [{"role": m["role"], "content": m["content"]} for m in msgs],
                     region=region, system=req.system_prompt or "",
-                    max_tokens=req.max_tokens, temperature=req.temperature)
+                    max_tokens=req.max_tokens, temperature=req.temperature, usage_out=_u)
                 full = text
+                in_tok = _u.get("input_tokens", 0)
+                out_tok = _u.get("output_tokens", 0)
                 if text:
                     yield sse({"type": "delta", "text": text})
             else:  # chat_completions
                 kwargs = {"model": model_id, "messages": msgs,
-                          "max_completion_tokens": req.max_tokens, "stream": True}
+                          "max_completion_tokens": req.max_tokens, "stream": True,
+                          "stream_options": {"include_usage": True}}
                 if req.temperature is not None:
                     kwargs["temperature"] = req.temperature
                 stream = client.chat.completions.create(**kwargs)
@@ -117,10 +130,22 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
                         piece = chunk.choices[0].delta.content
                         full += piece
                         yield sse({"type": "delta", "text": piece})
+                    # The usage-only final chunk (no choices) carries token counts.
+                    cu = getattr(chunk, "usage", None)
+                    if cu is not None:
+                        in_tok = getattr(cu, "prompt_tokens", 0) or 0
+                        out_tok = getattr(cu, "completion_tokens", 0) or 0
 
             latency_ms = round((time.time() - start) * 1000)
-            cost = compute_llm_cost(model_id, 0, 0)
-            yield sse({"type": "metadata", "input_tokens": 0, "output_tokens": 0,
+            # Real cost from captured usage (was hardcoded to 0 tokens → $0).
+            cost = compute_llm_cost(model_id, in_tok, out_tok)
+            try:
+                if cost > 0:
+                    from backend.services.cost_tracker import add_cost
+                    add_cost("chat_llm", cost, f"{model_id} (mantle): {in_tok} in, {out_tok} out")
+            except Exception:
+                pass
+            yield sse({"type": "metadata", "input_tokens": in_tok, "output_tokens": out_tok,
                        "latency_ms": latency_ms, "cost_usd": cost,
                        "model_id": model_id, "region": region,
                        "endpoint": "bedrock-mantle", "api": invoke_api})

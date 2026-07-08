@@ -1254,6 +1254,71 @@ def _fetch_image_pricing() -> dict:
         return {}
 
 
+def _fetch_sagemaker_pricing(regions: list[str] | None = None) -> dict:
+    """Fetch per-region SageMaker real-time HOSTING instance pricing from the AWS
+    Pricing API (ServiceCode=AmazonSageMaker).
+
+    All custom-model + 3D compute-cost math is (instance $/hr × duration), so the
+    hourly rate must be live and per-region — SageMaker instances cost more in
+    some regions. This queries the Pricing API (only available in us-east-1) for
+    the 'Hosting' product family (real-time inference endpoints), for the ml.*
+    GPU families we deploy on, across the given regions.
+
+    Returns { "ml.g6e.xlarge|us-west-2": 2.61, ... } (instance|region → USD/hour).
+    Empty dict on failure (callers fall back to catalog seed rates). Filtered to
+    the instance families ArtSmoker deploys (g5/g6/g6e/g7e/p4/p5) to keep the
+    scan small; extend the prefix list if new families are added to the catalog.
+    """
+    try:
+        import json as _json
+        client = boto3.Session().client("pricing", region_name="us-east-1")
+        # Region code → the Pricing API 'regionCode' attribute equals the region id.
+        target_regions = set(regions or [])
+        # GPU families ArtSmoker deploys on (real-time inference). Extend if the
+        # catalog adds new families.
+        want_prefixes = ("ml.g5", "ml.g6", "ml.g6e", "ml.g7e", "ml.p4", "ml.p5", "ml.p6")
+        rates: dict = {}
+        # component=Hosting isolates real-time INFERENCE endpoints (skips Studio,
+        # Training, Batch, Notebook) — verified as a valid Pricing API filter field.
+        base_filters = [
+            {"Type": "TERM_MATCH", "Field": "component", "Value": "Hosting"},
+        ]
+        next_token = None
+        pages = 0
+        while pages < 80:  # safety bound (hosting SKUs across all regions/instances)
+            pages += 1
+            kwargs = {"ServiceCode": "AmazonSageMaker", "Filters": base_filters, "MaxResults": 100}
+            if next_token:
+                kwargs["NextToken"] = next_token
+            resp = client.get_products(**kwargs)
+            for p in resp.get("PriceList", []):
+                pd = _json.loads(p)
+                attrs = pd.get("product", {}).get("attributes", {})
+                inst = attrs.get("instanceName", "") or attrs.get("instanceType", "")
+                region = attrs.get("regionCode", "")
+                if not inst or not region:
+                    continue
+                if target_regions and region not in target_regions:
+                    continue
+                if not any(inst.startswith(pfx) for pfx in want_prefixes):
+                    continue
+                for terms in pd.get("terms", {}).get("OnDemand", {}).values():
+                    for dim in terms.get("priceDimensions", {}).values():
+                        if dim.get("unit", "").lower() != "hrs":
+                            continue
+                        price = float(dim.get("pricePerUnit", {}).get("USD", "0") or 0)
+                        if price > 0:
+                            rates[f"{inst}|{region}"] = round(price, 4)
+            next_token = resp.get("NextToken")
+            if not next_token:
+                break
+        logger.info("Fetched %d SageMaker instance-region pricing entries from AWS Pricing API", len(rates))
+        return rates
+    except Exception as exc:
+        logger.warning("Failed to fetch SageMaker pricing: %s", exc)
+        return {}
+
+
 def _get_bedrock_regions() -> list[str]:
     """Dynamically discover all AWS regions that support Bedrock.
 
@@ -1714,6 +1779,13 @@ def _run_refresh_all_regions():
         if pricing_data:
             registry["image_pricing"] = pricing_data
             logger.debug("Stored pricing for %d model-region combos", len(pricing_data))
+
+        # Step 2b-ii: Fetch per-region SageMaker instance pricing (for custom-model
+        # + 3D compute cost). Scanned across the regions we're about to scan.
+        sm_pricing = _fetch_sagemaker_pricing(scan_regions)
+        if sm_pricing:
+            registry["sagemaker_pricing"] = sm_pricing
+            logger.debug("Stored SageMaker pricing for %d instance-region combos", len(sm_pricing))
 
         # Step 2c: Reset all available_regions before scanning — so stale regions
         # are pruned automatically. Each region scan in Step 3 re-adds itself.

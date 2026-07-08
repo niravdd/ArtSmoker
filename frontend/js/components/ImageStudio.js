@@ -693,6 +693,23 @@
             }
         },
 
+        /** Per-image price for a model, region- and quality-aware — the single
+         *  source of truth for cost estimates. Mirrors the backend registry
+         *  pricing (region_pricing[].quality_prices → region price → base_price).
+         *  Returns null when the registry has no price (caller omits the estimate
+         *  rather than showing a guessed/hardcoded figure). */
+        _perImagePrice(modelData, region, quality) {
+            if (!modelData) return null;
+            const regionPricing = modelData.region_pricing || [];
+            const rp = regionPricing.find(r => r.region === region) || regionPricing[0] || {};
+            if (rp.quality_prices && quality && rp.quality_prices[quality] != null) {
+                return rp.quality_prices[quality];
+            }
+            if (rp.price_usd != null) return rp.price_usd;
+            if (modelData.base_price_usd != null) return modelData.base_price_usd;
+            return null;
+        },
+
         _updateModelSummary() {
             const summaryEl = document.getElementById('gen-model-summary');
             const costEl = document.getElementById('gen-cost-estimate');
@@ -710,18 +727,7 @@
 
             const quality = document.getElementById('gen-quality')?.value || modelData.default_quality || '';
             const region = document.getElementById('gen-region')?.value || modelData.region || '';
-            const regionPricing = modelData.region_pricing || [];
-            const rp = regionPricing.find(r => r.region === region) || regionPricing[0] || {};
-
-            // Look up quality-specific price, fall back to region default, then base price
-            let price = null;
-            if (rp.quality_prices && quality && rp.quality_prices[quality] != null) {
-                price = rp.quality_prices[quality];
-            } else if (rp.price_usd != null) {
-                price = rp.price_usd;
-            } else if (modelData.base_price_usd != null) {
-                price = modelData.base_price_usd;
-            }
+            const price = this._perImagePrice(modelData, region, quality);
             const priceStr = price != null ? `$${price.toFixed(2)}/img` : '';
             const qualityLabel = quality ? quality.charAt(0).toUpperCase() + quality.slice(1) : '';
 
@@ -2588,10 +2594,19 @@
             const modelCount = this._selectedModels.length;
             const totalImages = modelCount * nOpts * nVars;
 
-            const totalCost = this._selectedModels.reduce((sum, key) => {
+            // Sum region/quality-aware per-image prices (same resolver as the
+            // single-model estimate — no hardcoded fallback price, so the same
+            // model shows the same price whether 1 or N models are selected). If
+            // ANY selected model has no registry price, we can't total honestly →
+            // omit the dollar figure rather than guess.
+            const quality = document.getElementById('gen-quality')?.value || '';
+            const region = document.getElementById('gen-region')?.value || '';
+            const perImage = this._selectedModels.map(key => {
                 const m = MODELS.find(m => m.value === key);
-                return sum + (m?.base_price_usd || 0.08) * nOpts * nVars;
-            }, 0);
+                return this._perImagePrice(m, region || (m?.region || ''), quality || (m?.default_quality || ''));
+            });
+            const anyMissing = perImage.some(p => p == null);
+            const totalCost = anyMissing ? 0 : perImage.reduce((sum, p) => sum + p * nOpts * nVars, 0);
 
             let msg = `${modelCount} models \u00d7 ${nOpts} option${nOpts > 1 ? 's' : ''} \u00d7 ${nVars} variation${nVars > 1 ? 's' : ''} = ${totalImages} images`;
             if (totalCost > 0) msg += ` (~$${totalCost.toFixed(2)})`;

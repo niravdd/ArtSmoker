@@ -295,7 +295,8 @@
     "measure_title": "計測オーバーレイの表示切替（サイズ・被写体範囲・余白）",
     "three_d_preview_title": "3Dのソース",
     "three_d_preview_note": "3Dパイプラインへの実際の入力 — 背景は削除済み。",
-    "three_d_improve_btn": "ソースを改善"
+    "three_d_improve_btn": "ソースを改善",
+    "meta_cost_total": "合計"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",

@@ -930,7 +930,8 @@
     "measure_title": "मापन ओवरले टॉगल करें (आकार, विषय सीमा, मार्जिन)",
     "three_d_preview_title": "3D का स्रोत",
     "three_d_preview_note": "3D पाइपलाइन में वास्तविक इनपुट — पृष्ठभूमि हटाई गई।",
-    "three_d_improve_btn": "स्रोत सुधारें"
+    "three_d_improve_btn": "स्रोत सुधारें",
+    "meta_cost_total": "कुल"
   },
   "model_settings": {
     "title": "मॉडल सेटिंग्स",

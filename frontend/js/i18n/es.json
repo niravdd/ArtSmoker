@@ -295,7 +295,8 @@
     "measure_title": "Alternar la capa de medición (tamaño, límites del sujeto, márgenes)",
     "three_d_preview_title": "Fuente para 3D",
     "three_d_preview_note": "Entrada exacta al pipeline 3D: sin fondo.",
-    "three_d_improve_btn": "Mejorar la fuente"
+    "three_d_improve_btn": "Mejorar la fuente",
+    "meta_cost_total": "Total"
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",

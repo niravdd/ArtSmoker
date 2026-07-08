@@ -623,17 +623,23 @@
                 }
                 ppContent += '</div>';
 
-                // Cost breakdown from cost_history
+                // Cost breakdown from cost_history — with a summed total so the
+                // per-step actuals reconcile (previously there was no total).
                 if (meta.cost_history && meta.cost_history.length > 0) {
+                    const _histTotal = meta.cost_history.reduce((s, c) => s + (c.cost_usd || c.cost || 0), 0);
                     ppContent += `<div class="mt-3 border-t border-brand-border/30 pt-2">
                         <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('asset_viewer.meta_cost_breakdown')}</label>
                         <div class="space-y-1">
                             ${meta.cost_history.map(c => `
                                 <div class="flex justify-between text-xs text-brand-text-muted">
                                     <span>${this._esc(c.label || c.type || '?')}</span>
-                                    <span class="font-mono">~$${(c.cost_usd || c.cost || 0).toFixed(4)}</span>
+                                    <span class="font-mono">$${(c.cost_usd || c.cost || 0).toFixed(4)}</span>
                                 </div>
                             `).join('')}
+                            <div class="flex justify-between text-xs text-brand-text font-medium border-t border-brand-border/30 pt-1 mt-1">
+                                <span>${t('asset_viewer.meta_cost_total')}</span>
+                                <span class="font-mono">$${_histTotal.toFixed(4)}</span>
+                            </div>
                         </div>
                     </div>`;
                 }
@@ -1436,7 +1442,11 @@
                     if (cfg.model_purpose === purpose && cfg.enabled) {
                         const opt = document.createElement('option');
                         opt.value = key;
-                        opt.textContent = `${cfg.label} ($${(cfg.base_price_usd || 0).toFixed(2)}/img)`;
+                        // Only show a price when the registry actually has one —
+                        // "$0.00/img" for a model with no base price is misleading.
+                        const _p = cfg.base_price_usd;
+                        opt.textContent = (_p != null && _p > 0)
+                            ? `${cfg.label} ($${_p.toFixed(2)}/img)` : cfg.label;
                         sel.appendChild(opt);
 
                         // Smart default: prefer the inpaint variant of the generating model
@@ -2041,7 +2051,16 @@
                     : `~${facesVal.toLocaleString()} ${t('asset_viewer.three_d_est_faces')}`;
                 let tail = '';
                 if (inst) {
-                    const lat = inst.typical_latency_seconds;
+                    // Scale runtime (and thus cost) with the chosen quality — steps
+                    // drive most of the diffusion time, so latency scales ~with the
+                    // step count relative to the 'standard' preset the registry's
+                    // typical_latency_seconds represents. Without this, fast and high
+                    // showed the same estimate despite very different runtimes.
+                    const STD_STEPS = qualityPresets.standard.steps;  // 50
+                    const stepsVal = parseInt(stepsInput?.value, 10) || STD_STEPS;
+                    const qMult = Math.max(0.4, Math.min(2.0, stepsVal / STD_STEPS));
+                    const lat = inst.typical_latency_seconds
+                        ? Math.round(inst.typical_latency_seconds * qMult) : 0;
                     const cost = inst.cost_per_hour_usd;
                     const timeTxt = _fmtTime(lat);
                     let costTxt = '';
@@ -2099,7 +2118,7 @@
             modelSelect?.addEventListener('change', () => { updateEstimate(); updateLicensePanel(); });
             updateLicensePanel();
 
-            stepsInput?.addEventListener('input', () => { if (stepsLabel) stepsLabel.textContent = stepsInput.value; });
+            stepsInput?.addEventListener('input', () => { if (stepsLabel) stepsLabel.textContent = stepsInput.value; updateEstimate(); });
             guidanceInput?.addEventListener('input', () => { if (guidanceLabel) guidanceLabel.textContent = guidanceInput.value; });
 
             applyPreset();  // sync advanced fields + estimate to the default (High)

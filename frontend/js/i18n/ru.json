@@ -930,7 +930,8 @@
     "measure_title": "Переключить измерительный слой (размер, границы объекта, поля)",
     "three_d_preview_title": "Источник для 3D",
     "three_d_preview_note": "Точный вход в 3D-конвейер — фон удалён.",
-    "three_d_improve_btn": "Улучшить исходник"
+    "three_d_improve_btn": "Улучшить исходник",
+    "meta_cost_total": "Итого"
   },
   "model_settings": {
     "title": "Настройки моделей",

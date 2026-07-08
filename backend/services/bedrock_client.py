@@ -297,6 +297,11 @@ def _invoke_llm_mantle(
     """
     from backend.services import mantle_client as mc
 
+    # Capture token usage so Mantle-routed model inference (GPT-5.x, Mythos, …) is
+    # cost-tracked exactly like the Converse path — previously the usage object was
+    # discarded and all Mantle spend was silently recorded as $0.
+    usage: dict = {}
+
     # Build the user content. OpenAI (chat/responses) and Anthropic (messages)
     # use different content shapes for images.
     if invoke_api == "messages":
@@ -311,7 +316,7 @@ def _invoke_llm_mantle(
         text = mc.invoke_messages(
             model_id, [{"role": "user", "content": content}],
             region=region, system=system, max_tokens=max_tokens,
-            temperature=temperature,
+            temperature=temperature, usage_out=usage,
         )
     else:
         # OpenAI-style content parts (chat_completions + responses).
@@ -328,12 +333,26 @@ def _invoke_llm_mantle(
         if invoke_api == "responses":
             text = mc.invoke_responses(
                 model_id, messages, region=region, max_output_tokens=max_tokens,
+                usage_out=usage,
             )
         else:  # chat_completions
             text = mc.invoke_chat_completions(
                 model_id, messages, region=region, max_tokens=max_tokens,
-                temperature=temperature,
+                temperature=temperature, usage_out=usage,
             )
+
+    # Record cost from captured usage (mirrors the Converse path).
+    try:
+        in_tok = int(usage.get("input_tokens", 0) or 0)
+        out_tok = int(usage.get("output_tokens", 0) or 0)
+        if in_tok or out_tok:
+            from backend.services.cost_tracker import add_cost, compute_llm_cost
+            cost = compute_llm_cost(model_id, in_tok, out_tok)
+            if cost > 0:
+                add_cost("llm", cost, f"{model_id} (mantle): {in_tok} in, {out_tok} out")
+    except Exception as e:
+        logger.debug("Mantle cost tracking failed for %s: %s", model_id, e)
+
     return text
 
 

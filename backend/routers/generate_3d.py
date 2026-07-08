@@ -853,6 +853,20 @@ async def generate_3d(body: ThreeDGenerateRequest):
     logger.info("3D generation job %s submitted for asset %s (endpoint: %s)",
                 job_id, body.asset_id, endpoint_name)
 
+    # Telemetry: action event (cost=0; GPU compute cost is reported at completion
+    # by _track_3d_completion) + adoption milestone. Non-fatal.
+    try:
+        from backend.services.telemetry import track_3d_generation, track_first_generation
+        _, _cfg = _find_triposg_model(model_key)
+        _pt = _3D_CATALOG_KEYS.get((_cfg or {}).get("catalog_key", ""), "triposg")
+        _inst = (_cfg or {}).get("deployment", {}).get("instance_type", "")
+        _atype = (store.load_generation_metadata(body.asset_id) or {}).get("asset_type", "")
+        track_3d_generation(model=model_key, pipeline=_pt, asset_type=_atype,
+                            quality=body.quality or "", instance=_inst)
+        track_first_generation(model=model_key, asset_type=_atype, studio="three_d")
+    except Exception as exc:
+        logger.debug("3D generation telemetry skipped: %s", exc)
+
     return {
         "job_id": job_id,
         "status": "submitted",
@@ -1158,6 +1172,7 @@ async def prepare_source(body: PrepareSourceRequest):
     """
     from backend.services.bedrock_client import invoke_image_model
     from backend.services.post_processor import remove_background, _find_model_key_by_purpose
+    from backend.services.cost_tracker import reset_costs, get_total_cost, get_cost_breakdown
     import base64 as _b64
 
     meta = store.load_generation_metadata(body.asset_id) or {}
@@ -1170,13 +1185,32 @@ async def prepare_source(body: PrepareSourceRequest):
             except Exception: pass
         return {"ok": True}
 
+    # Track the Bedrock spend for this source-prep step. These ops (BG-removal,
+    # outpaint/inpaint, and the vision LLM inside _analyze_source_bytes) all call
+    # add_cost internally; without a request-scoped reset + flush that cost was
+    # orphaned and discarded. Flush it to a telemetry cost event at each return.
+    reset_costs()
+
+    def _flush_source_cost():
+        """Report the accumulated source-prep cost (Bedrock edits + vision LLM)."""
+        try:
+            total = get_total_cost()
+            if total > 0:
+                from backend.services.telemetry import track_image_edit
+                track_image_edit(edit_type=f"3d_source_{body.op}",
+                                 model="source_prep", cost_usd=total)
+        except Exception:
+            pass
+
     # Base cutout (created/cached once) — the immutable clean starting point.
     cutout = _ensure_cutout(aid, ver, meta)
     if cutout is None:
         raise HTTPException(404, detail=f"Image not found for asset '{aid}' v{ver}.")
 
     if body.op == "cutout":
-        return {"ok": True, "analysis": _analyze_source_bytes(cutout.read_bytes(), meta)}
+        result = {"ok": True, "analysis": _analyze_source_bytes(cutout.read_bytes(), meta)}
+        _flush_source_cost()
+        return result
 
     try:
         if body.op == "extend":
@@ -1221,7 +1255,9 @@ async def prepare_source(body: PrepareSourceRequest):
     except Exception as e:
         logger.info("Post-%s re-strip failed for %s v%s (%s) — keeping as-is", body.op, aid, ver, e)
     saved = store.save_generated_image(aid, _sidecar_name(ver, "source"), out)
-    return {"ok": True, "analysis": _analyze_source_bytes(saved.read_bytes(), meta)}
+    result = {"ok": True, "analysis": _analyze_source_bytes(saved.read_bytes(), meta)}
+    _flush_source_cost()
+    return result
 
 
 class AnalyzeSourceRequest(BaseModel):
@@ -1315,7 +1351,18 @@ async def analyze_3d_source(body: AnalyzeSourceRequest):
     img_path = _prepared_source_path(body.asset_id, body.version, meta)
     if img_path is None:
         raise HTTPException(404, detail=f"Image not found for asset '{body.asset_id}' v{body.version}.")
-    return _analyze_source_bytes(img_path.read_bytes(), meta)
+    # Track the vision-LLM spend (was orphaned — add_cost with no request flush).
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    reset_costs()
+    result = _analyze_source_bytes(img_path.read_bytes(), meta)
+    try:
+        total = get_total_cost()
+        if total > 0:
+            from backend.services.telemetry import track_image_edit
+            track_image_edit(edit_type="3d_source_analyze", model="vision_llm", cost_usd=total)
+    except Exception:
+        pass
+    return result
 
 
 class RecordSourceReviewRequest(BaseModel):
@@ -1444,6 +1491,74 @@ def _check_3d_job(job: dict, s3=None) -> dict:
         if job["status"] in ("complete", "failed"):
             return job
         return _finalize_3d_job(job, s3)
+
+
+def _3d_instance_hourly_rate(model_key: str, cfg: dict = None) -> float:
+    """Hourly USD rate for a 3D endpoint's deployed instance — REGISTRY ONLY.
+
+    Resolves the DEPLOYED instance type's rate via the shared registry-backed
+    resolver (no hardcoded prices). Falls back to the catalog's recommended
+    instance if the deployment didn't record a type. Returns 0.0 if the registry
+    has no rate (caller treats 0 as 'unknown' and reports cost 0 rather than
+    guessing)."""
+    from backend.services.custom_models import get_catalog_model, get_instance_hourly_rate
+    if cfg is None:
+        _, cfg = _find_triposg_model(model_key)
+    cfg = cfg or {}
+    catalog_key = cfg.get("catalog_key", "")
+    dep = cfg.get("deployment", {}) or {}
+    inst = dep.get("instance_type", "")
+    region = dep.get("region") or _get_region()
+    rate = get_instance_hourly_rate(inst, catalog_key, region)
+    if not rate:
+        # Deployment didn't record an instance type — price the catalog default.
+        rec = ((get_catalog_model(catalog_key) or {}).get("requirements", {}) or {}).get("recommended_instance", "")
+        rate = get_instance_hourly_rate(rec, catalog_key, region)
+    return rate
+
+
+def _track_3d_completion(job: dict) -> None:
+    """Record telemetry + compute cost for a finished 3D job.
+
+    3D runs on a GPU SageMaker endpoint (the app's most expensive op) but has
+    its own poller and never routed through async_jobs, so it missed all cost
+    tracking. Compute cost = instance hourly rate × actual duration (submit →
+    complete). Mirrors async_jobs._track_completion: an add_cost entry for the
+    session breakdown, a custom-model invoke event, and a studio .cost event so
+    PulseBoard's aggregate total includes 3D spend. Non-fatal."""
+    try:
+        model_key = job.get("model_key", "")
+        _, cfg = _find_triposg_model(model_key)
+        rate = _3d_instance_hourly_rate(model_key, cfg)
+        # Duration submit → now (this runs at finalize). Cap at 30 min to bound a
+        # stuck/relayed timestamp (3D jobs legitimately run up to ~18 min).
+        dur = 0.0
+        try:
+            sub = job.get("submitted_at", "")
+            if sub:
+                dur = (datetime.now(timezone.utc) - datetime.fromisoformat(sub)).total_seconds()
+        except Exception:
+            pass
+        dur = max(0.0, min(dur, 1800.0))
+        compute_cost = round((dur / 3600.0) * rate, 6) if rate else 0.0
+        label = f"3D {model_key} ({dur:.0f}s @ ${rate:.2f}/hr)"
+
+        from backend.services.cost_tracker import add_background_cost
+        if compute_cost > 0:
+            # Background accumulator (this runs in the poller daemon thread, not a
+            # request) — flushed to system.infra_cost like other background spend.
+            add_background_cost("three_d_compute", compute_cost, label)
+
+        from backend.services.telemetry import track_custom_model_invoke, track_image_cost
+        track_custom_model_invoke(
+            model=model_key, cost_usd=compute_cost,
+            latency_ms=int(dur * 1000), predictor_type="image_to_3d",
+        )
+        if compute_cost > 0:
+            track_image_cost(cost_usd=compute_cost, model=model_key,
+                             breakdown=f"3D compute: {label}")
+    except Exception as e:
+        logger.debug("3D completion tracking failed for %s: %s", job.get("job_id"), e)
 
 
 def _finalize_3d_job(job: dict, s3) -> dict:
@@ -1653,6 +1768,16 @@ def _finalize_3d_job(job: dict, s3) -> dict:
 
         logger.info("3D generation complete for asset %s: %d bytes, %d vertices, %d faces",
                     asset_id, len(glb_bytes), vertices, faces)
+
+        # ── Telemetry + cost (was entirely missing for 3D) ──────────────────
+        # GPU compute cost (instance hourly × duration) + the GLB S3 download.
+        _track_3d_completion(job)
+        try:
+            from backend.services.cost_tracker import add_background_s3_cost
+            add_background_s3_cost("get", len(glb_bytes), "3D GLB output download",
+                                   region=_get_region())
+        except Exception:
+            pass
 
         # Persist terminal state, then clean up S3 artifacts (output + input)
         _persist_3d_job(job)
