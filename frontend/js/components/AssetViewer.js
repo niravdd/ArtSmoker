@@ -3013,6 +3013,17 @@
                 }
             });
 
+            // Default GLB download name (single-variant case, where the variant bar
+            // stays hidden and never sets it). Aligned with PNG/SVG/multi-variant:
+            // {slug}_v{N}_{ts}.glb. _populate3DVariants overrides this with a
+            // variant-specific name when more than one variant exists.
+            const glbDl = container.querySelector('#av-3d-download');
+            if (glbDl) {
+                const ver = this._currentVersion || 1;
+                const vrec = (this._meta?.versions || []).find(v => v.version === ver);
+                glbDl.setAttribute('download', this._versionDownloadName('glb', ver, vrec));
+            }
+
             // Variant switcher: show alternative 3D models for this 2D
             // version (different pipeline / deployment / config), each labelled by
             // deployment time. Best-effort, async — hidden when there's only one.
@@ -3092,19 +3103,36 @@
             // "Download GLB" always grabs exactly what's on screen (not the default).
             const dlLink = container.querySelector('#av-3d-download');
             const variantUrl = (vid) => `/api/gallery/${encodeURIComponent(assetId)}/3d/${ver}?variant=${encodeURIComponent(vid)}`;
+            // GLB download name aligned with PNG/SVG: {slug}_v{N}_{variant}_{ts}.glb,
+            // using the VARIANT's own created_at (falls back to the 2D version's
+            // timestamp, then created_at). Keeps naming consistent across all downloads.
+            const glbName = (vid) => {
+                const vrec = (this._meta?.versions || []).find(v => v.version === ver);
+                const variant = variants.find(x => x.variant_id === vid) || {};
+                const base = this._versionDownloadName('glb', ver, vrec);   // {slug}_vN_{ts}.glb
+                const tsRaw = variant.created_at || '';
+                // Insert the variant id before the extension; prefer the variant's
+                // own timestamp when present (rebuild via a synthetic record).
+                if (tsRaw) {
+                    const synth = { timestamp: tsRaw };
+                    const withVarTs = this._versionDownloadName('glb', ver, synth);
+                    return withVarTs.replace(/\.glb$/i, `_${vid}.glb`).replace(/[^\w.\-]+/g, '-');
+                }
+                return base.replace(/\.glb$/i, `_${vid}.glb`).replace(/[^\w.\-]+/g, '-');
+            };
             const showVariant = (vid) => {
                 previewId = vid;
                 if (viewer) viewer.src = `${variantUrl(vid)}&t=${Date.now()}`;
                 if (dlLink) {
                     dlLink.href = variantUrl(vid);
-                    dlLink.setAttribute('download', `${assetId}_${vid}.glb`);
+                    dlLink.setAttribute('download', glbName(vid));
                 }
                 refreshButtons();
             };
             // Initialize the download link to the default variant currently shown.
             if (dlLink && defaultId) {
                 dlLink.href = variantUrl(defaultId);
-                dlLink.setAttribute('download', `${assetId}_${defaultId}.glb`);
+                dlLink.setAttribute('download', glbName(defaultId));
             }
             bar.querySelectorAll('.av-3d-variant-btn').forEach((btn) => {
                 btn.addEventListener('click', () => showVariant(btn.dataset.variant));
@@ -3156,9 +3184,12 @@
         _versionDownloadName(ext, version, vrec) {
             const meta = this._meta || {};
             // Base slug from png_filename ("slug_opt1_var2.png") → "slug", else id.
+            // The backend already caps the slug at 40 chars; cap defensively here too
+            // (e.g. imported assets) so the final name stays well under FS limits.
             let slug = (meta.png_filename || '').replace(/\.[a-z0-9]+$/i, '')
                 .replace(/_opt\d+_var\d+$/i, '').trim();
             if (!slug) slug = (this._item?.id || 'asset');
+            if (slug.length > 40) slug = slug.slice(0, 40).replace(/-+$/, '');
             const vLabel = version === 1 ? 'original' : `v${version}`;
             // Compact timestamp from the version's own timestamp (fallback: created_at).
             let ts = '';
