@@ -1319,6 +1319,122 @@ def _fetch_sagemaker_pricing(regions: list[str] | None = None) -> dict:
         return {}
 
 
+def _fetch_llm_pricing() -> dict:
+    """Fetch per-model, per-region LLM TOKEN pricing from the AWS Pricing API.
+
+    LLM cost = (input_tokens × input_price) + (output_tokens × output_price), so
+    the per-token price must be live and per-model — previously it fell back to a
+    stale hardcoded 3-entry dict, defaulting unknown models to Sonnet pricing.
+    Scans AmazonBedrock products for token-priced rows (unit '1K tokens' /
+    '1M tokens') and splits input vs output by the usagetype ('-input-tokens' /
+    '-output-tokens'). Normalizes everything to USD per 1K tokens.
+
+    Returns { "<model>|<region>": {"input_per_1k": x, "output_per_1k": y}, ... }.
+    Empty on failure (callers keep the static seed). Pricing API is us-east-1 only.
+    """
+    try:
+        import json as _json
+        client = boto3.Session().client("pricing", region_name="us-east-1")
+        prices: dict = {}
+        next_token, pages = None, 0
+        while pages < 120:  # bound the scan (token SKUs across all models/regions)
+            pages += 1
+            kwargs = {"ServiceCode": "AmazonBedrock", "MaxResults": 100}
+            if next_token:
+                kwargs["NextToken"] = next_token
+            resp = client.get_products(**kwargs)
+            for p in resp.get("PriceList", []):
+                pd = _json.loads(p)
+                attrs = pd.get("product", {}).get("attributes", {})
+                model_name = attrs.get("model", "")
+                region = attrs.get("regionCode", "")
+                usage = (attrs.get("usagetype", "") or "").lower()
+                if not model_name or not region:
+                    continue
+                # Only token-priced input/output rows (skip images, throughput, etc.).
+                is_input = "input-tokens" in usage or "input_tokens" in usage
+                is_output = "output-tokens" in usage or "output_tokens" in usage
+                if not (is_input or is_output):
+                    continue
+                for terms in pd.get("terms", {}).get("OnDemand", {}).values():
+                    for dim in terms.get("priceDimensions", {}).values():
+                        unit = dim.get("unit", "")
+                        price = float(dim.get("pricePerUnit", {}).get("USD", "0") or 0)
+                        if price <= 0 or unit not in ("1K tokens", "1M tokens"):
+                            continue
+                        per_1k = price if unit == "1K tokens" else price / 1000.0
+                        key = f"{model_name}|{region}"
+                        entry = prices.setdefault(key, {})
+                        # Prefer the standard (non-priority/batch/cache) tier: keep the
+                        # LOWEST price seen per direction (batch/cache < priority).
+                        fld = "input_per_1k" if is_input else "output_per_1k"
+                        if fld not in entry or per_1k < entry[fld]:
+                            entry[fld] = round(per_1k, 8)
+            next_token = resp.get("NextToken")
+            if not next_token:
+                break
+        logger.info("Fetched LLM token pricing for %d model-region combos from AWS Pricing API", len(prices))
+        return prices
+    except Exception as exc:
+        logger.warning("Failed to fetch LLM pricing: %s", exc)
+        return {}
+
+
+def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
+    """Stamp fetched token prices onto chat_models entries (Option A — per-model,
+    reusing input_price_per_1k/output_price_per_1k that compute_llm_cost reads).
+
+    Matches each chat_models entry to a fetched '<model>|<region>' price by trying
+    the model's available regions, then any region for that model name. The AWS
+    Pricing API 'model' attribute is a display name (e.g. 'Claude 3 Sonnet'), so we
+    match loosely against the registry's name/model_id (case/space/punct-insensitive
+    token overlap). Unmatched models are left unpriced (fall back to the seed).
+    Returns the count of entries priced."""
+    if not llm_pricing:
+        return 0
+
+    def _norm(s):
+        import re
+        return re.sub(r"[^a-z0-9]+", " ", (s or "").lower()).strip()
+
+    # Index fetched prices by normalized model name → {region: {in,out}}.
+    by_name: dict = {}
+    for key, px in llm_pricing.items():
+        name, _, region = key.partition("|")
+        by_name.setdefault(_norm(name), {})[region] = px
+
+    priced = 0
+    for cm in (registry.get("chat_models", {}) or {}).values():
+        label = cm.get("name") or cm.get("model_label") or ""
+        mid = cm.get("model_id") or ""
+        cand_norms = {_norm(label), _norm(mid.split(".")[-1].split(":")[0].replace("-", " "))}
+        regions = cm.get("available_regions") or ([cm.get("region")] if cm.get("region") else [])
+        match = None
+        for pname, byreg in by_name.items():
+            if not pname:
+                continue
+            # Token-overlap match: every word of the shorter name appears in the other.
+            a, b = set(pname.split()), None
+            for cn in cand_norms:
+                if not cn:
+                    continue
+                b = set(cn.split())
+                short, long = (a, b) if len(a) <= len(b) else (b, a)
+                if short and short.issubset(long):
+                    # Pick the price for a region the model is in, else any region.
+                    px = next((byreg[r] for r in regions if r in byreg), None) or next(iter(byreg.values()), None)
+                    if px:
+                        match = px
+                        break
+            if match:
+                break
+        if match and (match.get("input_per_1k") or match.get("output_per_1k")):
+            cm["input_price_per_1k"] = match.get("input_per_1k", 0)
+            cm["output_price_per_1k"] = match.get("output_per_1k", 0)
+            priced += 1
+    return priced
+
+
 def _get_bedrock_regions() -> list[str]:
     """Dynamically discover all AWS regions that support Bedrock.
 
@@ -1901,6 +2017,17 @@ def _run_refresh_all_regions():
                 registry["video_models"][key]["enabled"] = False
                 disabled.append(key)
                 logger.debug("Disabled video model %s — no longer found in any region", key)
+
+        # Step 4c: Stamp live per-model LLM token pricing onto chat_models (runs
+        # AFTER the region scan, which fills available_regions used for matching).
+        try:
+            llm_pricing = _fetch_llm_pricing()
+            if llm_pricing:
+                n_priced = _apply_llm_pricing(registry, llm_pricing)
+                _progress(f"Applied LLM token pricing to {n_priced} model(s).")
+                logger.info("LLM token pricing applied to %d chat model(s)", n_priced)
+        except Exception as exc:
+            logger.warning("LLM pricing apply skipped: %s", exc)
 
         # Step 5: Smartly roll fast_llm/complex_llm to the newest Claude available.
         # Keeps non-technical users off deprecated models without manual config.

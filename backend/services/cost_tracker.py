@@ -209,42 +209,72 @@ def add_background_s3_cost(operation: str, size_bytes: int = 0, detail: str = ""
         add_background_cost("s3", cost, detail or f"S3 {operation} ({size_bytes}B)")
 
 
+def _registry_llm_price(model_id: str) -> dict | None:
+    """Look up per-token pricing for a model from the chat_models registry.
+
+    Prices are stamped onto each chat_models entry by AWS Sync
+    (_fetch_llm_pricing → _apply_llm_pricing) as input_price_per_1k /
+    output_price_per_1k — the LIVE, per-model source. Matches by exact model_id
+    first, then by the registry KEY, then a substring match (handles us./eu.
+    cross-region prefixes vs the base id). Returns {input_per_mtok, output_per_mtok}
+    or None if the registry has no price for this model."""
+    try:
+        from backend.services.model_registry import get_registry
+        cms = (get_registry().get("chat_models", {}) or {})
+        def _priced(cm):
+            in_p = cm.get("input_price_per_1k")
+            out_p = cm.get("output_price_per_1k")
+            if in_p or out_p:
+                # per-1k → per-mtok (×1000).
+                return {"input_per_mtok": (in_p or 0) * 1000, "output_per_mtok": (out_p or 0) * 1000}
+            return None
+        # 1) exact model_id, 2) exact registry key, 3) substring either way.
+        for cm in cms.values():
+            if cm.get("model_id") == model_id:
+                p = _priced(cm)
+                if p: return p
+        if model_id in cms:
+            p = _priced(cms[model_id])
+            if p: return p
+        for key, cm in cms.items():
+            mid = cm.get("model_id", "")
+            if mid and (mid in model_id or model_id in mid):
+                p = _priced(cm)
+                if p: return p
+    except Exception:
+        pass
+    return None
+
+
 def compute_llm_cost(model_id: str, input_tokens: int, output_tokens: int,
                      input_price_per_mtok: float | None = None,
                      output_price_per_mtok: float | None = None) -> float:
     """Compute the cost of an LLM call from token usage.
 
-    If explicit pricing is provided (e.g., from chat_models registry), it is used directly.
-    Otherwise falls back to the hardcoded LLM_PRICING dict, then to Sonnet pricing.
+    Pricing resolution order (most authoritative first):
+      1. Explicit prices passed by the caller (e.g. a model config).
+      2. LIVE per-model prices synced from the AWS Pricing API onto the
+         chat_models registry (_registry_llm_price) — the correct source.
+      3. Hardcoded LLM_PRICING seed (a small, static fallback for offline/
+         pre-Sync use), then a final Sonnet-priced default.
     """
     if input_price_per_mtok is not None and output_price_per_mtok is not None:
         input_cost = (input_tokens / 1_000_000) * input_price_per_mtok
         output_cost = (output_tokens / 1_000_000) * output_price_per_mtok
         return round(input_cost + output_cost, 6)
 
-    pricing = LLM_PRICING.get(model_id)
+    # 2) Registry-first — live, per-model, Sync-maintained.
+    pricing = _registry_llm_price(model_id)
+
+    # 3) Static seed fallback (exact, then substring), then Sonnet default.
     if not pricing:
-        # Try partial match
+        pricing = LLM_PRICING.get(model_id)
+    if not pricing:
         for key, p in LLM_PRICING.items():
             if key in model_id or model_id in key:
                 pricing = p
                 break
     if not pricing:
-        # Try chat_models registry for discovered models
-        try:
-            from backend.services.model_registry import get_registry
-            reg = get_registry()
-            for cm in reg.get("chat_models", {}).values():
-                if cm.get("model_id") == model_id:
-                    in_p = cm.get("input_price_per_1k", 0)
-                    out_p = cm.get("output_price_per_1k", 0)
-                    if in_p or out_p:
-                        input_cost = (input_tokens / 1_000_000) * (in_p * 1000)
-                        output_cost = (output_tokens / 1_000_000) * (out_p * 1000)
-                        return round(input_cost + output_cost, 6)
-        except Exception:
-            pass
-        # Default to Sonnet pricing as a reasonable estimate
         pricing = {"input_per_mtok": 3.00, "output_per_mtok": 15.00}
 
     input_cost = (input_tokens / 1_000_000) * pricing["input_per_mtok"]
