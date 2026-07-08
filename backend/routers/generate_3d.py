@@ -1683,6 +1683,16 @@ def _finalize_3d_job(job: dict, s3) -> dict:
         pipeline["license_accepted_at"] = _pinfo.get("license_accepted_at", "")
         pipeline["commercial"] = _pinfo.get("commercial")
 
+        # Attribution flags — a durable per-asset record of third-party components
+        # whose license REQUIRES visible attribution wherever the asset is surfaced.
+        # DINOv3 (Meta) is TRELLIS.2's image encoder and mandates a "Built with
+        # DINOv3" notice; it's used by BOTH the standalone TRELLIS.2 pipeline and the
+        # `trellis2` texture backend on TripoSG (only when texturing actually ran).
+        _uses_dinov3 = (_ptype == "trellis2_full") or (
+            _textured and pipeline.get("texture_backend") == "trellis2")
+        if _uses_dinov3:
+            pipeline["attributions"] = ["Built with DINOv3"]
+
         # ── Build the VARIANT record ──────────────────────────────────────
         # A 2D version can hold multiple 3D variants (different pipeline /
         # texture backend / deployment / config). The variant id is stable per

@@ -717,6 +717,24 @@
                         <p class="text-sm"><span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">PBR</span></p>
                     </div>`;
                 }
+                // Third-party attribution required by a component's license (e.g.
+                // "Built with DINOv3" — TRELLIS.2's Meta DINOv3 encoder mandates it).
+                // Shown as a metadata field wherever the asset is surfaced. Prefer the
+                // stored `attributions` (recorded at generation / backfilled), but
+                // DERIVE it at display time as a safety net for any old record that
+                // used trellis2/DINOv3 yet predates the flag — so the required notice
+                // never silently goes missing.
+                let _attrib = Array.isArray(pl.attributions) ? pl.attributions.slice() : [];
+                const _usedDino = pl.pipeline_type === 'trellis2_full' || pl.texture_backend === 'trellis2';
+                if (_usedDino && pl.textured !== false && !_attrib.includes('Built with DINOv3')) {
+                    _attrib.push('Built with DINOv3');
+                }
+                if (_attrib.length) {
+                    threeDContent += `<div class="col-span-2 sm:col-span-3">
+                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_attribution')}</label>
+                        <p class="text-sm">${_attrib.map(a => `<span class="px-1.5 py-0.5 rounded text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(a)}</span>`).join(' ')}</p>
+                    </div>`;
+                }
                 if (threeDData.params) {
                     const p = threeDData.params;
                     const paramStr = [
