@@ -363,6 +363,7 @@ async def recompose_prompt(body: RecomposeRequest):
 class TranslatePreviewRequest(_BaseModel):
     text: str
     source_lang: str = ""
+    ui_lang: str = ""
 
 
 @router.post("/translate-preview")
@@ -371,11 +372,14 @@ async def translate_preview(body: TranslatePreviewRequest):
 
     Used by the frontend to show a bilingual prompt view (original + English)
     before generation. Fast: single LLM call (~$0.001, <1s).
+
+    ``ui_lang`` (the frontend language selection) is forwarded as a soft
+    detection hint — content signals still take precedence.
     """
-    from backend.services.prompt_translator import translate_to_english, detect_language
+    from backend.services.prompt_translator import translate_to_english
 
     if not body.text or not body.text.strip():
         return {"original": body.text, "translated": body.text, "source_lang": "en", "was_translated": False}
 
-    result = translate_to_english(body.text, source_lang=body.source_lang)
+    result = translate_to_english(body.text, source_lang=body.source_lang, ui_lang=body.ui_lang)
     return result

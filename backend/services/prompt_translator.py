@@ -17,19 +17,41 @@ from backend.services.prompt_templates import get_template
 logger = logging.getLogger(__name__)
 
 # Supported languages for auto-detection
-SUPPORTED_LANGS = {"en", "ja", "zh", "ko", "fr", "es"}
+SUPPORTED_LANGS = {"en", "ja", "zh", "ko", "fr", "es", "de", "hi", "ru"}
+
+# Common function words used to disambiguate accented/Latin-script languages.
+_FR_WORDS = ["le ", "la ", "les ", "un ", "une ", "des ", "est ", "sont ", "dans ", "avec ", "pour "]
+_ES_WORDS = ["el ", "la ", "los ", "las ", "un ", "una ", "es ", "son ", "en ", "con ", "para "]
+_DE_WORDS = ["der ", "die ", "das ", "und ", "ein ", "eine ", "ist ", "mit ", "für ", "auf ",
+             "nicht ", "sind ", "wird ", "auch ", "dem ", "den ", "einen ", "eines "]
 
 
-def detect_language(text: str) -> str:
+# Latin-script languages where the UI-language hint can act as a tie-breaker.
+_LATIN_HINT_WORDS = {"fr": _FR_WORDS, "es": _ES_WORDS, "de": _DE_WORDS}
+
+
+def detect_language(text: str, ui_lang: str = "") -> str:
     """Detect the language of the input text.
 
     Uses Unicode range heuristics first (fast, no API call), then falls back
     to LLM detection for ambiguous cases.
 
-    Returns a language code: en, ja, zh, ko, fr, es, or 'en' as fallback.
+    ``ui_lang`` is the language the user has selected in the frontend. It is
+    only a *soft prior*: unambiguous content signals (script, umlauts, matched
+    function words) always win, so a user who deliberately writes in another
+    language than their UI setting is still detected correctly. The hint only
+    breaks genuine ties (e.g. accented text matching no word list, or accent-free
+    Romance-language text), replacing a coin-flip LLM call or an 'en' default.
+
+    Returns a language code: en, ja, zh, ko, fr, es, de, hi, ru, or 'en' as fallback.
     """
     if not text or not text.strip():
         return "en"
+
+    # Normalize the hint — only trust it if it's a language we support.
+    ui_lang = (ui_lang or "").strip().lower()[:2]
+    if ui_lang not in SUPPORTED_LANGS:
+        ui_lang = ""
 
     # Count characters in different Unicode ranges
     cjk_count = 0
@@ -37,6 +59,8 @@ def detect_language(text: str) -> str:
     hangul = 0
     latin = 0
     accented_latin = 0
+    devanagari = 0
+    cyrillic = 0
 
     for ch in text:
         cp = ord(ch)
@@ -46,6 +70,10 @@ def detect_language(text: str) -> str:
             hiragana_katakana += 1
         elif 0xAC00 <= cp <= 0xD7AF or 0x1100 <= cp <= 0x11FF:
             hangul += 1
+        elif 0x0900 <= cp <= 0x097F:
+            devanagari += 1
+        elif 0x0400 <= cp <= 0x04FF:
+            cyrillic += 1
         elif 0x0041 <= cp <= 0x007A:
             latin += 1
         elif 0x00C0 <= cp <= 0x024F:
@@ -63,32 +91,58 @@ def detect_language(text: str) -> str:
     if hangul > 0:
         return "ko"
 
+    # Hindi: Devanagari script
+    if devanagari > 0:
+        return "hi"
+
+    # Russian: Cyrillic script
+    if cyrillic > 0:
+        return "ru"
+
     # Chinese: CJK ideographs without hiragana/katakana/hangul
     if cjk_count > total * 0.2:
         return "zh"
 
-    # French/Spanish: accented Latin characters + common patterns
+    # French/Spanish/German: accented Latin characters + common patterns
     if accented_latin > 0 and latin > 0:
         lower = text.lower()
+        # German indicators (umlauts ä/ö/ü/ß are a strong German signal)
+        if "ß" in text or any(w in lower for w in _DE_WORDS):
+            return "de"
         # French indicators
-        if any(w in lower for w in ["le ", "la ", "les ", "un ", "une ", "des ", "est ", "sont ", "dans ", "avec ", "pour "]):
+        if any(w in lower for w in _FR_WORDS):
             return "fr"
         # Spanish indicators
-        if any(w in lower for w in ["el ", "la ", "los ", "las ", "un ", "una ", "es ", "son ", "en ", "con ", "para "]):
+        if any(w in lower for w in _ES_WORDS):
             return "es"
-        # Could be either — use LLM for disambiguation
-        return _llm_detect_language(text)
+        # Accented but matched no word list — trust the UI hint if it's a
+        # Latin-script language, else ask the LLM (cheaper than a wrong guess).
+        if ui_lang in _LATIN_HINT_WORDS:
+            return ui_lang
+        return _llm_detect_language(text, ui_lang=ui_lang)
 
-    # Mostly Latin with no accents → English
+    # Mostly Latin with no accents. German prose frequently has no umlauts, and
+    # French/Spanish can be accent-free too — check the UI-hinted language's own
+    # function words first, then German's, else treat as English.
     if latin > total * 0.5:
+        lower = text.lower()
+        if ui_lang in _LATIN_HINT_WORDS and any(w in lower for w in _LATIN_HINT_WORDS[ui_lang]):
+            return ui_lang
+        if any(w in lower for w in _DE_WORDS):
+            return "de"
         return "en"
 
     # Ambiguous — fall back to LLM
-    return _llm_detect_language(text)
+    return _llm_detect_language(text, ui_lang=ui_lang)
 
 
-def _llm_detect_language(text: str) -> str:
-    """Use LLM to detect language when heuristics are ambiguous."""
+def _llm_detect_language(text: str, ui_lang: str = "") -> str:
+    """Use LLM to detect language when heuristics are ambiguous.
+
+    Falls back to ``ui_lang`` (the frontend selection) when the LLM returns an
+    unsupported/empty code or errors, rather than blindly defaulting to English.
+    """
+    fallback = ui_lang if ui_lang in SUPPORTED_LANGS else "en"
     try:
         from backend.services.prompt_templates import get_system_prompt
         result = invoke_llm(
@@ -98,13 +152,17 @@ def _llm_detect_language(text: str) -> str:
             temperature=0,
             complexity="fast",
         ).strip().lower()[:2]
-        return result if result in SUPPORTED_LANGS else "en"
+        return result if result in SUPPORTED_LANGS else fallback
     except Exception:
-        return "en"
+        return fallback
 
 
-def translate_to_english(text: str, source_lang: str = "") -> dict:
+def translate_to_english(text: str, source_lang: str = "", ui_lang: str = "") -> dict:
     """Translate text to English if it's not already in English.
+
+    ``source_lang``, when given, is an authoritative override and skips detection.
+    ``ui_lang`` is a soft hint (the frontend language selection) passed to
+    detection as a tie-breaker only — content signals still win.
 
     Returns:
         {
@@ -117,8 +175,8 @@ def translate_to_english(text: str, source_lang: str = "") -> dict:
     if not text or not text.strip():
         return {"original": text, "translated": text, "source_lang": "en", "was_translated": False}
 
-    # Detect language if not provided
-    lang = source_lang or detect_language(text)
+    # Detect language if not explicitly provided (ui_lang is only a soft prior).
+    lang = source_lang or detect_language(text, ui_lang=ui_lang)
 
     # Already English
     if lang == "en":
@@ -151,5 +209,8 @@ def _lang_name(code: str) -> str:
         "ko": "Korean",
         "fr": "French",
         "es": "Spanish",
+        "de": "German",
+        "hi": "Hindi",
+        "ru": "Russian",
         "en": "English",
     }.get(code, code)

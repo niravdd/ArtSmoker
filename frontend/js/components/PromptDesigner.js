@@ -277,7 +277,7 @@
             let translationBanner = '';
             const meta = d._meta || {};
             if (meta.was_translated) {
-                const langNames = { ja: '日本語', zh: '中文', ko: '한국어', fr: 'Français', es: 'Español' };
+                const langNames = { ja: '日本語', zh: '中文', ko: '한국어', hi: 'हिन्दी', ru: 'Русский', fr: 'Français', es: 'Español', de: 'Deutsch' };
                 const langName = langNames[meta.original_language] || meta.original_language;
                 translationBanner = `
                     <div class="mx-5 mt-4 p-3 rounded-lg bg-brand-accent/5 border border-brand-accent/20 space-y-1.5">

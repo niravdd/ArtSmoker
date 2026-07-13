@@ -37,6 +37,7 @@ class VideoGenerateRequest(BaseModel):
     shots: list[dict] | None = None
     region_override: str | None = None
     enhance_prompt: bool = True
+    ui_lang: str = ""  # Frontend language selection — soft hint for prompt language detection
 
 
 class VideoReviseRequest(BaseModel):
@@ -83,7 +84,7 @@ async def generate_video(req: VideoGenerateRequest):
     original_language = "en"
     try:
         from backend.services.prompt_translator import translate_to_english
-        tr = translate_to_english(prompt)
+        tr = translate_to_english(prompt, ui_lang=req.ui_lang)
         original_language = tr["source_lang"]
         if tr["was_translated"]:
             original_language_prompt = prompt

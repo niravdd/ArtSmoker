@@ -647,12 +647,12 @@
                 const resp = await fetch('/api/refine-prompt/translate-preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ text }),
+                    body: JSON.stringify({ text, ui_lang: (typeof I18n !== 'undefined' ? I18n.getLang() : '') }),
                 });
                 if (!resp.ok) return;
                 const result = await resp.json();
                 if (result.was_translated) {
-                    const langNames = { ja: '日本語', zh: '中文', ko: '한국어', fr: 'Français', es: 'Español' };
+                    const langNames = { ja: '日本語', zh: '中文', ko: '한국어', hi: 'हिन्दी', ru: 'Русский', fr: 'Français', es: 'Español', de: 'Deutsch' };
                     badge.textContent = `${langNames[result.source_lang] || result.source_lang} → English`;
                     engText.textContent = result.translated;
                     preview.classList.remove('hidden');
@@ -738,6 +738,7 @@
                 enhance_prompt: document.getElementById('vs-enhance')?.checked ?? true,
                 seed: document.getElementById('vs-seed')?.value ? parseInt(document.getElementById('vs-seed').value) : undefined,
                 region_override: regionOverride,
+                ui_lang: (typeof I18n !== 'undefined' ? I18n.getLang() : ''),
             };
 
             // Duration

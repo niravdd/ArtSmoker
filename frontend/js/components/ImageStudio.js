@@ -939,6 +939,7 @@
                 remove_background: document.getElementById('gen-remove-bg').checked,
                 generate_svg: document.getElementById('gen-svg').checked,
                 upscale: document.getElementById('gen-upscale').checked,
+                ui_lang: (typeof I18n !== 'undefined' ? I18n.getLang() : ''),
                 ...this._getIpDeclaration(),
             };
 

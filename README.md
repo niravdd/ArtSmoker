@@ -49,6 +49,7 @@ ArtSmoker supports 8 languages. Switch the UI language using the language button
 | Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français (French) | [README.fr.md](README.fr.md) |
 | Español (Spanish) | [README.es.md](README.es.md) |
+| Deutsch (German) | [README.de.md](README.de.md) |
 
 **Multi-lingual prompt support:**
 - Non-English prompts are automatically detected (Japanese, Chinese, Korean, Hindi, Russian, French, Spanish, and more) and translated to English before generation

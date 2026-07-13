@@ -51,6 +51,7 @@ ArtSmoker는 8개 언어를 지원합니다. 상단 내비게이션 바의 언�
 | Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français (French) | [README.fr.md](README.fr.md) |
 | Español (Spanish) | [README.es.md](README.es.md) |
+| Deutsch (German) | [README.de.md](README.de.md) |
 
 **다국어 프롬프트 지원:**
 - 영어가 아닌 프롬프트(일본어, 중국어, 한국어, 힌디어, 러시아어, 프랑스어, 스페인어 등)는 자동으로 감지되어 생성 전에 영어로 번역됩니다

@@ -109,7 +109,7 @@ Browser (Vanilla JS + Tailwind CSS)
     +-- Video Studio: text-to-video generation (async, S3-backed)
     +-- Chat Studio: multi-model LLM chat with streaming, sessions, vision
     +-- Type Studio: text overlay system (on-image + standalone)
-    +-- i18n: 8 languages (EN, JA, ZH, KO, FR, ES, HI, RU) with language switcher
+    +-- i18n: 9 languages (EN, JA, ZH, KO, FR, ES, HI, RU, DE) with language switcher
     +-- Unified gallery: images + videos with filtering and export
     |
     v
@@ -1634,7 +1634,7 @@ Templates are organized by the feature they serve:
 
 | Template | File | Purpose | Variables | Model Used |
 |----------|------|---------|-----------|------------|
-| `translate_detect_language` | `prompt_translator.py` | Detect language when Unicode heuristics are ambiguous (French vs Spanish). Returns 2-letter code. | `{text}` | Sonnet |
+| `translate_detect_language` | `prompt_translator.py` | Detect language when Unicode heuristics are ambiguous (e.g. French vs Spanish). Returns 2-letter code. | `{text}` | Sonnet |
 | `translate_to_english` | `prompt_translator.py` | Translate non-English text to English, preserving meaning and technical terms. | `{text}`, `{lang_name}` | Sonnet |
 
 ### 7.9 Prompt Designer Templates
@@ -2118,7 +2118,7 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 17. **Test Model Settings**: Click "Model Settings" in any studio sidebar — verify it opens to the relevant tab. Tabs: Image Studio, Video Studio, Chat Studio, Type Studio, Shared Studio, Prompt Templates, Registry JSON. All sections should be collapsible with Show All / Hide All toggles. LLM categories and post-processing should show dropdown model pickers (not raw text fields). Try Sync from AWS — verify image, video, and chat models are discovered.
 17. **Test content moderation**: Generate with a prompt that triggers moderation — verify the system tries alternative models first (emerald dialog) before suggesting a rewrite (amber dialog). Test the rewrite option in each dialog — verify the rewritten prompt appears in the enhanced prompt area (not the original textarea) with the amber disclaimer. Verify the original prompt is preserved. Enable "Prompt Pre-Check" and test with a borderline prompt — verify the indigo pre-check dialog appears with specific issues, model switch, and rewrite options.
 18. **Test Chat Studio**: Navigate to Chat Studio, select a model and region, type a message. Verify streaming response with markdown rendering and code highlighting. Test: create/rename/delete sessions, vision (paste an image), context compaction (fill context then compact), export as Markdown, fork from a message, regenerate a response.
-19. **Test i18n**: Click a language button (JA, ZH, KO, FR, ES, HI, RU) in the nav bar. Language buttons show native script (日, 中, 한, हिं, РУ) with bilingual tooltips. Verify all UI text switches to the selected language. Switch back to EN. Verify prompts in non-English languages show the bilingual preview (Original/English tabs) in Image Studio and Video Studio.
+19. **Test i18n**: Click a language button (JA, ZH, KO, FR, ES, HI, RU, DE) in the nav bar. Language buttons show native script (日, 中, 한, हिं, РУ, DE) with bilingual tooltips. Verify all UI text switches to the selected language. Switch back to EN. Verify prompts in non-English languages show the bilingual preview (Original/English tabs) in Image Studio and Video Studio.
 20. **Test prompt templates**: Open Model Settings → Prompt Templates. Verify two-level navigation: "View All" opens groups, "Expand editors" opens text boxes. Edit a template, remove a required variable — verify "Fix & Save" offers to auto-insert it. Test "Enhance with AI" and "Reset to Default".
 21. **Test custom confirmation dialogs**: Click "Sync from AWS" — verify a styled modal appears (not a browser confirm popup). Same for delete operations.
 22. **Verify API docs**: Visit `http://localhost:8000/docs` — verify all endpoints are documented (including `/api/admin/*`, `/api/chat/*`, `/api/video/*`).
@@ -2264,7 +2264,7 @@ The generation cost depends on the image model chosen and the options×variation
 
 ## 15. Internationalization (i18n)
 
-ArtSmoker supports 8 languages: English (base), Japanese, Simplified Chinese, Korean, French, Spanish, Hindi, and Russian.
+ArtSmoker supports 9 languages: English (base), Japanese, Simplified Chinese, Korean, French, Spanish, Hindi, Russian, and German.
 
 ### 15.1 Architecture
 
@@ -2278,7 +2278,8 @@ frontend/js/i18n/
 ├── fr.json          # French — 817+ keys
 ├── es.json          # Spanish — 817+ keys
 ├── hi.json          # Hindi — 817+ keys
-└── ru.json          # Russian — 817+ keys
+├── ru.json          # Russian — 817+ keys
+└── de.json          # German — 817+ keys
 ```
 
 **Key design decisions:**
@@ -2298,7 +2299,7 @@ Non-English prompts are auto-detected and translated to English before processin
 ```
 User types prompt (any language)
     ↓
-detect_language() — Unicode heuristic (CJK/Hangul/Latin+accents)
+detect_language(text, ui_lang) — Unicode heuristic (CJK/Hangul/Devanagari/Cyrillic/Latin+accents+function words)
     ↓ (if ambiguous)
 LLM fallback detection
     ↓
@@ -2306,6 +2307,8 @@ translate_to_english() via Claude Sonnet
     ↓
 Returns: { original, translated, source_lang, was_translated }
 ```
+
+**UI-language hint (`ui_lang`):** The frontend passes the user's selected UI language as a *soft prior* for detection. It only breaks genuine ties — unambiguous content signals (script, umlauts, matched function words) always take precedence, so a user who deliberately writes in a different language than their UI setting is still detected from the text itself. The hint is used in three places: (1) accented Latin text that matches no word list, (2) accent-free Latin text where the hinted language's own function words appear, and (3) as the fallback when the LLM detector returns an unsupported/empty code — replacing a coin-flip or a blind `en` default. `source_lang`, by contrast, is an authoritative override that skips detection entirely.
 
 **Where translation is applied:**
 

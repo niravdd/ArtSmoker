@@ -51,6 +51,7 @@ ArtSmoker 支持 8 种语言。通过顶部导航栏的语言按钮（EN | 日 |
 | Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français (French) | [README.fr.md](README.fr.md) |
 | Español (Spanish) | [README.es.md](README.es.md) |
+| Deutsch (German) | [README.de.md](README.de.md) |
 
 **多语言提示词支持：**
 - 非英语提示词（日语、中文、韩语、印地语、俄语、法语、西班牙语等）会被自动检测，并在生成前翻译为英语

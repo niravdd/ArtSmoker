@@ -51,6 +51,7 @@ ArtSmoker 8 भाषाओं का समर्थन करता है। 
 | Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français (French) | [README.fr.md](README.fr.md) |
 | Español (Spanish) | [README.es.md](README.es.md) |
+| Deutsch (German) | [README.de.md](README.de.md) |
 
 **बहुभाषी प्रॉम्प्ट समर्थन:**
 - गैर-अंग्रेज़ी प्रॉम्प्ट्स (हिन्दी, जापानी, चीनी, कोरियाई, रूसी, फ़्रेंच, स्पेनिश आदि) स्वचालित रूप से पहचाने जाते हैं और जनरेशन से पहले अंग्रेज़ी में अनुवादित होते हैं

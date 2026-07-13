@@ -379,7 +379,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     translation_result = None
     try:
         from backend.services.prompt_translator import translate_to_english
-        translation_result = translate_to_english(body.prompt)
+        translation_result = translate_to_english(body.prompt, ui_lang=body.ui_lang)
         if translation_result["was_translated"]:
             logger.info("Prompt translated from %s to English: '%s' → '%s'",
                         translation_result["source_lang"],
@@ -816,7 +816,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
     translation_result = None
     try:
         from backend.services.prompt_translator import translate_to_english
-        translation_result = translate_to_english(body.prompt)
+        translation_result = translate_to_english(body.prompt, ui_lang=body.ui_lang)
         if translation_result["was_translated"]:
             logger.info("All-models: translated %s → English: '%s'",
                         translation_result["source_lang"], translation_result["translated"][:50])

@@ -50,6 +50,7 @@ ArtSmoker está disponible en 8 idiomas. Cambie el idioma de la interfaz usando 
 | हिन्दी (Hindi) | [README.hi.md](README.hi.md) |
 | Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français (French) | [README.fr.md](README.fr.md) |
+| Deutsch (German) | [README.de.md](README.de.md) |
 | Español | Este documento |
 
 **Soporte multilingüe para prompts:**

@@ -2,7 +2,7 @@
  * ArtSmoker — Internationalization (i18n) System
  *
  * Provides `t(key)` for string lookup, language switching, and localStorage persistence.
- * Supported languages: en, ja, zh, ko, fr, es
+ * Supported languages: en, ja, zh, ko, hi, ru, fr, es, de
  *
  * Usage:
  *   t('nav.image_studio')          → "2D Image Studio" (or translated equivalent)
@@ -22,6 +22,7 @@
         { code: 'ru', label: 'Русский', flag: 'РУ', tooltip: 'Русский (Russian)' },
         { code: 'fr', label: 'Français', flag: 'FR', tooltip: 'Français (French)' },
         { code: 'es', label: 'Español', flag: 'ES', tooltip: 'Español (Spanish)' },
+        { code: 'de', label: 'Deutsch', flag: 'DE', tooltip: 'Deutsch (German)' },
     ];
 
     const STORAGE_KEY = 'artsmoker_lang';

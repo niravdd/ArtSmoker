@@ -68,6 +68,7 @@ class GenerationRequest(BaseModel):
     model_optimized_prompts: bool = False  # Tailor prompts per model (only when all_models=True)
     ip_owned: bool = False
     ip_licensed: bool = False
+    ui_lang: str = ""  # Frontend language selection — soft hint for prompt language detection
 
     @field_validator("image_model")
     @classmethod

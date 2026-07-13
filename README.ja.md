@@ -51,6 +51,7 @@ ArtSmokerは8言語に対応しています。上部ナビゲーションバー�
 | Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français (French) | [README.fr.md](README.fr.md) |
 | Español (Spanish) | [README.es.md](README.es.md) |
+| Deutsch (German) | [README.de.md](README.de.md) |
 
 **多言語プロンプト対応：**
 - 英語以外のプロンプト（日本語、中国語、韓国語、ヒンディー語、ロシア語、フランス語、スペイン語など）は自動検出され、生成前に英語に翻訳されます

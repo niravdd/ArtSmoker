@@ -51,6 +51,7 @@ ArtSmoker prend en charge 8 langues. Changez la langue de l'interface via les bo
 | Русский (Russian) | [README.ru.md](README.ru.md) |
 | Français | Ce document |
 | Español (Spanish) | [README.es.md](README.es.md) |
+| Deutsch (German) | [README.de.md](README.de.md) |
 
 **Prise en charge multilingue des prompts :**
 - Les prompts non anglais (japonais, chinois, coréen, hindi, russe, français, espagnol, et plus) sont automatiquement détectés et traduits en anglais avant la génération

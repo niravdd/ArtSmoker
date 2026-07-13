@@ -403,7 +403,7 @@ Make sure text does not overflow the canvas boundaries. Account for font size wh
         "variables": ["{text}"],
         "model": "fast LLM (Sonnet)",
         "system_prompt": "Reply with only the 2-letter language code. Nothing else.",
-        "text": "What language is this text? Reply with ONLY the ISO 639-1 code (en, ja, zh, ko, fr, es). Text: {text}",
+        "text": "What language is this text? Reply with ONLY the ISO 639-1 code (en, ja, zh, ko, fr, es, de, hi, ru). Text: {text}",
     },
 
     "translate_to_english": {
