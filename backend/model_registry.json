@@ -5377,6 +5377,18 @@
           "inpainting": true,
           "outpainting": true
         },
+        "license_agreement": {
+          "required": true,
+          "license_name": "Apache-2.0",
+          "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509/blob/main/LICENSE",
+          "commercial": true,
+          "key_terms": [
+            "Apache License 2.0 — commercial use permitted",
+            "Modification and redistribution allowed with license notice",
+            "No additional gating — weights are openly downloadable from HuggingFace"
+          ],
+          "warnings": []
+        },
         "source": {
           "type": "huggingface",
           "repo_id": "Qwen/Qwen-Image-Edit-2509"
@@ -6963,6 +6975,45 @@
         "cost_per_hour_usd": 21.26,
         "compute_capability": 8.6,
         "bf16": true
+      },
+      "ml.g6.xlarge": {
+        "gpus": 1,
+        "gpu_type": "L4",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 24,
+        "ram_gb": 16,
+        "vcpus": 4,
+        "cost_per_hour_usd": 1.13,
+        "compute_capability": 8.9,
+        "bf16": true,
+        "gpu_name": "NVIDIA L4",
+        "nvme": true
+      },
+      "ml.g6.2xlarge": {
+        "gpus": 1,
+        "gpu_type": "L4",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 24,
+        "ram_gb": 32,
+        "vcpus": 8,
+        "cost_per_hour_usd": 1.22,
+        "compute_capability": 8.9,
+        "bf16": true,
+        "gpu_name": "NVIDIA L4",
+        "nvme": true
+      },
+      "ml.g6.4xlarge": {
+        "gpus": 1,
+        "gpu_type": "L4",
+        "vram_per_gpu_gb": 24,
+        "total_vram_gb": 24,
+        "ram_gb": 64,
+        "vcpus": 16,
+        "cost_per_hour_usd": 1.69,
+        "compute_capability": 8.9,
+        "bf16": true,
+        "gpu_name": "NVIDIA L4",
+        "nvme": true
       },
       "ml.g6e.xlarge": {
         "gpus": 1,
