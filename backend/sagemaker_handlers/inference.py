@@ -2773,6 +2773,60 @@ def _predict_text_to_image(input_data, model_dict):
     return _encode_image(result.images[0])
 
 
+def _predict_image_edit(input_data, model_dict):
+    """Reference-guided image edit (e.g. Qwen-Image-Edit / QwenImageEditPlusPipeline).
+
+    Takes 1–3 reference images + an instruction prompt and produces a new image
+    that preserves the referenced subject/product/character while applying the
+    requested changes. Serves BOTH the Image Studio reference-guided tab and the
+    basic Edit tab (a single reference image + mask-free instruction).
+    """
+    pipe = model_dict["pipe"]
+    seed = input_data.get("seed")
+    generator = torch.Generator("cuda").manual_seed(seed) if seed is not None else None
+
+    # Reference images: accept a list ("reference_images"), or a single "image".
+    refs = input_data.get("reference_images")
+    if not refs:
+        single = input_data.get("image")
+        refs = [single] if single else []
+    if not refs:
+        raise ValueError("image_edit requires at least one reference image")
+    images = [_decode_image(r).convert("RGB") for r in refs[:3]]
+    # QwenImageEditPlusPipeline takes a list; single-image pipelines take one image.
+    image_arg = images if len(images) > 1 else images[0]
+
+    kwargs = {"image": image_arg, "generator": generator}
+    if input_data.get("prompt"):
+        kwargs["prompt"] = input_data["prompt"]
+    # CFG for Qwen edit: true_cfg_scale>1 + a (non-empty) negative_prompt enables it.
+    neg = input_data.get("negative_prompt")
+    kwargs["negative_prompt"] = neg if neg else " "
+    for key in ("num_inference_steps", "true_cfg_scale"):
+        if input_data.get(key) is not None:
+            kwargs[key] = input_data[key]
+
+    total_steps = kwargs.get("num_inference_steps", 40)
+    import time as _t
+    _step_start = _t.time()
+
+    def _log_progress(pipe, step, timestep, callback_kwargs):
+        elapsed = _t.time() - _step_start
+        if step == 0 or (step + 1) % 5 == 0 or step + 1 == total_steps:
+            logger.info("Edit step %d/%d (%d%%) — %.1fs elapsed",
+                        step + 1, total_steps, int((step + 1) / total_steps * 100), elapsed)
+        return callback_kwargs
+
+    try:
+        kwargs["callback_on_step_end"] = _log_progress
+        result = pipe(**kwargs)
+    except TypeError:
+        kwargs.pop("callback_on_step_end", None)
+        result = pipe(**kwargs)
+
+    return _encode_image(result.images[0])
+
+
 def _predict_image_to_video(input_data, model_dict):
     """Generate video frames from a conditioning image (diffusers pipeline)."""
     pipe = model_dict["pipe"]
@@ -4787,6 +4841,7 @@ def _make_mv_grid_masks(mask_images):
 
 _PREDICTORS = {
     "text_to_image": _predict_text_to_image,
+    "image_edit": _predict_image_edit,
     "autoregressive_image": _predict_autoregressive_image,
     "image_to_video": _predict_image_to_video,
     "image_to_3d": _predict_image_to_3d,

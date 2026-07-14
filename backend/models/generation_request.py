@@ -69,6 +69,14 @@ class GenerationRequest(BaseModel):
     ip_owned: bool = False
     ip_licensed: bool = False
     ui_lang: str = ""  # Frontend language selection — soft hint for prompt language detection
+    # ── Reference-guided generation (Image Studio "Reference-guided" tab) ──
+    # 1–3 base64-encoded reference images the user supplies to guide generation.
+    # reference_mode: "match" = pixel-faithful edit via a deployed custom model
+    # (e.g. Qwen-Image-Edit); "inspired" = vision-LLM reads the images + prompt,
+    # writes an enhanced prompt, and a standard text-to-image model generates.
+    # Empty reference_images → normal text-to-image (the existing flow).
+    reference_images: list[str] | None = None
+    reference_mode: str = "inspired"  # "match" | "inspired"
 
     @field_validator("image_model")
     @classmethod

@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-06-25T02:17:28.059690+00:00",
+  "last_updated": "2026-07-14T02:15:52.618746+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -92,58 +92,6 @@
       ],
       "model_source": "foundation",
       "optimal_prompt_words": 80
-    },
-    "titan_image": {
-      "label": "Amazon Titan Image v2",
-      "model_id": "amazon.titan-image-generator-v2:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-west-2"
-      ],
-      "provider": "Amazon",
-      "model_purpose": "text_to_image",
-      "format_family": "amazon_text_to_image",
-      "prompt_limit": 480,
-      "moderation_strictness": "strict",
-      "base_price_usd": 0.01,
-      "quality_options": [
-        {
-          "value": "standard",
-          "label": "Standard",
-          "body_override": {
-            "imageGenerationConfig": {
-              "quality": "standard"
-            }
-          }
-        },
-        {
-          "value": "premium",
-          "label": "Premium",
-          "body_override": {
-            "imageGenerationConfig": {
-              "quality": "premium"
-            }
-          }
-        }
-      ],
-      "default_quality": "standard",
-      "extra_body": {},
-      "input_modalities": [
-        "TEXT",
-        "IMAGE"
-      ],
-      "output_modalities": [
-        "IMAGE"
-      ],
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-image-generator-v2:0",
-      "model_lifecycle": "ACTIVE",
-      "streaming_supported": false,
-      "customizations_supported": [
-        "FINE_TUNING"
-      ],
-      "model_source": "foundation",
-      "optimal_prompt_words": 40
     },
     "sd35_large": {
       "label": "Stable Diffusion 3.5 Large",
@@ -642,18 +590,6 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "model_source": "foundation"
-    },
-    "titan_image_inpaint": {
-      "available_regions": [
-        "us-east-1",
-        "us-west-2"
-      ]
-    },
-    "titan_image_outpaint": {
-      "available_regions": [
-        "us-east-1",
-        "us-west-2"
-      ]
     },
     "nova_canvas_inpaint": {
       "available_regions": [
@@ -2180,7 +2116,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.000135,
+      "output_price_per_1k": 0.00053
     },
     "kimi_k2_5": {
       "label": "Kimi K2.5",
@@ -2217,7 +2155,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.0006,
+      "output_price_per_1k": 0.00192
     },
     "gpt_oss_120b_1": {
       "label": "gpt-oss-120b",
@@ -2258,7 +2198,9 @@
         "responses"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 9e-05,
+      "output_price_per_1k": 0.00036
     },
     "qwen3_next_80b_a3b": {
       "label": "Qwen3 Next 80B A3B",
@@ -2293,7 +2235,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 8.4e-05,
+      "output_price_per_1k": 0.00072
     },
     "claude_fable_5": {
       "label": "Claude Fable 5",
@@ -2374,7 +2318,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00037,
+      "output_price_per_1k": 0.00111
     },
     "nemotron_nano_3_30b": {
       "label": "Nemotron Nano 3 30B",
@@ -2411,7 +2357,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 3e-05,
+      "output_price_per_1k": 0.00015
     },
     "claude_sonnet_4_6": {
       "label": "Claude Sonnet 4.6",
@@ -2492,7 +2440,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00018,
+      "output_price_per_1k": 0.00072
     },
     "glm_4_7_flash": {
       "label": "GLM 4.7 Flash",
@@ -2531,7 +2481,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 4e-05,
+      "output_price_per_1k": 0.00024
     },
     "voxtral_mini_3b_2507": {
       "label": "Voxtral Mini 3B 2507",
@@ -2609,7 +2561,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 3.6e-05,
+      "output_price_per_1k": 0.000144
     },
     "minimax_m2_5": {
       "label": "MiniMax M2.5",
@@ -2648,7 +2602,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.0006,
+      "output_price_per_1k": 0.00192
     },
     "gemma_3_12b_it": {
       "label": "Gemma 3 12B IT",
@@ -2685,7 +2641,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 6e-05,
+      "output_price_per_1k": 0.00017
     },
     "kimi_k2_thinking": {
       "label": "Kimi K2 Thinking",
@@ -2718,7 +2676,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00036,
+      "output_price_per_1k": 0.00152
     },
     "mistral_large_3_675b_instruct": {
       "label": "Mistral Large 3",
@@ -2753,7 +2713,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.00091
     },
     "pegasus_1_2_v1": {
       "label": "Pegasus v1.2",
@@ -2835,7 +2797,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00024,
+      "output_price_per_1k": 0.0012
     },
     "minimax_m2_1": {
       "label": "MiniMax M2.1",
@@ -2874,7 +2838,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00035083,
+      "output_price_per_1k": 0.00101621
     },
     "nemotron_super_3_120b": {
       "label": "NVIDIA Nemotron 3 Super 120B A12B",
@@ -2913,7 +2879,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 9e-05,
+      "output_price_per_1k": 0.00039
     },
     "qwen3_32b_v1": {
       "label": "Qwen3 32B (dense)",
@@ -2952,7 +2920,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 9e-05,
+      "output_price_per_1k": 0.000365
     },
     "ministral_3_14b_instruct": {
       "label": "Ministral 14B 3.0",
@@ -3181,7 +3151,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.0006,
+      "output_price_per_1k": 0.00192
     },
     "gpt_oss_20b_1": {
       "label": "gpt-oss-20b",
@@ -3222,7 +3194,9 @@
         "responses"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 4e-05,
+      "output_price_per_1k": 0.00018
     },
     "gemma_3_4b_it": {
       "label": "Gemma 3 4B IT",
@@ -3259,7 +3233,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 3e-05,
+      "output_price_per_1k": 5e-05
     },
     "claude_opus_4_8": {
       "label": "Claude Opus 4.8",
@@ -3386,7 +3362,9 @@
         "responses"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 9e-05,
+      "output_price_per_1k": 0.00036
     },
     "gemma_3_27b_it": {
       "label": "Gemma 3 27B PT",
@@ -3423,7 +3401,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00014,
+      "output_price_per_1k": 0.00023
     },
     "claude_sonnet_4_5_20250929_v1": {
       "label": "Claude Sonnet 4.5",
@@ -3503,7 +3483,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00032,
+      "output_price_per_1k": 0.00161
     },
     "glm_4_7": {
       "label": "GLM 4.7",
@@ -3540,7 +3522,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00036,
+      "output_price_per_1k": 0.00132
     },
     "qwen3_coder_480b_a35b_v1": {
       "label": "Qwen3 Coder 480B A35B Instruct",
@@ -3573,7 +3557,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00027,
+      "output_price_per_1k": 0.00109
     },
     "magistral_small_2509": {
       "label": "Magistral Small 2509",
@@ -3761,7 +3747,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 9e-05,
+      "output_price_per_1k": 0.000365
     },
     "gpt_oss_safeguard_20b": {
       "label": "GPT OSS Safeguard 20B",
@@ -3800,7 +3788,9 @@
         "responses"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 4e-05,
+      "output_price_per_1k": 0.00012
     },
     "rerank_v1": {
       "label": "Rerank 1.0",
@@ -3870,7 +3860,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00048,
+      "output_price_per_1k": 0.00192
     },
     "nova_lite_v1": {
       "label": "Nova Lite",
@@ -3912,7 +3904,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 3.6e-05,
+      "output_price_per_1k": 0.000144
     },
     "nova_micro_v1": {
       "label": "Nova Micro",
@@ -3951,7 +3945,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 2.1e-05,
+      "output_price_per_1k": 8.4e-05
     },
     "claude_3_haiku_20240307_v1": {
       "label": "Claude 3 Haiku",
@@ -3990,7 +3986,9 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00025,
+      "output_price_per_1k": 0
     },
     "claude_3_5_sonnet_20240620_v1": {
       "label": "Claude 3.5 Sonnet v2",
@@ -4023,7 +4021,9 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.003,
+      "output_price_per_1k": 0
     },
     "claude_3_sonnet_20240229_v1": {
       "label": "Claude 3 Sonnet",
@@ -4062,7 +4062,9 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.003,
+      "output_price_per_1k": 0
     },
     "rerank_v3_5": {
       "label": "Rerank 3.5",
@@ -4122,7 +4124,9 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.003,
+      "output_price_per_1k": 0
     },
     "llama3_8b_instruct_v1": {
       "label": "Llama 3 8B Instruct",
@@ -4219,7 +4223,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00018,
+      "output_price_per_1k": 0.00024
     },
     "mixtral_8x7b_instruct_v0": {
       "label": "Mixtral 8x7B Instruct",
@@ -4254,7 +4260,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00054,
+      "output_price_per_1k": 0.00084
     },
     "mistral_large_2402_v1": {
       "label": "Mistral Large (24.02)",
@@ -4289,7 +4297,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.0048,
+      "output_price_per_1k": 0.0144
     },
     "qwen3_coder_next": {
       "label": "Qwen3 Coder Next",
@@ -4320,7 +4330,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00026,
+      "output_price_per_1k": 0.00062
     },
     "pixtral_large_2502_v1": {
       "label": "Pixtral Large (25.02)",
@@ -4346,70 +4358,6 @@
         "INFERENCE_PROFILE"
       ],
       "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-runtime"
-      ],
-      "apis": [
-        "converse"
-      ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
-    },
-    "llama3_2_1b_instruct_v1": {
-      "label": "Llama 3.2 1B Instruct",
-      "model_id": "us.meta.llama3-2-1b-instruct-v1:0",
-      "region": "eu-central-1",
-      "available_regions": [
-        "eu-central-1",
-        "eu-west-1",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:eu-central-1::foundation-model/meta.llama3-2-1b-instruct-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "LEGACY",
-      "endpoints": [
-        "bedrock-runtime"
-      ],
-      "apis": [
-        "converse"
-      ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
-    },
-    "llama3_2_3b_instruct_v1": {
-      "label": "Llama 3.2 3B Instruct",
-      "model_id": "us.meta.llama3-2-3b-instruct-v1:0",
-      "region": "eu-central-1",
-      "available_regions": [
-        "eu-central-1",
-        "eu-west-1",
-        "eu-west-3",
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:eu-central-1::foundation-model/meta.llama3-2-3b-instruct-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "LEGACY",
       "endpoints": [
         "bedrock-runtime"
       ],
@@ -4508,7 +4456,9 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 7.5e-05,
+      "output_price_per_1k": 0.0003
     },
     "claude_opus_4_1_20250805_v1": {
       "label": "Claude Opus 4.1",
@@ -4568,7 +4518,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.0004,
+      "output_price_per_1k": 0.0016
     },
     "nova_premier_v1": {
       "label": "Nova Premier",
@@ -4595,7 +4547,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00125,
+      "output_price_per_1k": 0.00625
     },
     "jamba_1_5_large_v1": {
       "label": "Jamba 1.5 Large",
@@ -4734,7 +4688,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.00135,
+      "output_price_per_1k": 0.0054
     },
     "llama3_1_8b_instruct_v1": {
       "label": "Llama 3.1 8B Instruct",
@@ -4785,64 +4741,6 @@
         "INFERENCE_PROFILE"
       ],
       "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-runtime"
-      ],
-      "apis": [
-        "converse"
-      ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
-    },
-    "llama3_2_11b_instruct_v1": {
-      "label": "Llama 3.2 11B Instruct",
-      "model_id": "us.meta.llama3-2-11b-instruct-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/meta.llama3-2-11b-instruct-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "LEGACY",
-      "endpoints": [
-        "bedrock-runtime"
-      ],
-      "apis": [
-        "converse"
-      ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
-    },
-    "llama3_2_90b_instruct_v1": {
-      "label": "Llama 3.2 90B Instruct",
-      "model_id": "us.meta.llama3-2-90b-instruct-v1:0",
-      "region": "us-east-1",
-      "available_regions": [
-        "us-east-1",
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-1::foundation-model/meta.llama3-2-90b-instruct-v1:0",
-      "has_vision": true,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "LEGACY",
       "endpoints": [
         "bedrock-runtime"
       ],
@@ -4966,35 +4864,9 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
-    },
-    "llama3_1_405b_instruct_v1": {
-      "label": "Llama 3.1 405B Instruct",
-      "model_id": "us.meta.llama3-1-405b-instruct-v1:0",
-      "region": "us-east-2",
-      "available_regions": [
-        "us-east-2",
-        "us-west-2"
-      ],
-      "provider": "Meta",
-      "model_source": "foundation",
-      "model_arn": "arn:aws:bedrock:us-east-2::foundation-model/meta.llama3-1-405b-instruct-v1:0",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [
-        "INFERENCE_PROFILE"
-      ],
-      "lifecycle": "LEGACY",
-      "endpoints": [
-        "bedrock-runtime"
-      ],
-      "apis": [
-        "converse"
-      ],
-      "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.0005,
+      "output_price_per_1k": 0.0015
     },
     "mistral_large_2407_v1": {
       "label": "Mistral Large (24.07)",
@@ -5021,266 +4893,62 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "input_price_per_1k": 0.004,
+      "output_price_per_1k": 0.012
     },
-    "glm_4_6": {
-      "label": "zai.glm-4.6",
-      "model_id": "zai.glm-4.6",
-      "region": "us-west-2",
+    "claude_sonnet_5": {
+      "label": "Claude Sonnet 5",
+      "model_id": "us.anthropic.claude-sonnet-5",
+      "region": "ap-northeast-1",
       "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "Z.AI",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "qwen3_coder_30b_a3b_instruct": {
-      "label": "qwen.qwen3-coder-30b-a3b-instruct",
-      "model_id": "qwen.qwen3-coder-30b-a3b-instruct",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "Qwen",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "qwen3_vl_235b_a22b_instruct": {
-      "label": "qwen.qwen3-vl-235b-a22b-instruct",
-      "model_id": "qwen.qwen3-vl-235b-a22b-instruct",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "Qwen",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "qwen3_coder_480b_a35b_instruct": {
-      "label": "qwen.qwen3-coder-480b-a35b-instruct",
-      "model_id": "qwen.qwen3-coder-480b-a35b-instruct",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "Qwen",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "gemma_4_31b": {
-      "label": "google.gemma-4-31b",
-      "model_id": "google.gemma-4-31b",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "Google",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "v3_1": {
-      "label": "deepseek.v3.1",
-      "model_id": "deepseek.v3.1",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "DeepSeek",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "grok_4_3": {
-      "label": "xai.grok-4.3",
-      "model_id": "xai.grok-4.3",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "xAI",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "gemma_4_26b_a4b": {
-      "label": "google.gemma-4-26b-a4b",
-      "model_id": "google.gemma-4-26b-a4b",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "Google",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "qwen3_next_80b_a3b_instruct": {
-      "label": "qwen.qwen3-next-80b-a3b-instruct",
-      "model_id": "qwen.qwen3-next-80b-a3b-instruct",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "Qwen",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "claude_haiku_4_5": {
-      "label": "anthropic.claude-haiku-4-5",
-      "model_id": "anthropic.claude-haiku-4-5",
-      "region": "us-west-2",
-      "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
         "us-west-2"
       ],
       "provider": "Anthropic",
       "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-sonnet-5",
+      "has_vision": true,
       "streaming_supported": true,
       "max_context_tokens": 128000,
       "customizations_supported": [],
-      "inference_types": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "lifecycle": "ACTIVE",
       "endpoints": [
-        "bedrock-mantle"
+        "bedrock-runtime"
       ],
       "apis": [
-        "messages"
+        "converse",
+        "invoke"
       ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "messages"
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
-    "gemma_4_e2b": {
-      "label": "google.gemma-4-e2b",
-      "model_id": "google.gemma-4-e2b",
+    "gpt_5_6_luna": {
+      "label": "openai.gpt-5.6-luna",
+      "model_id": "openai.gpt-5.6-luna",
       "region": "us-west-2",
       "available_regions": [
         "us-west-2"
       ],
-      "provider": "Google",
+      "provider": "OpenAI",
       "model_source": "foundation",
       "model_arn": "",
       "has_vision": false,
@@ -5293,39 +4961,14 @@
         "bedrock-mantle"
       ],
       "apis": [
-        "chat_completions"
+        "responses"
       ],
       "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
+      "invoke_api": "responses"
     },
-    "moonshotai_kimi_k2_thinking": {
-      "label": "moonshotai.kimi-k2-thinking",
-      "model_id": "moonshotai.kimi-k2-thinking",
-      "region": "us-west-2",
-      "available_regions": [
-        "us-west-2"
-      ],
-      "provider": "Moonshotai",
-      "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
-      "streaming_supported": true,
-      "max_context_tokens": 128000,
-      "customizations_supported": [],
-      "inference_types": [],
-      "lifecycle": "ACTIVE",
-      "endpoints": [
-        "bedrock-mantle"
-      ],
-      "apis": [
-        "chat_completions"
-      ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "chat_completions"
-    },
-    "gpt_5_4": {
-      "label": "openai.gpt-5.4",
-      "model_id": "openai.gpt-5.4",
+    "gpt_5_6_terra": {
+      "label": "openai.gpt-5.6-terra",
+      "model_id": "openai.gpt-5.6-terra",
       "region": "us-west-2",
       "available_regions": [
         "us-west-2"
@@ -5711,6 +5354,140 @@
             "accelerate>=1.6.0,<2.0.0",
             "safetensors>=0.4.3",
             "peft>=0.17.0,<0.19.0",
+            "huggingface-hub>=0.34.0,<1.0.0",
+            "bitsandbytes>=0.43.3"
+          ]
+        }
+      },
+      "qwen_image_edit_2509": {
+        "label": "Qwen-Image-Edit (2509)",
+        "description": "Reference-guided image editing by Alibaba Qwen. Apache-2.0 (commercial-safe). Takes 1–3 reference images + an instruction to preserve a subject/product/character while changing theme, background, wardrobe, lighting. Powers the Image Studio reference-guided tab and the basic Edit tab (inpaint/outpaint).",
+        "category": "image_generation",
+        "studio": "image",
+        "provider": "Alibaba Qwen",
+        "license": "Apache-2.0",
+        "commercial": true,
+        "requires_hf_auth": false,
+        "hf_license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+        "model_purpose": "image_edit",
+        "capabilities": {
+          "reference_guided": true,
+          "max_reference_images": 3,
+          "image_edit": true,
+          "inpainting": true,
+          "outpainting": true
+        },
+        "source": {
+          "type": "huggingface",
+          "repo_id": "Qwen/Qwen-Image-Edit-2509"
+        },
+        "requirements": {
+          "min_vram_gb": 24,
+          "recommended_instance": "ml.g6.xlarge",
+          "min_instance": "ml.g6.xlarge",
+          "disk_gb": 70,
+          "allowed_instances": [
+            "ml.g6.xlarge",
+            "ml.g5.xlarge",
+            "ml.g6e.xlarge",
+            "ml.g6e.2xlarge"
+          ]
+        },
+        "invoke": {
+          "library": "diffusers",
+          "loader_class": "QwenImageEditPlusPipeline",
+          "torch_dtype": "bfloat16",
+          "enable_model_cpu_offload": true,
+          "predictor_type": "image_edit",
+          "input_fields": {
+            "prompt": {
+              "type": "string",
+              "required": true
+            },
+            "reference_images": {
+              "type": "image_list",
+              "required": true,
+              "max_items": 3,
+              "description": "1–3 base64-encoded PNG reference images"
+            },
+            "negative_prompt": {
+              "type": "string",
+              "required": false,
+              "default": " "
+            },
+            "num_inference_steps": {
+              "type": "int",
+              "default": 40
+            },
+            "true_cfg_scale": {
+              "type": "float",
+              "default": 4.0
+            },
+            "seed": {
+              "type": "int",
+              "required": false
+            }
+          },
+          "output_type": "base64_png",
+          "supports_negative_prompt": true,
+          "max_prompt_length": 2000,
+          "typical_latency_seconds": 45,
+          "quantization_components": [
+            {
+              "name": "transformer",
+              "class": "QwenImageTransformer2DModel",
+              "module": "diffusers",
+              "subfolder": "transformer",
+              "quantization": "nf4"
+            },
+            {
+              "name": "text_encoder",
+              "class": "Qwen2_5_VLForConditionalGeneration",
+              "module": "transformers",
+              "subfolder": "text_encoder",
+              "quantization": "nf4"
+            }
+          ],
+          "prompt_guidance": "Qwen-Image-Edit follows an editing instruction applied to the reference image(s). Write a clear, direct instruction describing the change while naming the subject to keep (e.g. 'Keep the yogurt cup and its green leaf logo; place it on a sunlit beach at golden hour'). It preserves the referenced subject/product/character; describe the NEW theme/background/wardrobe/lighting. Multi-image: give complementary references (product + logo, or a character from multiple angles) — optimal with 1 to 3 images."
+        },
+        "pricing": {
+          "estimated_cost_per_image": 0.03,
+          "instance_cost_per_hour": {
+            "ml.g6.xlarge": 1.1267,
+            "ml.g5.xlarge": 1.408,
+            "ml.g6e.xlarge": 2.6054,
+            "ml.g6e.2xlarge": 2.8026
+          }
+        },
+        "deployment_tiers": [
+          {
+            "tier": "cost_optimized",
+            "instance": "ml.g6.xlarge",
+            "precision": "nf4",
+            "label": "Cost-optimized (L4 24GB, NF4) — ~$1.13/hr",
+            "recommended": true
+          },
+          {
+            "tier": "full_quality",
+            "instance": "ml.g6e.xlarge",
+            "precision": "bfloat16",
+            "label": "Full quality (L40S 48GB, bf16) — ~$2.61/hr"
+          }
+        ],
+        "version": "1.0",
+        "last_updated": "2026-07-14",
+        "python_requirements": {
+          "base": [
+            "torch>=2.6.0,<2.7.0",
+            "torchvision>=0.21.0,<0.22.0",
+            "Pillow>=10.0",
+            "numpy>=1.24,<2.5"
+          ],
+          "model": [
+            "diffusers @ git+https://github.com/huggingface/diffusers.git",
+            "transformers>=4.51.0",
+            "accelerate>=1.6.0,<2.0.0",
+            "safetensors>=0.4.3",
             "huggingface-hub>=0.34.0,<1.0.0",
             "bitsandbytes>=0.43.3"
           ]
@@ -7478,5 +7255,348 @@
     "me-central-1",
     "me-south-1",
     "mx-central-1"
-  ]
+  ],
+  "sagemaker_pricing": {
+    "ml.g5.24xlarge|eu-north-1": 10.7973,
+    "ml.g7e.12xlarge|us-west-2": 10.3576,
+    "ml.g5.8xlarge|eu-central-1": 3.827,
+    "ml.g6.48xlarge|eu-west-2": 21.1835,
+    "ml.g6e.48xlarge|ap-south-1": 45.2332,
+    "ml.g5.xlarge|ap-northeast-1": 2.043,
+    "ml.g6e.2xlarge|ap-south-1": 3.3658,
+    "ml.g5.12xlarge|ap-southeast-1": 9.9232,
+    "ml.g6.16xlarge|us-east-1": 4.246,
+    "ml.g5.12xlarge|us-east-2": 7.09,
+    "ml.g6.2xlarge|eu-central-1": 1.5281,
+    "ml.g6.4xlarge|ap-northeast-1": 2.3988,
+    "ml.g6.4xlarge|ap-southeast-2": 2.1505,
+    "ml.g5.12xlarge|us-west-2": 7.09,
+    "ml.g6.24xlarge|eu-west-2": 10.5917,
+    "ml.g5.xlarge|us-east-1": 1.408,
+    "ml.g5.16xlarge|eu-central-1": 6.403,
+    "ml.g7e.24xlarge|us-east-2": 20.7152,
+    "ml.g5.xlarge|eu-central-1": 1.761,
+    "ml.g6e.12xlarge|ap-northeast-3": 19.0218,
+    "ml.g6.12xlarge|ap-northeast-2": 7.0728,
+    "ml.g6e.24xlarge|us-east-1": 18.832,
+    "ml.g5.4xlarge|eu-west-2": 2.577,
+    "ml.g5.xlarge|ap-northeast-2": 1.7318,
+    "ml.g6.12xlarge|us-east-2": 5.752,
+    "ml.g5.12xlarge|ap-south-1": 8.514,
+    "ml.g6.48xlarge|us-west-2": 16.688,
+    "ml.g6.48xlarge|ap-south-1": 20.0389,
+    "ml.g7e.48xlarge|us-east-2": 41.4304,
+    "ml.p5.4xlarge|sa-east-1": 13.2922,
+    "ml.g7e.2xlarge|us-east-2": 4.2039,
+    "ml.g5.24xlarge|ap-northeast-1": 14.764,
+    "ml.g6e.xlarge|ap-northeast-2": 3.2,
+    "ml.g6.24xlarge|eu-central-1": 10.4342,
+    "ml.g5.2xlarge|eu-west-2": 1.923,
+    "ml.g5.xlarge|us-west-2": 1.408,
+    "ml.g5.16xlarge|ca-central-1": 5.685,
+    "ml.g6e.24xlarge|ap-northeast-3": 27.3119,
+    "ml.g5.16xlarge|ap-northeast-1": 7.426,
+    "ml.g6.24xlarge|us-east-2": 8.344,
+    "ml.g6.2xlarge|us-west-2": 1.222,
+    "ml.g6.48xlarge|ca-central-1": 18.5293,
+    "ml.g6e.4xlarge|ap-northeast-3": 5.4463,
+    "ml.g6.16xlarge|ap-southeast-2": 5.5207,
+    "ml.g5.16xlarge|eu-north-1": 5.4305,
+    "ml.g6.12xlarge|sa-east-1": 9.7773,
+    "ml.g5.2xlarge|ap-northeast-1": 2.197,
+    "ml.g5.48xlarge|eu-west-1": 22.73,
+    "ml.g6.8xlarge|eu-north-1": 2.6707,
+    "ml.g5.48xlarge|eu-north-1": 21.5946,
+    "ml.g6e.xlarge|ap-south-1": 3.129,
+    "ml.g6.12xlarge|us-west-2": 5.752,
+    "ml.p5en.48xlarge|us-east-2": 72.795,
+    "ml.g6.xlarge|us-east-2": 1.1267,
+    "ml.g6e.24xlarge|ap-south-1": 22.6166,
+    "ml.g6e.2xlarge|ap-northeast-1": 4.0646,
+    "ml.g6e.xlarge|us-west-2": 2.6054,
+    "ml.g6e.4xlarge|ap-northeast-1": 5.4463,
+    "ml.g5.4xlarge|us-east-1": 2.03,
+    "ml.g5.16xlarge|ap-northeast-2": 6.2957,
+    "ml.g5.2xlarge|eu-central-1": 1.895,
+    "ml.g5.8xlarge|eu-north-1": 3.2456,
+    "ml.g6.8xlarge|ap-northeast-2": 3.0962,
+    "ml.g5.12xlarge|ca-central-1": 7.872,
+    "ml.g7e.2xlarge|us-west-2": 4.2039,
+    "ml.g6e.48xlarge|ap-northeast-2": 46.31,
+    "ml.g6e.2xlarge|ap-northeast-3": 4.0646,
+    "ml.g5.16xlarge|us-east-1": 5.12,
+    "ml.g6e.12xlarge|eu-central-1": 16.4,
+    "ml.g6.8xlarge|us-west-2": 2.518,
+    "ml.g5.xlarge|ap-southeast-2": 1.8312,
+    "ml.p4d.24xlarge|ap-southeast-2": 32.8267,
+    "ml.g6.2xlarge|eu-north-1": 1.2961,
+    "ml.g6e.24xlarge|us-west-2": 18.832,
+    "ml.g6e.8xlarge|ap-northeast-3": 8.2097,
+    "ml.g7e.48xlarge|us-east-1": 41.4304,
+    "ml.g5.48xlarge|us-east-2": 20.36,
+    "ml.g6e.16xlarge|us-east-1": 9.4715,
+    "ml.g5.2xlarge|us-east-2": 1.515,
+    "ml.g5.8xlarge|sa-east-1": 5.2014,
+    "ml.p5.48xlarge|sa-east-1": 106.3405,
+    "ml.g6.12xlarge|ap-southeast-2": 7.4787,
+    "ml.g5.16xlarge|us-west-2": 5.12,
+    "ml.g7e.12xlarge|us-east-2": 10.3576,
+    "ml.p5en.48xlarge|us-west-2": 72.795,
+    "ml.g6.48xlarge|us-east-1": 16.688,
+    "ml.g5.48xlarge|ap-south-1": 24.448,
+    "ml.g6e.2xlarge|us-east-2": 2.8026,
+    "ml.g6.48xlarge|ap-southeast-2": 21.6977,
+    "ml.g6.48xlarge|eu-west-3": 21.171,
+    "ml.g6e.4xlarge|us-east-1": 3.7553,
+    "ml.g6e.4xlarge|ap-northeast-2": 4.62,
+    "ml.p4d.24xlarge|us-east-2": 25.2513,
+    "ml.g5.16xlarge|ap-south-1": 6.148,
+    "ml.g6.xlarge|ap-southeast-2": 1.465,
+    "ml.g5.48xlarge|eu-central-1": 25.46,
+    "ml.g5.48xlarge|ap-northeast-2": 25.0351,
+    "ml.g6.12xlarge|eu-west-1": 6.421,
+    "ml.g6.48xlarge|eu-west-1": 18.6288,
+    "ml.g5.2xlarge|us-east-1": 1.515,
+    "ml.g7e.8xlarge|us-east-1": 6.5853,
+    "ml.g5.12xlarge|ap-northeast-1": 10.283,
+    "ml.g6.4xlarge|ap-south-1": 1.9861,
+    "ml.g6.24xlarge|ap-south-1": 10.0194,
+    "ml.g5.4xlarge|ca-central-1": 2.254,
+    "ml.g5.24xlarge|ap-northeast-2": 12.5176,
+    "ml.g6.4xlarge|eu-central-1": 2.0683,
+    "ml.g6e.24xlarge|eu-central-1": 23.55,
+    "ml.g6.48xlarge|us-east-2": 16.688,
+    "ml.g7e.48xlarge|us-west-2": 41.4304,
+    "ml.g5.12xlarge|us-east-1": 7.09,
+    "ml.g5.48xlarge|ap-northeast-1": 29.528,
+    "ml.g6.16xlarge|eu-north-1": 4.5035,
+    "ml.g6.24xlarge|ap-southeast-2": 10.8489,
+    "ml.g6.24xlarge|ca-central-1": 9.2647,
+    "ml.g5.8xlarge|eu-west-1": 3.42,
+    "ml.p4de.24xlarge|us-west-2": 31.5641,
+    "ml.g6e.48xlarge|eu-central-1": 47.1,
+    "ml.g5.24xlarge|eu-west-1": 11.36,
+    "ml.g5.8xlarge|ap-northeast-2": 3.7627,
+    "ml.g6.24xlarge|eu-north-1": 8.85,
+    "ml.p4de.24xlarge|ap-northeast-1": 43.2656,
+    "ml.g6e.8xlarge|eu-central-1": 7.08,
+    "ml.g6.12xlarge|us-east-1": 5.752,
+    "ml.g5.24xlarge|us-east-2": 10.18,
+    "ml.g6.4xlarge|ca-central-1": 1.8365,
+    "ml.g6.xlarge|ap-northeast-2": 1.3854,
+    "ml.g5.2xlarge|sa-east-1": 2.5752,
+    "ml.g5.48xlarge|eu-west-2": 25.845,
+    "ml.g5.4xlarge|eu-north-1": 2.1531,
+    "ml.g7e.12xlarge|us-east-1": 10.3576,
+    "ml.g6e.16xlarge|ap-northeast-3": 13.7365,
+    "ml.g6.48xlarge|eu-central-1": 20.8683,
+    "ml.g6.2xlarge|ap-southeast-2": 1.5888,
+    "ml.g6.8xlarge|eu-west-2": 3.1963,
+    "ml.g5.xlarge|ap-south-1": 1.691,
+    "ml.p5en.48xlarge|us-east-1": 72.795,
+    "ml.p4d.24xlarge|ap-northeast-1": 34.6125,
+    "ml.p5en.48xlarge|ap-northeast-1": 90.988,
+    "ml.g6.xlarge|ap-south-1": 1.353,
+    "ml.g5.12xlarge|eu-central-1": 8.866,
+    "ml.g6.8xlarge|eu-west-1": 2.8108,
+    "ml.g6e.24xlarge|us-east-2": 18.832,
+    "ml.g5.8xlarge|us-east-2": 3.06,
+    "ml.g6.2xlarge|eu-west-2": 1.5512,
+    "ml.g6e.48xlarge|us-west-2": 37.664,
+    "ml.g6.4xlarge|ap-northeast-2": 2.0338,
+    "ml.g6e.8xlarge|ap-northeast-1": 8.2097,
+    "ml.g6.12xlarge|ap-northeast-1": 8.3421,
+    "ml.g5.2xlarge|us-west-2": 1.515,
+    "ml.g6.xlarge|eu-west-1": 1.2578,
+    "ml.p5en.48xlarge|us-west-1": 90.988,
+    "ml.g6e.2xlarge|us-west-2": 2.8026,
+    "ml.g5.xlarge|ap-southeast-1": 1.9712,
+    "ml.g6e.8xlarge|us-east-1": 5.6607,
+    "ml.p5.48xlarge|ca-central-1": 72.795,
+    "ml.g6e.12xlarge|us-west-2": 13.1158,
+    "ml.g6.8xlarge|ap-south-1": 3.0236,
+    "ml.g5.12xlarge|eu-west-2": 9.0,
+    "ml.p4d.24xlarge|ca-central-1": 29.0395,
+    "ml.g6.12xlarge|ap-south-1": 6.907,
+    "ml.g6.24xlarge|us-east-1": 8.344,
+    "ml.g5.24xlarge|ap-southeast-2": 13.236,
+    "ml.g6e.16xlarge|ap-northeast-2": 11.64,
+    "ml.g7e.8xlarge|us-west-2": 6.5853,
+    "ml.g5.8xlarge|us-east-1": 3.06,
+    "ml.g5.8xlarge|us-west-2": 3.06,
+    "ml.g6.16xlarge|eu-west-3": 5.3898,
+    "ml.p4d.24xlarge|ap-northeast-2": 34.9718,
+    "ml.p5.48xlarge|ap-southeast-2": 82.2825,
+    "ml.g6.24xlarge|eu-west-1": 9.3144,
+    "ml.g5.2xlarge|ap-northeast-2": 1.8629,
+    "ml.g6.2xlarge|ap-northeast-2": 1.5026,
+    "ml.g5.4xlarge|ap-southeast-1": 2.8412,
+    "ml.g5.2xlarge|ap-southeast-1": 2.1204,
+    "ml.g5.4xlarge|ap-southeast-2": 2.6394,
+    "ml.p4de.24xlarge|eu-central-1": 39.4349,
+    "ml.g6.4xlarge|sa-east-1": 2.8115,
+    "ml.g5.2xlarge|ap-southeast-2": 1.9698,
+    "ml.p6-b200.48xlarge|us-east-1": 131.0227,
+    "ml.g6.12xlarge|eu-west-3": 7.3015,
+    "ml.g5.12xlarge|ap-northeast-2": 8.718,
+    "ml.g5.2xlarge|eu-north-1": 1.6069,
+    "ml.p4d.24xlarge|ap-south-1": 30.2961,
+    "ml.p5.48xlarge|us-west-2": 63.296,
+    "ml.g6e.xlarge|us-east-2": 2.6054,
+    "ml.g6e.2xlarge|ap-northeast-2": 3.45,
+    "ml.g6e.48xlarge|us-east-2": 37.664,
+    "ml.g6e.4xlarge|ap-south-1": 4.51,
+    "ml.p4d.24xlarge|eu-west-1": 27.273,
+    "ml.g5.xlarge|sa-east-1": 2.394,
+    "ml.g6.8xlarge|sa-east-1": 4.2801,
+    "ml.g5.24xlarge|sa-east-1": 17.304,
+    "ml.g5.48xlarge|sa-east-1": 34.608,
+    "ml.p4d.24xlarge|sa-east-1": 40.8904,
+    "ml.g6.24xlarge|eu-west-3": 10.5917,
+    "ml.g6e.24xlarge|ap-northeast-2": 23.15,
+    "ml.g5.12xlarge|sa-east-1": 12.0516,
+    "ml.g6.2xlarge|us-east-1": 1.222,
+    "ml.g5.2xlarge|eu-west-1": 1.69,
+    "ml.g6.8xlarge|eu-west-3": 3.1963,
+    "ml.g5.2xlarge|ca-central-1": 1.682,
+    "ml.g6.xlarge|eu-west-2": 1.4302,
+    "ml.g7e.4xlarge|us-east-1": 4.9977,
+    "ml.g6.16xlarge|us-west-2": 4.246,
+    "ml.g6.xlarge|us-west-2": 1.1267,
+    "ml.g6e.16xlarge|us-west-2": 9.4715,
+    "ml.g6.48xlarge|ap-northeast-1": 24.2026,
+    "ml.g5.24xlarge|us-east-1": 10.18,
+    "ml.p4de.24xlarge|us-east-1": 31.5641,
+    "ml.g6.12xlarge|eu-central-1": 7.1929,
+    "ml.g6.8xlarge|ap-southeast-2": 3.2739,
+    "ml.g6.48xlarge|sa-east-1": 28.3663,
+    "ml.g5.8xlarge|ap-south-1": 3.674,
+    "ml.g6e.8xlarge|us-east-2": 5.6607,
+    "ml.g5.xlarge|us-east-2": 1.4084,
+    "ml.g6.48xlarge|ap-northeast-2": 20.5199,
+    "ml.g6e.xlarge|ap-northeast-3": 3.7786,
+    "ml.p5.48xlarge|eu-west-2": 82.2825,
+    "ml.g6.24xlarge|sa-east-1": 14.1831,
+    "ml.g5.xlarge|eu-west-2": 1.788,
+    "ml.g6.2xlarge|us-east-2": 1.222,
+    "ml.g6e.12xlarge|us-east-1": 13.1158,
+    "ml.g5.4xlarge|sa-east-1": 3.4506,
+    "ml.g6.4xlarge|us-east-1": 1.654,
+    "ml.g5.2xlarge|ap-south-1": 1.819,
+    "ml.g6e.48xlarge|ap-northeast-1": 54.6239,
+    "ml.g6e.2xlarge|us-east-1": 2.8026,
+    "ml.p5.4xlarge|ap-south-1": 9.4944,
+    "ml.g6e.12xlarge|us-east-2": 13.1158,
+    "ml.g6.2xlarge|eu-west-1": 1.3641,
+    "ml.g6.xlarge|eu-central-1": 1.409,
+    "ml.g5.8xlarge|ap-northeast-1": 4.438,
+    "ml.g5.16xlarge|us-east-2": 5.12,
+    "ml.g7e.4xlarge|us-east-2": 4.9977,
+    "ml.g6.8xlarge|us-east-2": 2.518,
+    "ml.g5.4xlarge|ap-south-1": 2.438,
+    "ml.g5.12xlarge|eu-north-1": 7.5199,
+    "ml.g5.8xlarge|ap-southeast-1": 4.2828,
+    "ml.g5.4xlarge|us-west-2": 2.03,
+    "ml.g5.16xlarge|ap-southeast-1": 7.166,
+    "ml.g5.4xlarge|eu-central-1": 2.539,
+    "ml.g5.8xlarge|eu-west-2": 3.884,
+    "ml.g6.2xlarge|ap-south-1": 1.4674,
+    "ml.g6.4xlarge|us-west-2": 1.654,
+    "ml.p4d.24xlarge|eu-central-1": 31.5479,
+    "ml.g6e.16xlarge|ap-south-1": 11.375,
+    "ml.g6e.4xlarge|us-east-2": 3.7553,
+    "ml.g5.48xlarge|us-west-2": 20.36,
+    "ml.g6.2xlarge|ca-central-1": 1.3568,
+    "ml.g6e.xlarge|ap-northeast-1": 3.7786,
+    "ml.g5.xlarge|eu-north-1": 1.4938,
+    "ml.g5.4xlarge|us-east-2": 2.03,
+    "ml.g5.24xlarge|eu-central-1": 12.73,
+    "ml.g6.4xlarge|us-east-2": 1.654,
+    "ml.g5.48xlarge|ap-southeast-1": 28.4959,
+    "ml.g6e.24xlarge|ap-northeast-1": 27.3119,
+    "ml.p5.48xlarge|us-east-1": 63.296,
+    "ml.g6.2xlarge|ap-northeast-1": 1.7723,
+    "ml.g6.16xlarge|eu-west-2": 5.3898,
+    "ml.g5.48xlarge|us-east-1": 20.36,
+    "ml.p5.4xlarge|ap-northeast-1": 9.89,
+    "ml.g6e.16xlarge|eu-central-1": 11.84,
+    "ml.g6e.48xlarge|ap-northeast-3": 54.6239,
+    "ml.g5.24xlarge|ap-south-1": 12.224,
+    "ml.g5.24xlarge|eu-west-2": 12.922,
+    "ml.g6.24xlarge|ap-northeast-1": 12.1013,
+    "ml.g6.2xlarge|sa-east-1": 2.0772,
+    "ml.g6.16xlarge|ap-northeast-2": 5.221,
+    "ml.g5.4xlarge|eu-west-1": 2.27,
+    "ml.g6.xlarge|eu-west-3": 1.4302,
+    "ml.g6.16xlarge|eu-west-1": 4.7398,
+    "ml.g5.16xlarge|eu-west-1": 5.72,
+    "ml.p5en.48xlarge|ap-south-1": 87.354,
+    "ml.g5.16xlarge|eu-west-2": 6.499,
+    "ml.p5.4xlarge|eu-west-2": 10.2856,
+    "ml.g5.12xlarge|eu-west-1": 7.91,
+    "ml.g6.xlarge|us-east-1": 1.1267,
+    "ml.g6.8xlarge|ap-northeast-1": 3.6519,
+    "ml.g6.12xlarge|eu-west-2": 7.3015,
+    "ml.g7e.4xlarge|us-west-2": 4.9977,
+    "ml.g5.xlarge|ca-central-1": 1.564,
+    "ml.g5.16xlarge|ap-southeast-2": 6.657,
+    "ml.g5.12xlarge|ap-southeast-2": 9.2184,
+    "ml.g6e.48xlarge|us-east-1": 37.664,
+    "ml.g5.24xlarge|us-west-2": 10.18,
+    "ml.g6.2xlarge|eu-west-3": 1.5512,
+    "ml.g6e.8xlarge|ap-south-1": 6.7983,
+    "ml.g6.16xlarge|us-east-2": 4.246,
+    "ml.g5.8xlarge|ca-central-1": 3.398,
+    "ml.g6.24xlarge|us-west-2": 8.344,
+    "ml.g6e.xlarge|eu-central-1": 3.13,
+    "ml.g5.16xlarge|sa-east-1": 8.703,
+    "ml.g7e.8xlarge|us-east-2": 6.5853,
+    "ml.g6.16xlarge|sa-east-1": 7.2174,
+    "ml.g6.4xlarge|eu-north-1": 1.7543,
+    "ml.g6e.2xlarge|eu-central-1": 3.5,
+    "ml.p4d.24xlarge|eu-west-2": 32.8267,
+    "ml.g6e.12xlarge|ap-south-1": 15.7516,
+    "ml.g6e.8xlarge|ap-northeast-2": 6.96,
+    "ml.p5en.48xlarge|eu-north-1": 77.8857,
+    "ml.g6.16xlarge|ca-central-1": 4.7145,
+    "ml.g5.48xlarge|ca-central-1": 22.606,
+    "ml.g6.xlarge|ap-northeast-1": 1.6341,
+    "ml.g6.4xlarge|eu-west-3": 2.0995,
+    "ml.g6.8xlarge|ca-central-1": 2.7958,
+    "ml.g5.24xlarge|ca-central-1": 11.303,
+    "ml.g6.xlarge|ca-central-1": 1.251,
+    "ml.p5.48xlarge|us-east-2": 63.296,
+    "ml.g6.8xlarge|eu-central-1": 3.1488,
+    "ml.g6e.xlarge|us-east-1": 2.6054,
+    "ml.g6e.4xlarge|us-west-2": 3.7553,
+    "ml.g6.xlarge|eu-north-1": 1.195,
+    "ml.g5.8xlarge|ap-southeast-2": 3.9786,
+    "ml.g6.16xlarge|ap-south-1": 5.0986,
+    "ml.g5.xlarge|eu-west-1": 1.57,
+    "ml.g7e.2xlarge|us-east-1": 4.2039,
+    "ml.g7e.24xlarge|us-west-2": 20.7152,
+    "ml.g6.16xlarge|ap-northeast-1": 6.158,
+    "ml.g6.xlarge|sa-east-1": 1.9152,
+    "ml.g6.4xlarge|eu-west-1": 1.8464,
+    "ml.g5.4xlarge|ap-northeast-2": 2.4961,
+    "ml.g6e.8xlarge|us-west-2": 5.6607,
+    "ml.g5.4xlarge|ap-northeast-1": 2.944,
+    "ml.g6.48xlarge|eu-north-1": 17.6999,
+    "ml.p4d.24xlarge|us-east-1": 25.2513,
+    "ml.g6e.12xlarge|ap-northeast-2": 16.13,
+    "ml.g6e.12xlarge|ap-northeast-1": 19.0218,
+    "ml.g6e.16xlarge|us-east-2": 9.4715,
+    "ml.g6.4xlarge|eu-west-2": 2.0996,
+    "ml.g6e.16xlarge|ap-northeast-1": 13.7365,
+    "ml.g5.24xlarge|ap-southeast-1": 14.2479,
+    "ml.p4d.24xlarge|us-west-2": 25.2513,
+    "ml.g7e.24xlarge|us-east-1": 20.7152,
+    "ml.g6e.4xlarge|eu-central-1": 4.7,
+    "ml.g6.8xlarge|us-east-1": 2.518,
+    "ml.g6.12xlarge|ca-central-1": 6.3867,
+    "ml.g5.48xlarge|ap-southeast-2": 26.4721,
+    "ml.g6.12xlarge|eu-north-1": 6.1008,
+    "ml.g6.16xlarge|eu-central-1": 5.3096,
+    "ml.g6.24xlarge|ap-northeast-2": 10.26
+  }
 }

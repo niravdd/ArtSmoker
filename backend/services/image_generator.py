@@ -24,6 +24,8 @@ def generate_image(
     negative_prompt: str = "",
     quality: str | None = None,
     region_override: str | None = None,
+    reference_images: list[bytes] | None = None,
+    extra_params: dict | None = None,
     status_callback=None,
 ) -> bytes:
     """Generate an image from a refined prompt using the specified model.
@@ -65,6 +67,8 @@ def generate_image(
                 negative_prompt=negative_prompt,
                 quality=quality,
                 region_override=region_override,
+                reference_images=reference_images,
+                extra_params=extra_params,
             )
             # Async custom models return a sentinel dict, not image bytes
             if isinstance(result, dict) and result.get("async_submitted"):

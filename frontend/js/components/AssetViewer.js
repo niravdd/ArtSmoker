@@ -1526,7 +1526,13 @@
                 let defaultKey = '';
 
                 for (const [key, cfg] of Object.entries(models)) {
-                    if (cfg.model_purpose === purpose && cfg.enabled) {
+                    // A model qualifies if its purpose matches exactly (Stability
+                    // inpaint/outpaint), OR it's a general image-edit model that
+                    // declares this capability (e.g. Qwen-Image-Edit — offered
+                    // alongside the Stability models when deployed).
+                    const capMatch = cfg.model_purpose === 'image_edit'
+                        && cfg.capabilities && cfg.capabilities[purpose];
+                    if ((cfg.model_purpose === purpose || capMatch) && cfg.enabled) {
                         const opt = document.createElement('option');
                         opt.value = key;
                         // Only show a price when the registry actually has one —

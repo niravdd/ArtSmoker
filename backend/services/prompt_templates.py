@@ -72,6 +72,43 @@ Rules:
 - Be conservative: when genuinely unsure, prefer complete=true / defect="none" (avoid false alarms on well-framed, clean art).
 - Output ONLY the JSON object.""",
     },
+    "reference_intent_extraction": {
+        "label": "Reference-Image Intent Extraction",
+        "description": "Vision analysis of 1–3 reference images TOGETHER WITH the user's instruction, for the Image Studio 'Inspired by the reference' mode. Extracts the subject to preserve + what the user wants changed, and writes an enhanced text-to-image prompt. Not a style profile (that is the Style Library) — this captures subject + intent.",
+        "used_by": "Image Studio — Reference-guided tab, 'Inspired by' mode (generate.analyze_reference)",
+        "variables": ["{user_prompt}", "{num_images}", "{asset_type}", "{max_chars}"],
+        "model": "complex LLM (with vision)",
+        "system_prompt": "You are a senior creative director briefing an AI image generator. You are shown one or more REFERENCE images and the user's INSTRUCTION for what they want to make from them. The reference images are inspiration — the user wants NEW images that keep what matters (the core subject/product/character) while applying the changes they asked for (theme, background, wardrobe, lighting, mood, scene). You cannot pass the pixels through, so your ENTIRE job is to translate what you see + what they asked into ONE vivid, self-contained text prompt a text-to-image model can render. Reason from BOTH the images and the instruction — the instruction wins on intent, the images ground the subject. Respond with STRICT JSON only — no prose, no markdown.",
+        "text": """You are given {num_images} reference image(s) and the user's instruction. Asset category (loose hint only): {asset_type}
+
+USER'S INSTRUCTION (what they want done — this defines the intent; obey it):
+"{user_prompt}"
+
+Your task: produce a single enhanced text-to-image prompt that realizes the user's instruction while staying faithful to the core subject shown in the reference image(s).
+
+How to reason:
+- Identify the CORE SUBJECT to preserve across the reference(s) — the product, character, or object the user clearly wants kept (its recognizable form, key colors, distinctive features). If multiple images, treat them as complementary views/parts of the same intent (e.g. product + logo + mood board, or a character from several angles).
+- Identify WHAT THE USER WANTS CHANGED from their instruction — the new theme, background, setting, wardrobe, lighting, mood, composition.
+- Write a prompt that DESCRIBES the core subject concretely enough to be recognizable in words (shape, color, material, defining details) AND applies the requested changes. Be specific and visual.
+- Honest limitation: text cannot reproduce an exact logo, precise label typography, or a specific real face. Describe them as faithfully as words allow; do not invent brand text you cannot read.
+- Do NOT describe the reference's own background/scene if the user asked to change it — describe the NEW scene.
+
+Return STRICT JSON with exactly these keys:
+{{
+  "subject": "short noun naming the core subject to preserve (e.g. 'red yogurt cup with green leaf logo', 'armored elf ranger')",
+  "preserve": "one phrase listing the defining features that must carry over (form, key colors, distinctive marks)",
+  "intent": "one phrase naming what the user wants changed (e.g. 'move to a sunlit beach at golden hour', 'redress in winter fur clothing')",
+  "enhanced_prompt": "the single, vivid, self-contained text-to-image prompt (<= {max_chars} chars) that a model will actually receive — core subject described + requested changes applied",
+  "negative_prompt": "short comma-separated terms to avoid (e.g. 'blurry, distorted logo, extra limbs'); '' if none",
+  "notes": "one short sentence for the user explaining how faithful this can be (flag if exact logo/face fidelity needs the 'Match the reference' mode)"
+}}
+
+Rules:
+- The user's instruction defines intent; the images ground the subject. If they conflict, follow the instruction but keep the subject recognizable.
+- enhanced_prompt must be ONE model-ready caption, not a list of instructions — write it as a description of the final image.
+- Keep enhanced_prompt under {max_chars} characters.
+- Output ONLY the JSON object.""",
+    },
     "image_refine_single": {
         "label": "Image Prompt Refinement (Single)",
         "description": "Refines a user prompt into a detailed image caption optimized for the target model.",

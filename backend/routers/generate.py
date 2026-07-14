@@ -122,6 +122,22 @@ def _generate_single_image(
     # Resolve closest supported size for this model (safety net — frontend should warn first)
     model_key_str = effective_model.value if hasattr(effective_model, 'value') else str(effective_model)
     gen_w, gen_h = _resolve_model_size(model_key_str, body.width, body.height)
+
+    # Reference-guided "Match the reference" mode: forward the decoded reference
+    # image(s) to the edit model (e.g. Qwen-Image-Edit) as pixel conditioning.
+    # "Inspired by" mode carries no images here — its guidance is already baked
+    # into enhanced_prompt upstream, so it generates as a normal text-to-image.
+    ref_bytes = None
+    if body.reference_mode == "match" and body.reference_images:
+        import base64 as _b64
+        ref_bytes = []
+        for ref in body.reference_images[:3]:
+            try:
+                ref_bytes.append(_b64.b64decode(ref))
+            except Exception:
+                pass
+        ref_bytes = ref_bytes or None
+
     result = generate_image(
         enhanced_prompt=enhanced_prompt,
         model=effective_model,
@@ -131,6 +147,7 @@ def _generate_single_image(
         negative_prompt=negative_prompt,
         quality=body.quality,
         region_override=body.region,
+        reference_images=ref_bytes,
         status_callback=status_callback,
     )
 
@@ -387,6 +404,48 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             body.prompt = translation_result["translated"]
     except Exception as exc:
         logger.warning("Prompt translation failed, using original: %s", exc)
+
+    # ── Reference-guided generation (Reference-guided tab) ──────────────────
+    # When the user supplied reference image(s) we bypass the Prompt Designer /
+    # decompose refinement entirely (that flow isn't used here). We resolve ONE
+    # concept prompt per mode and then flow through the normal single-concept
+    # ("pre_composed") machinery — variations still vary by seed as usual.
+    #   "inspired" → a vision LLM reads the image(s) + the user's instruction and
+    #                writes ONE enhanced text-to-image prompt (no custom model).
+    #   "match"    → the user's instruction IS the edit instruction; the decoded
+    #                reference image(s) are forwarded to the edit model downstream
+    #                (see _generate_single_image).
+    reference_analysis = None
+    if body.reference_images:
+        import base64 as _b64
+        body.num_options = 1
+        n_opts = 1  # reference-guided produces a single concept; variations vary the seed
+        if body.reference_mode == "match":
+            emit({"type": "stage", "stage": "prompts",
+                  "message": "Preparing reference-matched generation..."})
+        else:  # "inspired"
+            emit({"type": "stage", "stage": "prompts",
+                  "message": "Analyzing your reference image(s)..."})
+            try:
+                from backend.services.reference_analyzer import analyze_reference_images
+                ref_imgs = []
+                for r in body.reference_images[:3]:
+                    try:
+                        ref_imgs.append(_b64.b64decode(r))
+                    except Exception:
+                        pass
+                reference_analysis = analyze_reference_images(
+                    ref_imgs, body.prompt, asset_type=body.asset_type.value,
+                )
+            except Exception as exc:
+                logger.warning("Reference analysis failed, using raw prompt: %s", exc)
+                reference_analysis = None
+            if reference_analysis and reference_analysis.get("analyzed"):
+                body.prompt = reference_analysis["enhanced_prompt"]
+                if reference_analysis.get("negative_prompt") and not body.negative_prompt:
+                    body.negative_prompt = reference_analysis["negative_prompt"]
+        # Route through the single-concept path (skips refinement, uses prompt as-is).
+        body.pre_composed = True
 
     # Use decomposed/recomposed data from frontend if provided (Prompt Designer flow).
     # Otherwise the backend will decompose independently (direct Generate flow).
@@ -1218,6 +1277,71 @@ async def estimate_generation_cost(body: GenerationRequest):
         "image_costs": image_costs,
         "llm_estimate_usd": round(llm_estimate, 4),
     }
+
+
+# ── Reference-guided generation (Reference-guided tab) ────────────────────
+
+@router.get("/reference-available")
+async def reference_generation_available():
+    """Is a reference-capable edit model (e.g. Qwen-Image-Edit) deployed?
+
+    Used by the frontend to gate the "Match the reference" mode. When
+    unavailable, `deploy_catalog_key` tells the UI which catalog model to route
+    the user to in the Custom Models deploy flow (mirrors the 3D gating pattern).
+    "Inspired by" mode needs no custom model and is always available.
+    """
+    from backend.services.reference_models import reference_generation_available as _avail
+    return _avail()
+
+
+class AnalyzeReferenceRequest(BaseModel):
+    """Preview the 'Inspired by' enhanced prompt derived from reference images."""
+    images: list[str]  # 1–3 base64-encoded PNGs
+    prompt: str        # mandatory user instruction — what to do with the reference
+    asset_type: str = "photorealistic"
+    ui_lang: str = ""  # frontend language — soft hint for prompt translation
+
+
+@router.post("/analyze-reference")
+async def analyze_reference(body: AnalyzeReferenceRequest):
+    """Vision-analyze reference image(s) + the user's instruction → enhanced prompt.
+
+    Powers the 'Inspired by the reference' preview so the user can see (and the
+    tab can show) the prompt the model will actually receive. Requires a prompt.
+    """
+    import base64 as _b64
+    from backend.services.reference_analyzer import analyze_reference_images
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+
+    if not body.prompt or not body.prompt.strip():
+        raise HTTPException(400, detail="A prompt describing what to do with the reference is required.")
+    if not body.images:
+        raise HTTPException(400, detail="At least one reference image is required.")
+
+    reset_costs()
+
+    # Translate a non-English instruction to English BEFORE vision analysis, so the
+    # preview matches what real generation produces (which translates in
+    # _run_generation). Same path as the main Prompt→Image flow.
+    prompt = body.prompt
+    try:
+        from backend.services.prompt_translator import translate_to_english
+        tr = translate_to_english(prompt, ui_lang=body.ui_lang)
+        if tr["was_translated"]:
+            prompt = tr["translated"]
+    except Exception:
+        pass
+
+    imgs = []
+    for r in body.images[:3]:
+        try:
+            imgs.append(_b64.b64decode(r))
+        except Exception:
+            raise HTTPException(400, detail="Invalid base64 image data.")
+
+    result = analyze_reference_images(imgs, prompt, asset_type=body.asset_type)
+    result["cost_usd"] = round(get_total_cost(), 6)
+    return result
 
 
 @router.post("/", response_model=GenerationResult)

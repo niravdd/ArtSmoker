@@ -1281,12 +1281,18 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
     }
 
     if category == "image_generation":
-        registry.setdefault("image_models", {})[registry_key] = {
+        # Purpose is catalog-driven so edit models (e.g. Qwen-Image-Edit,
+        # model_purpose="image_edit") surface in the Edit tab + reference-guided
+        # flow, while generators keep the text_to_image default.
+        img_entry = {
             **entry,
-            "model_purpose": "text_to_image",
+            "model_purpose": catalog_entry.get("model_purpose", "text_to_image"),
             "prompt_limit": invoke.get("max_prompt_length", 2048),
             "moderation_strictness": "none",
         }
+        if catalog_entry.get("capabilities"):
+            img_entry["capabilities"] = catalog_entry["capabilities"]
+        registry.setdefault("image_models", {})[registry_key] = img_entry
     elif category in ("post_processing", "3d_generation"):
         registry.setdefault("post_processing", {})[registry_key] = {
             **entry,

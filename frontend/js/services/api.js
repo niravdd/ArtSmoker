@@ -174,6 +174,19 @@
             });
         },
 
+        /** Is a reference-capable edit model (Qwen-Image-Edit) deployed? Gates "Match the reference". */
+        referenceAvailable() {
+            return request('/api/generate/reference-available');
+        },
+
+        /** Preview the "Inspired by" enhanced prompt from reference image(s) + instruction. */
+        analyzeReference(data) {
+            return request('/api/generate/analyze-reference', {
+                method: 'POST',
+                body: data,
+            });
+        },
+
         /**
          * Generate images with SSE streaming progress.
          * @param {object} data - GenerationRequest payload

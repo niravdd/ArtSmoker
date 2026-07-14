@@ -243,15 +243,24 @@
                         <!-- Center: Prompt + Results -->
                         <div class="flex-1 min-w-0 space-y-5">
 
-                            <!-- Prompt Editor -->
+                            <!-- Prompt / Reference-guided tabs -->
                             <div class="card-static p-5 space-y-4">
-                                <h2 class="text-lg font-semibold flex items-center gap-2">
-                                    <svg class="w-5 h-5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
-                                    </svg>
-                                    ${t('common.prompt')}
-                                </h2>
+                                <div class="flex items-center gap-1 border-b border-brand-border -mx-5 px-5 -mt-1 pb-0">
+                                    <button id="tab-prompt" data-tab="prompt" class="is-tab is-active flex items-center gap-2 px-3 py-2 text-sm font-semibold border-b-2 border-brand-accent text-brand-text -mb-px transition-colors">
+                                        <svg class="w-4 h-4 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
+                                        </svg>
+                                        ${t('common.prompt')}
+                                    </button>
+                                    <button id="tab-reference" data-tab="reference" class="is-tab flex items-center gap-2 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-brand-text-muted hover:text-brand-text -mb-px transition-colors">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        ${t('image_studio.reference_tab')}
+                                    </button>
+                                </div>
                                 <div id="prompt-editor-container"></div>
+                                <div id="reference-studio-container" class="hidden"></div>
                             </div>
 
                             <!-- Generate / Reset -->
@@ -437,6 +446,42 @@
             }
         },
 
+        _ensureReferenceStudio() {
+            if (this._referenceStudio && this._referenceStudio._promptEl && document.contains(this._referenceStudio._promptEl)) return;
+            this._referenceStudio = null;
+            const container = document.getElementById('reference-studio-container');
+            if (container && typeof ReferenceStudio !== 'undefined') {
+                try {
+                    this._referenceStudio = new ReferenceStudio(container, {
+                        assetType: () => this._getAssetType(),
+                    });
+                } catch (err) {
+                    console.error('Failed to create ReferenceStudio:', err);
+                }
+            }
+        },
+
+        /** Switch the center panel between the Prompt editor and the Reference-guided studio. */
+        _switchTab(tab) {
+            this._activeTab = tab === 'reference' ? 'reference' : 'prompt';
+            const promptC = document.getElementById('prompt-editor-container');
+            const refC = document.getElementById('reference-studio-container');
+            const isRef = this._activeTab === 'reference';
+            promptC?.classList.toggle('hidden', isRef);
+            refC?.classList.toggle('hidden', !isRef);
+            if (isRef) this._ensureReferenceStudio();
+            // Reflect active tab styling
+            const setActive = (btn, active) => {
+                if (!btn) return;
+                btn.classList.toggle('border-brand-accent', active);
+                btn.classList.toggle('text-brand-text', active);
+                btn.classList.toggle('border-transparent', !active);
+                btn.classList.toggle('text-brand-text-muted', !active);
+            };
+            setActive(document.getElementById('tab-prompt'), !isRef);
+            setActive(document.getElementById('tab-reference'), isRef);
+        },
+
         async init() {
             await this._loadModels();
             await this._loadStyles();
@@ -518,6 +563,10 @@
             document.getElementById('gen-num-options')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
             document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
+            // Prompt ⇄ Reference-guided tab switching
+            this.container?.querySelectorAll?.('#tab-prompt, #tab-reference').forEach(btn => {
+                btn.addEventListener('click', () => this._switchTab(btn.dataset.tab));
+            });
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open('image-studio'));
             document.getElementById('btn-pending-jobs')?.addEventListener('click', () => this._showPendingJobs());
 
@@ -855,19 +904,30 @@
         async _handleGenerate() {
             if (this._generating) return;
 
-            // Get the user's raw prompt (always required)
-            const userPrompt = this._promptEditor ? this._promptEditor.getUserText().trim() : '';
-            if (!userPrompt) {
-                window.showToast?.(t('image_studio.enter_prompt'), 'warning');
-                return;
+            // Reference-guided tab has its own prompt + validation + payload patch.
+            const isReference = this._activeTab === 'reference' && this._referenceStudio;
+            let referencePatch = null;
+            let userPrompt, prompt, hasComposed = false;
+            if (isReference) {
+                const err = this._referenceStudio.validate();
+                if (err) { window.showToast?.(err, 'warning'); return; }
+                userPrompt = this._referenceStudio.getPrompt();
+                prompt = userPrompt;
+                referencePatch = this._referenceStudio.getPayloadPatch();
+            } else {
+                // Get the user's raw prompt (always required)
+                userPrompt = this._promptEditor ? this._promptEditor.getUserText().trim() : '';
+                if (!userPrompt) {
+                    window.showToast?.(t('image_studio.enter_prompt'), 'warning');
+                    return;
+                }
+                // If a composed prompt exists, use it directly (skip re-refinement in backend)
+                // If not, send the raw user prompt (backend will refine it)
+                hasComposed = this._promptEditor?.hasComposedPrompt();
+                prompt = hasComposed
+                    ? this._promptEditor.getComposedText().trim()
+                    : userPrompt;
             }
-
-            // If a composed prompt exists, use it directly (skip re-refinement in backend)
-            // If not, send the raw user prompt (backend will refine it)
-            const hasComposed = this._promptEditor?.hasComposedPrompt();
-            const prompt = hasComposed
-                ? this._promptEditor.getComposedText().trim()
-                : userPrompt;
 
             const sizeIdx = parseInt(document.getElementById('gen-size').value, 10);
             const activeSizes = this._activeSizePresets || SIZE_PRESETS;
@@ -905,8 +965,11 @@
 
             const isMultiModel = this._isAllModels();
 
-            // Validate model selection
-            if (!this._selectedModels.length) {
+            // Validate model selection (reference "match" mode uses the deployed
+            // reference model, and "inspired" uses whatever is selected — but both
+            // still fall back to a T2I model, so a selection is only strictly
+            // required outside reference mode).
+            if (!this._selectedModels.length && !isReference) {
                 window.showToast?.(t('image_studio.select_at_least_one_model') || 'Select at least one model', 'error');
                 return;
             }
@@ -942,6 +1005,24 @@
                 ui_lang: (typeof I18n !== 'undefined' ? I18n.getLang() : ''),
                 ...this._getIpDeclaration(),
             };
+
+            // Reference-guided overrides: single-concept, single model. "match" routes
+            // to the deployed reference edit model; "inspired" uses the selected T2I model.
+            if (isReference && referencePatch) {
+                payload.reference_images = referencePatch.reference_images;
+                payload.reference_mode = referencePatch.reference_mode;
+                payload.all_models = false;
+                payload.selected_models = undefined;
+                payload.num_options = 1;  // reference-guided yields one concept; variations vary the seed
+                payload.pre_composed = false;
+                payload.decomposed_data = undefined;
+                payload.recomposed_prompt = undefined;
+                payload.vary_fields = undefined;
+                if (referencePatch.reference_mode === 'match') {
+                    const refModelKey = this._referenceStudio?._available?.model_key;
+                    if (refModelKey) payload.image_model = refModelKey;
+                }
+            }
 
             // Immediate visual feedback — show the user something is happening
             const btn = document.getElementById('btn-generate');

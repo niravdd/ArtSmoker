@@ -500,6 +500,7 @@ def invoke_image_model(
     quality: str | None = None,
     region_override: str | None = None,
     source_image: bytes | None = None,
+    reference_images: list[bytes] | None = None,
     mask_image: bytes | None = None,
     mask_prompt: str | None = None,
     extra_params: dict | None = None,
@@ -524,6 +525,11 @@ def invoke_image_model(
         source_image: Input image as PNG bytes (for inpaint/outpaint/edit services)
         mask_image: Mask image as PNG bytes (white = area to edit)
         mask_prompt: Natural language mask description (Nova Canvas alternative to mask_image)
+        reference_images: 1–N reference images (PNG bytes) for reference-guided
+            generation. The family declares how to place them: either
+            `reference_images_path` (a single path receiving the base64 list, e.g.
+            a custom edit model that takes an array) or `reference_image_paths`
+            (a list of dot-paths, one per image, e.g. init_image/style_image).
         extra_params: Additional parameters (e.g. outpaint directions, control_strength)
 
     Returns PNG image bytes.
@@ -538,9 +544,21 @@ def invoke_image_model(
     # Route custom Amazon SageMaker models to the invoker
     if model_config.get("model_source") == "custom_hosted":
         from backend.services.sagemaker_invoker import invoke_custom_image_model
+        # Forward reference/source images + extra params so custom edit models
+        # (e.g. Qwen-Image-Edit, which takes 1–3 reference images) receive them.
+        _refs = list(reference_images or [])
+        if source_image and not _refs:
+            _refs = [source_image]
+        custom_kwargs = dict(extra_params or {})
+        if _refs:
+            custom_kwargs["reference_images"] = [
+                base64.b64encode(b).decode("ascii") for b in _refs
+            ]
+        if mask_image:
+            custom_kwargs["mask"] = base64.b64encode(mask_image).decode("ascii")
         return invoke_custom_image_model(
             model_key, prompt, width=width, height=height, seed=seed,
-            negative_prompt=negative_prompt,
+            negative_prompt=negative_prompt, **custom_kwargs,
         )
 
     model_id = model_config["model_id"]
@@ -576,6 +594,17 @@ def invoke_image_model(
     # Set source image (for inpaint, outpaint, erase, style services)
     if source_image and family.get("image_path"):
         _set_nested(body, family["image_path"], base64.b64encode(source_image).decode("ascii"))
+
+    # Set reference images (reference-guided generation, 1–N images). Two family
+    # shapes: a single path that takes the whole base64 list, or a list of
+    # per-image dot-paths (e.g. init_image + style_image).
+    if reference_images:
+        _refs_b64 = [base64.b64encode(b).decode("ascii") for b in reference_images]
+        if family.get("reference_images_path"):
+            _set_nested(body, family["reference_images_path"], _refs_b64)
+        elif family.get("reference_image_paths"):
+            for path, b64 in zip(family["reference_image_paths"], _refs_b64):
+                _set_nested(body, path, b64)
 
     # Set mask image (for inpaint, erase services)
     if mask_image and family.get("mask_path"):
