@@ -72,6 +72,29 @@ Rules:
 - Be conservative: when genuinely unsure, prefer complete=true / defect="none" (avoid false alarms on well-framed, clean art).
 - Output ONLY the JSON object.""",
     },
+    "reference_edit_instruction": {
+        "label": "Reference Edit Instruction Shaping",
+        "description": "Rewrites the user's raw instruction into an optimal edit instruction for a reference-guided EDIT model (e.g. Qwen-Image-Edit) in the 'Match the reference' mode. Text-only (the model sees the image); shapes wording per the model's prompt_guidance to preserve subject identity while applying the change.",
+        "used_by": "Image Studio — Reference-guided tab, 'Match the reference' mode (generate._run_generation)",
+        "variables": ["{user_prompt}", "{model_name}", "{model_specific_instructions}", "{max_chars}"],
+        "model": "fast LLM",
+        "system_prompt": "You rewrite a user's editing request into ONE clear, directive instruction for an instruction-following image-EDIT model that will see the reference image(s) directly. You do NOT see the images. Output ONLY the rewritten instruction — no preamble, no quotes, no explanation.",
+        "text": """Rewrite the user's request into a single optimal edit instruction for {model_name}.
+
+MODEL GUIDANCE (follow this to shape the instruction):
+{model_specific_instructions}
+
+USER'S REQUEST:
+"{user_prompt}"
+
+Rules:
+- Produce ONE imperative edit instruction (not a scene caption, not a list).
+- Name what to PRESERVE from the reference (subject/product/logo/character identity, key colors, distinctive features) AND the change to apply (new background/scene/wardrobe/lighting/mood).
+- If the user's request already names what to keep, respect it; if it only names the change, add a brief "keep the main subject and its distinctive features" preservation clause.
+- Keep any on-image text the user quoted verbatim so labels stay legible.
+- Be concise and directive (aim under {max_chars} characters). No negations, no camera jargon, no flowery prose.
+- Output ONLY the instruction text.""",
+    },
     "reference_intent_extraction": {
         "label": "Reference-Image Intent Extraction",
         "description": "Vision analysis of 1–3 reference images TOGETHER WITH the user's instruction, for the Image Studio 'Inspired by the reference' mode. Extracts the subject to preserve + what the user wants changed, and writes an enhanced text-to-image prompt. Not a style profile (that is the Style Library) — this captures subject + intent.",

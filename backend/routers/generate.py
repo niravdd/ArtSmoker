@@ -423,6 +423,28 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         if body.reference_mode == "match":
             emit({"type": "stage", "stage": "prompts",
                   "message": "Preparing reference-matched generation..."})
+            # Shape the raw instruction into an optimal edit instruction for the
+            # edit model (registry-driven prompt tuning, same idea as refine_prompt
+            # for generators). Best-effort — falls back to the raw prompt on error.
+            try:
+                from backend.services.bedrock_client import invoke_llm
+                from backend.services.prompt_templates import get_template, get_system_prompt
+                from backend.services.prompt_engineer import get_model_guidance, get_prompt_limit
+                _guidance = get_model_guidance(body.image_model)
+                _tmpl = get_template("reference_edit_instruction").format(
+                    user_prompt=body.prompt[:1500],
+                    model_name=body.image_model or "the edit model",
+                    model_specific_instructions=_guidance or "(no model-specific guidance)",
+                    max_chars=get_prompt_limit(body.image_model),
+                )
+                _shaped = invoke_llm(
+                    _tmpl, system=get_system_prompt("reference_edit_instruction"),
+                    complexity="fast", max_tokens=400, temperature=0.3,
+                ).strip()
+                if _shaped:
+                    body.prompt = _shaped
+            except Exception as exc:
+                logger.warning("Edit-instruction shaping failed, using raw prompt: %s", exc)
         else:  # "inspired"
             emit({"type": "stage", "stage": "prompts",
                   "message": "Analyzing your reference image(s)..."})

@@ -2744,10 +2744,12 @@ def _predict_text_to_image(input_data, model_dict):
     seed = input_data.get("seed")
     generator = torch.Generator("cuda").manual_seed(seed) if seed is not None else None
 
-    # Build kwargs from input_data — only pass fields the pipeline accepts
+    # Build kwargs from input_data — only pass fields the pipeline accepts.
+    # true_cfg_scale is Qwen-Image's real CFG knob (guidance_scale is a no-op
+    # placeholder there); include it so the generator's CFG isn't silently dropped.
     kwargs = {"generator": generator}
     for key in ("prompt", "width", "height", "num_inference_steps", "guidance_scale",
-                "negative_prompt", "num_frames", "fps", "motion_bucket_id"):
+                "true_cfg_scale", "negative_prompt", "num_frames", "fps", "motion_bucket_id"):
         if key in input_data and input_data[key] is not None:
             kwargs[key] = input_data[key]
 
