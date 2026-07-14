@@ -563,8 +563,9 @@
             document.getElementById('gen-num-options')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
             document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
-            // Prompt ⇄ Reference-guided tab switching
-            this.container?.querySelectorAll?.('#tab-prompt, #tab-reference').forEach(btn => {
+            // Prompt ⇄ Reference-guided tab switching (ImageStudio binds via
+            // document.getElementById — it's a singleton, not a scoped component).
+            document.querySelectorAll('#tab-prompt, #tab-reference').forEach(btn => {
                 btn.addEventListener('click', () => this._switchTab(btn.dataset.tab));
             });
             document.getElementById('btn-model-settings')?.addEventListener('click', () => ModelSettings.open('image-studio'));
