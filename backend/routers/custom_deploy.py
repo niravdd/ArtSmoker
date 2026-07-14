@@ -253,6 +253,7 @@ def list_catalog():
             "label": model["label"],
             "description": model["description"],
             "category": model["category"],
+            "model_purpose": model.get("model_purpose", ""),
             "studio": model["studio"],
             "provider": model["provider"],
             "license": model["license"],

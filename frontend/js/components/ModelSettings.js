@@ -2126,7 +2126,25 @@
                             </summary>
                             <div class="space-y-2 mt-2">`;
 
-                    for (const m of catModels) {
+                    // Within image_generation, split generators vs image-EDIT models
+                    // into a labeled "Image Editing" sub-group (mirrors the Image
+                    // Studio section, which sub-groups image models by purpose).
+                    // model_purpose "image_edit" → editor; anything else → generator.
+                    let _renderModels = catModels;
+                    let _subGrouped = null;
+                    if (cat === 'image_generation') {
+                        const gens = catModels.filter(m => (m.model_purpose || 'text_to_image') !== 'image_edit');
+                        const edits = catModels.filter(m => (m.model_purpose || '') === 'image_edit');
+                        if (edits.length) {
+                            _subGrouped = [
+                                { label: t('custom_models.subgroup_generation'), models: gens },
+                                { label: t('custom_models.subgroup_editing'), models: edits },
+                            ].filter(g => g.models.length);
+                            _renderModels = [];  // render via sub-groups below
+                        }
+                    }
+
+                    const _renderCard = (m) => {
                         const isInService = m.deployment_status === 'InService';
                         const active = isInService && !m.warming_up && m.instance_count > 0;
                         const idle = isInService && !m.warming_up && !active;
@@ -2143,7 +2161,7 @@
                         const userBadge = m.user_added ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>` : '';
                         const statusDot = active ? 'bg-emerald-400' : idle ? 'bg-blue-400' : warmingUp ? 'bg-cyan-400 animate-pulse' : (deploying || scalingUp) ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
 
-                        html += `
+                        return `
                             <div class="rounded-lg bg-brand-bg/40 border border-brand-border ${failed ? 'border-red-500/20' : ''}">
                                 <div class="p-3 flex items-center gap-3">
                                     <div class="flex-shrink-0 w-2 h-2 rounded-full ${statusDot}" title="${statusText}"></div>
@@ -2191,6 +2209,18 @@
                                     }).join('')}
                                 </div>` : ''}
                             </div>`;
+                    };  // end _renderCard
+
+                    if (_subGrouped) {
+                        // Editors get a labeled "Image Editing" sub-header; generators
+                        // render under a "Generation" sub-header — same visual language
+                        // as the Image Studio purpose sub-groups.
+                        _subGrouped.forEach(g => {
+                            html += `<div class="text-[10px] font-semibold text-cyan-300/70 uppercase tracking-wider mt-1 mb-1.5 pl-0.5">${g.label} <span class="text-brand-text-muted/50 font-normal">(${g.models.length})</span></div>`;
+                            html += g.models.map(_renderCard).join('');
+                        });
+                    } else {
+                        html += _renderModels.map(_renderCard).join('');
                     }
                     html += '</div></details>';  // close category
                     });

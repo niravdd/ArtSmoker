@@ -275,7 +275,7 @@
     "step1_banner": "Beschreiben Sie die Banner-Szene, die Sie erstellen möchten",
     "step1_icon": "Beschreiben Sie das Symbol, das Sie erstellen möchten",
     "step1_photo": "Beschreiben Sie das Foto, das Sie erstellen möchten",
-    "reference_tab": "Referenzgeführt",
+    "reference_tab": "Bild-Inspiration",
     "reference_step1": "Referenzbild(er)",
     "reference_step1_tip": "Fügen Sie 1–3 Bilder hinzu, um die Generierung zu steuern — ein Produkt, eine Figur oder ein Moodboard.",
     "reference_drop": "Bilder hierher ziehen oder zum Durchsuchen klicken (bis zu 3)",
@@ -295,7 +295,8 @@
     "reference_preview_none": "Es konnte kein Prompt abgeleitet werden — die Generierung verwendet Ihre Anweisung direkt.",
     "reference_preview_err": "Vorschau derzeit nicht verfügbar. Sie können trotzdem generieren.",
     "reference_draft_note": "Ihre Bilder, Ihr Prompt und Ihre Auswahl werden automatisch gespeichert — sie sind bei Ihrer Rückkehr wieder da.",
-    "reference_draft_restored": "Ihr referenzgeführter Entwurf wurde wiederhergestellt."
+    "reference_draft_restored": "Ihr referenzgeführter Entwurf wurde wiederhergestellt.",
+    "tab_text_inspiration": "Text-Inspiration"
   },
   "video_studio": {
     "title": "Video-Studio",
@@ -1258,7 +1259,9 @@
     "gated_open_hf": "Auf HuggingFace öffnen",
     "gated_all_clear": "Alle erforderlichen Repositories sind mit Ihrem gespeicherten Token zugänglich.",
     "gated_blocked_hint": "Die Bereitstellung ist blockiert, bis jedes Repository oben zugänglich ist. Befolgen Sie den für jedes angezeigten Schritt und prüfen Sie dann erneut.",
-    "gated_needs_token": "Ein gesperrtes Repository benötigt einen HuggingFace-Token. Fügen Sie über „HF-Token verwalten“ einen hinzu, akzeptieren Sie die Sperre auf HuggingFace und prüfen Sie dann erneut."
+    "gated_needs_token": "Ein gesperrtes Repository benötigt einen HuggingFace-Token. Fügen Sie über „HF-Token verwalten“ einen hinzu, akzeptieren Sie die Sperre auf HuggingFace und prüfen Sie dann erneut.",
+    "subgroup_generation": "Generierung",
+    "subgroup_editing": "Bildbearbeitung"
   },
   "voice_input": {
     "record": "Spracheingabe aufnehmen",

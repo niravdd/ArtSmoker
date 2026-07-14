@@ -669,7 +669,7 @@
     "step1_banner": "만들고 싶은 배너 장면을 설명하세요",
     "step1_icon": "만들고 싶은 아이콘을 설명하세요",
     "step1_photo": "만들고 싶은 사진을 설명하세요",
-    "reference_tab": "참조 이미지 기반",
+    "reference_tab": "이미지 영감",
     "reference_step1": "참조 이미지",
     "reference_step1_tip": "생성을 안내할 이미지를 1~3장 추가하세요 — 제품, 캐릭터 또는 무드보드 등.",
     "reference_drop": "여기에 이미지를 끌어다 놓거나 클릭하여 찾아보세요 (최대 3장)",
@@ -689,7 +689,8 @@
     "reference_preview_none": "프롬프트를 도출할 수 없습니다 — 생성 시 입력하신 지시를 그대로 사용합니다.",
     "reference_preview_err": "지금은 미리보기를 사용할 수 없습니다. 그래도 생성은 가능합니다.",
     "reference_draft_note": "이미지, 프롬프트, 선택 항목이 자동으로 저장됩니다 — 다시 오시면 그대로 남아 있습니다.",
-    "reference_draft_restored": "참조 이미지 기반 초안을 복원했습니다."
+    "reference_draft_restored": "참조 이미지 기반 초안을 복원했습니다.",
+    "tab_text_inspiration": "텍스트 영감"
   },
   "lang": {
     "en": "영어",
@@ -1216,7 +1217,9 @@
     "gated_blocked_hint": "위의 모든 리포지토리에 액세스할 수 있을 때까지 배포가 차단됩니다. 각 항목에 표시된 단계를 따른 후 다시 확인하세요.",
     "gated_needs_token": "액세스 제한 리포지토리에는 HuggingFace 토큰이 필요합니다. “HF 토큰 관리”를 통해 토큰을 추가하고 HuggingFace에서 액세스 제한에 동의한 후 다시 확인하세요.",
     "license_commercial_ok": "상업적 이용 — 가능",
-    "license_commercial_no": "상업적 이용 — 불가"
+    "license_commercial_no": "상업적 이용 — 불가",
+    "subgroup_generation": "생성",
+    "subgroup_editing": "이미지 편집"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

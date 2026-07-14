@@ -275,7 +275,7 @@
     "step1_banner": "Describe the banner scene you want to create",
     "step1_icon": "Describe the icon you want to create",
     "step1_photo": "Describe the photo you want to create",
-    "reference_tab": "Reference-guided",
+    "reference_tab": "Image Inspiration",
     "reference_step1": "Reference image(s)",
     "reference_step1_tip": "Add 1–3 images to guide generation — a product, a character, or a mood board.",
     "reference_drop": "Drop images here or click to browse (up to 3)",
@@ -295,7 +295,8 @@
     "reference_preview_none": "Couldn’t derive a prompt — generation will use your instruction directly.",
     "reference_preview_err": "Preview unavailable right now. You can still generate.",
     "reference_draft_note": "Your images, prompt, and choices are saved automatically — they’ll be here when you return.",
-    "reference_draft_restored": "Restored your reference-guided draft."
+    "reference_draft_restored": "Restored your reference-guided draft.",
+    "tab_text_inspiration": "Text Inspiration"
   },
   "video_studio": {
     "title": "Video Studio",
@@ -1258,7 +1259,9 @@
     "gated_open_hf": "Open on HuggingFace",
     "gated_all_clear": "All required repositories are accessible with your stored token.",
     "gated_blocked_hint": "Deployment is blocked until every repository above is accessible. Follow the step shown for each, then Re-check.",
-    "gated_needs_token": "A gated repository needs a HuggingFace token. Add one via “Manage HF Token”, accept the gate on HuggingFace, then Re-check."
+    "gated_needs_token": "A gated repository needs a HuggingFace token. Add one via “Manage HF Token”, accept the gate on HuggingFace, then Re-check.",
+    "subgroup_generation": "Generation",
+    "subgroup_editing": "Image Editing"
   },
   "voice_input": {
     "record": "Record voice input",

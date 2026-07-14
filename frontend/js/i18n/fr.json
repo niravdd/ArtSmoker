@@ -669,7 +669,7 @@
     "step1_banner": "Décrivez la scène de bannière que vous souhaitez créer",
     "step1_icon": "Décrivez l'icône que vous souhaitez créer",
     "step1_photo": "Décrivez la photo que vous souhaitez créer",
-    "reference_tab": "Guidé par référence",
+    "reference_tab": "Inspiration image",
     "reference_step1": "Image(s) de référence",
     "reference_step1_tip": "Ajoutez 1 à 3 images pour guider la génération — un produit, un personnage ou un moodboard.",
     "reference_drop": "Déposez des images ici ou cliquez pour parcourir (jusqu'à 3)",
@@ -689,7 +689,8 @@
     "reference_preview_none": "Impossible de dériver un prompt — la génération utilisera directement votre instruction.",
     "reference_preview_err": "Prévisualisation indisponible pour le moment. Vous pouvez tout de même générer.",
     "reference_draft_note": "Vos images, votre prompt et vos choix sont enregistrés automatiquement — vous les retrouverez à votre retour.",
-    "reference_draft_restored": "Brouillon guidé par référence restauré."
+    "reference_draft_restored": "Brouillon guidé par référence restauré.",
+    "tab_text_inspiration": "Inspiration texte"
   },
   "lang": {
     "en": "Anglais",
@@ -1216,7 +1217,9 @@
     "gated_blocked_hint": "Le déploiement est bloqué tant que tous les dépôts ci-dessus ne sont pas accessibles. Suivez l'étape indiquée pour chacun, puis revérifiez.",
     "gated_needs_token": "Un dépôt à accès restreint nécessite un jeton HuggingFace. Ajoutez-en un via « Gérer le jeton HF », acceptez la restriction sur HuggingFace, puis revérifiez.",
     "license_commercial_ok": "usage commercial — OK",
-    "license_commercial_no": "usage commercial — interdit"
+    "license_commercial_no": "usage commercial — interdit",
+    "subgroup_generation": "Génération",
+    "subgroup_editing": "Édition d’image"
   },
   "prompt_designer": {
     "title": "Prompt Designer",
