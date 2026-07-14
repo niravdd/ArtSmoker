@@ -245,14 +245,14 @@
 
                             <!-- Prompt / Reference-guided tabs -->
                             <div class="card-static p-5 space-y-4">
-                                <div class="flex items-center gap-1 border-b border-brand-border -mx-5 px-5 -mt-1 pb-0">
-                                    <button id="tab-prompt" data-tab="prompt" class="is-tab is-active flex items-center gap-2 px-3 py-2 text-sm font-semibold border-b-2 border-brand-accent text-brand-text -mb-px transition-colors">
-                                        <svg class="w-4 h-4 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <div class="flex items-center gap-1.5 p-1 rounded-xl bg-brand-bg/60 border border-brand-border -mt-1">
+                                    <button id="tab-prompt" data-tab="prompt" class="is-tab flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg transition-all bg-brand-accent text-white shadow-sm">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
                                         ${t('common.prompt')}
                                     </button>
-                                    <button id="tab-reference" data-tab="reference" class="is-tab flex items-center gap-2 px-3 py-2 text-sm font-semibold border-b-2 border-transparent text-brand-text-muted hover:text-brand-text -mb-px transition-colors">
+                                    <button id="tab-reference" data-tab="reference" class="is-tab flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg transition-all text-brand-text-muted hover:text-brand-text hover:bg-white/5">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                         </svg>
@@ -470,16 +470,19 @@
             promptC?.classList.toggle('hidden', isRef);
             refC?.classList.toggle('hidden', !isRef);
             if (isRef) this._ensureReferenceStudio();
-            // Reflect active tab styling
-            const setActive = (btn, active) => {
+            // Reflect active tab styling — filled pill in the tab's own accent when
+            // active (Prompt = indigo, Reference = amber to match its inner theme),
+            // muted/ghost when inactive.
+            const ACTIVE = { prompt: ['bg-brand-accent', 'text-white', 'shadow-sm'],
+                             reference: ['bg-amber-500', 'text-white', 'shadow-sm'] };
+            const INACTIVE = ['text-brand-text-muted', 'hover:text-brand-text', 'hover:bg-white/5'];
+            const setActive = (btn, key, active) => {
                 if (!btn) return;
-                btn.classList.toggle('border-brand-accent', active);
-                btn.classList.toggle('text-brand-text', active);
-                btn.classList.toggle('border-transparent', !active);
-                btn.classList.toggle('text-brand-text-muted', !active);
+                ACTIVE.prompt.concat(ACTIVE.reference, INACTIVE).forEach(c => btn.classList.remove(c));
+                (active ? ACTIVE[key] : INACTIVE).forEach(c => btn.classList.add(c));
             };
-            setActive(document.getElementById('tab-prompt'), !isRef);
-            setActive(document.getElementById('tab-reference'), isRef);
+            setActive(document.getElementById('tab-prompt'), 'prompt', !isRef);
+            setActive(document.getElementById('tab-reference'), 'reference', isRef);
         },
 
         async init() {
