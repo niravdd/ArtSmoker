@@ -5399,15 +5399,15 @@
         },
         "requirements": {
           "min_vram_gb": 24,
-          "recommended_instance": "ml.g6.xlarge",
-          "min_instance": "ml.g6.xlarge",
+          "recommended_instance": "ml.g6.2xlarge",
+          "min_instance": "ml.g6.2xlarge",
           "disk_gb": 70,
           "allowed_instances": [
-            "ml.g6.xlarge",
-            "ml.g5.xlarge",
+            "ml.g6.2xlarge",
             "ml.g6e.xlarge",
             "ml.g6e.2xlarge"
-          ]
+          ],
+          "min_host_ram_gb": 32
         },
         "invoke": {
           "library": "diffusers",
@@ -5470,8 +5470,6 @@
         "pricing": {
           "estimated_cost_per_image": 0.03,
           "instance_cost_per_hour": {
-            "ml.g6.xlarge": 1.1267,
-            "ml.g5.xlarge": 1.408,
             "ml.g6e.xlarge": 2.6054,
             "ml.g6e.2xlarge": 2.8026
           }
@@ -5479,16 +5477,16 @@
         "deployment_tiers": [
           {
             "tier": "cost_optimized",
-            "instance": "ml.g6.xlarge",
+            "instance": "ml.g6.2xlarge",
             "precision": "nf4",
-            "label": "Cost-optimized (L4 24GB, NF4) — ~$1.13/hr",
+            "label": "Cost-optimized (L4 24GB VRAM / 32GB RAM, NF4) — ~$1.22/hr",
             "recommended": true
           },
           {
             "tier": "full_quality",
             "instance": "ml.g6e.xlarge",
             "precision": "bfloat16",
-            "label": "Full quality (L40S 48GB, bf16) — ~$2.61/hr"
+            "label": "Full quality (L40S 48GB VRAM / 32GB RAM, bf16) — ~$2.61/hr"
           }
         ],
         "version": "1.0",
@@ -5540,15 +5538,15 @@
         },
         "requirements": {
           "min_vram_gb": 24,
-          "recommended_instance": "ml.g6.xlarge",
-          "min_instance": "ml.g6.xlarge",
+          "recommended_instance": "ml.g6.2xlarge",
+          "min_instance": "ml.g6.2xlarge",
           "disk_gb": 70,
           "allowed_instances": [
-            "ml.g6.xlarge",
-            "ml.g5.xlarge",
+            "ml.g6.2xlarge",
             "ml.g6e.xlarge",
             "ml.g6e.2xlarge"
-          ]
+          ],
+          "min_host_ram_gb": 32
         },
         "invoke": {
           "library": "diffusers",
@@ -5640,8 +5638,6 @@
         "pricing": {
           "estimated_cost_per_image": 0.03,
           "instance_cost_per_hour": {
-            "ml.g6.xlarge": 1.1267,
-            "ml.g5.xlarge": 1.408,
             "ml.g6e.xlarge": 2.6054,
             "ml.g6e.2xlarge": 2.8026
           }
@@ -5649,16 +5645,16 @@
         "deployment_tiers": [
           {
             "tier": "cost_optimized",
-            "instance": "ml.g6.xlarge",
+            "instance": "ml.g6.2xlarge",
             "precision": "nf4",
-            "label": "Cost-optimized (L4 24GB, NF4) — ~$1.13/hr",
+            "label": "Cost-optimized (L4 24GB VRAM / 32GB RAM, NF4) — ~$1.22/hr",
             "recommended": true
           },
           {
             "tier": "full_quality",
             "instance": "ml.g6e.xlarge",
             "precision": "bfloat16",
-            "label": "Full quality (L40S 48GB, bf16) — ~$2.61/hr"
+            "label": "Full quality (L40S 48GB VRAM / 32GB RAM, bf16) — ~$2.61/hr"
           }
         ],
         "version": "1.0",
