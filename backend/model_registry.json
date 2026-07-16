@@ -1887,7 +1887,7 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "model_source": "foundation",
-      "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
+      "prompt_guidance": "Nova Reel generates video from descriptive captions — describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) — the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
       "optimal_prompt_words": 50
     },
     "nova_reel_v1_1": {
@@ -1918,7 +1918,7 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "model_source": "foundation",
-      "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
+      "prompt_guidance": "Nova Reel generates video from descriptive captions — describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) — the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
       "optimal_prompt_words": 50
     },
     "ray_v2_0": {
@@ -1948,7 +1948,7 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "prompt_guidance": "Ray v2.0 excels at natural language understanding \u2014 describe what you want to see with rich detail.\nHandles physics, human expressions, object interactions, and creative/whimsical concepts with high realism.\nWrite in flowing natural language, like a screenplay direction \u2014 include subject, action, mood, lighting, camera.\nCamera movements from natural descriptions (no fixed keywords needed): 'slow dolly forward', 'orbit left', 'tracking shot'.\nSupports up to 5000 characters \u2014 use the space for vivid scene-setting and emotional tone.\nStronger with creative concepts than rigid technical specifications.\nDurations: 5s or 9s. Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 21:9, 9:21.",
+      "prompt_guidance": "Ray v2.0 excels at natural language understanding — describe what you want to see with rich detail.\nHandles physics, human expressions, object interactions, and creative/whimsical concepts with high realism.\nWrite in flowing natural language, like a screenplay direction — include subject, action, mood, lighting, camera.\nCamera movements from natural descriptions (no fixed keywords needed): 'slow dolly forward', 'orbit left', 'tracking shot'.\nSupports up to 5000 characters — use the space for vivid scene-setting and emotional tone.\nStronger with creative concepts than rigid technical specifications.\nDurations: 5s or 9s. Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 21:9, 9:21.",
       "optimal_prompt_words": 60
     }
   },
@@ -5067,7 +5067,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 5,
-          "prompt_guidance": "FLUX.1 schnell uses natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
+          "prompt_guidance": "FLUX.1 schnell uses natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
           "max_concurrent_invocations": 1,
           "optimal_prompt_words": 50
         },
@@ -5171,7 +5171,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 180,
-          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
+          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
           "max_concurrent_invocations": 1,
           "optimal_prompt_words": 70
         },
@@ -5237,7 +5237,7 @@
             "ml.g6e.8xlarge",
             "ml.g6e.12xlarge"
           ],
-          "_note": "32B model on g6e.4xlarge (1\u00d7 L40S 48 GB VRAM, 128 GB RAM). BnB NF4 quantization requires CUDA \u2014 no device_map override (loads layer-by-layer to GPU, peak ~13 GB). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB total. With preserved NF4 cache: S3 download + direct GPU load = ~2 min cold start."
+          "_note": "32B model on g6e.4xlarge (1× L40S 48 GB VRAM, 128 GB RAM). BnB NF4 quantization requires CUDA — no device_map override (loads layer-by-layer to GPU, peak ~13 GB). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB total. With preserved NF4 cache: S3 download + direct GPU load = ~2 min cold start."
         },
         "invoke": {
           "library": "diffusers",
@@ -5275,43 +5275,43 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 180,
-          "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder \u2014 understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60\u2013100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') \u2014 describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2\u20133 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good \u2014 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
+          "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder — understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60–100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') — describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2–3 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good — 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
           "max_concurrent_invocations": 1,
           "supported_sizes": [
             {
               "w": 512,
               "h": 512,
-              "label": "512 \u00d7 512"
+              "label": "512 × 512"
             },
             {
               "w": 768,
               "h": 768,
-              "label": "768 \u00d7 768"
+              "label": "768 × 768"
             },
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 \u00d7 1024"
+              "label": "1024 × 1024"
             },
             {
               "w": 1024,
               "h": 576,
-              "label": "1024 \u00d7 576 (16:9)"
+              "label": "1024 × 576 (16:9)"
             },
             {
               "w": 576,
               "h": 1024,
-              "label": "576 \u00d7 1024 (9:16)"
+              "label": "576 × 1024 (9:16)"
             },
             {
               "w": 1280,
               "h": 720,
-              "label": "1280 \u00d7 720 (16:9)"
+              "label": "1280 × 720 (16:9)"
             },
             {
               "w": 720,
               "h": 1280,
-              "label": "720 \u00d7 1280 (9:16)"
+              "label": "720 × 1280 (9:16)"
             }
           ],
           "quantization_components": [
@@ -5501,11 +5501,11 @@
             "numpy>=1.24,<2.5"
           ],
           "model": [
-            "diffusers @ git+https://github.com/huggingface/diffusers.git",
-            "transformers>=4.51.0",
+            "diffusers>=0.36.0,<0.38.0",
+            "transformers>=4.51.0,<4.60.0",
             "accelerate>=1.6.0,<2.0.0",
             "safetensors>=0.4.3",
-            "huggingface-hub>=0.34.0,<1.0.0",
+            "huggingface-hub>=0.34.0,<2.0",
             "bitsandbytes>=0.43.3"
           ]
         }
@@ -5671,11 +5671,11 @@
             "numpy>=1.24,<2.5"
           ],
           "model": [
-            "diffusers @ git+https://github.com/huggingface/diffusers.git",
-            "transformers>=4.51.0",
+            "diffusers>=0.36.0,<0.38.0",
+            "transformers>=4.51.0,<4.60.0",
             "accelerate>=1.6.0,<2.0.0",
             "safetensors>=0.4.3",
-            "huggingface-hub>=0.34.0,<1.0.0",
+            "huggingface-hub>=0.34.0,<2.0",
             "bitsandbytes>=0.43.3"
           ]
         }
@@ -5822,7 +5822,7 @@
       },
       "codeformer": {
         "label": "CodeFormer (Face Restoration)",
-        "description": "AI face restoration \u2014 fixes AI-generated face artifacts.",
+        "description": "AI face restoration — fixes AI-generated face artifacts.",
         "category": "post_processing",
         "studio": "image",
         "provider": "Shangchen Zhou et al.",
@@ -5838,7 +5838,7 @@
             "Redistribution: Allowed with license notice"
           ],
           "warnings": [
-            "Commercial use is NOT permitted \u2014 research use only"
+            "Commercial use is NOT permitted — research use only"
           ]
         },
         "source": {
@@ -5892,7 +5892,7 @@
       },
       "depth_anything_v2": {
         "label": "Depth Anything v2",
-        "description": "Monocular depth estimation \u2014 generates depth maps for 3D effects.",
+        "description": "Monocular depth estimation — generates depth maps for 3D effects.",
         "category": "utility",
         "studio": "image",
         "provider": "DepthAnything Team",
@@ -5959,7 +5959,7 @@
       },
       "sam2": {
         "label": "Segment Anything 2 (SAM 2)",
-        "description": "Smart object segmentation by Meta \u2014 click to select objects precisely.",
+        "description": "Smart object segmentation by Meta — click to select objects precisely.",
         "category": "utility",
         "studio": "image",
         "provider": "Meta AI",
@@ -6035,7 +6035,7 @@
       },
       "stable_video_diffusion": {
         "label": "Stable Video Diffusion (SVD-XT)",
-        "description": "Image-to-video by Stability AI \u2014 25 frames from a single image.",
+        "description": "Image-to-video by Stability AI — 25 frames from a single image.",
         "category": "video_generation",
         "studio": "video",
         "provider": "Stability AI",
@@ -6123,8 +6123,8 @@
         }
       },
       "hunyuan_image_3_0_instruct_bf16": {
-        "label": "HunyuanImage 3.0 Instruct (BF16) \u2014 HQ",
-        "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision \u2014 zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Chain-of-thought reasoning auto-enhances prompts.",
+        "label": "HunyuanImage 3.0 Instruct (BF16) — HQ",
+        "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision — zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Chain-of-thought reasoning auto-enhances prompts.",
         "provider": "Tencent",
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
@@ -6139,7 +6139,7 @@
             "Modification: Allowed, you own derivatives"
           ],
           "warnings": [
-            "EXCLUDES EU, UK, and South Korea \u2014 users in these territories have no license to use this model",
+            "EXCLUDES EU, UK, and South Korea — users in these territories have no license to use this model",
             "Cannot use outputs to train non-Hunyuan AI models",
             "Above 100M MAU requires separate Tencent approval"
           ]
@@ -6207,82 +6207,82 @@
             {
               "w": 512,
               "h": 512,
-              "label": "512 \u00d7 512"
+              "label": "512 × 512"
             },
             {
               "w": 768,
               "h": 768,
-              "label": "768 \u00d7 768"
+              "label": "768 × 768"
             },
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 \u00d7 1024"
+              "label": "1024 × 1024"
             },
             {
               "w": 1024,
               "h": 576,
-              "label": "1024 \u00d7 576 (16:9)"
+              "label": "1024 × 576 (16:9)"
             },
             {
               "w": 576,
               "h": 1024,
-              "label": "576 \u00d7 1024 (9:16)"
+              "label": "576 × 1024 (9:16)"
             },
             {
               "w": 1280,
               "h": 720,
-              "label": "1280 \u00d7 720 (16:9)"
+              "label": "1280 × 720 (16:9)"
             },
             {
               "w": 720,
               "h": 1280,
-              "label": "720 \u00d7 1280 (9:16)"
+              "label": "720 × 1280 (9:16)"
             },
             {
               "w": 1536,
               "h": 1536,
-              "label": "1536 \u00d7 1536"
+              "label": "1536 × 1536"
             },
             {
               "w": 2048,
               "h": 1024,
-              "label": "2048 \u00d7 1024 (2:1)"
+              "label": "2048 × 1024 (2:1)"
             },
             {
               "w": 1024,
               "h": 2048,
-              "label": "1024 \u00d7 2048 (1:2)"
+              "label": "1024 × 2048 (1:2)"
             },
             {
               "w": 1920,
               "h": 1080,
-              "label": "1920 \u00d7 1080 (16:9 Full HD)"
+              "label": "1920 × 1080 (16:9 Full HD)"
             },
             {
               "w": 1080,
               "h": 1920,
-              "label": "1080 \u00d7 1920 (9:16 Full HD)"
+              "label": "1080 × 1920 (9:16 Full HD)"
             },
             {
               "w": 2048,
               "h": 1152,
-              "label": "2048 \u00d7 1152 (16:9)"
+              "label": "2048 × 1152 (16:9)"
             },
             {
               "w": 1152,
               "h": 2048,
-              "label": "1152 \u00d7 2048 (9:16)"
+              "label": "1152 × 2048 (9:16)"
             },
             {
               "w": 2048,
               "h": 2048,
-              "label": "2048 \u00d7 2048"
+              "label": "2048 × 2048"
             }
           ],
           "typical_latency_seconds": 120,
           "max_concurrent_invocations": 1,
-          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer \u2014 the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30\u201380 words. Describe what you want to see.\n- DO NOT use negative prompts \u2014 not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048\u00d72048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" \u2014 the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) \u2014 use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer — the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
           "image_size_format": "HxW",
           "optimal_prompt_words": 55
         },
@@ -6319,7 +6319,7 @@
       },
       "hunyuan_image_3_0_instruct_nf4": {
         "label": "HunyuanImage 3.0 Instruct (NF4)",
-        "description": "Tencent\u2019s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Chain-of-thought reasoning auto-enhances prompts.",
+        "description": "Tencent’s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Chain-of-thought reasoning auto-enhances prompts.",
         "provider": "Tencent",
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
@@ -6334,7 +6334,7 @@
             "Modification: Allowed, you own derivatives"
           ],
           "warnings": [
-            "EXCLUDES EU, UK, and South Korea \u2014 users in these territories have no license to use this model",
+            "EXCLUDES EU, UK, and South Korea — users in these territories have no license to use this model",
             "Cannot use outputs to train non-Hunyuan AI models",
             "Above 100M MAU requires separate Tencent approval"
           ]
@@ -6404,62 +6404,62 @@
             {
               "w": 512,
               "h": 512,
-              "label": "512 \u00d7 512"
+              "label": "512 × 512"
             },
             {
               "w": 768,
               "h": 768,
-              "label": "768 \u00d7 768"
+              "label": "768 × 768"
             },
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 \u00d7 1024"
+              "label": "1024 × 1024"
             },
             {
               "w": 1024,
               "h": 576,
-              "label": "1024 \u00d7 576 (16:9)"
+              "label": "1024 × 576 (16:9)"
             },
             {
               "w": 576,
               "h": 1024,
-              "label": "576 \u00d7 1024 (9:16)"
+              "label": "576 × 1024 (9:16)"
             },
             {
               "w": 1280,
               "h": 720,
-              "label": "1280 \u00d7 720 (16:9)"
+              "label": "1280 × 720 (16:9)"
             },
             {
               "w": 720,
               "h": 1280,
-              "label": "720 \u00d7 1280 (9:16)"
+              "label": "720 × 1280 (9:16)"
             },
             {
               "w": 1536,
               "h": 1536,
-              "label": "1536 \u00d7 1536"
+              "label": "1536 × 1536"
             },
             {
               "w": 2048,
               "h": 1024,
-              "label": "2048 \u00d7 1024 (2:1)"
+              "label": "2048 × 1024 (2:1)"
             },
             {
               "w": 1024,
               "h": 2048,
-              "label": "1024 \u00d7 2048 (1:2)"
+              "label": "1024 × 2048 (1:2)"
             },
             {
               "w": 2048,
               "h": 2048,
-              "label": "2048 \u00d7 2048"
+              "label": "2048 × 2048"
             }
           ],
           "typical_latency_seconds": 240,
           "max_concurrent_invocations": 1,
-          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer \u2014 the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30\u201380 words. Describe what you want to see.\n- DO NOT use negative prompts \u2014 not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048\u00d72048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" \u2014 the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) \u2014 use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions",
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer — the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions",
           "image_size_format": "HxW",
           "optimal_prompt_words": 55
         },
@@ -6494,7 +6494,7 @@
       },
       "trellis2_image_to_3d": {
         "label": "TRELLIS.2 (Full Image-to-3D)",
-        "description": "Microsoft TRELLIS.2 full pipeline \u2014 generates BOTH geometry and PBR texture from a single image in one model. MIT-licensed, commercially-clean. Alternative to the TripoSG + texture-backend pipeline.",
+        "description": "Microsoft TRELLIS.2 full pipeline — generates BOTH geometry and PBR texture from a single image in one model. MIT-licensed, commercially-clean. Alternative to the TripoSG + texture-backend pipeline.",
         "category": "3d_generation",
         "studio": "image",
         "provider": "Microsoft Research",
@@ -6506,11 +6506,11 @@
           "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
           "license_url": "https://github.com/microsoft/TRELLIS.2/blob/main/LICENSE",
           "key_terms": [
-            "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) \u2014 MIT, commercial use unrestricted",
-            "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) \u2014 commercial-OK, GATED on HuggingFace",
+            "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) — MIT, commercial use unrestricted",
+            "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) — commercial-OK, GATED on HuggingFace",
             "Requires a \"Built with DINOv3\" attribution in your product UI",
             "Background removal uses BiRefNet (MIT); the bundled RMBG-2.0 is NOT used",
-            "The mesh/texture bake (o_voxel.postprocess) hard-imports nvdiffrast \u2014 NVIDIA Source Code License (1-Way Commercial), NON-commercial for general users. Review before commercial use."
+            "The mesh/texture bake (o_voxel.postprocess) hard-imports nvdiffrast — NVIDIA Source Code License (1-Way Commercial), NON-commercial for general users. Review before commercial use."
           ],
           "dependencies": [
             {
@@ -6527,7 +6527,7 @@
               "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
               "gated": true,
               "commercial": true,
-              "role": "Image encoder \u2014 REQUIRES 'Built with DINOv3' attribution"
+              "role": "Image encoder — REQUIRES 'Built with DINOv3' attribution"
             },
             {
               "name": "ZhengPeng7/BiRefNet",
@@ -6539,7 +6539,7 @@
             },
             {
               "name": "nvdiffrast (NVlabs)",
-              "license": "NVIDIA Source Code License (1-Way Commercial) \u2014 non-commercial for general users",
+              "license": "NVIDIA Source Code License (1-Way Commercial) — non-commercial for general users",
               "url": "https://github.com/NVlabs/nvdiffrast/blob/main/LICENSE.txt",
               "gated": false,
               "commercial": false,
@@ -6548,8 +6548,8 @@
           ],
           "warnings": [
             "You must display a \"Built with DINOv3\" notice where the feature is surfaced (DINOv3 license obligation).",
-            "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo \u2014 accept its license on HuggingFace before deploying.",
-            "The mesh/texture bake (o_voxel.postprocess.to_glb) hard-imports nvdiffrast, which is under the NVIDIA Source Code License (1-Way Commercial) \u2014 NON-commercial for general users. Review this dependency before any commercial use of the full TRELLIS.2 image-to-3D pipeline. (The TripoSG + texture-backend path uses Kaolin/Apache-2.0 instead.)"
+            "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo — accept its license on HuggingFace before deploying.",
+            "The mesh/texture bake (o_voxel.postprocess.to_glb) hard-imports nvdiffrast, which is under the NVIDIA Source Code License (1-Way Commercial) — NON-commercial for general users. Review this dependency before any commercial use of the full TRELLIS.2 image-to-3D pipeline. (The TripoSG + texture-backend path uses Kaolin/Apache-2.0 instead.)"
           ]
         },
         "source": {
@@ -6571,7 +6571,7 @@
           "min_ram_gb": 28,
           "recommended_instance": "ml.g5.2xlarge",
           "disk_gb": 80,
-          "_resource_note": "PROVEN baseline: ml.g5.2xlarge (A10G 24 GB, 32 GiB RAM, ~$1.52/hr). Confirmed 2026-06-25 \u2014 full image\u21923D run completed cleanly: peak 4.78 GB VRAM (of 24), ~7.5 min inference (459s, excl. ~2 min cold-start model load), 18.8 MB PBR GLB. CUDA exts (o_voxel/cumesh/flex_gemm) + xformers build & run fine on Ampere sm_86 via the arch-portable builder. No errors. Chosen over g6e.xlarge (L40S 48 GB) because VRAM was hugely over-provisioned there \u2014 the A10G's 24 GB has ample headroom at ~5 GB peak, at materially lower cost. Larger g6e options remain allowed for headroom if needed.",
+          "_resource_note": "PROVEN baseline: ml.g5.2xlarge (A10G 24 GB, 32 GiB RAM, ~$1.52/hr). Confirmed 2026-06-25 — full image→3D run completed cleanly: peak 4.78 GB VRAM (of 24), ~7.5 min inference (459s, excl. ~2 min cold-start model load), 18.8 MB PBR GLB. CUDA exts (o_voxel/cumesh/flex_gemm) + xformers build & run fine on Ampere sm_86 via the arch-portable builder. No errors. Chosen over g6e.xlarge (L40S 48 GB) because VRAM was hugely over-provisioned there — the A10G's 24 GB has ample headroom at ~5 GB peak, at materially lower cost. Larger g6e options remain allowed for headroom if needed.",
           "allowed_instances": [
             "ml.g5.2xlarge",
             "ml.g6e.xlarge",
@@ -6742,10 +6742,10 @@
                 "commercial": false,
                 "attestation_required": true,
                 "key_terms": [
-                  "Weights tencent/Hunyuan3D-2.1 \u2014 NON-COMMERCIAL community license",
+                  "Weights tencent/Hunyuan3D-2.1 — NON-COMMERCIAL community license",
                   "Excludes EU / UK / South Korea for commercial use",
                   "1M monthly-active-user cap; no military use",
-                  "Vision encoder is Meta DINOv2 (facebook/dinov2-giant) \u2014 CC-BY-NC-4.0, ALSO non-commercial",
+                  "Vision encoder is Meta DINOv2 (facebook/dinov2-giant) — CC-BY-NC-4.0, ALSO non-commercial",
                   "Super-resolution: RealESRGAN x4 (MIT)"
                 ],
                 "dependencies": [
@@ -6777,7 +6777,7 @@
                 "warnings": [
                   "Not licensed for commercial use without a separate Tencent agreement.",
                   "TWO non-commercial dependencies: Tencent Hunyuan3D-2.1 weights AND Meta DINOv2 (CC-BY-NC-4.0). Both restrict commercial use independently.",
-                  "tencent/Hunyuan3D-2.1 is a GATED HuggingFace repo \u2014 you must accept its license on HuggingFace before deploying.",
+                  "tencent/Hunyuan3D-2.1 is a GATED HuggingFace repo — you must accept its license on HuggingFace before deploying.",
                   "You must confirm you hold a valid license or will use it within its non-commercial terms."
                 ]
               },
@@ -6801,10 +6801,10 @@
                 "commercial": true,
                 "attestation_required": true,
                 "key_terms": [
-                  "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) \u2014 MIT, commercial use unrestricted",
-                  "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) \u2014 commercial-OK, GATED on HuggingFace",
+                  "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) — MIT, commercial use unrestricted",
+                  "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) — commercial-OK, GATED on HuggingFace",
                   "Requires a \"Built with DINOv3\" attribution in your product UI",
-                  "Background removal uses BiRefNet (MIT) \u2014 TRELLIS.2's bundled RMBG-2.0 is NOT used (we feed a pre-cut RGBA image)"
+                  "Background removal uses BiRefNet (MIT) — TRELLIS.2's bundled RMBG-2.0 is NOT used (we feed a pre-cut RGBA image)"
                 ],
                 "dependencies": [
                   {
@@ -6821,7 +6821,7 @@
                     "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
                     "gated": true,
                     "commercial": true,
-                    "role": "Image encoder \u2014 REQUIRES 'Built with DINOv3' attribution"
+                    "role": "Image encoder — REQUIRES 'Built with DINOv3' attribution"
                   },
                   {
                     "name": "ZhengPeng7/BiRefNet",
@@ -6834,7 +6834,7 @@
                 ],
                 "warnings": [
                   "You must display a \"Built with DINOv3\" notice where the feature is surfaced (DINOv3 license obligation).",
-                  "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo \u2014 accept its license on HuggingFace before deploying."
+                  "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo — accept its license on HuggingFace before deploying."
                 ]
               },
               "min_instance": "ml.g6e.2xlarge",
@@ -6926,7 +6926,7 @@
       },
       "image_enhancement": {
         "label": "Image Enhancement",
-        "description": "Background removal, 4x upscaling, and face restoration \u2014 deployed together on one endpoint.",
+        "description": "Background removal, 4x upscaling, and face restoration — deployed together on one endpoint.",
         "models": [
           "real_esrgan",
           "rmbg_2",
