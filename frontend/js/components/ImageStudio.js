@@ -398,6 +398,9 @@
             this._loadModels();  // Refresh model list (picks up newly deployed custom models)
             this._loadStyles();
             this._ensurePromptEditor();
+            // If the reference tab is active, re-check model availability (the user
+            // may have just deployed the reference model and returned).
+            if (this._activeTab === 'reference') this._referenceStudio?.refresh?.();
             // Re-render results if async jobs completed while we were on another view
             if (this._result?.options) {
                 const hasNewImages = this._result.options.some(opt =>
@@ -469,7 +472,12 @@
             const isRef = this._activeTab === 'reference';
             promptC?.classList.toggle('hidden', isRef);
             refC?.classList.toggle('hidden', !isRef);
-            if (isRef) this._ensureReferenceStudio();
+            if (isRef) {
+                this._ensureReferenceStudio();
+                // Re-check reference-model availability each time the tab is shown,
+                // so a model deployed after mount hides the deploy gate.
+                this._referenceStudio?.refresh?.();
+            }
             // Reflect active tab styling — both tabs use CYAN (distinct from the
             // indigo Generate / amber Reset buttons): the active tab is a bright
             // solid cyan fill, the inactive tab a dim translucent cyan.

@@ -273,6 +273,13 @@
             this._reflectMode();
         }
 
+        /** Public: re-check whether a reference model is deployed. Called each time
+         *  the tab is shown, so a model deployed AFTER this component mounted (the
+         *  common case: user deploys, comes back) correctly hides the deploy gate. */
+        refresh() {
+            this._checkAvailability();
+        }
+
         /** Called by ImageStudio before generating — returns an error string or null. */
         validate() {
             if (!this.hasImages()) return _t('image_studio.reference_need_image');
