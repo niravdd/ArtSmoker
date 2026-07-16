@@ -2795,6 +2795,9 @@ def _predict_image_edit(input_data, model_dict):
     if not refs:
         raise ValueError("image_edit requires at least one reference image")
     images = [_decode_image(r).convert("RGB") for r in refs[:3]]
+    logger.info("image_edit: %d reference image(s), sizes=%s, prompt=%d chars, seed=%s",
+                len(images), [im.size for im in images],
+                len(input_data.get("prompt") or ""), seed)
     # QwenImageEditPlusPipeline takes a list; single-image pipelines take one image.
     image_arg = images if len(images) > 1 else images[0]
 
