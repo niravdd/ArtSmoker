@@ -5448,7 +5448,7 @@
           "supports_negative_prompt": true,
           "max_prompt_length": 2000,
           "optimal_prompt_words": 60,
-          "typical_latency_seconds": 45,
+          "typical_latency_seconds": 1200,
           "quantization_components": [
             {
               "name": "transformer",
@@ -5589,7 +5589,7 @@
           "supports_negative_prompt": true,
           "max_prompt_length": 2000,
           "optimal_prompt_words": 75,
-          "typical_latency_seconds": 45,
+          "typical_latency_seconds": 1200,
           "supported_sizes": [
             {
               "w": 1024,

@@ -1126,6 +1126,13 @@ def _persist_job_to_s3(job: dict):
             "endpoint_name": job.get("endpoint_name", ""),
             "resubmit_count": job.get("resubmit_count", 0),
             "last_resubmit_at": job.get("last_resubmit_at"),
+            # Edit-job context — persist so a version-aware edit resumes correctly
+            # after a server restart (else the poller would save it as a fresh asset).
+            "job_kind": job.get("job_kind"),
+            "edit_asset_id": job.get("edit_asset_id"),
+            "edit_purpose": job.get("edit_purpose"),
+            "edit_prompt": job.get("edit_prompt"),
+            "edit_seed": job.get("edit_seed"),
             "status": job["status"],
             "progress": job.get("progress", 0),
             "submitted_at": job["submitted_at"],
