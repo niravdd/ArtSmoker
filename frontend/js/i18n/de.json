@@ -956,7 +956,8 @@
     "three_d_improve_btn": "Quelle verbessern",
     "meta_cost_total": "Gesamt",
     "three_d_untextured_notice": "Die Texturierung wurde für dieses Modell nicht abgeschlossen, daher wurde ein einfaches (untexturiertes) Mesh erzeugt. Es ist dennoch unverändert nutzbar — generieren Sie neu, um die Texturierung erneut zu versuchen.",
-    "meta_3d_attribution": "Namensnennung"
+    "meta_3d_attribution": "Namensnennung",
+    "edit_async_queued": "Bearbeitung läuft — die neue Version erscheint, sobald sie fertig ist."
   },
   "model_settings": {
     "title": "Modelleinstellungen",

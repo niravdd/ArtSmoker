@@ -188,6 +188,26 @@ def update_job_asset_id(job_id: str, asset_id: str, generate_svg: bool = False, 
         _persist_job_to_s3(job)
 
 
+def update_job_edit_context(job_id: str, edit_asset_id: str, edit_purpose: str = "image_edit",
+                            edit_prompt: str = "", edit_seed=None):
+    """Tag an async job as an EDIT of an existing asset (called from /edit).
+
+    Marks job_kind="edit" so the poller's completion routes to the version-aware
+    save (archive current version → save result as a new version of edit_asset_id)
+    instead of creating a fresh gallery asset. Re-persists so it survives restart.
+    """
+    with _lock:
+        job = _jobs.get(job_id)
+        if job:
+            job["job_kind"] = "edit"
+            job["edit_asset_id"] = edit_asset_id
+            job["edit_purpose"] = edit_purpose
+            job["edit_prompt"] = edit_prompt
+            job["edit_seed"] = edit_seed
+    if job:
+        _persist_job_to_s3(job)
+
+
 def clear_completed():
     """Remove all completed and failed jobs from the tracker."""
     with _lock:
@@ -239,8 +259,13 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
     """Save image, run post-processing (SVG/upscale/bg-remove), update metadata.
 
     Runs the same post-processing pipeline as sync jobs to ensure
-    consistent gallery entries.
+    consistent gallery entries. Edit jobs (job_kind=="edit") take a separate
+    version-aware path that archives the current version and saves the result
+    as a NEW version of the SAME asset (mirroring the sync /edit save).
     """
+    if job.get("job_kind") == "edit":
+        return _update_gallery_on_edit_complete(job, image_bytes)
+
     from backend.config import settings
     from backend.storage.local_store import store
 
@@ -285,6 +310,78 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
     meta_path.write_text(json.dumps(meta, indent=2))
 
     return image_path
+
+
+def _update_gallery_on_edit_complete(job: dict, image_bytes: bytes):
+    """Version-aware completion for async EDIT jobs (e.g. Qwen-Image-Edit).
+
+    Mirrors the sync /edit versioned save: archive the current asset.png as the
+    previous version, then save the edited result as a NEW version of the SAME
+    asset (job["edit_asset_id"]). Edit context is carried on the job dict at
+    submit time (edit_asset_id, edit_purpose, edit_prompt, edit_model, ...).
+    """
+    import shutil
+    from backend.storage.local_store import store
+
+    asset_id = job["edit_asset_id"]
+    source_meta = store.load_generation_metadata(asset_id) or {}
+    asset_dir = store.generated_asset_dir(asset_id)
+
+    versions = source_meta.get("versions", [])
+    if not versions:
+        versions.append({
+            "version": 1, "type": "original",
+            "prompt": source_meta.get("prompt", ""),
+            "enhanced_prompt": source_meta.get("enhanced_prompt", ""),
+            "image_model": source_meta.get("image_model", ""),
+            "model_label": source_meta.get("model_label", ""),
+            "timestamp": source_meta.get("created_at", ""),
+        })
+    next_version = len(versions) + 1
+
+    # Archive current asset.png (+svg) as the previous version
+    current_png = asset_dir / "asset.png"
+    if current_png.exists():
+        prev_file = f"asset_v{next_version - 1}.png"
+        if not (asset_dir / prev_file).exists():
+            shutil.copy2(str(current_png), str(asset_dir / prev_file))
+        current_svg = asset_dir / "asset.svg"
+        prev_svg = f"asset_v{next_version - 1}.svg"
+        if current_svg.exists() and not (asset_dir / prev_svg).exists():
+            shutil.copy2(str(current_svg), str(asset_dir / prev_svg))
+
+    # Save edited result as the new latest, regenerate SVG
+    store.save_generated_image(asset_id, "asset.png", image_bytes)
+    try:
+        from backend.services.post_processor import process_asset
+        process_asset(image_bytes=image_bytes, enhanced_prompt=job.get("edit_prompt", ""),
+                      remove_bg=False, do_upscale=False, do_svg=True,
+                      svg_output_path=asset_dir / "asset.svg")
+    except Exception as e:
+        logger.warning("Async edit SVG generation failed for %s: %s", asset_id, e)
+
+    versions.append({
+        "version": next_version, "type": job.get("edit_purpose", "image_edit"),
+        "prompt": job.get("edit_prompt", ""),
+        "image_model": job.get("model_key", ""),
+        "model_label": job.get("model_label", ""),
+        "seed": job.get("edit_seed"),
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+    new_meta = dict(source_meta)
+    new_meta.update({
+        "original_prompt": source_meta.get("original_prompt") or source_meta.get("prompt", ""),
+        "versions": versions,
+        "current_version": next_version,
+        "last_edited_at": datetime.now(timezone.utc).isoformat(),
+        "last_edit_type": job.get("edit_purpose", "image_edit"),
+        "last_edit_model": job.get("model_key", ""),
+        "last_edit_prompt": job.get("edit_prompt", ""),
+        "png_path": f"/api/gallery/{asset_id}/png",
+    })
+    store.save_generation_metadata(asset_id, new_meta)
+    logger.info("Async edit complete: %s → version %d (%s)", asset_id, next_version, job.get("model_key"))
+    return str(asset_dir / "asset.png")
 
 
 def _update_gallery_on_failure(job: dict):

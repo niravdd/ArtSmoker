@@ -298,7 +298,8 @@
     "three_d_improve_btn": "ソースを改善",
     "meta_cost_total": "合計",
     "three_d_untextured_notice": "このモデルのテクスチャ生成が完了しなかったため、テクスチャなしのメッシュが出力されました。そのまま使用できますが、再生成でテクスチャ付けを再試行できます。",
-    "meta_3d_attribution": "クレジット表記"
+    "meta_3d_attribution": "クレジット表記",
+    "edit_async_queued": "編集を処理中です — 準備ができ次第、新しいバージョンが表示されます。"
   },
   "chat_studio": {
     "attach_image": "画像を添付（ビジョンモデル用）",

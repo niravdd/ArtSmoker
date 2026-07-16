@@ -956,7 +956,8 @@
     "three_d_improve_btn": "Improve the Source",
     "meta_cost_total": "Total",
     "three_d_untextured_notice": "Texturing didn't complete for this model, so a plain (untextured) mesh was produced. It's still usable as-is — regenerate to try texturing again.",
-    "meta_3d_attribution": "Attribution"
+    "meta_3d_attribution": "Attribution",
+    "edit_async_queued": "Edit is processing — the new version will appear when ready."
   },
   "model_settings": {
     "title": "Model Settings",

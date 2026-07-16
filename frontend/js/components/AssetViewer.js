@@ -1345,8 +1345,10 @@
                     this._overlay.querySelectorAll('.av-edit-mode').forEach(b => b.classList.remove('active', 'bg-brand-accent', 'text-white'));
                     btn.classList.add('active', 'bg-brand-accent', 'text-white');
 
-                    // Show/hide sections based on mode
-                    const needsMask = editMode === 'inpaint' || editMode === 'erase';
+                    // Show/hide sections based on mode. Mask-free instruction
+                    // editors (Qwen) never need the mask UI, even for inpaint/erase.
+                    const needsMask = (editMode === 'inpaint' || editMode === 'erase')
+                        && !this._selectedEditModelIsMaskFree();
                     const needsOutpaint = editMode === 'outpaint';
                     const needsSearch = editMode === 'search_replace' || editMode === 'search_recolor';
 
@@ -1412,6 +1414,14 @@
             this._overlay.querySelectorAll('.av-edit-mode').forEach(btn => {
                 btn.addEventListener('click', () => this._loadEditModels(btn.dataset.mode));
             });
+            // When the model changes, re-apply mask-section visibility: switching to
+            // a mask-free editor (Qwen) hides the mask UI even in inpaint/erase mode.
+            this._overlay.querySelector('#av-edit-model')?.addEventListener('change', () => {
+                const maskSection = this._overlay.querySelector('#av-mask-section');
+                const needsMask = (editMode === 'inpaint' || editMode === 'erase')
+                    && !this._selectedEditModelIsMaskFree();
+                if (maskSection) maskSection.classList.toggle('hidden', !needsMask);
+            });
 
             // Generate / Apply Edit
             this._overlay.querySelector('#av-edit-generate')?.addEventListener('click', async () => {
@@ -1430,9 +1440,11 @@
                 if (statusEl) { statusEl.textContent = t('asset_viewer.processing'); statusEl.classList.remove('hidden'); }
 
                 try {
-                    // Extract mask from canvas (only for mask-based modes)
+                    // Extract mask from canvas (only for mask-based modes with a
+                    // mask-requiring model — Qwen instruction edits need no mask).
                     let maskB64 = null;
-                    const needsMask = editMode === 'inpaint' || editMode === 'erase';
+                    const needsMask = (editMode === 'inpaint' || editMode === 'erase')
+                        && !this._selectedEditModelIsMaskFree();
                     if (needsMask) {
                         const maskResult = this._extractMask(canvas);
                         if (maskResult.isEmpty) {
@@ -1479,6 +1491,16 @@
                         return r.json();
                     });
 
+                    // Async edit (e.g. Qwen-Image-Edit on a scale-to-zero endpoint):
+                    // the edit runs in the background; the poller saves the new
+                    // version when ready. Inform the user and stop — don't reload.
+                    if (result.async) {
+                        if (statusEl) { statusEl.textContent = t('asset_viewer.edit_async_queued'); }
+                        window.showToast?.(t('asset_viewer.edit_async_queued'), 'info');
+                        if (window.Gallery?.refresh) window.Gallery.refresh();
+                        return;  // finally{} re-enables the button
+                    }
+
                     if (statusEl) { statusEl.textContent = t('asset_viewer.edit_saved', {id: result.id}); }
                     window.showToast?.(t('asset_viewer.edit_success', {model: result.model_label}), 'success');
 
@@ -1504,6 +1526,14 @@
             });
         },
 
+        /** Is the currently-selected edit model a mask-free instruction editor
+         *  (e.g. Qwen-Image-Edit)? Such models edit from a text instruction and
+         *  do NOT need a painted mask, unlike Stability inpaint/erase. */
+        _selectedEditModelIsMaskFree() {
+            const key = this._overlay?.querySelector('#av-edit-model')?.value || '';
+            return !!(this._maskFreeEditModels && this._maskFreeEditModels[key]);
+        },
+
         _loadEditModels(mode) {
             const sel = this._overlay?.querySelector('#av-edit-model');
             if (!sel) return;
@@ -1524,6 +1554,11 @@
                 sel.innerHTML = '';
                 const models = data.image_models || {};
                 let defaultKey = '';
+                // Track which edit models are mask-free instruction editors
+                // (e.g. Qwen-Image-Edit, model_purpose 'image_edit'). Used to make
+                // the mask requirement + UI model-aware: Stability inpaint/erase
+                // need a painted mask; Qwen edits from a text instruction alone.
+                this._maskFreeEditModels = this._maskFreeEditModels || {};
 
                 for (const [key, cfg] of Object.entries(models)) {
                     // A model qualifies if its purpose matches exactly (Stability
@@ -1533,6 +1568,7 @@
                     const capMatch = cfg.model_purpose === 'image_edit'
                         && cfg.capabilities && cfg.capabilities[purpose];
                     if ((cfg.model_purpose === purpose || capMatch) && cfg.enabled) {
+                        this._maskFreeEditModels[key] = cfg.model_purpose === 'image_edit';
                         const opt = document.createElement('option');
                         opt.value = key;
                         // Only show a price when the registry actually has one —

@@ -298,7 +298,8 @@
     "three_d_improve_btn": "Mejorar la fuente",
     "meta_cost_total": "Total",
     "three_d_untextured_notice": "La texturización de este modelo no se completó, por lo que se generó una malla sin textura. Se puede usar tal cual; vuelve a generar para reintentar la texturización.",
-    "meta_3d_attribution": "Atribución"
+    "meta_3d_attribution": "Atribución",
+    "edit_async_queued": "Editando — la nueva versión aparecerá cuando esté lista."
   },
   "chat_studio": {
     "attach_image": "Adjuntar imagen (para modelos con vision)",

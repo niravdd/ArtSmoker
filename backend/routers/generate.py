@@ -1644,6 +1644,31 @@ async def edit_image(body: ImageEditRequest):
             raise HTTPException(400, detail=f"Image editing rejected: {exc}")
         raise HTTPException(502, detail=f"Image editing failed: {exc}")
 
+    # Async custom edit models (e.g. Qwen-Image-Edit on a scale-to-zero endpoint)
+    # return a sentinel, not image bytes — the edit runs in the background and the
+    # poller saves the result as a new version. Tag the job with edit context so
+    # the poller knows WHICH asset/version to write, then return an async response.
+    if isinstance(result_bytes, dict) and result_bytes.get("async_submitted"):
+        try:
+            from backend.services.async_jobs import update_job_edit_context
+            update_job_edit_context(
+                result_bytes["job_id"],
+                edit_asset_id=body.source_image_id,
+                edit_purpose=purpose,
+                edit_prompt=edit_prompt,
+                edit_seed=body.seed,
+            )
+        except Exception as e:
+            logger.error("Failed to tag async edit job %s: %s", result_bytes.get("job_id"), e)
+        return {
+            "id": body.source_image_id,
+            "async": True,
+            "async_job_id": result_bytes.get("job_id"),
+            "model": body.model,
+            "model_label": label,
+            "message": "Edit is processing — the new version will appear when ready.",
+        }
+
     # ── Versioned save: keep all previous versions, latest is always asset.png ──
     asset_id = body.source_image_id
     source_meta = store.load_generation_metadata(asset_id) or {}

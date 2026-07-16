@@ -298,7 +298,8 @@
     "three_d_improve_btn": "改进源图像",
     "meta_cost_total": "合计",
     "three_d_untextured_notice": "该模型的贴图未能完成，因此生成了无贴图的网格。它仍可直接使用——重新生成可再次尝试贴图。",
-    "meta_3d_attribution": "署名"
+    "meta_3d_attribution": "署名",
+    "edit_async_queued": "编辑处理中 — 新版本准备就绪后将会显示。"
   },
   "chat_studio": {
     "attach_image": "附加图片（用于视觉模型）",
