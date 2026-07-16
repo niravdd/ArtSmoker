@@ -1526,7 +1526,33 @@ async def edit_image(body: ImageEditRequest):
     # leaks to the image API.
     extra = dict(body.extra_params or {})
     edit_meta = extra.pop("_meta", None)
-    if purpose == "outpainting":
+
+    # General instruction-driven edit models (e.g. Qwen-Image-Edit, model_purpose
+    # "image_edit") are mask-free and don't understand Stability's search_prompt/
+    # select_prompt/direction fields. When such a model is used for ANY Edit-tab
+    # mode, fold the mode's intent into ONE natural instruction and drop the
+    # Stability-only extras so they don't leak as unknown kwargs.
+    is_instruction_editor = purpose == "image_edit"
+    if is_instruction_editor:
+        _search = extra.get("search_prompt") or extra.get("select_prompt") or ""
+        _instr = (body.prompt or "").strip()
+        if _search and _instr:
+            body.prompt = f"{_instr} (target: {_search})"
+        elif _search and not _instr:
+            body.prompt = f"Edit the {_search} in the image as instructed"
+        # Outpaint directions → a natural extend instruction (no direction kwargs).
+        _dirs = [d for d, v in (("left", body.outpaint_left), ("right", body.outpaint_right),
+                                 ("top", body.outpaint_up), ("bottom", body.outpaint_down)) if v > 0]
+        if _dirs and not (body.prompt or "").strip():
+            body.prompt = f"Extend/outpaint the image on the {', '.join(_dirs)} edge(s), continuing the scene naturally"
+        elif _dirs:
+            body.prompt = f"{(body.prompt or '').strip()} — extend the image on the {', '.join(_dirs)} edge(s)"
+        # Strip Stability-only fields; Qwen takes only prompt + reference image(s).
+        for _k in ("search_prompt", "select_prompt", "left", "right", "up", "down",
+                   "grow_mask", "creativity", "control_strength"):
+            extra.pop(_k, None)
+
+    if not is_instruction_editor and purpose == "outpainting":
         if body.outpaint_left > 0:
             extra["left"] = body.outpaint_left
         if body.outpaint_right > 0:

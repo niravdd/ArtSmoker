@@ -5376,7 +5376,10 @@
           "max_reference_images": 3,
           "image_edit": true,
           "inpainting": true,
-          "outpainting": true
+          "outpainting": true,
+          "erase": true,
+          "search_replace": true,
+          "search_recolor": true
         },
         "license_agreement": {
           "required": true,
