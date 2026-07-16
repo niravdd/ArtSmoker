@@ -207,13 +207,17 @@
 
                                 <!-- Inpaint/Erase: Canvas + Mask -->
                                 <div id="av-mask-section">
-                                    <div class="flex items-center gap-3 mb-2">
-                                        <label class="text-xs text-brand-text-muted">${t('asset_viewer.brush_size')}:</label>
-                                        <input id="av-brush-size" type="range" min="5" max="80" value="20" class="w-24" />
-                                        <span id="av-brush-size-label" class="text-xs text-brand-text-muted font-mono w-8">20px</span>
-                                        <button id="av-mask-clear" class="btn btn-sm btn-secondary text-xs">${t('asset_viewer.clear_mask')}</button>
+                                    <!-- Mask-paint controls (hidden for mask-free editors like Qwen) -->
+                                    <div id="av-mask-controls">
+                                        <div class="flex items-center gap-3 mb-2">
+                                            <label class="text-xs text-brand-text-muted">${t('asset_viewer.brush_size')}:</label>
+                                            <input id="av-brush-size" type="range" min="5" max="80" value="20" class="w-24" />
+                                            <span id="av-brush-size-label" class="text-xs text-brand-text-muted font-mono w-8">20px</span>
+                                            <button id="av-mask-clear" class="btn btn-sm btn-secondary text-xs">${t('asset_viewer.clear_mask')}</button>
+                                        </div>
+                                        <p class="text-[10px] text-brand-text-dim mb-1">${t('asset_viewer.mask_hint_full')}</p>
                                     </div>
-                                    <p class="text-[10px] text-brand-text-dim mb-1">${t('asset_viewer.mask_hint_full')}</p>
+                                    <!-- Source image canvas — ALWAYS shown; it's the image the edit works on -->
                                     <div class="relative rounded-lg overflow-hidden border border-brand-border" style="display: inline-block;">
                                         <canvas id="av-mask-canvas" class="cursor-crosshair" style="max-width: 100%; max-height: 50vh;"></canvas>
                                     </div>
@@ -1345,20 +1349,24 @@
                     this._overlay.querySelectorAll('.av-edit-mode').forEach(b => b.classList.remove('active', 'bg-brand-accent', 'text-white'));
                     btn.classList.add('active', 'bg-brand-accent', 'text-white');
 
-                    // Show/hide sections based on mode. Mask-free instruction
-                    // editors (Qwen) never need the mask UI, even for inpaint/erase.
-                    const needsMask = (editMode === 'inpaint' || editMode === 'erase')
-                        && !this._selectedEditModelIsMaskFree();
+                    // The mask SECTION holds the source-image canvas — it stays
+                    // visible for inpaint/erase (the image editing modes), for BOTH
+                    // Stability and mask-free editors, since the image is the input.
+                    // Only the mask-PAINT controls hide for a mask-free editor (Qwen).
+                    const imageModes = editMode === 'inpaint' || editMode === 'erase';
+                    const maskFree = this._selectedEditModelIsMaskFree();
                     const needsOutpaint = editMode === 'outpaint';
                     const needsSearch = editMode === 'search_replace' || editMode === 'search_recolor';
 
                     const maskSection = this._overlay.querySelector('#av-mask-section');
+                    const maskControls = this._overlay.querySelector('#av-mask-controls');
                     const outSection = this._overlay.querySelector('#av-outpaint-section');
                     const searchSection = this._overlay.querySelector('#av-search-section');
                     const searchLabel = this._overlay.querySelector('#av-search-label');
                     const promptLabel = this._overlay.querySelector('#av-prompt-label');
 
-                    if (maskSection) maskSection.classList.toggle('hidden', !needsMask);
+                    if (maskSection) maskSection.classList.toggle('hidden', !imageModes);
+                    if (maskControls) maskControls.classList.toggle('hidden', maskFree);
                     if (outSection) outSection.classList.toggle('hidden', !needsOutpaint);
                     if (searchSection) searchSection.classList.toggle('hidden', !needsSearch);
 
@@ -1400,7 +1408,7 @@
                         'search_replace': t('asset_viewer.edit_mode_hint_replace'),
                         'search_recolor': t('asset_viewer.edit_mode_hint_recolor'),
                     };
-                    if (maskHint && needsMask) {
+                    if (maskHint && imageModes && !maskFree) {
                         maskHint.textContent = hints[editMode] || t('asset_viewer.mask_hint_full');
                     }
                     if (editHint) {
@@ -1414,13 +1422,12 @@
             this._overlay.querySelectorAll('.av-edit-mode').forEach(btn => {
                 btn.addEventListener('click', () => this._loadEditModels(btn.dataset.mode));
             });
-            // When the model changes, re-apply mask-section visibility: switching to
-            // a mask-free editor (Qwen) hides the mask UI even in inpaint/erase mode.
+            // When the model changes, toggle only the mask-PAINT controls: a
+            // mask-free editor (Qwen) hides brush/clear/hint, but the source image
+            // canvas (in #av-mask-section) stays visible — it's the edit input.
             this._overlay.querySelector('#av-edit-model')?.addEventListener('change', () => {
-                const maskSection = this._overlay.querySelector('#av-mask-section');
-                const needsMask = (editMode === 'inpaint' || editMode === 'erase')
-                    && !this._selectedEditModelIsMaskFree();
-                if (maskSection) maskSection.classList.toggle('hidden', !needsMask);
+                const maskControls = this._overlay.querySelector('#av-mask-controls');
+                if (maskControls) maskControls.classList.toggle('hidden', this._selectedEditModelIsMaskFree());
             });
 
             // Generate / Apply Edit
@@ -1594,6 +1601,12 @@
                     opt.textContent = t('asset_viewer.no_models_for_type');
                     sel.appendChild(opt);
                 }
+
+                // Apply mask-paint-control visibility for the now-selected model,
+                // so the initial state is correct on open (a mask-free default like
+                // Qwen hides brush/clear/hint immediately) — not only after a click.
+                const maskControls = this._overlay?.querySelector('#av-mask-controls');
+                if (maskControls) maskControls.classList.toggle('hidden', this._selectedEditModelIsMaskFree());
             }).catch(() => {});
         },
 
