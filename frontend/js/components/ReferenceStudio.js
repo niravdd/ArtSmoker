@@ -261,6 +261,7 @@
             });
             // Gate only applies to "match" (needs a deployed model). "inspired" never gated.
             const showGate = this._mode === 'match' && this._available && this._available.available === false;
+            console.log('[ReferenceStudio] reflectMode: mode=', this._mode, '| available=', this._available && this._available.available, '| showGate=', showGate);
             this._gateEl.classList.toggle('hidden', !showGate);
             // Inspired-by preview only meaningful in "inspired" mode.
             this._previewWrap.classList.toggle('hidden', this._mode !== 'inspired');
@@ -269,7 +270,11 @@
         async _checkAvailability() {
             try {
                 this._available = await API.image.referenceAvailable();
-            } catch { this._available = { available: false }; }
+                console.log('[ReferenceStudio] availability:', JSON.stringify(this._available));
+            } catch (e) {
+                this._available = { available: false };
+                console.warn('[ReferenceStudio] availability check FAILED (gate will show):', e);
+            }
             this._reflectMode();
         }
 
