@@ -276,6 +276,7 @@
             const groups = {};
             const PURPOSE_LABELS = {
                 'text_to_image': t('model_settings.generation'),
+                'image_edit': t('model_settings.image_edit'),
                 'inpainting': t('model_settings.inpainting'),
                 'outpainting': t('model_settings.outpainting'),
                 'erase': t('model_settings.erase_label'),
@@ -331,6 +332,28 @@
             const strictColor = m.moderation_strictness === 'very_strict' ? 'text-red-400' : m.moderation_strictness === 'strict' ? 'text-amber-400' : 'text-emerald-400';
             const sourceBadge = this._sourceBadge(m);
 
+            // A single instruction-editor (e.g. Qwen-Image-Edit) can serve MANY
+            // edit modes. It's listed once here (one endpoint, one enable toggle),
+            // so surface every edit purpose its capabilities cover — otherwise a
+            // user seeing it only under "Image Editing — Instruction" would think
+            // it can't inpaint/outpaint/erase. Derived from cfg.capabilities, so
+            // nothing is hard-coded: new capability flags appear automatically.
+            const _editModeLabels = {
+                image_edit: t('model_settings.image_edit'),
+                inpainting: t('model_settings.inpainting'),
+                outpainting: t('model_settings.outpainting'),
+                erase: t('model_settings.erase_label'),
+                search_replace: t('model_settings.search_replace'),
+                search_recolor: t('model_settings.search_recolor'),
+                reference_guided: t('model_settings.reference_guided'),
+            };
+            const coveredModes = m.capabilities && typeof m.capabilities === 'object'
+                ? Object.keys(_editModeLabels).filter(p => m.capabilities[p] === true)
+                : [];
+            const capabilitiesHtml = coveredModes.length
+                ? `<div class="text-[10px] text-brand-text-muted mb-2">${t('model_settings.also_covers')}: <span class="text-brand-text/70">${coveredModes.map(p => _editModeLabels[p]).join(' · ')}</span></div>`
+                : '';
+
             return `
                     <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-50'}" data-image-model="${key}">
                         <div class="flex items-center justify-between mb-2">
@@ -353,6 +376,7 @@
                             <span>${t('model_settings.field_quality')}: <span class="text-brand-text/70">${quality}</span></span>
                             <span>${t('model_settings.field_price')}: <span class="text-emerald-400/70">${price}</span></span>
                         </div>
+                        ${capabilitiesHtml}
                         <details class="group">
                             <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
                                 <span class="group-open:hidden">${t('model_settings.edit_link')}</span>
