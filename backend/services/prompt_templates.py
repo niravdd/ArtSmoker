@@ -72,6 +72,77 @@ Rules:
 - Be conservative: when genuinely unsure, prefer complete=true / defect="none" (avoid false alarms on well-framed, clean art).
 - Output ONLY the JSON object.""",
     },
+    "image_asset_type_context": {
+        "label": "Asset-Type Intent (content direction)",
+        "description": "Per-asset-type creative direction injected into the image-prompt refinement (the {asset_context} slot). This is CONTENT intent — how YOU want each asset type composed (game asset, character, environment, etc.) — not model-specific tuning. Edit the section for an asset type to change how all prompts of that type are shaped. Sections are matched by their '### <asset_type> ###' header; keep the headers intact.",
+        "used_by": "Image Studio — prompt refinement (prompt_engineer: refine_prompt / concepts / recompose), per asset type",
+        "variables": [],
+        "model": "n/a (injected text, not an LLM call)",
+        "text": """### game_asset ###
+DEFAULT INTENT: Isolated game-ready object/prop on transparent background.
+Apply ONLY if the user's prompt is a simple noun (e.g. 'a sword', 'a tree').
+If the user describes a scene, character, or setting — follow THEIR description, not this default.
+When this default applies: centered composition, clean edges, consistent top-left lighting, no ground shadows.
+
+### marketing_banner ###
+INTENT: Cinematic promotional illustration with a text-safe zone.
+Wide dramatic composition with depth. Reserve one-third of the frame as a clean area for text overlay.
+Rich saturated colors, dramatic lighting (rim light, volumetric rays, golden hour).
+CRITICAL: Do NOT render any text, letters, or typography — the text zone must be empty for post-production.
+
+### icon ###
+INTENT: Simple, bold symbol for UI use.
+Single recognizable shape, centered, generous padding. Must read at 64x64 pixels.
+High contrast, 3-5 colors maximum, bold shapes, no fine detail.
+
+### character ###
+INTENT: Character illustration — the figure is the star.
+If the user describes a setting or scene, INCLUDE IT — the character should be IN that context.
+If the user gives only a character name/description, use a clean or contextual background.
+Focus on: readable silhouette, expressive pose, clear facial features, detailed costume/armor.
+Full-body or 3/4-body, character fills 60-75% of frame.
+
+### environment ###
+INTENT: Scenic illustration with depth and atmosphere.
+Three depth layers: foreground (detailed), midground (main subject), background (atmospheric haze).
+Leading lines, natural framing. Horizon at upper or lower third.
+Environmental storytelling through details. Mood-setting lighting (time of day, weather).
+
+### photorealistic ###
+INTENT: Photorealistic image that looks like a real photograph.
+Use photography language: describe as if directing a photographer or describing a real photo.
+Reference camera behavior: depth of field, focal length feel, natural motion blur, lens flare.
+Natural imperfections: skin texture, fabric wrinkles, environmental weathering, light scatter.
+Describe real lighting conditions (golden hour, overcast, studio softbox) not rendering terms.
+Avoid: illustration/painting/art terminology, rendering engine jargon (PBR, subsurface scattering), quality prefix tokens.
+
+### default ###
+General-purpose image.""",
+    },
+    "image_style_section": {
+        "label": "Style-Hints Framing (content direction)",
+        "description": "How a Style Library profile's hints are framed into the image-prompt refinement (the {style_section} slot). CONTENT intent. {generation_hints} is replaced with the selected style's hints; when no style is selected the '### none ###' section is used. Keep {generation_hints} in the 'with-style' section and the '### with ###' / '### none ###' headers intact.",
+        "used_by": "Image Studio — prompt refinement, when a Style Library style is (or isn't) selected",
+        "variables": ["{generation_hints}"],
+        "model": "n/a (injected text, not an LLM call)",
+        "text": """### with ###
+Style hints (follow these closely):
+{generation_hints}
+
+### none ###
+Style hints: None provided — use your best artistic judgement.""",
+    },
+    "inpaint_removal_transform": {
+        "label": "Inpaint Removal → Fill Instruction",
+        "description": "When a user's inpaint prompt is a REMOVAL request ('remove the car'), the Stability inpaint model needs a GENERATIVE description of what should FILL the masked area instead. This template turns the removal request into a short fill description. Runs only for inpaint prompts that start with remove/delete/erase/etc.",
+        "used_by": "Image Studio Edit tab / AssetViewer — inpaint mode, removal-style prompts (generate.edit_image)",
+        "variables": ["{edit_prompt}"],
+        "model": "fast LLM",
+        "text": """An image editing tool needs a generative prompt for inpainting.
+The user said: "{edit_prompt}"
+This is a REMOVAL request. The inpainting model needs to know what should REPLACE the removed area — describe the background/surface that should fill in.
+Output ONLY the replacement description (e.g., 'clean wall surface matching surrounding architecture' or 'continuation of the brick facade'). Keep it short (under 30 words). No explanation.""",
+    },
     "reference_edit_instruction": {
         "label": "Reference Edit Instruction Shaping",
         "description": "Rewrites the user's raw instruction into an optimal edit instruction for a reference-guided EDIT model (e.g. Qwen-Image-Edit) in the 'Match the reference' mode. Text-only (the model sees the image); shapes wording per the model's prompt_guidance to preserve subject identity while applying the change.",
@@ -352,11 +423,20 @@ Respond with ONLY a JSON object (no markdown):
 
     "moderation_rewrite": {
         "label": "Content Moderation Rewrite",
-        "description": "Rewrites a blocked prompt to pass moderation while preserving creative intent. The original prompt and issues are prepended as context before this template.",
+        "description": "Rewrites a blocked prompt to pass moderation while preserving creative intent. The full prompt — context AND rules — is now here (nothing is prepended in code). {target_context} = which model(s) it must pass; {prompt_label} = 'Original' or 'Previous rewrite that STILL FAILED'; {current_prompt} = the blocked prompt; {issues_text} = the moderation issues.",
         "used_by": "Image Studio — moderation dialog rewrite button",
-        "variables": ["(context: original prompt + issues prepended)"],
+        "variables": ["{target_context}", "{prompt_label}", "{current_prompt}", "{issues_text}"],
         "model": "fast LLM (Sonnet)",
-        "text": """Your task: Rewrite this prompt to address EVERY identified issue above while preserving the user's creative intent as closely as possible.
+        "text": """A user's prompt was blocked by an AI image generation model's content moderation.
+{target_context}
+
+{prompt_label} prompt:
+"{current_prompt}"
+
+Specific issues identified:
+{issues_text}
+
+Your task: Rewrite this prompt to address EVERY identified issue above while preserving the user's creative intent as closely as possible.
 
 Rules:
 1. Address each specific issue listed above
@@ -372,11 +452,11 @@ Output ONLY valid JSON (no markdown, no code fences):
 
     "video_enhance_prompt": {
         "label": "Video Prompt Enhancement",
-        "description": "Enhances a user prompt with camera movements, lighting, and temporal cues for video generation. The user's prompt is sent as the user message; this template is the system instruction.",
+        "description": "Enhances a user prompt with camera movements, lighting, and temporal cues for video generation. The 'text' below is the USER message ({user_prompt} = the raw prompt); the enhancement rules are in the editable system prompt.",
         "used_by": "Video Studio — AI-enhance prompt toggle",
-        "variables": ["{prompt_limit}", "{model_guidance}", "{optimal_length}"],
+        "variables": ["{user_prompt}"],
         "model": "fast LLM (Sonnet)",
-        "text": """You are a video generation prompt engineer. Enhance the user's prompt for AI video generation.
+        "system_prompt": """You are a video generation prompt engineer. Enhance the user's prompt for AI video generation.
 
 === MODEL-SPECIFIC GUIDANCE ===
 {model_guidance}
@@ -394,13 +474,16 @@ Output ONLY valid JSON (no markdown, no code fences):
 Output format (exactly two lines):
 ENHANCED: <the enhanced prompt>
 AVOID: <comma-separated list of things the user wants to avoid, or "none" if nothing to avoid>""",
+        "text": """Enhance this video prompt:
+
+{user_prompt}""",
     },
 
     "typestudio_layout": {
         "label": "Type Studio Text Layout",
-        "description": "Designs text positions, fonts, sizes, colors, and effects for image overlay.",
+        "description": "Designs text positions, fonts, sizes, colors, and effects for image overlay. The full prompt — including the output-format instructions and multi-option creative direction — is here. {output_instructions} is the single-vs-multi output spec (with the JSON schema example injected, since it carries computed canvas pixel values).",
         "used_by": "Type Studio — Suggest Layout button",
-        "variables": ["{canvas_width}", "{canvas_height}", "{image_context}", "{style_section}", "{lines_desc}"],
+        "variables": ["{canvas_width}", "{canvas_height}", "{image_context}", "{style_section}", "{lines_desc}", "{output_instructions}"],
         "model": "complex or fast LLM",
         "text": """You are a creative director designing text layout for a game asset graphic.
 
@@ -433,7 +516,38 @@ Position hints guide general placement:
 
 Not every line needs every effect. Use effects judiciously to create hierarchy and readability.
 The "effects" field for each line can contain any combination of "shadow", "outline", and "glow", or be empty.
-Make sure text does not overflow the canvas boundaries. Account for font size when placing text.""",
+Make sure text does not overflow the canvas boundaries. Account for font size when placing text.
+
+{output_instructions}""",
+    },
+    "typestudio_layout_output_multi": {
+        "label": "Type Studio Output — Multiple Options",
+        "description": "The output-format + creative-direction instructions injected as {output_instructions} into typestudio_layout when the user requests MORE THAN ONE layout option. {num_options} = how many; {layout_example} = the JSON schema example (computed with canvas pixel values, injected by code).",
+        "used_by": "Type Studio — Suggest Layout, multi-option",
+        "variables": ["{num_options}", "{layout_example}"],
+        "model": "n/a (injected text)",
+        "text": """Generate exactly {num_options} COMPLETELY DIFFERENT layout options. Each option must be
+a distinctly different creative direction — different color schemes, font sizes,
+positioning, effect combinations, and visual mood. For example:
+- Option 1: Bold and dramatic with large text, dark shadows, warm gold colors
+- Option 2: Clean and minimal with smaller text, no effects, white/light colors
+- Option 3: Playful with varied font sizes, colorful palette, glow effects
+Each option must be self-contained and independently usable.
+
+Return a JSON array of {num_options} layout objects (no markdown, no explanation):
+[
+  {layout_example},
+  ... ({num_options} total)
+]""",
+    },
+    "typestudio_layout_output_single": {
+        "label": "Type Studio Output — Single Layout",
+        "description": "The output-format instruction injected as {output_instructions} into typestudio_layout when the user requests ONE layout. {layout_example} = the JSON schema example (computed with canvas pixel values, injected by code).",
+        "used_by": "Type Studio — Suggest Layout, single option",
+        "variables": ["{layout_example}"],
+        "model": "n/a (injected text)",
+        "text": """Return ONLY a JSON object (no markdown, no explanation) in this exact format:
+{layout_example}""",
     },
 
     "chat_context_compact": {

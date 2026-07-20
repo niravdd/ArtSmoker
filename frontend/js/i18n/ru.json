@@ -1080,7 +1080,13 @@
     "missing_keys": "Отсутствуют обязательные ключи: categories, image_models",
     "json_saved": "JSON реестра сохранён",
     "json_save_not_impl": "Прямое сохранение JSON требует PUT /api/admin/models (ещё не реализовано). Используйте отдельные поля редактирования.",
-    "save_label": "Сохранить"
+    "save_label": "Сохранить",
+    "templates_system_prompt": "Системный промпт (управляет LLM)",
+    "templates_prompt_body": "Тело промпта",
+    "templates_reset_all": "Сбросить все",
+    "templates_reset_all_confirm": "Сбросить ВСЕ шаблоны промптов к встроенным значениям по умолчанию?",
+    "templates_reset_all_detail": "Это отменит все ваши изменения во всех шаблонах промптов и восстановит поставляемые значения по умолчанию. Отменить нельзя.",
+    "templates_reset_all_done": "Все шаблоны сброшены к значениям по умолчанию"
   },
   "prompt_editor": {
     "placeholder": "Опишите, что хотите сгенерировать...",

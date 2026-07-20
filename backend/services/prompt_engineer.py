@@ -85,48 +85,36 @@ def supports_negative_prompt(image_model: str | None = None) -> bool:
         return reg.get("invoke", {}).get("supports_negative_prompt", True)
     return True
 
-# ── Asset-type context snippets ───────────────────────────────────────────
+# ── Asset-type context (content intent) ───────────────────────────────────
+# The per-asset-type creative direction lives in the editable prompt-template
+# registry ('image_asset_type_context'), NOT hardcoded here — it's content
+# intent the user can tune. Sections are delimited by '### <asset_type> ###'
+# headers; we extract the block matching the asset type (falling back to the
+# '### default ###' section).
 
-_ASSET_TYPE_CONTEXT: dict[AssetType, str] = {
-    AssetType.GAME_ASSET: (
-        "DEFAULT INTENT: Isolated game-ready object/prop on transparent background.\n"
-        "Apply ONLY if the user's prompt is a simple noun (e.g. 'a sword', 'a tree').\n"
-        "If the user describes a scene, character, or setting — follow THEIR description, not this default.\n"
-        "When this default applies: centered composition, clean edges, consistent top-left lighting, no ground shadows."
-    ),
-    AssetType.MARKETING_BANNER: (
-        "INTENT: Cinematic promotional illustration with a text-safe zone.\n"
-        "Wide dramatic composition with depth. Reserve one-third of the frame as a clean area for text overlay.\n"
-        "Rich saturated colors, dramatic lighting (rim light, volumetric rays, golden hour).\n"
-        "CRITICAL: Do NOT render any text, letters, or typography — the text zone must be empty for post-production."
-    ),
-    AssetType.ICON: (
-        "INTENT: Simple, bold symbol for UI use.\n"
-        "Single recognizable shape, centered, generous padding. Must read at 64x64 pixels.\n"
-        "High contrast, 3-5 colors maximum, bold shapes, no fine detail."
-    ),
-    AssetType.CHARACTER: (
-        "INTENT: Character illustration — the figure is the star.\n"
-        "If the user describes a setting or scene, INCLUDE IT — the character should be IN that context.\n"
-        "If the user gives only a character name/description, use a clean or contextual background.\n"
-        "Focus on: readable silhouette, expressive pose, clear facial features, detailed costume/armor.\n"
-        "Full-body or 3/4-body, character fills 60-75% of frame."
-    ),
-    AssetType.ENVIRONMENT: (
-        "INTENT: Scenic illustration with depth and atmosphere.\n"
-        "Three depth layers: foreground (detailed), midground (main subject), background (atmospheric haze).\n"
-        "Leading lines, natural framing. Horizon at upper or lower third.\n"
-        "Environmental storytelling through details. Mood-setting lighting (time of day, weather)."
-    ),
-    AssetType.PHOTOREALISTIC: (
-        "INTENT: Photorealistic image that looks like a real photograph.\n"
-        "Use photography language: describe as if directing a photographer or describing a real photo.\n"
-        "Reference camera behavior: depth of field, focal length feel, natural motion blur, lens flare.\n"
-        "Natural imperfections: skin texture, fabric wrinkles, environmental weathering, light scatter.\n"
-        "Describe real lighting conditions (golden hour, overcast, studio softbox) not rendering terms.\n"
-        "Avoid: illustration/painting/art terminology, rendering engine jargon (PBR, subsurface scattering), quality prefix tokens."
-    ),
-}
+def _extract_section(template_text: str, key: str, fallback_key: str = "default") -> str:
+    """Extract a '### <key> ###'-delimited section from a multi-section template.
+
+    Returns the block under the matching header, or the fallback section, or the
+    whole text if no headers are present (defensive — a user could flatten it)."""
+    import re
+    sections = {}
+    parts = re.split(r'(?m)^###\s*(.+?)\s*###\s*$', template_text)
+    # re.split yields [pre, name1, body1, name2, body2, ...]
+    if len(parts) >= 3:
+        for i in range(1, len(parts) - 1, 2):
+            sections[parts[i].strip().lower()] = parts[i + 1].strip()
+        return sections.get(key.lower()) or sections.get(fallback_key.lower()) or template_text.strip()
+    return template_text.strip()
+
+
+def _asset_type_context(asset_type: AssetType) -> str:
+    """Content-intent direction for the given asset type, from the registry."""
+    text = get_template('image_asset_type_context')
+    if not text:
+        return "General-purpose image."
+    key = asset_type.value if hasattr(asset_type, 'value') else str(asset_type)
+    return _extract_section(text, key, fallback_key="default")
 
 # ── Prompt templates ──────────────────────────────────────────────────────
 #
@@ -144,34 +132,12 @@ _ASSET_TYPE_CONTEXT: dict[AssetType, str] = {
 
 # _REFINE_PROMPT_TEMPLATE loaded from prompt_templates registry as 'image_refine_single'
 
-# Model-specific instructions inserted into the template
-# See: https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html
-_MODEL_INSTRUCTIONS = {
-    "nova_canvas": (
-        "Nova Canvas works best with descriptive captions, NOT commands.\n"
-        "Structure: Subject → Environment → Pose → Lighting → Camera → Style.\n"
-        "Place most important details first (prompt may be truncated at 1024 chars).\n"
-        "NEVER use 'no', 'not', 'without' — use the NEGATIVE line instead.\n"
-        "Quality markers: 'high detail', 'professional quality', 'sharp edges'."
-    ),
-    "titan_image": (
-        "Titan Image works best with clear, concise descriptive captions.\n"
-        "Keep prompts short (480 char limit). Focus on subject and style.\n"
-        "NEVER use negation words — use the NEGATIVE line instead."
-    ),
-    "sd35_large": (
-        "Stable Diffusion 3.5 Large responds well to rich, natural language descriptions up to 2000 chars.\n"
-        "Excels at: material textures, lighting setups, atmospheric detail, compositional precision.\n"
-        "Write naturally — do not use fixed quality prefix tokens. Let quality emerge from specific, vivid description.\n"
-        "Negative prompts are effective — use the NEGATIVE line for quality cleanup."
-    ),
-    "stable_image_ultra": (
-        "Stable Image Ultra responds well to natural language descriptions up to 2000 chars.\n"
-        "Excels at: photorealistic rendering, lighting, materials, atmospheric depth.\n"
-        "Write naturally — do not use fixed quality prefix tokens. Let quality emerge from specific, vivid description.\n"
-        "Negative prompts are effective — use the NEGATIVE line for quality cleanup."
-    ),
-}
+# Model-specific prompt guidance ("how to prompt THIS model") lives in the MODEL
+# REGISTRY (prompt_guidance field, seeded by the AWS Sync from official docs and
+# user-editable in Model Settings), read via get_model_guidance() below. It is
+# deliberately NOT hardcoded here — the registry is the single source of truth so
+# new/synced models carry their own guidance. This generic fallback is used only
+# when a model has no guidance recorded yet.
 _DEFAULT_MODEL_INSTRUCTIONS = (
     "Write a descriptive caption. Place subject first, style last.\n"
     "NEVER use negation words — use the NEGATIVE line instead."
@@ -183,13 +149,19 @@ _DEFAULT_MODEL_INSTRUCTIONS = (
 # ── Helpers ───────────────────────────────────────────────────────────────
 
 def _build_style_section(style_profile: StyleProfile | None) -> str:
-    """Build the style hints section for prompt templates."""
+    """Build the style-hints section for prompt refinement, from the editable
+    'image_style_section' template (content intent). The 'with' section frames a
+    selected style's hints; the 'none' section is used when no style is chosen."""
+    text = get_template('image_style_section')
+    if not text:
+        # Defensive fallback if the template was emptied.
+        if style_profile is None or not style_profile.generation_hints:
+            return "Style hints: None provided — use your best artistic judgement."
+        return f"Style hints (follow these closely):\n{style_profile.generation_hints}"
     if style_profile is None or not style_profile.generation_hints:
-        return "Style hints: None provided — use your best artistic judgement."
-    return (
-        f"Style hints (follow these closely):\n"
-        f"{style_profile.generation_hints}"
-    )
+        return _extract_section(text, "none", fallback_key="none")
+    block = _extract_section(text, "with", fallback_key="with")
+    return block.replace("{generation_hints}", style_profile.generation_hints)
 
 
 # ── Refusal detection ─────────────────────────────────────────────────────
@@ -409,11 +381,11 @@ def refine_prompt(
     via _parse_negative_prompt when the generation pipeline calls this.
     """
     max_chars = get_prompt_limit(image_model)
-    asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
+    asset_context = _asset_type_context(asset_type)
     style_section = _build_style_section(style_profile)
     model_name = _get_model_label(image_model)
     # Model-specific prompt guidance: check registry first (extensible), then hardcoded
-    model_instructions = get_model_guidance(image_model) or _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
+    model_instructions = get_model_guidance(image_model) or _DEFAULT_MODEL_INSTRUCTIONS
 
     optimal_length = get_optimal_length(image_model)
     prompt = get_template('image_refine_single').format(
@@ -479,10 +451,10 @@ def refine_prompt_structured(
     from backend.services.prompt_templates import get_template, get_system_prompt
 
     max_chars = get_prompt_limit(image_model)
-    asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
+    asset_context = _asset_type_context(asset_type)
     style_section = _build_style_section(style_profile)
     model_name = _get_model_label(image_model)
-    model_instructions = get_model_guidance(image_model) or _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
+    model_instructions = get_model_guidance(image_model) or _DEFAULT_MODEL_INSTRUCTIONS
 
     # Step 1: Decompose — break the prompt into structured visual components
     decompose_prompt_text = get_template('prompt_decompose').format(
@@ -659,9 +631,9 @@ def generate_concept_prompts(
     """
     max_chars = get_prompt_limit(image_model)
     optimal_length = get_optimal_length(image_model)
-    asset_context = _ASSET_TYPE_CONTEXT.get(asset_type, "General-purpose image.")
+    asset_context = _asset_type_context(asset_type)
     style_section = _build_style_section(style_profile)
-    model_instructions = get_model_guidance(image_model) or _MODEL_INSTRUCTIONS.get(image_model, _DEFAULT_MODEL_INSTRUCTIONS)
+    model_instructions = get_model_guidance(image_model) or _DEFAULT_MODEL_INSTRUCTIONS
 
     # Build locked/variable sections from decomposed data
     if decomposed_data:

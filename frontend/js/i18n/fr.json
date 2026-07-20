@@ -826,7 +826,13 @@
     "upscale_conservative": "Post-traitement — Agrandissement conservateur",
     "upscale_creative": "Post-traitement — Agrandissement créatif",
     "upscale_fast": "Post-traitement — Agrandissement rapide",
-    "vision_badge": "vision"
+    "vision_badge": "vision",
+    "templates_system_prompt": "Prompt système (pilote le LLM)",
+    "templates_prompt_body": "Corps du prompt",
+    "templates_reset_all": "Tout réinitialiser",
+    "templates_reset_all_confirm": "Réinitialiser TOUS les modèles de prompt à leurs valeurs par défaut ?",
+    "templates_reset_all_detail": "Cela annule toutes vos modifications sur tous les modèles de prompt et restaure les valeurs par défaut livrées. Irréversible.",
+    "templates_reset_all_done": "Tous les modèles réinitialisés par défaut"
   },
   "nav": {
     "chat_studio": "Studio de Chat",

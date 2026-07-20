@@ -826,7 +826,13 @@
     "upscale_conservative": "Posprocesamiento — Escalado conservador",
     "upscale_creative": "Posprocesamiento — Escalado creativo",
     "upscale_fast": "Posprocesamiento — Escalado rapido",
-    "vision_badge": "visión"
+    "vision_badge": "visión",
+    "templates_system_prompt": "Prompt de sistema (guía el LLM)",
+    "templates_prompt_body": "Cuerpo del prompt",
+    "templates_reset_all": "Restablecer todo",
+    "templates_reset_all_confirm": "¿Restablecer TODAS las plantillas de prompt a sus valores predeterminados?",
+    "templates_reset_all_detail": "Esto descarta cada edición que hayas hecho en cada plantilla de prompt y restaura los valores predeterminados. No se puede deshacer.",
+    "templates_reset_all_done": "Todas las plantillas restablecidas a los valores predeterminados"
   },
   "nav": {
     "chat_studio": "Estudio de Chat",

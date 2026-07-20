@@ -76,44 +76,6 @@ logger = logging.getLogger(__name__)
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
 
 
-def _sync_frontend_asset_versions():
-    """Rewrite the ?v=... cache-bust token on local <script>/<link> tags in
-    index.html to the current APP_VERSION.
-
-    The frontend has no build step and loads components via plain <script src>
-    tags, so browsers (and proxies) cache them across updates — users ran stale
-    JS even after hard-refresh. Appending ?v={APP_VERSION} makes each release a
-    distinct URL that no cache can serve staleley. Doing it here (on startup)
-    means a version bump alone busts the cache — no manual re-tagging. Only
-    LOCAL assets (js/ , css/) are touched; CDN/external URLs are left alone.
-    Idempotent + best-effort: never let this block startup.
-    """
-    import re
-    try:
-        from backend.config import APP_VERSION
-        index = FRONTEND_DIR / "index.html"
-        if not index.exists():
-            return
-        html = index.read_text()
-
-        def _bust(m):
-            tag, attr, url = m.group(0), m.group(1), m.group(2)
-            # Only local assets (relative js/ or css/ paths), not CDN/external.
-            if url.startswith(("http://", "https://", "//")):
-                return tag
-            if not (url.startswith("js/") or url.startswith("css/") or url.endswith((".js", ".css"))):
-                return tag
-            base = url.split("?", 1)[0]
-            return tag.replace(f'{attr}="{url}"', f'{attr}="{base}?v={APP_VERSION}"')
-
-        new = re.sub(r'<(?:script|link)[^>]*?\s(src|href)="([^"]+)"', _bust, html)
-        if new != html:
-            index.write_text(new)
-            logger.info("Frontend asset versions synced to %s (cache-bust)", APP_VERSION)
-    except Exception as exc:
-        logger.debug("Frontend asset version sync skipped: %s", exc)
-
-
 # ── Config Freshness Check ────────────────────────────────────────────────
 
 def _check_and_refresh_configs():
@@ -187,11 +149,6 @@ async def lifespan(app: FastAPI):
     settings.generated_dir.mkdir(parents=True, exist_ok=True)
     (settings.data_dir / "chat").mkdir(parents=True, exist_ok=True)
     logger.info("Data directories ensured: %s", settings.data_dir)
-
-    # Cache-bust the frontend's local <script>/<link> tags to APP_VERSION, so a
-    # version bump alone forces browsers (and any intermediary cache) to fetch
-    # fresh JS/CSS — no manual re-tagging, no more stale-component reports.
-    _sync_frontend_asset_versions()
 
     # Check if model registry and prompt templates need regeneration
     _check_and_refresh_configs()
@@ -749,10 +706,8 @@ async def client_log(request: Request):
 # Mounted LAST so that /api/* routes take priority over the catch-all static
 # file handler. Note: NoCacheStaticMiddleware (above) already sends
 # `Cache-Control: no-cache, no-store` on every non-API response, so no
-# StaticFiles subclass is needed. Freshness across updates is additionally
-# guaranteed by the ?v={APP_VERSION} query on the component <script> tags in
-# index.html — a version bump changes the URL, defeating ANY intermediary cache
-# (browser bfcache, proxy, CDN) that might ignore no-cache headers.
+# StaticFiles subclass is needed and index.html carries no hard-coded ?v=
+# cache-bust token — every release serves fresh JS/CSS on the next load.
 if FRONTEND_DIR.exists():
     app.mount("/", StaticFiles(directory=str(FRONTEND_DIR), html=True), name="frontend")
     logger.info("Frontend mounted from: %s", FRONTEND_DIR)

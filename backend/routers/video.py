@@ -440,15 +440,17 @@ def _enhance_video_prompt(prompt: str, model_key: str) -> dict:
         family = model_config.get("format_family", "") if model_config else ""
         model_guidance = "Richly descriptive, up to 5000 characters." if "luma" in family else "Concise descriptive caption, 512 character limit."
 
-    system_prompt = get_template('video_enhance_prompt').format(
+    from backend.services.prompt_templates import get_system_prompt
+    system_prompt = get_system_prompt('video_enhance_prompt').format(
         prompt_limit=prompt_limit,
         model_guidance=model_guidance,
         optimal_length=f"{optimal_words} words",
     )
+    user_message = get_template('video_enhance_prompt').format(user_prompt=prompt)
 
     try:
         result = invoke_llm(
-            prompt=f"Enhance this video prompt:\n\n{prompt}",
+            prompt=user_message,
             system=system_prompt,
             max_tokens=700,
             complexity="fast",

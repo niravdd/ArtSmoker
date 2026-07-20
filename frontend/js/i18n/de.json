@@ -1081,7 +1081,13 @@
     "missing_keys": "Erforderliche Schlüssel fehlen: categories, image_models",
     "json_saved": "Registry-JSON gespeichert",
     "json_save_not_impl": "Direktes Speichern des JSON erfordert PUT /api/admin/models (noch nicht implementiert). Verwenden Sie stattdessen die einzelnen Bearbeitungsfelder.",
-    "save_label": "Speichern"
+    "save_label": "Speichern",
+    "templates_system_prompt": "System-Prompt (steuert das LLM)",
+    "templates_prompt_body": "Prompt-Text",
+    "templates_reset_all": "Alle zurücksetzen",
+    "templates_reset_all_confirm": "ALLE Prompt-Vorlagen auf die Standardwerte zurücksetzen?",
+    "templates_reset_all_detail": "Dies verwirft alle Ihre Änderungen an allen Prompt-Vorlagen und stellt die ausgelieferten Standardwerte wieder her. Kann nicht rückgängig gemacht werden.",
+    "templates_reset_all_done": "Alle Vorlagen auf Standardwerte zurückgesetzt"
   },
   "prompt_editor": {
     "placeholder": "Beschreiben Sie, was Sie generieren möchten...",

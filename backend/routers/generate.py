@@ -1605,14 +1605,8 @@ async def edit_image(body: ImageEditRequest):
             # Use LLM to transform the removal prompt into a generative description
             try:
                 from backend.services.bedrock_client import invoke_llm
-                transform_prompt = (
-                    f"An image editing tool needs a generative prompt for inpainting.\n"
-                    f"The user said: \"{edit_prompt}\"\n"
-                    f"This is a REMOVAL request. The inpainting model needs to know what should "
-                    f"REPLACE the removed area — describe the background/surface that should fill in.\n"
-                    f"Output ONLY the replacement description (e.g., 'clean wall surface matching "
-                    f"surrounding architecture' or 'continuation of the brick facade'). "
-                    f"Keep it short (under 30 words). No explanation."
+                transform_prompt = get_template('inpaint_removal_transform').format(
+                    edit_prompt=edit_prompt,
                 )
                 generative_prompt = invoke_llm(transform_prompt, complexity="fast", max_tokens=100, temperature=0.3).strip()
                 if generative_prompt:
@@ -1976,16 +1970,12 @@ async def analyze_moderation(body: ModerationRequest):
         prompt_label = "Original" if attempt_num == 0 else "Previous rewrite that STILL FAILED"
         issues_text = json.dumps(all_issues, indent=2) if attempt_num > 0 else body.error_message
 
-        rewrite_context = (
-            f"A user's prompt was blocked by an AI image generation model's content moderation.\n"
-            f"{target_context}\n\n"
-            f"{prompt_label} prompt:\n"
-            f'"{current_prompt}"\n\n'
-            f"Specific issues identified:\n"
-            f"{issues_text}\n\n"
+        rewrite_instruction = get_template('moderation_rewrite').format(
+            target_context=target_context,
+            prompt_label=prompt_label,
+            current_prompt=current_prompt,
+            issues_text=issues_text,
         )
-
-        rewrite_instruction = rewrite_context + get_template('moderation_rewrite')
 
         try:
             raw = invoke_llm(rewrite_instruction, complexity="fast", max_tokens=2048, temperature=0.3)

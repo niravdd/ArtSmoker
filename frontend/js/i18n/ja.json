@@ -826,7 +826,13 @@
     "upscale_conservative": "後処理 — コンサバティブアップスケール",
     "upscale_creative": "後処理 — クリエイティブアップスケール",
     "upscale_fast": "後処理 — 高速アップスケール",
-    "vision_badge": "ビジョン"
+    "vision_badge": "ビジョン",
+    "templates_system_prompt": "システムプロンプト（LLMを制御）",
+    "templates_prompt_body": "プロンプト本文",
+    "templates_reset_all": "すべてリセット",
+    "templates_reset_all_confirm": "すべてのプロンプトテンプレートを既定値にリセットしますか？",
+    "templates_reset_all_detail": "すべてのプロンプトテンプレートへの編集を破棄し、出荷時の既定値に戻します。元に戻せません。",
+    "templates_reset_all_done": "すべてのテンプレートを既定値にリセットしました"
   },
   "nav": {
     "chat_studio": "チャットスタジオ",

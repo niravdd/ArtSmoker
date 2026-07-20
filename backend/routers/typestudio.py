@@ -196,34 +196,27 @@ def _build_layout_prompt(
   "canvas_height": {canvas_height}
 }}"""
 
-    if num_opts > 1:
-        multi_instruction = f"""
-Generate exactly {num_opts} COMPLETELY DIFFERENT layout options. Each option must be
-a distinctly different creative direction — different color schemes, font sizes,
-positioning, effect combinations, and visual mood. For example:
-- Option 1: Bold and dramatic with large text, dark shadows, warm gold colors
-- Option 2: Clean and minimal with smaller text, no effects, white/light colors
-- Option 3: Playful with varied font sizes, colorful palette, glow effects
-Each option must be self-contained and independently usable.
-
-Return a JSON array of {num_opts} layout objects (no markdown, no explanation):
-[
-  {layout_example},
-  ... ({num_opts} total)
-]"""
-    else:
-        multi_instruction = f"""
-Return ONLY a JSON object (no markdown, no explanation) in this exact format:
-{layout_example}"""
-
+    # Output-format instructions come from the editable registry templates; the
+    # code injects the computed JSON schema example (it carries canvas pixel
+    # values) and the option count.
     from backend.services.prompt_templates import get_template as _get_tmpl
+    if num_opts > 1:
+        output_instructions = _get_tmpl('typestudio_layout_output_multi').format(
+            num_options=num_opts, layout_example=layout_example,
+        )
+    else:
+        output_instructions = _get_tmpl('typestudio_layout_output_single').format(
+            layout_example=layout_example,
+        )
+
     return _get_tmpl('typestudio_layout').format(
         canvas_width=canvas_width,
         canvas_height=canvas_height,
         image_context=image_context,
         style_section=style_section,
         lines_desc=lines_desc,
-    ) + "\n" + multi_instruction
+        output_instructions=output_instructions,
+    )
 
 
 def _parse_layout_response(response_text: str, expect_multiple: bool = False) -> list[LayoutSpec]:

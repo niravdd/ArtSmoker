@@ -213,6 +213,7 @@ async def get_templates():
 class TemplateUpdate(BaseModel):
     text: str
     fix_variables: bool = False  # If true, use LLM to fix missing variables before saving
+    system_prompt: str | None = None  # Optional: also update the LLM system message (None = leave unchanged)
 
 
 @router.patch("/templates/{name}")
@@ -256,8 +257,8 @@ async def update_template_endpoint(name: str, body: TemplateUpdate):
             if still_missing:
                 raise HTTPException(400, detail=f"LLM fix attempted but variables still missing: {', '.join(still_missing)}. Please add them manually: {', '.join(missing)}")
 
-            # Save the fixed version
-            result = update_template(name, fixed, force=True)
+            # Save the fixed version (also persist system_prompt if provided)
+            result = update_template(name, fixed, force=True, system_prompt=body.system_prompt)
             result["auto_fixed"] = True
             result["fixed_variables"] = missing
             return result
@@ -274,9 +275,9 @@ async def update_template_endpoint(name: str, body: TemplateUpdate):
             "hint": "These variables are substituted at runtime. Removing them breaks the feature. Click 'Fix & Save' to auto-insert them.",
         })
 
-    # No missing variables — save directly
+    # No missing variables — save directly (also persist system_prompt if provided)
     try:
-        result = update_template(name, body.text, force=True)
+        result = update_template(name, body.text, force=True, system_prompt=body.system_prompt)
         return result
     except ValueError as exc:
         raise HTTPException(404, detail=str(exc))
@@ -747,49 +748,78 @@ async def auto_register_image_models(region: str):
             existing_video_by_model_id.setdefault(stored_id[3:], []).append(key)
 
     # Classify image models by purpose and format family based on model_id keywords.
+    # Per-model prompt guidance = MODEL-SPECIFIC steering ("how to prompt THIS
+    # model": caption vs instruction, structure, length band, negation handling).
+    # Distinct from the prompt-template registry, which is content-intent ("how
+    # the user wants their content"). Seeded here from official vendor docs so
+    # the AWS Sync always records it onto the registry entry (create + backfill).
+    # See memory: reference_prompt_length_guidance (2026 research, cited).
+    _STABILITY_T2I_GUIDANCE = (
+        "Responds well to rich, natural-language descriptions (~60-120 words). "
+        "Excels at material texture, lighting, atmosphere, and compositional precision — "
+        "let quality emerge from specific, vivid description rather than fixed quality-token prefixes. "
+        "Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt."
+    )
+    _NOVA_CANVAS_GUIDANCE = (
+        "Write a descriptive image CAPTION, not a command (~40-60 words). "
+        "Order: subject → environment → pose → lighting → camera → style. "
+        "Front-load the most important elements; place least-important details near the end "
+        "(long prompts drop trailing detail). NEVER use 'no'/'not'/'without' — route exclusions to the NEGATIVE line."
+    )
+    _AMAZON_DEFAULT_GUIDANCE = (
+        "Write a concise descriptive caption — subject first, style last. "
+        "Front-load key details; keep it tight. Route exclusions to the NEGATIVE line, never 'no'/'not'/'without'."
+    )
+
     def _classify_image_model(model_id: str, provider: str, input_modalities: list[str]):
-        """Determine model_purpose, format_family, prompt_limit, base_price, optimal_prompt_words from model_id and provider."""
+        """Classify a Bedrock image model → (model_purpose, format_family, prompt_limit,
+        base_price, optimal_prompt_words, prompt_guidance) from its id + provider.
+
+        prompt_guidance is model-specific steering seeded from official docs; empty
+        string ("") for edit/utility services that take no descriptive prompt."""
         mid = model_id.lower()
         has_image_input = "IMAGE" in input_modalities
 
         # Stability AI services — classify by model ID keywords
         if provider == "Stability AI":
             if "inpaint" in mid:
-                return "inpainting", "stability_inpaint", 10000, 0.07, 0
+                return "inpainting", "stability_inpaint", 10000, 0.07, 0, ""
             if "outpaint" in mid:
-                return "outpainting", "stability_outpaint", 10000, 0.06, 0
+                return "outpainting", "stability_outpaint", 10000, 0.06, 0, ""
             if "erase" in mid:
-                return "erase", "stability_erase", 0, 0.07, 0
+                return "erase", "stability_erase", 0, 0.07, 0, ""
             if "search-replace" in mid or "search_replace" in mid:
-                return "search_replace", "stability_search_replace", 10000, 0.07, 0
+                return "search_replace", "stability_search_replace", 10000, 0.07, 0, ""
             if "search-recolor" in mid or "recolor" in mid:
-                return "search_recolor", "stability_search_recolor", 10000, 0.07, 0
+                return "search_recolor", "stability_search_recolor", 10000, 0.07, 0, ""
             if "control-sketch" in mid:
-                return "control_sketch", "stability_control", 10000, 0.07, 0
+                return "control_sketch", "stability_control", 10000, 0.07, 0, ""
             if "control-structure" in mid:
-                return "control_structure", "stability_control", 10000, 0.07, 0
+                return "control_structure", "stability_control", 10000, 0.07, 0, ""
             if "style-guide" in mid:
-                return "style_guide", "stability_control", 10000, 0.07, 0
+                return "style_guide", "stability_control", 10000, 0.07, 0, ""
             if "style-transfer" in mid:
-                return "style_transfer", "stability_style_transfer", 10000, 0.08, 0
+                return "style_transfer", "stability_style_transfer", 10000, 0.08, 0, ""
             if "remove-background" in mid:
-                return "remove_background", "stability_remove_bg", 0, 0.07, 0
+                return "remove_background", "stability_remove_bg", 0, 0.07, 0, ""
             if "creative-upscale" in mid:
-                return "upscale_creative", "stability_upscale", 10000, 0.60, 0
+                return "upscale_creative", "stability_upscale", 10000, 0.60, 0, ""
             if "conservative-upscale" in mid:
-                return "upscale_conservative", "stability_upscale", 10000, 0.40, 0
+                return "upscale_conservative", "stability_upscale", 10000, 0.40, 0, ""
             if "fast-upscale" in mid:
-                return "upscale_fast", "stability_upscale", 0, 0.03, 0
+                return "upscale_fast", "stability_upscale", 0, 0.03, 0, ""
             # Default: text-to-image (SD 3.5, Stable Image Ultra/Core)
             opw = 120 if "sd3" in mid or "3.5" in mid else 100
-            return "text_to_image", "stability_text_to_image", 2000, 0.08, opw
+            return "text_to_image", "stability_text_to_image", 2000, 0.08, opw, _STABILITY_T2I_GUIDANCE
 
         # Amazon models (Nova Canvas, Titan Image)
         if provider == "Amazon":
-            opw = 40 if "titan" in mid else 80
-            return "text_to_image", "amazon_text_to_image", 900, 0.06, opw
+            if "titan" in mid:
+                return "text_to_image", "amazon_text_to_image", 900, 0.06, 40, _AMAZON_DEFAULT_GUIDANCE
+            # Nova Canvas — caption-style, drops trailing detail on long prompts
+            return "text_to_image", "amazon_text_to_image", 900, 0.06, 55, _NOVA_CANVAS_GUIDANCE
 
-        return "text_to_image", None, 900, None, 80
+        return "text_to_image", None, 900, None, 80, ""
 
     def _classify_video_model(model_id: str, provider: str, input_modalities: list[str]):
         """Determine format_family, pricing, and optimal_prompt_words for video models."""
@@ -997,7 +1027,7 @@ async def auto_register_image_models(region: str):
 
         # ── Image models ─────────────────────────────────────────────
         # Classify the model
-        purpose, family, prompt_limit, base_price, optimal_words = _classify_image_model(model_id, provider, inp)
+        purpose, family, prompt_limit, base_price, optimal_words, model_guidance = _classify_image_model(model_id, provider, inp)
         if not family:
             logger.warning("Unknown provider '%s' for model %s — skipping", provider, model_id)
             continue
@@ -1024,6 +1054,15 @@ async def auto_register_image_models(region: str):
                     backfill["customizations_supported"] = m.get("customizationsSupported", [])
                 if not existing_cfg.get("optimal_prompt_words") and optimal_words:
                     backfill["optimal_prompt_words"] = optimal_words
+                # Per-model prompt guidance (model-specific steering). Stored
+                # top-level for Bedrock foundation models (no invoke block);
+                # get_model_guidance() reads invoke.prompt_guidance first, then
+                # top-level. Only backfill when absent in BOTH places, so a
+                # user's manual edit is never overwritten.
+                if (model_guidance
+                        and not existing_cfg.get("prompt_guidance")
+                        and not existing_cfg.get("invoke", {}).get("prompt_guidance")):
+                    backfill["prompt_guidance"] = model_guidance
 
                 regions = existing_cfg.get("available_regions", [existing_cfg.get("region", "")])
                 if region not in regions:
@@ -1116,6 +1155,8 @@ async def auto_register_image_models(region: str):
         }
         if optimal_words:
             config["optimal_prompt_words"] = optimal_words
+        if model_guidance:
+            config["prompt_guidance"] = model_guidance  # model-specific steering (see _classify_image_model)
 
         add_image_model(key, config)
         existing_by_model_id.setdefault(model_id, []).append(key)

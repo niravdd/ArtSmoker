@@ -986,7 +986,7 @@
     "templates_instructions_placeholder": "वैकल्पिक: शोधन के लिए विशिष्ट निर्देश...",
     "templates_loading": "टेम्पलेट लोड हो रहे हैं...",
     "templates_load_failed": "टेम्पलेट लोड करने में विफल",
-    "templates_used_by": "द्वारा उपयोग",
+    "templates_used_by": "द्वारा प्रयुक्त",
     "templates_variables": "चर",
     "templates_edit": "टेम्पलेट संपादित करें",
     "templates_close_editor": "संपादक बंद करें",
@@ -1080,7 +1080,13 @@
     "missing_keys": "आवश्यक कुंजियाँ गायब: categories, image_models",
     "json_saved": "रजिस्ट्री JSON सहेजा गया",
     "json_save_not_impl": "सीधा JSON सहेजने के लिए PUT /api/admin/models ज़रूरी है (अभी लागू नहीं)। इसके बजाय व्यक्तिगत संपादन फ़ील्ड इस्तेमाल करें।",
-    "save_label": "सहेजें"
+    "save_label": "सहेजें",
+    "templates_system_prompt": "सिस्टम प्रॉम्प्ट (LLM को दिशा देता है)",
+    "templates_prompt_body": "प्रॉम्प्ट मुख्य भाग",
+    "templates_reset_all": "सभी रीसेट करें",
+    "templates_reset_all_confirm": "सभी प्रॉम्प्ट टेम्पलेट को अंतर्निहित डिफ़ॉल्ट पर रीसेट करें?",
+    "templates_reset_all_detail": "यह हर प्रॉम्प्ट टेम्पलेट में किए गए हर संपादन को हटा देता है और शिप किए गए डिफ़ॉल्ट को पुनर्स्थापित करता है। इसे पूर्ववत नहीं किया जा सकता।",
+    "templates_reset_all_done": "सभी टेम्पलेट डिफ़ॉल्ट पर रीसेट किए गए"
   },
   "prompt_editor": {
     "placeholder": "बताएँ कि आप क्या बनाना चाहते हैं...",

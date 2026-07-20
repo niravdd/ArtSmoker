@@ -1081,7 +1081,13 @@
     "missing_keys": "Missing required keys: categories, image_models",
     "json_saved": "Registry JSON saved",
     "json_save_not_impl": "Direct JSON save requires PUT /api/admin/models (not yet implemented). Use individual edit fields instead.",
-    "save_label": "Save"
+    "save_label": "Save",
+    "templates_system_prompt": "System prompt (steers the LLM)",
+    "templates_prompt_body": "Prompt body",
+    "templates_reset_all": "Reset All",
+    "templates_reset_all_confirm": "Reset ALL prompt templates to their built-in defaults?",
+    "templates_reset_all_detail": "This discards every edit you have made to every prompt template and restores the shipped defaults. This cannot be undone.",
+    "templates_reset_all_done": "All templates reset to defaults"
   },
   "prompt_editor": {
     "placeholder": "Describe what you want to generate...",

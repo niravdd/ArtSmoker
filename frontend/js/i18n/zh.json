@@ -816,7 +816,7 @@
     "templates_save": "保存",
     "templates_save_failed": "保存失败",
     "templates_saved": "模板已保存",
-    "templates_used_by": "使用者",
+    "templates_used_by": "使用于",
     "templates_variables": "变量",
     "title": "模型设置",
     "type_llm_desc": "用于设计文字位置、字体、大小和效果的 LLM。Complex LLM 用于高质量排版，Fast LLM 用于更快速、更经济的建议。",
@@ -826,7 +826,13 @@
     "upscale_conservative": "后处理 — 保守放大",
     "upscale_creative": "后处理 — 创意放大",
     "upscale_fast": "后处理 — 快速放大",
-    "vision_badge": "视觉"
+    "vision_badge": "视觉",
+    "templates_system_prompt": "系统提示词（引导 LLM）",
+    "templates_prompt_body": "提示词正文",
+    "templates_reset_all": "全部重置",
+    "templates_reset_all_confirm": "将所有提示词模板重置为内置默认值？",
+    "templates_reset_all_detail": "这将放弃您对所有提示词模板所做的每一处编辑，并恢复出厂默认值。此操作无法撤销。",
+    "templates_reset_all_done": "所有模板已重置为默认值"
   },
   "nav": {
     "chat_studio": "对话工作室",

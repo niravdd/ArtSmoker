@@ -194,6 +194,7 @@
                                 <select id="ms-tmpl-model" class="input text-xs font-mono flex-1"></select>
                                 <input type="text" id="ms-tmpl-instructions" class="input text-xs flex-1" placeholder="${t('model_settings.templates_instructions_placeholder')}">
                                 <button id="ms-tmpl-toggle-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" title="Show or hide all template editors">View All</button>
+                                <button id="ms-tmpl-reset-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-red-500 hover:text-red-400 whitespace-nowrap" title="Reset ALL prompt templates to their built-in defaults">${t('model_settings.templates_reset_all') || 'Reset All'}</button>
                             </div>
                             <div id="ms-templates-list" class="space-y-3">
                                 <p class="text-xs text-brand-text-muted text-center py-4">Loading templates...</p>
@@ -750,6 +751,27 @@
                 if (btn) btn.textContent = _tmplGroupsExpanded ? 'Hide All' : 'View All';
             });
 
+            // Reset ALL templates to defaults
+            modal.querySelector('#ms-tmpl-reset-all')?.addEventListener('click', async () => {
+                if (!await window.showConfirm?.(
+                    t('model_settings.templates_reset_all_confirm') || 'Reset ALL prompt templates to their built-in defaults?',
+                    { title: t('model_settings.templates_reset_all') || 'Reset All Templates',
+                      detail: t('model_settings.templates_reset_all_detail') || 'This discards every edit you have made to every prompt template and restores the shipped defaults. This cannot be undone.',
+                      confirmLabel: t('model_settings.templates_reset_all') || 'Reset All' })) return;
+                try {
+                    const resp = await fetch('/api/admin/templates/reset-all', { method: 'POST' });
+                    if (resp.ok) {
+                        window.showToast?.(t('model_settings.templates_reset_all_done') || 'All templates reset to defaults', 'success');
+                        this._templatesLoaded = false;
+                        this._loadTemplates(modal);
+                    } else {
+                        window.showToast?.(t('model_settings.templates_save_failed') || 'Reset failed', 'error');
+                    }
+                } catch (e) {
+                    window.showToast?.((t('model_settings.templates_save_failed') || 'Reset failed') + ': ' + e.message, 'error');
+                }
+            });
+
             // Refresh All
             modal.querySelector('#ms-refresh-all')?.addEventListener('click', async () => {
                 if (this._refreshing) return;
@@ -1090,12 +1112,27 @@
             if (!container || !this._templatesData) return;
             const templates = this._templatesData;
 
-            // Group templates by studio/area with user-friendly labels
+            // Group templates by studio/area. Every group lists its known
+            // templates; any registry template NOT explicitly listed is collected
+            // into a catch-all "Other" group so NOTHING is ever hidden and newly
+            // added templates always appear (self-healing). friendlyLabel is an
+            // optional nicety — the authoritative label/description come from the
+            // registry and are shown by _renderSingleTemplate.
             const GROUPS = [
                 { key: 'image_studio', label: t('nav.image_studio'), color: 'text-brand-accent', templates: [
                     { name: 'image_refine_single', friendlyLabel: 'Prompt Refinement — how your text is turned into a detailed image prompt' },
                     { name: 'image_concepts_multi', friendlyLabel: 'Creative Options — how multiple distinct concepts are generated from one idea' },
                     { name: 'image_refine_marketing', friendlyLabel: 'Marketing Banners — specialized prompt for banner compositions' },
+                    { name: 'image_asset_type_context', friendlyLabel: 'Asset-Type Intent — the creative direction per asset type (game asset, character, etc.)' },
+                    { name: 'image_style_section', friendlyLabel: 'Style-Hints Framing — how a Style Library style is woven into the prompt' },
+                    { name: 'asset_type_classify', friendlyLabel: 'Asset-Type Suggestion — suggests the best asset type for your prompt' },
+                    { name: 'prompt_decompose', friendlyLabel: 'Prompt Designer — breaks your idea into editable visual components' },
+                    { name: 'prompt_recompose', friendlyLabel: 'Prompt Designer — recomposes edited components into a final prompt' },
+                ]},
+                { key: 'reference_guided', label: 'Reference-Guided (Image Inspiration)', color: 'text-cyan-400', templates: [
+                    { name: 'reference_intent_extraction', friendlyLabel: 'Inspired-By — reads reference image(s) + your instruction into an enhanced prompt' },
+                    { name: 'reference_edit_instruction', friendlyLabel: 'Match-the-Reference — shapes your instruction for the reference edit model' },
+                    { name: 'inpaint_removal_transform', friendlyLabel: 'Inpaint Removal — turns a "remove X" request into a fill description' },
                 ]},
                 { key: 'style_library', label: t('nav.style_library'), color: 'text-purple-400', templates: [
                     { name: 'style_analysis_full', friendlyLabel: 'Style Analysis — how reference images are analyzed for visual attributes' },
@@ -1106,11 +1143,16 @@
                     { name: 'moderation_prescreen', friendlyLabel: 'Pre-Screen — predicts if a prompt will be blocked before generating' },
                     { name: 'moderation_rewrite', friendlyLabel: 'Rewrite — rewrites blocked prompts to pass moderation' },
                 ]},
+                { key: 'three_d', label: '3D Generation', color: 'text-pink-400', templates: [
+                    { name: 'three_d_source_analysis', friendlyLabel: 'Source Check — detects if a 2D image is cropped/incomplete before image-to-3D' },
+                ]},
                 { key: 'video_studio', label: t('nav.video_studio'), color: 'text-emerald-400', templates: [
                     { name: 'video_enhance_prompt', friendlyLabel: 'Prompt Enhancement — adds camera movements, lighting, and temporal cues' },
                 ]},
                 { key: 'type_studio', label: t('nav.type_studio'), color: 'text-cyan-400', templates: [
                     { name: 'typestudio_layout', friendlyLabel: 'Text Layout — designs text positions, fonts, sizes, and effects' },
+                    { name: 'typestudio_layout_output_multi', friendlyLabel: 'Text Layout Output (multiple) — output format for multiple layout options' },
+                    { name: 'typestudio_layout_output_single', friendlyLabel: 'Text Layout Output (single) — output format for one layout' },
                 ]},
                 { key: 'chat_studio', label: t('nav.chat_studio'), color: 'text-indigo-400', templates: [
                     { name: 'chat_context_compact', friendlyLabel: 'Context Compaction — summarizes older messages to free context space' },
@@ -1120,7 +1162,19 @@
                     { name: 'translate_detect_language', friendlyLabel: 'Language Detection — detects language when heuristics are ambiguous' },
                     { name: 'translate_to_english', friendlyLabel: 'Translation to English — translates non-English prompts before generation' },
                 ]},
+                { key: 'admin', label: 'Template Editor (meta)', color: 'text-brand-text-muted', templates: [
+                    { name: 'admin_template_enhance', friendlyLabel: 'Enhance-with-AI — the prompt used by the "Enhance with AI" button here' },
+                    { name: 'admin_template_fix_variables', friendlyLabel: 'Fix Variables — the prompt used by "Fix & Save" to reinsert missing variables' },
+                ]},
             ];
+
+            // Catch-all: any registry template not placed above → "Other".
+            const _grouped = new Set(GROUPS.flatMap(g => g.templates.map(t => t.name)));
+            const _ungrouped = Object.keys(templates).filter(n => !_grouped.has(n));
+            if (_ungrouped.length) {
+                GROUPS.push({ key: 'other', label: 'Other', color: 'text-brand-text-muted',
+                    templates: _ungrouped.map(n => ({ name: n, friendlyLabel: '' })) });
+            }
 
             container.innerHTML = GROUPS.map(group => {
                 const groupTemplates = group.templates.filter(gt => templates[gt.name]);
@@ -1155,15 +1209,25 @@
         _renderSingleTemplate(name, tmpl, friendlyLabel) {
             const modified = tmpl.modified ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">${t('model_settings.templates_modified')}</span>` : '';
             const vars = (tmpl.variables || []).map(v => `<code class="text-[9px] text-brand-accent bg-brand-accent/10 px-1 rounded">${this._esc(v)}</code>`).join(' ');
+            // The registry's authoritative label + description + used_by (no longer masked).
+            const title = friendlyLabel || tmpl.label || name;
+            const desc = tmpl.description ? `<p class="text-[10px] text-brand-text-muted/70 mb-1">${this._esc(tmpl.description)}</p>` : '';
+            const usedBy = tmpl.used_by ? `<p class="text-[9px] text-brand-text-muted/50 mb-2">${t('model_settings.templates_used_by') || 'Used by'}: ${this._esc(tmpl.used_by)}</p>` : '';
+            const hasSystem = typeof tmpl.system_prompt === 'string';
+            const systemEditor = hasSystem ? `
+                            <label class="block text-[10px] text-brand-text-muted mt-1">${t('model_settings.templates_system_prompt') || 'System prompt (steers the LLM)'}</label>
+                            <textarea class="ms-tmpl-system input w-full h-28 font-mono text-xs resize-y" data-tmpl="${this._esc(name)}" spellcheck="false">${this._esc(tmpl.system_prompt || '')}</textarea>` : '';
             return `
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-tmpl="${this._esc(name)}">
                     <div class="flex items-center justify-between mb-1">
                         <div class="flex items-center gap-2">
-                            <span class="text-sm font-medium">${this._esc(friendlyLabel || tmpl.label || name)}</span>
+                            <span class="text-sm font-medium">${this._esc(title)}</span>
                             ${modified}
                         </div>
                         <span class="text-[9px] text-brand-text-muted">${this._esc(tmpl.model || '')}</span>
                     </div>
+                    ${desc}
+                    ${usedBy}
                     <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('model_settings.templates_variables')}: ${vars || 'none'}</p>
                     <details class="group">
                         <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
@@ -1171,7 +1235,9 @@
                             <span class="hidden group-open:inline">${t('model_settings.templates_close_editor')}</span>
                         </summary>
                         <div class="mt-2 space-y-2">
+                            <label class="block text-[10px] text-brand-text-muted ${hasSystem ? '' : 'hidden'}">${t('model_settings.templates_prompt_body') || 'Prompt body'}</label>
                             <textarea class="ms-tmpl-text input w-full h-48 font-mono text-xs resize-y" data-tmpl="${this._esc(name)}" spellcheck="false">${this._esc(tmpl.text || '')}</textarea>
+                            ${systemEditor}
                             <div class="flex gap-2 flex-wrap">
                                 <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${this._esc(name)}">${t('model_settings.templates_save')}</button>
                                 <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${this._esc(name)}">${t('model_settings.templates_enhance')}</button>
@@ -1214,13 +1280,16 @@
                     const name = btn.dataset.tmpl;
                     const textarea = container.querySelector(`.ms-tmpl-text[data-tmpl="${name}"]`);
                     if (!textarea) return;
+                    // Optional system-prompt editor (only present for templates that have one).
+                    const sysArea = container.querySelector(`.ms-tmpl-system[data-tmpl="${name}"]`);
+                    const systemVal = sysArea ? sysArea.value : null;  // null = leave unchanged
                     btn.disabled = true;
 
                     const doSave = async (force = false) => {
                         const resp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}`, {
                             method: 'PATCH',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ text: textarea.value, force }),
+                            body: JSON.stringify({ text: textarea.value, force, system_prompt: systemVal }),
                         });
                         if (resp.ok) {
                             window.showToast?.(t('model_settings.templates_saved'), 'success');
@@ -1254,7 +1323,7 @@
                                     const fixResp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}`, {
                                         method: 'PATCH',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ text: textarea.value, fix_variables: true }),
+                                        body: JSON.stringify({ text: textarea.value, fix_variables: true, system_prompt: systemVal }),
                                     });
                                     if (fixResp.ok) {
                                         const fixResult = await fixResp.json();
