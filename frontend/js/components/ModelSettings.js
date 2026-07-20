@@ -272,9 +272,8 @@
                 return '<p class="text-sm text-brand-text-muted py-4 text-center">' + t('model_settings.no_models') + '</p>';
             }
 
-            // Group models by purpose
-            const groups = {};
-            const PURPOSE_LABELS = {
+            // Per-purpose short tag shown on each model card (its specific role).
+            const PURPOSE_TAG = {
                 'text_to_image': t('model_settings.generation'),
                 'image_edit': t('model_settings.image_edit'),
                 'inpainting': t('model_settings.inpainting'),
@@ -291,26 +290,57 @@
                 'upscale_conservative': t('model_settings.upscale_conservative'),
                 'upscale_fast': t('model_settings.upscale_fast'),
             };
-            const PURPOSE_ORDER = Object.keys(PURPOSE_LABELS);
 
+            // Consolidate the many fine-grained purposes into a few top-level
+            // sections so the list stays navigable (was 16 sections, mostly with
+            // one model each). Each model still shows its specific role via a tag.
+            // Mapping is purpose→section; an UNKNOWN purpose falls back to its own
+            // section (keyed by the raw purpose) so nothing is ever hidden.
+            const SECTIONS = [
+                { id: 'generation', label: t('model_settings.section_generation'),
+                  purposes: ['text_to_image'] },
+                { id: 'editing', label: t('model_settings.section_editing'),
+                  purposes: ['image_edit', 'inpainting', 'outpainting', 'erase', 'search_replace', 'search_recolor'] },
+                { id: 'upscaling', label: t('model_settings.section_upscaling'),
+                  purposes: ['upscale_creative', 'upscale_conservative', 'upscale_fast'] },
+                { id: 'control_style', label: t('model_settings.section_control_style'),
+                  purposes: ['control_sketch', 'control_structure', 'style_guide', 'style_transfer'] },
+                { id: 'background', label: t('model_settings.section_background'),
+                  purposes: ['remove_background'] },
+            ];
+            // purpose → section index (built from the map above).
+            const _purposeToSection = {};
+            SECTIONS.forEach((s, i) => s.purposes.forEach(p => { _purposeToSection[p] = i; }));
+
+            // A purpose may be missing on Amazon variants (e.g. nova_canvas_inpaint
+            // carries no model_purpose) — infer it from the key so it still lands
+            // in the right section. Discovery/editing use capabilities, not this;
+            // this is purely for grouping the settings list.
+            const _inferPurpose = (key, m) => {
+                if (m.model_purpose) return m.model_purpose;
+                const k = key.toLowerCase();
+                if (k.includes('inpaint')) return 'inpainting';
+                if (k.includes('outpaint')) return 'outpainting';
+                if (k.includes('erase')) return 'erase';
+                if (k.includes('upscale')) return 'upscale_creative';
+                if (k.includes('background') || k.includes('_bg')) return 'remove_background';
+                return 'other';
+            };
+
+            // Bucket models into sections; unknown purposes get their own trailing section.
+            const buckets = SECTIONS.map(() => []);
+            const extraSections = {};  // rawPurpose → entries[]
             for (const [key, m] of Object.entries(models)) {
-                const purpose = m.model_purpose || 'other';
-                if (!groups[purpose]) groups[purpose] = [];
-                groups[purpose].push([key, m]);
+                const purpose = _inferPurpose(key, m);
+                const si = _purposeToSection[purpose];
+                if (si != null) buckets[si].push([key, m, purpose]);
+                else (extraSections[purpose] = extraSections[purpose] || []).push([key, m, purpose]);
             }
 
-            // Render grouped
-            const sortedPurposes = Object.keys(groups).sort((a, b) => {
-                const ai = PURPOSE_ORDER.indexOf(a);
-                const bi = PURPOSE_ORDER.indexOf(b);
-                return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi);
-            });
-
-            const _purposeColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400', 'text-amber-400', 'text-pink-400', 'text-teal-400', 'text-indigo-400'];
-            return sortedPurposes.map((purpose, idx) => {
-                const label = PURPOSE_LABELS[purpose] || purpose;
-                const entries = groups[purpose];
-                const color = _purposeColors[idx % _purposeColors.length];
+            const _sectionColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400', 'text-amber-400', 'text-pink-400', 'text-teal-400', 'text-indigo-400'];
+            const renderSection = (label, entries, idx) => {
+                if (!entries.length) return '';
+                const color = _sectionColors[idx % _sectionColors.length];
                 return `
                     <details class="mb-3 ms-collapsible">
                         <summary class="text-sm font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">
@@ -318,14 +348,22 @@
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
                         </summary>
                         <div class="space-y-2 mt-2">
-                            ${entries.map(([key, m]) => this._renderSingleModel(key, m)).join('')}
+                            ${entries.map(([key, m, purpose]) => this._renderSingleModel(key, m, PURPOSE_TAG[purpose] || '')).join('')}
                         </div>
                     </details>
                 `;
-            }).join('');
+            };
+
+            let idx = 0;
+            const html = SECTIONS.map((s, i) => renderSection(s.label, buckets[i], idx++)).join('');
+            // Any unmapped purposes (future/unknown) render after, labeled by their tag or raw key.
+            const extraHtml = Object.entries(extraSections)
+                .map(([purpose, entries]) => renderSection(PURPOSE_TAG[purpose] || purpose, entries, idx++))
+                .join('');
+            return html + extraHtml;
         },
 
-        _renderSingleModel(key, m) {
+        _renderSingleModel(key, m, purposeTag = '') {
             const regions = (m.available_regions || [m.region]).join(', ');
             const quality = (m.quality_options || []).map(q => q.label).join(' / ') || t('model_settings.no_tiers');
             const price = m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : t('common.unknown');
@@ -363,6 +401,7 @@
                                     <span class="toggle-slider"></span>
                                 </label>
                                 <span class="text-sm font-medium">${this._esc(m.label || key)}</span>
+                                ${purposeTag ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent/90 uppercase tracking-wide">${this._esc(purposeTag)}</span>` : ''}
                                 <span class="text-[10px] text-brand-text-muted">${this._esc(m.provider || '')}</span>
                                 ${sourceBadge}
                             </div>
