@@ -376,8 +376,8 @@ def get_image_model_options(region: str | None = Query(default=None)):
     """Return enabled image models for the frontend dropdown.
 
     This is the source of truth for model selection — the frontend
-    should NOT hardcode model lists. Returns models sorted by provider
-    then label.
+    should NOT hardcode model lists. Returns models sorted alphabetically
+    by label (case-insensitive).
 
     Optional `region` filter: if provided, only returns models available
     in that region. If omitted, returns all enabled models.
@@ -485,23 +485,11 @@ def get_image_model_options(region: str | None = Query(default=None)):
             "_last_updated": cfg.get("last_updated", cfg.get("invoke", {}).get("last_updated", "")),
         })
 
-    # Sort: provider ascending, then newest model first within each provider.
-    # Models with last_updated sort by date descending (FLUX.2 > FLUX.1).
-    # Models without last_updated sort by label descending (Nova Canvas > Titan Image,
-    # SD 3.5 > SDXL Turbo) — version numbers in labels naturally order correctly.
-    def _model_sort_key(m):
-        provider = m["provider"]
-        date = m.pop("_last_updated", "") or ""
-        if date:
-            # Negate date digits for descending: "2025-06-01" → "7974-93-98"
-            neg_date = "".join(chr(ord('9') - ord(c)) if c.isdigit() else c for c in date)
-        else:
-            # No date → sort before dated models (assumed current/recent)
-            neg_date = ""
-        # Negate label for descending: complement ASCII so "Z" < "A" in sort
-        neg_label = "".join(chr(255 - ord(c)) if c.isascii() else c for c in m["label"])
-        return (provider, neg_date, neg_label)
-    models.sort(key=_model_sort_key)
+    # Sort alphabetically by label (case-insensitive) so the dropdown reads
+    # A→Z regardless of provider or release date.
+    for m in models:
+        m.pop("_last_updated", None)
+    models.sort(key=lambda m: m["label"].casefold())
 
     # Collect all regions that have at least one model
     all_regions = sorted(set(

@@ -5359,16 +5359,16 @@
           ]
         }
       },
-      "qwen_image_edit_2509": {
-        "label": "Qwen-Image-Edit (2509)",
-        "description": "Reference-guided image editing by Alibaba Qwen. Apache-2.0 (commercial-safe). Takes 1–3 reference images + an instruction to preserve a subject/product/character while changing theme, background, wardrobe, lighting. Powers the Image Studio reference-guided tab and the basic Edit tab (inpaint/outpaint).",
+      "qwen_image_edit_2511": {
+        "label": "Qwen-Image-Edit",
+        "description": "Reference-guided image editing by Alibaba Qwen. Apache-2.0 (commercial-safe). Takes 1–3 reference images + an instruction to preserve a subject/product/character while changing theme, background, wardrobe, lighting. The 2511 refresh over 2509 mitigates image drift, improves character consistency, adds integrated LoRA, and strengthens geometric reasoning. Powers the Image Studio reference-guided tab and the basic Edit tab (inpaint/outpaint).",
         "category": "image_generation",
         "studio": "image",
         "provider": "Alibaba Qwen",
         "license": "Apache-2.0",
         "commercial": true,
         "requires_hf_auth": false,
-        "hf_license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509",
+        "hf_license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511",
         "model_purpose": "image_edit",
         "prompt_limit": 2000,
         "capabilities": {
@@ -5384,7 +5384,7 @@
         "license_agreement": {
           "required": true,
           "license_name": "Apache-2.0",
-          "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2509/blob/main/LICENSE",
+          "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511/blob/main/LICENSE",
           "commercial": true,
           "key_terms": [
             "Apache License 2.0 — commercial use permitted",
@@ -5395,7 +5395,7 @@
         },
         "source": {
           "type": "huggingface",
-          "repo_id": "Qwen/Qwen-Image-Edit-2509"
+          "repo_id": "Qwen/Qwen-Image-Edit-2511"
         },
         "requirements": {
           "min_vram_gb": 24,
@@ -5510,20 +5510,20 @@
       },
       "qwen_image": {
         "label": "Qwen-Image",
-        "description": "Text-to-image generator by Alibaba Qwen. Apache-2.0 (commercial-safe). 20B MMDiT with strong prompt following and exceptional text rendering (incl. non-Latin scripts). A deployable custom generator alongside the Bedrock models. Its editing sibling, Qwen-Image-Edit, is a separate deploy.",
+        "description": "Text-to-image generator by Alibaba Qwen. Apache-2.0 (commercial-safe). 20B MMDiT with strong prompt following and exceptional text rendering (incl. non-Latin scripts). The 2512 refresh over the August base enhances human realism (less \"AI look\"), finer natural detail (fur/landscapes), and text rendering accuracy. A deployable custom generator alongside the Bedrock models. Its editing sibling, Qwen-Image-Edit, is a separate deploy.",
         "category": "image_generation",
         "studio": "image",
         "provider": "Alibaba Qwen",
         "license": "Apache-2.0",
         "commercial": true,
         "requires_hf_auth": false,
-        "hf_license_url": "https://huggingface.co/Qwen/Qwen-Image",
+        "hf_license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
         "model_purpose": "text_to_image",
         "prompt_limit": 2000,
         "license_agreement": {
           "required": true,
           "license_name": "Apache-2.0",
-          "license_url": "https://huggingface.co/Qwen/Qwen-Image/blob/main/LICENSE",
+          "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512/blob/main/LICENSE",
           "commercial": true,
           "key_terms": [
             "Apache License 2.0 — commercial use permitted",
@@ -5534,7 +5534,7 @@
         },
         "source": {
           "type": "huggingface",
-          "repo_id": "Qwen/Qwen-Image"
+          "repo_id": "Qwen/Qwen-Image-2512"
         },
         "requirements": {
           "min_vram_gb": 24,
@@ -6119,8 +6119,8 @@
         }
       },
       "hunyuan_image_3_0_instruct_bf16": {
-        "label": "HunyuanImage 3.0 Instruct (BF16) — HQ",
-        "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision — zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Chain-of-thought reasoning auto-enhances prompts.",
+        "label": "HunyuanImage 3.0 (BF16) — HQ",
+        "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision — zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Text-to-image only; prompt enhancement is handled by ArtSmoker's own pipeline.",
         "provider": "Tencent",
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
@@ -6172,7 +6172,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "block_swap_blocks": 0,
-          "bot_task": "think_recaption",
+          "bot_task": "image",
           "input_fields": {
             "prompt": {
               "type": "string",
@@ -6278,7 +6278,7 @@
           ],
           "typical_latency_seconds": 120,
           "max_concurrent_invocations": 1,
-          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer — the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive text-to-image model by Tencent.\n\nKEY: This deployment runs the base checkpoint in plain text-to-image mode; it does NOT auto-enhance prompts. ArtSmoker's own prompt pipeline handles enhancement upstream, so send a clear, well-formed prompt.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
           "image_size_format": "HxW",
           "optimal_prompt_words": 55
         },
@@ -6314,8 +6314,8 @@
         }
       },
       "hunyuan_image_3_0_instruct_nf4": {
-        "label": "HunyuanImage 3.0 Instruct (NF4)",
-        "description": "Tencent’s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Chain-of-thought reasoning auto-enhances prompts.",
+        "label": "HunyuanImage 3.0 (NF4)",
+        "description": "Tencent’s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Text-to-image only; prompt enhancement is handled by ArtSmoker's own pipeline.",
         "provider": "Tencent",
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
@@ -6368,7 +6368,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "block_swap_blocks": 0,
-          "bot_task": "think_recaption",
+          "bot_task": "image",
           "quantization_type": "pre_quantized_nf4",
           "input_fields": {
             "prompt": {
@@ -6455,7 +6455,7 @@
           ],
           "typical_latency_seconds": 240,
           "max_concurrent_invocations": 1,
-          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive model by Tencent with built-in chain-of-thought reasoning.\n\nKEY: This model auto-enhances your prompt via CoT reasoning (think_recaption mode). Keep prompts clear and descriptive but don't over-engineer — the model's internal reasoning will elaborate.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- CoT reasoning catches and fixes prompt ambiguities automatically\n- High-fidelity details at large resolutions",
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive text-to-image model by Tencent.\n\nKEY: This deployment runs the base checkpoint in plain text-to-image mode; it does NOT auto-enhance prompts. ArtSmoker's own prompt pipeline handles enhancement upstream, so send a clear, well-formed prompt.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- High-fidelity details at large resolutions",
           "image_size_format": "HxW",
           "optimal_prompt_words": 55
         },

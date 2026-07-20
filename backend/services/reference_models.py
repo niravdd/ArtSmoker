@@ -91,7 +91,7 @@ def reference_generation_available() -> dict:
     if not model_key or not cfg:
         # Point the user at the recommended catalog model to deploy.
         ref_keys = _reference_catalog_keys()
-        deploy_key = "qwen_image_edit_2509" if "qwen_image_edit_2509" in ref_keys else (
+        deploy_key = "qwen_image_edit_2511" if "qwen_image_edit_2511" in ref_keys else (
             next(iter(sorted(ref_keys)), None)
         )
         return {
