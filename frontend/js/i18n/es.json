@@ -1238,7 +1238,9 @@
     "license_commercial_ok": "uso comercial — OK",
     "license_commercial_no": "uso comercial — no permitido",
     "subgroup_generation": "Generación",
-    "subgroup_editing": "Edición de imagen"
+    "subgroup_editing": "Edición de imagen",
+    "bucket_required_title": "Se requiere un bucket S3",
+    "bucket_required_desc": "Desplegar un modelo autoalojado sube su manejador a S3, donde también se conservan los trabajos en segundo plano y las notificaciones. Configura un bucket S3 en los ajustes de Video Studio (Ajustes de modelos → Video Studio) antes de desplegar."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

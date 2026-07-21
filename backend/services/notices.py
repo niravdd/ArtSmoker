@@ -1,16 +1,19 @@
 """User notices — durable, dismissible "what happened while you were away" store.
 
-Some events happen in the background with no user watching: a self-hosted model
-deploy that fails ~20 min after the browser was closed, an endpoint auto-torn-down
-on failure, etc. Logging them isn't enough — the user needs to be told, next time
-they open the app, in plain language ("HunyuanImage 3.0 deploy failed:
-InsufficientInstanceCapacity — auto-removed; you can redeploy").
+Some things happen in the background with no user watching: a self-hosted model
+deploy that succeeds/fails ~20 min after the browser was closed, an endpoint
+auto-torn-down on failure, etc. Logging isn't enough — the user should be told,
+next time they open the app, in plain language.
 
-This is a tiny persistent store (JSON on disk under data/) so notices survive a
-server restart. The frontend polls /api/health, which surfaces unseen notices as
-a dismissible banner; the user dismisses them via /api/notices/{id}/dismiss.
+Persisted to S3 (the same deployment bucket async-jobs use, under
+`artsmoker/notices/`) so notices survive server restarts and are consistent with
+how the rest of the app stores background state — NOT a local file. An in-memory
+list mirrors S3 for fast reads; every mutation writes through to S3.
 
-Deliberately minimal: single-user self-hosted tool, so no per-user scoping, no
+The frontend polls /api/health, which surfaces unseen notices as a dismissible
+banner; the user dismisses them via /api/notices/{id}/dismiss.
+
+Deliberately minimal: single-user self-hosted tool — no per-user scoping, no
 push/email — just "record now, show on next load, let them dismiss".
 """
 
@@ -20,42 +23,89 @@ import threading
 import uuid
 from datetime import datetime, timezone
 
-from backend.config import settings
-
 logger = logging.getLogger(__name__)
 
-_NOTICES_PATH = settings.data_dir / "notices.json"
-_MAX_NOTICES = 100          # keep the file bounded — drop oldest beyond this
-_lock = threading.Lock()
+_S3_PREFIX = "artsmoker/notices/"
+_S3_KEY = _S3_PREFIX + "notices.json"   # single rolling document (small, bounded)
+_MAX_NOTICES = 200                       # keep the doc bounded — drop oldest beyond this
+_lock = threading.RLock()
+
+_cache: list | None = None               # in-memory mirror; None = not yet loaded
+_cache_loaded = False
+
+
+def _s3():
+    """(client, bucket) or (None, None) if no deployment bucket is configured."""
+    try:
+        import boto3
+        from backend.services.sagemaker_deployer import get_deployment_s3_bucket
+        from backend.config import settings
+        bucket = get_deployment_s3_bucket()
+        if not bucket:
+            return None, None
+        return boto3.client("s3", region_name=settings.aws_region_models), bucket
+    except Exception as exc:
+        logger.debug("Notices S3 client unavailable: %s", exc)
+        return None, None
 
 
 def _load() -> list:
-    try:
-        if _NOTICES_PATH.exists():
-            return json.loads(_NOTICES_PATH.read_text())
-    except Exception as exc:
-        logger.debug("Notices load failed: %s", exc)
-    return []
+    """Return the notices list, loading from S3 once into the in-memory cache."""
+    global _cache, _cache_loaded
+    with _lock:
+        if _cache_loaded and _cache is not None:
+            return _cache
+        notices = []
+        s3, bucket = _s3()
+        if s3 and bucket:
+            try:
+                obj = s3.get_object(Bucket=bucket, Key=_S3_KEY)
+                notices = json.loads(obj["Body"].read())
+                if not isinstance(notices, list):
+                    notices = []
+            except s3.exceptions.NoSuchKey:
+                notices = []
+            except Exception as exc:
+                # A ClientError for a missing key also lands here on some setups.
+                if "NoSuchKey" not in str(exc) and "Not Found" not in str(exc):
+                    logger.debug("Notices S3 load failed: %s", exc)
+                notices = []
+        _cache = notices
+        _cache_loaded = True
+        return _cache
 
 
 def _save(notices: list):
-    try:
-        _NOTICES_PATH.parent.mkdir(parents=True, exist_ok=True)
-        _NOTICES_PATH.write_text(json.dumps(notices, indent=2))
-    except Exception as exc:
-        logger.warning("Notices save failed: %s", exc)
+    global _cache
+    with _lock:
+        _cache = notices
+        _cache_loaded = True
+        s3, bucket = _s3()
+        if not (s3 and bucket):
+            logger.debug("Notices: no S3 bucket — kept in memory only")
+            return
+        try:
+            body = json.dumps(notices, indent=2).encode("utf-8")
+            s3.put_object(Bucket=bucket, Key=_S3_KEY, Body=body, ContentType="application/json")
+            try:
+                from backend.services.cost_tracker import add_background_s3_cost
+                add_background_s3_cost("put", len(body), "notices persist")
+            except Exception:
+                pass
+        except Exception as exc:
+            logger.warning("Notices S3 save failed: %s", exc)
 
 
-def add_notice(kind: str, title: str, message: str, level: str = "warning",
+def add_notice(kind: str, title: str, message: str, level: str = "info",
                dedup_key: str = "") -> dict:
     """Record a durable user notice.
 
-    kind: machine tag (e.g. "deploy_failed"). level: "info"|"warning"|"error".
-    dedup_key: if set, an existing UNSEEN notice with the same dedup_key is
-    replaced rather than duplicated (avoids stacking identical failures).
+    kind: machine tag (e.g. "deploy_failed", "deploy_ready"). level:
+    "info"|"success"|"warning"|"error". dedup_key: if set, an existing UNSEEN
+    notice with the same dedup_key is replaced rather than duplicated.
     """
     with _lock:
-        notices = _load()
+        notices = list(_load())
         if dedup_key:
             notices = [n for n in notices if not (n.get("dedup_key") == dedup_key and not n.get("seen"))]
         notice = {
@@ -69,27 +119,31 @@ def add_notice(kind: str, title: str, message: str, level: str = "warning",
             "seen": False,
         }
         notices.append(notice)
-        # Bound the file — keep the newest _MAX_NOTICES.
         if len(notices) > _MAX_NOTICES:
             notices = notices[-_MAX_NOTICES:]
         _save(notices)
-        logger.info("Notice recorded [%s]: %s", kind, title)
+        logger.info("Notice recorded [%s/%s]: %s", kind, level, title)
         return notice
 
 
 def list_unseen() -> list:
-    """Return notices the user hasn't dismissed yet (newest first)."""
+    """Notices the user hasn't dismissed yet (newest first)."""
     with _lock:
         return list(reversed([n for n in _load() if not n.get("seen")]))
 
 
+def list_all() -> list:
+    """All notices, newest first (for a future history view)."""
+    with _lock:
+        return list(reversed(_load()))
+
+
 def dismiss(notice_id: str) -> bool:
-    """Mark a single notice as seen. Returns True if it existed."""
     with _lock:
         notices = _load()
         found = False
         for n in notices:
-            if n.get("id") == notice_id:
+            if n.get("id") == notice_id and not n.get("seen"):
                 n["seen"] = True
                 found = True
         if found:
@@ -98,14 +152,13 @@ def dismiss(notice_id: str) -> bool:
 
 
 def dismiss_all() -> int:
-    """Mark every notice as seen. Returns how many were newly dismissed."""
     with _lock:
         notices = _load()
-        n_dismissed = 0
-        for n in notices:
-            if not n.get("seen"):
-                n["seen"] = True
-                n_dismissed += 1
-        if n_dismissed:
+        n = 0
+        for x in notices:
+            if not x.get("seen"):
+                x["seen"] = True
+                n += 1
+        if n:
             _save(notices)
-        return n_dismissed
+        return n

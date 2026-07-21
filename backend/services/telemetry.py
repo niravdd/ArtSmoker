@@ -249,6 +249,13 @@ def track_custom_model_deploy_failed(model: str = "", instance: str = "", reason
     _track(f"{studio}.custom.deploy_failed", model=model, instance=instance, reason=reason[:200])
 
 
+def track_custom_model_deploy_ready(model: str = "", instance: str = ""):
+    """A self-hosted deploy finished loading and is ready to serve. Completes the
+    deploy lifecycle (deploy → ready|failed → teardown) in telemetry."""
+    studio = _resolve_custom_studio(model)
+    _track(f"{studio}.custom.deploy_ready", model=model, instance=instance)
+
+
 # ── Image-to-3D Events ───────────────────────────────────────────────
 # 3D runs on a self-hosted GPU SageMaker endpoint. Action event at submit
 # (cost=0); the actual GPU compute cost is reported at completion via

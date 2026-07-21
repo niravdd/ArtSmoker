@@ -305,7 +305,16 @@ def list_catalog(force: bool = False):
             },
         })
 
-    return {"models": result, "bundles": _get_all_bundles_info()}
+    # Surface the deployment S3 bucket status. A bucket is REQUIRED to deploy any
+    # custom model (the inference handler / model.tar.gz is uploaded there) and is
+    # also where async-jobs + notices persist. If it's missing, the frontend shows
+    # an upfront prompt so the user configures it BEFORE hitting a deploy failure.
+    from backend.services.sagemaker_deployer import get_deployment_s3_bucket
+    return {
+        "models": result,
+        "bundles": _get_all_bundles_info(),
+        "deployment_bucket": get_deployment_s3_bucket() or "",
+    }
 
 
 def _get_bundle_info(model_key: str) -> dict | None:
@@ -922,6 +931,24 @@ async def deploy_model(body: DeployRequest):
     thread = threading.Thread(target=_run_deploy, daemon=True)
     thread.start()
 
+    # Record a "deploy started" notice so the deployment lifecycle
+    # (started → ready|failed → removed) has a complete, durable history —
+    # informational, so it doesn't nag; the ready/failed notices carry the weight.
+    try:
+        from backend.services.notices import add_notice
+        inst = f" on {body.instance_type}" if body.instance_type else ""
+        add_notice(
+            kind="deploy_started",
+            title="Deployment started",
+            message=(f"{model['label']}{inst} is deploying — the container pulls the model "
+                     f"from HuggingFace and loads it (typically 5-15 min). You'll be notified "
+                     f"when it's ready."),
+            level="info",
+            dedup_key=f"deploy_started:{body.model_key}",
+        )
+    except Exception:
+        pass
+
     return {
         "status": "started",
         "model_key": body.model_key,
@@ -1040,6 +1067,29 @@ async def teardown_model(model_key: str, delete_s3: bool = False):
     try:
         from backend.services.telemetry import track_custom_model_teardown
         track_custom_model_teardown(model=model_key)
+    except Exception:
+        pass
+
+    # Record a "removed" notice for lifecycle history (user-initiated teardown;
+    # the auto-teardown-on-failure path records its own failure notice instead).
+    try:
+        from backend.services.notices import add_notice
+        from backend.services.custom_models import get_catalog_model
+        # Resolve a friendly label if possible; the registry entry is already gone
+        # by now (unregistered above), so fall back to the key.
+        friendly = model_key
+        try:
+            cm = get_catalog_model(model_key) or get_catalog_model("_".join(model_key.rsplit("_", 1)[:-1]))
+            if cm and cm.get("label"):
+                friendly = cm["label"]
+        except Exception:
+            pass
+        add_notice(
+            kind="deploy_removed",
+            title="Model removed",
+            message=f"{friendly} was torn down. You can redeploy it any time from Model Settings → Custom Models.",
+            level="info",
+        )
     except Exception:
         pass
 

@@ -991,19 +991,11 @@ def _persist_readiness_to_registry(endpoint_name: str):
     _set_registry_model_ready(endpoint_name, True)
 
 
-def _handle_background_deploy_failure(endpoint_name: str, reason: str):
-    """A deploy failed in the background (browser may be closed). Clean it up
-    AND leave the user a durable notice so they learn about it on next visit.
-
-    Resolves the friendly model label + instance from the registry (before
-    teardown removes the entry), tears the endpoint down (it can't recover),
-    records a dismissible notice, and emits a telemetry event. Best-effort —
-    each step is guarded so a failure in one doesn't abort the others.
-    """
-    # Resolve label + instance + deployed key from the registry BEFORE teardown.
-    label = endpoint_name
-    instance = ""
-    deployed_key = ""
+def _resolve_deployment_identity(endpoint_name: str) -> tuple[str, str, str]:
+    """(friendly_label, instance_type, deployed_key) for an endpoint, from the
+    registry. Falls back to the endpoint name if not found. Read this BEFORE a
+    teardown that would remove the registry entry."""
+    label, instance, deployed_key = endpoint_name, "", ""
     try:
         from .model_registry import get_registry
         reg = get_registry()
@@ -1011,14 +1003,47 @@ def _handle_background_deploy_failure(endpoint_name: str, reason: str):
             for k, entry in reg.get(section, {}).items():
                 dep = entry.get("deployment", {}) or {}
                 if dep.get("endpoint_name") == endpoint_name:
-                    label = entry.get("label", k)
-                    instance = dep.get("instance_type", "")
-                    deployed_key = k
-                    break
-            if deployed_key:
-                break
+                    return entry.get("label", k), dep.get("instance_type", ""), k
     except Exception:
         pass
+    return label, instance, deployed_key
+
+
+def _handle_background_deploy_ready(endpoint_name: str):
+    """A deploy finished loading in the background (the 5-60 min load may have
+    outlasted the user's session). Leave a durable "ready to use" notice — the
+    positive counterpart to the failure notice — plus a lifecycle telemetry event.
+    Best-effort; never raises."""
+    label, instance, deployed_key = _resolve_deployment_identity(endpoint_name)
+    try:
+        from .notices import add_notice
+        add_notice(
+            kind="deploy_ready",
+            title="Model ready to use",
+            message=(f"{label}{f' ({instance})' if instance else ''} finished loading and is "
+                     f"ready. It will activate on your first request (scales to zero when idle)."),
+            level="success",
+            dedup_key=f"deploy_ready:{endpoint_name}",
+        )
+    except Exception as exc:
+        logger.debug("Could not record deploy-ready notice: %s", exc)
+    try:
+        from .telemetry import track_custom_model_deploy_ready
+        track_custom_model_deploy_ready(model=deployed_key or label, instance=instance)
+    except Exception:
+        pass
+
+
+def _handle_background_deploy_failure(endpoint_name: str, reason: str):
+    """A deploy failed in the background (browser may be closed). Clean it up
+    AND leave the user a durable notice so they learn about it on next visit.
+
+    Resolves the friendly label/instance from the registry (before teardown
+    removes the entry), tears the endpoint down (it can't recover), records a
+    dismissible notice, and emits telemetry. Best-effort — each step guarded so
+    a failure in one doesn't abort the others.
+    """
+    label, instance, deployed_key = _resolve_deployment_identity(endpoint_name)
 
     # Human-readable reason (first sentence — SageMaker reasons are verbose).
     short_reason = (reason or "").split(".")[0].strip() or "Unknown error"
@@ -1098,6 +1123,10 @@ def _start_readiness_monitor(endpoint_name: str):
                     _persist_readiness_to_registry(endpoint_name)
                     # Now safe to register auto-scaling (model is loaded, won't be killed)
                     _register_auto_scaling_after_ready(endpoint_name)
+                    # Tell the user their deploy finished (they may have closed the
+                    # browser during the 5-60 min load) — the positive counterpart
+                    # to the failure notice.
+                    _handle_background_deploy_ready(endpoint_name)
                     break
 
                 if readiness.get("failed"):

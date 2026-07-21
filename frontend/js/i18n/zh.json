@@ -1238,7 +1238,9 @@
     "license_commercial_ok": "商业使用 — 可以",
     "license_commercial_no": "商业使用 — 不可",
     "subgroup_generation": "生成",
-    "subgroup_editing": "图像编辑"
+    "subgroup_editing": "图像编辑",
+    "bucket_required_title": "部署需要 S3 存储桶",
+    "bucket_required_desc": "部署自托管模型会将其处理程序上传到 S3，后台任务和通知也保存在那里。请在部署前于 Video Studio 设置（模型设置 → Video Studio）中配置 S3 存储桶。"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

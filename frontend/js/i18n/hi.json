@@ -1279,7 +1279,9 @@
     "license_commercial_ok": "व्यावसायिक उपयोग — ठीक",
     "license_commercial_no": "व्यावसायिक उपयोग — नहीं",
     "subgroup_generation": "जनरेशन",
-    "subgroup_editing": "इमेज एडिटिंग"
+    "subgroup_editing": "इमेज एडिटिंग",
+    "bucket_required_title": "डिप्लॉय के लिए S3 बकेट आवश्यक",
+    "bucket_required_desc": "सेल्फ-होस्टेड मॉडल डिप्लॉय करने पर उसका हैंडलर S3 पर अपलोड होता है, और बैकग्राउंड जॉब्स व सूचनाएँ भी वहीं संग्रहीत होती हैं। डिप्लॉय करने से पहले Video Studio सेटिंग्स (मॉडल सेटिंग्स → Video Studio) में एक S3 बकेट सेट करें।"
   },
   "voice_input": {
     "record": "ध्वनि इनपुट रिकॉर्ड करें",

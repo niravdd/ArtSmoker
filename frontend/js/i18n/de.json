@@ -1280,7 +1280,9 @@
     "gated_blocked_hint": "Die Bereitstellung ist blockiert, bis jedes Repository oben zugänglich ist. Befolgen Sie den für jedes angezeigten Schritt und prüfen Sie dann erneut.",
     "gated_needs_token": "Ein gesperrtes Repository benötigt einen HuggingFace-Token. Fügen Sie über „HF-Token verwalten“ einen hinzu, akzeptieren Sie die Sperre auf HuggingFace und prüfen Sie dann erneut.",
     "subgroup_generation": "Generierung",
-    "subgroup_editing": "Bildbearbeitung"
+    "subgroup_editing": "Bildbearbeitung",
+    "bucket_required_title": "S3-Bucket zum Bereitstellen erforderlich",
+    "bucket_required_desc": "Beim Bereitstellen eines selbst gehosteten Modells wird sein Handler nach S3 hochgeladen; auch Hintergrundjobs und Benachrichtigungen werden dort gespeichert. Legen Sie vor dem Bereitstellen einen S3-Bucket in den Video-Studio-Einstellungen (Modelleinstellungen → Video Studio) fest."
   },
   "voice_input": {
     "record": "Spracheingabe aufnehmen",

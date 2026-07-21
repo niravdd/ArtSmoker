@@ -1238,7 +1238,9 @@
     "license_commercial_ok": "usage commercial — OK",
     "license_commercial_no": "usage commercial — interdit",
     "subgroup_generation": "Génération",
-    "subgroup_editing": "Édition d’image"
+    "subgroup_editing": "Édition d’image",
+    "bucket_required_title": "Un bucket S3 est requis",
+    "bucket_required_desc": "Déployer un modèle auto-hébergé téléverse son gestionnaire vers S3, où sont aussi conservés les tâches en arrière-plan et les notifications. Définissez un bucket S3 dans les paramètres de Video Studio (Paramètres des modèles → Video Studio) avant de déployer."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

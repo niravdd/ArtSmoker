@@ -1280,7 +1280,9 @@
     "gated_blocked_hint": "Deployment is blocked until every repository above is accessible. Follow the step shown for each, then Re-check.",
     "gated_needs_token": "A gated repository needs a HuggingFace token. Add one via “Manage HF Token”, accept the gate on HuggingFace, then Re-check.",
     "subgroup_generation": "Generation",
-    "subgroup_editing": "Image Editing"
+    "subgroup_editing": "Image Editing",
+    "bucket_required_title": "S3 bucket required to deploy",
+    "bucket_required_desc": "Deploying a self-hosted model uploads its handler to S3, and background jobs + notices persist there too. Set an S3 bucket in Video Studio settings (Model Settings → Video Studio) before deploying."
   },
   "voice_input": {
     "record": "Record voice input",

@@ -2223,6 +2223,20 @@
                 let html = '<div class="space-y-4">';
                 html += `<p class="text-xs text-brand-text-muted">${t('custom_models.description_line')}</p>`;
 
+                // Upfront S3-bucket prompt: a deployment bucket is REQUIRED to
+                // deploy any custom model (the handler is uploaded there) and is
+                // where async-jobs + notices persist. Warn here — before the user
+                // hits a confusing mid-deploy failure — with where to set it.
+                if (!data.deployment_bucket) {
+                    html += `<div class="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40 flex items-start gap-2.5">
+                        <svg class="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-xs font-semibold text-amber-300">${t('custom_models.bucket_required_title')}</p>
+                            <p class="text-[11px] text-brand-text-muted mt-0.5 leading-relaxed">${t('custom_models.bucket_required_desc')}</p>
+                        </div>
+                    </div>`;
+                }
+
                 const sortedStudios = Object.keys(studioGroups).sort((a, b) => {
                     const ai = studioOrder.indexOf(a);
                     const bi = studioOrder.indexOf(b);
