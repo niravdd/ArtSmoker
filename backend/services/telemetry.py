@@ -242,6 +242,13 @@ def track_custom_model_teardown(model: str = ""):
     _track(f"{studio}.custom.teardown", model=model)
 
 
+def track_custom_model_deploy_failed(model: str = "", instance: str = "", reason: str = ""):
+    """A self-hosted deploy failed (e.g. InsufficientInstanceCapacity) and was
+    auto-torn-down. Recorded so recurring capacity shortages are visible over time."""
+    studio = _resolve_custom_studio(model)
+    _track(f"{studio}.custom.deploy_failed", model=model, instance=instance, reason=reason[:200])
+
+
 # ── Image-to-3D Events ───────────────────────────────────────────────
 # 3D runs on a self-hosted GPU SageMaker endpoint. Action event at submit
 # (cost=0); the actual GPU compute cost is reported at completion via

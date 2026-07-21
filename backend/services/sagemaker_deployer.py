@@ -991,6 +991,77 @@ def _persist_readiness_to_registry(endpoint_name: str):
     _set_registry_model_ready(endpoint_name, True)
 
 
+def _handle_background_deploy_failure(endpoint_name: str, reason: str):
+    """A deploy failed in the background (browser may be closed). Clean it up
+    AND leave the user a durable notice so they learn about it on next visit.
+
+    Resolves the friendly model label + instance from the registry (before
+    teardown removes the entry), tears the endpoint down (it can't recover),
+    records a dismissible notice, and emits a telemetry event. Best-effort —
+    each step is guarded so a failure in one doesn't abort the others.
+    """
+    # Resolve label + instance + deployed key from the registry BEFORE teardown.
+    label = endpoint_name
+    instance = ""
+    deployed_key = ""
+    try:
+        from .model_registry import get_registry
+        reg = get_registry()
+        for section in ("image_models", "video_models", "post_processing", "utility_models"):
+            for k, entry in reg.get(section, {}).items():
+                dep = entry.get("deployment", {}) or {}
+                if dep.get("endpoint_name") == endpoint_name:
+                    label = entry.get("label", k)
+                    instance = dep.get("instance_type", "")
+                    deployed_key = k
+                    break
+            if deployed_key:
+                break
+    except Exception:
+        pass
+
+    # Human-readable reason (first sentence — SageMaker reasons are verbose).
+    short_reason = (reason or "").split(".")[0].strip() or "Unknown error"
+
+    # Record the user notice (durable, dismissible; shown on next app load).
+    try:
+        from .notices import add_notice
+        add_notice(
+            kind="deploy_failed",
+            title="Deployment failed while you were away",
+            message=(f"{label}{f' ({instance})' if instance else ''} failed to deploy: "
+                     f"{short_reason}. It was automatically removed — you can redeploy "
+                     f"from Model Settings → Custom Models."),
+            level="error",
+            dedup_key=f"deploy_failed:{endpoint_name}",
+        )
+    except Exception as exc:
+        logger.debug("Could not record deploy-failure notice: %s", exc)
+
+    # Telemetry (durable historical record of capacity/deploy failures).
+    try:
+        from .telemetry import track_custom_model_deploy_failed
+        track_custom_model_deploy_failed(model=deployed_key or label, instance=instance, reason=short_reason)
+    except Exception:
+        pass
+
+    # Auto-teardown — the endpoint is a dead end. Prefer the deployed key so the
+    # registry entry + auto-scaling + S3 I/O paths are all cleaned.
+    try:
+        teardown_endpoint(deployed_key or endpoint_name, delete_s3=False, endpoint_name=endpoint_name)
+        logger.info("Auto-tore-down failed endpoint %s after background detection", endpoint_name)
+    except Exception as exc:
+        logger.warning("Auto-teardown of failed %s hit an error: %s", endpoint_name, exc)
+    # Best-effort: also clear in-memory deploy-progress so the UI resets cleanly.
+    try:
+        from backend.routers.custom_deploy import _clear_deploy_status, _unregister_custom_model
+        if deployed_key:
+            _unregister_custom_model(deployed_key)
+            _clear_deploy_status(deployed_key)
+    except Exception:
+        pass
+
+
 def _start_readiness_monitor(endpoint_name: str):
     """Start a background thread that polls logs until the model is ready."""
     import threading, time as _time
@@ -1001,6 +1072,24 @@ def _start_readiness_monitor(endpoint_name: str):
         try:
             for attempt in range(120):  # Up to 60 min (120 × 30s)
                 _time.sleep(30)
+
+                # Check the ENDPOINT-level status first. A capacity failure
+                # (InsufficientInstanceCapacity) fails at PROVISIONING — the
+                # container never starts, so no logs ever appear and a
+                # logs-only scan would just time out at 60 min. Catching the
+                # SageMaker "Failed" state here is what makes offline failure
+                # detection work.
+                try:
+                    ep_status = check_endpoint_status(endpoint_name)
+                    if ep_status.get("status") == "Failed":
+                        reason = ep_status.get("failure_reason", "") or "Unknown failure"
+                        logger.warning("Background monitor: %s FAILED at provisioning — %s", endpoint_name, reason)
+                        _model_readiness[endpoint_name] = {"ready": False, "failed": True, "detail": reason}
+                        _handle_background_deploy_failure(endpoint_name, reason)
+                        break
+                except Exception:
+                    pass  # transient status-check error → keep polling
+
                 readiness = _scan_logs_for_readiness(endpoint_name)
 
                 if readiness.get("ready"):
@@ -1013,7 +1102,9 @@ def _start_readiness_monitor(endpoint_name: str):
 
                 if readiness.get("failed"):
                     _model_readiness[endpoint_name] = readiness
-                    logger.warning("Background monitor: %s failed — %s", endpoint_name, readiness["detail"])
+                    detail = readiness.get("detail", "Model failed to load")
+                    logger.warning("Background monitor: %s failed — %s", endpoint_name, detail)
+                    _handle_background_deploy_failure(endpoint_name, detail)
                     break
 
                 if attempt % 4 == 0:  # Log progress every 2 min

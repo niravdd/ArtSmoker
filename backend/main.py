@@ -617,8 +617,17 @@ async def sync_progress_stream():
 
 @app.get("/api/health", tags=["health"])
 async def health_check():
-    """Health check endpoint — includes AWS credential and Bedrock status."""
+    """Health check endpoint — includes AWS credential and Bedrock status.
+
+    Also surfaces unseen background notices (e.g. a deploy that failed while the
+    user was offline) so the frontend can show a dismissible banner on load.
+    """
     from backend.config import APP_VERSION
+    try:
+        from backend.services.notices import list_unseen
+        notices = list_unseen()
+    except Exception:
+        notices = []
     return {
         "version": APP_VERSION,
         "status": "ok" if _server_state["ready"] else "starting",
@@ -626,6 +635,7 @@ async def health_check():
         "sync_in_progress": _server_state["sync_in_progress"],
         "sync_message": _server_state["sync_message"],
         "sync_error": _server_state.get("sync_error", ""),
+        "notices": notices,
         "aws": {
             "credentials": _aws_status.get("credentials", False),
             "identity": _aws_status.get("identity"),
@@ -634,6 +644,15 @@ async def health_check():
             "errors": _aws_status.get("errors", []),
         },
     }
+
+
+@app.post("/api/notices/{notice_id}/dismiss", tags=["health"])
+async def dismiss_notice(notice_id: str):
+    """Mark a background notice as seen so it stops appearing."""
+    from backend.services.notices import dismiss, dismiss_all
+    if notice_id == "all":
+        return {"dismissed": dismiss_all()}
+    return {"dismissed": dismiss(notice_id)}
 
 
 # ── Version check endpoint ────────────────────────────────────────────────

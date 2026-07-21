@@ -361,6 +361,11 @@
                 _applyVersion();
                 setTimeout(_applyVersion, 500);
             }
+            // Surface background notices (e.g. a deploy that failed while the
+            // user was offline → auto-torn-down). Shown once per load; dismissible.
+            if (Array.isArray(data.notices) && data.notices.length) {
+                _showNotices(data.notices);
+            }
             // Show sync-in-progress modal if server is still starting
             if (data.sync_in_progress) {
                 _showSyncModal(data.sync_message || 'Discovering model availability in Amazon Bedrock...', true);
@@ -379,6 +384,47 @@
         });
     }
     _checkHealth();
+
+    // Render background notices as dismissible cards (top-center). Each is
+    // dismissed server-side so it doesn't reappear on the next load / refresh.
+    const _shownNotices = new Set();
+    function _showNotices(notices) {
+        let host = document.getElementById('app-notices');
+        if (!host) {
+            host = document.createElement('div');
+            host.id = 'app-notices';
+            host.className = 'fixed top-20 left-1/2 -translate-x-1/2 z-[95] flex flex-col gap-2 w-full max-w-md px-4 pointer-events-none';
+            document.body.appendChild(host);
+        }
+        notices.forEach(n => {
+            if (!n || !n.id || _shownNotices.has(n.id)) return;
+            _shownNotices.add(n.id);
+            const level = n.level || 'warning';
+            const accent = level === 'error' ? 'border-red-500/40 bg-red-950/40'
+                : level === 'info' ? 'border-brand-accent/40 bg-brand-accent/10'
+                : 'border-amber-500/40 bg-amber-950/40';
+            const iconColor = level === 'error' ? 'text-red-400' : level === 'info' ? 'text-brand-accent' : 'text-amber-400';
+            const card = document.createElement('div');
+            card.className = `pointer-events-auto card-static border ${accent} rounded-lg p-3 shadow-lg flex items-start gap-2.5`;
+            card.innerHTML = `
+                <svg class="w-4 h-4 ${iconColor} mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                <div class="flex-1 min-w-0">
+                    <p class="text-xs font-semibold text-brand-text">${_escapeNotice(n.title || 'Notice')}</p>
+                    <p class="text-[11px] text-brand-text-muted mt-0.5 leading-relaxed">${_escapeNotice(n.message || '')}</p>
+                </div>
+                <button class="notice-dismiss text-brand-text-muted/60 hover:text-brand-text shrink-0 text-lg leading-none" title="Dismiss">&times;</button>`;
+            card.querySelector('.notice-dismiss').addEventListener('click', () => {
+                card.remove();
+                fetch(`/api/notices/${encodeURIComponent(n.id)}/dismiss`, { method: 'POST' }).catch(() => {});
+            });
+            host.appendChild(card);
+        });
+    }
+    function _escapeNotice(s) {
+        const d = document.createElement('div');
+        d.textContent = String(s == null ? '' : s);
+        return d.innerHTML;
+    }
 
     let _syncModal = null;
     let _sseConnected = false;
