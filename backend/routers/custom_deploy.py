@@ -740,11 +740,21 @@ async def deploy_model(body: DeployRequest):
     then creates the endpoint.
     """
     from backend.services.custom_models import get_catalog_model
-    from backend.services.sagemaker_deployer import has_hf_token
+    from backend.services.sagemaker_deployer import has_hf_token, get_deployment_s3_bucket
 
     model = get_catalog_model(body.model_key)
     if not model:
         raise HTTPException(404, detail=f"Unknown model: {body.model_key}")
+
+    # Guardrail: a deployment S3 bucket is REQUIRED — the inference handler
+    # (model.tar.gz) is uploaded there and SageMaker's ModelDataUrl points at it.
+    # The frontend disables Deploy without a bucket; this rejects a direct API
+    # call cleanly (fail fast) instead of erroring deep inside the deploy thread.
+    if not get_deployment_s3_bucket():
+        raise HTTPException(400, detail=(
+            "No S3 bucket configured. Set an S3 bucket in Model Settings → "
+            "Video Studio before deploying custom models."
+        ))
 
     # Enforce license agreement acceptance before deployment
     license_info = model.get("license_agreement", {})
@@ -1235,7 +1245,15 @@ async def redeploy_model(model_key: str, body: RedeployRequest):
     Tears down existing endpoint (including Secrets Manager token),
     then creates a fresh deployment.
     """
-    from backend.services.sagemaker_deployer import teardown_endpoint
+    from backend.services.sagemaker_deployer import teardown_endpoint, get_deployment_s3_bucket
+
+    # Guardrail first — a redeploy without a bucket would tear down the existing
+    # endpoint and then fail to redeploy. Reject before touching anything.
+    if not get_deployment_s3_bucket():
+        raise HTTPException(400, detail=(
+            "No S3 bucket configured. Set an S3 bucket in Model Settings → "
+            "Video Studio before redeploying custom models."
+        ))
 
     # Teardown existing
     teardown_endpoint(model_key, delete_s3=True)

@@ -2179,6 +2179,9 @@
                 const models = data.models || [];
                 this._customModelsLoaded = true;
                 this._catalogModels = models;
+                // Deploy requires an S3 bucket (handler upload). Gate all Deploy
+                // buttons on this — no bucket = deploy physically can't work.
+                this._deploymentBucket = data.deployment_bucket || '';
 
                 if (models.length === 0) {
                     container.innerHTML = `<p class="text-xs text-brand-text-muted">${t('custom_models.no_models')}</p>`;
@@ -2295,6 +2298,18 @@
                         }
                     }
 
+                    // Deploy is impossible without an S3 bucket (the handler is
+                    // uploaded there). Render Deploy buttons DISABLED + explained
+                    // when no bucket is configured — a basic guardrail so the user
+                    // can't start a deploy that would only fail.
+                    const _noBucket = !this._deploymentBucket;
+                    const _deployBtn = (m, label, extraTitle = '') => {
+                        if (_noBucket) {
+                            return `<button class="btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-border/30 text-brand-text-muted/50 cursor-not-allowed" disabled title="${t('custom_models.bucket_required_title')}">${label}</button>`;
+                        }
+                        return `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}"${extraTitle ? ` title="${extraTitle}"` : ''}>${label}</button>`;
+                    };
+
                     const _renderCard = (m) => {
                         const isInService = m.deployment_status === 'InService';
                         const active = isInService && !m.warming_up && m.instance_count > 0;
@@ -2338,13 +2353,13 @@
                                     <div class="flex items-center gap-2 flex-shrink-0">
                                         ${failed
                                             ? `<span class="text-[10px] text-red-400 max-w-[260px] text-right" title="${this._esc(failReason)}">${failText}</span>
-                                               <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
+                                               ${_deployBtn(m, t('custom_models.deploy'))}`
                                             : !deployed && !deploying && !warmingUp && !scalingUp
                                             ? `<span class="text-[10px] text-brand-text-muted/50">${t('custom_models.not_deployed')}</span>
-                                               <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
+                                               ${_deployBtn(m, t('custom_models.deploy'))}`
                                             : (deploying || warmingUp || scalingUp)
                                             ? `<span class="text-[10px] text-amber-400">${m.deploy_progress || t('custom_models.deploying')}</span>`
-                                            : `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${t('custom_models.deploy_another_hint')}">${t('custom_models.deploy_another')}</button>`
+                                            : _deployBtn(m, t('custom_models.deploy_another'), t('custom_models.deploy_another_hint'))
                                         }
                                     </div>
                                 </div>
@@ -2364,7 +2379,9 @@
                                             <span class="text-[11px] text-cyan-300/80 truncate flex-1 min-w-0" title="${inst.label}">${inst.label}</span>
                                             <span class="text-[10px] ${iColor} flex-shrink-0 w-[200px] text-right">${iStatusTxt}</span>
                                             <button class="ms-cm-teardown btn text-[10px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10 flex-shrink-0 w-[60px] text-center" data-model="${inst.deployed_key}">${t('custom_models.remove')}</button>
-                                            ${iIdle ? `<button class="ms-cm-redeploy btn text-[10px] px-2.5 py-0.5 rounded border border-brand-accent/30 text-brand-accent/80 hover:bg-brand-accent/10 hover:text-brand-accent flex-shrink-0 w-[110px] text-center" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>` : `<span class="w-[110px] flex-shrink-0"></span>`}
+                                            ${iIdle ? (_noBucket
+                                                ? `<button class="btn text-[10px] px-2.5 py-0.5 rounded border border-brand-border/30 text-brand-text-muted/40 cursor-not-allowed flex-shrink-0 w-[110px] text-center" disabled title="${t('custom_models.bucket_required_title')}">${t('custom_models.redeploy')}</button>`
+                                                : `<button class="ms-cm-redeploy btn text-[10px] px-2.5 py-0.5 rounded border border-brand-accent/30 text-brand-accent/80 hover:bg-brand-accent/10 hover:text-brand-accent flex-shrink-0 w-[110px] text-center" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>`) : `<span class="w-[110px] flex-shrink-0"></span>`}
                                         </div>`;
                                     }).join('')}
                                 </div>` : ''}
