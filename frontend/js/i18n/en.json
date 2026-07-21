@@ -532,6 +532,8 @@
     "pricing_label": "Pricing"
   },
   "gallery": {
+    "status_failed": "Failed",
+    "status_censored": "Model Censored",
     "title": "Gallery",
     "subtitle": "Browse your generated images, videos, and art assets",
     "generate_new": "Generate New",
@@ -1182,6 +1184,7 @@
     "hf_auth": "HF Auth",
     "provider": "Provider",
     "instance": "Instance",
+    "instance_validated_note": "Validated deployment: we've tested this model end-to-end on the instance types shown and set the pre-selected option as the minimum spec proven to run it reliably. Smaller, cheaper instances were tested first and ruled out (insufficient VRAM/RAM or failed load) — so you don't pay to rediscover what doesn't work. You can pick a larger instance for more speed/headroom.",
     "est_cost": "Est.",
     "vram": "VRAM",
     "deploy_type_title": "Choose Deployment Type",

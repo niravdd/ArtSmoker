@@ -385,8 +385,15 @@ def _update_gallery_on_edit_complete(job: dict, image_bytes: bytes):
 
 
 def _update_gallery_on_failure(job: dict):
-    """Update gallery metadata when an async job fails."""
+    """Update gallery metadata when an async job fails.
+
+    Distinguishes a content-moderation block (the model refused the prompt) from
+    a technical failure, so the Gallery can show "Model Censored" instead of the
+    ambiguous "Failed". Uses the shared is_moderation_error() classifier so the
+    verdict matches the synchronous/multi-model paths.
+    """
     from backend.config import settings
+    from backend.services.image_generator import is_moderation_error
 
     asset_id = job["asset_id"]
     variant_dir = settings.generated_dir / f"{asset_id}_o{job['option_index']}_v{job['variation_index']}"
@@ -394,8 +401,9 @@ def _update_gallery_on_failure(job: dict):
     if meta_path.exists():
         try:
             meta = json.loads(meta_path.read_text())
-            meta["async_status"] = "failed"
-            meta["async_error"] = job.get("error", "Unknown error")
+            error = job.get("error", "Unknown error")
+            meta["async_status"] = "moderation_blocked" if is_moderation_error(error) else "failed"
+            meta["async_error"] = error
             meta_path.write_text(json.dumps(meta, indent=2))
         except Exception:
             pass

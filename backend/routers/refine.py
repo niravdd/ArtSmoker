@@ -231,7 +231,7 @@ async def decompose_prompt(body: DecomposeRequest):
     """
     from backend.services.bedrock_client import invoke_llm
     from backend.services.prompt_templates import get_template, get_system_prompt
-    from backend.services.prompt_engineer import _build_style_section, _ASSET_TYPE_CONTEXT
+    from backend.services.prompt_engineer import _build_style_section, _asset_type_context
     from backend.models.generation_request import AssetType
     import json as _json, re as _re
 
@@ -263,11 +263,11 @@ async def decompose_prompt(body: DecomposeRequest):
         asset_enum = AssetType(body.asset_type)
     except ValueError:
         asset_enum = AssetType.GAME_ASSET
-    asset_context = _ASSET_TYPE_CONTEXT.get(asset_enum, "")
+    asset_context = _asset_type_context(asset_enum)
 
-    from backend.services.prompt_engineer import _get_model_label, get_model_guidance, _MODEL_INSTRUCTIONS, _DEFAULT_MODEL_INSTRUCTIONS
+    from backend.services.prompt_engineer import _get_model_label, get_model_guidance, _DEFAULT_MODEL_INSTRUCTIONS
     model_name = _get_model_label(body.image_model) if body.image_model else "AI image generator"
-    model_instructions = (get_model_guidance(body.image_model) or _MODEL_INSTRUCTIONS.get(body.image_model, _DEFAULT_MODEL_INSTRUCTIONS)) if body.image_model else _DEFAULT_MODEL_INSTRUCTIONS
+    model_instructions = (get_model_guidance(body.image_model) or _DEFAULT_MODEL_INSTRUCTIONS) if body.image_model else _DEFAULT_MODEL_INSTRUCTIONS
 
     prompt_text = get_template('prompt_decompose').format(
         user_prompt=prompt_for_decompose,
@@ -313,13 +313,13 @@ async def recompose_prompt(body: RecomposeRequest):
     """Recompose structured visual components into a flat image generation prompt."""
     from backend.services.bedrock_client import invoke_llm
     from backend.services.prompt_templates import get_template, get_system_prompt
-    from backend.services.prompt_engineer import get_prompt_limit, get_optimal_length, get_model_guidance, _get_model_label, _build_style_section, _MODEL_INSTRUCTIONS, _DEFAULT_MODEL_INSTRUCTIONS
+    from backend.services.prompt_engineer import get_prompt_limit, get_optimal_length, get_model_guidance, _get_model_label, _build_style_section, _DEFAULT_MODEL_INSTRUCTIONS
     import json as _json, re as _re
 
     max_chars = get_prompt_limit(body.image_model)
     optimal_length = get_optimal_length(body.image_model)
     model_name = _get_model_label(body.image_model)
-    model_instructions = get_model_guidance(body.image_model) or _MODEL_INSTRUCTIONS.get(body.image_model, _DEFAULT_MODEL_INSTRUCTIONS)
+    model_instructions = get_model_guidance(body.image_model) or _DEFAULT_MODEL_INSTRUCTIONS
 
     prompt_text = get_template('prompt_recompose').format(
         structured_json=_json.dumps(body.structured, indent=2),

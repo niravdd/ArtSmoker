@@ -165,7 +165,7 @@ ArtSmoker/
 │   ├── main.py                    # FastAPI app, CORS, lifespan, static mount
 │   ├── config.py                  # AWS config, model IDs, paths, defaults
 │   ├── model_registry.json        # Persisted model configuration (LLMs, image models, post-processing)
-│   ├── prompt_templates.json      # Persisted editable LLM directive prompts (14 templates)
+│   ├── prompt_templates.json      # Persisted editable LLM directive prompts (27 templates)
 │   ├── routers/
 │   │   ├── styles.py              # Style profile CRUD + directory import + analysis
 │   │   ├── generate.py            # Two-level asset generation (options × variations) + image editing
@@ -607,7 +607,14 @@ Clean, modern single-page application served as static files mounted at `/` by F
 - **Detail view**: Has an "Import & Analyze" button (always auto-analyzes after import, no toggle). The analysis button is contextual: "Analyze Style" when no analysis exists, "Re-Analyze Style" when one does.
 - **Server-side file browser modal**: Used for both local and S3 browsing. Single-click selects a file/folder, double-click navigates into a directory. Back button and ".." entry navigate to the parent directory.
 
-**2D Image Studio** (`#image-studio`) — The main image generation workspace with a two-tier result display:
+**2D Image Studio** (`#image-studio`) — The main image generation workspace with a two-tier result display.
+
+**Prompt mode selector** (segmented control at the top of the prompt area) — two ways to drive generation:
+- **Prompt-guided** (default): the standard text-to-image flow described below.
+- **Reference-guided**: generate from 1–3 uploaded reference images plus a mandatory user instruction. Two sub-modes:
+  - **"Match the reference"** — preserves the subject/product/character from the reference while applying the instruction (theme, background, wardrobe, lighting). Powered by a deployed instruction editor (Qwen-Image-Edit). This mode is **deploy-gated**: it is only offered when `GET /api/generate/reference-available` reports a reference-capable editor is live; otherwise the UI routes the user to deploy it from Custom Models (the `deploy_catalog_key`), mirroring the 3D-pipeline gating pattern.
+  - **"Inspired by the reference"** — vision-analyzes the reference(s) + instruction into an enhanced prompt (`POST /api/generate/analyze-reference`), then generates with the user's normal text-to-image models. **Always available** — needs no custom deployment. The derived prompt is previewed so the user sees exactly what the model will receive.
+
 - **Left sidebar** (progressive disclosure layout):
   - **Art Style** selector, **Asset Type** selector.
   - **Image Model** multi-select checkbox dropdown — populated dynamically from the registry (`GET /api/admin/models/image-options`), not hardcoded. Checkboxes allow selecting any combination of models; "All Available Models" toggle at the bottom selects/deselects all. Minimum 1 model required — auto-selects first model on close if empty. Below the dropdown, a smart **summary line** shows the active configuration: `us-east-1 · Premium · $0.06/img` for single model, or `3 models × 2 options × 2 variations = 12 images (~$2.40)` for multi-model. Cost estimate updates live as models are checked/unchecked.
@@ -881,12 +888,12 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 **Frontend**: Model dropdowns are populated from the API on page load — `GET /api/admin/models/image-options` for Image Studio, `GET /api/admin/models/video-options` for Video Studio, and `GET /api/chat/models` for Chat Studio. LLM categories and post-processing use dropdown model pickers (not text fields) populated from discovered models. No hardcoded model lists in JavaScript.
 
 **Model Settings UI** (`ModelSettings.js`): A modal with 7 tabs organized by studio:
-- **Image Studio** — image generation models, regions, quality tiers, prompt limits, moderation strictness
+- **Image Studio** — image models, regions, quality tiers, prompt limits, moderation strictness. Models are grouped into **five collapsible sections** — Image Generation, Image Editing, Upscaling, Control & Style, Background — with each model carrying a small **role tag** (e.g. Inpaint, Outpaint, Instruction) so a section can hold several roles without one-model-per-section clutter. The mapping is data-driven (an unknown/future `model_purpose` falls back to its own trailing section — never hidden). A multi-mode instruction editor (e.g. Qwen-Image-Edit) is listed **once** with an **"Also covers"** line derived from its `capabilities` map, showing every edit mode it can serve. Deployed custom models surface here automatically (Sync/deploy copies `model_purpose` + `capabilities` from the catalog), each with its own enable/disable toggle. Entries within each section are sorted alphabetically.
 - **Video Studio** — video models, S3 bucket settings, regions, pricing
 - **Chat Studio** — discovered chat/LLM models with context window, vision support, pricing per 1K tokens
 - **Type Studio** — LLM model used for text layout generation
 - **Shared Studio** — cross-studio LLM categories (Fast/Complex/Fallback LLM, Voice), post-processing models
-- **Prompt Templates** — 16 editable LLM directive prompts organized by studio with two-level navigation
+- **Prompt Templates** — 27 editable LLM directive prompts organized by studio with two-level navigation
 - **Registry JSON** — raw JSON editor for the full model registry
 
 All sections are collapsible with Show All / Hide All toggles. Clicking "Model Settings" in any studio opens the modal to the relevant tab. The modal is 72rem wide.
@@ -986,8 +993,10 @@ prompt_templates.user.json   (gitignored, user edits only)
 | POST | `/api/generate/stream` | SSE streaming variant of generate — same pipeline, but streams real-time progress events. This is the primary endpoint used by the frontend. |
 | POST | `/api/generate/post-process` | Apply post-processing to existing generated assets. Accepts asset IDs and processing flags (remove_background, generate_svg, upscale). Updates the assets in-place and refreshes their metadata on disk. Used by the "Apply to Current Results" button in the 2D Image Studio and Type Studio. |
 | POST | `/api/generate/pre-screen` | Pre-screen a prompt for likely moderation issues before generation. Uses Claude Sonnet (fast, cheap). Returns whether the prompt is likely safe, specific issues, and a suggested alternative model if the prompt would work with a less strict model. |
-| POST | `/api/generate/edit` | Image editing services: inpaint, outpaint, erase, search-replace, etc. Accepts `source_image_id`, `model` (registry key), `prompt`, `mask` (base64), `mask_prompt` (natural language, Nova Canvas), outpaint directions. Uses the generic invoker with the model's format family. Result saved as a new gallery asset with metadata linking to the source. |
+| POST | `/api/generate/edit` | Image editing services. Accepts `source_image_id`, `source_version` (int, honors 2D versioning), `model` (registry key), `prompt`, `negative_prompt`, `mask` (base64, white = edit area), `mask_prompt` (natural language, Nova Canvas), `outpaint_left/right/up/down`, `extra_params`. **Two editor classes:** (1) **mask-based** (Stability inpaint/outpaint/erase/search-replace/recolor, `model_purpose` = the specific mode) — require a painted mask or mask prompt; (2) **mask-free instruction editors** (`model_purpose: image_edit`, e.g. Qwen-Image-Edit) — edit from a text instruction alone across all five modes via their `capabilities` map, no mask needed. Result saved as a new gallery asset with metadata linking to the source. |
 | POST | `/api/generate/analyze-moderation` | Analyze a moderation-blocked prompt. Accepts `force_rewrite` (bool) — when false (default): Phase 1 tries alternative models, Phase 2 rewrites if all reject. When true: skips model switching, rewrites directly for the target model and tests against it. Returns `action`, `working_model`, `issues`, `explanation`, `rewritten_prompt`, `verified`, and `attempts` (log). |
+| GET | `/api/generate/reference-available` | Whether a reference-capable editor (e.g. Qwen-Image-Edit) is deployed. Gates the "Match the reference" mode in the Image Studio. Returns `{available, model_key, endpoint_name, deploy_catalog_key}` — when unavailable, `deploy_catalog_key` tells the UI which catalog model to route the user to in the Custom Models deploy flow (mirrors the 3D gating pattern). "Inspired by the reference" mode needs no custom model and is always available. |
+| POST | `/api/generate/analyze-reference` | Vision-analyze 1–3 reference images + a mandatory user instruction → an enhanced prompt, for the "Inspired by the reference" preview (so the user sees the prompt the model will receive). Body (`AnalyzeReferenceRequest`): `images` (1–3 base64 PNGs), `prompt` (required — what to do with the reference), `asset_type`, `ui_lang` (soft translation hint). Returns the enhanced prompt + accumulated cost. |
 
 **Pre-screen request body** (`PreScreenRequest`):
 ```json
@@ -1661,11 +1670,14 @@ Users can edit any template via **Model Settings → Prompt Templates** tab.
 2. **"Expand editors / Collapse editors"** inside each group toggles the individual template text boxes
 
 Each template shows:
-- Friendly description of what it controls (e.g., "Creative Options — how multiple distinct concepts are generated from one idea")
+- Friendly description of what it controls (e.g., "Creative Options — how multiple distinct concepts are generated from one idea") plus a **"used by"** note of which feature consumes it
 - Available `{variables}` that must be preserved
+- Editable **prompt body** and, where the template has one, an editable **system prompt** (the steering channel sent separately from the user message) — both persisted per-template in `prompt_templates.user.json`
 - **Save** — validates variables, blocks save if any are missing (offers "Fix & Save" to auto-insert)
 - **Enhance with AI** — select any LLM model to improve the template
 - **Reset to Default** — restore the original
+
+A **"Reset All"** action (`POST /api/admin/templates/reset-all`) restores every template to its code default at once. Templates are organized into groups covering all studios plus Content Safety, Translation, Prompt Designer, Reference/Editing, and Admin, with an "Other" catch-all so a newly added template always appears.
 
 ### 6.10 AI-Assisted Template Refinement
 

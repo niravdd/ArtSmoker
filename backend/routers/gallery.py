@@ -287,7 +287,7 @@ async def get_batch(batch_id: str):
             variant["async_job"] = {
                 "job_id": meta.get("async_job_id", ""),
                 "model_label": meta.get("model_label", ""),
-                "status": "failed" if async_status == "failed" else "pending",
+                "status": async_status if async_status in ("failed", "moderation_blocked") else "pending",
             }
         options_map[oi]["variants"].append(variant)
 

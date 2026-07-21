@@ -395,6 +395,8 @@
     "default_title": "確認"
   },
   "gallery": {
+    "status_failed": "失敗",
+    "status_censored": "モデルが拒否",
     "alt_asset": "生成アセット",
     "alt_video_thumb": "動画サムネイル",
     "asset_count": "{{count}} 件のアセット",
@@ -1139,6 +1141,7 @@
     "hf_auth": "HF認証",
     "provider": "プロバイダー",
     "instance": "インスタンス",
+    "instance_validated_note": "検証済みデプロイ：このモデルは表示されているインスタンスタイプでエンドツーエンドでテスト済みで、事前選択されたオプションは確実に動作することが実証された最小スペックです。より小さく安価なインスタンスも先にテストし、除外しました（VRAM/RAM不足または読み込み失敗）。動作しない構成を試して費用を無駄にする必要はありません。より高速化や余裕が必要な場合は大きいインスタンスも選べます。",
     "est_cost": "推定",
     "vram": "VRAM",
     "deploy_type_title": "デプロイタイプを選択",

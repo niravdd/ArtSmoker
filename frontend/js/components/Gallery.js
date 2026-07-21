@@ -591,10 +591,15 @@
                                 <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                 <span class="text-[10px]">Generating...</span>
                                </div>`
+                            : item.async_status === 'moderation_blocked'
+                            ? `<div class="w-full h-full flex flex-col items-center justify-center text-amber-400/70 gap-2 px-2 text-center">
+                                <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+                                <span class="text-[10px]">${t('gallery.status_censored')}</span>
+                               </div>`
                             : item.async_status === 'failed'
                             ? `<div class="w-full h-full flex flex-col items-center justify-center text-red-400/60 gap-2">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                                <span class="text-[10px]">Failed</span>
+                                <span class="text-[10px]">${t('gallery.status_failed')}</span>
                                </div>`
                             : `<img src="${thumbUrl}" alt="${isVideo ? t('gallery.alt_video_thumb') : t('gallery.alt_asset')}"
                                  class="w-full h-full object-cover"

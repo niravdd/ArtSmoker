@@ -395,6 +395,8 @@
     "default_title": "Confirmer"
   },
   "gallery": {
+    "status_failed": "Échec",
+    "status_censored": "Bloqué par le modèle",
     "alt_asset": "Ressource générée",
     "alt_video_thumb": "Miniature de la vidéo",
     "asset_count": "{{count}} ressource{{plural}}",
@@ -1139,6 +1141,7 @@
     "hf_auth": "Auth HF",
     "provider": "Fournisseur",
     "instance": "Instance",
+    "instance_validated_note": "Déploiement validé : nous avons testé ce modèle de bout en bout sur les types d'instances affichés, et l'option présélectionnée est la configuration minimale dont le fonctionnement fiable est prouvé. Des instances plus petites et moins chères ont été testées en premier et écartées (VRAM/RAM insuffisante ou échec de chargement) — pour vous éviter de payer à redécouvrir ce qui ne marche pas. Vous pouvez choisir une instance plus grande pour plus de vitesse ou de marge.",
     "est_cost": "Est.",
     "vram": "VRAM",
     "deploy_type_title": "Choisir le Type de Déploiement",

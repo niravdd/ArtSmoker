@@ -395,6 +395,8 @@
     "default_title": "Confirmar"
   },
   "gallery": {
+    "status_failed": "Fallido",
+    "status_censored": "Bloqueado por el modelo",
     "alt_asset": "Recurso generado",
     "alt_video_thumb": "Miniatura de video",
     "asset_count": "{{count}} recurso{{plural}}",
@@ -1139,6 +1141,7 @@
     "hf_auth": "Auth HF",
     "provider": "Proveedor",
     "instance": "Instancia",
+    "instance_validated_note": "Despliegue validado: hemos probado este modelo de principio a fin en los tipos de instancia mostrados, y la opcion preseleccionada es la especificacion minima cuyo funcionamiento fiable esta comprobado. Las instancias mas pequenas y economicas se probaron primero y se descartaron (VRAM/RAM insuficiente o fallo de carga), para que no pagues por redescubrir lo que no funciona. Puedes elegir una instancia mayor para mas velocidad o margen.",
     "est_cost": "Est.",
     "vram": "VRAM",
     "deploy_type_title": "Elegir Tipo de Despliegue",

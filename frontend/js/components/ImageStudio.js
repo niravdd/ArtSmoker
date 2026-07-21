@@ -944,8 +944,12 @@
             const activeSizes = this._activeSizePresets || SIZE_PRESETS;
             const size = activeSizes[sizeIdx] || activeSizes[Math.min(2, activeSizes.length - 1)];
 
-            // Check if any selected model doesn't support the chosen dimensions
-            const unsupportedModels = this._selectedModels.map(key => {
+            // Check if any selected model doesn't support the chosen dimensions.
+            // Skipped on a moderation-dialog re-entry (this._skipPreCheck is still
+            // true here — it's only reset below, after this block): the user already
+            // saw and accepted this warning on the first pass, so don't re-prompt.
+            // The backend resolves the closest supported size regardless (safety net).
+            const unsupportedModels = this._skipPreCheck ? [] : this._selectedModels.map(key => {
                 const m = MODELS.find(m => m.value === key);
                 if (!m?.supported_sizes?.length) return null;
                 const match = m.supported_sizes.some(s => s.w === size.w && s.h === size.h);

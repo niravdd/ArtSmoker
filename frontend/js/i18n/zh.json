@@ -395,6 +395,8 @@
     "default_title": "确认"
   },
   "gallery": {
+    "status_failed": "失败",
+    "status_censored": "模型已拦截",
     "alt_asset": "已生成资产",
     "alt_video_thumb": "视频缩略图",
     "asset_count": "{{count}} 个资产{{plural}}",
@@ -1139,6 +1141,7 @@
     "hf_auth": "HF 认证",
     "provider": "供应商",
     "instance": "实例",
+    "instance_validated_note": "已验证的部署：我们已在所示实例类型上对该模型进行了端到端测试，预选项即为经证实可稳定运行的最低规格。更小、更便宜的实例已优先测试并被排除（显存/内存不足或加载失败）——因此您无需花钱去验证行不通的方案。如需更高速度或余量，可选择更大的实例。",
     "est_cost": "预估",
     "vram": "显存",
     "deploy_type_title": "选择部署类型",

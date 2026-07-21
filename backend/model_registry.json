@@ -5349,12 +5349,12 @@
             "numpy>=1.24,<2.5"
           ],
           "model": [
-            "diffusers @ git+https://github.com/huggingface/diffusers.git",
+            "diffusers>=0.37.0,<0.40.0",
             "transformers>=4.51.0,<4.52.0",
             "accelerate>=1.6.0,<2.0.0",
             "safetensors>=0.4.3",
             "peft>=0.17.0,<0.19.0",
-            "huggingface-hub>=0.34.0,<1.0.0",
+            "huggingface-hub>=0.34.0,<2.0",
             "bitsandbytes>=0.43.3"
           ]
         }
@@ -5398,16 +5398,17 @@
           "repo_id": "Qwen/Qwen-Image-Edit-2511"
         },
         "requirements": {
-          "min_vram_gb": 24,
-          "recommended_instance": "ml.g6.2xlarge",
-          "min_instance": "ml.g6.2xlarge",
+          "min_vram_gb": 48,
+          "recommended_instance": "ml.g6e.2xlarge",
+          "min_instance": "ml.g6e.xlarge",
           "disk_gb": 70,
           "allowed_instances": [
-            "ml.g6.2xlarge",
-            "ml.g6e.xlarge",
-            "ml.g6e.2xlarge"
+            "ml.g6e.2xlarge",
+            "ml.g6e.4xlarge",
+            "ml.g6e.8xlarge"
           ],
-          "min_host_ram_gb": 32
+          "min_host_ram_gb": 32,
+          "_note": "48 GB VRAM (g6e/L40S) is the baseline. The 24 GB L4 (g6.2xlarge) loads the NF4 model but OOMs during inference at Qwen's larger supported resolutions (1328², 1664×928) — verified 2026-07-21 (CUDA OOM at 1328² 40 steps, 21.9/22 GB used). We never cap output quality to fit a smaller GPU; g6e is required so every supported size renders."
         },
         "invoke": {
           "library": "diffusers",
@@ -5537,16 +5538,17 @@
           "repo_id": "Qwen/Qwen-Image-2512"
         },
         "requirements": {
-          "min_vram_gb": 24,
-          "recommended_instance": "ml.g6.2xlarge",
-          "min_instance": "ml.g6.2xlarge",
+          "min_vram_gb": 48,
+          "recommended_instance": "ml.g6e.2xlarge",
+          "min_instance": "ml.g6e.xlarge",
           "disk_gb": 70,
           "allowed_instances": [
-            "ml.g6.2xlarge",
-            "ml.g6e.xlarge",
-            "ml.g6e.2xlarge"
+            "ml.g6e.2xlarge",
+            "ml.g6e.4xlarge",
+            "ml.g6e.8xlarge"
           ],
-          "min_host_ram_gb": 32
+          "min_host_ram_gb": 32,
+          "_note": "48 GB VRAM (g6e/L40S) is the baseline. The 24 GB L4 (g6.2xlarge) loads the NF4 model but OOMs during inference at Qwen's larger supported resolutions (1328², 1664×928) — verified 2026-07-21 (CUDA OOM at 1328² 40 steps, 21.9/22 GB used). We never cap output quality to fit a smaller GPU; g6e is required so every supported size renders."
         },
         "invoke": {
           "library": "diffusers",
@@ -6118,7 +6120,7 @@
           ]
         }
       },
-      "hunyuan_image_3_0_instruct_bf16": {
+      "hunyuan_image_3_0_bf16": {
         "label": "HunyuanImage 3.0 (BF16) — HQ",
         "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision — zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Text-to-image only; prompt enhancement is handled by ArtSmoker's own pipeline.",
         "provider": "Tencent",
@@ -6313,7 +6315,7 @@
           ]
         }
       },
-      "hunyuan_image_3_0_instruct_nf4": {
+      "hunyuan_image_3_0_nf4": {
         "label": "HunyuanImage 3.0 (NF4)",
         "description": "Tencent’s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Text-to-image only; prompt enhancement is handled by ArtSmoker's own pipeline.",
         "provider": "Tencent",

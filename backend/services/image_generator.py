@@ -14,6 +14,28 @@ _SEED_MAX = 2**31 - 1
 _MAX_RETRIES = 3
 _RETRY_BASE_DELAY = 2  # seconds
 
+# Substrings that mark an image failure as a CONTENT-MODERATION / policy block
+# (the model refused the prompt) rather than a transient/technical error. Single
+# source of truth — used by the retry classifier here, the per-model status
+# classification in the generate router, and async-job failure classification,
+# so "censored" vs "failed" is decided identically everywhere. Matched against
+# lower-cased exception text. Covers Bedrock RAI ("blocked by our content
+# filters"), Nova/Titan ("generation failed"), and generic policy wording.
+_MODERATION_ERROR_MARKERS = (
+    "content moderation", "content filter", "content filters",
+    "generation failed", "moderation", "blocked", "not allowed",
+    "unsafe", "policy", "responsible ai", "safety",
+)
+
+
+def is_moderation_error(message) -> bool:
+    """True if an image-generation error looks like a content-moderation block
+    (prompt refused by the model) rather than a technical/transient failure."""
+    if not message:
+        return False
+    low = str(message).lower()
+    return any(marker in low for marker in _MODERATION_ERROR_MARKERS)
+
 
 def generate_image(
     enhanced_prompt: str,
@@ -80,10 +102,7 @@ def generate_image(
             last_exc = exc
             exc_str = str(exc).lower()
             # Content moderation / prompt rejection errors are NOT retriable
-            non_retriable = any(k in exc_str for k in [
-                "content moderation", "generation failed", "not allowed",
-                "blocked", "unsafe", "policy",
-            ])
+            non_retriable = is_moderation_error(exc_str)
             retriable = not non_retriable and any(k in exc_str for k in [
                 "throttl", "too many", "service unavailable",
                 "timed out", "connection", "rate exceeded",

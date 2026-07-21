@@ -24,7 +24,7 @@ from starlette.responses import StreamingResponse
 from backend.models.generation_request import AssetType, GenerationRequest, ImageModel
 from backend.models.generation_result import GenerationResult, OptionResult, VariantResult
 from backend.models.style_profile import StyleProfile
-from backend.services.image_generator import generate_image
+from backend.services.image_generator import generate_image, is_moderation_error
 from backend.services.post_processor import process_asset
 from backend.services.prompt_engineer import (
     PromptRefusalError,
@@ -603,11 +603,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
               "completed": completed, "total": total})
     except Exception as canary_exc:
         # Canary failed — check if it's a moderation/non-retriable error
-        exc_str = str(canary_exc).lower()
-        is_moderation = any(k in exc_str for k in [
-            "generation failed", "moderation", "blocked", "not allowed",
-            "unsafe", "policy",
-        ])
+        is_moderation = is_moderation_error(canary_exc)
         if is_moderation:
             # Don't dispatch any more tasks — report immediately
             logger.warning("Canary request blocked by moderation in batch %s: %s", batch_id, canary_exc)
@@ -686,10 +682,9 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                 except Exception as exc:
                     completed += 1
                     exc_str = str(exc).lower()
-                    is_moderation = any(k in exc_str for k in [
-                        "generation failed", "moderation", "blocked",
-                        "not allowed", "unsafe", "policy", "cancelled",
-                    ])
+                    # Moderation block OR a batch-cancel signal (cancelled) both
+                    # count here — a sibling task's moderation block cancels the rest.
+                    is_moderation = is_moderation_error(exc) or "cancelled" in exc_str
                     if is_moderation and not cancel_event.is_set():
                         if body.pre_composed:
                             # Pre-composed/rewritten prompt — don't cancel batch.
@@ -1100,11 +1095,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                           "job_id": variant.async_job.get("job_id", ""),
                           "model_label": variant.async_job.get("model_label", model_labels.get(mk, ""))})
             else:
-                exc_str = str(exc).lower()
-                is_mod = any(k in exc_str for k in [
-                    "generation failed", "moderation", "blocked",
-                    "not allowed", "unsafe", "policy",
-                ])
+                is_mod = is_moderation_error(exc)
                 status = "moderation_blocked" if is_mod else "error"
                 # Worst status wins
                 if task_status.get(flat_opt_idx) == "success" or flat_opt_idx not in task_status:

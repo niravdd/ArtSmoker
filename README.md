@@ -27,11 +27,11 @@ ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean 
 - **Artists describe what they need** in plain language — ArtSmoker handles prompt decomposition, enhancement, model-specific optimisation, and style application behind the scenes. A guided Prompt Designer lets users fine-tune individual visual elements (subject, scene, lighting, colours) with lock/vary controls for genuinely distinct creative options
 - **Style-aware generation** — upload your game's existing art, and ArtSmoker's vision models learn your visual identity. Every generated asset matches your game's look and feel
 - **All Bedrock models, all regions** — fully configurable. Choose your text-to-image models, video models, and regions. The system discovers available models dynamically via the Bedrock API
-- **Self-hosted open-source models — 1-click deploy** — browse a curated catalog of pre-tested models (HunyuanImage 3.0, FLUX.2, and more), pick a GPU instance, and deploy to Amazon SageMaker with one click. Everything is handled: inference packaging, quantisation, CUDA configuration, auto-scaling, and job tracking. Every catalog model is validated end-to-end before shipping
+- **Self-hosted open-source models — 1-click deploy** — browse a curated catalog of pre-tested models (Qwen-Image, HunyuanImage 3.0, FLUX.2, and more), pick a GPU instance, and deploy to Amazon SageMaker with one click. Everything is handled: inference packaging, quantisation, CUDA configuration, auto-scaling, and job tracking. Every catalog model is validated end-to-end before shipping
 - **Image-to-3D in one click** — generate a textured 3D model (GLB) directly from any 2D game asset or character image. Multi-view synthesis and texture baking produce game-engine-ready meshes that import directly into Unity, Unreal, or Blender — no manual modeling required
 - **Your AWS account, your IP** — everything runs in your own private AWS account. All artwork, prompts, styles, and generated assets stay within your isolated environment — no data leaves to third-party services. You retain full ownership and control of your creative IP
 
-**Amazon Bedrock models**: Claude Sonnet/Opus (prompt engineering & chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI services (image editing), Nova Reel, Luma AI Ray (video generation), and 80+ LLMs from 16 providers for Chat Studio. **Self-hosted models**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG (image-to-3D), and more via Amazon SageMaker — with an extensible catalog for adding new models.
+**Amazon Bedrock models**: Claude Sonnet/Opus (prompt engineering & chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI services (image editing), Nova Reel, Luma AI Ray (video generation), and 80+ LLMs from 16 providers for Chat Studio. **Self-hosted models**: Qwen-Image (text-to-image) & Qwen-Image-Edit (reference-guided + instruction editing, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG & TRELLIS.2 (image-to-3D), and more via Amazon SageMaker — with an extensible catalog for adding new models.
 
 **[Get started now — jump to Prerequisites & Installation ▸](#get-started)**
 
@@ -100,12 +100,12 @@ For teams that want every generated asset to match an existing art style — upl
 - 🔄 **Real-time progress** — SSE streaming with retry/throttle visibility
 - 🛡️ **Smart moderation** — Canary testing, auto model switching, AI-assisted rewriting
 - ⚙️ **Model Registry** — Admin UI organized by studio (Image, Video, Chat, Type, Shared), Bedrock discovery, custom model support
-- 📝 **Prompt Templates** — 19 editable LLM directive prompts, AI-assisted refinement, variable validation with auto-fix
+- 📝 **Prompt Templates** — 27 editable LLM directive prompts, AI-assisted refinement, variable validation with auto-fix
 - 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...) and version navigation
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 - 🌐 **8-Language i18n** — Full UI translation (EN, JA, ZH, KO, HI, RU, FR, ES), auto-detect non-English prompts, bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
-- 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, and more), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
+- 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2, and more), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
 - 🧊 **Image-to-3D Generation** — Convert any Game Asset or Character image into a textured 3D mesh (GLB) with one click. Multi-view synthesis + texture baking produces game-engine-ready assets. Interactive 3D viewer with orbit/zoom/pan
 - 🩹 **Smart source completion for 3D** — image-to-3D can only build what's visible, so a cropped character (legs cut off) becomes a legless mesh. Before generating, ArtSmoker vision-checks the source and, if it's cropped, **offers** to complete it via outpainting (an AI-suggested, fully editable prompt) — previews the before/after, re-reviews the result, lets you extend again or discard, and saves it as a new image version. Opt-in and non-blocking; well-framed images generate straight through
 - 🔄 **Auto-Update** — Version-gated git pull on startup, self-restart on update, 24h periodic check (`ARTSMOKER_AUTO_UPDATE=false` to disable)
@@ -182,7 +182,16 @@ Each model runs independently: if stricter models block the prompt, you still ge
 
 An optional **"Model-optimized prompts"** toggle tailors the prompt to each model's strengths — prompts are rewritten per model (e.g. quality boosters for SD 3.5, natural language for FLUX.2, concise captions for Nova Canvas).
 
-### 📝 1.5 Video Studio
+### 📝 1.5 Reference-Guided Generation
+
+Beyond writing a prompt from scratch, you can generate **from 1–3 reference images plus an instruction** — pick the mode with the segmented control at the top of the Image Studio prompt area:
+
+- **Match the reference** — keep the subject, product, or character from your reference and change the rest (theme, background, wardrobe, lighting) exactly as your instruction says. Ideal for consistent characters or product shots across scenes. This mode runs on a self-hosted instruction editor (Qwen-Image-Edit) and appears **once it's deployed** — if it isn't, ArtSmoker points you straight to deploy it from Custom Models (one click, same flow as the 3D pipelines). Commercial-safe (Apache-2.0).
+- **Inspired by the reference** — ArtSmoker's vision AI reads your reference(s) and instruction, writes an enhanced prompt (shown to you first), then generates with your normal text-to-image models. **Always available** — no deployment needed. Great for borrowing a look, palette, or composition without copying the subject.
+
+Both modes require an instruction so you stay in control of what the reference is *for*. Reference-guided generation is separate from the Style Library (which analyzes many images into a reusable style profile) — use it for one-off, image-driven generations.
+
+### 📝 1.6 Video Studio
 
 Generate AI-powered videos and animations from text prompts. Supports **Amazon Nova Reel** (v1.0, v1.1) and **Luma AI Ray** (v2.0).
 
@@ -218,7 +227,7 @@ Storage mode: download locally (default) or stream from S3 on demand.
 
 **Video prompt enhancement**: The LLM adds camera movements (pan, zoom, dolly, tracking), lighting details, and temporal cues. Since video models don't support negative prompts, avoidance concepts are woven into the positive prompt naturally.
 
-### 📝 1.6 Chat Studio
+### 📝 1.7 Chat Studio
 
 A full-featured LLM chat interface — like a self-hosted conversational AI, running on your own AWS account with no third-party data access.
 
@@ -248,7 +257,7 @@ A full-featured LLM chat interface — like a self-hosted conversational AI, run
 
 **Pricing transparency:** model picker shows cost per 1K tokens, pricing info bar shows estimated cost for 10K and 100K token conversations.
 
-### 📝 1.7 Asset Type Awareness
+### 📝 1.8 Asset Type Awareness
 
 The selected **Asset Type** fundamentally changes how the AI interprets your prompt — not just the image model, but every stage of the pipeline. When you type "hospital" and select different asset types, you get completely different outputs:
 
@@ -266,7 +275,7 @@ This matters at every stage:
 - **Concept generation** — When generating multiple options, the AI creates N different design interpretations that all respect the asset type's structural rules. A Character option always has a readable silhouette; a Marketing Banner option always has a text-safe zone with no rendered text.
 - **The result** — Two images from the same prompt but different asset types will look nothing alike. A Game Asset "warrior" is a single centered character sprite. A Marketing Banner "warrior" is an epic battle scene with a clean zone for headline overlay.
 
-### 📝 1.8 3D Model Generation (Image-to-3D)
+### 📝 1.9 3D Model Generation (Image-to-3D)
 
 Generate production-ready, fully-textured 3D meshes from any 2D image — directly in the Asset Viewer. Select a **Game Asset** or **Character** image, open the **3D Model** tab, and click Generate. The result is a game-engine-ready GLB you can orbit, zoom, and download — with no manual modeling, UV unwrapping, or texture painting.
 
@@ -767,7 +776,7 @@ After ArtSmoker is running, complete these steps to get the best results:
 
 **1. Sync models from AWS** — Open **Model Settings** (gear icon in any studio) → click **Sync from AWS**. This discovers all available image, video, and chat models across all Bedrock regions. Takes 30-60 seconds. Only needed once, or when AWS adds new models.
 
-**2. Review and customize prompt templates** — This is the most impactful configuration you can do. Open **Model Settings → Prompt Templates** tab. ArtSmoker uses 19 editable directive prompts that control how the AI behaves:
+**2. Review and customize prompt templates** — This is the most impactful configuration you can do. Open **Model Settings → Prompt Templates** tab. ArtSmoker uses 27 editable directive prompts that control how the AI behaves:
 
 | Template | What it controls |
 |----------|-----------------|
@@ -1132,7 +1141,7 @@ Add text to images or generate standalone text assets with AI-designed typograph
 - **Contextual action buttons** per asset based on type: **"2D Studio"** (indigo) to reload in the image studio, **"Add Text"** (emerald) to open in Type Studio, **"Edit in Type Studio"** (purple) for text assets.
 - Click any image to open the **AssetViewer** modal with:
   - **Zoom/pan** — mouse wheel to zoom, drag to pan, Fit/1:1 buttons with active mode highlighting.
-  - **Edit tab** — inpaint, erase, or outpaint the image directly. Paint a mask with the brush tool, enter a prompt, choose an editing model, and apply. Default replaces the original image; uncheck "Replace original" to save as a new asset.
+  - **Edit tab** — inpaint, erase, outpaint, search & replace, or recolor the image directly. Two kinds of editor are offered per mode: **mask-based** (Stability) — paint a mask with the brush tool, enter a prompt, and apply; and **mask-free instruction editors** (Qwen-Image-Edit, when deployed) — just describe the change in words, no mask needed. The brush controls hide automatically for a mask-free model. Choose the editing model, apply; default replaces the original image, uncheck "Replace original" to save as a new asset (every edit preserves version history).
   - **Previous / Next** — arrow buttons and keyboard left/right to navigate through the list without closing the viewer.
   - **Full metadata**: original prompt, AI-improved prompt, generation prompt, negative prompt, style, asset type, image model (friendly names), dimensions, seed, batch ID, option/variation index, IP declaration status, filename, and creation date.
 - **Style snapshot**: Each asset stores a snapshot of the style used at generation time (name, description, hints, analysis). If the original style is later deleted, the asset retains the full context. Backward compatible — older assets without snapshots display normally.
@@ -1159,7 +1168,7 @@ All AI model configuration is centralized in `backend/model_registry.json` — t
   - **Chat Studio** — Discovered chat/LLM models (80+ from 16 providers), context windows, vision capability, pricing per 1K tokens
   - **Type Studio** — LLM model for text layout generation (Complex or Fast LLM)
   - **Shared Studio** — Cross-studio LLM categories (Fast LLM, Complex LLM, Fallback LLM, Voice), post-processing models (Remove Background, Upscale)
-  - **Prompt Templates** — 19 editable LLM directive prompts organized by studio (see section 4.4)
+  - **Prompt Templates** — 27 editable LLM directive prompts organized by studio (see section 4.4)
   - **Registry JSON** — Raw JSON editor for the full model registry
 - All sections are **collapsible** with **Show All / Hide All** toggles for quick navigation.
 - LLM categories and post-processing use **dropdown model pickers** (populated from discovered models) — not raw text fields.
@@ -1319,7 +1328,7 @@ Key endpoints:
 | `POST /api/admin/discover/refresh-all` | Full refresh: discover regions + scan models + fetch pricing + prune stale data. The ONLY endpoint that calls AWS discovery APIs. |
 | `POST /api/admin/discover/{region}/auto-register` | Scan a single region for models, register new ones, update regions for existing |
 | `GET /api/admin/discover/{region}` | Discover available Bedrock models in a region (raw listing) |
-| `GET /api/admin/templates` | Get all 19 editable prompt templates |
+| `GET /api/admin/templates` | Get all 27 editable prompt templates |
 | `PATCH /api/admin/templates/{name}` | Update a template (validates required variables) |
 | `POST /api/admin/templates/{name}/reset` | Reset a template to default |
 | `POST /api/admin/templates/{name}/enhance` | Enhance a template with AI |
@@ -1336,7 +1345,7 @@ ArtSmoker/
 │   ├── config.py            # Settings (AWS regions, model IDs, paths, limits)
 │   ├── model_registry.json  # Single source of truth: models, regions, pricing, format families, quality tiers
 │   ├── requirements.txt
-│   ├── prompt_templates.json # Persisted editable LLM directive prompts (19 templates)
+│   ├── prompt_templates.json # Persisted editable LLM directive prompts (27 templates)
 │   ├── routers/
 │   │   ├── generate.py      # Two-level asset generation + SSE streaming
 │   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis

@@ -1697,6 +1697,11 @@
                             <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('custom_models.instance')}</label>
                             ${allOptions.length > 0 ? `<select class="deploy-instance input w-full text-xs">${instanceHtml}</select>` : instanceHtml}
                             <p class="deploy-instance-info text-[10px] text-brand-text-muted mt-1"></p>
+                            ${allOptions.length > 0 ? `
+                            <div class="mt-2 flex items-start gap-1.5 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
+                                <svg class="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                <p class="text-[9px] text-brand-text-muted/90 leading-relaxed">${t('custom_models.instance_validated_note')}</p>
+                            </div>` : ''}
                             ${quotaHtml}
                         </div>
 

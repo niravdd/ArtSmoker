@@ -532,6 +532,8 @@
     "pricing_label": "Preise"
   },
   "gallery": {
+    "status_failed": "Fehlgeschlagen",
+    "status_censored": "Vom Modell blockiert",
     "title": "Galerie",
     "subtitle": "Durchsuchen Sie Ihre generierten Bilder, Videos und Kunst-Assets",
     "generate_new": "Neu generieren",
@@ -1182,6 +1184,7 @@
     "hf_auth": "HF-Auth",
     "provider": "Anbieter",
     "instance": "Instanz",
+    "instance_validated_note": "Validierte Bereitstellung: Wir haben dieses Modell durchgängig auf den angezeigten Instanztypen getestet, und die vorausgewählte Option ist die Mindestspezifikation, deren zuverlässiger Betrieb nachgewiesen ist. Kleinere, günstigere Instanzen wurden zuerst getestet und ausgeschlossen (unzureichender VRAM/RAM oder fehlgeschlagenes Laden) — damit Sie nicht dafür zahlen, Nicht-Funktionierendes neu zu entdecken. Für mehr Geschwindigkeit oder Reserven können Sie eine größere Instanz wählen.",
     "est_cost": "Gesch.",
     "vram": "VRAM",
     "deploy_type_title": "Bereitstellungstyp wählen",

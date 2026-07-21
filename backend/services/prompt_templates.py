@@ -79,10 +79,15 @@ Rules:
         "variables": [],
         "model": "n/a (injected text, not an LLM call)",
         "text": """### game_asset ###
-DEFAULT INTENT: Isolated game-ready object/prop on transparent background.
+DEFAULT INTENT: Isolated game-ready object/prop on a clean/transparent background.
 Apply ONLY if the user's prompt is a simple noun (e.g. 'a sword', 'a tree').
 If the user describes a scene, character, or setting — follow THEIR description, not this default.
 When this default applies: centered composition, clean edges, consistent top-left lighting, no ground shadows.
+FRAMING (REQUIRED — the whole object must be captured in one clean view):
+- Show the COMPLETE object head-to-base, with clear empty margin on ALL FOUR sides — nothing touches or runs off any frame edge. Do NOT crop any part of the asset.
+- The object occupies roughly 60-80% of the frame; do NOT zoom in so far that edges are clipped.
+- Prefer a single clear three-quarter or front view that reveals the object's overall form; avoid extreme angles or compositions that hide major parts.
+COMPLETENESS vs. the user's intent: "complete" means the whole described object is visible and in-frame — NOT that its form is normalized. Render it EXACTLY as asked: unusual proportions, asymmetry, non-standard or fantastical forms are honored faithfully. Only fill unspecified details with sensible defaults; never "correct" what the user deliberately stated.
 
 ### marketing_banner ###
 INTENT: Cinematic promotional illustration with a text-safe zone.
@@ -96,11 +101,17 @@ Single recognizable shape, centered, generous padding. Must read at 64x64 pixels
 High contrast, 3-5 colors maximum, bold shapes, no fine detail.
 
 ### character ###
-INTENT: Character illustration — the figure is the star.
+INTENT: Character illustration — the figure is the star, captured as a COMPLETE, uncropped subject.
 If the user describes a setting or scene, INCLUDE IT — the character should be IN that context.
 If the user gives only a character name/description, use a clean or contextual background.
 Focus on: readable silhouette, expressive pose, clear facial features, detailed costume/armor.
-Full-body or 3/4-body, character fills 60-75% of frame.
+FRAMING (REQUIRED — the whole figure must be captured in one clean view):
+- Show the ENTIRE figure head-to-toe: top of head through the feet/base, plus anything the character wears or holds.
+- Leave clear empty margin on ALL FOUR sides — nothing may touch or run off any frame edge. Do NOT crop the head, hands, feet, weapons, wings, tails, or capes.
+- The figure occupies roughly 60-75% of the frame HEIGHT so the full body fits with breathing room; do NOT zoom in to fill the frame.
+- Prefer a neutral, open, roughly symmetrical standing stance (limbs not overlapping or hiding the body) so the silhouette reads cleanly from a single view.
+- Avoid tight close-ups, portrait/bust crops, extreme foreshortening, or steep angles that hide parts of the body.
+COMPLETENESS vs. the user's intent: "complete" means every part of the subject the user described is visible and in-frame — NOT that anatomy is normalized. Render the character EXACTLY as asked: if the user specifies three fingers, a missing limb, extra arms, non-human or fantastical anatomy, honor it faithfully. Only fill unspecified anatomy with sensible defaults; never "correct" what the user deliberately stated.
 
 ### environment ###
 INTENT: Scenic illustration with depth and atmosphere.
@@ -228,10 +239,10 @@ RULES:
 1. **PRESERVE EVERYTHING THE USER DESCRIBED.** If they mention a setting, scene, background, camera angle, or mood — keep it ALL. The asset type above is a default for simple prompts like "a cat". When the user describes more, follow their vision.
 
 2. **ENHANCE WITH PROFESSIONAL DETAIL — do not invent or change the concept.** Your job is to make the user's idea look BETTER, not different. Add:
-   - Structural accuracy: correct anatomy/proportions for characters, accurate construction for objects, proper perspective for scenes
+   - Structural accuracy: sound construction and believable proportions — BUT only for details the user left unspecified. If the user deliberately stated a non-standard form (e.g. three fingers, a missing limb, extra arms, non-human or fantastical anatomy), render it EXACTLY as asked; never "correct" or normalize what they intentionally described. Accurate for objects, proper perspective for scenes.
    - Material quality: how surfaces actually look (metal reflections, fabric drape, wood grain, skin texture) — not just color names
    - Lighting: describe the light setup (warm key light direction, rim light for separation, ambient fill)
-   - Composition: camera angle, framing, depth of field if appropriate
+   - Composition/framing: FOLLOW the ASSET TYPE framing guidance above exactly. When it requires the complete subject in-frame, the entire subject must be shown head-to-toe/base with clear margin on all sides and NOTHING cropped at any edge. Never tighten to a close-up or bust crop that clips the subject.
 
 3. **KEEP THE SAME ART STYLE throughout.** Do NOT inject an art style the user didn't ask for. No "cel-shaded" unless they said cel-shaded. No "watercolor" unless they said watercolor. No "chibi" ever unless asked. If no style is specified, default to polished digital illustration / concept art.
 
@@ -292,6 +303,7 @@ RULES:
    - Option 2: stormy overcast, leather armor, fierce determination
    - Option 3: cool moonlight, formal uniform, contemplative mood
    Each option should differ on at least 3 variable elements simultaneously.
+   EXCEPTION — framing is NOT a variable: if the ASSET TYPE above requires the complete subject in-frame, EVERY option must show the FULL subject head-to-toe/base, uncropped, with clear margin on all sides. Vary pose/lighting/mood/wardrobe, never crop to a portrait/bust/waist-up. Also honor any deliberate non-standard form the user described (e.g. three fingers, extra limbs, fantastical anatomy) in every option — never normalize it.
 
 3. **If STYLE guidance is provided above, ALL options follow it.** Style is the visual language — palette, rendering, mood. Content varies, style stays consistent.
 
