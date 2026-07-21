@@ -1137,6 +1137,7 @@
     "deploying": "デプロイ中...",
     "not_deployed": "未デプロイ",
     "failed": "失敗",
+    "failed_autocleanup": "自動クリーンアップ中（再度デプロイできます）",
     "please_wait": "お待ちください...",
     "hf_auth": "HF認証",
     "provider": "プロバイダー",

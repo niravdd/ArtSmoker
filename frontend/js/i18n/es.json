@@ -1137,6 +1137,7 @@
     "deploying": "Desplegando...",
     "not_deployed": "No desplegado",
     "failed": "Fallido",
+    "failed_autocleanup": "limpieza automática (puedes desplegar de nuevo)",
     "please_wait": "Por favor espere...",
     "hf_auth": "Auth HF",
     "provider": "Proveedor",

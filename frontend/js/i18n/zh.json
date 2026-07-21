@@ -1137,6 +1137,7 @@
     "deploying": "部署中...",
     "not_deployed": "未部署",
     "failed": "失败",
+    "failed_autocleanup": "正在自动清理（可重新部署）",
     "please_wait": "请稍候...",
     "hf_auth": "HF 认证",
     "provider": "供应商",

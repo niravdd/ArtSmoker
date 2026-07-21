@@ -1180,6 +1180,7 @@
     "deploying": "Deploying...",
     "not_deployed": "Not deployed",
     "failed": "Failed",
+    "failed_autocleanup": "auto-cleaning up (you can Deploy again)",
     "please_wait": "Please wait...",
     "hf_auth": "HF Auth",
     "provider": "Provider",

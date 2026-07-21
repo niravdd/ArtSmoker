@@ -161,7 +161,7 @@ def _check_gated_access(model: dict, token: str | None) -> dict:
 # ── Catalog ───────────────────────────────────────────────────────────────
 
 @router.get("/catalog")
-def list_catalog():
+def list_catalog(force: bool = False):
     """List all available custom models with deployment status.
 
     Sync (not async) so boto3 calls don't block the event loop.
@@ -170,10 +170,17 @@ def list_catalog():
     Only checks Amazon SageMaker status for models that are registered in the
     model registry (i.e., previously deployed). Undeployed models skip
     the status check — much faster.
+
+    `force=true` (sent by the manual "Refresh Status" button) bypasses the 30s
+    endpoint-status cache so the user gets truly-current state on demand,
+    instead of a stale cached value that makes the button look like a no-op.
     """
     from backend.services.custom_models import get_catalog
     from backend.services.model_registry import get_registry
-    from backend.services.sagemaker_deployer import check_endpoint_status
+    from backend.services.sagemaker_deployer import check_endpoint_status, clear_endpoint_status_cache
+
+    if force:
+        clear_endpoint_status_cache()
 
     catalog = dict(get_catalog())  # Copy built-in catalog
     # Merge user-added models
@@ -231,12 +238,27 @@ def list_catalog():
         for inst in deployed_instances:
             status = check_endpoint_status(inst["endpoint_name"])
             deploy_progress = _deploy_status.get(inst["deployed_key"], {})
+            ep_status = status.get("status", "NotFound")
+            failure_reason = status.get("failure_reason", "")
+
+            # A Failed endpoint is a dead end — it can't serve and can't recover.
+            # Schedule an auto-teardown (removes the endpoint/config/model/registry
+            # entry AND clears stale deploy-progress) so the model resets to a
+            # clean, deployable state without the user having to hunt for a Remove
+            # button. Deliberate + idempotent: guarded by a set so we schedule it
+            # once per endpoint; the actual teardown runs in the background and is
+            # a no-op if already gone. The user still sees WHY it failed
+            # (failure_reason) on this response before the next refresh clears it.
+            if ep_status == "Failed":
+                _schedule_failed_teardown(inst["deployed_key"], inst["endpoint_name"], failure_reason)
+
             instances_data.append({
                 "deployed_key": inst["deployed_key"],
                 "endpoint_name": inst["endpoint_name"],
                 "instance_type": inst["instance_type"],
                 "label": inst["label"],
-                "status": status.get("status", "NotFound"),
+                "status": ep_status,
+                "failure_reason": failure_reason,
                 "warming_up": status.get("warming_up", False),
                 "warmup_detail": status.get("warmup_detail", ""),
                 "instance_count": status.get("instance_count", 0),
@@ -265,6 +287,7 @@ def list_catalog():
             "requirements": model["requirements"],
             "pricing": model["pricing"],
             "deployment_status": first["status"] if first else "NotFound",
+            "failure_reason": first.get("failure_reason", "") if first else "",
             "warming_up": first["warming_up"] if first else False,
             "warmup_detail": first["warmup_detail"] if first else "",
             "instance_count": first["instance_count"] if first else 0,
@@ -626,6 +649,67 @@ class DeployRequest(BaseModel):
 
 
 _deploy_status: dict = {}  # model_key → {"stage": str, "progress": str, "error": str}
+_failed_teardown_scheduled: set = set()  # endpoint_names we've already auto-torn-down
+
+
+def _schedule_failed_teardown(deployed_key: str, endpoint_name: str, reason: str):
+    """Auto-tear-down a Failed endpoint, once, in the background.
+
+    A Failed SageMaker endpoint (e.g. InsufficientInstanceCapacity) can't serve
+    and can't be recovered — the only action is to delete it. Rather than leave
+    it cluttering the UI with no clear path, we clean it up automatically:
+    teardown_endpoint (endpoint/config/model + auto-scaling + registry) then
+    clear stale deploy-progress, so the model returns to a clean deployable
+    state. Idempotent (guarded by _failed_teardown_scheduled) and best-effort —
+    runs off-thread so it never blocks the catalog response.
+    """
+    if endpoint_name in _failed_teardown_scheduled:
+        return
+    _failed_teardown_scheduled.add(endpoint_name)
+    logger.warning("Auto-tearing-down FAILED endpoint %s (reason: %s)", endpoint_name, reason or "unknown")
+
+    def _run():
+        try:
+            from backend.services.sagemaker_deployer import teardown_endpoint
+            teardown_endpoint(deployed_key, delete_s3=False)
+        except Exception as exc:
+            logger.warning("Auto-teardown of failed %s hit an error: %s", endpoint_name, exc)
+        try:
+            _unregister_custom_model(deployed_key)
+        except Exception:
+            pass
+        _clear_deploy_status(deployed_key)
+        # Allow a future re-detection if somehow the endpoint reappears.
+        _failed_teardown_scheduled.discard(endpoint_name)
+
+    import threading
+    threading.Thread(target=_run, daemon=True, name=f"failed-teardown-{endpoint_name}").start()
+
+
+def _clear_deploy_status(model_key: str):
+    """Drop in-memory deploy-progress for a model (and its catalog base).
+
+    Called on teardown and on terminal failure so the Custom Models list stops
+    reporting a stale "deploying…" state. Deploys may key _deploy_status by the
+    catalog key OR the hash-suffixed instance key, so clear both: the exact key
+    and every entry whose catalog base matches it.
+    """
+    from backend.services.custom_models import get_catalog
+    try:
+        catalog = get_catalog()
+    except Exception:
+        catalog = {}
+    # Catalog base of the given key (strip a trailing hash segment if the exact
+    # key isn't itself a catalog key, e.g. hunyuan_image_3_0_bf16_9c7c → base).
+    base = model_key
+    if model_key not in catalog:
+        for ck in catalog:
+            if model_key == ck or model_key.startswith(ck + "_"):
+                base = ck
+                break
+    for k in list(_deploy_status.keys()):
+        if k == model_key or k == base or k.startswith(base + "_"):
+            _deploy_status.pop(k, None)
 
 
 @router.post("/deploy")
@@ -943,6 +1027,15 @@ async def teardown_model(model_key: str, delete_s3: bool = False):
 
     # Remove from model registry
     _unregister_custom_model(model_key)
+
+    # Clear any in-memory deploy-progress for this model. Without this, a stale
+    # "deploying / container is pulling…" entry survives teardown and keeps the
+    # Custom Models UI showing the model as mid-deploy (no Deploy button), even
+    # after the endpoint + registry entry are gone — persisting across browser
+    # refreshes since it's server-side state. Clear the exact key AND its catalog
+    # base (hash-suffixed instance key → catalog key) so the model resets to a
+    # clean, deployable state.
+    _clear_deploy_status(model_key)
 
     try:
         from backend.services.telemetry import track_custom_model_teardown

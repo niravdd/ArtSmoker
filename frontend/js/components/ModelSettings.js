@@ -762,7 +762,7 @@
                             refreshBtn._wired = true;
                             refreshBtn.addEventListener('click', () => {
                                 this._customModelsLoaded = false;
-                                this._loadCustomModels(modal);
+                                this._loadCustomModels(modal, true);  // force = bypass status cache
                             });
                         }
                         const addBtn = modal.querySelector('#ms-cm-add');
@@ -2165,14 +2165,14 @@
 
         _customModelsLoaded: false,
 
-        async _loadCustomModels(modal) {
+        async _loadCustomModels(modal, force = false) {
             const container = modal.querySelector('#ms-custom-models-content');
             if (!container) return;
 
             try {
                 const controller = new AbortController();
                 const timeout = setTimeout(() => controller.abort(), 20000);
-                const resp = await fetch('/api/custom-models/catalog', { signal: controller.signal });
+                const resp = await fetch(`/api/custom-models/catalog${force ? '?force=true' : ''}`, { signal: controller.signal });
                 clearTimeout(timeout);
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                 const data = await resp.json();
@@ -2292,7 +2292,13 @@
                         const deployed = active || idle;
                         const cacheHint = m.has_cache ? 'Cached — faster startup' : 'Cold start on activation';
                         const statusColor = active ? 'text-emerald-400' : idle ? 'text-blue-400' : warmingUp ? 'text-cyan-400' : (deploying || scalingUp) ? 'text-amber-400' : failed ? 'text-red-400' : 'text-brand-text-muted/50';
-                        const statusText = active ? t('custom_models.active') : idle ? `Inactive — activates on next request (${cacheHint})` : warmingUp ? (m.warmup_detail || t('custom_models.warming_up')) : scalingUp ? 'Starting instance...' : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? t('custom_models.failed') : t('custom_models.not_deployed');
+                        // On failure, surface the REAL reason (e.g. InsufficientInstanceCapacity)
+                        // and note that we auto-clean it so the user can redeploy.
+                        const failReason = (m.failure_reason || '').trim();
+                        const failText = failReason
+                            ? `${t('custom_models.failed')}: ${failReason.split('.')[0]} — ${t('custom_models.failed_autocleanup')}`
+                            : `${t('custom_models.failed')} — ${t('custom_models.failed_autocleanup')}`;
+                        const statusText = active ? t('custom_models.active') : idle ? `Inactive — activates on next request (${cacheHint})` : warmingUp ? (m.warmup_detail || t('custom_models.warming_up')) : scalingUp ? 'Starting instance...' : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? failText : t('custom_models.not_deployed');
                         const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.hf_auth')}</span>` : '';
                         const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
                         const userBadge = m.user_added ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>` : '';
@@ -2316,7 +2322,10 @@
                                         </div>
                                     </div>
                                     <div class="flex items-center gap-2 flex-shrink-0">
-                                        ${!deployed && !deploying && !warmingUp && !scalingUp && !failed
+                                        ${failed
+                                            ? `<span class="text-[10px] text-red-400 max-w-[260px] text-right" title="${this._esc(failReason)}">${failText}</span>
+                                               <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
+                                            : !deployed && !deploying && !warmingUp && !scalingUp
                                             ? `<span class="text-[10px] text-brand-text-muted/50">${t('custom_models.not_deployed')}</span>
                                                <button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}">${t('custom_models.deploy')}</button>`
                                             : (deploying || warmingUp || scalingUp)

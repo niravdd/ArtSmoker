@@ -1180,6 +1180,7 @@
     "deploying": "Wird bereitgestellt...",
     "not_deployed": "Nicht bereitgestellt",
     "failed": "Fehlgeschlagen",
+    "failed_autocleanup": "wird automatisch bereinigt (Sie können erneut bereitstellen)",
     "please_wait": "Bitte warten...",
     "hf_auth": "HF-Auth",
     "provider": "Anbieter",

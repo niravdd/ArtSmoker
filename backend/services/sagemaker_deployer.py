@@ -1041,6 +1041,18 @@ def clear_readiness_cache(endpoint_name: str):
     _set_registry_model_ready(endpoint_name, False)
 
 
+def clear_endpoint_status_cache(endpoint_name: str = ""):
+    """Drop the 30s status cache so the next check_endpoint_status re-queries AWS.
+
+    With no argument, clears the entire cache (used by the manual "Refresh
+    Status" button so it always reflects truly-current endpoint state).
+    """
+    if endpoint_name:
+        _endpoint_status_cache.pop(endpoint_name, None)
+    else:
+        _endpoint_status_cache.clear()
+
+
 def check_endpoint_status(endpoint_name: str) -> dict:
     """Check the status of an Amazon SageMaker endpoint.
 
@@ -1100,6 +1112,10 @@ def check_endpoint_status(endpoint_name: str) -> dict:
             "instance_count": instance_count,
             "creation_time": resp.get("CreationTime", "").isoformat() if resp.get("CreationTime") else "",
             "last_modified": resp.get("LastModifiedTime", "").isoformat() if resp.get("LastModifiedTime") else "",
+            # Surface the real reason for a Failed endpoint (e.g.
+            # "InsufficientInstanceCapacity …") so the UI can explain WHY and the
+            # auto-teardown path can act. Empty for healthy endpoints.
+            "failure_reason": resp.get("FailureReason", "") if status == "Failed" else "",
         }
         _endpoint_status_cache[endpoint_name] = {"result": result, "time": _time.time()}
         return result
