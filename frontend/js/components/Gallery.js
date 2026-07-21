@@ -288,10 +288,29 @@
             document.body.appendChild(backdrop);
         },
 
-        /** Called when navigating back to gallery (view already cached) */
+        /** Called when navigating back to gallery (view already cached).
+         *
+         *  Returning to the view is an explicit "show me current data" signal, so
+         *  a reload here must not be blocked by a stale in-flight guard. A
+         *  background refresh() (e.g. fired by Image Studio while the Gallery was
+         *  hidden) can still be awaiting its API call and leave _loading=true with
+         *  a skeleton painted; without clearing it, the _loadItems guard below
+         *  early-returns and the grid stays stuck on the skeleton until a hard
+         *  browser refresh. Clear the guard so the load always proceeds. Also
+         *  drop any stale selection — the prior selection referred to the pre-
+         *  refresh item set and its checkboxes no longer exist.
+         */
         onShow() {
+            this._loading = false;         // never let a stranded guard block the reload
+            if (this._selected && this._selected.size) {
+                this._selected.clear();    // stale selection from before navigating away
+            }
             if (Date.now() - this._lastLoadTime > 10000) {
                 this._loadItems(true);
+            } else {
+                // Data is fresh enough to keep, but re-sync the selection UI so the
+                // (now-cleared) selection bar/checkboxes reflect reality.
+                this._updateSelectionUI();
             }
         },
 
@@ -318,9 +337,21 @@
             });
         },
 
-        /** Public: force a full gallery refresh (e.g. after an edit). */
+        /** Public: force a full gallery refresh (e.g. after an edit or a
+         *  generation completes). Callers (Image Studio, Asset Viewer) fire this
+         *  without awaiting, and often while the Gallery is NOT the visible view.
+         *  Reloading a hidden view is wasted work and risks stranding the
+         *  _loading guard mid-await (leaving a skeleton that only a hard refresh
+         *  clears). So when hidden, just invalidate _lastLoadTime — onShow() will
+         *  do a fresh load when the user actually returns. When visible, reload now.
+         */
         refresh() {
             this._cacheKey = String(Date.now());
+            const visible = (window.location.hash.replace(/^#\/?/, '').split('?')[0] === 'gallery');
+            if (!visible) {
+                this._lastLoadTime = 0;   // mark stale → onShow() reloads on return
+                return Promise.resolve();
+            }
             return this._loadItems(true);
         },
 

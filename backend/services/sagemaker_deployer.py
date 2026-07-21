@@ -1222,6 +1222,126 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
     except Exception:
         pass
 
+    # ── Sweep ORPHANED configs/models/alarms from PRIOR deploys of this model ──
+    # Each redeploy mints a fresh endpoint name with a new hash suffix
+    # (artsmoker-<model>-<instance>-<hash>). Older deploys that failed or were
+    # torn down incompletely leave behind their endpoint-config, model, and
+    # backlog alarm (only the CURRENT endpoint's are named-deleted above).
+    # Without this sweep they accumulate indefinitely.
+    #
+    # SAFETY — the criterion is ENDPOINT EXISTENCE, not age. An artifact is an
+    # orphan iff NO endpoint that would use it exists. Two guards:
+    #   1. EXACT sibling shape — the artifact's endpoint must be precisely
+    #      "<base_prefix>-<single-hash-segment>". This stops a prefix-overlap
+    #      false match where one model's name is a prefix of another's
+    #      (e.g. tearing down qwen-image must NOT match qwen-image-edit-2511-*).
+    #   2. NO ASSOCIATED ENDPOINT — the artifact's derived endpoint must exist in
+    #      NEITHER of two sources, so we never delete a file some endpoint needs:
+    #        (a) AWS list_endpoints — every lifecycle state (Creating, InService,
+    #            Updating, Failed, RollingBack, …). Anything AWS knows about, in
+    #            any state, is protected.
+    #        (b) the REGISTRY's recorded endpoint_names — covers an in-flight
+    #            deploy that has registered its endpoint but whose CreateEndpoint
+    #            may not be visible in list_endpoints yet. This closes the
+    #            deploy-sequence race by EXISTENCE (intended endpoint), not by a
+    #            timer. Our deploy is a synchronous CreateModel→Config→Endpoint,
+    #            so by the time any concurrent teardown enumerates + deletes, the
+    #            endpoint is present in (a) or (b).
+    # If the artifact's endpoint is in neither set, nothing needs the file → sweep.
+    # Best-effort; never blocks teardown.
+    try:
+        # Base prefix = endpoint name minus the trailing "-<hash>" segment
+        # (e.g. artsmoker-hunyuan-image-3-0-nf4-6928 → artsmoker-hunyuan-image-3-0-nf4)
+        base_prefix = endpoint_name.rsplit("-", 1)[0] if "-" in endpoint_name else endpoint_name
+
+        # (a) endpoints AWS knows about, in ANY state
+        known_eps = set()
+        try:
+            _paginator = sm.get_paginator("list_endpoints")
+            for _pg in _paginator.paginate():
+                for _e in _pg.get("Endpoints", []):
+                    known_eps.add(_e["EndpointName"])
+        except Exception:
+            pass
+        # (b) endpoints the app has recorded/intends (covers in-flight deploys)
+        try:
+            from .model_registry import get_registry
+            _reg = get_registry()
+            for _sec in ("image_models", "video_models", "post_processing", "utility_models"):
+                for _entry in _reg.get(_sec, {}).values():
+                    _ep = (_entry.get("deployment") or {}).get("endpoint_name")
+                    if _ep:
+                        known_eps.add(_ep)
+        except Exception:
+            pass
+
+        def _endpoint_of(name: str) -> str:
+            if name.endswith("-config"):
+                return name[:-len("-config")]
+            if name.endswith("-model"):
+                return name[:-len("-model")]
+            if name.endswith("-has-backlog"):
+                return name[:-len("-has-backlog")]
+            return name
+
+        def _is_exact_sibling(ep: str) -> bool:
+            # ep must be EXACTLY base_prefix + "-" + one hash segment (no extra
+            # model-name segments) → precludes matching a different, longer model.
+            if not ep.startswith(base_prefix + "-"):
+                return False
+            tail = ep[len(base_prefix) + 1:]
+            return bool(tail) and "-" not in tail
+
+        def _safe_to_delete(artifact_name: str) -> bool:
+            ep = _endpoint_of(artifact_name)
+            if not _is_exact_sibling(ep):
+                return False          # guard 1: exact sibling shape
+            if ep in known_eps:
+                return False          # guard 2: an endpoint exists/intends to use it
+            return True
+
+        # Orphaned endpoint-configs
+        try:
+            for _c in sm.list_endpoint_configs(NameContains=base_prefix, MaxResults=100).get("EndpointConfigs", []):
+                cn = _c["EndpointConfigName"]
+                if cn != config_name and _safe_to_delete(cn):
+                    try:
+                        sm.delete_endpoint_config(EndpointConfigName=cn)
+                        deleted.append(f"orphan-config:{cn}")
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        # Orphaned models
+        try:
+            for _m in sm.list_models(NameContains=base_prefix, MaxResults=100).get("Models", []):
+                mn = _m["ModelName"]
+                if mn != sm_model_name and _safe_to_delete(mn):
+                    try:
+                        sm.delete_model(ModelName=mn)
+                        deleted.append(f"orphan-model:{mn}")
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+        # Orphaned backlog alarms
+        try:
+            cw = boto3.client("cloudwatch", region_name=region)
+            orphan_alarms = []
+            for _a in cw.describe_alarms(AlarmNamePrefix=base_prefix, MaxRecords=100).get("MetricAlarms", []):
+                an = _a["AlarmName"]
+                if _safe_to_delete(an):
+                    orphan_alarms.append(an)
+            if orphan_alarms:
+                cw.delete_alarms(AlarmNames=orphan_alarms)
+                deleted.append(f"orphan-alarms:{len(orphan_alarms)}")
+        except Exception:
+            pass
+    except Exception as exc:
+        logger.debug("Orphan sweep skipped for %s: %s", endpoint_name, exc)
+
     if delete_s3:
         try:
             bucket = get_deployment_s3_bucket()
