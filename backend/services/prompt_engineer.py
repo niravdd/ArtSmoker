@@ -162,12 +162,37 @@ _FRAMING_NEGATIVES = (
 )
 
 
-def _framing_negatives_for(asset_type) -> str:
-    """Crop/multi-pose/floating-prop negatives for 3D-convertible asset types
-    (character, game_asset). Empty for others. Only useful on models that accept
-    a negative prompt — callers gate on supports_negative_prompt."""
+# Markers that indicate the enhancement LLM already tailored single-subject /
+# framing negatives for this prompt (it's instructed to do so contextually,
+# skipping terms that conflict with the user's intent — e.g. a hovering drone or
+# a deliberate swarm). If ANY of these appear, we trust the LLM's judgement and
+# do NOT blindly append the static set (which could re-add a term it purposely
+# skipped). If none appear, the static set is a safety-net fallback.
+_FRAMING_NEG_MARKERS = (
+    "multiple view", "turnaround", "reference sheet", "duplicate", "cloned",
+    "repeated figure", "collage", "grid", "split panel", "floating", "disconnected",
+    "cropped", "out of frame", "multiple subject",
+)
+
+
+def _ensure_framing_negatives(existing: str, asset_type) -> str:
+    """For 3D-convertible asset types (character, game_asset), guarantee
+    single-subject/anti-duplication negatives are present — but LLM-FIRST:
+
+    The enhancement LLM is instructed to add these contextually (and skip ones
+    that fight the user's intent). If it already did (markers present), we keep
+    its tailored set untouched. Only if it emitted NO framing negatives do we
+    append the static safety-net. Non-3D types are returned unchanged.
+
+    Callers gate on supports_negative_prompt (FLUX/Hunyuan get the positive-prompt
+    reinforcement instead)."""
     key = asset_type.value if hasattr(asset_type, "value") else str(asset_type)
-    return _FRAMING_NEGATIVES if key in _SINGLE_SUBJECT_TYPES else ""
+    if key not in _SINGLE_SUBJECT_TYPES:
+        return existing
+    low = (existing or "").lower()
+    if any(m in low for m in _FRAMING_NEG_MARKERS):
+        return existing  # LLM already tailored framing negatives — trust it
+    return _merge_negatives(existing, _FRAMING_NEGATIVES)  # fallback safety-net
 
 
 def _merge_negatives(existing: str, extra: str) -> str:
@@ -176,7 +201,7 @@ def _merge_negatives(existing: str, extra: str) -> str:
     if not extra:
         return existing
     seen, out = set(), []
-    for term in [t.strip() for t in (existing + ", " + extra).split(",") if t.strip()]:
+    for term in [t.strip() for t in ((existing + ", " + extra) if existing else extra).split(",") if t.strip()]:
         low = term.lower()
         if low not in seen:
             seen.add(low)
@@ -492,7 +517,7 @@ def refine_prompt(
         # Reinforce single-complete-subject framing for 3D-convertible types
         # (character/game_asset) — suppresses turnaround sheets, duplicate
         # figures, and floating props that wide canvases tend to induce.
-        negative = _merge_negatives(negative, _framing_negatives_for(asset_type))
+        negative = _ensure_framing_negatives(negative, asset_type)
         if negative:
             logger.info("Negative prompt: %s", negative[:120])
 
@@ -602,7 +627,7 @@ def refine_prompt_structured(
     if not supports_negative_prompt(image_model):
         negative = ""
     else:
-        negative = _merge_negatives(negative, _framing_negatives_for(asset_type))
+        negative = _ensure_framing_negatives(negative, asset_type)
     _last_negative_var.set(negative)
 
     if len(main_prompt) > max_chars:
@@ -791,7 +816,7 @@ def generate_concept_prompts(
         negative = ""
     else:
         # Reinforce single-complete-subject framing for 3D-convertible types.
-        negative = _merge_negatives(negative, _framing_negatives_for(asset_type))
+        negative = _ensure_framing_negatives(negative, asset_type)
     _last_negative_var.set(negative)
     if negative:
         logger.info("Concept generation negative prompt: %s", negative[:120])
