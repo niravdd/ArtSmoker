@@ -20,14 +20,29 @@ logger = logging.getLogger(__name__)
 SUPPORTED_LANGS = {"en", "ja", "zh", "ko", "fr", "es", "de", "hi", "ru"}
 
 # Common function words used to disambiguate accented/Latin-script languages.
-_FR_WORDS = ["le ", "la ", "les ", "un ", "une ", "des ", "est ", "sont ", "dans ", "avec ", "pour "]
-_ES_WORDS = ["el ", "la ", "los ", "las ", "un ", "una ", "es ", "son ", "en ", "con ", "para "]
-_DE_WORDS = ["der ", "die ", "das ", "und ", "ein ", "eine ", "ist ", "mit ", "für ", "auf ",
-             "nicht ", "sind ", "wird ", "auch ", "dem ", "den ", "einen ", "eines "]
+# NOTE: these must be matched as WHOLE WORDS, never substrings — English prose is
+# full of tokens that CONTAIN these ("un-DER-", "gro-UND-", "-LA-nd", "-EN-d",
+# "-ES-cape"), so a naive `word in text` check misdetects English as de/fr/es.
+# Use `_has_word()` (word-boundary aware), not the `in` operator, against these.
+_FR_WORDS = {"le", "la", "les", "un", "une", "des", "est", "sont", "dans", "avec", "pour"}
+_ES_WORDS = {"el", "la", "los", "las", "un", "una", "es", "son", "en", "con", "para"}
+_DE_WORDS = {"der", "die", "das", "und", "ein", "eine", "ist", "mit", "für", "auf",
+             "nicht", "sind", "wird", "auch", "dem", "den", "einen", "eines"}
 
 
 # Latin-script languages where the UI-language hint can act as a tie-breaker.
 _LATIN_HINT_WORDS = {"fr": _FR_WORDS, "es": _ES_WORDS, "de": _DE_WORDS}
+
+
+def _has_word(text_lower: str, words: set) -> bool:
+    """True if ``text_lower`` contains any of ``words`` as a WHOLE word.
+
+    Splits on non-letter boundaries (Unicode-aware) so function words are matched
+    as standalone tokens — 'under'/'around'/'ground'/'and'/'land' no longer match
+    German 'der'/'und', and 'end'/'escape' no longer match Spanish 'en'/'es'.
+    """
+    tokens = set(re.findall(r"[^\W\d_]+", text_lower, flags=re.UNICODE))
+    return not tokens.isdisjoint(words)
 
 
 def detect_language(text: str, ui_lang: str = "") -> str:
@@ -52,6 +67,14 @@ def detect_language(text: str, ui_lang: str = "") -> str:
     ui_lang = (ui_lang or "").strip().lower()[:2]
     if ui_lang not in SUPPORTED_LANGS:
         ui_lang = ""
+
+    # The user is running the tool in English → the prompt IS English. Skip all
+    # content-based detection: there is nothing to translate, and heuristic
+    # detection on English prose only ever produces false positives (e.g. an
+    # English caption misdetected as German because it contains 'under'/'and').
+    # Detection/translation exists solely for users working in a NON-English UI.
+    if ui_lang == "en":
+        return "en"
 
     # Count characters in different Unicode ranges
     cjk_count = 0
@@ -83,6 +106,26 @@ def detect_language(text: str, ui_lang: str = "") -> str:
     if total == 0:
         return "en"
 
+    # Selected-language-first: the user is working in a specific non-English
+    # language, so try to CONFIRM that language in the text before considering
+    # any other. If its own signal is present, trust the selection immediately;
+    # only when the selected language is NOT confidently found do we fall through
+    # to the general cascade below. (English UI already returned "en" above.)
+    if ui_lang and ui_lang != "en":
+        lower = text.lower()
+        confirmed = {
+            "ja": hiragana_katakana > 0,
+            "ko": hangul > 0,
+            "hi": devanagari > 0,
+            "ru": cyrillic > 0,
+            "zh": cjk_count > total * 0.2,
+            "de": ("ß" in text) or _has_word(lower, _DE_WORDS),
+            "fr": _has_word(lower, _FR_WORDS),
+            "es": _has_word(lower, _ES_WORDS),
+        }.get(ui_lang, False)
+        if confirmed:
+            return ui_lang
+
     # Japanese: hiragana/katakana present (unique to Japanese)
     if hiragana_katakana > 0:
         return "ja"
@@ -107,13 +150,13 @@ def detect_language(text: str, ui_lang: str = "") -> str:
     if accented_latin > 0 and latin > 0:
         lower = text.lower()
         # German indicators (umlauts ä/ö/ü/ß are a strong German signal)
-        if "ß" in text or any(w in lower for w in _DE_WORDS):
+        if "ß" in text or _has_word(lower, _DE_WORDS):
             return "de"
         # French indicators
-        if any(w in lower for w in _FR_WORDS):
+        if _has_word(lower, _FR_WORDS):
             return "fr"
         # Spanish indicators
-        if any(w in lower for w in _ES_WORDS):
+        if _has_word(lower, _ES_WORDS):
             return "es"
         # Accented but matched no word list — trust the UI hint if it's a
         # Latin-script language, else ask the LLM (cheaper than a wrong guess).
@@ -126,9 +169,9 @@ def detect_language(text: str, ui_lang: str = "") -> str:
     # function words first, then German's, else treat as English.
     if latin > total * 0.5:
         lower = text.lower()
-        if ui_lang in _LATIN_HINT_WORDS and any(w in lower for w in _LATIN_HINT_WORDS[ui_lang]):
+        if ui_lang in _LATIN_HINT_WORDS and _has_word(lower, _LATIN_HINT_WORDS[ui_lang]):
             return ui_lang
-        if any(w in lower for w in _DE_WORDS):
+        if _has_word(lower, _DE_WORDS):
             return "de"
         return "en"
 
