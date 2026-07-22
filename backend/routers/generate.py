@@ -1797,7 +1797,7 @@ async def edit_image(body: ImageEditRequest):
 
 class PreScreenRequest(BaseModel):
     prompt: str
-    image_model: str = "nova_canvas"
+    image_model: str = "sd35_large"
 
 
 @router.post("/pre-screen")
@@ -1863,7 +1863,7 @@ async def pre_screen_prompt(body: PreScreenRequest):
 class ModerationRequest(BaseModel):
     prompt: str
     error_message: str = ""
-    image_model: str = "nova_canvas"
+    image_model: str = "sd35_large"
     width: int = 512
     height: int = 512
     force_rewrite: bool = False  # Skip model switching, go straight to rewrite for the target model
@@ -1873,8 +1873,6 @@ class ModerationRequest(BaseModel):
 _ALTERNATIVE_MODELS = [
     ImageModel.SD35_LARGE,
     ImageModel.STABLE_IMAGE_ULTRA,
-    ImageModel.TITAN_IMAGE,
-    ImageModel.NOVA_CANVAS,
 ]
 
 
@@ -1894,7 +1892,7 @@ async def analyze_moderation(body: ModerationRequest):
     import re as _re
 
     original_model = body.image_model
-    original_model_enum = ImageModel(original_model) if original_model in [m.value for m in ImageModel] else ImageModel.NOVA_CANVAS
+    original_model_enum = ImageModel(original_model) if original_model in [m.value for m in ImageModel] else ImageModel.SD35_LARGE
     attempts: list[dict] = []
     test_seed = random.randint(0, _SEED_MAX)
 

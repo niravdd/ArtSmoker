@@ -728,30 +728,6 @@ _DEFAULT_CATEGORIES = {
 }
 
 _DEFAULT_IMAGE_MODELS = {
-    "nova_canvas": {
-        "label": "Amazon Nova Canvas",
-        "model_id": "amazon.nova-canvas-v1:0",
-        "region": "us-east-1",
-        "provider": "Amazon",
-        "enabled": True,
-        "model_purpose": "text_to_image",
-        "format_family": "amazon_text_to_image",
-        "prompt_limit": 1024,
-        "moderation_strictness": "very_strict",
-        "base_price_usd": 0.06,
-    },
-    "titan_image": {
-        "label": "Amazon Titan Image v2",
-        "model_id": "amazon.titan-image-generator-v2:0",
-        "region": "us-east-1",
-        "provider": "Amazon",
-        "enabled": True,
-        "model_purpose": "text_to_image",
-        "format_family": "amazon_text_to_image",
-        "prompt_limit": 480,
-        "moderation_strictness": "strict",
-        "base_price_usd": 0.01,
-    },
     "sd35_large": {
         "label": "Stable Diffusion 3.5 Large",
         "model_id": "stability.sd3-5-large-v1:0",

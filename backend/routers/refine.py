@@ -305,7 +305,7 @@ async def decompose_prompt(body: DecomposeRequest):
 
 class RecomposeRequest(_BaseModel):
     structured: dict
-    image_model: str = "nova_canvas"
+    image_model: str = "sd35_large"
 
 
 @router.post("/recompose")
