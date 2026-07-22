@@ -87,6 +87,7 @@ FRAMING (REQUIRED — the whole object must be captured in one clean view):
 - Show the COMPLETE object head-to-base, with clear empty margin on ALL FOUR sides — nothing touches or runs off any frame edge. Do NOT crop any part of the asset.
 - The object occupies roughly 60-80% of the frame; do NOT zoom in so far that edges are clipped.
 - Prefer a single clear three-quarter or front view that reveals the object's overall form; avoid extreme angles or compositions that hide major parts.
+- EXACTLY ONE object in a SINGLE view — rendered once. NOT a turnaround sheet, NOT multiple views/angles, NOT duplicated copies. Fill any empty space with a clean/neutral background, never with a second copy of the object or unrelated floating props.
 COMPLETENESS vs. the user's intent: "complete" means the whole described object is visible and in-frame — NOT that its form is normalized. Render it EXACTLY as asked: unusual proportions, asymmetry, non-standard or fantastical forms are honored faithfully. Only fill unspecified details with sensible defaults; never "correct" what the user deliberately stated.
 
 ### marketing_banner ###
@@ -111,6 +112,7 @@ FRAMING (REQUIRED — the whole figure must be captured in one clean view):
 - The figure occupies roughly 60-75% of the frame HEIGHT so the full body fits with breathing room; do NOT zoom in to fill the frame.
 - Prefer a neutral, open, roughly symmetrical standing stance (limbs not overlapping or hiding the body) so the silhouette reads cleanly from a single view.
 - Avoid tight close-ups, portrait/bust crops, extreme foreshortening, or steep angles that hide parts of the body.
+- EXACTLY ONE figure in a SINGLE pose — one complete character, rendered once. NOT a turnaround sheet, NOT multiple views/angles, NOT front-and-back, NOT duplicated or twin figures. Fill any empty space with the environment/background, never with a second pose or a repeated figure. The character carries only the gear the prompt names — no extra floating weapons or disconnected props.
 COMPLETENESS vs. the user's intent: "complete" means every part of the subject the user described is visible and in-frame — NOT that anatomy is normalized. Render the character EXACTLY as asked: if the user specifies three fingers, a missing limb, extra arms, non-human or fantastical anatomy, honor it faithfully. Only fill unspecified anatomy with sensible defaults; never "correct" what the user deliberately stated.
 
 ### environment ###

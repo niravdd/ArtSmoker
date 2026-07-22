@@ -142,6 +142,47 @@ def _asset_type_context(asset_type: AssetType) -> str:
     key = asset_type.value if hasattr(asset_type, 'value') else str(asset_type)
     return _extract_section(text, key, fallback_key="default")
 
+
+# Asset types that must render a SINGLE, complete subject (they may be converted
+# to 3D). Wide canvases tempt SD/FLUX to fill empty space with extra poses
+# (turnaround sheets), duplicate figures, or floating props — so we reinforce
+# "one subject only" via a negative prompt. Character/game_asset only.
+#
+# IMPORTANT: these terms target DUPLICATION and layout artifacts ONLY — never
+# anatomy. A "character" may be non-human (creature, robot, multi-limbed beast,
+# many-headed monster), so we must NOT negate "extra limbs / extra arms / extra
+# heads" etc. — that would fight a deliberately non-standard body the user asked
+# for. We only suppress a SECOND copy of the subject and disconnected props.
+_SINGLE_SUBJECT_TYPES = {"character", "game_asset"}
+_FRAMING_NEGATIVES = (
+    "multiple views, character turnaround, reference sheet, multiple angles, "
+    "front and back view, duplicate, cloned subject, two of the same, "
+    "multiple subjects, repeated figure, floating disconnected objects, "
+    "unattached props, cropped, out of frame, close-up, collage, split panel, grid"
+)
+
+
+def _framing_negatives_for(asset_type) -> str:
+    """Crop/multi-pose/floating-prop negatives for 3D-convertible asset types
+    (character, game_asset). Empty for others. Only useful on models that accept
+    a negative prompt — callers gate on supports_negative_prompt."""
+    key = asset_type.value if hasattr(asset_type, "value") else str(asset_type)
+    return _FRAMING_NEGATIVES if key in _SINGLE_SUBJECT_TYPES else ""
+
+
+def _merge_negatives(existing: str, extra: str) -> str:
+    """Append extra negative terms to an existing negative prompt, de-duplicated,
+    preserving order (existing first)."""
+    if not extra:
+        return existing
+    seen, out = set(), []
+    for term in [t.strip() for t in (existing + ", " + extra).split(",") if t.strip()]:
+        low = term.lower()
+        if low not in seen:
+            seen.add(low)
+            out.append(term)
+    return ", ".join(out)
+
 # ── Prompt templates ──────────────────────────────────────────────────────
 #
 # Prompt engineering follows official model guidelines:
@@ -443,11 +484,17 @@ def refine_prompt(
     main_prompt, negative = _parse_negative_prompt(refined)
 
     # Skip negative prompts for models that don't support them (e.g., FLUX)
-    if negative and not supports_negative_prompt(image_model):
-        logger.info("Skipping negative prompt for %s (not supported)", image_model)
+    if not supports_negative_prompt(image_model):
+        if negative:
+            logger.info("Skipping negative prompt for %s (not supported)", image_model)
         negative = ""
-    elif negative:
-        logger.info("Extracted negative prompt: %s", negative[:100])
+    else:
+        # Reinforce single-complete-subject framing for 3D-convertible types
+        # (character/game_asset) — suppresses turnaround sheets, duplicate
+        # figures, and floating props that wide canvases tend to induce.
+        negative = _merge_negatives(negative, _framing_negatives_for(asset_type))
+        if negative:
+            logger.info("Negative prompt: %s", negative[:120])
 
     # Store negative prompt for retrieval by the generation pipeline
     _last_negative_var.set(negative)
@@ -550,9 +597,12 @@ def refine_prompt_structured(
             negative = parts[1].strip()
             break
 
-    # Skip negative prompts for models that don't support them
-    if negative and not supports_negative_prompt(image_model):
+    # Skip negatives for models that don't support them; otherwise reinforce
+    # single-complete-subject framing for 3D-convertible asset types.
+    if not supports_negative_prompt(image_model):
         negative = ""
+    else:
+        negative = _merge_negatives(negative, _framing_negatives_for(asset_type))
     _last_negative_var.set(negative)
 
     if len(main_prompt) > max_chars:
@@ -737,11 +787,14 @@ def generate_concept_prompts(
 
     # Deduplicate and store the combined negative prompt
     negative = _deduplicate_negative(negative_parts)
-    if negative and not supports_negative_prompt(image_model):
+    if not supports_negative_prompt(image_model):
         negative = ""
+    else:
+        # Reinforce single-complete-subject framing for 3D-convertible types.
+        negative = _merge_negatives(negative, _framing_negatives_for(asset_type))
+    _last_negative_var.set(negative)
     if negative:
-        _last_negative_var.set(negative)
-        logger.info("Concept generation negative prompt: %s", negative[:100])
+        logger.info("Concept generation negative prompt: %s", negative[:120])
 
     # Truncate each prompt to model-specific char limit, then cap egregious
     # word overflow to the model's optimum (Qwen etc. degrade on over-long prompts).
