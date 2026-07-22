@@ -42,6 +42,32 @@ def get_prompt_limit(image_model: str | None = None) -> int:
     return _MODEL_PROMPT_LIMITS.get(image_model, _DEFAULT_PROMPT_LIMIT)
 
 
+def _cap_prompt_words(prompt: str, optimal_words: int, image_model: str | None = None) -> str:
+    """Trim an enhanced prompt that runs far past the model's optimal word count.
+
+    The LLM treats the word target as a soft hint and can overshoot ~2x, which
+    hurts models (like Qwen-Image) that degrade on over-long prompts. We only cut
+    EGREGIOUS overflow (>1.6x the optimum) and trim at a sentence boundary so we
+    keep whole, coherent clauses — never a mid-sentence chop. Under the threshold
+    the prompt is returned unchanged (normal variance is fine)."""
+    if not prompt or not optimal_words or optimal_words <= 0:
+        return prompt
+    words = prompt.split()
+    limit = int(optimal_words * 1.6)
+    if len(words) <= limit:
+        return prompt
+    # Cut to the limit, then back up to the last sentence-ending punctuation so we
+    # don't strand a fragment. Fall back to the hard word cut if no boundary found.
+    truncated = " ".join(words[:limit])
+    import re as _re
+    boundaries = [m.end() for m in _re.finditer(r"[.!?](?:\s|$)", truncated)]
+    if boundaries and boundaries[-1] >= len(truncated) * 0.6:
+        truncated = truncated[:boundaries[-1]].rstrip()
+    logger.info("Capped over-long prompt for %s: %d → %d words (opt=%d)",
+                image_model or "?", len(words), len(truncated.split()), optimal_words)
+    return truncated
+
+
 def get_optimal_length(image_model: str | None = None) -> int:
     """Get the optimal prompt word count for a model from the registry.
 
@@ -428,7 +454,14 @@ def refine_prompt(
 
     if len(main_prompt) > max_chars:
         main_prompt = main_prompt[:max_chars - 4].rsplit(" ", 1)[0]
-    logger.info("Refined prompt (%d/%d chars): %s", len(main_prompt), max_chars, main_prompt[:150])
+    # Word-count cap: the LLM treats optimal_length as a soft target and often
+    # overshoots badly (e.g. Qwen got 159 words vs a 75-word optimum), which
+    # degrades output on models that don't want long prompts. If the result runs
+    # well past the model's optimum, trim to a sentence boundary near the target.
+    # Generous 1.6x tolerance so we only cut egregious overflow, not normal variance.
+    main_prompt = _cap_prompt_words(main_prompt, optimal_length, image_model)
+    logger.info("Refined prompt (%d chars / %d words, opt=%d): %s",
+                len(main_prompt), len(main_prompt.split()), optimal_length, main_prompt[:150])
     return main_prompt
 
 def refine_prompt_structured(
@@ -524,8 +557,10 @@ def refine_prompt_structured(
 
     if len(main_prompt) > max_chars:
         main_prompt = main_prompt[:max_chars - 4].rsplit(" ", 1)[0]
+    main_prompt = _cap_prompt_words(main_prompt, optimal_length, image_model)
 
-    logger.info("Structured refinement complete (%d chars): %s", len(main_prompt), main_prompt[:150])
+    logger.info("Structured refinement complete (%d chars / %d words): %s",
+                len(main_prompt), len(main_prompt.split()), main_prompt[:150])
     return main_prompt, decomposed
 
 
@@ -708,11 +743,13 @@ def generate_concept_prompts(
         _last_negative_var.set(negative)
         logger.info("Concept generation negative prompt: %s", negative[:100])
 
-    # Truncate each prompt to model-specific limit
+    # Truncate each prompt to model-specific char limit, then cap egregious
+    # word overflow to the model's optimum (Qwen etc. degrade on over-long prompts).
     result = []
     for p in cleaned_prompts:
         if len(p) > max_chars:
             p = p[:max_chars - 4].rsplit(" ", 1)[0]
+        p = _cap_prompt_words(p, optimal_length, image_model)
         result.append(p)
 
     # Pad if Claude returned fewer than requested

@@ -87,10 +87,20 @@ def _slugify_prompt(prompt: str, max_len: int = 40) -> str:
 
 
 def _resolve_model_size(model_key: str, width: int, height: int) -> tuple[int, int]:
-    """Resolve the closest supported size for a model.
+    """Resolve the best supported size for a model.
 
-    If the model declares supported_sizes in its registry config, returns
-    the closest match by area. Otherwise returns the requested size as-is.
+    If the model declares supported_sizes in its registry config, returns the
+    best match — prioritizing ASPECT RATIO, then MAXIMUM resolution within that
+    aspect. Otherwise returns the requested size as-is.
+
+    Two principles:
+      1. Aspect ratio must win: a 16:9 request (1920x1080) snapped to a square
+         1328x1328 (closer by raw area) distorts the composition. Match aspect
+         first (→ 1664x928) to preserve the intended framing.
+      2. No compromise on quality: among sizes sharing the closest aspect, pick
+         the HIGHEST resolution the model supports (never downscale to a smaller
+         supported size just because it's numerically nearer the request). The
+         model's supported sizes are all quality-validated, so bigger = better.
     """
     from backend.services.model_registry import get_image_model
     cfg = get_image_model(model_key) if model_key else None
@@ -99,11 +109,20 @@ def _resolve_model_size(model_key: str, width: int, height: int) -> tuple[int, i
     sizes = cfg.get("invoke", {}).get("supported_sizes", [])
     if not sizes:
         return width, height
-    requested_area = width * height
-    best = min(sizes, key=lambda s: abs(s["w"] * s["h"] - requested_area))
+    if width <= 0 or height <= 0:
+        return width, height
+    req_aspect = width / height
+    # Rank by (aspect distance ASC, then area DESC) — closest aspect, then the
+    # largest resolution in that aspect. log-ratio gives a symmetric aspect
+    # distance (portrait and landscape treated evenly).
+    import math
+    def _score(s):
+        aspect_dist = round(abs(math.log((s["w"] / s["h"]) / req_aspect)), 3)
+        return (aspect_dist, -(s["w"] * s["h"]))  # negative area → prefer largest
+    best = min(sizes, key=_score)
     if best["w"] == width and best["h"] == height:
         return width, height
-    logger.info("Size %dx%d not supported by %s — using closest: %dx%d",
+    logger.info("Size %dx%d not directly supported by %s — using best (aspect-first, max-res): %dx%d",
                 width, height, model_key, best["w"], best["h"])
     return best["w"], best["h"]
 

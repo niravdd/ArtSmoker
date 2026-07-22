@@ -2753,6 +2753,13 @@ def _predict_text_to_image(input_data, model_dict):
         if key in input_data and input_data[key] is not None:
             kwargs[key] = input_data[key]
 
+    # Append the model's "positive_magic" quality suffix if configured (e.g.
+    # Qwen-Image's ", Ultra HD, 4K, cinematic composition." — the official
+    # pipeline always appends it; omitting it noticeably degrades quality).
+    positive_magic = _config.get("positive_magic", "")
+    if positive_magic and kwargs.get("prompt"):
+        kwargs["prompt"] = f"{kwargs['prompt'].rstrip()}{positive_magic}"
+
     # Progress logging for diffusers pipelines
     total_steps = kwargs.get("num_inference_steps", 50)
     import time as _t
@@ -2805,9 +2812,12 @@ def _predict_image_edit(input_data, model_dict):
     if input_data.get("prompt"):
         kwargs["prompt"] = input_data["prompt"]
     # CFG for Qwen edit: true_cfg_scale>1 + a (non-empty) negative_prompt enables it.
+    # Per the official Qwen-Image-Edit-2511 example, BOTH true_cfg_scale=4.0 AND
+    # guidance_scale=1.0 are set — guidance_scale must be forwarded (not left to a
+    # wrong pipeline default) or edit quality degrades.
     neg = input_data.get("negative_prompt")
     kwargs["negative_prompt"] = neg if neg else " "
-    for key in ("num_inference_steps", "true_cfg_scale"):
+    for key in ("num_inference_steps", "true_cfg_scale", "guidance_scale"):
         if input_data.get(key) is not None:
             kwargs[key] = input_data[key]
 

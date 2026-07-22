@@ -28,6 +28,7 @@ _jobs: dict = {}  # job_id → job dict
 _lock = threading.Lock()
 _poller_thread: threading.Thread | None = None
 _poller_stop = threading.Event()
+_poller_lifecycle_lock = threading.Lock()  # serializes _ensure_poller so only one poller thread ever exists
 
 # Job statuses
 PENDING = "pending"
@@ -292,12 +293,29 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
     store.save_generated_image(asset_id, "asset.png", final_bytes)
     image_path = str(store.generated_asset_dir(asset_id) / "asset.png")
 
-    # Update existing metadata (created by generate router at submission time)
+    # Update existing metadata (created by generate router at submission time).
     meta_path = store.generated_asset_dir(asset_id) / "metadata.json"
     try:
         meta = json.loads(meta_path.read_text())
     except Exception:
         meta = {}
+
+    # Defensive backfill: if the submission-time metadata is missing (empty file
+    # / never written for this slot), a completed image would otherwise land with
+    # no model identity → the gallery renders it as "Failed" despite a valid image.
+    # Populate the essential identity fields from the job so a real result is
+    # always attributed correctly.
+    if not meta.get("image_model"):
+        meta.setdefault("id", asset_id)
+        meta["image_model"] = job.get("model_key", "")
+        meta["model_label"] = job.get("model_label", "")
+        if job.get("prompt"):
+            meta.setdefault("prompt", job.get("prompt"))
+        if job.get("full_prompt"):
+            meta.setdefault("enhanced_prompt", job.get("full_prompt"))
+        for k in ("option_index", "variation_index", "generation_id"):
+            if job.get(k) is not None:
+                meta.setdefault(k, job.get(k))
 
     meta.update({
         "async_status": "complete",
@@ -412,17 +430,24 @@ def _update_gallery_on_failure(job: dict):
 # ── Background Poller ────────────────────────────────────────────────────
 
 def _ensure_poller():
-    """Start the background poller if not already running."""
+    """Start the background poller if not already running.
+
+    The alive-check + thread creation run under _poller_lifecycle_lock so two
+    callers (e.g. a submit_job racing the startup path) can't both pass an
+    unlocked check and spawn duplicate poller threads — duplicate pollers were a
+    source of the same job being finalized multiple times (duplicate versions).
+    """
     global _poller_thread
-    if _poller_thread and _poller_thread.is_alive():
-        return
+    with _poller_lifecycle_lock:
+        if _poller_thread and _poller_thread.is_alive():
+            return
 
-    # Restore persisted jobs from S3 (if any from before last restart)
-    load_persisted_jobs()
+        # Restore persisted jobs from S3 (if any from before last restart)
+        load_persisted_jobs()
 
-    _poller_stop.clear()
-    _poller_thread = threading.Thread(target=_poll_loop, daemon=True, name="async-job-poller")
-    _poller_thread.start()
+        _poller_stop.clear()
+        _poller_thread = threading.Thread(target=_poll_loop, daemon=True, name="async-job-poller")
+        _poller_thread.start()
     # One actionable line, mirroring the 3D poller: what it found + what it'll do.
     pending = [j for j in _jobs.values() if j["status"] in (PENDING, GENERATING)]
     if pending:
@@ -802,6 +827,26 @@ def _resubmit_job(job: dict, endpoint_name: str, s3):
         _persist_job_to_s3(job)
 
 
+def _claim_finalization(job: dict) -> bool:
+    """Atomically claim a job for finalization. Returns True to the FIRST caller
+    only; False to every subsequent one.
+
+    Finalization (writing the gallery result/version, flipping status, deleting
+    S3) is NOT atomic — the version-append reads+writes the versions array, and
+    status only flips afterward. Multiple poller threads (accumulated because
+    _ensure_poller's alive-check wasn't locked, plus resume_pending_jobs racing
+    the poller at startup) can each see the same freshly-arrived S3 output while
+    the job is still PENDING and re-run the whole append → duplicate versions
+    (confirmed: one edit produced 4 byte-identical versions 325ms apart). This
+    claim, taken under _lock before any gallery write, guarantees exactly one
+    finalizer per job. Idempotent + terminal-safe."""
+    with _lock:
+        if job.get("status") in (COMPLETE, FAILED) or job.get("_finalizing"):
+            return False
+        job["_finalizing"] = True
+        return True
+
+
 def _check_job(job: dict, s3):
     """Check if an async job's output has appeared in S3."""
     output_location = job["output_location"]
@@ -815,6 +860,8 @@ def _check_job(job: dict, s3):
         failure_key = key + ".failure"
         failure_obj = s3.get_object(Bucket=bucket, Key=failure_key)
         failure_body = failure_obj["Body"].read().decode("utf-8", errors="replace")
+        if not _claim_finalization(job):
+            return  # another finalizer already handled this job
         with _lock:
             job["status"] = FAILED
             job["error"] = failure_body[:500] if failure_body else "Model returned an error (no details)"
@@ -845,6 +892,11 @@ def _check_job(job: dict, s3):
         # Parse the output (our handler returns {"image": "base64...", "format": "base64_png"})
         result = json.loads(body.decode("utf-8"))
         image_b64 = result.get("image", "")
+
+        # Atomically claim this job BEFORE any gallery write — exactly one
+        # finalizer proceeds, preventing duplicate versions from concurrent pollers.
+        if not _claim_finalization(job):
+            return
 
         if not image_b64:
             with _lock:
@@ -1289,7 +1341,10 @@ def resume_pending_jobs() -> int:
                 result = json.loads(body.decode("utf-8"))
                 image_b64 = result.get("image", "")
 
-                if image_b64:
+                # Claim before finalizing — resume runs at startup CONCURRENTLY
+                # with the live poller (both started in main.py lifespan), so both
+                # can see the same output; the claim ensures only one saves it.
+                if image_b64 and _claim_finalization(job):
                     image_bytes = base64.b64decode(image_b64)
                     image_path = _update_gallery_on_complete(job, image_bytes)
 

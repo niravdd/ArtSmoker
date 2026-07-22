@@ -5440,6 +5440,10 @@
               "type": "float",
               "default": 4.0
             },
+            "guidance_scale": {
+              "type": "float",
+              "default": 1.0
+            },
             "seed": {
               "type": "int",
               "required": false
@@ -5576,7 +5580,7 @@
             },
             "num_inference_steps": {
               "type": "int",
-              "default": 40
+              "default": 50
             },
             "true_cfg_scale": {
               "type": "float",
@@ -5591,6 +5595,7 @@
           "supports_negative_prompt": true,
           "max_prompt_length": 2000,
           "optimal_prompt_words": 75,
+          "positive_magic": ", Ultra HD, 4K, cinematic composition.",
           "typical_latency_seconds": 1200,
           "supported_sizes": [
             {
@@ -5617,6 +5622,21 @@
               "w": 1472,
               "h": 1140,
               "label": "1472 × 1140 (4:3)"
+            },
+            {
+              "w": 1140,
+              "h": 1472,
+              "label": "1140 × 1472 (3:4)"
+            },
+            {
+              "w": 1584,
+              "h": 1056,
+              "label": "1584 × 1056 (3:2)"
+            },
+            {
+              "w": 1056,
+              "h": 1584,
+              "label": "1056 × 1584 (2:3)"
             }
           ],
           "quantization_components": [
