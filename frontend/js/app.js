@@ -149,10 +149,21 @@
     // Single source of truth for ALL displayed dates. Format: dd-MMM-yyyy
     // (zero-padded day) so dates sort/read consistently app-wide.
     const _MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    // Backend stores timestamps as naive UTC (datetime.utcnow().isoformat(), no
+    // 'Z' suffix). JS `new Date()` would read a timezone-less string as LOCAL
+    // time, shifting it by the viewer's UTC offset. Append 'Z' so a bare
+    // date-time is correctly parsed as UTC (then rendered in the viewer's tz).
+    // Strings that already carry a timezone (Z or ±HH:MM) are left untouched.
+    function _parseDate(dateStr) {
+        let s = String(dateStr);
+        const hasTz = /[zZ]$|[+-]\d{2}:?\d{2}$/.test(s);
+        if (!hasTz && /\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}/.test(s)) s += 'Z';
+        return new Date(s);
+    }
     window.formatDate = function(dateStr) {
         if (!dateStr) return '';
         try {
-            const d = new Date(dateStr);
+            const d = _parseDate(dateStr);
             if (isNaN(d)) return '';
             const dd = String(d.getDate()).padStart(2, '0');
             return `${dd}-${_MONTHS[d.getMonth()]}-${d.getFullYear()}`;
@@ -161,7 +172,7 @@
     window.formatTimestamp = function(dateStr) {
         if (!dateStr) return '';
         try {
-            const d = new Date(dateStr);
+            const d = _parseDate(dateStr);
             if (isNaN(d)) return '';
             const dd = String(d.getDate()).padStart(2, '0');
             const mon = _MONTHS[d.getMonth()];

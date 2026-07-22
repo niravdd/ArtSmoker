@@ -1299,10 +1299,165 @@
                     canvas._imgH = img.height;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     canvas._baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    // If we loaded while outpaint is the active mode, draw its preview.
+                    if (editMode === 'outpaint') this._drawOutpaintPreview?.();
                 };
                 img.src = url;
             };
+
+            // Outpaint preview: render the source image inset within a larger frame,
+            // with the requested extension margins (px) shown as hatched/labelled bands
+            // on each edge — a "ruler" view so the user sees exactly how far the image
+            // will be extended before committing (mirrors the 3D improve-image dialog).
+            // Ruler gutter (canvas px) reserved on the top + left edges for the
+            // pixel ruler, like an image editor's rulers. The image + extension
+            // preview is drawn INSIDE this gutter.
+            const OUTPAINT_GUTTER = 24;
+            this._drawOutpaintPreview = () => {
+                if (!canvas._imgW || !canvas._imgH) return;
+                const q = (sel) => parseInt(this._overlay?.querySelector(sel)?.value || '0', 10) || 0;
+                const left = q('#av-out-left'), right = q('#av-out-right');
+                const up = q('#av-out-up'), down = q('#av-out-down');
+
+                const imgW = canvas._imgW, imgH = canvas._imgH;
+                const totalW = imgW + left + right;
+                const totalH = imgH + up + down;
+                const G = OUTPAINT_GUTTER;
+                // Auto-fit: fit the FULL extended output into the on-screen box (minus
+                // the ruler gutter). As margins grow, totalW/H grow, so the scale
+                // shrinks and the source image auto-fits smaller inside the canvas —
+                // the artist sees the image shrink relative to the growing frame.
+                const boxW = 560, boxH = 380;
+                const s = Math.min((boxW - G) / totalW, (boxH - G) / totalH, 1);
+                canvas.width = Math.round(totalW * s) + G;
+                canvas.height = Math.round(totalH * s) + G;
+
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                // Extension zone (the whole output area, after the gutter) gets an
+                // indigo wash; the source image is painted opaque over its portion.
+                ctx.fillStyle = 'rgba(99, 102, 241, 0.14)';
+                ctx.fillRect(G, G, canvas.width - G, canvas.height - G);
+
+                // Source image position within the output (after gutter + top/left margins).
+                const ox = G + Math.round(left * s), oy = G + Math.round(up * s);
+                const dw = Math.round(imgW * s), dh = Math.round(imgH * s);
+                const geo = { imgW, imgH, totalW, totalH, s, G };
+                const frame = () => this._drawOutpaintFrame(ctx, canvas, ox, oy, dw, dh, {left, right, up, down}, geo);
+                const src = new Image();
+                src.onload = () => { ctx.drawImage(src, ox, oy, dw, dh); frame(); };
+                if (canvas._baseDataURL) { src.src = canvas._baseDataURL; }
+                else {
+                    // Rebuild a data URL from the current version image once, cache it.
+                    const ver = this._currentVersion || (this._meta?.current_version) || 1;
+                    const cur = (this._meta?.current_version) || (this._meta?.versions?.length || 1);
+                    const id = encodeURIComponent(this._item?.id || '');
+                    const u = (ver === cur) ? `/api/gallery/${id}/png?t=${Date.now()}` : `/api/gallery/${id}/version/${ver}?t=${Date.now()}`;
+                    const tmp = new Image(); tmp.crossOrigin = 'anonymous';
+                    tmp.onload = () => {
+                        const c2 = document.createElement('canvas'); c2.width = tmp.width; c2.height = tmp.height;
+                        c2.getContext('2d').drawImage(tmp, 0, 0);
+                        try { canvas._baseDataURL = c2.toDataURL('image/png'); src.src = canvas._baseDataURL; }
+                        catch (_) { ctx.drawImage(tmp, ox, oy, dw, dh); frame(); }
+                    };
+                    tmp.src = u;
+                }
+            };
+
+            // Draw the ruler gutter (0 → full output dimension), the source-image
+            // border, the dashed output bounds, per-edge margin labels, and a size
+            // caption. geo carries the pixel→canvas scale so the ruler is accurate.
+            this._drawOutpaintFrame = (ctx2, cv, ox, oy, dw, dh, m, geo) => {
+                const { imgW, imgH, totalW, totalH, s, G } = geo;
+
+                // ── Ruler gutter: from 0,0 to the FULL output dimension ──────────────
+                // The top gutter measures X (0..totalW), the left gutter measures Y
+                // (0..totalH). Origin 0,0 is the output's top-left. Endpoints (the
+                // total dimension) are ALWAYS labelled so the size is explicit; the
+                // original image's own extent is tinted so you can read its size too.
+                ctx2.save();
+                // Gutter backgrounds.
+                ctx2.fillStyle = 'rgba(15,18,28,0.92)';
+                ctx2.fillRect(0, 0, cv.width, G);      // top gutter
+                ctx2.fillRect(0, 0, G, cv.height);     // left gutter
+                // Highlight the ORIGINAL image's span within each ruler (so its
+                // dimension is visible against the extended total).
+                ctx2.fillStyle = 'rgba(129,140,248,0.28)';
+                ctx2.fillRect(ox, 0, dw, G);           // image X-span on top gutter
+                ctx2.fillRect(0, oy, G, dh);           // image Y-span on left gutter
+
+                ctx2.strokeStyle = 'rgba(150,158,178,0.8)';
+                ctx2.fillStyle = 'rgba(215,220,235,0.95)';
+                ctx2.lineWidth = 1;
+                ctx2.font = '9px ui-monospace, monospace';
+                const step = Math.max(totalW, totalH) > 1400 ? 512 : 256;
+                // Top ruler ticks (X). Regular ticks + guaranteed 0 and endpoint.
+                const xs = new Set([0, totalW]);
+                for (let px = 0; px <= totalW; px += step) xs.add(px);
+                ctx2.textBaseline = 'bottom';
+                xs.forEach(px => {
+                    const x = G + px * s;
+                    const isEnd = (px === 0 || px === totalW);
+                    ctx2.beginPath(); ctx2.moveTo(x, G); ctx2.lineTo(x, G - (isEnd ? 8 : 5)); ctx2.stroke();
+                    ctx2.textAlign = px === 0 ? 'left' : px === totalW ? 'right' : 'center';
+                    ctx2.fillText(String(px), Math.min(Math.max(x, G), cv.width - 1), G - 9);
+                });
+                // Left ruler ticks (Y) — rotated labels.
+                const ys = new Set([0, totalH]);
+                for (let py = 0; py <= totalH; py += step) ys.add(py);
+                ys.forEach(py => {
+                    const y = G + py * s;
+                    const isEnd = (py === 0 || py === totalH);
+                    ctx2.beginPath(); ctx2.moveTo(G, y); ctx2.lineTo(G - (isEnd ? 8 : 5), y); ctx2.stroke();
+                    ctx2.save();
+                    ctx2.translate(G - 10, Math.min(Math.max(y, G), cv.height - 1));
+                    ctx2.rotate(-Math.PI / 2);
+                    ctx2.textBaseline = 'bottom';
+                    ctx2.textAlign = py === 0 ? 'right' : py === totalH ? 'left' : 'center';
+                    ctx2.fillText(String(py), 0, 0);
+                    ctx2.restore();
+                });
+                ctx2.restore();
+
+                // Solid border around the ORIGINAL image; dashed border = output bounds.
+                ctx2.strokeStyle = 'rgba(255,255,255,0.92)';
+                ctx2.lineWidth = 2;
+                ctx2.strokeRect(ox + 1, oy + 1, dw - 2, dh - 2);
+                ctx2.save();
+                ctx2.setLineDash([6, 4]);
+                ctx2.strokeStyle = 'rgba(129,140,248,0.95)';  // indigo-400
+                ctx2.lineWidth = 1.5;
+                ctx2.strokeRect(G + 1, G + 1, cv.width - G - 2, cv.height - G - 2);
+                ctx2.restore();
+
+                // Per-edge margin px labels (only where a margin was set).
+                ctx2.fillStyle = 'rgba(199,210,254,0.98)';
+                ctx2.font = '11px ui-monospace, monospace';
+                ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
+                const cx = ox + dw / 2, cy = oy + dh / 2;
+                if (m.up)    ctx2.fillText(`↑ ${m.up}px`,   cx, G + (oy - G) / 2);
+                if (m.down)  ctx2.fillText(`↓ ${m.down}px`, cx, oy + dh + (cv.height - (oy + dh)) / 2);
+                if (m.left)  { ctx2.save(); ctx2.translate(G + (ox - G) / 2, cy); ctx2.rotate(-Math.PI/2); ctx2.fillText(`← ${m.left}px`, 0, 0); ctx2.restore(); }
+                if (m.right) { ctx2.save(); ctx2.translate(ox + dw + (cv.width - (ox + dw)) / 2, cy); ctx2.rotate(-Math.PI/2); ctx2.fillText(`${m.right}px →`, 0, 0); ctx2.restore(); }
+
+                // Size caption: original → resulting dimensions (bottom-left).
+                const outW = totalW, outH = totalH;
+                const changed = outW !== imgW || outH !== imgH;
+                const txt = changed ? `${imgW}×${imgH} → ${outW}×${outH}px` : `${imgW}×${imgH}px`;
+                ctx2.font = '10px ui-monospace, monospace';
+                ctx2.textAlign = 'left'; ctx2.textBaseline = 'bottom';
+                const w = ctx2.measureText(txt).width;
+                ctx2.fillStyle = 'rgba(0,0,0,0.6)'; ctx2.fillRect(G + 4, cv.height - 16, w + 8, 14);
+                ctx2.fillStyle = 'rgba(255,255,255,0.96)'; ctx2.fillText(txt, G + 8, cv.height - 4);
+            };
+
             this._loadEditCanvasImage();
+
+            // Live-update the outpaint preview as the user changes any margin.
+            ['#av-out-left', '#av-out-right', '#av-out-up', '#av-out-down'].forEach(sel => {
+                this._overlay.querySelector(sel)?.addEventListener('input', () => {
+                    if (editMode === 'outpaint') this._drawOutpaintPreview();
+                });
+            });
 
             // Brush size
             brushSlider?.addEventListener('input', () => {
@@ -1320,6 +1475,7 @@
             };
 
             canvas.addEventListener('mousedown', (e) => {
+                if (editMode !== 'inpaint' && editMode !== 'erase') return;  // no mask in outpaint
                 painting = true;
                 const rect = canvas.getBoundingClientRect();
                 const scaleX = canvas.width / rect.width;
@@ -1350,12 +1506,14 @@
                     btn.classList.add('active', 'bg-brand-accent', 'text-white');
 
                     // The mask SECTION holds the source-image canvas — it stays
-                    // visible for inpaint/erase (the image editing modes), for BOTH
-                    // Stability and mask-free editors, since the image is the input.
-                    // Only the mask-PAINT controls hide for a mask-free editor (Qwen).
-                    const imageModes = editMode === 'inpaint' || editMode === 'erase';
-                    const maskFree = this._selectedEditModelIsMaskFree();
+                    // visible for inpaint/erase (mask-paint modes) AND for outpaint
+                    // (so the user sees the image they're extending, with a live margin
+                    // preview drawn around it — like the 3D "improve image" ruler view).
+                    // Only the mask-PAINT controls (brush/clear) are inpaint/erase-only.
                     const needsOutpaint = editMode === 'outpaint';
+                    const paintModes = editMode === 'inpaint' || editMode === 'erase';
+                    const imageModes = paintModes || needsOutpaint;  // canvas visible
+                    const maskFree = this._selectedEditModelIsMaskFree();
                     const needsSearch = editMode === 'search_replace' || editMode === 'search_recolor';
 
                     const maskSection = this._overlay.querySelector('#av-mask-section');
@@ -1366,9 +1524,24 @@
                     const promptLabel = this._overlay.querySelector('#av-prompt-label');
 
                     if (maskSection) maskSection.classList.toggle('hidden', !imageModes);
-                    if (maskControls) maskControls.classList.toggle('hidden', maskFree);
+                    // Paint controls only for inpaint/erase; hidden for outpaint and for
+                    // mask-free editors.
+                    if (maskControls) maskControls.classList.toggle('hidden', maskFree || !paintModes);
                     if (outSection) outSection.classList.toggle('hidden', !needsOutpaint);
                     if (searchSection) searchSection.classList.toggle('hidden', !needsSearch);
+
+                    // Canvas is crosshair only in paint modes (outpaint isn't painted).
+                    if (canvas) canvas.classList.toggle('cursor-crosshair', paintModes);
+
+                    // Redraw the canvas: outpaint shows the image + margin preview
+                    // (which resizes the canvas), paint modes show the plain image at
+                    // its own size — reload it so switching back from outpaint restores
+                    // the correct (un-extended) canvas dimensions.
+                    if (needsOutpaint) {
+                        this._drawOutpaintPreview?.();
+                    } else if (paintModes) {
+                        this._loadEditCanvasImage?.();
+                    }
 
                     // Update labels, placeholders, and hints for each mode
                     if (searchLabel) {

@@ -78,6 +78,7 @@
                                 <select id="gal-filter-media" class="input">
                                     <option value="">${t('gallery.filter_all_media')}</option>
                                     <option value="image">${t('gallery.filter_images')}</option>
+                                    <option value="3d">${t('gallery.filter_3d')}</option>
                                     <option value="video">${t('gallery.filter_videos')}</option>
                                 </select>
                             </div>
@@ -377,18 +378,24 @@
             if (assetType) params.asset_type = assetType;
 
             try {
-                // Load image assets (unless video-only filter)
+                // Load image assets (unless video-only filter). The '3d' filter is a
+                // subset of images (assets that have a generated 3D model), so it loads
+                // images too and narrows to has_3d below.
                 if (mediaFilter !== 'video') {
                     const data = await API.gallery.list(params);
-                    const page = Array.isArray(data) ? data : (data.items || data.gallery || []);
+                    let page = Array.isArray(data) ? data : (data.items || data.gallery || []);
                     page.forEach(item => { item._media = 'image'; });
+                    // has_3d filter: keep only assets with a generated 3D model. Track the
+                    // raw page length for pagination (more pages may hold more 3D assets).
+                    const rawLen = page.length;
+                    if (mediaFilter === '3d') page = page.filter(item => item.has_3d);
                     this._items.push(...page);
-                    this._offset += page.length;
-                    this._hasMore = page.length === PAGE_SIZE;
+                    this._offset += rawLen;
+                    this._hasMore = rawLen === PAGE_SIZE;
                 }
 
-                // Load video assets (unless image-only filter)
-                if (mediaFilter !== 'image') {
+                // Load video assets (only for the all-media or video-only filters)
+                if (mediaFilter === '' || mediaFilter === 'video') {
                     try {
                         const videoData = await API.video.jobs({ status: 'Completed', limit: PAGE_SIZE });
                         const videoJobs = videoData.jobs || [];
@@ -607,16 +614,21 @@
             const thumbUrl = isVideo
                 ? API.video.thumbnailUrl(item.id) + `?t=${this._cacheKey || '0'}`
                 : API.gallery.pngUrl(item.id) + `?t=${this._cacheKey || '0'}`;
-            const createdAt = item.created_at ? window.formatDate(item.created_at) : '';
+            const createdAt = item.created_at ? window.formatTimestamp(item.created_at) : '';
             const styleName = item.style_name || this._findStyleName(item.style_id) || '';
             const prompt = item.original_prompt || item.prompt || '';
             const truncPrompt = prompt.length > 80 ? prompt.substring(0, 80) + '...' : prompt;
             const isSelected = this._selected.has(item.id);
             const duration = item.duration_seconds ? `${Math.round(item.duration_seconds)}s` : '';
+            // Status placeholders (Generating / blocked / failed) have no real image,
+            // so they keep a fixed 4:3 box; real image thumbnails render at their
+            // NATURAL aspect (masonry) so portrait subjects aren't center-cropped.
+            const isPlaceholder = item.async_status === 'pending' || item.async_status === 'generating'
+                || item.async_status === 'moderation_blocked' || item.async_status === 'failed';
 
             return `
                 <div class="gallery-card card cursor-pointer overflow-hidden group ${isSelected ? 'ring-2 ring-red-500/50' : ''}" data-id="${this._esc(item.id)}" data-media="${isVideo ? 'video' : 'image'}">
-                    <div class="img-hover-zoom ${isVideo ? 'aspect-video' : 'aspect-[4/3]'} bg-brand-bg flex items-center justify-center overflow-hidden relative">
+                    <div class="img-hover-zoom ${isVideo || isPlaceholder ? (isVideo ? 'aspect-video' : 'aspect-[4/3]') : ''} bg-brand-bg flex items-center justify-center overflow-hidden relative">
                         ${item.async_status === 'pending' || item.async_status === 'generating'
                             ? `<div class="w-full h-full flex flex-col items-center justify-center text-cyan-400/60 gap-2">
                                 <svg class="w-8 h-8 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -633,7 +645,7 @@
                                 <span class="text-[10px]">${t('gallery.status_failed')}</span>
                                </div>`
                             : `<img src="${thumbUrl}" alt="${isVideo ? t('gallery.alt_video_thumb') : t('gallery.alt_asset')}"
-                                 class="w-full h-full object-cover"
+                                 class="w-full ${isVideo ? 'h-full object-cover' : 'h-auto object-contain'} block"
                                  loading="lazy" />`
                         }
                         ${isVideo ? `
@@ -656,13 +668,13 @@
                     </div>
                     <div class="p-4 space-y-2">
                         <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${this._esc(truncPrompt) || `<em class="text-brand-text-muted">${t('gallery.no_prompt')}</em>`}</p>
+                        ${createdAt ? `<div class="text-[10px] text-brand-text-muted/80 leading-tight">${createdAt}</div>` : ''}
                         <div class="flex items-center flex-wrap gap-2 text-xs text-brand-text-muted">
                             ${item.image_model === 'imported'
                                 ? `<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>`
                                 : (item.model_label ? `<span class="badge badge-indigo">${this._esc(item.model_label)}</span>` : '')}
                             ${styleName ? `<span class="badge badge-indigo">${this._esc(styleName)}</span>` : ''}
                             ${item.asset_type && item.asset_type !== 'video' ? `<span class="badge badge-indigo">${this._esc(item.asset_type)}</span>` : ''}
-                            ${createdAt ? `<span>${createdAt}</span>` : ''}
                         </div>
                     </div>
                 </div>
@@ -673,7 +685,7 @@
             let html = '';
             for (let i = 0; i < n; i++) {
                 html += `
-                    <div class="card overflow-hidden">
+                    <div class="gallery-card card overflow-hidden">
                         <div class="skeleton aspect-[4/3]"></div>
                         <div class="p-4 space-y-2">
                             <div class="skeleton h-4 w-full rounded"></div>
