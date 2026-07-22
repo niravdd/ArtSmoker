@@ -1286,6 +1286,10 @@
                 const url = (ver === cur)
                     ? `/api/gallery/${id}/png?t=${Date.now()}`
                     : `/api/gallery/${id}/version/${ver}?t=${Date.now()}`;
+                // Invalidate the cached outpaint-preview source; it's version-specific.
+                // Without this, switching versions kept showing the FIRST-loaded (often
+                // latest/outpainted) version in the Extend preview.
+                canvas._baseDataURL = null;
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 img.onload = () => {
