@@ -649,6 +649,10 @@
                                 data-id="${this._esc(item.id)}" ${isSelected ? 'checked' : ''} />
                         </label>
                         ${isVideo ? `<span class="absolute top-2 right-2 bg-brand-accent/80 text-white text-[9px] px-1.5 py-0.5 rounded font-medium">${t('gallery.video_badge')}</span>` : ''}
+                        ${item.has_3d ? `<span class="absolute bottom-2 right-2 z-10 flex items-center gap-1 bg-violet-600/85 text-white text-[9px] px-1.5 py-0.5 rounded font-semibold shadow" title="${t('gallery.has_3d_tooltip')}">
+                            <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
+                            ${t('gallery.has_3d_badge')}
+                        </span>` : ''}
                     </div>
                     <div class="p-4 space-y-2">
                         <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${this._esc(truncPrompt) || `<em class="text-brand-text-muted">${t('gallery.no_prompt')}</em>`}</p>

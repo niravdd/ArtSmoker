@@ -169,6 +169,14 @@ def _list_gallery_impl(style_id, asset_type, limit, offset):
             if svg_file is not None:
                 svg_url = f"/api/gallery/{aid}/svg"
 
+            # A generated 3D model exists if ANY .glb is present in the asset dir
+            # (files are named asset_3d.glb / asset_3d_v{N}.glb / ...__{backend}__{hash}.glb).
+            # Surfaced as a "3D" badge on the gallery card so 3D-ready assets are findable.
+            try:
+                has_3d = any(store.generated_asset_dir(aid).glob("*.glb"))
+            except Exception:
+                has_3d = False
+
             created_at_str = meta.get("created_at")
             try:
                 created_at = datetime.fromisoformat(created_at_str) if created_at_str else datetime.utcnow()
@@ -212,6 +220,7 @@ def _list_gallery_impl(style_id, asset_type, limit, offset):
                     svg_url=svg_url,
                     created_at=created_at,
                     async_status=meta.get("async_status"),
+                    has_3d=has_3d,
                 )
             )
         except Exception as exc:

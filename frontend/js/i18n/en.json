@@ -560,6 +560,8 @@
     "no_assets_desc": "Generate your first image to see it here.",
     "no_results": "No assets match your search.",
     "video_badge": "VIDEO",
+    "has_3d_badge": "3D",
+    "has_3d_tooltip": "A 3D model has been generated for this asset",
     "delete_warning": "Deletion is permanent and cannot be undone",
     "deleting": "Deleting {{count}} asset{{plural}}...",
     "deleted": "{{count}} asset{{plural}} deleted",

@@ -442,6 +442,8 @@
     "subtitle": "生成した画像、動画、アートアセットを閲覧",
     "title": "ギャラリー",
     "video_badge": "動画",
+    "has_3d_badge": "3D",
+    "has_3d_tooltip": "このアセットの3Dモデルが生成されています",
     "import_image": "画像をインポート",
     "import_title": "画像をインポート",
     "import_subtitle": "既存の画像をギャラリーに取り込み、編集や3Dモデル化ができます。自動的にPNGへ変換されます。",

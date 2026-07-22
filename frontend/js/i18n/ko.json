@@ -442,6 +442,8 @@
     "subtitle": "생성된 이미지, 비디오, 아트 에셋을 탐색하세요",
     "title": "갤러리",
     "video_badge": "비디오",
+    "has_3d_badge": "3D",
+    "has_3d_tooltip": "이 에셋에 대한 3D 모델이 생성되었습니다",
     "import_image": "이미지 가져오기",
     "import_title": "이미지 가져오기",
     "import_subtitle": "기존 이미지를 갤러리에 가져와 편집하거나 3D 모델로 변환하세요. 자동으로 PNG로 변환됩니다.",

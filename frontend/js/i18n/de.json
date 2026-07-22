@@ -560,6 +560,8 @@
     "no_assets_desc": "Generieren Sie Ihr erstes Bild, um es hier zu sehen.",
     "no_results": "Keine Assets entsprechen Ihrer Suche.",
     "video_badge": "VIDEO",
+    "has_3d_badge": "3D",
+    "has_3d_tooltip": "Für dieses Asset wurde ein 3D-Modell generiert",
     "delete_warning": "Das Löschen ist endgültig und kann nicht rückgängig gemacht werden",
     "deleting": "{{count}} Asset{{plural}} wird gelöscht...",
     "deleted": "{{count}} Asset{{plural}} gelöscht",

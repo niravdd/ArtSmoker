@@ -61,3 +61,4 @@ class GalleryItem(BaseModel):
     svg_url: str | None = None
     created_at: datetime
     async_status: str | None = None  # "pending", "complete", "failed" — None for sync jobs
+    has_3d: bool = False  # True if a generated 3D model (.glb) exists for this asset

@@ -442,6 +442,8 @@
     "subtitle": "Explora tus imagenes, videos y recursos artisticos generados",
     "title": "Galeria",
     "video_badge": "VIDEO",
+    "has_3d_badge": "3D",
+    "has_3d_tooltip": "Se ha generado un modelo 3D para este recurso",
     "import_image": "Importar imagen",
     "import_title": "Importar una imagen",
     "import_subtitle": "Lleva una imagen existente a tu galería para editarla o convertirla en modelo 3D. Se convierte a PNG automáticamente.",

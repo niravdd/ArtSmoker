@@ -442,6 +442,8 @@
     "subtitle": "浏览你生成的图像、视频和艺术素材",
     "title": "画廊",
     "video_badge": "视频",
+    "has_3d_badge": "3D",
+    "has_3d_tooltip": "已为此素材生成3D模型",
     "import_image": "导入图像",
     "import_title": "导入图像",
     "import_subtitle": "将现有图像导入图库以进行编辑或转换为 3D 模型。自动转换为 PNG。",
