@@ -1191,6 +1191,7 @@
     "pending_jobs": "保留中のジョブ",
     "pending_jobs_count": "保留中のジョブ（{{count}}件生成中...）",
     "pending_jobs_total": "保留中のジョブ（{{count}}件）",
+    "completed_jobs_total": "完了したジョブ（{{count}}件）",
     "async_submitted": "{{model}} — 送信済み（バックグラウンドで生成中）",
     "async_submitted_hint": "画像は完成後に保留中のジョブに表示されます。作業を続けられます。",
     "async_ready_toast": "{{model}} の画像が完成しました — 保留中のジョブを確認",

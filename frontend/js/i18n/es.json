@@ -1191,6 +1191,7 @@
     "pending_jobs": "Trabajos pendientes",
     "pending_jobs_count": "Trabajos pendientes ({{count}} generando...)",
     "pending_jobs_total": "Trabajos pendientes ({{count}})",
+    "completed_jobs_total": "Trabajos completados ({{count}})",
     "async_submitted": "{{model}} — enviado (generando en segundo plano)",
     "async_submitted_hint": "La imagen aparecerá en Trabajos pendientes cuando esté lista. Puede seguir trabajando.",
     "async_ready_toast": "Imagen de {{model}} lista — ver Trabajos pendientes",

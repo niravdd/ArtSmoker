@@ -1234,6 +1234,7 @@
     "pending_jobs": "Ausstehende Aufträge",
     "pending_jobs_count": "Ausstehende Aufträge ({{count}} werden generiert...)",
     "pending_jobs_total": "Ausstehende Aufträge ({{count}})",
+    "completed_jobs_total": "Abgeschlossene Aufträge ({{count}})",
     "async_submitted": "{{model}} — eingereicht (wird im Hintergrund generiert)",
     "async_submitted_hint": "Das Bild erscheint bei den ausstehenden Aufträgen, sobald es bereit ist. Sie können weiterarbeiten.",
     "async_ready_toast": "{{model}}-Bild bereit — prüfen Sie die ausstehenden Aufträge",

@@ -2804,6 +2804,7 @@
         // ── Pending Jobs (async custom models) ─────────────────────────
 
         _pendingJobsTimer: null,
+        _pendingReconcileTimer: null,  // Slow tick to reconcile the button after fast polling stops
         _pendingJobsActive: false,  // Whether polling is active
         _notifiedJobIds: new Set(), // Track which completions we've toasted
 
@@ -2845,14 +2846,18 @@
                 const jobs = data.jobs || [];
                 const hasActive = data.has_active || false;
 
-                // Update button visibility and label
+                // Update button visibility and label. When count>0 some jobs are
+                // still generating ("Pending Jobs (N generating…)"); when count===0
+                // the remaining jobs are DONE and only awaiting review/clear — label
+                // them as Completed, NOT Pending, so a finished batch never reads as
+                // if it were still pending.
                 const btn = document.getElementById('btn-pending-jobs');
                 const label = document.getElementById('pending-jobs-label');
                 if (btn) {
                     btn.classList.toggle('hidden', jobs.length === 0);
                     if (label) label.textContent = count > 0
                         ? t('custom_models.pending_jobs_count').replace('{{count}}', count)
-                        : t('custom_models.pending_jobs_total').replace('{{count}}', jobs.length);
+                        : t('custom_models.completed_jobs_total').replace('{{count}}', jobs.length);
                 }
 
                 // Toast + live update for newly completed jobs
@@ -2906,6 +2911,15 @@
                     this._startAsyncPolling();
                 } else if (!hasActive && this._pendingJobsActive) {
                     this._stopAsyncPolling();
+                }
+
+                // Fast polling has stopped (no active jobs) but the button is still
+                // showing COMPLETED jobs awaiting review. Keep a SLOW reconcile tick
+                // so if those jobs get cleared/auto-expired elsewhere while the user
+                // stays on this view, the button hides itself instead of going stale.
+                clearTimeout(this._pendingReconcileTimer);
+                if (!this._pendingJobsActive && jobs.length > 0) {
+                    this._pendingReconcileTimer = setTimeout(() => this._checkAsyncJobs(), 30000);
                 }
             } catch {}
         },
@@ -3005,7 +3019,11 @@
             backdrop.querySelector('.pj-clear')?.addEventListener('click', async () => {
                 await fetch('/api/generate/async-jobs/clear', { method: 'POST' });
                 backdrop.remove();
-                this._showPendingJobs();
+                // Reconcile the pending-jobs BUTTON/label against the now-cleared
+                // tracker. _showPendingJobs only renders the dialog; it never touches
+                // the button, and polling has usually stopped once jobs completed —
+                // so without this the button stays visible with a stale count forever.
+                this._checkAsyncJobs();
             });
 
             document.body.appendChild(backdrop);

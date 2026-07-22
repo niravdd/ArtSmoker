@@ -1191,6 +1191,7 @@
     "pending_jobs": "待处理任务",
     "pending_jobs_count": "待处理任务（{{count}}个生成中...）",
     "pending_jobs_total": "待处理任务（{{count}}个）",
+    "completed_jobs_total": "已完成任务（{{count}}个）",
     "async_submitted": "{{model}} — 已提交（后台生成中）",
     "async_submitted_hint": "图像完成后将出现在待处理任务中。您可以继续工作。",
     "async_ready_toast": "{{model}} 图像已完成 — 查看待处理任务",

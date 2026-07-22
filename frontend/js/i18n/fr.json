@@ -1191,6 +1191,7 @@
     "pending_jobs": "Tâches en attente",
     "pending_jobs_count": "Tâches en attente ({{count}} en cours de génération...)",
     "pending_jobs_total": "Tâches en attente ({{count}})",
+    "completed_jobs_total": "Tâches terminées ({{count}})",
     "async_submitted": "{{model}} — soumis (génération en arrière-plan)",
     "async_submitted_hint": "L'image apparaîtra dans les tâches en attente une fois prête. Vous pouvez continuer à travailler.",
     "async_ready_toast": "Image {{model}} prête — voir les tâches en attente",

@@ -1233,6 +1233,7 @@
     "pending_jobs": "लंबित कार्य",
     "pending_jobs_count": "लंबित कार्य ({{count}} बन रहे हैं...)",
     "pending_jobs_total": "लंबित कार्य ({{count}})",
+    "completed_jobs_total": "पूर्ण कार्य ({{count}})",
     "async_submitted": "{{model}} — सबमिट हुआ (पृष्ठभूमि में बन रहा है)",
     "async_submitted_hint": "तैयार होने पर चित्र लंबित कार्य में दिखाई देगा। आप काम जारी रख सकते हैं।",
     "async_ready_toast": "{{model}} चित्र तैयार — लंबित कार्य जाँचें",

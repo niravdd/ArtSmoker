@@ -1191,6 +1191,7 @@
     "pending_jobs": "대기 중인 작업",
     "pending_jobs_count": "대기 중인 작업 ({{count}}개 생성 중...)",
     "pending_jobs_total": "대기 중인 작업 ({{count}}개)",
+    "completed_jobs_total": "완료된 작업 ({{count}}개)",
     "async_submitted": "{{model}} — 제출됨 (백그라운드에서 생성 중)",
     "async_submitted_hint": "이미지가 완성되면 대기 중인 작업에 표시됩니다. 계속 작업할 수 있습니다.",
     "async_ready_toast": "{{model}} 이미지 완성 — 대기 중인 작업 확인",
