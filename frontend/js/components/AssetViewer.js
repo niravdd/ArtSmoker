@@ -242,8 +242,15 @@
 
                                 <!-- Prompt + Model + Generate -->
                                 <div>
-                                    <label class="text-xs text-brand-text-muted mb-1 block" id="av-prompt-label">${t('asset_viewer.edit_prompt')}</label>
+                                    <div class="flex items-center justify-between mb-1">
+                                        <label class="text-xs text-brand-text-muted" id="av-prompt-label">${t('asset_viewer.edit_prompt')}</label>
+                                        <button id="av-suggest-prompt" type="button" class="text-[10px] text-violet-300 hover:text-violet-200 flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-violet-500/10 transition-colors" title="${t('asset_viewer.suggest_prompt_title')}">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                                            <span>${t('asset_viewer.suggest_prompt')}</span>
+                                        </button>
+                                    </div>
                                     <textarea id="av-edit-prompt" class="input text-sm w-full h-16" placeholder="${t('asset_viewer.edit_prompt_placeholder')}"></textarea>
+                                    <p id="av-suggest-reasoning" class="text-[10px] text-violet-300/70 mt-1 hidden"></p>
                                 </div>
                                 <div class="flex items-end gap-2">
                                     <div class="flex-1">
@@ -1605,6 +1612,60 @@
             this._overlay.querySelector('#av-edit-model')?.addEventListener('change', () => {
                 const maskControls = this._overlay.querySelector('#av-mask-controls');
                 if (maskControls) maskControls.classList.toggle('hidden', this._selectedEditModelIsMaskFree());
+            });
+
+            // ✨ Generate Prompt — vision LLM reads the image + original prompt and
+            // proposes a ready-to-use edit prompt TAILORED to the active mode AND the
+            // selected edit model's expected style (caption vs instruction). Replaces
+            // any existing text (per the requested behaviour). For replace/recolor it
+            // also fills the "find object" field; for extend it seeds the directions.
+            this._overlay.querySelector('#av-suggest-prompt')?.addEventListener('click', async () => {
+                const sbtn = this._overlay.querySelector('#av-suggest-prompt');
+                const promptEl = this._overlay.querySelector('#av-edit-prompt');
+                const reasonEl = this._overlay.querySelector('#av-suggest-reasoning');
+                const model = this._overlay.querySelector('#av-edit-model')?.value || '';
+                const label = sbtn?.querySelector('span');
+                const origLabel = label?.textContent;
+                if (sbtn) sbtn.disabled = true;
+                if (label) label.textContent = t('asset_viewer.suggest_prompt_working');
+                if (reasonEl) reasonEl.classList.add('hidden');
+                try {
+                    const resp = await fetch('/api/generate/suggest-edit-prompt', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            asset_id: this._item?.id,
+                            version: this._currentVersion || undefined,
+                            mode: editMode,
+                            model,
+                        }),
+                    });
+                    if (!resp.ok) throw new Error(String(resp.status));
+                    const d = await resp.json();
+                    // Fill the prompt box (replace existing text, as requested).
+                    if (promptEl && d.prompt) promptEl.value = d.prompt;
+                    // Replace/recolor: also fill the "find object" field.
+                    if (d.search_prompt) {
+                        const sp = this._overlay.querySelector('#av-search-prompt');
+                        if (sp) sp.value = d.search_prompt;
+                    }
+                    // Extend: seed the direction inputs from the suggestion, then
+                    // refresh the live preview so the user sees the new canvas.
+                    if (editMode === 'outpaint' && d.suggest_outpaint) {
+                        const map = { left: '#av-out-left', right: '#av-out-right', up: '#av-out-up', down: '#av-out-down' };
+                        for (const [k, sel] of Object.entries(map)) {
+                            const inp = this._overlay.querySelector(sel);
+                            if (inp && d.suggest_outpaint[k] != null) inp.value = d.suggest_outpaint[k];
+                        }
+                        this._drawOutpaintPreview?.();
+                    }
+                    // Show the LLM's one-line reasoning under the box.
+                    if (reasonEl && d.reasoning) { reasonEl.textContent = d.reasoning; reasonEl.classList.remove('hidden'); }
+                } catch (e) {
+                    window.showToast?.(t('asset_viewer.suggest_prompt_failed'), 'error');
+                } finally {
+                    if (sbtn) sbtn.disabled = false;
+                    if (label) label.textContent = origLabel;
+                }
             });
 
             // Generate / Apply Edit

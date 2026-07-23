@@ -1793,6 +1793,111 @@ async def edit_image(body: ImageEditRequest):
     }
 
 
+# ── Edit-prompt suggestion (per-mode, model-aware) ─────────────────────────
+
+class SuggestEditPromptRequest(BaseModel):
+    """Ask the vision LLM to propose an edit prompt for a specific edit mode.
+
+    Reads the asset's ORIGINAL generation prompt + the rendered image, infers
+    what the user most likely wants for `mode`, and writes it in the STYLE the
+    target `model` expects (caption for Stability, instruction for Qwen-Edit)."""
+    asset_id: str
+    version: int | None = None       # which 2D version to read (default: current)
+    mode: str                        # inpaint | erase | outpaint | search_replace | search_recolor
+    model: str = ""                  # the selected edit model key (drives output style)
+
+
+# What each edit mode does — fed to the LLM so its suggestion fits the operation.
+_EDIT_MODE_INTENT = {
+    "outpaint": "Extend the canvas outward and generate NEW content in the added border area (reveal cropped parts, add more environment/margin). It cannot change existing pixels.",
+    "inpaint": "Fill or repair a user-masked region with new, plausible content that blends with the rest of the image.",
+    "erase": "Remove an unwanted element from a user-masked region and reconstruct a clean background behind it.",
+    "search_replace": "Find an existing object by description and swap it for a different object.",
+    "search_recolor": "Find an existing object/region by description and change its colour or material.",
+}
+# UI labels use 'extend'/'fill' etc.; normalize to the internal mode keys.
+_EDIT_MODE_ALIASES = {"extend": "outpaint", "fill": "inpaint", "replace": "search_replace", "recolor": "search_recolor"}
+
+
+@router.post("/suggest-edit-prompt")
+async def suggest_edit_prompt(body: SuggestEditPromptRequest):
+    """Propose a ready-to-use edit prompt for a given mode, from the image + intent."""
+    from backend.services.bedrock_client import invoke_llm
+    from backend.services.prompt_templates import get_template, get_system_prompt
+    from backend.services.prompt_engineer import supports_negative_prompt  # cheap registry probe
+    from backend.routers.generate_3d import _fit_image_for_vision
+    import re as _re
+
+    mode = _EDIT_MODE_ALIASES.get(body.mode, body.mode)
+    if mode not in _EDIT_MODE_INTENT:
+        raise HTTPException(400, detail=f"Unknown edit mode '{body.mode}'.")
+
+    meta = store.load_generation_metadata(body.asset_id) or {}
+    # Resolve the version image the SAME way /edit does (current = asset.png).
+    ver = body.version
+    source_path = None
+    if ver:
+        cur = meta.get("current_version") or (len(meta.get("versions", [])) or 1)
+        if ver != cur:
+            source_path = store.get_generated_file_path(body.asset_id, f"asset_v{ver}.png")
+    if source_path is None:
+        source_path = store.get_generated_file_path(body.asset_id, "asset.png")
+    if source_path is None:
+        raise HTTPException(404, detail=f"Source image not found: {body.asset_id}")
+
+    source_prompt = (
+        (meta.get("enhanced_prompt") or meta.get("recomposed_prompt")
+         or meta.get("prompt") or meta.get("original_prompt") or "").strip()
+        or "(no prompt recorded — infer purely from the image)"
+    )[:1200]
+    asset_type = (meta.get("asset_type") or "image").replace("_", " ")
+
+    # Model-aware output style: instruction editors (Qwen) want an imperative
+    # instruction; caption/diffusion editors (Stability) want a descriptive caption
+    # of the desired result. Derive from the registry, not a hardcoded model list.
+    from backend.services.model_registry import get_image_model
+    mcfg = get_image_model(body.model) if body.model else None
+    minv = (mcfg or {}).get("invoke", {})
+    is_instruction = (mcfg or {}).get("model_purpose") == "image_edit" or bool(minv.get("instruction_following"))
+    if is_instruction:
+        style_directive = ("Write an INSTRUCTION telling the editor what to do, as an imperative command "
+                           "(e.g. 'Add …', 'Replace the … with …', 'Remove the …', 'Change the … to …'). "
+                           "This model follows instructions; do NOT write a scene caption.")
+    else:
+        style_directive = ("Write a concise DESCRIPTIVE CAPTION of the desired RESULT in that region "
+                           "(what should be present, its material/colour/lighting to blend seamlessly) — "
+                           "NOT an imperative instruction. This is a diffusion editor guided by a caption.")
+
+    try:
+        prompt = get_template("edit_prompt_suggestion").format(
+            mode=mode, mode_intent=_EDIT_MODE_INTENT[mode],
+            style_directive=style_directive, source_prompt=source_prompt, asset_type=asset_type)
+        system = get_system_prompt("edit_prompt_suggestion")
+        vision_bytes = _fit_image_for_vision(source_path.read_bytes())
+        raw = invoke_llm(prompt, system=system, complexity="complex",
+                         images=[vision_bytes], max_tokens=400, temperature=0.2)
+        txt = (raw or "").strip()
+        txt = _re.sub(r"^```(?:json)?\s*\n?", "", txt)
+        txt = _re.sub(r"\n?```\s*$", "", txt)
+        s, e = txt.find("{"), txt.rfind("}")
+        data = json.loads(txt[s:e + 1]) if s >= 0 and e > s else {}
+    except Exception as exc:
+        logger.warning("Edit-prompt suggestion failed for %s (%s): %s", body.asset_id, mode, exc)
+        raise HTTPException(502, detail="Prompt suggestion is unavailable right now. Please try again.")
+
+    def _clamp(v):
+        try: return max(0, min(1024, int(v)))
+        except (TypeError, ValueError): return 0
+    outp = data.get("suggest_outpaint", {}) or {}
+    return {
+        "mode": mode,
+        "prompt": (data.get("prompt", "") or "").strip()[:500],
+        "search_prompt": (data.get("search_prompt", "") or "").strip()[:200],
+        "reasoning": (data.get("reasoning", "") or "").strip()[:300],
+        "suggest_outpaint": {d: _clamp(outp.get(d, 0)) for d in ("down", "up", "left", "right")},
+    }
+
+
 # ── Pre-screen (Safe Mode) ─────────────────────────────────────────────────
 
 class PreScreenRequest(BaseModel):

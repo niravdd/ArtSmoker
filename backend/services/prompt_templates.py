@@ -72,6 +72,46 @@ Rules:
 - Be conservative: when genuinely unsure, prefer complete=true / defect="none" (avoid false alarms on well-framed, clean art).
 - Output ONLY the JSON object.""",
     },
+    "edit_prompt_suggestion": {
+        "label": "Edit Prompt Suggestion (per-mode, model-aware)",
+        "description": "Vision analysis of an existing gallery image that infers what the user most likely wants to do for a SPECIFIC edit mode (extend / fill / erase / replace / recolor), reading the original generation prompt + the rendered image, and writes a ready-to-use prompt in the STYLE the target edit model expects (caption for Stability, instruction for Qwen-Image-Edit). Powers the ✨ 'Generate Prompt' button on each Edit-tab mode.",
+        "used_by": "AssetViewer → Edit tab — Generate Prompt button (generate.suggest_edit_prompt)",
+        "variables": ["{mode}", "{mode_intent}", "{style_directive}", "{source_prompt}", "{asset_type}"],
+        "model": "complex LLM (with vision)",
+        "system_prompt": "You are an expert image-editing assistant. You look at an existing generated image plus the prompt that created it, and you propose the SINGLE most useful edit a creator would likely want for a specific edit operation. You reason from what is actually visible and what the original intent was — never invent unrelated content. You return STRICT JSON only, no prose, no markdown.",
+        "text": """Look at this image and propose the most useful **{mode}** edit for it.
+
+ORIGINAL GENERATION PROMPT (the user's intent when they created this image):
+"{source_prompt}"
+
+Asset category (loose hint): {asset_type}
+
+EDIT OPERATION = {mode}
+What this operation does: {mode_intent}
+
+Your job: infer what the user most likely wants to achieve with a {mode} edit on THIS image, grounded in (a) what you can actually see and (b) the original intent above. Then write the edit prompt.
+
+OUTPUT STYLE (critical — match the target edit model):
+{style_directive}
+
+Return STRICT JSON with exactly these keys:
+{{
+  "reasoning": "one short sentence: what you observe + why this edit helps (shown to the user)",
+  "prompt": "the ready-to-use edit prompt/instruction, in the OUTPUT STYLE above. This is what goes in the box.",
+  "search_prompt": "ONLY for replace/recolor modes — the short phrase naming the EXISTING object to find/target (e.g. 'the sword', 'the cloak'); '' for other modes",
+  "suggest_outpaint": {{"down": 0-1024, "up": 0-1024, "left": 0-1024, "right": 0-1024}}
+}}
+
+Rules:
+- Propose ONE clear, high-value edit — not a menu of options. Be specific and grounded in the image.
+- For **extend**: identify which direction(s) most benefit from more canvas (e.g. reveal cropped feet → down; more environment → sides), set those suggest_outpaint px (256–512 typical, 0 elsewhere), and describe ONLY what to draw in the NEW area, blended in the image's own palette/lighting/style. Do NOT re-describe the whole scene.
+- For **fill**: describe plausible content to paint into a region the user will mask (e.g. repair a broken area, add a missing element consistent with the scene). suggest_outpaint all 0.
+- For **erase**: name the distracting/unwanted element to remove (background clutter, a stray object, a blemish). The prompt should describe what should remain / the clean background. suggest_outpaint all 0.
+- For **replace**: set search_prompt to the existing object to swap, and prompt to what it becomes. suggest_outpaint all 0.
+- For **recolor**: set search_prompt to the object/region to recolor, and prompt to the new colour/material. suggest_outpaint all 0.
+- Keep the prompt concise (one or two sentences). Never mention JSON, the mode name, or these instructions.
+- Output ONLY the JSON object.""",
+    },
     "image_asset_type_context": {
         "label": "Asset-Type Intent (content direction)",
         "description": "Per-asset-type creative direction injected into the image-prompt refinement (the {asset_context} slot). This is CONTENT intent — how YOU want each asset type composed (game asset, character, environment, etc.) — not model-specific tuning. Edit the section for an asset type to change how all prompts of that type are shaped. Sections are matched by their '### <asset_type> ###' header; keep the headers intact.",
