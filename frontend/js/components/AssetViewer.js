@@ -223,9 +223,17 @@
                                     </div>
                                 </div>
 
-                                <!-- Outpaint: Direction controls -->
-                                <div id="av-outpaint-section" class="hidden">
-                                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.outpaint_hint_full')}</p>
+                                <!-- Outpaint: live preview (shared renderer) + direction controls -->
+                                <div id="av-outpaint-section" class="hidden space-y-2">
+                                    <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.outpaint_hint_full')}</p>
+                                    <!-- Preview box: HTML <img> (object-contain) + measurement overlay,
+                                         same structure as the 3D source-review dialog so the shared
+                                         _wireMeasurement renderer draws rulers + extension bands here. -->
+                                    <div class="relative w-full bg-brand-bg rounded-lg overflow-hidden border border-brand-border" style="height: 320px;">
+                                        <img id="av-out-img" class="w-full h-full object-contain" alt="Extend preview" crossorigin="anonymous" />
+                                        <canvas id="av-out-measure" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
+                                    </div>
+                                    <div id="av-out-stats" class="text-[10px] text-brand-text-muted flex flex-wrap items-center gap-x-4 gap-y-1 px-1"></div>
                                     <div class="grid grid-cols-4 gap-2 max-w-xs">
                                         <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_left')}</label><input id="av-out-left" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
                                         <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_right')}</label><input id="av-out-right" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
@@ -1008,10 +1016,12 @@
                             : `/api/gallery/${assetId}/version-svg/${version}?t=${Date.now()}`;
                     }
 
-                    // Update the Edit tab's mask canvas to the selected version so
-                    // edits act on what the user sees (was stuck on the first-loaded
-                    // version). Clears any in-progress mask.
+                    // Update the Edit tab's mask canvas AND the shared Extend preview
+                    // to the selected version so edits act on what the user sees (both
+                    // were stuck on the first-loaded version). Clears any in-progress
+                    // mask; re-points the outpaint preview at the new version's image.
                     this._loadEditCanvasImage?.();
+                    this._wireOutpaintPreview?.();
 
                     // Point the PNG/SVG download links at the SELECTED version — they
                     // were frozen at the current version (asset.png/svg) and ignored
@@ -1293,10 +1303,6 @@
                 const url = (ver === cur)
                     ? `/api/gallery/${id}/png?t=${Date.now()}`
                     : `/api/gallery/${id}/version/${ver}?t=${Date.now()}`;
-                // Invalidate the cached outpaint-preview source; it's version-specific.
-                // Without this, switching versions kept showing the FIRST-loaded (often
-                // latest/outpainted) version in the Extend preview.
-                canvas._baseDataURL = null;
                 const img = new Image();
                 img.crossOrigin = 'anonymous';
                 img.onload = () => {
@@ -1310,163 +1316,42 @@
                     canvas._imgH = img.height;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     canvas._baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-                    // If we loaded while outpaint is the active mode, draw its preview.
-                    if (editMode === 'outpaint') this._drawOutpaintPreview?.();
                 };
                 img.src = url;
             };
 
-            // Outpaint preview: render the source image inset within a larger frame,
-            // with the requested extension margins (px) shown as hatched/labelled bands
-            // on each edge — a "ruler" view so the user sees exactly how far the image
-            // will be extended before committing (mirrors the 3D improve-image dialog).
-            // Ruler gutter (canvas px) reserved on the top + left edges for the
-            // pixel ruler, like an image editor's rulers. The image + extension
-            // preview is drawn INSIDE this gutter.
-            const OUTPAINT_GUTTER = 24;
-            this._drawOutpaintPreview = () => {
-                if (!canvas._imgW || !canvas._imgH) return;
+            // Extend/Outpaint preview uses the SHARED measurement renderer
+            // (_wireMeasurement) — the same one the 3D "Improve this Image" dialog
+            // uses — so rulers, extension bands, subject bbox, and the live
+            // new-size readout are identical across both surfaces. readDirs() maps
+            // the #av-out-* direction inputs; _wireMeasurement handles the rest.
+            this._outpaintReadDirs = () => {
                 const q = (sel) => parseInt(this._overlay?.querySelector(sel)?.value || '0', 10) || 0;
-                const left = q('#av-out-left'), right = q('#av-out-right');
-                const up = q('#av-out-up'), down = q('#av-out-down');
-
-                const imgW = canvas._imgW, imgH = canvas._imgH;
-                const totalW = imgW + left + right;
-                const totalH = imgH + up + down;
-                const G = OUTPAINT_GUTTER;
-                // Auto-fit: fit the FULL extended output into the on-screen box (minus
-                // the ruler gutter). As margins grow, totalW/H grow, so the scale
-                // shrinks and the source image auto-fits smaller inside the canvas —
-                // the artist sees the image shrink relative to the growing frame.
-                const boxW = 560, boxH = 380;
-                const s = Math.min((boxW - G) / totalW, (boxH - G) / totalH, 1);
-                canvas.width = Math.round(totalW * s) + G;
-                canvas.height = Math.round(totalH * s) + G;
-
-                ctx.clearRect(0, 0, canvas.width, canvas.height);
-                // Extension zone (the whole output area, after the gutter) gets an
-                // indigo wash; the source image is painted opaque over its portion.
-                ctx.fillStyle = 'rgba(99, 102, 241, 0.14)';
-                ctx.fillRect(G, G, canvas.width - G, canvas.height - G);
-
-                // Source image position within the output (after gutter + top/left margins).
-                const ox = G + Math.round(left * s), oy = G + Math.round(up * s);
-                const dw = Math.round(imgW * s), dh = Math.round(imgH * s);
-                const geo = { imgW, imgH, totalW, totalH, s, G };
-                const frame = () => this._drawOutpaintFrame(ctx, canvas, ox, oy, dw, dh, {left, right, up, down}, geo);
-                const src = new Image();
-                src.onload = () => { ctx.drawImage(src, ox, oy, dw, dh); frame(); };
-                if (canvas._baseDataURL) { src.src = canvas._baseDataURL; }
-                else {
-                    // Rebuild a data URL from the current version image once, cache it.
-                    const ver = this._currentVersion || (this._meta?.current_version) || 1;
-                    const cur = (this._meta?.current_version) || (this._meta?.versions?.length || 1);
-                    const id = encodeURIComponent(this._item?.id || '');
-                    const u = (ver === cur) ? `/api/gallery/${id}/png?t=${Date.now()}` : `/api/gallery/${id}/version/${ver}?t=${Date.now()}`;
-                    const tmp = new Image(); tmp.crossOrigin = 'anonymous';
-                    tmp.onload = () => {
-                        const c2 = document.createElement('canvas'); c2.width = tmp.width; c2.height = tmp.height;
-                        c2.getContext('2d').drawImage(tmp, 0, 0);
-                        try { canvas._baseDataURL = c2.toDataURL('image/png'); src.src = canvas._baseDataURL; }
-                        catch (_) { ctx.drawImage(tmp, ox, oy, dw, dh); frame(); }
-                    };
-                    tmp.src = u;
-                }
+                return { up: q('#av-out-up'), down: q('#av-out-down'), left: q('#av-out-left'), right: q('#av-out-right') };
             };
-
-            // Draw the ruler gutter (0 → full output dimension), the source-image
-            // border, the dashed output bounds, per-edge margin labels, and a size
-            // caption. geo carries the pixel→canvas scale so the ruler is accurate.
-            this._drawOutpaintFrame = (ctx2, cv, ox, oy, dw, dh, m, geo) => {
-                const { imgW, imgH, totalW, totalH, s, G } = geo;
-
-                // ── Ruler gutter: from 0,0 to the FULL output dimension ──────────────
-                // The top gutter measures X (0..totalW), the left gutter measures Y
-                // (0..totalH). Origin 0,0 is the output's top-left. Endpoints (the
-                // total dimension) are ALWAYS labelled so the size is explicit; the
-                // original image's own extent is tinted so you can read its size too.
-                ctx2.save();
-                // Gutter backgrounds.
-                ctx2.fillStyle = 'rgba(15,18,28,0.92)';
-                ctx2.fillRect(0, 0, cv.width, G);      // top gutter
-                ctx2.fillRect(0, 0, G, cv.height);     // left gutter
-                // Highlight the ORIGINAL image's span within each ruler (so its
-                // dimension is visible against the extended total).
-                ctx2.fillStyle = 'rgba(129,140,248,0.28)';
-                ctx2.fillRect(ox, 0, dw, G);           // image X-span on top gutter
-                ctx2.fillRect(0, oy, G, dh);           // image Y-span on left gutter
-
-                ctx2.strokeStyle = 'rgba(150,158,178,0.8)';
-                ctx2.fillStyle = 'rgba(215,220,235,0.95)';
-                ctx2.lineWidth = 1;
-                ctx2.font = '9px ui-monospace, monospace';
-                const step = Math.max(totalW, totalH) > 1400 ? 512 : 256;
-                // Top ruler ticks (X). Regular ticks + guaranteed 0 and endpoint.
-                const xs = new Set([0, totalW]);
-                for (let px = 0; px <= totalW; px += step) xs.add(px);
-                ctx2.textBaseline = 'bottom';
-                xs.forEach(px => {
-                    const x = G + px * s;
-                    const isEnd = (px === 0 || px === totalW);
-                    ctx2.beginPath(); ctx2.moveTo(x, G); ctx2.lineTo(x, G - (isEnd ? 8 : 5)); ctx2.stroke();
-                    ctx2.textAlign = px === 0 ? 'left' : px === totalW ? 'right' : 'center';
-                    ctx2.fillText(String(px), Math.min(Math.max(x, G), cv.width - 1), G - 9);
-                });
-                // Left ruler ticks (Y) — rotated labels.
-                const ys = new Set([0, totalH]);
-                for (let py = 0; py <= totalH; py += step) ys.add(py);
-                ys.forEach(py => {
-                    const y = G + py * s;
-                    const isEnd = (py === 0 || py === totalH);
-                    ctx2.beginPath(); ctx2.moveTo(G, y); ctx2.lineTo(G - (isEnd ? 8 : 5), y); ctx2.stroke();
-                    ctx2.save();
-                    ctx2.translate(G - 10, Math.min(Math.max(y, G), cv.height - 1));
-                    ctx2.rotate(-Math.PI / 2);
-                    ctx2.textBaseline = 'bottom';
-                    ctx2.textAlign = py === 0 ? 'right' : py === totalH ? 'left' : 'center';
-                    ctx2.fillText(String(py), 0, 0);
-                    ctx2.restore();
-                });
-                ctx2.restore();
-
-                // Solid border around the ORIGINAL image; dashed border = output bounds.
-                ctx2.strokeStyle = 'rgba(255,255,255,0.92)';
-                ctx2.lineWidth = 2;
-                ctx2.strokeRect(ox + 1, oy + 1, dw - 2, dh - 2);
-                ctx2.save();
-                ctx2.setLineDash([6, 4]);
-                ctx2.strokeStyle = 'rgba(129,140,248,0.95)';  // indigo-400
-                ctx2.lineWidth = 1.5;
-                ctx2.strokeRect(G + 1, G + 1, cv.width - G - 2, cv.height - G - 2);
-                ctx2.restore();
-
-                // Per-edge margin px labels (only where a margin was set).
-                ctx2.fillStyle = 'rgba(199,210,254,0.98)';
-                ctx2.font = '11px ui-monospace, monospace';
-                ctx2.textAlign = 'center'; ctx2.textBaseline = 'middle';
-                const cx = ox + dw / 2, cy = oy + dh / 2;
-                if (m.up)    ctx2.fillText(`↑ ${m.up}px`,   cx, G + (oy - G) / 2);
-                if (m.down)  ctx2.fillText(`↓ ${m.down}px`, cx, oy + dh + (cv.height - (oy + dh)) / 2);
-                if (m.left)  { ctx2.save(); ctx2.translate(G + (ox - G) / 2, cy); ctx2.rotate(-Math.PI/2); ctx2.fillText(`← ${m.left}px`, 0, 0); ctx2.restore(); }
-                if (m.right) { ctx2.save(); ctx2.translate(ox + dw + (cv.width - (ox + dw)) / 2, cy); ctx2.rotate(-Math.PI/2); ctx2.fillText(`${m.right}px →`, 0, 0); ctx2.restore(); }
-
-                // Size caption: original → resulting dimensions (bottom-left).
-                const outW = totalW, outH = totalH;
-                const changed = outW !== imgW || outH !== imgH;
-                const txt = changed ? `${imgW}×${imgH} → ${outW}×${outH}px` : `${imgW}×${imgH}px`;
-                ctx2.font = '10px ui-monospace, monospace';
-                ctx2.textAlign = 'left'; ctx2.textBaseline = 'bottom';
-                const w = ctx2.measureText(txt).width;
-                ctx2.fillStyle = 'rgba(0,0,0,0.6)'; ctx2.fillRect(G + 4, cv.height - 16, w + 8, 14);
-                ctx2.fillStyle = 'rgba(255,255,255,0.96)'; ctx2.fillText(txt, G + 8, cv.height - 4);
+            // (Re)wire the preview to the SELECTED version's image. Called on open,
+            // on version switch, and when Extend mode is entered. The overlay stays
+            // visible in the Edit tab (unlike the 3D dialog where it's toggled).
+            this._wireOutpaintPreview = () => {
+                const ver = this._currentVersion || (this._meta?.current_version) || 1;
+                const cur = (this._meta?.current_version) || (this._meta?.versions?.length || 1);
+                const id = encodeURIComponent(this._item?.id || '');
+                const url = (ver === cur)
+                    ? `/api/gallery/${id}/png?t=${Date.now()}`
+                    : `/api/gallery/${id}/version/${ver}?t=${Date.now()}`;
+                this._wireMeasurement(this._overlay, url, this._outpaintReadDirs,
+                    { img: '#av-out-img', measure: '#av-out-measure', stats: '#av-out-stats' });
             };
+            // Back-compat shim: other code paths call _drawOutpaintPreview() to
+            // refresh the extend view (e.g. after Generate-Prompt seeds directions).
+            this._drawOutpaintPreview = () => this._redrawMeasurement?.();
 
             this._loadEditCanvasImage();
 
-            // Live-update the outpaint preview as the user changes any margin.
+            // Live-redraw the extend preview as the user changes any direction.
             ['#av-out-left', '#av-out-right', '#av-out-up', '#av-out-down'].forEach(sel => {
                 this._overlay.querySelector(sel)?.addEventListener('input', () => {
-                    if (editMode === 'outpaint') this._drawOutpaintPreview();
+                    if (editMode === 'outpaint') this._redrawMeasurement?.();
                 });
             });
 
@@ -1516,14 +1401,12 @@
                     this._overlay.querySelectorAll('.av-edit-mode').forEach(b => b.classList.remove('active', 'bg-brand-accent', 'text-white'));
                     btn.classList.add('active', 'bg-brand-accent', 'text-white');
 
-                    // The mask SECTION holds the source-image canvas — it stays
-                    // visible for inpaint/erase (mask-paint modes) AND for outpaint
-                    // (so the user sees the image they're extending, with a live margin
-                    // preview drawn around it — like the 3D "improve image" ruler view).
-                    // Only the mask-PAINT controls (brush/clear) are inpaint/erase-only.
+                    // The mask SECTION holds the paint canvas — inpaint/erase only.
+                    // Outpaint has its OWN preview box (#av-outpaint-section) using the
+                    // shared measurement renderer (image + rulers + extension bands),
+                    // matching the 3D "Improve this Image" dialog.
                     const needsOutpaint = editMode === 'outpaint';
                     const paintModes = editMode === 'inpaint' || editMode === 'erase';
-                    const imageModes = paintModes || needsOutpaint;  // canvas visible
                     const maskFree = this._selectedEditModelIsMaskFree();
                     const needsSearch = editMode === 'search_replace' || editMode === 'search_recolor';
 
@@ -1534,22 +1417,16 @@
                     const searchLabel = this._overlay.querySelector('#av-search-label');
                     const promptLabel = this._overlay.querySelector('#av-prompt-label');
 
-                    if (maskSection) maskSection.classList.toggle('hidden', !imageModes);
-                    // Paint controls only for inpaint/erase; hidden for outpaint and for
-                    // mask-free editors.
+                    if (maskSection) maskSection.classList.toggle('hidden', !paintModes);
                     if (maskControls) maskControls.classList.toggle('hidden', maskFree || !paintModes);
                     if (outSection) outSection.classList.toggle('hidden', !needsOutpaint);
                     if (searchSection) searchSection.classList.toggle('hidden', !needsSearch);
 
-                    // Canvas is crosshair only in paint modes (outpaint isn't painted).
-                    if (canvas) canvas.classList.toggle('cursor-crosshair', paintModes);
-
-                    // Redraw the canvas: outpaint shows the image + margin preview
-                    // (which resizes the canvas), paint modes show the plain image at
-                    // its own size — reload it so switching back from outpaint restores
-                    // the correct (un-extended) canvas dimensions.
+                    // Entering outpaint: (re)load the shared preview with the selected
+                    // version's image. Entering a paint mode: reload the mask canvas at
+                    // its own size (the paint canvas is separate from the outpaint box).
                     if (needsOutpaint) {
-                        this._drawOutpaintPreview?.();
+                        this._wireOutpaintPreview?.();
                     } else if (paintModes) {
                         this._loadEditCanvasImage?.();
                     }
@@ -2921,11 +2798,26 @@
          * so it works for any character/object/asset, not just the test soldier.
          * `readDirs()` returns the current {left,right,up,down} extension in px.
          */
-        _wireMeasurement(backdrop, imgUrl, readDirs) {
-            const overlay = backdrop.querySelector('#av-sr-measure');
-            const statsEl = backdrop.querySelector('#av-sr-stats');
+        _wireMeasurement(backdrop, imgUrl, readDirs, sel) {
+            // sel = {img, measure, stats} element selectors. Defaults to the 3D
+            // source-review dialog's ids; the Edit tab passes its own (#av-out-*)
+            // so ONE renderer serves both surfaces. `dirKeys` maps the readDirs()
+            // shape: the 3D dialog returns {top,...} while the Edit tab returns
+            // {up,...} — normalized in _drawMeasurement.
+            sel = sel || { img: '#av-sr-img', measure: '#av-sr-measure', stats: '#av-sr-stats' };
+            const overlay = backdrop.querySelector(sel.measure);
+            const statsEl = backdrop.querySelector(sel.stats);
             const wrap = overlay?.parentElement;   // the fixed-height preview box
             if (!overlay || !wrap) return;
+            // Point the VISIBLE <img> at this URL so it actually displays the picture
+            // (the Edit tab leaves it blank in markup; the 3D dialog pre-fills it, but
+            // re-pointing it on a version switch is correct there too). We annotate the
+            // overlay canvas over it. cache-bust is already in imgUrl.
+            const visibleImg = backdrop.querySelector(sel.img);
+            if (visibleImg && visibleImg.getAttribute('src') !== imgUrl) visibleImg.src = imgUrl;
+            // Remember the selectors + stats target on the overlay so _drawMeasurement
+            // (called via _redrawMeasurement) resolves the right elements.
+            overlay._sel = sel;
             const img = new Image();
             img.crossOrigin = 'anonymous';
             img.onload = () => {
@@ -3013,12 +2905,21 @@
             const meta = overlay._img;
             if (!meta) return;
             const { W, H, bbox } = meta;
-            const d = readDirs();
+            // Normalize the directions: 3D dialog returns {top,down,left,right};
+            // the Edit tab returns {up,down,left,right}. Accept either.
+            const raw = readDirs() || {};
+            const d = { top: raw.top ?? raw.up ?? 0, down: raw.down ?? 0, left: raw.left ?? 0, right: raw.right ?? 0 };
             const rect = wrap.getBoundingClientRect();
             // The dialog may not be laid out yet (cached image → onload before the
             // dialog is in the DOM). Retry next frame until the box has a real size.
+            // If the preview box isn't laid out yet, retry next frame — BUT only if
+            // it's actually on-screen. offsetParent is null when an ancestor is
+            // display:none (e.g. the Edit tab's outpaint section while another mode
+            // is active), which would otherwise spin an infinite rAF loop.
             if (rect.width < 2 || rect.height < 2) {
-                requestAnimationFrame(() => this._redrawMeasurement && this._redrawMeasurement());
+                if (wrap.offsetParent !== null) {
+                    requestAnimationFrame(() => this._redrawMeasurement && this._redrawMeasurement());
+                }
                 return;
             }
             const dpr = window.devicePixelRatio || 1;
@@ -3079,9 +2980,13 @@
                 ctx.fillText(String(py), toX(0) + 8, y);
             }
 
-            // Live "new canvas size" readout in the stats line.
+            // Live "new canvas size" readout in the stats line. The newsize span is
+            // injected inside the stats element (id 'av-sr-newsize'), which exists
+            // once per surface — scope the lookup to this surface's stats element so
+            // the 3D dialog and the Edit tab don't collide.
             const fW = W + d.left + d.right, fH = H + d.top + d.down;
-            const newSizeEl = backdrop.querySelector('#av-sr-newsize');
+            const statsEl = backdrop.querySelector((overlay._sel || {}).stats || '#av-sr-stats');
+            const newSizeEl = statsEl?.querySelector('#av-sr-newsize') || backdrop.querySelector('#av-sr-newsize');
             if (newSizeEl) {
                 newSizeEl.textContent = (d.left || d.right || d.top || d.down)
                     ? `${t('asset_viewer.three_d_measure_newsize')} ${fW}×${fH}px`
