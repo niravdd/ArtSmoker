@@ -1475,7 +1475,7 @@
                         'search_replace': t('asset_viewer.edit_mode_hint_replace'),
                         'search_recolor': t('asset_viewer.edit_mode_hint_recolor'),
                     };
-                    if (maskHint && imageModes && !maskFree) {
+                    if (maskHint && paintModes && !maskFree) {
                         maskHint.textContent = hints[editMode] || t('asset_viewer.mask_hint_full');
                     }
                     if (editHint) {
