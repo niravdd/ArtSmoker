@@ -1326,7 +1326,9 @@
             // new-size readout are identical across both surfaces. readDirs() maps
             // the #av-out-* direction inputs; _wireMeasurement handles the rest.
             this._outpaintReadDirs = () => {
-                const q = (sel) => parseInt(this._overlay?.querySelector(sel)?.value || '0', 10) || 0;
+                // Clamp to a non-negative range — extension can't be negative, and a
+                // sane upper bound guards against pasted/typo values.
+                const q = (sel) => { const n = parseInt(this._overlay?.querySelector(sel)?.value || '0', 10); return Number.isFinite(n) ? Math.max(0, Math.min(2000, n)) : 0; };
                 return { up: q('#av-out-up'), down: q('#av-out-down'), left: q('#av-out-left'), right: q('#av-out-right') };
             };
             // (Re)wire the preview to the SELECTED version's image. Called on open,
@@ -1349,8 +1351,12 @@
             this._loadEditCanvasImage();
 
             // Live-redraw the extend preview as the user changes any direction.
+            // Also sanitize the field: extension can't be negative, so snap any
+            // negative entry back to 0 before redrawing.
             ['#av-out-left', '#av-out-right', '#av-out-up', '#av-out-down'].forEach(sel => {
-                this._overlay.querySelector(sel)?.addEventListener('input', () => {
+                this._overlay.querySelector(sel)?.addEventListener('input', (e) => {
+                    const el = e.target;
+                    if (el && parseInt(el.value, 10) < 0) el.value = '0';
                     if (editMode === 'outpaint') this._redrawMeasurement?.();
                 });
             });
@@ -2727,9 +2733,13 @@
                     runOp({ op: 'extend', ...dirs, prompt: $('#av-sr-prompt')?.value || '' },
                         t('asset_viewer.three_d_src_completing'));
                 });
-                // Live measurement redraw as the user tweaks amounts.
+                // Live measurement redraw as the user tweaks amounts. Snap any
+                // negative entry back to 0 — extension can't be negative.
                 ['left', 'right', 'up', 'down'].forEach(dd => {
-                    $(`#av-sr-${dd}`)?.addEventListener('input', () => this._redrawMeasurement?.());
+                    $(`#av-sr-${dd}`)?.addEventListener('input', (e) => {
+                        if (e.target && parseInt(e.target.value, 10) < 0) e.target.value = '0';
+                        this._redrawMeasurement?.();
+                    });
                 });
 
                 // Fill: first click enters mask mode; second (with a mask) runs.
@@ -2929,41 +2939,71 @@
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, rect.width, rect.height);
 
-            // The visible <img> renders the picture via HTML (reliable). We annotate
-            // OVER it, matching its object-contain placement inside the box: the image
-            // is centered and scaled to fit, leaving letterbox margins we draw the
-            // extension bands into. imgScale = displayed px per image px.
-            const imgScale = Math.min(rect.width / W, rect.height / H);
-            const imgW = W * imgScale, imgH = H * imgScale;
-            const imgX = (rect.width - imgW) / 2, imgY = (rect.height - imgH) / 2;
-            const toX = (ix) => imgX + ix * imgScale;
-            const toY = (iy) => imgY + iy * imgScale;
+            // GROWING-FRAME layout: we lay out the FULL extended canvas (original +
+            // all margins) and scale THAT to fit the box. As the user adds margins,
+            // totalW/H grow, the scale shrinks, and the original image visibly shrinks
+            // inside the growing frame — so you can see how much bigger the image gets
+            // with each dimension change. The original image is drawn inset by the
+            // top/left margins; extension bands fill the rest.
+            const totalW = W + d.left + d.right;
+            const totalH = H + d.top + d.down;
+            const scale = Math.min(rect.width / totalW, rect.height / totalH);
+            const frameW = totalW * scale, frameH = totalH * scale;
+            // Centre the whole extended frame in the box.
+            const frameX = (rect.width - frameW) / 2, frameY = (rect.height - frameH) / 2;
+            // Original image position within the frame (offset by top/left margins).
+            const imgX = frameX + d.left * scale, imgY = frameY + d.top * scale;
+            const imgW = W * scale, imgH = H * scale;
+            // Coordinates in TRUE image pixels → canvas (relative to the image origin).
+            const toX = (ix) => imgX + ix * scale;
+            const toY = (iy) => imgY + iy * scale;
 
-            // Extension bands (where NEW pixels will be generated) — drawn in the
-            // letterbox space just outside the image edge, clamped to the box.
+            // Position the VISIBLE <img> to exactly the inset image rect so it shrinks
+            // and repositions in lockstep with the growing frame (the canvas overlay
+            // draws bands/rulers around it). Switch it from object-contain fill to an
+            // absolutely-placed element matching imgX/imgY/imgW/imgH.
+            const visImg = backdrop.querySelector((overlay._sel || {}).img || '#av-sr-img');
+            if (visImg) {
+                visImg.style.position = 'absolute';
+                visImg.style.left = imgX + 'px';
+                visImg.style.top = imgY + 'px';
+                visImg.style.width = imgW + 'px';
+                visImg.style.height = imgH + 'px';
+                visImg.style.objectFit = 'fill';  // rect already matches aspect
+            }
+
+            // Extension zone: wash over the WHOLE extended frame, then the opaque
+            // original image is represented by the visible <img> beneath — so we cut
+            // a "hole" by only washing the margin areas. Simpler: wash the full frame
+            // lightly; the image sits on top via the HTML <img> (object-contain), but
+            // since the frame no longer matches the <img> placement, we instead draw
+            // the wash only in the margin bands around the inset image.
             ctx.fillStyle = 'rgba(124, 104, 238, 0.28)';
-            const bandUp = Math.min(d.top * imgScale, imgY);
-            const bandDown = Math.min(d.down * imgScale, rect.height - (imgY + imgH));
-            const bandLeft = Math.min(d.left * imgScale, imgX);
-            const bandRight = Math.min(d.right * imgScale, rect.width - (imgX + imgW));
-            if (d.top > 0) ctx.fillRect(imgX, imgY - bandUp, imgW, bandUp);
-            if (d.down > 0) ctx.fillRect(imgX, imgY + imgH, imgW, bandDown);
-            if (d.left > 0) ctx.fillRect(imgX - bandLeft, imgY, bandLeft, imgH);
-            if (d.right > 0) ctx.fillRect(imgX + imgW, imgY, bandRight, imgH);
+            if (d.top > 0)   ctx.fillRect(frameX, frameY, frameW, imgY - frameY);
+            if (d.down > 0)  ctx.fillRect(frameX, imgY + imgH, frameW, (frameY + frameH) - (imgY + imgH));
+            if (d.left > 0)  ctx.fillRect(frameX, imgY, imgX - frameX, imgH);
+            if (d.right > 0) ctx.fillRect(imgX + imgW, imgY, (frameX + frameW) - (imgX + imgW), imgH);
 
-            // Current-image frame.
-            ctx.strokeStyle = 'rgba(160,170,190,0.85)'; ctx.lineWidth = 1;
+            // Outer frame = the FINAL extended bounds (dashed indigo).
+            ctx.save();
+            ctx.setLineDash([6, 4]);
+            ctx.strokeStyle = 'rgba(129,140,248,0.9)'; ctx.lineWidth = 1.5;
+            ctx.strokeRect(frameX + 0.5, frameY + 0.5, frameW - 1, frameH - 1);
+            ctx.restore();
+
+            // Original-image frame (solid).
+            ctx.strokeStyle = 'rgba(220,225,235,0.9)'; ctx.lineWidth = 1.5;
             ctx.strokeRect(imgX + 0.5, imgY + 0.5, imgW, imgH);
 
             // Subject bbox (if a silhouette was measured) — dashed emerald box.
             if (bbox) {
                 ctx.save();
                 ctx.strokeStyle = 'rgba(52, 211, 153, 0.9)'; ctx.setLineDash([4, 3]); ctx.lineWidth = 1.5;
-                ctx.strokeRect(toX(bbox.left) + 0.5, toY(bbox.top) + 0.5, bbox.w * imgScale, bbox.h * imgScale);
+                ctx.strokeRect(toX(bbox.left) + 0.5, toY(bbox.top) + 0.5, bbox.w * scale, bbox.h * scale);
                 ctx.restore();
             }
 
-            // Ruler ticks along the top + left edges of the IMAGE (true image pixels).
+            // Ruler ticks along the top + left edges of the ORIGINAL image (true px).
             ctx.fillStyle = 'rgba(210,215,230,0.9)'; ctx.strokeStyle = 'rgba(150,158,178,0.7)';
             ctx.lineWidth = 1; ctx.font = '9px ui-monospace, monospace';
             const step = W > 1400 ? 512 : 256;
