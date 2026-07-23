@@ -229,7 +229,7 @@
                                     <!-- Preview box: HTML <img> (object-contain) + measurement overlay,
                                          same structure as the 3D source-review dialog so the shared
                                          _wireMeasurement renderer draws rulers + extension bands here. -->
-                                    <div class="relative w-full bg-brand-bg rounded-lg overflow-hidden border border-brand-border" style="height: 320px;">
+                                    <div class="relative w-full bg-brand-bg rounded-lg overflow-hidden border border-brand-border" style="height: 380px;">
                                         <img id="av-out-img" class="w-full h-full object-contain" alt="Extend preview" crossorigin="anonymous" />
                                         <canvas id="av-out-measure" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
                                     </div>
@@ -2570,9 +2570,9 @@
                             <p id="av-sr-verdict" class="text-xs mt-1"></p>
                             <p class="text-[11px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_src_pv_confirm_sub')} ${t('asset_viewer.three_d_src_pv_confirm_sub2')}</p>
                         </div>
-                        <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center relative" style="height: 300px;">
+                        <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center relative" style="height: 360px;">
                             <img id="av-sr-img" src="${srcUrlFor()}" class="w-full h-full object-contain" alt="3D source" crossorigin="anonymous" />
-                            <canvas id="av-sr-mask" class="cursor-crosshair hidden" style="max-width:100%; max-height:300px;"></canvas>
+                            <canvas id="av-sr-mask" class="cursor-crosshair hidden" style="max-width:100%; max-height:360px;"></canvas>
                             <canvas id="av-sr-measure" class="absolute inset-0 w-full h-full pointer-events-none hidden"></canvas>
                         </div>
                         <div id="av-sr-stats" class="text-[10px] text-brand-text-muted flex flex-wrap items-center gap-x-4 gap-y-1 px-1 hidden"></div>
@@ -2939,18 +2939,26 @@
             ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
             ctx.clearRect(0, 0, rect.width, rect.height);
 
+            // A ruler GUTTER is reserved along the top + left edges — the ruler is
+            // drawn there, OUTSIDE the image, never overlapping it (a proper
+            // editor-style ruler). The extended frame is laid out in the remaining
+            // content region (box minus the gutter).
+            const GUT = 22;  // gutter thickness in CSS px (top + left)
+            const contentW = Math.max(2, rect.width - GUT);
+            const contentH = Math.max(2, rect.height - GUT);
+
             // GROWING-FRAME layout: we lay out the FULL extended canvas (original +
-            // all margins) and scale THAT to fit the box. As the user adds margins,
-            // totalW/H grow, the scale shrinks, and the original image visibly shrinks
-            // inside the growing frame — so you can see how much bigger the image gets
-            // with each dimension change. The original image is drawn inset by the
-            // top/left margins; extension bands fill the rest.
+            // all margins) and scale THAT to fit the CONTENT region. As the user adds
+            // margins, totalW/H grow, the scale shrinks, and the original image visibly
+            // shrinks inside the growing frame — so you can see how much bigger the
+            // image gets with each dimension change. The image is inset by the top/left
+            // margins; extension bands fill the rest.
             const totalW = W + d.left + d.right;
             const totalH = H + d.top + d.down;
-            const scale = Math.min(rect.width / totalW, rect.height / totalH);
+            const scale = Math.min(contentW / totalW, contentH / totalH);
             const frameW = totalW * scale, frameH = totalH * scale;
-            // Centre the whole extended frame in the box.
-            const frameX = (rect.width - frameW) / 2, frameY = (rect.height - frameH) / 2;
+            // Centre the extended frame within the content region (offset past gutter).
+            const frameX = GUT + (contentW - frameW) / 2, frameY = GUT + (contentH - frameH) / 2;
             // Original image position within the frame (offset by top/left margins).
             const imgX = frameX + d.left * scale, imgY = frameY + d.top * scale;
             const imgW = W * scale, imgH = H * scale;
@@ -3003,22 +3011,50 @@
                 ctx.restore();
             }
 
-            // Ruler ticks along the top + left edges of the ORIGINAL image (true px).
-            ctx.fillStyle = 'rgba(210,215,230,0.9)'; ctx.strokeStyle = 'rgba(150,158,178,0.7)';
+            // Rulers in the GUTTER (outside the frame): the top ruler measures the
+            // final width (0 → totalW), the left ruler the final height (0 → totalH),
+            // aligned to the extended frame's edges. Ticks + labels live entirely in
+            // the gutter so they never overlap the image.
+            ctx.save();
+            // Gutter backgrounds.
+            ctx.fillStyle = 'rgba(15,18,28,0.55)';
+            ctx.fillRect(0, 0, rect.width, GUT);   // top gutter
+            ctx.fillRect(0, 0, GUT, rect.height);  // left gutter
+            ctx.fillStyle = 'rgba(210,215,230,0.95)';
+            ctx.strokeStyle = 'rgba(150,158,178,0.8)';
             ctx.lineWidth = 1; ctx.font = '9px ui-monospace, monospace';
-            const step = W > 1400 ? 512 : 256;
-            ctx.textAlign = 'center'; ctx.textBaseline = 'top';
-            for (let px = 0; px <= W; px += step) {
-                const x = toX(px);
-                ctx.beginPath(); ctx.moveTo(x, toY(0)); ctx.lineTo(x, toY(0) + 6); ctx.stroke();
-                ctx.fillText(String(px), x, toY(0) + 7);
-            }
-            ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
-            for (let py = 0; py <= H; py += step) {
-                const y = toY(py);
-                ctx.beginPath(); ctx.moveTo(toX(0), y); ctx.lineTo(toX(0) + 6, y); ctx.stroke();
-                ctx.fillText(String(py), toX(0) + 8, y);
-            }
+            const step = Math.max(totalW, totalH) > 1400 ? 512 : 256;
+            const fToX = (px) => frameX + px * scale;   // frame-pixel → canvas x
+            const fToY = (py) => frameY + py * scale;   // frame-pixel → canvas y
+            // Top ruler (X: 0..totalW). 0 and the endpoint are always labelled.
+            const xs = new Set([0, totalW]);
+            for (let px = 0; px <= totalW; px += step) xs.add(px);
+            ctx.textBaseline = 'bottom';
+            xs.forEach(px => {
+                const x = fToX(px);
+                if (x < GUT - 1 || x > rect.width + 1) return;
+                const end = (px === 0 || px === totalW);
+                ctx.beginPath(); ctx.moveTo(x, GUT); ctx.lineTo(x, GUT - (end ? 7 : 4)); ctx.stroke();
+                ctx.textAlign = px === 0 ? 'left' : px === totalW ? 'right' : 'center';
+                ctx.fillText(String(px), Math.min(Math.max(x, GUT), rect.width - 1), GUT - 8);
+            });
+            // Left ruler (Y: 0..totalH) — labels rotated to read vertically.
+            const ys = new Set([0, totalH]);
+            for (let py = 0; py <= totalH; py += step) ys.add(py);
+            ys.forEach(py => {
+                const y = fToY(py);
+                if (y < GUT - 1 || y > rect.height + 1) return;
+                const end = (py === 0 || py === totalH);
+                ctx.beginPath(); ctx.moveTo(GUT, y); ctx.lineTo(GUT - (end ? 7 : 4), y); ctx.stroke();
+                ctx.save();
+                ctx.translate(GUT - 9, Math.min(Math.max(y, GUT), rect.height - 1));
+                ctx.rotate(-Math.PI / 2);
+                ctx.textAlign = py === 0 ? 'right' : py === totalH ? 'left' : 'center';
+                ctx.textBaseline = 'bottom';
+                ctx.fillText(String(py), 0, 0);
+                ctx.restore();
+            });
+            ctx.restore();
 
             // Live "new canvas size" readout in the stats line. The newsize span is
             // injected inside the stats element (id 'av-sr-newsize'), which exists
