@@ -30,6 +30,20 @@ Environment variables (set by deployer from catalog['invoke']):
   ENABLE_SEQUENTIAL_CPU_OFFLOAD: Layer-by-layer offload (slowest, least VRAM)
   ENABLE_VAE_SLICING: Process VAE in slices (saves VRAM on batch generation)
   ENABLE_VAE_TILING: Process VAE in tiles (saves VRAM on large images)
+  VAE_UPCAST_FP32:   Upcast only the VAE to fp32 at decode — generic grain/artifact
+                     fix for any diffusers model (VAE is tiny; barely affects VRAM)
+
+Catalog `invoke` fields consumed here that are generic across models (set per
+model in model_registry.json, omitted when not needed):
+  positive_magic:    optional prompt-quality SUFFIX appended to every prompt
+                     (e.g. Qwen-Image's ", Ultra HD, 4K, cinematic composition.";
+                     FLUX and others omit it). Name is Qwen's term; mechanism is
+                     model-agnostic.
+  vae_upcast_fp32:   sets VAE_UPCAST_FP32 above (grain-debug A/B lever).
+
+Diagnostics emitted for ALL text_to_image + image_edit models (model-agnostic):
+  GEN-INPUT / COMPONENT-DIAG / IMG-DIAG — see _log_image_diagnostics /
+  _log_pipeline_component_dtypes.
 """
 
 import os
@@ -2853,9 +2867,13 @@ def _predict_text_to_image(input_data, model_dict):
         if key in input_data and input_data[key] is not None:
             kwargs[key] = input_data[key]
 
-    # Append the model's "positive_magic" quality suffix if configured (e.g.
-    # Qwen-Image's ", Ultra HD, 4K, cinematic composition." — the official
-    # pipeline always appends it; omitting it noticeably degrades quality).
+    # Optional per-model prompt-quality SUFFIX (generic, catalog-driven — NOT
+    # Qwen-specific). Any text_to_image model may set `invoke.positive_magic` in
+    # the catalog to a suffix its own docs recommend; models that need none (e.g.
+    # FLUX) simply omit it and nothing is appended. The field name is Qwen's term
+    # ("positive magic prompt") but the mechanism applies to every model.
+    # Qwen-Image example: ", Ultra HD, 4K, cinematic composition." — its official
+    # pipeline always appends it; omitting it noticeably degrades quality.
     positive_magic = _config.get("positive_magic", "")
     if positive_magic and kwargs.get("prompt"):
         kwargs["prompt"] = f"{kwargs['prompt'].rstrip()}{positive_magic}"
@@ -2957,7 +2975,9 @@ def _predict_image_edit(input_data, model_dict):
         kwargs.pop("callback_on_step_end", None)
         result = pipe(**kwargs)
 
-    return _encode_image(result.images[0])
+    image = result.images[0]
+    _log_image_diagnostics(image, tag="edit")  # same objective quality signals as generation
+    return _encode_image(image)
 
 
 def _predict_image_to_video(input_data, model_dict):
