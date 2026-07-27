@@ -2680,6 +2680,10 @@ def _get_model_environment(model_key: str, model: dict,
         env["ENABLE_VAE_SLICING"] = "true"
     if invoke.get("enable_vae_tiling"):
         env["ENABLE_VAE_TILING"] = "true"
+    # Grain-debug lever: upcast only the VAE to fp32 at decode (cheap; the VAE is
+    # tiny). Catalog opt-in so we can A/B it against the NF4-dtype fix on redeploy.
+    if invoke.get("vae_upcast_fp32"):
+        env["VAE_UPCAST_FP32"] = "true"
 
     # S3 model cache — handler saves quantized weights after first load,
     # loads from cache on subsequent cold starts (skips HF download + quantization)

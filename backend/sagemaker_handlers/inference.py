@@ -335,6 +335,78 @@ def _encode_image(pil_image, fmt="PNG"):
     return base64.b64encode(buf.getvalue()).decode("utf-8")
 
 
+def _log_image_diagnostics(pil_image, tag=""):
+    """Log objective quality signals for a generated image (grain-debug aid).
+
+    Distinguishes "the model produced grainy pixels" (pipeline/quant problem)
+    from downstream issues: computes overall pixel stats + a high-frequency
+    "grain" score (mean absolute Laplacian) on a SMOOTH region (top strip, which
+    for most compositions is sky/background and SHOULD be clean). A high grain
+    score on a smooth strip is the signature we saw on the NF4 output. Also flags
+    degenerate output (near-black / near-constant / NaN-ish). Best-effort — never
+    raises, never blocks generation."""
+    try:
+        import numpy as _np
+        a = _np.asarray(pil_image.convert("RGB"), dtype=_np.float32)
+        h, w = a.shape[:2]
+        gray = a.mean(axis=2)
+        # High-frequency energy over the whole image and over a smooth top strip.
+        def _hf(patch):
+            if patch.shape[0] < 3 or patch.shape[1] < 3:
+                return 0.0
+            lap = (_np.abs(_np.diff(patch, axis=0)[:, :-1]) +
+                   _np.abs(_np.diff(patch, axis=1)[:-1, :]))
+            return float(lap.mean())
+        strip = gray[: max(1, h // 8), :]  # top 1/8 — usually smooth background
+        logger.info(
+            "IMG-DIAG%s: size=%dx%d mean=%.1f std=%.1f min=%.0f max=%.0f "
+            "grain_full=%.2f grain_smoothstrip=%.2f",
+            f"[{tag}]" if tag else "", w, h,
+            float(gray.mean()), float(gray.std()), float(gray.min()), float(gray.max()),
+            _hf(gray), _hf(strip),
+        )
+        if float(gray.std()) < 2.0:
+            logger.warning("IMG-DIAG%s: output is near-CONSTANT (std<2) — possible black/blank/NaN render",
+                           f"[{tag}]" if tag else "")
+    except Exception as e:
+        logger.info("IMG-DIAG: skipped (%s)", e)
+
+
+def _log_pipeline_component_dtypes(pipe, tag=""):
+    """Log the runtime dtype + quantization of each pipeline component.
+
+    The single most useful load-time diagnostic: confirms the VAE is really bf16
+    and UN-quantized, the transformer/text_encoder are NF4, and nothing silently
+    loaded in fp16. Reads actual parameter dtypes off the live modules, so it
+    reflects what inference will really use — not what we intended. Best-effort."""
+    try:
+        for name in ("transformer", "text_encoder", "text_encoder_2", "vae"):
+            comp = getattr(pipe, name, None)
+            if comp is None:
+                continue
+            try:
+                p = next(comp.parameters())
+                dtype = str(p.dtype)
+                dev = str(p.device)
+            except StopIteration:
+                dtype = dev = "n/a"
+            # Detect BnB quantization by class name of any submodule.
+            quant = "none"
+            try:
+                for m in comp.modules():
+                    cn = type(m).__name__.lower()
+                    if "4bit" in cn or "nf4" in cn or "bnb" in cn or "linear4bit" in cn:
+                        quant = "nf4/4bit"; break
+                    if "int8" in cn or "linear8bit" in cn:
+                        quant = "int8"; break
+            except Exception:
+                pass
+            logger.info("COMPONENT-DIAG%s: %s dtype=%s device=%s quant=%s",
+                        f"[{tag}]" if tag else "", name, dtype, dev, quant)
+    except Exception as e:
+        logger.info("COMPONENT-DIAG: skipped (%s)", e)
+
+
 def _get_env(key, default=""):
     return os.environ.get(key, default)
 
@@ -1254,6 +1326,23 @@ def _load_diffusers(model_dir):
             pipe.enable_vae_tiling()
         except Exception:
             pass
+
+    # Optional VAE fp32 upcast (grain-debug lever). A diffusion VAE decoding in a
+    # reduced precision can introduce fine grain/noise into otherwise-smooth
+    # regions; upcasting ONLY the VAE to fp32 for decode is a well-known, cheap fix
+    # (the VAE is ~0.24 GB, so fp32 barely moves VRAM). Opt-in via VAE_UPCAST_FP32
+    # so we can A/B it against the NF4-dtype fix without a code change and pin down
+    # whether the grain originates in the VAE decode vs. the transformer.
+    if _get_env_bool("VAE_UPCAST_FP32") and getattr(pipe, "vae", None) is not None:
+        try:
+            pipe.vae = pipe.vae.to(torch.float32)
+            logger.info("VAE upcast to float32 for decode (VAE_UPCAST_FP32=1)")
+        except Exception as e:
+            logger.warning("VAE fp32 upcast failed: %s", e)
+
+    # Load-time component-state snapshot (dtype/device/quant per component) — the
+    # first thing to check in the logs when debugging output quality.
+    _log_pipeline_component_dtypes(pipe, tag="load")
 
     return {"library": "diffusers", "pipe": pipe}
 
@@ -2771,6 +2860,19 @@ def _predict_text_to_image(input_data, model_dict):
     if positive_magic and kwargs.get("prompt"):
         kwargs["prompt"] = f"{kwargs['prompt'].rstrip()}{positive_magic}"
 
+    # Diagnostics: echo EXACTLY what reaches the pipeline (confirms the negative
+    # prompt / CFG / size fixes actually arrived) + the live component dtypes/quant
+    # (confirms VAE is bf16 & un-quantized, transformer is NF4). This is what makes
+    # a redeploy A/B conclusive rather than "looks less grainy".
+    logger.info(
+        "GEN-INPUT: size=%sx%s steps=%s true_cfg=%s neg=%r prompt_chars=%d seed=%s",
+        kwargs.get("width"), kwargs.get("height"), kwargs.get("num_inference_steps"),
+        kwargs.get("true_cfg_scale"),
+        (kwargs.get("negative_prompt") or "")[:160], len(kwargs.get("prompt", "")),
+        seed,
+    )
+    _log_pipeline_component_dtypes(pipe, tag="gen")
+
     # Progress logging for diffusers pipelines
     total_steps = kwargs.get("num_inference_steps", 50)
     import time as _t
@@ -2790,7 +2892,12 @@ def _predict_text_to_image(input_data, model_dict):
         del kwargs["callback_on_step_end"]
         result = pipe(**kwargs)
 
-    return _encode_image(result.images[0])
+    image = result.images[0]
+    # Objective quality signals on the RAW pipeline output (before PNG encode):
+    # a high grain score on the smooth top strip = the model itself produced
+    # grainy pixels (pipeline/quant issue), not something added downstream.
+    _log_image_diagnostics(image, tag="gen")
+    return _encode_image(image)
 
 
 def _predict_image_edit(input_data, model_dict):
