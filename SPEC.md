@@ -2154,21 +2154,19 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 >
 > Model prices' `base_price_usd` / per-region `quality_prices` are displayed in the Image/Video Studio selectors and estimates. Pricing is cached in the registry and only updated when an admin runs refresh-all.
 
-All prices below are from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for the app's **default regions** — `us-west-2` (Claude, Stability AI) and `us-east-1` (Nova Sonic, Nova Reel). Prices are on-demand, per-request. **Other AWS Regions may differ** — the application reads live, per-region pricing from the AWS Pricing API into `model_registry.json` (per-model `base_price_usd` / `quality_prices`) and displays the cost for your actual configured region, so these tables are for planning only.
+Model lineups and prices change frequently (deprecations, launches, revisions), so **any dollar figure written into this doc is an illustrative snapshot, not authoritative**. The application is the source of truth: it reads live, per-region pricing from the AWS Pricing API into `model_registry.json` (per-model `base_price_usd` / `quality_prices`) on each Sync and displays the cost for your actual configured region. Confirm current pricing in-app or on the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/). The app's default regions are `us-west-2` (Claude, Stability AI) and `us-east-1` (Nova Sonic, Nova Reel).
 
 ### 14.1 Per-Unit Pricing
 
-| Service | Model | Per-Unit Cost | Unit |
-|---------|-------|--------------|------|
-| **Claude Sonnet** | newest Sonnet on Sync | $3.00 input / $15.00 output | per 1M tokens |
-| **Claude Opus** | newest Opus on Sync | $5.00 input / $25.00 output | per 1M tokens |
-| **Claude Opus (vision)** | same | ~$0.008 | per 1024×1024 image input |
-| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
-| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | per image |
-| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | per image |
-| **Remove Background** | `us.stability.stable-image-remove-background-v1:0` | $0.07 | per image |
-| **Creative Upscale** | `stability.stable-creative-upscale-v1:0` | $0.60 | per image |
-| **SVG Conversion** | vtracer / potrace / Pillow (local) | $0.00 | free — runs locally |
+What incurs cost and its billing unit — the current per-unit price is fetched live and shown in-app (figures here are illustrative order-of-magnitude only):
+
+| Service | Model | Billed by | Notes |
+|---------|-------|-----------|-------|
+| **LLM prompt engineering & chat** | Claude Sonnet / Opus (newest on Sync) | input & output tokens | Prices stamped per-model onto `chat_models` by `_apply_llm_pricing`; Opus ≫ Sonnet |
+| **Bedrock image generation** | SD 3.5 Large, Stable Image Ultra, Stable Image Core | per image | Ultra ≫ SD 3.5 ≫ Core; per-model `base_price_usd`/`quality_prices` in registry |
+| **Self-hosted image / 3D** | FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2 | SageMaker GPU-seconds | Not per-image; scale-to-zero = $0 idle. Rate via `get_instance_hourly_rate` |
+| **Remove Background / Creative Upscale** | Stability AI services | per image | Creative Upscale is the most expensive post-processing step |
+| **SVG Conversion** | vtracer / potrace / Pillow (local) | — | free, runs locally |
 
 > [!NOTE]
 > Prices from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official source.

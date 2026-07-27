@@ -1437,24 +1437,22 @@ Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `m
 
 ## 📌 12. Amazon Bedrock Pricing & Cost Breakdown
 
-> [!NOTE]
-> The tables below are **reference pricing for planning purposes**. The app itself shows **live per-model pricing** in the Image Studio sidebar — fetched from the AWS Pricing API during registry refresh and stored in `model_registry.json`. The in-app cost estimate updates dynamically based on selected model, quality tier, region, and batch size.
+> [!IMPORTANT]
+> **This section does NOT list authoritative per-model prices.** Model lineups and prices change frequently (models are deprecated, new ones launch, prices are revised), so any figures hard-coded in docs go stale fast. The **only source of truth for cost is the app itself** — it fetches **live per-model pricing** from the AWS Pricing API during each Sync, stores it in `model_registry.json`, and shows the real cost for your selected model, quality tier, region, and batch size in the Image Studio sidebar. Any numbers below are **illustrative order-of-magnitude examples only** — always confirm current pricing on the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) or in the app.
 
-Reference prices are taken from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for the app's **default regions** — `us-west-2` (Claude, Stability AI) and `us-east-1` (Amazon Nova Sonic, Nova Reel). Prices can differ in other AWS Regions; the app always shows **live pricing for your actual configured region** in the Image Studio sidebar (fetched from the AWS Pricing API). See also [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) for monthly team projections and deployment cost estimates.
+The app's **default regions** are `us-west-2` (Claude, Stability AI) and `us-east-1` (Amazon Nova Sonic, Nova Reel); prices differ by region. See also [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) for the cost model.
 
 ### 📝 12.1 Per-Unit Pricing
 
-| Service | Model | Cost | Unit |
-|---------|-------|------|------|
-| **Claude Sonnet** (latest, auto-rolled) | newest Sonnet on Sync | $3.00 input / $15.00 output | per 1M tokens |
-| **Claude Opus** (latest, auto-rolled) | newest Opus on Sync | $5.00 input / $25.00 output | per 1M tokens |
-| **Claude Opus (vision)** | same | ~$0.008 | per 1024×1024 image input |
-| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
-| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | per image |
-| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | per image |
-| **Remove Background** | Stability AI | $0.07 | per image |
-| **Creative Upscale** | Stability AI | $0.60 | per image |
-| **SVG Conversion** | Local (vtracer/potrace) | $0.00 | free |
+What incurs cost, and its billing unit (see the app for the current per-unit price):
+
+| Service | Billed | Notes |
+|---------|--------|-------|
+| **LLM prompt engineering & chat** (Claude Sonnet / Opus, auto-rolled to newest on Sync) | per input / output token | Prompt refinement, concepts, chat, style analysis, moderation |
+| **Bedrock image generation** (Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | per image | Ultra ≫ SD 3.5 ≫ Core in price; live figure shown in-app |
+| **Self-hosted image / 3D** (FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | per GPU-second of your SageMaker instance | Scale-to-zero when idle ($0); not billed per image |
+| **Post-processing** (Remove Background, Creative Upscale) | per image | Stability AI services |
+| **SVG conversion** | free | Local (vtracer/potrace) — $0.00 |
 
 > [!NOTE]
 > Prices from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) as of March 2026. Prices may change — always verify against the official source before budgeting.
