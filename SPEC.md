@@ -129,13 +129,12 @@ FastAPI Backend (Python)
     v
 AI Pipeline (Amazon Bedrock)
     |
-    +-- Claude Sonnet 4.6      — Fast tasks: prompt refinement, generation hints, cohesion check (Phase 1), chat
-    +-- Claude Opus 4.6        — Complex tasks: style analysis (Phase 2), concept generation, marketing copy, chat
+    +-- Claude Sonnet          — Fast tasks: prompt refinement, generation hints, cohesion check (Phase 1), chat
+    +-- Claude Opus            — Complex tasks: style analysis (Phase 2), concept generation, marketing copy, chat
     +-- 80+ LLMs              — Chat Studio: Claude, Nova, Llama, Mistral, Cohere, Qwen, DeepSeek, etc.
-    +-- Nova Canvas             — Primary image generation (text-to-image)
-    +-- Titan Image v2          — Alternative image generation
-    +-- Stable Diffusion 3.5 Large            — Image generation (Stability AI)
+    +-- Stable Diffusion 3.5 Large — Primary image generation (text-to-image)
     +-- Stable Image Ultra      — Image generation (Stability AI premium)
+    +-- Stable Image Core       — Image generation (Stability AI fast)
     +-- Stability AI            — Background removal, upscaling, inpainting, style transfer
     +-- Nova Reel v1.0/v1.1    — Video generation (text-to-video, image-to-video, multi-shot)
     +-- Luma AI Ray v2.0       — Video generation (text-to-video, flexible aspect ratios)
@@ -165,7 +164,7 @@ ArtSmoker/
 │   ├── main.py                    # FastAPI app, CORS, lifespan, static mount
 │   ├── config.py                  # AWS config, model IDs, paths, defaults
 │   ├── model_registry.json        # Persisted model configuration (LLMs, image models, post-processing)
-│   ├── prompt_templates.json      # Persisted editable LLM directive prompts (27 templates)
+│   ├── prompt_templates.json      # Persisted editable LLM directive prompts (28 templates)
 │   ├── routers/
 │   │   ├── styles.py              # Style profile CRUD + directory import + analysis
 │   │   ├── generate.py            # Two-level asset generation (options × variations) + image editing
@@ -309,7 +308,7 @@ A style profile captures the visual DNA of a game's art:
    - **Phase 2 — Full analysis (Claude Opus, vision)**: The cohesion assessment from Phase 1 is fed to Claude Opus alongside the (sampled) reference images, guiding it to analyze appropriately for the collection type. This means diverse collections get useful hints about production patterns, not a diluted "colorful game art" generic description. Image format is detected from magic bytes (JPEG/PNG/GIF/WebP) rather than hardcoded, ensuring correct MIME types in Bedrock Converse API calls. The `palette` field is coerced from dict to list when the LLM returns a dict instead of the expected hex-string list.
    - The analysis prompt is specifically designed for game assets on transparent backgrounds — it asks for material-specific rendering details (how stone, wood, metal are rendered), proportion system, and shadow/lighting specifics. The analysis is **context-aware** — Claude sees both the images AND the user's existing `generation_hints` (passed as "Artist's Guidance") so it understands the user's intent.
    - The cohesion check adds ~$0.01 per analysis (Sonnet with 8 images is very cheap).
-5. Claude Sonnet 4.6 distils the analysis into a concise `generation_hints` paragraph (max 200 words) via `generate_hints(style_id, analyzed_style, user_hints)`, also receiving the user's guidance as context. The hints cover 8 dimensions: perspective, rendering with material specifics, color palette by material, proportions, edge treatment, shadow/lighting, detail level, and background — specific enough that generated assets should visually blend with existing reference images.
+5. Claude Sonnet distils the analysis into a concise `generation_hints` paragraph (max 200 words) via `generate_hints(style_id, analyzed_style, user_hints)`, also receiving the user's guidance as context. The hints cover 8 dimensions: perspective, rendering with material specifics, color palette by material, proportions, edge treatment, shadow/lighting, detail level, and background — specific enough that generated assets should visually blend with existing reference images.
 6. Profile is cached as `profile.json` inside `data/styles/{style_id}/`.
 7. User can manually edit/refine the profile.
 8. Profile's `generation_hints` are incorporated into every generation prompt.
@@ -340,11 +339,11 @@ The generation system produces images across two dimensions:
 - **Variations** (1-5, default 5): Seed variations of each option. Same prompt, different random seeds passed to the image generator.
 - **Total images** = `num_options` x `num_variations` (up to 25 images per batch).
 
-**Multi-model mode** (`all_models: true`): Generates with multiple models instead of a single model. The frontend sends `selected_models: ["nova_canvas", "sd35_large", ...]` — a list of specific model keys chosen via the checkbox dropdown. If `selected_models` is not provided (backward compat), all enabled models are used. Each model becomes an "option" with configurable variations. Models run independently — no shared canary, no cooperative cancellation. Moderation blocks on one model don't affect others. The pipeline is handled by `_run_all_models_generation()` in `generate.py`.
+**Multi-model mode** (`all_models: true`): Generates with multiple models instead of a single model. The frontend sends `selected_models: ["sd35_large", "stable_image_ultra", ...]` — a list of specific model keys chosen via the checkbox dropdown. If `selected_models` is not provided (backward compat), all enabled models are used. Each model becomes an "option" with configurable variations. Models run independently — no shared canary, no cooperative cancellation. Moderation blocks on one model don't affect others. The pipeline is handled by `_run_all_models_generation()` in `generate.py`.
 
-- Models are ordered by moderation strictness (least strict first: SD 3.5 Large → Stable Image Ultra → Titan Image → Nova Canvas) for optimal throughput.
+- Models are ordered by moderation strictness (least strict first: SD 3.5 Large → Stable Image Ultra → Stable Image Core) for optimal throughput.
 - **Same prompt mode** (default): One prompt refined once, sent to all models for direct comparison.
-- **Model-optimized mode** (`model_optimized_prompts: true`): Prompt is refined separately per model (e.g., SD 3.5 Large gets quality boosters, Nova Canvas gets structured captions).
+- **Model-optimized mode** (`model_optimized_prompts: true`): Prompt is refined separately per model (e.g., SD 3.5 Large gets quality boosters, Qwen-Image gets text-rendering cues).
 - Per-model results include `status` ("success", "moderation_blocked", "error"), `status_detail` (error message), and the specific `image_model`/`model_label` used.
 - SSE events include `model_status` (per-model as each completes) and `all_models_summary` (in the `complete` event).
 - Per-variant `metadata.json` stores the actual model used (`image_model`, `model_label`, `all_models: true`).
@@ -367,11 +366,11 @@ User prompt: "hospital building"
     page and trigger re-decompose on change.
          |
          v
-    [Concept Generation — Claude Opus 4.6 (complex)]
+    [Concept Generation — Claude Opus (complex)]
     Uses locked/variable sections instead of flat recomposed text.
     Locked fields are preserved verbatim; variable fields are creatively
     varied across concepts. `optimal_prompt_words` per model controls
-    target length (30-80 words for HunyuanImage, 80 for Nova Canvas,
+    target length (30-80 words for HunyuanImage,
     120 for SD 3.5 Large). If num_options > 1: generate_concept_prompts()
     produces N distinctly different enhanced prompts as a JSON array.
     If num_options == 1: refine_prompt() (Claude Sonnet, fast) produces
@@ -383,10 +382,9 @@ User prompt: "hospital building"
     [Model-Specific Prompt Enhancement]
     Prompt is restructured as a descriptive CAPTION (not a command) per target model,
     with model-specific guidance applied during the enhancement step:
-    - Nova Canvas: caption style, Subject→Environment→Pose→Lighting→Camera→Style, 900 chars
-    - Titan Image v2: concise captions, 480 chars
     - SD 3.5 Large: quality boosters (masterpiece, best quality), style tokens, 2000 chars
     - Stable Image Ultra: photorealistic quality boosters, 2000 chars
+    - Stable Image Core: quality boosters, fast tier, 2000 chars
     - HunyuanImage: concise descriptive prompts (30-80 words), CoT reasoning model
     Negative prompt parsed by _parse_negative_prompt() and passed through pipeline.
          |
@@ -394,7 +392,7 @@ User prompt: "hospital building"
     For each enhanced prompt, generate num_variations images in parallel:
          |
          v
-    [Image Generation — Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, or Stable Image Ultra]
+    [Image Generation — Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, or a self-hosted model]
     Input: enhanced prompt + negative prompt + random seed per variation
     Output: PNG image (default 1024x1024)
          |
@@ -436,10 +434,9 @@ User prompt: "hospital building"
 
 | Model | Prompt Limit (chars) |
 |-------|---------------------|
-| Nova Canvas | 900 |
-| Titan Image v2 | 480 |
 | Stable Diffusion 3.5 Large | 2000 |
 | Stable Image Ultra | 2000 |
+| Stable Image Core | 2000 |
 
 The active limit is passed to all prompt refinement functions (`refine_prompt()`, `refine_marketing_prompt()`, `generate_concept_prompts()`) and adjusts automatically when the user switches models. Stable Diffusion 3.5 Large and Stable Image Ultra get 2x richer prompts with more room for detail, composition, and quality directives. A hard truncation fallback (breaking on word boundaries) still applies per model.
 
@@ -447,13 +444,12 @@ The active limit is passed to all prompt refinement functions (`refine_prompt()`
 
 | Model | Prompt Style | Key Optimizations |
 |-------|-------------|-------------------|
-| Nova Canvas | Structured caption | Subject→Environment→Pose→Lighting→Camera→Style order, quality markers, 900 char limit |
-| Titan Image v2 | Concise caption | Shorter descriptive phrases, 480 char limit |
 | Stable Diffusion 3.5 Large | Rich caption with boosters | Quality boosters (masterpiece, best quality), style tokens (concept art, artstation), 2000 char limit |
 | Stable Image Ultra | Photorealistic caption | Photorealistic quality boosters, cinematic lighting descriptors, 2000 char limit |
+| Stable Image Core | Concise caption with boosters | Quality boosters, fast tier, 2000 char limit |
 | HunyuanImage 3.0 | Concise descriptive | Short prompts (30-80 words) for CoT reasoning model, no quality boosters needed |
 
-**Negative prompt support**: All four image models receive a negative prompt parameter alongside the main prompt. Negative prompts are extracted through multiple mechanisms:
+**Negative prompt support**: All Stability image models receive a negative prompt parameter alongside the main prompt. Negative prompts are extracted through multiple mechanisms:
 
 1. **Single-option refinement**: `refine_prompt()` instructs Claude to output a `NEGATIVE:` line, parsed by `_parse_negative_prompt()`.
 2. **Multi-option concept generation**: `generate_concept_prompts()` applies two extraction layers:
@@ -465,10 +461,9 @@ The negative prompt is stored in per-variant `metadata.json`, included in SSE ev
 
 | Model | Negative Prompt Parameter |
 |-------|--------------------------|
-| Nova Canvas | `negativeText` in `textToImageParams` |
-| Titan Image v2 | `negativeText` in `textToImageParams` |
 | Stable Diffusion 3.5 Large | `negative_prompt` field |
 | Stable Image Ultra | `negative_prompt` field |
+| Stable Image Core | `negative_prompt` field |
 
 Negative prompts are stored in per-variant `metadata.json` as `negative_prompt`.
 
@@ -578,7 +573,7 @@ Each variant is stored in its own directory under `data/generated/{asset_id}/` w
 This ensures that if the original style profile is later deleted or modified, the asset retains the full style context that was used during its creation. The AssetViewer shows the style name from `style_snapshot` as a fallback when the original style no longer exists. The gallery batch endpoint (`GET /api/gallery/batch/{batch_id}`) includes the `style_snapshot` in each variant's metadata.
 
 **GalleryItem** — a flat summary model for the gallery listing endpoint:
-- id, prompt, style_id, asset_type, png_url, svg_url, created_at.
+- id, prompt, style_id, asset_type, png_url, svg_url, created_at, has_3d (bool — true when a generated `.glb` exists for the asset; drives the "3D" badge and the "3D Models" media filter).
 
 ### 4.5 Voice Input (Nova Sonic)
 
@@ -619,7 +614,7 @@ Clean, modern single-page application served as static files mounted at `/` by F
   - **Art Style** selector, **Asset Type** selector.
   - **Image Model** multi-select checkbox dropdown — populated dynamically from the registry (`GET /api/admin/models/image-options`), not hardcoded. Checkboxes allow selecting any combination of models; "All Available Models" toggle at the bottom selects/deselects all. Minimum 1 model required — auto-selects first model on close if empty. Below the dropdown, a smart **summary line** shows the active configuration: `us-east-1 · Premium · $0.06/img` for single model, or `3 models × 2 options × 2 variations = 12 images (~$2.40)` for multi-model. Cost estimate updates live as models are checked/unchecked.
   - **Dimensions** (size presets: 512×512, 768×768, 1024×1024, 1024×576, 576×1024, 1280×720).
-  - **Advanced** (collapsible `<details>` section): **Quality** dropdown — shows quality tiers when the model supports them (e.g. Standard/Premium for Nova Canvas, "Default" for models without tiers). **Region** dropdown — shows the model's available regions sorted cheapest-first, with per-image pricing. "Auto" selects the cheapest. Quality and region changes update the summary line and pricing.
+  - **Advanced** (collapsible `<details>` section): **Quality** dropdown — shows quality tiers when the model supports them (no current model exposes tiers, so this shows "Default"; the mechanism remains for any future model with `quality_options`). **Region** dropdown — shows the model's available regions sorted cheapest-first, with per-image pricing. "Auto" selects the cheapest. Quality and region changes update the summary line and pricing.
   - **Cost estimate**: `Est. cost: ~$1.50 (25 images × $0.06)` — updates dynamically based on model, quality, region, options, and variations.
   - **Options** count (1-5), **Variations** count (1-5).
   - When **multiple models** are selected: a "Model-optimized prompts" toggle appears, and info text shows the model count, total images, and estimated cost.
@@ -634,7 +629,7 @@ Clean, modern single-page application served as static files mounted at `/` by F
   - **Prompt Editor DOM fix**: `document.contains()` check ensures the textarea is in the live DOM after view reset, preventing stale references.
   - **Prompt info section**: After generation, shows: original prompt, AI-improved prompt, **negative prompt** (red-labeled "exclusions sent to model", hidden when empty), and concept prompts for full lineage visibility.
   - Voice input and `loadBatch(batchId)` restore a previous batch from the Gallery into the 2D Image Studio view. `ensurePromptEditor()` is called on show/loadBatch for robust initialization. The loadBatch navigation uses a yield-then-poll pattern: sets the hash, yields to let the `hashchange` event fire, polls for a DOM element (up to 10s), then adds a 200ms settling delay to let `init()`/`onShow()` finish before writing batch data into the DOM. For partial batches (where some variants were deleted from Gallery), the toast shows "X of Y images remaining (Z deleted)" instead of the normal batch summary.
-- **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge (or model name in "All Models" mode), and a truncated concept prompt. In "All Models" mode, the header changes to "Models — comparison across image models", and blocked/failed models show a semi-transparent overlay badge ("Blocked — moderation" or "Failed"). Click to select an option — the **"Generated prompt — Option N"** (or **"Generated prompt — Nova Canvas"**) section updates with the exact prompt and negative prompt used for that option.
+- **Options row** (indigo/accent borders): Shows different creative concepts as thumbnail cards. Each card shows the first variation as a preview, the option number badge (or model name in "All Models" mode), and a truncated concept prompt. In "All Models" mode, the header changes to "Models — comparison across image models", and blocked/failed models show a semi-transparent overlay badge ("Blocked — moderation" or "Failed"). Click to select an option — the **"Generated prompt — Option N"** (or **"Generated prompt — Stable Diffusion 3.5 Large"**) section updates with the exact prompt and negative prompt used for that option.
 - **Concept prompt display**: Shows the full enhanced prompt for the selected option.
 - **Variations row** (emerald borders): Shows seed variants of the selected option. Click to select a variation.
 - **Main preview**: Large preview of the selected variant with checkerboard transparency background.
@@ -652,12 +647,12 @@ If there is only one option, the options row is hidden. If there is only one var
 
 - **IP Declaration** — "Intellectual Property (IP) Declaration" section in the Image Studio sidebar:
   - Two checkboxes: "I/We own this IP" and "I/We have a license for this IP".
-  - When checked with a strict model selected (Nova Canvas or Titan Image): shows a recommendation to switch to SD 3.5 Large with a "Switch now" quick-action link.
+  - When checked with a strict model selected: shows a recommendation to switch to SD 3.5 Large with a "Switch now" quick-action link.
   - **Pre-Check toggle disabled** when IP is declared — the user asserts they have rights, so pre-screening is unnecessary.
   - IP declaration stored in per-variant `metadata.json` (`ip_owned`, `ip_licensed`) for audit trail.
   - Shown in AssetViewer metadata display.
   - In moderation dialog: acknowledges the IP claim and explains platform limitation.
-  - Note: Nova Canvas moderation is platform-enforced by AWS and cannot be bypassed regardless of IP ownership.
+  - Note: Stability model moderation is platform-enforced by AWS and cannot be bypassed regardless of IP ownership.
 
 **Type Studio** (`#type-studio`) — Full text overlay system for creating titled/branded versions of gallery images or standalone text compositions.
 
@@ -696,7 +691,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 - **Gallery integration**: Results are saved as new gallery assets with full metadata (including `source: "type-studio"`, base image reference if applicable, text content, font choices, layout parameters, and `style_snapshot`). Assets created in Type Studio can be loaded back from the Gallery via an **"Edit in Type Studio"** button in the AssetViewer.
 
-**Gallery** (`#gallery`) — Unified grid of all generated images and videos sorted newest-first. Features a **Media filter** (All / 2D Artwork / Video), style filter, asset type filter, and search. Images load immediately; videos display thumbnails with play overlay, VIDEO badge, and duration indicator. Click a video to open the player modal. Backend always reads metadata fresh from disk. Supports pagination via `limit` and `offset` query parameters. Auto-refreshes via `onShow()` when navigating back, and after image edits or video generation completes.
+**Gallery** (`#gallery`) — Unified **masonry** layout (CSS multi-column, variable height) of all generated images and videos sorted newest-first, with each asset shown at its true aspect ratio. Features a **Media filter** (All / 2D Artwork / 3D Models / Video — "3D Models" lists assets that have a generated 3D model), style filter, asset type filter, and search. Assets that have a generated 3D model show a **"3D" badge**. Images load immediately; videos display thumbnails with play overlay, VIDEO badge, and duration indicator. Click a video to open the player modal. Backend always reads metadata fresh from disk. Supports pagination via `limit` and `offset` query parameters. Auto-refreshes via `onShow()` when navigating back, and after image edits or video generation completes.
 - **Search bar**: Instant filtering across prompts, style names, and asset types as the user types.
 - **Multi-select**: Checkboxes on each asset card for bulk selection. A **"Delete Selected"** button triggers `DELETE /api/gallery/` with `{ids: [...]}` for bulk deletion.
 - **Import Image**: An **"Import Image"** button (Gallery header) opens a modal (drag-drop or click-to-browse) that uploads an existing image via `POST /api/gallery/import` (multipart). The user must pick an **asset type** (required — no default; Character/Game Asset enable image-to-3D). Optional title and IP-declaration checkboxes. The backend normalizes the upload to PNG (via Pillow, any input format; EXIF stripped; alpha preserved), then writes the SAME on-disk structure as a generated asset (`data/generated/import_{uuid}/` with `asset.png` + `metadata.json`) so all downstream features (edit, versioning, image-to-3D, source review) work identically. The metadata carries `imported: true`, `image_model: "imported"`, `model_label: "Imported image"`, an empty `prompt` (the optional title doubles as the display prompt), captured `width`/`height`, and no `async_status` (treated as a complete/sync asset). No AI is invoked. Imported assets show an emerald **"Imported"** badge on the gallery card and in the AssetViewer info bar. The gallery refreshes and opens the new asset on success.
@@ -708,10 +703,11 @@ If there is only one option, the options row is hidden. If there is only one var
 - **Edit tab** — five editing modes:
   - **Inpaint**: Canvas brush mask painter (adjustable brush size). Paint the area to edit → enter a prompt → select an inpainting model from the registry → Apply. Mask extracted as black/white image (white = edit area).
   - **Erase**: Same mask UI, no prompt needed — removes objects and fills background.
-  - **Outpaint**: Directional pixel controls (left/right/up/down) + optional prompt. Extends the image.
+  - **Outpaint**: Directional pixel controls (left/right/up/down) + optional prompt. Extends the image. A **live growing-frame preview** renders the image inside an outside gutter with **pixel rulers**, auto-resizing as the extend dimensions change; negative values are blocked. This preview shares a single renderer with the 3D "Improve this Image" (source-completion) dialog.
   - **Replace**: Search & Replace — enter what to find and what to replace it with. Uses `stability_search_replace` format family.
   - **Recolor**: Search & Recolor — select an object and specify the target color. Uses `stability_search_recolor` format family.
   - Models populated dynamically from registry filtered by `model_purpose` (inpainting, erase, outpainting, search_replace, or search_recolor). Shows price per model.
+  - **AI "Generate Prompt" button** (per-mode, model-aware): reads the current image + its original generation prompt and suggests an edit instruction for the active mode via `POST /api/generate/suggest-edit-prompt`. The suggestion is tailored to the selected editor — a **descriptive caption** for Stability edit models and an **imperative instruction** for a Qwen-Image-Edit instruction editor (model-awareness is derived from the registry, not hardcoded). It can also flag `suggest_outpaint` for Extend/Outpaint mode.
   - **Replace original** checkbox (default: checked) — replaces the source image in-place. Uncheck to save as a new gallery asset instead. Metadata records the `source_image_id` and `edit_type` for provenance.
 - **SVG tab** — SVG preview (hidden when no SVG exists).
 - **Metadata tab** — full prompt lineage: original prompt → AI-improved prompt → generation prompt → negative prompt (amber-styled). Plus style (from `style_snapshot` fallback), asset type, image model (reads `model_label` from metadata), dimensions, seed, batch ID, option/variation, IP status, filename, created date. Adapts for Type Studio assets.
@@ -727,7 +723,7 @@ If there is only one option, the options row is hidden. If there is only one var
 |-----------|-----------|--------|
 | Backend | FastAPI (Python 3.11+) | Async, fast, Pydantic models, auto-docs |
 | Frontend | Vanilla JS + Tailwind CSS | No build step, fast to iterate, lightweight |
-| AI Models | Bedrock (boto3) | Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Claude, Nova Sonic, Stability |
+| AI Models | Bedrock (boto3) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Claude, Nova Sonic, Stability |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) | Cascade of vector tracing methods |
 | Text Rendering | Pillow (Python Imaging Library) | Text overlay composition with shadow, outline, glow effects |
 | Storage | Local filesystem | Simple start, S3-compatible interface for later migration |
@@ -738,7 +734,7 @@ If there is only one option, the options row is hidden. If there is only one var
 
 **Two-region architecture**:
 - `us-west-2` (`aws_region_models`): Claude models, Stability AI models (including Stable Diffusion 3.5 Large, Stable Image Ultra).
-- `us-east-1` (`aws_region_images`): Nova Canvas, Titan Image, Nova Sonic.
+- `us-east-1` (`aws_region_images`): Nova Sonic, Nova Reel.
 
 **Bedrock client** (`backend/services/bedrock_client.py`):
 - Lazy-initialized boto3 clients keyed by region with connection pooling (10 max pool connections).
@@ -777,21 +773,19 @@ Why both matter: the newest **frontier models are Mantle-only** — OpenAI **GPT
 
 | Model | ID | Region | Purpose |
 |-------|----|--------|---------|
-| Claude Sonnet 4.6 | `us.anthropic.claude-sonnet-4-6` | us-west-2 | Fast: prompt refinement, generation hints |
-| Claude Opus 4.6 | `us.anthropic.claude-opus-4-6-v1` | us-west-2 | Complex: style analysis, concept generation, marketing copy |
+| Claude Sonnet | newest Sonnet on Sync | us-west-2 | Fast: prompt refinement, generation hints |
+| Claude Opus | newest Opus on Sync | us-west-2 | Complex: style analysis, concept generation, marketing copy |
 | Claude 3.5 Sonnet v2 (fallback) | `anthropic.claude-3-5-sonnet-20241022-v2:0` | us-west-2 | Fallback on access denied |
-| Nova Canvas | `amazon.nova-canvas-v1:0` | us-east-1 | Primary image generation |
-| Titan Image v2 | `amazon.titan-image-generator-v2:0` | us-east-1 | Alternative image generation |
 | Stability Remove BG | `us.stability.stable-image-remove-background-v1:0` | us-west-2 | Background removal |
 | Stability Upscale | `us.stability.stable-creative-upscale-v1:0` | us-west-2 | Image upscaling |
-| Stable Diffusion 3.5 Large | `stability.sd3-5-large-v1:0` | us-west-2 | Image generation (Stability AI) |
+| Stable Diffusion 3.5 Large | `stability.sd3-5-large-v1:0` | us-west-2 | Primary image generation |
 | Stable Image Core 1.0 | `stability.stable-image-core-v1:1` | us-west-2 | Image generation (Stability AI fast) |
 | Stable Image Ultra | `stability.stable-image-ultra-v1:1` | us-west-2 | Image generation (Stability AI premium) |
 | Nova Reel v1.1 | `amazon.nova-reel-v1:1` | us-east-1 | Video generation (Amazon) |
 | Luma Ray v2.0 | `luma.ray-v2:0` | us-west-2 | Video generation (Luma AI) |
 | Nova Sonic | `amazon.nova-2-sonic-v1:0` | us-east-1 | Speech-to-text |
 
-> Note: Claude and Stability AI post-processing model IDs use **US inference profiles** (`us.anthropic.claude-sonnet-4-6`, `us.anthropic.claude-opus-4-6-v1`, `us.stability.stable-image-remove-background-v1:0`, `us.stability.stable-creative-upscale-v1:0`) rather than full versioned model IDs. Stable Diffusion 3.5 Large and Stable Image Ultra use **direct model IDs** (not inference profiles).
+> Note: Claude and Stability AI post-processing model IDs use **US inference profiles** (e.g. `us.anthropic.claude-*` for the current Sonnet/Opus, `us.stability.stable-image-remove-background-v1:0`, `us.stability.stable-creative-upscale-v1:0`) rather than full versioned model IDs. The Claude tiers auto-roll to the newest Sonnet/Opus on Sync, so the concrete IDs change over time. Stable Diffusion 3.5 Large and Stable Image Ultra use **direct model IDs** (not inference profiles).
 
 > Note: Stability AI generation models (Stable Diffusion 3.5 Large, Stable Image Ultra) use **aspect ratios** instead of exact pixel dimensions. The backend provides a `_dimensions_to_aspect_ratio()` helper that maps width×height to the closest supported ratio: 1:1, 16:9, 9:16, 3:2, 2:3, 4:5, 5:4, 21:9, 9:21.
 
@@ -850,7 +844,7 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
 
 5. **Chat models** (`chat_models`): Discovered LLM models available for Chat Studio. Keyed by internal name (e.g. `claude_sonnet_4_6`, `llama_3_3_70b`, `gpt_5_4`). Each entry stores: `label`, `model_id`, `provider`, `available_regions`, `context_window`, `supports_vision`, `supports_streaming`, `input_price_per_1k`, `output_price_per_1k`, `model_source` (`foundation`, `custom`, `imported`), and optionally `supports_temperature` (recorded by the Sync auto-roll's one-time probe — drives the inference-param gate in §4.8). It also carries the **endpoint/API routing** fields (§4.8): `endpoints[]` (`bedrock-runtime` and/or `bedrock-mantle`), `apis[]` (`converse`/`invoke`/`chat_completions`/`responses`/`messages`), and the resolved `invoke_endpoint` + `invoke_api` the app actually uses (Converse-first). All of these are user-overridable in `.user.json`. Custom and imported models inherit `format_family` from their base model.
 
-6. **Image models** (`image_models`): Keyed by internal name (e.g. `nova_canvas`, `sd35_large`). Each entry stores:
+6. **Image models** (`image_models`): Keyed by internal name (e.g. `sd35_large`, `stable_image_ultra`). Each entry stores:
    - `label` — human-readable display name
    - `model_id` — Bedrock model identifier
    - `region` — default AWS region for invocation
@@ -864,7 +858,7 @@ The model registry (`backend/model_registry.json` v2) is the **single source of 
    - `quality_options` — array of `{value, label, body_override}` for models with quality tiers (e.g. Standard/Premium). Empty for models without tiers.
    - `default_quality` — the default quality tier value
    - `base_price_usd` — fallback per-image price when the Pricing API has no data
-   - `extra_body` — model-specific body overrides deep-merged into the format family template (e.g. Nova Canvas `{"imageGenerationConfig": {"quality": "premium"}}`)
+   - `extra_body` — model-specific body overrides deep-merged into the format family template (e.g. a Stability model `{"output_format": "png"}`)
 
 7. **Post-processing** (`post_processing`): Keyed by operation name (`remove_background`, `upscale`). Each stores: `label`, `model_id`, `region`, `provider`, `enabled`.
 
@@ -893,7 +887,7 @@ This is the **only** operation that calls AWS discovery/pricing APIs. All other 
 - **Chat Studio** — discovered chat/LLM models with context window, vision support, pricing per 1K tokens
 - **Type Studio** — LLM model used for text layout generation
 - **Shared Studio** — cross-studio LLM categories (Fast/Complex/Fallback LLM, Voice), post-processing models
-- **Prompt Templates** — 27 editable LLM directive prompts organized by studio with two-level navigation
+- **Prompt Templates** — 28 editable LLM directive prompts organized by studio with two-level navigation
 - **Registry JSON** — raw JSON editor for the full model registry
 
 All sections are collapsible with Show All / Hide All toggles. Clicking "Model Settings" in any studio opens the modal to the relevant tab. The modal is 72rem wide.
@@ -928,8 +922,8 @@ model_registry.user.json     (gitignored, user preferences only)
 ├── categories.fast_llm      ← user's LLM category choice
 └── video_models.Y.enabled   ← user disabled this model
 
-prompt_templates.json        (git-tracked, regenerated from code on startup)
-└── 16 default templates     ← always reflects current code version
+prompt_templates.json        (git-tracked, runtime source of truth)
+└── 28 default templates     ← code _DEFAULTS backfills any missing on load
 
 prompt_templates.user.json   (gitignored, user edits only)
 ├── chat_title_generate.text ← user customized this template
@@ -938,23 +932,23 @@ prompt_templates.user.json   (gitignored, user edits only)
 
 **Load order** (every server start): main file → overlay `.user.json` on top. User preferences always win. Deep merge semantics: dict sections (e.g., individual model entries within `image_models`) are merged at the model level; non-dict sections (e.g., `bedrock_regions` array) are replaced wholesale. `_meta` keys are preserved across save/load cycles.
 
-**Runtime immutability**: `model_registry.json` is **read-only at runtime**. All user actions (enable/disable models, change categories, adjust settings) write exclusively to `model_registry.user.json`. The main file is only written by: (a) Sync from AWS, (b) git pull / auto-update. `prompt_templates.json` is **never written at runtime** — code `_DEFAULTS` is the source of truth, regenerated on every startup.
+**Runtime immutability**: `model_registry.json` is **read-only at runtime**. All user actions (enable/disable models, change categories, adjust settings) write exclusively to `model_registry.user.json`. The main file is only written by: (a) Sync from AWS, (b) git pull / auto-update. `prompt_templates.json` is the **runtime source of truth**. The code `_DEFAULTS` dict is a regeneration/backfill **seed** only — on load, templates missing from the JSON are written into it (fresh clone / newly added templates self-heal), but existing JSON entries are never overwritten. User edits overlay via `prompt_templates.user.json`.
 
 **Sync from AWS**: Writes discovered models, pricing, and regions to `model_registry.json`. Sync data (discovered models, pricing, regions) goes to the main file. User preferences in `.user.json` are preserved — a user who disabled a model keeps it disabled even after Sync re-discovers it.
 
-**Git pull / auto-update**: Version-gated — only pulls when remote `APP_VERSION` > local. Compares semantic versions from `config.py`. Dev mode (`ARTSMOKER_DEV_MODE=true`) disables all auto-updates. On successful pull, triggers self-restart via `os.execv` to reload updated code. An `atexit` handler provides runtime restart capability (e.g., after admin-triggered update). Frontend monitor checks `/api/update-status` once on page load and every 24 hours — shows a restart banner when an update is available. Updates `model_registry.json` (format families, code defaults) and `prompt_templates.json` (regenerated from code `_DEFAULTS`). User `.user.json` files are gitignored and untouched.
+**Git pull / auto-update**: Version-gated — only pulls when remote `APP_VERSION` > local. Compares semantic versions from `config.py`. Dev mode (`ARTSMOKER_DEV_MODE=true`) disables all auto-updates. On successful pull, triggers self-restart via `os.execv` to reload updated code. An `atexit` handler provides runtime restart capability (e.g., after admin-triggered update). Frontend monitor checks `/api/update-status` once on page load and every 24 hours — shows a restart banner when an update is available. Updates `model_registry.json` (format families, code defaults) and `prompt_templates.json` (the git-tracked template file; code `_DEFAULTS` only backfills templates missing from it). User `.user.json` files are gitignored and untouched.
 
 **Deleting `.user.json`**: Restores all settings to defaults. No user preferences leak into the main files.
 
 **First deployment auto-Sync**: On startup, the system checks for an `aws_account_discovered` timestamp in `model_registry.user.json` (gitignored). If missing (fresh deployment — models have never been discovered from this AWS account), a full Sync from AWS runs automatically after credential validation. This discovers all available models, pricing, and regions. Subsequent starts find the timestamp and skip auto-Sync. Since the timestamp is in the gitignored `.user.json`, fresh clones always trigger auto-Sync. Users can always Sync manually from Model Settings at any time.
 
-**Code defaults for self-healing**: If `model_registry.json` is deleted, the system regenerates it from code-defined defaults on startup: 4 base image models (Nova Canvas, Titan Image, SD 3.5 Large, Stable Image Ultra), 4 LLM categories, 15 format families, and 2 post-processing models. The auto-Sync then discovers and adds all remaining models from AWS.
+**Code defaults for self-healing**: If `model_registry.json` is deleted, the system regenerates it from code-defined defaults on startup: 3 base image models (SD 3.5 Large, Stable Image Ultra, Stable Image Core), 4 LLM categories, 15 format families, and 2 post-processing models. The auto-Sync then discovers and adds all remaining models from AWS.
 
-**Prompt templates**: Code `_DEFAULTS` are the source of truth for template defaults. `prompt_templates.json` is regenerated from code on every startup, so it always reflects the latest code version. User edits are stored in `prompt_templates.user.json` with only the changed `text` and/or `system_prompt` fields.
+**Prompt templates**: `prompt_templates.json` (git-tracked) is the runtime source of truth. `_load()` reads it first; the code `_DEFAULTS` dict is a backfill/regeneration seed that only fills in templates **missing** from the JSON (never overwrites existing entries), so a fresh clone or a newly added template self-heals. User edits are stored in `prompt_templates.user.json` (gitignored) with only the changed `text` and/or `system_prompt` fields and are overlaid on top; reset restores the JSON default.
 
 **Startup sequence**:
 1. Auto-update: compare local `APP_VERSION` against remote, pull if remote is newer (skipped if `ARTSMOKER_DEV_MODE=true`), self-restart via `os.execv` if code changed
-2. Check config freshness: prompt templates regenerated from code, registry checked for `aws_account_discovered` field
+2. Check config freshness: prompt templates loaded from `prompt_templates.json` (code seed backfills any missing), registry checked for `aws_account_discovered` field
 3. Ensure data directories
 4. Validate AWS credentials + Bedrock access
 5. If registry never synced + credentials valid → auto-Sync from AWS (30-60 seconds, first deployment only)
@@ -967,7 +961,7 @@ prompt_templates.user.json   (gitignored, user edits only)
 - The LLM models used for prompt refinement, style analysis, and Type Studio layout are all configurable via `categories.fast_llm` and `categories.complex_llm` — the user can switch to any Converse-compatible model
 - All pricing, regions, quality tiers, and model availability come from the registry — populated by auto-discovery and the AWS Pricing API during refresh-all
 
-**Backward compatibility**: Generated assets reference model keys (e.g. `nova_canvas`), not raw Bedrock model IDs. Changing a model ID in the registry does not break old asset metadata.
+**Backward compatibility**: Generated assets reference model keys (e.g. `sd35_large`), not raw Bedrock model IDs. Changing a model ID in the registry does not break old asset metadata.
 
 ## 5. API Reference
 
@@ -993,7 +987,8 @@ prompt_templates.user.json   (gitignored, user edits only)
 | POST | `/api/generate/stream` | SSE streaming variant of generate — same pipeline, but streams real-time progress events. This is the primary endpoint used by the frontend. |
 | POST | `/api/generate/post-process` | Apply post-processing to existing generated assets. Accepts asset IDs and processing flags (remove_background, generate_svg, upscale). Updates the assets in-place and refreshes their metadata on disk. Used by the "Apply to Current Results" button in the 2D Image Studio and Type Studio. |
 | POST | `/api/generate/pre-screen` | Pre-screen a prompt for likely moderation issues before generation. Uses Claude Sonnet (fast, cheap). Returns whether the prompt is likely safe, specific issues, and a suggested alternative model if the prompt would work with a less strict model. |
-| POST | `/api/generate/edit` | Image editing services. Accepts `source_image_id`, `source_version` (int, honors 2D versioning), `model` (registry key), `prompt`, `negative_prompt`, `mask` (base64, white = edit area), `mask_prompt` (natural language, Nova Canvas), `outpaint_left/right/up/down`, `extra_params`. **Two editor classes:** (1) **mask-based** (Stability inpaint/outpaint/erase/search-replace/recolor, `model_purpose` = the specific mode) — require a painted mask or mask prompt; (2) **mask-free instruction editors** (`model_purpose: image_edit`, e.g. Qwen-Image-Edit) — edit from a text instruction alone across all five modes via their `capabilities` map, no mask needed. Result saved as a new gallery asset with metadata linking to the source. |
+| POST | `/api/generate/edit` | Image editing services. Accepts `source_image_id`, `source_version` (int, honors 2D versioning), `model` (registry key), `prompt`, `negative_prompt`, `mask` (base64, white = edit area), `mask_prompt` (natural-language mask target), `outpaint_left/right/up/down`, `extra_params`. **Two editor classes:** (1) **mask-based** (Stability inpaint/outpaint/erase/search-replace/recolor, `model_purpose` = the specific mode) — require a painted mask or mask prompt; (2) **mask-free instruction editors** (`model_purpose: image_edit`, e.g. Qwen-Image-Edit) — edit from a text instruction alone across all five modes via their `capabilities` map, no mask needed. Result saved as a new gallery asset with metadata linking to the source. |
+| POST | `/api/generate/suggest-edit-prompt` | Suggest an edit instruction for the AssetViewer Edit tab. Body: `{asset_id, version, mode, model}`. Reads the image + its original generation prompt and returns `{prompt, search_prompt, reasoning, suggest_outpaint}`. The suggested `prompt` is a **descriptive caption** for Stability edit models and an **imperative instruction** for a Qwen-Image-Edit instruction editor — model-aware, derived from the registry (not hardcoded). Powers the Edit tab's per-mode "Generate Prompt" button. |
 | POST | `/api/generate/analyze-moderation` | Analyze a moderation-blocked prompt. Accepts `force_rewrite` (bool) — when false (default): Phase 1 tries alternative models, Phase 2 rewrites if all reject. When true: skips model switching, rewrites directly for the target model and tests against it. Returns `action`, `working_model`, `issues`, `explanation`, `rewritten_prompt`, `verified`, and `attempts` (log). |
 | GET | `/api/generate/reference-available` | Whether a reference-capable editor (e.g. Qwen-Image-Edit) is deployed. Gates the "Match the reference" mode in the Image Studio. Returns `{available, model_key, endpoint_name, deploy_catalog_key}` — when unavailable, `deploy_catalog_key` tells the UI which catalog model to route the user to in the Custom Models deploy flow (mirrors the 3D gating pattern). "Inspired by the reference" mode needs no custom model and is always available. |
 | POST | `/api/generate/analyze-reference` | Vision-analyze 1–3 reference images + a mandatory user instruction → an enhanced prompt, for the "Inspired by the reference" preview (so the user sees the prompt the model will receive). Body (`AnalyzeReferenceRequest`): `images` (1–3 base64 PNGs), `prompt` (required — what to do with the reference), `asset_type`, `ui_lang` (soft translation hint). Returns the enhanced prompt + accumulated cost. |
@@ -1002,7 +997,7 @@ prompt_templates.user.json   (gitignored, user edits only)
 ```json
 {
   "prompt": "a warrior with a sword",
-  "image_model": "nova_canvas"
+  "image_model": "sd35_large"
 }
 ```
 
@@ -1010,8 +1005,8 @@ prompt_templates.user.json   (gitignored, user edits only)
 ```json
 {
   "likely_safe": false,
-  "issues": ["weapon/combat language may trigger Nova Canvas moderation"],
-  "explanation": "Nova Canvas is very strict about weapons and combat...",
+  "issues": ["weapon/combat language may trigger the selected model's moderation"],
+  "explanation": "The selected model is strict about weapons and combat...",
   "suggested_model": "sd35_large",
   "suggested_model_label": "Stable Diffusion 3.5 Large"
 }
@@ -1024,7 +1019,7 @@ On failure, pre-screen returns `{likely_safe: true}` as a safe default (don't bl
 {
   "prompt": "the flagged prompt text",
   "error_message": "the error message returned by the image model",
-  "image_model": "nova_canvas",
+  "image_model": "stable_image_core",
   "width": 512,
   "height": 512
 }
@@ -1035,7 +1030,7 @@ On failure, pre-screen returns `{likely_safe: true}` as a safe default (don't bl
 {
   "action": "switch_model",
   "working_model": "sd35_large",
-  "original_model": "nova_canvas",
+  "original_model": "stable_image_core",
   "issues": ["weapon reference"],
   "explanation": "Your prompt works with a different model...",
   "rewritten_prompt": null,
@@ -1052,7 +1047,7 @@ Or when all models reject (rewrite fallback):
   "explanation": "The prompt was flagged because...",
   "rewritten_prompt": "An armored fantasy warrior with a glowing sword...",
   "verified": true,
-  "attempts": [{"model": "sd35_large", "result": "blocked"}, {"model": "nova_canvas", "result": "blocked"}]
+  "attempts": [{"model": "sd35_large", "result": "blocked"}, {"model": "stable_image_ultra", "result": "blocked"}]
 }
 ```
 
@@ -1063,7 +1058,7 @@ Or when all models reject (rewrite fallback):
   "original_prompt": "hospital",
   "style_id": "city-builder-iso",
   "asset_type": "game_asset",
-  "image_model": "nova_canvas",
+  "image_model": "sd35_large",
   "width": 1024,
   "height": 1024,
   "num_options": 5,
@@ -1081,7 +1076,7 @@ Fields:
 - `moderation_original` (optional, `str | None`): Stores the pre-moderation-rewrite prompt when the user accepted a moderation rewrite. Preserved in metadata for audit trail.
 - `style_id` (optional): Style profile to apply.
 - `asset_type` (default `game_asset`): One of `game_asset`, `marketing_banner`, `icon`, `character`, `environment`. Defined by the `AssetType` enum.
-- `image_model` (default `nova_canvas`): Any valid key from the model registry (e.g. `nova_canvas`, `titan_image`, `sd35_large`, `stable_image_ultra`, `stable_image_core_v1`). Validated against the registry at runtime — not limited to a fixed enum. New models added via auto-discovery are accepted without code changes.
+- `image_model` (default `sd35_large`): Any valid key from the model registry (e.g. `sd35_large`, `stable_image_ultra`, `stable_image_core`). Validated against the registry at runtime — not limited to a fixed enum. New models added via auto-discovery are accepted without code changes.
 - `quality` (optional, `str | None`): Quality tier override (e.g. `"standard"`, `"premium"`). If null, uses the model's `default_quality` from the registry. Only relevant for models with `quality_options`.
 - `region` (optional, `str | None`): Region override for the model. If null, uses the model's default `region` from the registry. Must be one of the model's `available_regions`.
 - `width` / `height` (default 1024): Output dimensions in pixels.
@@ -1114,7 +1109,7 @@ The image generation pipeline transforms the user's idea through four stages:
 1. **User Prompt** — the user's raw text input (Step 1 textarea). Always preserved, never overwritten by the system.
 2. **Decomposed Data** — structured JSON with `subject`, `scene`, `composition`, `lighting`, `style` (including color palette). Each field is a `{value, source}` tagged object where `source` is `"user"` (sacred/locked — preserved exactly across concepts) or `"inferred"` (variable — may be freely varied). Style guidance is baked into decomposition, not re-injected later. This is the intermediate representation produced by `/api/refine-prompt/decompose` and edited in the Prompt Designer (Step 2). Stored in metadata as `decomposed_data`. Decomposition always runs (even when the user skips Prompt Designer), providing structured data for concept generation.
 3. **Recomposed Prompt** — flat text rebuilt from the decomposed components by `/api/refine-prompt/recompose`, now split into locked (user-sourced) and variable (inferred) sections for concept generation. Stored in metadata as `recomposed_prompt`. Model-specific prompt guidance is **not** applied at this stage.
-4. **Enhanced AI Prompt** — model-specific optimized prompt generated by the LLM from the locked/variable sections + model guidance. Target length controlled by `optimal_prompt_words` per model (30-80 for HunyuanImage, 80 for Nova Canvas, 120 for SD 3.5 Large). This is what actually gets sent to the image model. Stored in metadata as `enhanced_prompt`. Each option gets its own enhanced prompt (via `generate_concept_prompts` for N×M mode).
+4. **Enhanced AI Prompt** — model-specific optimized prompt generated by the LLM from the locked/variable sections + model guidance. Target length controlled by `optimal_prompt_words` per model (30-80 for HunyuanImage, 120 for SD 3.5 Large). This is what actually gets sent to the image model. Stored in metadata as `enhanced_prompt`. Each option gets its own enhanced prompt (via `generate_concept_prompts` for N×M mode).
 
 All three derived levels (`decomposed_data`, `recomposed_prompt`, `enhanced_prompt`) are persisted to `metadata.json` alongside the original `prompt`.
 
@@ -1176,7 +1171,7 @@ Uses an LLM to determine the best asset type for a prompt. Key distinction: a pe
   "prompt": "hospital building",
   "style_id": "city-builder-iso",
   "asset_type": "game_asset",
-  "image_model": "nova_canvas"
+  "image_model": "sd35_large"
 }
 ```
 
@@ -1219,7 +1214,7 @@ Uses an LLM to determine the best asset type for a prompt. Key distinction: a pe
 
 **Model label auto-backfill:** When loading gallery items, the model key is resolved to a human-readable label from the registry. If the model key no longer exists in the registry (e.g., model was removed), the raw key is displayed as fallback.
 
-**Date format:** All gallery timestamps use `dd MMM yyyy` format globally (e.g., "07 Apr 2026"), consistent across all studios and the gallery grid.
+**Date format:** All gallery timestamps show the full date + time + timezone (e.g., "07 Apr 2026, 14:32 PDT"), consistent across all studios and the gallery grid.
 
 ### 5.6 Type Studio
 
@@ -1568,7 +1563,7 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 | POST | `/api/admin/discover/refresh-all` | Full registry refresh: discovers regions, fetches pricing, scans all regions for foundation + custom + imported models, backfills Bedrock metadata (input/output modalities, lifecycle, ARN, streaming, customizations), and auto-rolls `fast_llm`/`complex_llm` to the newest Sonnet/Opus (respecting pinned categories). Live progress is available via the `/api/sync-progress` SSE stream. |
 | POST | `/api/admin/discover/{region}/auto-register` | Scan a single region for foundation image + video models. Classifies by output modality (IMAGE → image registry, VIDEO → video registry). Custom/imported models are discovered separately during refresh-all. |
 | GET | `/api/admin/discover/{region}` | Raw model listing: image generators, video generators, text/LLM, vision models. |
-| GET | `/api/admin/templates` | Get all 14 prompt templates with metadata (description, variables, modified flag, group). |
+| GET | `/api/admin/templates` | Get all 28 prompt templates with metadata (description, variables, modified flag, group). |
 | PATCH | `/api/admin/templates/{key}` | Update a template's content. Validates required variables are present — returns missing vars if not. |
 | POST | `/api/admin/templates/{key}/reset` | Reset a template to its default content. |
 | POST | `/api/admin/templates/reset-all` | Reset all templates to their defaults. |
@@ -1587,7 +1582,7 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 
 ## 6. LLM Directive Prompts (Prompt Templates)
 
-ArtSmoker uses 19 directive prompts to guide LLM behavior across different features. All prompts are stored in `backend/prompt_templates.json` and are fully editable via the Model Settings UI (Prompt Templates tab) or the raw JSON editor.
+ArtSmoker uses 28 directive prompts to guide LLM behavior across different features. All prompts are stored in `backend/prompt_templates.json` and are fully editable via the Model Settings UI (Prompt Templates tab) or the raw JSON editor.
 
 ### 7.1 How Templates Work
 
@@ -1619,6 +1614,12 @@ Templates are organized by the feature they serve:
 |----------|------|---------|-----------|------------|
 | `moderation_prescreen` | `generate.py` | Predict if a prompt will be blocked by the target model. Suggests alternative models if needed. Returns JSON. | `{prompt_for_screen}`, `{model_label}` | Sonnet |
 | `moderation_rewrite` | `generate.py` | Rewrite a blocked prompt to pass moderation while preserving creative intent. Handles IP references, violence, aggression. | `{original_prompt}`, issues list | Sonnet |
+
+### 7.4a Image-Editing Templates
+
+| Template | File | Purpose | Variables | Model Used |
+|----------|------|---------|-----------|------------|
+| `edit_prompt_suggestion` | `generate.py` | Edit Prompt Suggestion (per-mode, model-aware) — reads the image + its original generation prompt and suggests an edit instruction for the active edit mode. Produces a descriptive caption for Stability edit models or an imperative instruction for a Qwen-Image-Edit instruction editor. Used by the AssetViewer Edit-tab "Generate Prompt" button (endpoint `generate.suggest_edit_prompt`). | `{original_prompt}`, `{mode}`, `{model_label}` + image | Sonnet (vision) |
 
 ### 7.5 Video Generation Templates
 
@@ -1707,7 +1708,7 @@ Templates use `{curly_brace}` variables that are substituted at runtime (e.g., `
 
 **Self-healing**: If `prompt_templates.json` is deleted, corrupted, or has missing templates, the service regenerates from code defaults on next load. User edits for existing templates are preserved; missing templates are added from defaults.
 
-**Storage**: `backend/prompt_templates.json`. Code defaults in `backend/services/prompt_templates.py`. User edits marked with `"modified": true`.
+**Storage**: `backend/prompt_templates.json` is the runtime source of truth. The `_DEFAULTS` dict in `backend/services/prompt_templates.py` is a backfill seed only — it fills in templates missing from the JSON on load but never overwrites existing entries. User edits are stored in `prompt_templates.user.json` and marked with `"modified": true`.
 
 > [!WARNING]
 > Editing directive prompts changes how the AI behaves across the entire application. Test changes carefully. The variable validation prevents accidental breakage, but semantic changes to the instructions can still affect output quality.
@@ -2124,7 +2125,7 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 11. **Test marketing banner**: Set asset type to "Marketing Banner" and generate — verify the result is a scenic composition, not an isolated sprite.
 12. **Test Type Studio**: Navigate to Type Studio, enter text lines, select fonts, request AI layout suggestions. Verify 1-5 layout options are returned. Select a layout and render — verify the result is saved to the gallery.
 13. **Test Video Studio**: Navigate to Video Studio, configure S3 bucket in Video Settings, select a video model (Nova Reel or Luma Ray), enter a prompt, and generate. Verify the job appears in Active Jobs, polling updates the status, and on completion the video plays and thumbnail appears. Verify the video also appears in the Gallery with a VIDEO badge.
-14. **Browse gallery**: Switch to Gallery view — verify generated images and videos appear with the Media filter (All / 2D Artwork / Video), style filter, and search. Test multi-select and bulk delete (both image and video assets).
+14. **Browse gallery**: Switch to Gallery view — verify generated images and videos appear with the Media filter (All / 2D Artwork / 3D Models / Video), style filter, and search. Test multi-select and bulk delete (both image and video assets).
 15. **Test AssetViewer buttons**: Open an image asset — verify "2D Studio" and "Add Text" buttons appear. Open a type-studio asset — verify "Edit in Type Studio" button appears. Click a video card — verify the video player modal opens with metadata.
 16. **Test style_snapshot**: Delete a style, then view an asset that was generated with it — verify the style name still displays from the snapshot.
 17. **Test Model Settings**: Click "Model Settings" in any studio sidebar — verify it opens to the relevant tab. Tabs: Image Studio, Video Studio, Chat Studio, Type Studio, Shared Studio, Prompt Templates, Registry JSON. All sections should be collapsible with Show All / Hide All toggles. LLM categories and post-processing should show dropdown model pickers (not raw text fields). Try Sync from AWS — verify image, video, and chat models are discovered.
@@ -2153,19 +2154,18 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
 >
 > Model prices' `base_price_usd` / per-region `quality_prices` are displayed in the Image/Video Studio selectors and estimates. Pricing is cached in the registry and only updated when an admin runs refresh-all.
 
-All prices below are from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for the app's **default regions** — `us-west-2` (Claude, Stability AI) and `us-east-1` (Amazon Nova Canvas, Titan Image, Nova Sonic). Prices are on-demand, per-request. **Other AWS Regions may differ** — the application reads live, per-region pricing from the AWS Pricing API into `model_registry.json` (per-model `base_price_usd` / `quality_prices`) and displays the cost for your actual configured region, so these tables are for planning only.
+All prices below are from the official [Amazon Bedrock Pricing page](https://aws.amazon.com/bedrock/pricing/) for the app's **default regions** — `us-west-2` (Claude, Stability AI) and `us-east-1` (Nova Sonic, Nova Reel). Prices are on-demand, per-request. **Other AWS Regions may differ** — the application reads live, per-region pricing from the AWS Pricing API into `model_registry.json` (per-model `base_price_usd` / `quality_prices`) and displays the cost for your actual configured region, so these tables are for planning only.
 
 ### 14.1 Per-Unit Pricing
 
 | Service | Model | Per-Unit Cost | Unit |
 |---------|-------|--------------|------|
-| **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00 input / $15.00 output | per 1M tokens |
-| **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00 input / $25.00 output | per 1M tokens |
-| **Claude Opus 4.6 (vision)** | same | ~$0.008 | per 1024×1024 image input |
-| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | per image (1024×1024, premium) |
-| **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | per image (1024×1024) |
+| **Claude Sonnet** | newest Sonnet on Sync | $3.00 input / $15.00 output | per 1M tokens |
+| **Claude Opus** | newest Opus on Sync | $5.00 input / $25.00 output | per 1M tokens |
+| **Claude Opus (vision)** | same | ~$0.008 | per 1024×1024 image input |
 | **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | per image |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | per image |
+| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | per image |
 | **Remove Background** | `us.stability.stable-image-remove-background-v1:0` | $0.07 | per image |
 | **Creative Upscale** | `stability.stable-creative-upscale-v1:0` | $0.60 | per image |
 | **SVG Conversion** | vtracer / potrace / Pillow (local) | $0.00 | free — runs locally |
@@ -2182,9 +2182,9 @@ These Claude calls are part of the system's workflow but not included in the per
 
 | Call | Model | When triggered | Approx. Cost |
 |------|-------|----------------|-------------|
-| Prompt Pre-Check | Claude Sonnet 4.6 | Before each generation (if toggle enabled) | ~$0.005 |
-| Moderation Analysis + Rewrite | Claude Sonnet 4.6 | Only when all image models reject a prompt | ~$0.005 |
-| Type Studio Layout Suggestion | Claude Opus 4.6 | Each AI layout request in Type Studio | ~$0.02–$0.05 |
+| Prompt Pre-Check | Claude Sonnet | Before each generation (if toggle enabled) | ~$0.005 |
+| Moderation Analysis + Rewrite | Claude Sonnet | Only when all image models reject a prompt | ~$0.005 |
+| Type Studio Layout Suggestion | Claude Opus | Each AI layout request in Type Studio | ~$0.02–$0.05 |
 
 Pre-check and moderation rewrite are a fraction of a cent each. Type Studio layout costs vary with the number of text lines and whether a base image is analyzed (vision input adds ~$0.007 per image).
 
@@ -2194,9 +2194,9 @@ For a style with **100 reference images** (20 sent to Claude Opus after smart sa
 
 | Step | Model | Calculation | Cost |
 |------|-------|-------------|------|
-| Cohesion check (Phase 1) | Claude Sonnet 4.6 (vision) | 8 images (game sprites, smaller than 1024×1024) + ~500 prompt tokens; ~500 output tokens | ~$0.01 |
-| Analyze images (Phase 2) | Claude Opus 4.6 (vision) | 20 images (game sprites) + ~500 prompt tokens; ~1,500 output tokens | ~$0.12 |
-| Generate hints | Claude Sonnet 4.6 | ~800 input + ~200 output tokens | ~$0.005 |
+| Cohesion check (Phase 1) | Claude Sonnet (vision) | 8 images (game sprites, smaller than 1024×1024) + ~500 prompt tokens; ~500 output tokens | ~$0.01 |
+| Analyze images (Phase 2) | Claude Opus (vision) | 20 images (game sprites) + ~500 prompt tokens; ~1,500 output tokens | ~$0.12 |
+| Generate hints | Claude Sonnet | ~800 input + ~200 output tokens | ~$0.005 |
 | **Total per style analysis** | | | **~$0.14** |
 
 ### 14.4 Generation Cost Scenarios
@@ -2207,17 +2207,17 @@ The generation cost depends on the image model chosen and the options×variation
 
 | Options | Prompt Step | Model | Approx. Cost |
 |---------|-----------|-------|-------------|
-| 1 option | Single prompt refinement | Claude Sonnet 4.6 | ~$0.005 |
-| 5 options | Concept generation (5 prompts) | Claude Opus 4.6 | ~$0.05 |
+| 1 option | Single prompt refinement | Claude Sonnet | ~$0.005 |
+| 5 options | Concept generation (5 prompts) | Claude Opus | ~$0.05 |
 
 **Image generation cost per batch** (the dominant cost):
 
-| Scenario | Images | Nova Canvas | Titan Image v2 | Stable Diffusion 3.5 Large | Stable Image Ultra |
-|----------|--------|-------------|----------------|--------------|-------------------|
-| 1 option × 1 variation | 1 | $0.06 | $0.01 | $0.08 | $0.14 |
-| 1 option × 5 variations | 5 | $0.30 | $0.05 | $0.40 | $0.70 |
-| 5 options × 1 variation | 5 | $0.30 | $0.05 | $0.40 | $0.70 |
-| 5 options × 5 variations | 25 | $1.50 | $0.25 | $2.00 | $3.50 |
+| Scenario | Images | Stable Image Core | Stable Diffusion 3.5 Large | Stable Image Ultra |
+|----------|--------|-------------------|--------------|-------------------|
+| 1 option × 1 variation | 1 | $0.04 | $0.08 | $0.14 |
+| 1 option × 5 variations | 5 | $0.20 | $0.40 | $0.70 |
+| 5 options × 1 variation | 5 | $0.20 | $0.40 | $0.70 |
+| 5 options × 5 variations | 25 | $1.00 | $2.00 | $3.50 |
 
 **Post-processing add-ons** (per image, optional):
 
@@ -2230,23 +2230,23 @@ The generation cost depends on the image model chosen and the options×variation
 ### 14.5 Full Cost Examples
 
 **Example 1: Quick single asset (cheapest)**
-1 option × 1 variation, Titan Image v2, no post-processing:
+1 option × 1 variation, Stable Image Core, no post-processing:
 
 | Step | Cost |
 |------|------|
 | Prompt refinement (Sonnet) | $0.005 |
-| 1 image (Titan) | $0.01 |
-| **Total** | **~$0.02** |
+| 1 image (Stable Image Core) | $0.04 |
+| **Total** | **~$0.05** |
 
 **Example 2: Standard workflow (5 variations to choose from)**
-1 option × 5 variations, Nova Canvas, Remove BG on:
+1 option × 5 variations, Stable Diffusion 3.5 Large, Remove BG on:
 
 | Step | Cost |
 |------|------|
 | Prompt refinement (Sonnet) | $0.005 |
-| 5 images (Nova Canvas) | $0.30 |
+| 5 images (Stable Diffusion 3.5 Large) | $0.40 |
 | 5× Remove Background | $0.35 |
-| **Total** | **~$0.66** |
+| **Total** | **~$0.76** |
 
 **Example 3: Full creative exploration (5 concepts × 5 variations)**
 5 options × 5 variations, Stable Diffusion 3.5 Large, Remove BG + SVG:
@@ -2272,7 +2272,7 @@ The generation cost depends on the image model chosen and the options×variation
 | **Total** | **~$20.30** |
 
 > [!TIP]
-> **Key takeaway**: Image generation is cheap ($0.01–$0.14/image). **Creative Upscale is the big cost driver at $0.60/image** — use it selectively on your final chosen assets, not on the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free.
+> **Key takeaway**: Image generation is cheap ($0.04–$0.14/image). **Creative Upscale is the big cost driver at $0.60/image** — use it selectively on your final chosen assets, not on the full batch. Remove Background at $0.07/image is reasonable. SVG conversion is free.
 
 ## 15. Internationalization (i18n)
 
@@ -2311,7 +2311,11 @@ Non-English prompts are auto-detected and translated to English before processin
 ```
 User types prompt (any language)
     ↓
-detect_language(text, ui_lang) — Unicode heuristic (CJK/Hangul/Devanagari/Cyrillic/Latin+accents+function words)
+detect_language(text, ui_lang) —
+   • If the UI language is English, detection is SKIPPED entirely (no translation).
+   • If a non-English UI language is selected, that language is checked/confirmed FIRST.
+   • Otherwise: Unicode heuristic (CJK/Hangul/Devanagari/Cyrillic/Latin+accents+function words),
+     with function-word matching done WORD-BOUNDARY aware (fixes English being mislabeled as German).
     ↓ (if ambiguous)
 LLM fallback detection
     ↓
@@ -2358,7 +2362,7 @@ When a user types a non-English prompt, a translation preview bar appears with:
 - Components use `t('key')` in template literals: `${t('image_studio.title')}`
 - Confirm dialogs, toast messages, tooltips, placeholders all translated
 - Technical terms stay in English: AI, LLM, SVG, PNG, S3, AWS, Bedrock, API
-- Product names stay in English: ArtSmoker, Nova Canvas, Stable Diffusion
+- Product names stay in English: ArtSmoker, Stable Diffusion
 
 ### 15.5 Adding a New Language
 
@@ -2558,7 +2562,7 @@ App Runner (FastAPI)
 Step Functions (generation pipeline)
 ├── State 1: Concept generation (Claude Opus → N prompt strings)
 ├── State 2: Map state — parallel image generation (N options × M variations)
-│   └── Each iteration: Nova Canvas → post-process → save to S3
+│   └── Each iteration: image model → post-process → save to S3
 ├── State 3: Assemble metadata, write batch result to S3
 └── State 4: Mark job complete (DynamoDB or S3 marker)
 ```
@@ -2571,7 +2575,7 @@ Step Functions (generation pipeline)
    - `POST /api/generate/` no longer blocks. It validates the request, writes a job record (DynamoDB or S3), starts a Step Functions execution, and returns `{"job_id": "...", "status": "pending"}`.
    - The Step Functions state machine orchestrates the pipeline:
      - **ConceptGeneration** task: Lambda (or inline) calls Claude Opus for concept prompts. This is fast (5-15s) and fits Lambda's model.
-     - **GenerateImages** Map state: Fans out to N×M parallel Lambda invocations, each generating one image (Nova Canvas + post-processing). Each Lambda runs for 30-60s — well within limits.
+     - **GenerateImages** Map state: Fans out to N×M parallel Lambda invocations, each generating one image (Stable Diffusion 3.5 Large + post-processing). Each Lambda runs for 30-60s — well within limits.
      - **Assemble** task: Collects results, writes final metadata to S3/DynamoDB.
    - Step Functions handles retries, timeouts, error states, and parallelism natively.
    - Frontend polls `GET /api/jobs/{id}` (or uses WebSocket/SSE for push notification).
@@ -2610,7 +2614,7 @@ DynamoDB
 
 3. **Usage tracking and quotas**: Track Bedrock API calls per tenant. Enforce generation quotas (e.g. 100 images/day on free tier, unlimited on paid). DynamoDB counter or CloudWatch metrics.
 
-4. **Billing integration** (optional): Stripe or AWS Marketplace for paid tiers. Generation costs are roughly: Claude Opus concept generation (~$0.02-0.05 per batch) + Nova Canvas images (~$0.04-0.08 per image) + Stability AI post-processing (~$0.02-0.04 per image). A 5×5 batch costs approximately $1.50-3.00 in Bedrock API fees.
+4. **Billing integration** (optional): Stripe or AWS Marketplace for paid tiers. Generation costs are roughly: Claude Opus concept generation (~$0.02-0.05 per batch) + Stability image generation (~$0.04-0.14 per image) + Stability AI post-processing (~$0.02-0.04 per image). A 5×5 batch costs approximately $1.50-3.50 in Bedrock API fees.
 
 5. **Admin dashboard**: Usage analytics, tenant management, model cost tracking.
 
@@ -2629,17 +2633,17 @@ DynamoDB
 
 Rough monthly costs for a small team (10 users, ~500 generation batches/month). See the **Amazon Bedrock Pricing & Cost Breakdown** section above for detailed per-operation costs.
 
-| Service | 5×5 Nova Canvas (no upscale) | 3×3 Titan (no upscale) |
-|---------|------------------------------|------------------------|
+| Service | 5×5 SD 3.5 Large (no upscale) | 3×3 Stable Image Core (no upscale) |
+|---------|-------------------------------|------------------------------------|
 | App Runner (1 instance) | ~$30/month | ~$30/month |
 | S3 (50GB) | ~$5/month | ~$5/month |
 | Claude (prompts + concepts) | ~$27/month | ~$5/month |
-| Image generation | ~$750/month | ~$45/month |
+| Image generation | ~$1,000/month | ~$180/month |
 | Remove Background | ~$875/month | ~$315/month |
-| **Total** | **~$1,687/month** | **~$400/month** |
+| **Total** | **~$1,937/month** | **~$535/month** |
 
 > [!TIP]
-> **Biggest cost levers**: Image model choice (Titan at $0.01 vs Ultra at $0.14 = 14× difference), batch size (3×3 = 9 images vs 5×5 = 25 = 2.8× difference), and Creative Upscale ($0.60/image — only use on final selected assets).
+> **Biggest cost levers**: Image model choice (Stable Image Core at $0.04 vs Ultra at $0.14 = 3.5× difference), batch size (3×3 = 9 images vs 5×5 = 25 = 2.8× difference), and Creative Upscale ($0.60/image — only use on final selected assets).
 
 ## 17. Disclaimer
 
