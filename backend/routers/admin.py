@@ -1531,17 +1531,23 @@ def _claude_version_tuple(model_id: str) -> tuple:
     Returns (major, minor, date) so newer models sort higher. Examples:
       us.anthropic.claude-sonnet-4-6     → (4, 6, 0)
       us.anthropic.claude-opus-4-6-v1    → (4, 6, 0)  (patch -vN ignored for line)
+      us.anthropic.claude-opus-5         → (5, 0, 0)  (major-only, no minor)
+      us.anthropic.claude-sonnet-5       → (5, 0, 0)
       anthropic.claude-3-5-sonnet-20241022-v2:0 → (3, 5, 20241022)
     Unparseable IDs sort lowest. Used to find the newest Sonnet/Opus on Sync.
     """
     mid = model_id.lower()
     major = minor = date = 0
-    # Minor is 1-3 digits — never an 8-digit date (claude-sonnet-4-20250514 form).
-    m = _re.search(r'claude-(?:opus|sonnet|haiku)-(\d+)-(\d{1,3})(?!\d)', mid)
+    # Named-tier form: claude-<tier>-<major>[-<minor>]. The minor is OPTIONAL — a
+    # major-only release like claude-opus-5 has no minor (treat as .0). Minor is
+    # 1-3 digits, never an 8-digit date (claude-sonnet-4-20250514 form).
+    m = _re.search(r'claude-(?:opus|sonnet|haiku)-(\d+)(?:-(\d{1,3})(?!\d))?', mid)
     if m:
-        major, minor = int(m.group(1)), int(m.group(2))
+        major = int(m.group(1))
+        minor = int(m.group(2)) if m.group(2) else 0
     else:
-        m = _re.search(r'claude-(\d+)-(\d{1,3})(?!\d)', mid)  # older claude-3-5-... form
+        # Older claude-<major>-<minor>-<tier> form (e.g. claude-3-5-sonnet).
+        m = _re.search(r'claude-(\d+)-(\d{1,3})(?!\d)', mid)
         if m:
             major, minor = int(m.group(1)), int(m.group(2))
     dm = _re.search(r'-(\d{8})(?:-|$|:)', mid)

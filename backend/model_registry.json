@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-07-14T02:15:52.618746+00:00",
+  "last_updated": "2026-07-27T06:46:25.562907+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -62,7 +62,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "optimal_prompt_words": 120
+      "optimal_prompt_words": 120,
+      "prompt_guidance": "Responds well to rich, natural-language descriptions (~60-120 words). Excels at material texture, lighting, atmosphere, and compositional precision \u2014 let quality emerge from specific, vivid description rather than fixed quality-token prefixes. Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt."
     },
     "stable_image_ultra": {
       "label": "Stable Image Ultra",
@@ -89,7 +90,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "optimal_prompt_words": 120
+      "optimal_prompt_words": 120,
+      "prompt_guidance": "Responds well to rich, natural-language descriptions (~60-120 words). Excels at material texture, lighting, atmosphere, and compositional precision \u2014 let quality emerge from specific, vivid description rather than fixed quality-token prefixes. Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt."
     },
     "stable_image_core_v1": {
       "label": "Stable Image Core 1.0",
@@ -116,7 +118,8 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "optimal_prompt_words": 100
+      "optimal_prompt_words": 100,
+      "prompt_guidance": "Responds well to rich, natural-language descriptions (~60-120 words). Excels at material texture, lighting, atmosphere, and compositional precision \u2014 let quality emerge from specific, vivid description rather than fixed quality-token prefixes. Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt."
     },
     "stable_creative_upscale_v1": {
       "label": "Stable Image Creative Upscale",
@@ -533,6 +536,42 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "model_source": "foundation"
+    },
+    "nova_canvas_v1": {
+      "label": "Nova Canvas",
+      "model_id": "amazon.nova-canvas-v1:0",
+      "region": "ap-northeast-1",
+      "available_regions": [
+        "ap-northeast-1",
+        "eu-west-1",
+        "us-east-1"
+      ],
+      "provider": "Amazon",
+      "model_purpose": "text_to_image",
+      "format_family": "amazon_text_to_image",
+      "model_source": "foundation",
+      "prompt_limit": 900,
+      "moderation_strictness": "moderate",
+      "base_price_usd": 0.06,
+      "inference_types": [
+        "ON_DEMAND"
+      ],
+      "input_modalities": [
+        "TEXT",
+        "IMAGE"
+      ],
+      "output_modalities": [
+        "IMAGE"
+      ],
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/amazon.nova-canvas-v1:0",
+      "model_lifecycle": "LEGACY",
+      "streaming_supported": false,
+      "customizations_supported": [
+        "FINE_TUNING"
+      ],
+      "extra_body": {},
+      "optimal_prompt_words": 55,
+      "prompt_guidance": "Write a descriptive image CAPTION, not a command (~40-60 words). Order: subject \u2192 environment \u2192 pose \u2192 lighting \u2192 camera \u2192 style. Front-load the most important elements; place least-important details near the end (long prompts drop trailing detail). NEVER use 'no'/'not'/'without' \u2014 route exclusions to the NEGATIVE line."
     }
   },
   "post_processing": {
@@ -1816,7 +1855,7 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "model_source": "foundation",
-      "prompt_guidance": "Nova Reel generates video from descriptive captions — describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) — the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
+      "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
       "optimal_prompt_words": 50
     },
     "nova_reel_v1_1": {
@@ -1847,7 +1886,7 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "model_source": "foundation",
-      "prompt_guidance": "Nova Reel generates video from descriptive captions — describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) — the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
+      "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
       "optimal_prompt_words": 50
     },
     "ray_v2_0": {
@@ -1877,7 +1916,7 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "prompt_guidance": "Ray v2.0 excels at natural language understanding — describe what you want to see with rich detail.\nHandles physics, human expressions, object interactions, and creative/whimsical concepts with high realism.\nWrite in flowing natural language, like a screenplay direction — include subject, action, mood, lighting, camera.\nCamera movements from natural descriptions (no fixed keywords needed): 'slow dolly forward', 'orbit left', 'tracking shot'.\nSupports up to 5000 characters — use the space for vivid scene-setting and emotional tone.\nStronger with creative concepts than rigid technical specifications.\nDurations: 5s or 9s. Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 21:9, 9:21.",
+      "prompt_guidance": "Ray v2.0 excels at natural language understanding \u2014 describe what you want to see with rich detail.\nHandles physics, human expressions, object interactions, and creative/whimsical concepts with high realism.\nWrite in flowing natural language, like a screenplay direction \u2014 include subject, action, mood, lighting, camera.\nCamera movements from natural descriptions (no fixed keywords needed): 'slow dolly forward', 'orbit left', 'tracking shot'.\nSupports up to 5000 characters \u2014 use the space for vivid scene-setting and emotional tone.\nStronger with creative concepts than rigid technical specifications.\nDurations: 5s or 9s. Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 21:9, 9:21.",
       "optimal_prompt_words": 60
     }
   },
@@ -4870,34 +4909,80 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse"
     },
-    "gpt_5_6_luna": {
-      "label": "openai.gpt-5.6-luna",
-      "model_id": "openai.gpt-5.6-luna",
-      "region": "us-west-2",
+    "claude_opus_5": {
+      "label": "Claude Opus 5",
+      "model_id": "us.anthropic.claude-opus-5",
+      "region": "ap-northeast-1",
       "available_regions": [
+        "ap-northeast-1",
+        "ap-northeast-2",
+        "ap-northeast-3",
+        "ap-south-1",
+        "ap-southeast-1",
+        "ap-southeast-2",
+        "ca-central-1",
+        "eu-central-1",
+        "eu-north-1",
+        "eu-west-1",
+        "eu-west-2",
+        "eu-west-3",
+        "sa-east-1",
+        "us-east-1",
+        "us-east-2",
+        "us-west-1",
         "us-west-2"
       ],
-      "provider": "OpenAI",
+      "provider": "Anthropic",
       "model_source": "foundation",
-      "model_arn": "",
-      "has_vision": false,
+      "model_arn": "arn:aws:bedrock:ap-northeast-1::foundation-model/anthropic.claude-opus-5",
+      "has_vision": true,
       "streaming_supported": true,
       "max_context_tokens": 128000,
       "customizations_supported": [],
-      "inference_types": [],
+      "inference_types": [
+        "INFERENCE_PROFILE"
+      ],
       "lifecycle": "ACTIVE",
       "endpoints": [
-        "bedrock-mantle"
+        "bedrock-runtime"
       ],
       "apis": [
-        "responses"
+        "converse",
+        "invoke"
       ],
-      "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "responses"
+      "invoke_endpoint": "bedrock-runtime",
+      "invoke_api": "converse"
     },
-    "gpt_5_6_terra": {
-      "label": "openai.gpt-5.6-terra",
-      "model_id": "openai.gpt-5.6-terra",
+    "v3_1": {
+      "label": "deepseek.v3.1",
+      "model_id": "deepseek.v3.1",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "DeepSeek",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.00029,
+      "output_price_per_1k": 0.00084
+    },
+    "gpt_5_4": {
+      "label": "openai.gpt-5.4",
+      "model_id": "openai.gpt-5.4",
       "region": "us-west-2",
       "available_regions": [
         "us-west-2"
@@ -4918,7 +5003,304 @@
         "responses"
       ],
       "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "responses"
+      "invoke_api": "responses",
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.0011
+    },
+    "qwen3_next_80b_a3b_instruct": {
+      "label": "qwen.qwen3-next-80b-a3b-instruct",
+      "model_id": "qwen.qwen3-next-80b-a3b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 7e-05,
+      "output_price_per_1k": 0.0006
+    },
+    "qwen3_vl_235b_a22b_instruct": {
+      "label": "qwen.qwen3-vl-235b-a22b-instruct",
+      "model_id": "qwen.qwen3-vl-235b-a22b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.00026,
+      "output_price_per_1k": 0.00133
+    },
+    "gemma_4_e2b": {
+      "label": "google.gemma-4-e2b",
+      "model_id": "google.gemma-4-e2b",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 2e-05,
+      "output_price_per_1k": 4e-05
+    },
+    "gemma_4_26b_a4b": {
+      "label": "google.gemma-4-26b-a4b",
+      "model_id": "google.gemma-4-26b-a4b",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 6.5e-05,
+      "output_price_per_1k": 0.0002
+    },
+    "glm_4_6": {
+      "label": "zai.glm-4.6",
+      "model_id": "zai.glm-4.6",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Z.AI",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.00165,
+      "output_price_per_1k": 0.0099
+    },
+    "moonshotai_kimi_k2_thinking": {
+      "label": "moonshotai.kimi-k2-thinking",
+      "model_id": "moonshotai.kimi-k2-thinking",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Moonshotai",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.00125
+    },
+    "qwen3_coder_480b_a35b_instruct": {
+      "label": "qwen.qwen3-coder-480b-a35b-instruct",
+      "model_id": "qwen.qwen3-coder-480b-a35b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.000225,
+      "output_price_per_1k": 0.0009
+    },
+    "qwen3_coder_30b_a3b_instruct": {
+      "label": "qwen.qwen3-coder-30b-a3b-instruct",
+      "model_id": "qwen.qwen3-coder-30b-a3b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 7.5e-05,
+      "output_price_per_1k": 0.0003
+    },
+    "grok_4_3": {
+      "label": "xai.grok-4.3",
+      "model_id": "xai.grok-4.3",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "xAI",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.00025,
+      "output_price_per_1k": 0.00075
+    },
+    "claude_haiku_4_5": {
+      "label": "anthropic.claude-haiku-4-5",
+      "model_id": "anthropic.claude-haiku-4-5",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "messages"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "messages"
+    },
+    "gemma_4_31b": {
+      "label": "google.gemma-4-31b",
+      "model_id": "google.gemma-4-31b",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 7e-05,
+      "output_price_per_1k": 0.0002
     }
   },
   "custom_model_catalog": {
@@ -4996,7 +5378,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 5,
-          "prompt_guidance": "FLUX.1 schnell uses natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
+          "prompt_guidance": "FLUX.1 schnell uses natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nMedium length works best (30-80 words). Be specific: '85mm lens, f/1.4' not 'nice photo'.\nUse cinematic terms: 'golden hour lighting', 'Rembrandt lighting', 'shallow depth of field'.\nQuality markers: 'professional photography', 'cinematic', 'highly detailed', '8k'.",
           "max_concurrent_invocations": 1,
           "optimal_prompt_words": 50
         },
@@ -5100,7 +5482,7 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 180,
-          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language — write like describing a photograph or painting.\nStructure: Subject first → Action/Pose → Environment → Lighting → Camera → Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' — instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
+          "prompt_guidance": "FLUX.1 dev is a 12B parameter model with exceptional prompt following.\nUse natural language \u2014 write like describing a photograph or painting.\nStructure: Subject first \u2192 Action/Pose \u2192 Environment \u2192 Lighting \u2192 Camera \u2192 Style.\nFront-load the most important elements (the model pays more attention to what comes first).\nDO NOT use negative prompts or 'no/not/without' \u2014 instead describe what you WANT.\nReplace 'no crowds' with 'peaceful solitude'. Replace 'without glasses' with 'clear eyes'.\nMedium-long prompts work best (40-100 words). Be specific and descriptive.\nCamera/lens specs are very effective: '85mm lens, f/1.4, shallow depth of field'.\nLighting descriptions matter: 'golden hour', 'Rembrandt lighting', 'soft diffused light'.\nArtistic references work well: 'in the style of Greg Rutkowski', 'Miyazaki-inspired'.\nQuality markers: 'professional photography', 'cinematic quality', 'highly detailed', '8k resolution'.",
           "max_concurrent_invocations": 1,
           "optimal_prompt_words": 70
         },
@@ -5166,7 +5548,7 @@
             "ml.g6e.8xlarge",
             "ml.g6e.12xlarge"
           ],
-          "_note": "32B model on g6e.4xlarge (1× L40S 48 GB VRAM, 128 GB RAM). BnB NF4 quantization requires CUDA — no device_map override (loads layer-by-layer to GPU, peak ~13 GB). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB total. With preserved NF4 cache: S3 download + direct GPU load = ~2 min cold start."
+          "_note": "32B model on g6e.4xlarge (1\u00d7 L40S 48 GB VRAM, 128 GB RAM). BnB NF4 quantization requires CUDA \u2014 no device_map override (loads layer-by-layer to GPU, peak ~13 GB). NF4 transformer (~10 GB) + text encoder (~5 GB) = ~15 GB total. With preserved NF4 cache: S3 download + direct GPU load = ~2 min cold start."
         },
         "invoke": {
           "library": "diffusers",
@@ -5204,43 +5586,43 @@
           "supports_negative_prompt": false,
           "max_prompt_length": 2000,
           "typical_latency_seconds": 180,
-          "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder — understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60–100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') — describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2–3 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good — 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
+          "prompt_guidance": "FLUX.2 dev by Black Forest Labs. Uses Mistral 3 text encoder \u2014 understands natural language exceptionally well.\n\nKEY CONSTRAINT: FLUX.2 does NOT support negative prompts. DO NOT write a NEGATIVE: line. All quality must come from the positive prompt alone.\n\nWRITING RULES:\n- Keep prompts 60\u2013100 words. Concise and precise beats verbose. Every word must earn its place.\n- DO NOT use negation words ('no', 'not', 'without', 'avoid') \u2014 describe only what IS in the image.\n- Front-load: Subject + key action in the FIRST sentence. Model attention drops after ~80 words.\n- Write as one flowing description, not a list of tags or comma-separated keywords.\n- Be specific: 'weathered copper roof with verdigris patina' not 'old roof'.\n\nSTRUCTURE (this order, one sentence each):\n1. Subject: who/what, pose, expression, key details\n2. Setting: where, 2\u20133 environmental details\n3. Light + camera: one lighting note + one lens/angle note\n4. Style anchor: end with a short style phrase\n\nEFFECTIVE STYLE ANCHORS (pick one):\n- 'cinematic still, anamorphic lens'\n- 'editorial photograph, natural light'\n- 'concept art, digital painting'\n- 'documentary photography, 35mm film grain'\n- 'hyperrealistic render, octane'\n\nEXAMPLE (good \u2014 72 words):\n'A weathered sea captain in his 60s sits in a teak deck chair, navy peacoat unbuttoned, gold epaulettes catching amber light, squinting blue-grey eyes fixed on the horizon. Behind him, the ship's railing and open ocean stretch to a misty coastline. Late afternoon golden hour from the left, shallow depth of field. Cinematic portrait, 85mm f/1.4, editorial photography.'\n\nAVOID:\n- Microscopic details the model cannot render (individual thread counts, exact button positions)\n- Repeating the same concept in different words (padding)\n- Generic quality tags that add nothing ('stunning', 'beautiful', 'amazing')\n- Describing what is NOT in the image",
           "max_concurrent_invocations": 1,
           "supported_sizes": [
             {
               "w": 512,
               "h": 512,
-              "label": "512 × 512"
+              "label": "512 \u00d7 512"
             },
             {
               "w": 768,
               "h": 768,
-              "label": "768 × 768"
+              "label": "768 \u00d7 768"
             },
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 × 1024"
+              "label": "1024 \u00d7 1024"
             },
             {
               "w": 1024,
               "h": 576,
-              "label": "1024 × 576 (16:9)"
+              "label": "1024 \u00d7 576 (16:9)"
             },
             {
               "w": 576,
               "h": 1024,
-              "label": "576 × 1024 (9:16)"
+              "label": "576 \u00d7 1024 (9:16)"
             },
             {
               "w": 1280,
               "h": 720,
-              "label": "1280 × 720 (16:9)"
+              "label": "1280 \u00d7 720 (16:9)"
             },
             {
               "w": 720,
               "h": 1280,
-              "label": "720 × 1280 (9:16)"
+              "label": "720 \u00d7 1280 (9:16)"
             }
           ],
           "quantization_components": [
@@ -5290,7 +5672,7 @@
       },
       "qwen_image_edit_2511": {
         "label": "Qwen-Image-Edit",
-        "description": "Reference-guided image editing by Alibaba Qwen. Apache-2.0 (commercial-safe). Takes 1–3 reference images + an instruction to preserve a subject/product/character while changing theme, background, wardrobe, lighting. The 2511 refresh over 2509 mitigates image drift, improves character consistency, adds integrated LoRA, and strengthens geometric reasoning. Powers the Image Studio reference-guided tab and the basic Edit tab (inpaint/outpaint).",
+        "description": "Reference-guided image editing by Alibaba Qwen. Apache-2.0 (commercial-safe). Takes 1\u20133 reference images + an instruction to preserve a subject/product/character while changing theme, background, wardrobe, lighting. The 2511 refresh over 2509 mitigates image drift, improves character consistency, adds integrated LoRA, and strengthens geometric reasoning. Powers the Image Studio reference-guided tab and the basic Edit tab (inpaint/outpaint).",
         "category": "image_generation",
         "studio": "image",
         "provider": "Alibaba Qwen",
@@ -5316,9 +5698,9 @@
           "license_url": "https://huggingface.co/Qwen/Qwen-Image-Edit-2511/blob/main/LICENSE",
           "commercial": true,
           "key_terms": [
-            "Apache License 2.0 — commercial use permitted",
+            "Apache License 2.0 \u2014 commercial use permitted",
             "Modification and redistribution allowed with license notice",
-            "No additional gating — weights are openly downloadable from HuggingFace"
+            "No additional gating \u2014 weights are openly downloadable from HuggingFace"
           ],
           "warnings": []
         },
@@ -5337,7 +5719,7 @@
             "ml.g6e.8xlarge"
           ],
           "min_host_ram_gb": 32,
-          "_note": "48 GB VRAM (g6e/L40S) is the baseline. The 24 GB L4 (g6.2xlarge) loads the NF4 model but OOMs during inference at Qwen's larger supported resolutions (1328², 1664×928) — verified 2026-07-21 (CUDA OOM at 1328² 40 steps, 21.9/22 GB used). We never cap output quality to fit a smaller GPU; g6e is required so every supported size renders."
+          "_note": "48 GB VRAM (g6e/L40S) is the baseline. The 24 GB L4 (g6.2xlarge) loads the NF4 model but OOMs during inference at Qwen's larger supported resolutions (1328\u00b2, 1664\u00d7928) \u2014 verified 2026-07-21 (CUDA OOM at 1328\u00b2 40 steps, 21.9/22 GB used). We never cap output quality to fit a smaller GPU; g6e is required so every supported size renders."
         },
         "invoke": {
           "library": "diffusers",
@@ -5354,7 +5736,7 @@
               "type": "image_list",
               "required": true,
               "max_items": 3,
-              "description": "1–3 base64-encoded PNG reference images"
+              "description": "1\u20133 base64-encoded PNG reference images"
             },
             "negative_prompt": {
               "type": "string",
@@ -5399,7 +5781,7 @@
               "quantization": "nf4"
             }
           ],
-          "prompt_guidance": "Qwen-Image-Edit is an INSTRUCTION-FOLLOWING image editor, not a text-to-image generator. Write an imperative edit instruction, not a scene caption. Structure: (1) name the subject to KEEP from the reference (product, logo text, character identity, distinctive colors/shape), then (2) state the change to apply (new background, scene, wardrobe, lighting, mood). Example: 'Keep the red yogurt cup and its green leaf logo exactly; place it on sunlit beach sand at golden hour with soft rim light.' Be specific about what is preserved so identity survives. Quote any on-product text verbatim so the label stays legible (Qwen renders text well). Describe ONLY the new elements — do not re-describe unchanged parts of the reference. Keep it concise and directive (~40-70 words); avoid flowery prose, negations, and camera jargon. For multi-image references (product + logo, or a character from several angles), treat them as complementary views of ONE subject — optimal with 1 to 3 images."
+          "prompt_guidance": "Qwen-Image-Edit is an INSTRUCTION-FOLLOWING image editor, not a text-to-image generator. Write an imperative edit instruction, not a scene caption. Structure: (1) name the subject to KEEP from the reference (product, logo text, character identity, distinctive colors/shape), then (2) state the change to apply (new background, scene, wardrobe, lighting, mood). Example: 'Keep the red yogurt cup and its green leaf logo exactly; place it on sunlit beach sand at golden hour with soft rim light.' Be specific about what is preserved so identity survives. Quote any on-product text verbatim so the label stays legible (Qwen renders text well). Describe ONLY the new elements \u2014 do not re-describe unchanged parts of the reference. Keep it concise and directive (~40-70 words); avoid flowery prose, negations, and camera jargon. For multi-image references (product + logo, or a character from several angles), treat them as complementary views of ONE subject \u2014 optimal with 1 to 3 images."
         },
         "pricing": {
           "estimated_cost_per_image": 0.03,
@@ -5413,14 +5795,14 @@
             "tier": "cost_optimized",
             "instance": "ml.g6.2xlarge",
             "precision": "nf4",
-            "label": "Cost-optimized (L4 24GB VRAM / 32GB RAM, NF4) — ~$1.22/hr",
+            "label": "Cost-optimized (L4 24GB VRAM / 32GB RAM, NF4) \u2014 ~$1.22/hr",
             "recommended": true
           },
           {
             "tier": "full_quality",
             "instance": "ml.g6e.xlarge",
             "precision": "bfloat16",
-            "label": "Full quality (L40S 48GB VRAM / 32GB RAM, bf16) — ~$2.61/hr"
+            "label": "Full quality (L40S 48GB VRAM / 32GB RAM, bf16) \u2014 ~$2.61/hr"
           }
         ],
         "version": "1.0",
@@ -5460,9 +5842,9 @@
           "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512/blob/main/LICENSE",
           "commercial": true,
           "key_terms": [
-            "Apache License 2.0 — commercial use permitted",
+            "Apache License 2.0 \u2014 commercial use permitted",
             "Modification and redistribution allowed with license notice",
-            "No additional gating — weights are openly downloadable from HuggingFace"
+            "No additional gating \u2014 weights are openly downloadable from HuggingFace"
           ],
           "warnings": []
         },
@@ -5481,7 +5863,7 @@
             "ml.g6e.8xlarge"
           ],
           "min_host_ram_gb": 32,
-          "_note": "48 GB VRAM (g6e/L40S) is the baseline. The 24 GB L4 (g6.2xlarge) loads the NF4 model but OOMs during inference at Qwen's larger supported resolutions (1328², 1664×928) — verified 2026-07-21 (CUDA OOM at 1328² 40 steps, 21.9/22 GB used). We never cap output quality to fit a smaller GPU; g6e is required so every supported size renders."
+          "_note": "48 GB VRAM (g6e/L40S) is the baseline. The 24 GB L4 (g6.2xlarge) loads the NF4 model but OOMs during inference at Qwen's larger supported resolutions (1328\u00b2, 1664\u00d7928) \u2014 verified 2026-07-21 (CUDA OOM at 1328\u00b2 40 steps, 21.9/22 GB used). We never cap output quality to fit a smaller GPU; g6e is required so every supported size renders."
         },
         "invoke": {
           "library": "diffusers",
@@ -5530,42 +5912,42 @@
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 × 1024"
+              "label": "1024 \u00d7 1024"
             },
             {
               "w": 1328,
               "h": 1328,
-              "label": "1328 × 1328"
+              "label": "1328 \u00d7 1328"
             },
             {
               "w": 1664,
               "h": 928,
-              "label": "1664 × 928 (16:9)"
+              "label": "1664 \u00d7 928 (16:9)"
             },
             {
               "w": 928,
               "h": 1664,
-              "label": "928 × 1664 (9:16)"
+              "label": "928 \u00d7 1664 (9:16)"
             },
             {
               "w": 1472,
               "h": 1104,
-              "label": "1472 × 1104 (4:3)"
+              "label": "1472 \u00d7 1104 (4:3)"
             },
             {
               "w": 1104,
               "h": 1472,
-              "label": "1104 × 1472 (3:4)"
+              "label": "1104 \u00d7 1472 (3:4)"
             },
             {
               "w": 1584,
               "h": 1056,
-              "label": "1584 × 1056 (3:2)"
+              "label": "1584 \u00d7 1056 (3:2)"
             },
             {
               "w": 1056,
               "h": 1584,
-              "label": "1056 × 1584 (2:3)"
+              "label": "1056 \u00d7 1584 (2:3)"
             }
           ],
           "quantization_components": [
@@ -5584,7 +5966,7 @@
               "quantization": "nf4"
             }
           ],
-          "prompt_guidance": "Qwen-Image is a 20B text-to-image generator with excellent prompt following and best-in-class TEXT RENDERING (including non-Latin scripts). Write a rich natural-language description of the finished image. Structure: Subject → Action/Pose → Environment/Scene → Lighting → Composition/Camera → Style. Front-load the most important elements (the model attends most to what comes first). It follows detailed prose well, so be specific about materials, colors, and mood. STANDOUT STRENGTH: it renders embedded text (signs, labels, posters, titles, UI, logos-as-text) crisply — when text should appear IN the image, quote it verbatim in double quotes and say where it goes (e.g. a neon sign reading \"OPEN\"). Prefer positive description over negations; put exclusions in the negative prompt instead of writing 'no/without' in the prompt. Avoid keyword-spam; write like describing a photograph or painting."
+          "prompt_guidance": "Qwen-Image is a 20B text-to-image generator with excellent prompt following and best-in-class TEXT RENDERING (including non-Latin scripts). Write a rich natural-language description of the finished image. Structure: Subject \u2192 Action/Pose \u2192 Environment/Scene \u2192 Lighting \u2192 Composition/Camera \u2192 Style. Front-load the most important elements (the model attends most to what comes first). It follows detailed prose well, so be specific about materials, colors, and mood. STANDOUT STRENGTH: it renders embedded text (signs, labels, posters, titles, UI, logos-as-text) crisply \u2014 when text should appear IN the image, quote it verbatim in double quotes and say where it goes (e.g. a neon sign reading \"OPEN\"). Prefer positive description over negations; put exclusions in the negative prompt instead of writing 'no/without' in the prompt. Avoid keyword-spam; write like describing a photograph or painting."
         },
         "pricing": {
           "estimated_cost_per_image": 0.03,
@@ -5598,14 +5980,14 @@
             "tier": "cost_optimized",
             "instance": "ml.g6.2xlarge",
             "precision": "nf4",
-            "label": "Cost-optimized (L4 24GB VRAM / 32GB RAM, NF4) — ~$1.22/hr",
+            "label": "Cost-optimized (L4 24GB VRAM / 32GB RAM, NF4) \u2014 ~$1.22/hr",
             "recommended": true
           },
           {
             "tier": "full_quality",
             "instance": "ml.g6e.xlarge",
             "precision": "bfloat16",
-            "label": "Full quality (L40S 48GB VRAM / 32GB RAM, bf16) — ~$2.61/hr"
+            "label": "Full quality (L40S 48GB VRAM / 32GB RAM, bf16) \u2014 ~$2.61/hr"
           }
         ],
         "version": "1.0",
@@ -5769,7 +6151,7 @@
       },
       "codeformer": {
         "label": "CodeFormer (Face Restoration)",
-        "description": "AI face restoration — fixes AI-generated face artifacts.",
+        "description": "AI face restoration \u2014 fixes AI-generated face artifacts.",
         "category": "post_processing",
         "studio": "image",
         "provider": "Shangchen Zhou et al.",
@@ -5785,7 +6167,7 @@
             "Redistribution: Allowed with license notice"
           ],
           "warnings": [
-            "Commercial use is NOT permitted — research use only"
+            "Commercial use is NOT permitted \u2014 research use only"
           ]
         },
         "source": {
@@ -5839,7 +6221,7 @@
       },
       "depth_anything_v2": {
         "label": "Depth Anything v2",
-        "description": "Monocular depth estimation — generates depth maps for 3D effects.",
+        "description": "Monocular depth estimation \u2014 generates depth maps for 3D effects.",
         "category": "utility",
         "studio": "image",
         "provider": "DepthAnything Team",
@@ -5906,7 +6288,7 @@
       },
       "sam2": {
         "label": "Segment Anything 2 (SAM 2)",
-        "description": "Smart object segmentation by Meta — click to select objects precisely.",
+        "description": "Smart object segmentation by Meta \u2014 click to select objects precisely.",
         "category": "utility",
         "studio": "image",
         "provider": "Meta AI",
@@ -5982,7 +6364,7 @@
       },
       "stable_video_diffusion": {
         "label": "Stable Video Diffusion (SVD-XT)",
-        "description": "Image-to-video by Stability AI — 25 frames from a single image.",
+        "description": "Image-to-video by Stability AI \u2014 25 frames from a single image.",
         "category": "video_generation",
         "studio": "video",
         "provider": "Stability AI",
@@ -6070,8 +6452,8 @@
         }
       },
       "hunyuan_image_3_0_bf16": {
-        "label": "HunyuanImage 3.0 (BF16) — HQ",
-        "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision — zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Text-to-image only; prompt enhancement is handled by ArtSmoker's own pipeline.",
+        "label": "HunyuanImage 3.0 (BF16) \u2014 HQ",
+        "description": "Tencent's 80B MoE autoregressive image model at full bf16 precision \u2014 zero quality loss. FlashInfer fused MoE kernels provide 3x speedup over eager mode. Requires 2-GPU instance (g7e.12xlarge). Text-to-image only; prompt enhancement is handled by ArtSmoker's own pipeline.",
         "provider": "Tencent",
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
@@ -6086,7 +6468,7 @@
             "Modification: Allowed, you own derivatives"
           ],
           "warnings": [
-            "EXCLUDES EU, UK, and South Korea — users in these territories have no license to use this model",
+            "EXCLUDES EU, UK, and South Korea \u2014 users in these territories have no license to use this model",
             "Cannot use outputs to train non-Hunyuan AI models",
             "Above 100M MAU requires separate Tencent approval"
           ]
@@ -6154,82 +6536,82 @@
             {
               "w": 512,
               "h": 512,
-              "label": "512 × 512"
+              "label": "512 \u00d7 512"
             },
             {
               "w": 768,
               "h": 768,
-              "label": "768 × 768"
+              "label": "768 \u00d7 768"
             },
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 × 1024"
+              "label": "1024 \u00d7 1024"
             },
             {
               "w": 1024,
               "h": 576,
-              "label": "1024 × 576 (16:9)"
+              "label": "1024 \u00d7 576 (16:9)"
             },
             {
               "w": 576,
               "h": 1024,
-              "label": "576 × 1024 (9:16)"
+              "label": "576 \u00d7 1024 (9:16)"
             },
             {
               "w": 1280,
               "h": 720,
-              "label": "1280 × 720 (16:9)"
+              "label": "1280 \u00d7 720 (16:9)"
             },
             {
               "w": 720,
               "h": 1280,
-              "label": "720 × 1280 (9:16)"
+              "label": "720 \u00d7 1280 (9:16)"
             },
             {
               "w": 1536,
               "h": 1536,
-              "label": "1536 × 1536"
+              "label": "1536 \u00d7 1536"
             },
             {
               "w": 2048,
               "h": 1024,
-              "label": "2048 × 1024 (2:1)"
+              "label": "2048 \u00d7 1024 (2:1)"
             },
             {
               "w": 1024,
               "h": 2048,
-              "label": "1024 × 2048 (1:2)"
+              "label": "1024 \u00d7 2048 (1:2)"
             },
             {
               "w": 1920,
               "h": 1080,
-              "label": "1920 × 1080 (16:9 Full HD)"
+              "label": "1920 \u00d7 1080 (16:9 Full HD)"
             },
             {
               "w": 1080,
               "h": 1920,
-              "label": "1080 × 1920 (9:16 Full HD)"
+              "label": "1080 \u00d7 1920 (9:16 Full HD)"
             },
             {
               "w": 2048,
               "h": 1152,
-              "label": "2048 × 1152 (16:9)"
+              "label": "2048 \u00d7 1152 (16:9)"
             },
             {
               "w": 1152,
               "h": 2048,
-              "label": "1152 × 2048 (9:16)"
+              "label": "1152 \u00d7 2048 (9:16)"
             },
             {
               "w": 2048,
               "h": 2048,
-              "label": "2048 × 2048"
+              "label": "2048 \u00d7 2048"
             }
           ],
           "typical_latency_seconds": 120,
           "max_concurrent_invocations": 1,
-          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive text-to-image model by Tencent.\n\nKEY: This deployment runs the base checkpoint in plain text-to-image mode; it does NOT auto-enhance prompts. ArtSmoker's own prompt pipeline handles enhancement upstream, so send a clear, well-formed prompt.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive text-to-image model by Tencent.\n\nKEY: This deployment runs the base checkpoint in plain text-to-image mode; it does NOT auto-enhance prompts. ArtSmoker's own prompt pipeline handles enhancement upstream, so send a clear, well-formed prompt.\n\nWRITING RULES:\n- Write naturally, 30\u201380 words. Describe what you want to see.\n- DO NOT use negative prompts \u2014 not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048\u00d72048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" \u2014 the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) \u2014 use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- High-fidelity details at large resolutions\n- BF16 = original model precision, zero quality loss",
           "image_size_format": "HxW",
           "optimal_prompt_words": 55
         },
@@ -6266,7 +6648,7 @@
       },
       "hunyuan_image_3_0_nf4": {
         "label": "HunyuanImage 3.0 (NF4)",
-        "description": "Tencent’s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Text-to-image only; prompt enhancement is handled by ArtSmoker's own pipeline.",
+        "description": "Tencent\u2019s 80B MoE autoregressive image model. NF4 4-bit quantization for efficient single-GPU deployment with excellent quality. Text-to-image only; prompt enhancement is handled by ArtSmoker's own pipeline.",
         "provider": "Tencent",
         "studio": "image",
         "license": "Tencent Hunyuan Community License",
@@ -6281,7 +6663,7 @@
             "Modification: Allowed, you own derivatives"
           ],
           "warnings": [
-            "EXCLUDES EU, UK, and South Korea — users in these territories have no license to use this model",
+            "EXCLUDES EU, UK, and South Korea \u2014 users in these territories have no license to use this model",
             "Cannot use outputs to train non-Hunyuan AI models",
             "Above 100M MAU requires separate Tencent approval"
           ]
@@ -6351,62 +6733,62 @@
             {
               "w": 512,
               "h": 512,
-              "label": "512 × 512"
+              "label": "512 \u00d7 512"
             },
             {
               "w": 768,
               "h": 768,
-              "label": "768 × 768"
+              "label": "768 \u00d7 768"
             },
             {
               "w": 1024,
               "h": 1024,
-              "label": "1024 × 1024"
+              "label": "1024 \u00d7 1024"
             },
             {
               "w": 1024,
               "h": 576,
-              "label": "1024 × 576 (16:9)"
+              "label": "1024 \u00d7 576 (16:9)"
             },
             {
               "w": 576,
               "h": 1024,
-              "label": "576 × 1024 (9:16)"
+              "label": "576 \u00d7 1024 (9:16)"
             },
             {
               "w": 1280,
               "h": 720,
-              "label": "1280 × 720 (16:9)"
+              "label": "1280 \u00d7 720 (16:9)"
             },
             {
               "w": 720,
               "h": 1280,
-              "label": "720 × 1280 (9:16)"
+              "label": "720 \u00d7 1280 (9:16)"
             },
             {
               "w": 1536,
               "h": 1536,
-              "label": "1536 × 1536"
+              "label": "1536 \u00d7 1536"
             },
             {
               "w": 2048,
               "h": 1024,
-              "label": "2048 × 1024 (2:1)"
+              "label": "2048 \u00d7 1024 (2:1)"
             },
             {
               "w": 1024,
               "h": 2048,
-              "label": "1024 × 2048 (1:2)"
+              "label": "1024 \u00d7 2048 (1:2)"
             },
             {
               "w": 2048,
               "h": 2048,
-              "label": "2048 × 2048"
+              "label": "2048 \u00d7 2048"
             }
           ],
           "typical_latency_seconds": 240,
           "max_concurrent_invocations": 1,
-          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive text-to-image model by Tencent.\n\nKEY: This deployment runs the base checkpoint in plain text-to-image mode; it does NOT auto-enhance prompts. ArtSmoker's own prompt pipeline handles enhancement upstream, so send a clear, well-formed prompt.\n\nWRITING RULES:\n- Write naturally, 30–80 words. Describe what you want to see.\n- DO NOT use negative prompts — not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048×2048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" — the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) — use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- High-fidelity details at large resolutions",
+          "prompt_guidance": "HunyuanImage 3.0 is an 80B MoE autoregressive text-to-image model by Tencent.\n\nKEY: This deployment runs the base checkpoint in plain text-to-image mode; it does NOT auto-enhance prompts. ArtSmoker's own prompt pipeline handles enhancement upstream, so send a clear, well-formed prompt.\n\nWRITING RULES:\n- Write naturally, 30\u201380 words. Describe what you want to see.\n- DO NOT use negative prompts \u2014 not supported.\n- Front-load the subject. Background and style details follow.\n- Bilingual: works equally well in English and Chinese.\n- Supports dynamic resolutions up to 2048\u00d72048.\n\nSTYLE BEHAVIOR:\n- The model's default aesthetic leans toward stylized digital art / illustration.\n- For photorealistic results, use photography language: \"photograph\", \"photo\", \"shot on\", \"natural lighting\", \"candid\" \u2014 the model responds to these cues.\n- For artistic results, describe the art style: \"oil painting\", \"watercolor\", \"concept art\", \"digital illustration\".\n- Avoid rendering engine jargon (PBR, subsurface scattering, AAA quality) \u2014 use natural visual descriptions instead.\n\nSTRENGTHS:\n- Exceptional text rendering in images (English + Chinese)\n- Superior compositional understanding from autoregressive architecture\n- High-fidelity details at large resolutions",
           "image_size_format": "HxW",
           "optimal_prompt_words": 55
         },
@@ -6441,7 +6823,7 @@
       },
       "trellis2_image_to_3d": {
         "label": "TRELLIS.2 (Full Image-to-3D)",
-        "description": "Microsoft TRELLIS.2 full pipeline — generates BOTH geometry and PBR texture from a single image in one model. MIT-licensed, commercially-clean. Alternative to the TripoSG + texture-backend pipeline.",
+        "description": "Microsoft TRELLIS.2 full pipeline \u2014 generates BOTH geometry and PBR texture from a single image in one model. MIT-licensed, commercially-clean. Alternative to the TripoSG + texture-backend pipeline.",
         "category": "3d_generation",
         "studio": "image",
         "provider": "Microsoft Research",
@@ -6453,11 +6835,11 @@
           "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
           "license_url": "https://github.com/microsoft/TRELLIS.2/blob/main/LICENSE",
           "key_terms": [
-            "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) — MIT, commercial use unrestricted",
-            "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) — commercial-OK, GATED on HuggingFace",
+            "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) \u2014 MIT, commercial use unrestricted",
+            "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) \u2014 commercial-OK, GATED on HuggingFace",
             "Requires a \"Built with DINOv3\" attribution in your product UI",
             "Background removal uses BiRefNet (MIT); the bundled RMBG-2.0 is NOT used",
-            "The mesh/texture bake (o_voxel.postprocess) hard-imports nvdiffrast — NVIDIA Source Code License (1-Way Commercial), NON-commercial for general users. Review before commercial use."
+            "The mesh/texture bake (o_voxel.postprocess) hard-imports nvdiffrast \u2014 NVIDIA Source Code License (1-Way Commercial), NON-commercial for general users. Review before commercial use."
           ],
           "dependencies": [
             {
@@ -6474,7 +6856,7 @@
               "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
               "gated": true,
               "commercial": true,
-              "role": "Image encoder — REQUIRES 'Built with DINOv3' attribution"
+              "role": "Image encoder \u2014 REQUIRES 'Built with DINOv3' attribution"
             },
             {
               "name": "ZhengPeng7/BiRefNet",
@@ -6486,7 +6868,7 @@
             },
             {
               "name": "nvdiffrast (NVlabs)",
-              "license": "NVIDIA Source Code License (1-Way Commercial) — non-commercial for general users",
+              "license": "NVIDIA Source Code License (1-Way Commercial) \u2014 non-commercial for general users",
               "url": "https://github.com/NVlabs/nvdiffrast/blob/main/LICENSE.txt",
               "gated": false,
               "commercial": false,
@@ -6495,8 +6877,8 @@
           ],
           "warnings": [
             "You must display a \"Built with DINOv3\" notice where the feature is surfaced (DINOv3 license obligation).",
-            "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo — accept its license on HuggingFace before deploying.",
-            "The mesh/texture bake (o_voxel.postprocess.to_glb) hard-imports nvdiffrast, which is under the NVIDIA Source Code License (1-Way Commercial) — NON-commercial for general users. Review this dependency before any commercial use of the full TRELLIS.2 image-to-3D pipeline. (The TripoSG + texture-backend path uses Kaolin/Apache-2.0 instead.)"
+            "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo \u2014 accept its license on HuggingFace before deploying.",
+            "The mesh/texture bake (o_voxel.postprocess.to_glb) hard-imports nvdiffrast, which is under the NVIDIA Source Code License (1-Way Commercial) \u2014 NON-commercial for general users. Review this dependency before any commercial use of the full TRELLIS.2 image-to-3D pipeline. (The TripoSG + texture-backend path uses Kaolin/Apache-2.0 instead.)"
           ]
         },
         "source": {
@@ -6518,7 +6900,7 @@
           "min_ram_gb": 28,
           "recommended_instance": "ml.g5.2xlarge",
           "disk_gb": 80,
-          "_resource_note": "PROVEN baseline: ml.g5.2xlarge (A10G 24 GB, 32 GiB RAM, ~$1.52/hr). Confirmed 2026-06-25 — full image→3D run completed cleanly: peak 4.78 GB VRAM (of 24), ~7.5 min inference (459s, excl. ~2 min cold-start model load), 18.8 MB PBR GLB. CUDA exts (o_voxel/cumesh/flex_gemm) + xformers build & run fine on Ampere sm_86 via the arch-portable builder. No errors. Chosen over g6e.xlarge (L40S 48 GB) because VRAM was hugely over-provisioned there — the A10G's 24 GB has ample headroom at ~5 GB peak, at materially lower cost. Larger g6e options remain allowed for headroom if needed.",
+          "_resource_note": "PROVEN baseline: ml.g5.2xlarge (A10G 24 GB, 32 GiB RAM, ~$1.52/hr). Confirmed 2026-06-25 \u2014 full image\u21923D run completed cleanly: peak 4.78 GB VRAM (of 24), ~7.5 min inference (459s, excl. ~2 min cold-start model load), 18.8 MB PBR GLB. CUDA exts (o_voxel/cumesh/flex_gemm) + xformers build & run fine on Ampere sm_86 via the arch-portable builder. No errors. Chosen over g6e.xlarge (L40S 48 GB) because VRAM was hugely over-provisioned there \u2014 the A10G's 24 GB has ample headroom at ~5 GB peak, at materially lower cost. Larger g6e options remain allowed for headroom if needed.",
           "allowed_instances": [
             "ml.g5.2xlarge",
             "ml.g6e.xlarge",
@@ -6689,10 +7071,10 @@
                 "commercial": false,
                 "attestation_required": true,
                 "key_terms": [
-                  "Weights tencent/Hunyuan3D-2.1 — NON-COMMERCIAL community license",
+                  "Weights tencent/Hunyuan3D-2.1 \u2014 NON-COMMERCIAL community license",
                   "Excludes EU / UK / South Korea for commercial use",
                   "1M monthly-active-user cap; no military use",
-                  "Vision encoder is Meta DINOv2 (facebook/dinov2-giant) — CC-BY-NC-4.0, ALSO non-commercial",
+                  "Vision encoder is Meta DINOv2 (facebook/dinov2-giant) \u2014 CC-BY-NC-4.0, ALSO non-commercial",
                   "Super-resolution: RealESRGAN x4 (MIT)"
                 ],
                 "dependencies": [
@@ -6724,7 +7106,7 @@
                 "warnings": [
                   "Not licensed for commercial use without a separate Tencent agreement.",
                   "TWO non-commercial dependencies: Tencent Hunyuan3D-2.1 weights AND Meta DINOv2 (CC-BY-NC-4.0). Both restrict commercial use independently.",
-                  "tencent/Hunyuan3D-2.1 is a GATED HuggingFace repo — you must accept its license on HuggingFace before deploying.",
+                  "tencent/Hunyuan3D-2.1 is a GATED HuggingFace repo \u2014 you must accept its license on HuggingFace before deploying.",
                   "You must confirm you hold a valid license or will use it within its non-commercial terms."
                 ]
               },
@@ -6748,10 +7130,10 @@
                 "commercial": true,
                 "attestation_required": true,
                 "key_terms": [
-                  "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) — MIT, commercial use unrestricted",
-                  "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) — commercial-OK, GATED on HuggingFace",
+                  "TRELLIS.2 code + weights (microsoft/TRELLIS.2-4B) \u2014 MIT, commercial use unrestricted",
+                  "Image encoder is Meta DINOv3 (facebook/dinov3-vitl16-pretrain-lvd1689m) \u2014 commercial-OK, GATED on HuggingFace",
                   "Requires a \"Built with DINOv3\" attribution in your product UI",
-                  "Background removal uses BiRefNet (MIT) — TRELLIS.2's bundled RMBG-2.0 is NOT used (we feed a pre-cut RGBA image)"
+                  "Background removal uses BiRefNet (MIT) \u2014 TRELLIS.2's bundled RMBG-2.0 is NOT used (we feed a pre-cut RGBA image)"
                 ],
                 "dependencies": [
                   {
@@ -6768,7 +7150,7 @@
                     "url": "https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m",
                     "gated": true,
                     "commercial": true,
-                    "role": "Image encoder — REQUIRES 'Built with DINOv3' attribution"
+                    "role": "Image encoder \u2014 REQUIRES 'Built with DINOv3' attribution"
                   },
                   {
                     "name": "ZhengPeng7/BiRefNet",
@@ -6781,7 +7163,7 @@
                 ],
                 "warnings": [
                   "You must display a \"Built with DINOv3\" notice where the feature is surfaced (DINOv3 license obligation).",
-                  "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo — accept its license on HuggingFace before deploying."
+                  "facebook/dinov3-vitl16-pretrain-lvd1689m is a GATED HuggingFace repo \u2014 accept its license on HuggingFace before deploying."
                 ]
               },
               "min_instance": "ml.g6e.2xlarge",
@@ -6873,7 +7255,7 @@
       },
       "image_enhancement": {
         "label": "Image Enhancement",
-        "description": "Background removal, 4x upscaling, and face restoration — deployed together on one endpoint.",
+        "description": "Background removal, 4x upscaling, and face restoration \u2014 deployed together on one endpoint.",
         "models": [
           "real_esrgan",
           "rmbg_2",
@@ -7432,6 +7814,7 @@
   "sagemaker_pricing": {
     "ml.g5.24xlarge|eu-north-1": 10.7973,
     "ml.g7e.12xlarge|us-west-2": 10.3576,
+    "ml.g7e.8xlarge|ap-northeast-1": 9.5506,
     "ml.g5.8xlarge|eu-central-1": 3.827,
     "ml.g6.48xlarge|eu-west-2": 21.1835,
     "ml.g6e.48xlarge|ap-south-1": 45.2332,
@@ -7449,6 +7832,7 @@
     "ml.g5.16xlarge|eu-central-1": 6.403,
     "ml.g7e.24xlarge|us-east-2": 20.7152,
     "ml.g5.xlarge|eu-central-1": 1.761,
+    "ml.g7e.2xlarge|eu-west-2": 7.3066,
     "ml.g6e.12xlarge|ap-northeast-3": 19.0218,
     "ml.g6.12xlarge|ap-northeast-2": 7.0728,
     "ml.g6e.24xlarge|us-east-1": 18.832,
@@ -7457,6 +7841,7 @@
     "ml.g6.12xlarge|us-east-2": 5.752,
     "ml.g5.12xlarge|ap-south-1": 8.514,
     "ml.g6.48xlarge|us-west-2": 16.688,
+    "ml.g7e.12xlarge|eu-west-2": 18.0022,
     "ml.g6.48xlarge|ap-south-1": 20.0389,
     "ml.g7e.48xlarge|us-east-2": 41.4304,
     "ml.p5.4xlarge|sa-east-1": 13.2922,
@@ -7481,6 +7866,7 @@
     "ml.g6.8xlarge|eu-north-1": 2.6707,
     "ml.g5.48xlarge|eu-north-1": 21.5946,
     "ml.g6e.xlarge|ap-south-1": 3.129,
+    "ml.g7e.48xlarge|eu-west-2": 72.0086,
     "ml.g6.12xlarge|us-west-2": 5.752,
     "ml.p5en.48xlarge|us-east-2": 72.795,
     "ml.g6.xlarge|us-east-2": 1.1267,
@@ -7504,6 +7890,8 @@
     "ml.p4d.24xlarge|ap-southeast-2": 32.8267,
     "ml.g6.2xlarge|eu-north-1": 1.2961,
     "ml.g6e.24xlarge|us-west-2": 18.832,
+    "ml.g7e.12xlarge|ap-northeast-1": 15.0216,
+    "ml.g7e.2xlarge|ap-northeast-1": 6.0969,
     "ml.g6e.8xlarge|ap-northeast-3": 8.2097,
     "ml.g7e.48xlarge|us-east-1": 41.4304,
     "ml.g5.48xlarge|us-east-2": 20.36,
@@ -7515,6 +7903,7 @@
     "ml.g5.16xlarge|us-west-2": 5.12,
     "ml.g7e.12xlarge|us-east-2": 10.3576,
     "ml.p5en.48xlarge|us-west-2": 72.795,
+    "ml.g7e.48xlarge|ap-northeast-2": 50.9365,
     "ml.g6.48xlarge|us-east-1": 16.688,
     "ml.g5.48xlarge|ap-south-1": 24.448,
     "ml.g6e.2xlarge|us-east-2": 2.8026,
@@ -7547,6 +7936,7 @@
     "ml.g6.24xlarge|ca-central-1": 9.2647,
     "ml.g5.8xlarge|eu-west-1": 3.42,
     "ml.p4de.24xlarge|us-west-2": 31.5641,
+    "ml.g7e.12xlarge|ap-northeast-2": 12.7341,
     "ml.g6e.48xlarge|eu-central-1": 47.1,
     "ml.g5.24xlarge|eu-west-1": 11.36,
     "ml.g5.8xlarge|ap-northeast-2": 3.7627,
@@ -7566,6 +7956,7 @@
     "ml.g6.2xlarge|ap-southeast-2": 1.5888,
     "ml.g6.8xlarge|eu-west-2": 3.1963,
     "ml.g5.xlarge|ap-south-1": 1.691,
+    "ml.g7e.4xlarge|eu-west-2": 8.6863,
     "ml.p5en.48xlarge|us-east-1": 72.795,
     "ml.p4d.24xlarge|ap-northeast-1": 34.6125,
     "ml.p5en.48xlarge|ap-northeast-1": 90.988,
@@ -7597,6 +7988,7 @@
     "ml.g7e.8xlarge|us-west-2": 6.5853,
     "ml.g5.8xlarge|us-east-1": 3.06,
     "ml.g5.8xlarge|us-west-2": 3.06,
+    "ml.g7e.24xlarge|ap-northeast-2": 25.4683,
     "ml.g6.16xlarge|eu-west-3": 5.3898,
     "ml.p4d.24xlarge|ap-northeast-2": 34.9718,
     "ml.p5.48xlarge|ap-southeast-2": 82.2825,
@@ -7650,13 +8042,17 @@
     "ml.g6e.xlarge|ap-northeast-3": 3.7786,
     "ml.p5.48xlarge|eu-west-2": 82.2825,
     "ml.g6.24xlarge|sa-east-1": 14.1831,
+    "ml.g7e.48xlarge|ap-northeast-1": 60.0864,
+    "ml.g7e.8xlarge|ap-northeast-2": 8.0963,
     "ml.g5.xlarge|eu-west-2": 1.788,
     "ml.g6.2xlarge|us-east-2": 1.222,
     "ml.g6e.12xlarge|us-east-1": 13.1158,
+    "ml.g7e.24xlarge|eu-west-2": 36.0043,
     "ml.g5.4xlarge|sa-east-1": 3.4506,
     "ml.g6.4xlarge|us-east-1": 1.654,
     "ml.g5.2xlarge|ap-south-1": 1.819,
     "ml.g6e.48xlarge|ap-northeast-1": 54.6239,
+    "ml.g7e.24xlarge|ap-northeast-1": 30.0432,
     "ml.g6e.2xlarge|us-east-1": 2.8026,
     "ml.p5.4xlarge|ap-south-1": 9.4944,
     "ml.g6e.12xlarge|us-east-2": 13.1158,
@@ -7689,6 +8085,7 @@
     "ml.g6e.24xlarge|ap-northeast-1": 27.3119,
     "ml.p5.48xlarge|us-east-1": 63.296,
     "ml.g6.2xlarge|ap-northeast-1": 1.7723,
+    "ml.p4d.24xlarge|ap-southeast-1": 30.3015,
     "ml.g6.16xlarge|eu-west-2": 5.3898,
     "ml.g5.48xlarge|us-east-1": 20.36,
     "ml.p5.4xlarge|ap-northeast-1": 9.89,
@@ -7700,6 +8097,7 @@
     "ml.g6.2xlarge|sa-east-1": 2.0772,
     "ml.g6.16xlarge|ap-northeast-2": 5.221,
     "ml.g5.4xlarge|eu-west-1": 2.27,
+    "ml.g7e.2xlarge|ap-northeast-2": 5.1685,
     "ml.g6.xlarge|eu-west-3": 1.4302,
     "ml.g6.16xlarge|eu-west-1": 4.7398,
     "ml.g5.16xlarge|eu-west-1": 5.72,
@@ -7727,12 +8125,14 @@
     "ml.g6.16xlarge|sa-east-1": 7.2174,
     "ml.g6.4xlarge|eu-north-1": 1.7543,
     "ml.g6e.2xlarge|eu-central-1": 3.5,
+    "ml.g7e.4xlarge|ap-northeast-1": 7.2481,
     "ml.p4d.24xlarge|eu-west-2": 32.8267,
     "ml.g6e.12xlarge|ap-south-1": 15.7516,
     "ml.g6e.8xlarge|ap-northeast-2": 6.96,
     "ml.p5en.48xlarge|eu-north-1": 77.8857,
     "ml.g6.16xlarge|ca-central-1": 4.7145,
     "ml.g5.48xlarge|ca-central-1": 22.606,
+    "ml.g7e.8xlarge|eu-west-2": 11.4457,
     "ml.g6.xlarge|ap-northeast-1": 1.6341,
     "ml.g6.4xlarge|eu-west-3": 2.0995,
     "ml.g6.8xlarge|ca-central-1": 2.7958,
@@ -7740,6 +8140,7 @@
     "ml.g6.xlarge|ca-central-1": 1.251,
     "ml.p5.48xlarge|us-east-2": 63.296,
     "ml.g6.8xlarge|eu-central-1": 3.1488,
+    "ml.g7e.4xlarge|ap-northeast-2": 6.1444,
     "ml.g6e.xlarge|us-east-1": 2.6054,
     "ml.g6e.4xlarge|us-west-2": 3.7553,
     "ml.g6.xlarge|eu-north-1": 1.195,
