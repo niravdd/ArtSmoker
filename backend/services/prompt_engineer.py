@@ -161,6 +161,26 @@ _FRAMING_NEGATIVES = (
     "unattached props, cropped, out of frame, close-up, collage, split panel, grid"
 )
 
+# Universal RENDERING-QUALITY negatives — safe for EVERY subject (human, animal,
+# robot, mech, vehicle, creature, crystal, abstract, sci-fi). These describe
+# image DEFECTS (softness, plastic sheen, banding, grain, compression), never
+# anatomy or content, so they can never fight a deliberate form. This is the
+# baseline that suppresses the "waxy / oversmoothed / AI-look / grainy" artifacts
+# seen on quantized generators. Applied to ALL asset types.
+_QUALITY_NEGATIVES = (
+    "low quality, low resolution, blurry, out of focus, jpeg artifacts, "
+    "compression artifacts, color banding, noise, grainy, oversharpened, "
+    "oversmoothed, plastic, waxy skin, oversaturated, washed out, "
+    "AI-look, deep fried, watermark, signature, text, logo"
+)
+# Markers that mean the LLM already emitted quality negatives (so we don't
+# double-append the static baseline). Any one hit → trust the LLM's set.
+_QUALITY_NEG_MARKERS = (
+    "low quality", "low resolution", "blurry", "jpeg", "artifact", "noise",
+    "grainy", "oversmooth", "waxy", "plastic", "oversaturat", "washed out",
+    "ai-look", "ai look", "deep fried", "banding",
+)
+
 
 # Markers that indicate the enhancement LLM already tailored single-subject /
 # framing negatives for this prompt (it's instructed to do so contextually,
@@ -193,6 +213,21 @@ def _ensure_framing_negatives(existing: str, asset_type) -> str:
     if any(m in low for m in _FRAMING_NEG_MARKERS):
         return existing  # LLM already tailored framing negatives — trust it
     return _merge_negatives(existing, _FRAMING_NEGATIVES)  # fallback safety-net
+
+
+def _ensure_quality_negatives(existing: str) -> str:
+    """Guarantee the universal rendering-quality baseline is present (ALL asset
+    types, any subject) — LLM-FIRST like the framing helper.
+
+    The refinement LLM is instructed to emit quality negatives itself; if it did
+    (any marker present), we trust its set. Otherwise we append the static
+    baseline. These are DEFECT terms only (never anatomy/content), so they're
+    always safe to add regardless of subject. Anatomy negatives are NOT handled
+    here — those are realism-gated and added by the LLM alone (see templates)."""
+    low = (existing or "").lower()
+    if any(m in low for m in _QUALITY_NEG_MARKERS):
+        return existing  # LLM already emitted quality negatives — trust it
+    return _merge_negatives(existing, _QUALITY_NEGATIVES)
 
 
 def _merge_negatives(existing: str, extra: str) -> str:
@@ -518,6 +553,10 @@ def refine_prompt(
         # (character/game_asset) — suppresses turnaround sheets, duplicate
         # figures, and floating props that wide canvases tend to induce.
         negative = _ensure_framing_negatives(negative, asset_type)
+        # Universal rendering-quality baseline (all asset types) — fights the
+        # waxy/oversmoothed/grainy/AI-look artifacts. Defect terms only, never
+        # anatomy, so safe for any subject.
+        negative = _ensure_quality_negatives(negative)
         if negative:
             logger.info("Negative prompt: %s", negative[:120])
 
@@ -628,6 +667,7 @@ def refine_prompt_structured(
         negative = ""
     else:
         negative = _ensure_framing_negatives(negative, asset_type)
+        negative = _ensure_quality_negatives(negative)
     _last_negative_var.set(negative)
 
     if len(main_prompt) > max_chars:
@@ -817,6 +857,7 @@ def generate_concept_prompts(
     else:
         # Reinforce single-complete-subject framing for 3D-convertible types.
         negative = _ensure_framing_negatives(negative, asset_type)
+        negative = _ensure_quality_negatives(negative)
     _last_negative_var.set(negative)
     if negative:
         logger.info("Concept generation negative prompt: %s", negative[:120])

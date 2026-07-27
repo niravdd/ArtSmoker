@@ -995,7 +995,18 @@ def _load_diffusers(model_dir):
             if comp_quant in ("int8", "8bit"):
                 qconfig = BnbConfig(load_in_8bit=True)
             elif comp_quant in ("int4", "4bit", "nf4"):
-                qconfig = BnbConfig(load_in_4bit=True, bnb_4bit_quant_type="nf4")
+                # bnb_4bit_compute_dtype MUST match torch_dtype (bf16). Left unset it
+                # defaults to float32, so NF4 matmuls dequantize to fp32 while the
+                # weights/LayerNorms are bf16 — an official-docs inconsistency that
+                # degrades quality and slows inference. Double-quant ("nested") saves
+                # ~0.4 bits/param at no quality cost (QLoRA recipe). Both are the
+                # official diffusers/bitsandbytes NF4 recommendation.
+                qconfig = BnbConfig(
+                    load_in_4bit=True,
+                    bnb_4bit_quant_type="nf4",
+                    bnb_4bit_compute_dtype=_get_torch_dtype(),
+                    bnb_4bit_use_double_quant=True,
+                )
             else:
                 logger.warning("Unknown quantization type '%s' for %s — skipping", comp_quant, comp_name)
                 continue
@@ -1103,7 +1114,7 @@ def _load_diffusers(model_dir):
                                 "load_in_8bit": comp_quant in ("int8", "8bit"),
                                 "bnb_4bit_quant_type": "nf4" if comp_quant in ("int4", "4bit", "nf4") else None,
                                 "bnb_4bit_compute_dtype": "bfloat16",
-                                "bnb_4bit_use_double_quant": False,
+                                "bnb_4bit_use_double_quant": True,
                                 "bnb_4bit_quant_storage": "uint8",
                                 "quant_method": "bitsandbytes",
                             }
