@@ -33,7 +33,7 @@ ArtSmokerは、Amazon Bedrockをクリーンなクリエイティブインター
 - **ワンクリックで画像から3Dへ** — 任意の2Dゲームアセットやキャラクター画像からテクスチャ付き3Dモデル（GLB）を直接生成。マルチビュー合成とテクスチャベイキングにより、Unity、Unreal、Blenderに直接インポートできるゲームエンジン対応メッシュを生成します — 手動モデリング不要
 - **あなたのAWSアカウント、あなたのIP** — すべてがあなた専用のプライベートAWSアカウント内で実行されます。すべてのアートワーク、プロンプト、スタイル、生成されたアセットはあなたの隔離された環境内に留まります — データがサードパーティサービスに流出することはありません。クリエイティブIPの完全な所有権とコントロールを保持できます
 
-**Amazon Bedrockモデル**：Claude Sonnet/Opus（プロンプトエンジニアリング＆チャット）、Nova Canvas、Titan Image、Stable Diffusion 3.5 Large、Stable Image Ultra、Stability AIサービス（画像編集）、Nova Reel、Luma AI Ray（動画生成）、さらにChat Studio用に16プロバイダーから80以上のLLM。**セルフホストモデル**：HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSGなど、Amazon SageMaker経由 — 新しいモデルを追加するための拡張可能なカタログ付き。
+**Amazon Bedrockモデル**：Claude Sonnet/Opus（プロンプトエンジニアリング＆チャット）、Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core、Stability AIサービス（画像編集）、Nova Reel、Luma AI Ray（動画生成）、さらにChat Studio用に16プロバイダーから80以上のLLM。**セルフホストモデル**：HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSGなど、Amazon SageMaker経由 — 新しいモデルを追加するための拡張可能なカタログ付き。
 
 **[今すぐ始める — 前提条件とインストールへジャンプ ▸](#get-started)**
 
@@ -183,7 +183,7 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 
 各モデルは独立して実行されます：厳格なモデルがプロンプトをブロックしても、受け入れたモデルからの結果は得られます。コスト見積もりはモデルのチェック/チェック解除に応じてリアルタイムで更新されます。
 
-オプションの**「Model-optimized prompts」**トグルは、各モデルの強みに合わせてプロンプトを調整します — プロンプトはモデルごとに書き換えられます（例：SD 3.5には品質ブースター、FLUX.2には自然言語、Nova Canvasには簡潔なキャプション）。
+オプションの**「Model-optimized prompts」**トグルは、各モデルの強みに合わせてプロンプトを調整します — プロンプトはモデルごとに書き換えられます（例：SD 3.5には品質ブースター、FLUX.2には自然言語、Qwen-Imageにはテキスト描画）。
 
 ### 📝 1.5 Video Studio
 
@@ -375,9 +375,9 @@ aws sts get-caller-identity
 ┌──────────────────────┐  ┌──────────────────────────┐
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
-│  Claude Sonnet 4.6   │  │  Nova Canvas             │
-│  Claude Opus 4.6     │  │  Titan Image v2          │
-│  SD 3.5 Large        │  │  Nova Sonic              │
+│  Claude Sonnet       │  │  Nova Sonic (voice)      │
+│  Claude Opus         │  │  Nova Reel (video)       │
+│  SD 3.5 Large        │  │                          │
 │  Stable Image Ultra  │  │                          │
 │  Stability AI (post) │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (他のリージョン)
@@ -398,8 +398,8 @@ aws sts get-caller-identity
 |---------|-------------|
 | バックエンド | FastAPI (Python 3.11+)、boto3、Pydantic |
 | フロントエンド | Vanilla JS、Tailwind CSS (CDN) |
-| AI (LLM) | Claude Sonnet 4.6（高速タスク）、Claude Opus 4.6（複雑なタスク） |
-| AI (画像) | Nova Canvas、Titan Image v2、Stable Diffusion 3.5 Large、Stable Image Ultra |
+| AI (LLM) | Claude Sonnet（高速タスク）、Claude Opus（複雑なタスク） |
+| AI (画像) | Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core |
 | AI (後処理) | Stability AI（背景除去、Creative Upscale） |
 | AI (チャット) | Bedrock ConverseStream経由で16プロバイダーから80以上のLLM |
 | AI (動画) | Nova Reel v1.0/v1.1（最大2分）、Luma AI Ray v2（最大9秒） |
@@ -428,14 +428,13 @@ ArtSmokerは**ローカル/信頼されたネットワーク開発ツール**と
 > [!NOTE]
 > 以下の表は**計画用の参考料金**です。アプリ自体はImage Studioサイドバーに**ライブのモデルごとの料金**を表示します — AWS Pricing APIからレジストリリフレッシュ時に取得され、`model_registry.json`に保存されます。
 
-参考料金は、アプリのデフォルトリージョン — us-west-2（Claude、Stability AI）と us-east-1（Amazon Nova Canvas、Titan Image、Nova Sonic）— について、公式の[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)から取得しています。他のAWSリージョンでは料金が異なる場合があります。アプリは常に、実際に設定されているリージョンのライブ料金をImage Studioサイドバーに表示します。月次のチーム見積もりやデプロイのコスト試算については、[SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)も参照してください。
+参考料金は、アプリのデフォルトリージョン — us-west-2（Claude、Stability AI）と us-east-1（Amazon Nova Sonic）— について、公式の[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)から取得しています。他のAWSリージョンでは料金が異なる場合があります。アプリは常に、実際に設定されているリージョンのライブ料金をImage Studioサイドバーに表示します。月次のチーム見積もりやデプロイのコスト試算については、[SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)も参照してください。
 
 | サービス | モデル | コスト | 単位 |
 |---------|-------|------|------|
-| **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00入力 / $15.00出力 | 100万トークンあたり |
-| **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00入力 / $25.00出力 | 100万トークンあたり |
-| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | 画像あたり |
-| **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | 画像あたり |
+| **Claude Sonnet** | (最新) | $3.00入力 / $15.00出力 | 100万トークンあたり |
+| **Claude Opus** | (最新) | $5.00入力 / $25.00出力 | 100万トークンあたり |
+| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | 画像あたり |
 | **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | 画像あたり |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | 画像あたり |
 | **背景除去** | Stability AI | $0.07 | 画像あたり |

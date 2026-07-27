@@ -33,13 +33,13 @@ ArtSmoker ist eine selbst gehostete Webanwendung, die Amazon Bedrock in einer kl
 - **Image-to-3D mit einem Klick** — generieren Sie ein texturiertes 3D-Modell (GLB) direkt aus jedem 2D-Spiele-Asset oder Charakterbild. Multi-View-Synthese und Texture-Baking erzeugen spielengine-fertige Meshes, die sich direkt in Unity, Unreal oder Blender importieren lassen — ohne manuelle Modellierung
 - **Ihr AWS-Konto, Ihr geistiges Eigentum** — alles läuft in Ihrem eigenen privaten AWS-Konto. Sämtliche Kunstwerke, Prompts, Stile und generierten Assets bleiben in Ihrer isolierten Umgebung — keine Daten gelangen zu Drittanbieterdiensten. Sie behalten das volle Eigentum und die volle Kontrolle über Ihr kreatives geistiges Eigentum
 
-**Amazon-Bedrock-Modelle**: Claude Sonnet/Opus (Prompt-Engineering & Chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability-AI-Dienste (Bildbearbeitung), Nova Reel, Luma AI Ray (Videogenerierung) sowie 80+ LLMs von 16 Anbietern für Chat Studio. **Selbst gehostete Modelle**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG (Image-to-3D) und mehr über Amazon SageMaker — mit einem erweiterbaren Katalog zum Hinzufügen neuer Modelle.
+**Amazon-Bedrock-Modelle**: Claude Sonnet/Opus (Prompt-Engineering & Chat), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Stability-AI-Dienste (Bildbearbeitung), Nova Reel, Luma AI Ray (Videogenerierung) sowie 80+ LLMs von 16 Anbietern für Chat Studio. **Selbst gehostete Modelle**: Qwen-Image (Text-to-Image) & Qwen-Image-Edit (referenzgeführte + instruktionsbasierte Bearbeitung, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG & TRELLIS.2 (Image-to-3D) und mehr über Amazon SageMaker — mit einem erweiterbaren Katalog zum Hinzufügen neuer Modelle.
 
 **[Jetzt loslegen — zu Voraussetzungen & Installation springen ▸](#get-started)**
 
 ### Language / 言語 / 语言 / 언어 / हिन्दी / Язык / Langue / Idioma
 
-ArtSmoker unterstützt 8 Sprachen. Wechseln Sie die UI-Sprache über die Sprachschaltflächen in der oberen Navigationsleiste (EN | 日 | 中 | 한 | हिं | РУ | FR | ES). Ihre Auswahl wird automatisch gespeichert.
+ArtSmoker unterstützt 9 Sprachen. Wechseln Sie die UI-Sprache über die Sprachschaltflächen in der oberen Navigationsleiste (EN | 日 | 中 | 한 | हिं | РУ | FR | ES | DE). Ihre Auswahl wird automatisch gespeichert.
 
 | Sprache | README |
 |---------|--------|
@@ -96,16 +96,16 @@ Für Teams, die möchten, dass jedes generierte Asset zu einem vorhandenen Kunst
 - 🎬 **Video Studio** — Text-to-Video mit modellspezifischer Prompt-Anleitung (Nova-Reel-Kamerasteuerung, natürliche Sprache für Luma Ray), Multi-Shot, Image-to-Video
 - ✍️ **Type Studio** — KI-gestaltete Text-Overlays mit Schriftauswahl
 - 💬 **Chat Studio** — Multi-Modell-LLM-Chat mit Streaming, Markdown, Code-Hervorhebung, Vision, Sitzungen, Kontext-Kompaktierung
-- 📁 **Einheitliche Galerie** — Bilder + Videos durchstöbern, Medienfilter, Suche, Download, Löschen
+- 📁 **Einheitliche Galerie** — Masonry-Layout, das jedes Asset in seinem echten Seitenverhältnis zeigt (Hochformat, Quadrat, Querformat — niemals beschnitten). Bilder + Videos durchstöbern, Medienfilter (Alle / 2D-Grafik / 3D-Modelle / Video), Suche, vollständige Datum-Uhrzeit-Zeitzone-Stempel, Download, Löschen. Assets, die bereits ein generiertes 3D-Modell besitzen, tragen ein **3D-Badge**, und der Filter **3D-Modelle** blendet genau diese ein
 - 📥 **Bild importieren** — Bringen Sie ein vorhandenes Bild (beliebiges Format) als vollwertiges Asset in die Galerie. Automatisch in PNG konvertiert, mit einem von Ihnen gewählten Asset-Typ versehen und sofort bearbeitbar sowie 3D-bereit — alles (Versionierung, Bearbeitung, Image-to-3D) funktioniert genauso wie bei einem generierten Bild
-- ✏️ **Bildbearbeitung** — Inpainting, Outpainting, Radieren, Suchen & Ersetzen, Umfärben (im AssetViewer)
+- ✏️ **Bildbearbeitung** — Inpainting, Outpainting, Radieren, Suchen & Ersetzen, Umfärben (im AssetViewer). Jeder Modus verfügt über eine KI-Schaltfläche **Generate Prompt**: Ein Vision-Modell liest das Bild + seinen Original-Prompt und schlägt einen Bearbeitungs-Prompt vor, der auf diesen Modus und das ausgewählte Bearbeitungsmodell zugeschnitten ist (eine beschreibende Bildunterschrift für Stability-Editoren, eine Anweisung für Qwen-Image-Edit). Extend/Outpaint zeigt eine Live-Vorschau des wachsenden Rahmens mit Pixel-Linealen, sodass Sie vor dem Anwenden genau sehen, wie weit sich die Leinwand ausdehnt
 - 🔄 **Echtzeit-Fortschritt** — SSE-Streaming mit Sichtbarkeit von Wiederholungen/Drosselung
 - 🛡️ **Intelligente Moderation** — Canary-Test, automatischer Modellwechsel, KI-gestütztes Umschreiben
 - ⚙️ **Model Registry** — Admin-UI nach Studio organisiert (Image, Video, Chat, Type, Shared), Bedrock-Erkennung, Unterstützung benutzerdefinierter Modelle
-- 📝 **Prompt Templates** — 19 bearbeitbare LLM-Direktiv-Prompts, KI-gestützte Verfeinerung, Variablenvalidierung mit automatischer Korrektur
+- 📝 **Prompt Templates** — 28 bearbeitbare LLM-Direktiv-Prompts, KI-gestützte Verfeinerung, Variablenvalidierung mit automatischer Korrektur
 - 📦 **Asset-Versionierung** — In-Place-Bearbeitung mit Versionsverlauf (v1, v2, ...) und Versionsnavigation
 - 💰 **Kostenverfolgung** — Geschätzte AWS-Ausgaben pro Anfrage, pro Sitzung, pro Asset — an die PulseBoard-Telemetrie gesendet
-- 🌐 **i18n in 8 Sprachen** — Vollständige UI-Übersetzung (EN, JA, ZH, KO, HI, RU, FR, ES), automatische Erkennung nicht-englischer Prompts, zweisprachige Vorschau
+- 🌐 **i18n in 9 Sprachen** — Vollständige UI-Übersetzung (EN, JA, ZH, KO, HI, RU, FR, ES, DE), automatische Erkennung nicht-englischer Prompts, zweisprachige Vorschau
 - 🔍 **Unterstützung benutzerdefinierter Modelle** — Automatische Erkennung von fein abgestimmten, importierten und deployten benutzerdefinierten Bedrock-Modellen
 - 🔧 **Selbst gehostete Modelle — 1-Klick-Deployment** — Durchstöbern Sie einen kuratierten Katalog vorab getesteter Open-Source-Modelle (HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG und mehr), wählen Sie eine GPU-Instanz und klicken Sie auf Deploy. ArtSmoker übernimmt alles: Packaging des Inferenz-Handlers, Konfiguration der Quantisierung, Auswahl des richtigen CUDA-Toolkits, Einrichtung des Auto-Scalings, Registrierung von CloudWatch-Alarmen und Verdrahtung des asynchronen Job-Trackings. Jedes Modell im Katalog wurde durchgängig validiert — vom Kaltstart über die Generierung bis zur Auslieferung in die Galerie — sodass Sie keine GPU-Treiber, Speicherüberläufe oder Container-Kompatibilität debuggen müssen. Unterstützt BF16 + FlashInfer für beste Qualität, NF4 für Kosteneffizienz, automatische Multi-GPU-Erkennung, skaliert automatisch auf null ($0 im Leerlauf), und dasselbe Modell läuft ohne Neukonfiguration auf verschiedenen Instanztypen
 - 🧊 **Image-to-3D-Generierung** — Wandeln Sie jedes Game-Asset- oder Character-Bild mit einem Klick in ein texturiertes 3D-Mesh (GLB) um. Multi-View-Synthese + Texture-Baking erzeugen spielengine-fertige Assets. Interaktiver 3D-Viewer mit Orbit/Zoom/Schwenk
@@ -182,7 +182,7 @@ Das Modell-Dropdown unterstützt **checkbox-basierte Mehrfachauswahl** — wähl
 
 Jedes Modell läuft unabhängig: Wenn strengere Modelle den Prompt blockieren, erhalten Sie dennoch Ergebnisse von Modellen, die ihn akzeptiert haben, mit klaren Statuskennzeichnungen (erfolgreich, durch Moderation blockiert oder fehlgeschlagen) auf jeder Options-Karte. Die Kostenschätzung aktualisiert sich in Echtzeit, während Sie Modelle an- und abwählen.
 
-Ein optionaler Umschalter **„Model-optimized prompts"** passt den Prompt an die Stärken jedes Modells an — Prompts werden pro Modell umgeschrieben (z. B. Qualitäts-Booster für SD 3.5, natürliche Sprache für FLUX.2, prägnante Bildunterschriften für Nova Canvas).
+Ein optionaler Umschalter **„Model-optimized prompts"** passt den Prompt an die Stärken jedes Modells an — Prompts werden pro Modell umgeschrieben (z. B. Qualitäts-Booster für SD 3.5, natürliche Sprache für FLUX.2, prägnante Bildunterschriften für Qwen-Image).
 
 ### 📝 1.5 Video Studio
 
@@ -353,16 +353,18 @@ Die Bestätigung, dass Anmeldeinformationen funktionieren (`sts:GetCallerIdentit
 # Test 1: Können Sie Modelle auflisten? (erfordert bedrock:ListFoundationModels)
 aws bedrock list-foundation-models --region us-east-1 --query "modelSummaries[0].modelId" --output text
 
-# Test 2: Können Sie ein Modell aufrufen? (erfordert bedrock:InvokeModel)
-aws bedrock-runtime invoke-model --region us-east-1 \
-  --model-id amazon.titan-image-generator-v2:0 \
+# Test 2: Können Sie ein Bildmodell aufrufen? (erfordert bedrock:InvokeModel)
+aws bedrock-runtime invoke-model --region us-west-2 \
+  --model-id stability.sd3-5-large-v1:0 \
   --content-type application/json --accept application/json \
-  --body '{"textToImageParams":{"text":"test"},"imageGenerationConfig":{"numberOfImages":1,"width":512,"height":512}}' \
+  --body '{"prompt":"test","aspect_ratio":"1:1"}' \
   /dev/null 2>&1 && echo "InvokeModel: OK" || echo "InvokeModel: FAILED"
 
 # Test 3: Können Sie die Converse-API verwenden? (erfordert bedrock:Converse)
-aws bedrock-runtime converse --region us-east-1 \
-  --model-id amazon.titan-text-lite-v1 \
+# (Ersetzen Sie durch eine beliebige Claude-Modell-ID, auf die Sie Zugriff haben — z. B. das
+#  aktuelle Sonnet-Inferenzprofil aus der Liste von Test 1; die genaue Version ändert sich mit der Zeit.)
+aws bedrock-runtime converse --region us-west-2 \
+  --model-id us.anthropic.claude-sonnet-4-6 \
   --messages '[{"role":"user","content":[{"text":"hi"}]}]' \
   --inference-config '{"maxTokens":1}' \
   --query "output.message.content[0].text" --output text 2>&1 && echo "Converse: OK" || echo "Converse: FAILED"
@@ -769,7 +771,7 @@ Nachdem ArtSmoker läuft, führen Sie diese Schritte aus, um die besten Ergebnis
 
 **1. Modelle von AWS synchronisieren** — Öffnen Sie **Model Settings** (Zahnrad-Symbol in einem beliebigen Studio) → klicken Sie auf **Sync from AWS**. Dies erkennt alle verfügbaren Bild-, Video- und Chat-Modelle über alle Bedrock-Regionen hinweg. Dauert 30-60 Sekunden. Nur einmal erforderlich oder wenn AWS neue Modelle hinzufügt.
 
-**2. Prompt-Vorlagen überprüfen und anpassen** — Dies ist die wirkungsvollste Konfiguration, die Sie vornehmen können. Öffnen Sie die Registerkarte **Model Settings → Prompt Templates**. ArtSmoker verwendet 19 bearbeitbare Direktiv-Prompts, die das Verhalten der KI steuern:
+**2. Prompt-Vorlagen überprüfen und anpassen** — Dies ist die wirkungsvollste Konfiguration, die Sie vornehmen können. Öffnen Sie die Registerkarte **Model Settings → Prompt Templates**. ArtSmoker verwendet 28 bearbeitbare Direktiv-Prompts, die das Verhalten der KI steuern:
 
 | Vorlage | Was sie steuert |
 |---------|-----------------|
@@ -792,7 +794,7 @@ Die Vorlagen sind nach Studio organisiert (Image Studio, Style Library, Content 
 2. **„Fix & Save"** anbieten — ein LLM fügt die fehlenden Variablen automatisch an den richtigen Stellen wieder in Ihren bearbeiteten Text ein
 3. Die Korrektur vor dem Speichern überprüfen
 
-Alle Vorlagen werden in `backend/prompt_templates.json` gespeichert und stellen sich selbst aus den Code-Standardwerten wieder her, falls die Datei gelöscht oder beschädigt wird.
+Vorlagen werden aus `backend/prompt_templates.json` geladen — der Laufzeit-Quelle der Wahrheit. Ihre Bearbeitungen werden in `backend/prompt_templates.user.json` (gitignored) gespeichert und darüber gelegt, sodass ein Update oder `git pull` Ihre Anpassungen niemals überschreibt. Falls die JSON fehlt oder beschädigt ist oder eine neue Vorlage im Code ausgeliefert wird, heilt sie sich selbst: Der integrierte Code-Seed regeneriert/ergänzt nur die fehlenden Einträge und überschreibt niemals bestehende.
 
 > [!TIP]
 > Beginnen Sie mit der Überprüfung der Vorlagen **Image Prompt Refinement** und **Creative Options**. Diese haben den größten Einfluss auf die Ausgabequalität. Wenn sich Ihr Team auf einen bestimmten Kunststil spezialisiert hat (z. B. Pixel Art, Aquarell, isometrisch), fügen Sie diese Präferenzen direkt in die Vorlagen ein, damit jede Generierung davon profitiert.
@@ -829,10 +831,11 @@ Alle Vorlagen werden in `backend/prompt_templates.json` gespeichert und stellen 
 ┌──────────────────────┐  ┌──────────────────────────┐
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
-│  Claude Sonnet 4.6   │  │  Nova Canvas             │
-│  Claude Opus 4.6     │  │  Titan Image v2          │
-│  SD 3.5 Large        │  │  Nova Sonic              │
+│  Claude Sonnet       │  │  Nova Sonic (voice)      │
+│  Claude Opus         │  │  Nova Reel (video)       │
+│  SD 3.5 Large        │  │                          │
 │  Stable Image Ultra  │  │                          │
+│  Stable Image Core   │  │                          │
 │  Stability AI (post) │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (andere Regionen)
              │
@@ -1124,7 +1127,7 @@ Fügen Sie Text zu Bildern hinzu oder generieren Sie eigenständige Text-Assets 
 
 ### 📝 6.8 Galerie
 
-- **Einheitliche Ansicht** aller generierten Bilder und Videos mit einem **Medienfilter** (Alle / 2D-Artwork / Video).
+- **Einheitliche Ansicht** aller generierten Bilder und Videos in einem **Masonry-Layout** (jedes Asset in seinem echten Seitenverhältnis dargestellt — Hochformat, Quadrat oder Querformat — niemals mittig beschnitten), mit einem **Medienfilter** (Alle / 2D-Grafik / 3D-Modelle / Video). Der Filter **3D-Modelle** zeigt nur Assets, die bereits ein generiertes 3D-Modell besitzen, und diese Assets tragen ein **3D-Badge** auf ihrer Kachel.
 - **Suchleiste** für sofortiges Filtern über alle Assets (Prompts, Stile, Modelle).
 - **Mehrfachauswahl** mit Checkboxen für Massenlöschung (verarbeitet sowohl Bild- als auch Video-Assets). Löschvorgänge sind **batch-bewusst** — überlebende Geschwister verfolgen, wie viele Varianten entfernt wurden, sodass das Neuladen eines Teil-Batches im Image Studio „X von Y Bildern verbleibend (Z gelöscht)" anzeigt.
 - Assets werden sofort mit einem In-Memory-Metadaten-Cache geladen. Sortiert nach neuesten zuerst.
@@ -1134,7 +1137,7 @@ Fügen Sie Text zu Bildern hinzu oder generieren Sie eigenständige Text-Assets 
 - **Kontextbezogene Aktionsschaltflächen** pro Asset je nach Typ: **„2D Studio"** (Indigo) zum Neuladen im Image Studio, **„Add Text"** (Smaragd) zum Öffnen in Type Studio, **„Edit in Type Studio"** (Violett) für Text-Assets.
 - Klicken Sie auf ein beliebiges Bild, um den **AssetViewer**-Modal zu öffnen mit:
   - **Zoom/Schwenk** — Mausrad zum Zoomen, Ziehen zum Schwenken, Fit/1:1-Schaltflächen mit aktiver Modushervorhebung.
-  - **Registerkarte „Bearbeiten"** — das Bild direkt per Inpainting, Radieren oder Outpainting bearbeiten. Malen Sie eine Maske mit dem Pinselwerkzeug, geben Sie einen Prompt ein, wählen Sie ein Bearbeitungsmodell und wenden Sie es an. Standardmäßig wird das Originalbild ersetzt; deaktivieren Sie „Replace original", um als neues Asset zu speichern.
+  - **Registerkarte „Bearbeiten"** — das Bild direkt per Inpainting, Radieren, Outpainting, Suchen & Ersetzen oder Umfärben bearbeiten. Pro Modus werden zwei Arten von Editor angeboten: **maskenbasiert** (Stability) — malen Sie eine Maske mit dem Pinselwerkzeug, geben Sie einen Prompt ein und wenden Sie es an; und **maskenfreie Instruktions-Editoren** (Qwen-Image-Edit, sofern deployt) — beschreiben Sie die Änderung einfach in Worten, keine Maske nötig. Die Pinselsteuerung wird bei einem maskenfreien Modell automatisch ausgeblendet. Wählen Sie das Bearbeitungsmodell und wenden Sie es an; standardmäßig wird das Originalbild ersetzt, deaktivieren Sie „Replace original", um als neues Asset zu speichern (jede Bearbeitung bewahrt den Versionsverlauf).
   - **Zurück / Weiter** — Pfeilschaltflächen und Tastatur links/rechts, um durch die Liste zu navigieren, ohne den Viewer zu schließen.
   - **Vollständige Metadaten**: Original-Prompt, KI-verbesserter Prompt, Generierungs-Prompt, Negativ-Prompt, Stil, Asset-Typ, Bildmodell (benutzerfreundliche Namen), Abmessungen, Seed, Batch-ID, Options-/Variationsindex, Status der IP-Erklärung, Dateiname und Erstellungsdatum.
 - **Stil-Snapshot**: Jedes Asset speichert einen Snapshot des zur Generierungszeit verwendeten Stils (Name, Beschreibung, Hinweise, Analyse). Wird der ursprüngliche Stil später gelöscht, behält das Asset den vollständigen Kontext. Abwärtskompatibel — ältere Assets ohne Snapshots werden normal angezeigt.
@@ -1156,12 +1159,12 @@ Die gesamte KI-Modellkonfiguration ist in `backend/model_registry.json` zentrali
 
 - Klicken Sie in der Seitenleiste eines beliebigen Studios auf **„Model Settings"**, um das Admin-Modal zu öffnen — es öffnet die für dieses Studio relevante Registerkarte.
 - **7 Registerkarten** nach Studio organisiert:
-  - **Image Studio** — Bildgenerierungsmodelle (Nova Canvas, Titan, SD 3.5, Ultra), Regionen, Qualitätsstufen, Prompt-Limits, Moderationsstrenge
+  - **Image Studio** — Bildgenerierungsmodelle (SD 3.5 Large, Stable Image Ultra, Stable Image Core sowie selbst gehostete FLUX, HunyuanImage, Qwen-Image), Regionen, Qualitätsstufen, Prompt-Limits, Moderationsstrenge
   - **Video Studio** — Videomodelle (Nova Reel, Luma Ray), S3-Bucket-Einstellungen, Regionen, Preise
   - **Chat Studio** — Erkannte Chat-/LLM-Modelle (80+ von 16 Anbietern), Kontextfenster, Vision-Fähigkeit, Preise pro 1K Tokens
   - **Type Studio** — LLM-Modell für die Text-Layout-Generierung (Complex oder Fast LLM)
   - **Shared Studio** — Studio-übergreifende LLM-Kategorien (Fast LLM, Complex LLM, Fallback LLM, Voice), Nachbearbeitungsmodelle (Remove Background, Upscale)
-  - **Prompt Templates** — 19 bearbeitbare LLM-Direktiv-Prompts nach Studio organisiert (siehe Abschnitt 4.4)
+  - **Prompt Templates** — 28 bearbeitbare LLM-Direktiv-Prompts nach Studio organisiert (siehe Abschnitt 4.4)
   - **Registry JSON** — Roher JSON-Editor für die vollständige Modellregistry
 - Alle Abschnitte sind **einklappbar** mit **Show All / Hide All**-Umschaltern für schnelle Navigation.
 - LLM-Kategorien und Nachbearbeitung verwenden **Dropdown-Modell-Auswähler** (befüllt aus erkannten Modellen) — keine rohen Textfelder.
@@ -1171,7 +1174,7 @@ Die gesamte KI-Modellkonfiguration ist in `backend/model_registry.json` zentrali
 - **Auto-Erkennung**: Neue Foundation-Modelle werden mit `enabled=true` registriert — der Admin kann sie deaktivieren. Bestehende Modelle erhalten automatisch aktualisierte `available_regions` und Bedrock-Metadaten (Modalitäten, Lebenszyklus, ARN).
 - **Gestylte Bestätigungsdialoge**: Alle destruktiven Aktionen (Sync, Löschen, Reset) verwenden benutzerdefinierte gestylte Modals — keine Browser-`confirm()`-Popups.
 - Änderungen werden sofort über die Admin-API in `model_registry.json` persistiert.
-- Die Registry ist abwärtskompatibel — bestehende Assets referenzieren Modellschlüssel (z. B. `nova_canvas`), nicht rohe Bedrock-Modell-IDs.
+- Die Registry ist abwärtskompatibel — bestehende Assets referenzieren Modellschlüssel (z. B. `sd35_large`), nicht rohe Bedrock-Modell-IDs.
 
 ### 📝 6.12 Selbst gehostete Modelle (Custom Models auf Amazon SageMaker)
 
@@ -1209,14 +1212,14 @@ Alle Modelle werden **dynamisch** aus der Registry **erkannt** — nicht fest co
 
 Das Dropdown **Image Model** ist die primäre Auswahl. Darunter zeigt eine intelligente Zusammenfassungszeile die aktive Region, Qualitätsstufe und die Kosten pro Bild an. Ein ausklappbarer **Advanced**-Bereich lässt Sie Folgendes überschreiben:
 
-- **Qualität** — Modelle, die Qualitätsstufen unterstützen (z. B. Nova Canvas: Standard $0.04/Bild vs. Premium $0.06/Bild), zeigen ein Dropdown. Modelle ohne Stufen zeigen „Default".
+- **Qualität** — Modelle, die Qualitätsstufen unterstützen (eine Standard/Premium-Preisaufteilung), zeigen ein Dropdown; Modelle ohne Stufen zeigen „Default". Stufen werden pro Modell in der Registry über `quality_options` deklariert.
 - **Region** — zeigt Regionen, in denen das ausgewählte Modell verfügbar ist, mit Preisen nach günstigstem zuerst sortiert. „Auto" wählt die günstigste Region.
 
 Eine **Kostenschätzung** aktualisiert sich dynamisch basierend auf allen Auswahlen (Modell × Qualität × Region × Optionen × Variationen).
 
 **Formatfamilien**: Modelle werden über einen generischen Invoker (`invoke_image_model`) aufgerufen, der Anfragevorlagen aus der Registry (`format_families`) liest. Derzeit 15 Familien, die Bildgenerierung (2), Bildbearbeitung (8), Nachbearbeitung (2) und Videogenerierung (2) abdecken:
 
-- **Bildgenerierung**: `amazon_text_to_image` (Nova Canvas, Titan Image), `stability_text_to_image` (SD 3.5 Large, Stable Image Ultra)
+- **Bildgenerierung**: `stability_text_to_image` (SD 3.5 Large, Stable Image Ultra, Stable Image Core) sowie selbst gehostete Familien (`sagemaker_*`) für FLUX, HunyuanImage und Qwen-Image
 - **Bildbearbeitung**: `amazon_inpainting`, `amazon_outpainting`, `stability_inpaint`, `stability_outpaint`, `stability_erase`, `stability_search_replace`, `stability_search_recolor`, `stability_control`, `stability_style_transfer`
 - **Nachbearbeitung**: `stability_remove_bg`, `stability_upscale`
 - **Video**: `nova_reel`, `luma_ray`
@@ -1226,7 +1229,7 @@ Das Hinzufügen eines neuen Bedrock-Bildmodells erfordert null Codeänderungen �
 **Modelloptimiertes Prompt-Engineering**: Prompts werden automatisch als beschreibende Bildunterschriften (nicht als Befehle) gemäß der [AWS-Dokumentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html) strukturiert. Negationswörter werden aus dem Haupt-Prompt entfernt und Ausschlussbegriffe als separater **Negativ-Prompt** gesendet. Der Prompt wird auf das modellspezifische `prompt_limit` aus der Registry gekürzt.
 
 > [!NOTE]
-> **Die Moderationssensibilität variiert je nach Modell** und wird in der Registry verfolgt (`moderation_strictness`). Nova Canvas ist am strengsten — es lehnt Prompts mit urheberrechtlich geschützten Namen, Waffen und Kampfsprache aggressiver ab. Stable Diffusion 3.5 Large ist bei Action-/Kampfthemen entspannter. ArtSmoker behandelt dies automatisch — wenn ein Prompt blockiert wird, versucht das System alternative Modelle, nach Strenge geordnet, bevor es ein Umschreiben vorschlägt.
+> **Die Moderationssensibilität variiert je nach Modell** und wird in der Registry verfolgt (`moderation_strictness`). Die Amazon-Bedrock-Stability-Modelle (SD 3.5 Large, Stable Image Ultra, Stable Image Core) wenden die AWS-Plattform-Moderation an und sind auf „moderat" eingestellt; selbst gehostete Modelle (FLUX, HunyuanImage, Qwen-Image) laufen in Ihrem eigenen Konto ohne plattformseitig auferlegten Inhaltsfilter. ArtSmoker behandelt Blockaden automatisch — wenn ein Prompt abgelehnt wird, versucht das System alternative Modelle, nach Strenge geordnet, bevor es ein Umschreiben vorschlägt.
 
 ## 📌 7. Tech-Stack
 
@@ -1234,8 +1237,8 @@ Das Hinzufügen eines neuen Bedrock-Bildmodells erfordert null Codeänderungen �
 |---------|-------------|
 | Backend | FastAPI (Python 3.11+), boto3, Pydantic |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
-| KI (LLM) | Claude Sonnet 4.6 (schnelle Aufgaben), Claude Opus 4.6 (komplexe Aufgaben) |
-| KI (Bild) | Nova Canvas, Titan Image v2, Stable Diffusion 3.5 Large, Stable Image Ultra |
+| KI (LLM) | Claude Sonnet (schnelle Aufgaben), Claude Opus (komplexe Aufgaben) |
+| KI (Bild) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core (Amazon Bedrock); FLUX.2/FLUX.1, HunyuanImage 3.0, Qwen-Image (selbst gehostet auf SageMaker) |
 | KI (Nachbearbeitung) | Stability AI (Remove Background, Creative Upscale) |
 | KI (Chat) | 80+ LLMs von 16 Anbietern über Bedrock ConverseStream (Claude, Nova, Llama, Mistral usw.) |
 | KI (Video) | Nova Reel v1.0/v1.1 (bis zu 2 Min.), Luma AI Ray v2 (bis zu 9 Sek.) |
@@ -1272,6 +1275,7 @@ Wichtige Endpoints:
 | `POST /api/generate/` | Assets generieren (Optionen × Variationen) mit SSE-Streaming |
 | `POST /api/generate/post-process` | Verarbeitung auf bestehende Assets anwenden |
 | `POST /api/generate/edit` | Bildbearbeitung: Inpaint, Outpaint, Radieren, Suchen-Ersetzen usw. Akzeptiert Quellbild, Maske, Prompt, Modell. |
+| `POST /api/generate/suggest-edit-prompt` | KI-„Generate Prompt" für die Registerkarte „Bearbeiten": liest das Bild + den Original-Prompt und gibt einen Bearbeitungs-Prompt für einen gegebenen Modus zurück, im Stil des Zielbearbeitungsmodells (Bildunterschrift vs. Anweisung) |
 | `POST /api/generate/analyze-moderation` | Einen moderationsblockierten Prompt analysieren und ein sicheres Umschreiben vorschlagen |
 | **Stile** | |
 | `POST /api/styles/` | Ein Stilprofil erstellen |
@@ -1322,7 +1326,7 @@ Wichtige Endpoints:
 | `POST /api/admin/discover/refresh-all` | Vollständige Aktualisierung: Regionen erkennen + Modelle scannen + Preise abrufen + veraltete Daten bereinigen. Der EINZIGE Endpoint, der die AWS-Erkennungs-APIs aufruft. |
 | `POST /api/admin/discover/{region}/auto-register` | Eine einzelne Region nach Modellen scannen, neue registrieren, Regionen für bestehende aktualisieren |
 | `GET /api/admin/discover/{region}` | Verfügbare Bedrock-Modelle in einer Region erkennen (rohes Listing) |
-| `GET /api/admin/templates` | Alle 19 bearbeitbaren Prompt-Vorlagen abrufen |
+| `GET /api/admin/templates` | Alle 28 bearbeitbaren Prompt-Vorlagen abrufen |
 | `PATCH /api/admin/templates/{name}` | Eine Vorlage aktualisieren (validiert erforderliche Variablen) |
 | `POST /api/admin/templates/{name}/reset` | Eine Vorlage auf Standard zurücksetzen |
 | `POST /api/admin/templates/{name}/enhance` | Eine Vorlage mit KI verbessern |
@@ -1339,7 +1343,7 @@ ArtSmoker/
 │   ├── config.py            # Einstellungen (AWS-Regionen, Modell-IDs, Pfade, Limits)
 │   ├── model_registry.json  # Einzige Quelle der Wahrheit: Modelle, Regionen, Preise, Formatfamilien, Qualitätsstufen
 │   ├── requirements.txt
-│   ├── prompt_templates.json # Persistierte bearbeitbare LLM-Direktiv-Prompts (19 Vorlagen)
+│   ├── prompt_templates.json # Bearbeitbare LLM-Direktiv-Prompts — Laufzeit-Quelle der Wahrheit (28 Vorlagen)
 │   ├── routers/
 │   │   ├── generate.py      # Zweistufige Asset-Generierung + SSE-Streaming
 │   │   ├── styles.py        # Stilprofil-CRUD + Verzeichnis-/S3-Import + Analyse
@@ -1355,7 +1359,7 @@ ArtSmoker/
 │   │   ├── bedrock_client.py     # Gemeinsamer Bedrock-Client mit Connection-Pooling
 │   │   ├── model_registry.py     # Modellregistry: lädt/speichert model_registry.json
 │   │   ├── prompt_engineer.py    # Claude: Prompt-Verfeinerung + Konzeptgenerierung
-│   │   ├── image_generator.py    # Nova Canvas / Titan / SD 3.5 / Ultra: Bildgenerierung
+│   │   ├── image_generator.py    # Routet zu Bedrock (SD 3.5 / Ultra / Core) oder SageMaker (FLUX / Hunyuan / Qwen)
 │   │   ├── style_analyzer.py     # Zweiphasige Stilanalyse (Kohäsion + vollständig)
 │   │   ├── post_processor.py     # Stability AI: Hintergrundentfernung, Hochskalierung; vtracer: SVG
 │   │   ├── transcriber.py        # Nova Sonic: Streaming-Sprache-zu-Text
@@ -1419,7 +1423,7 @@ Einstellungen in `backend/config.py` können über Umgebungsvariablen (Präfix `
 | `max_reference_images` | `ARTSMOKER_MAX_REFERENCE_IMAGES` | 100 | Max. pro Stil importierte Bilder |
 | `max_analysis_images` | `ARTSMOKER_MAX_ANALYSIS_IMAGES` | 20 | Max. pro Analyseaufruf an die KI gesendete Bilder |
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Region für Claude- + Stability-AI-Modelle |
-| `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Region für Nova Canvas + Titan + Nova Sonic |
+| `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Region für Amazon (Nova Sonic Sprache, Nova Reel Video) |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWS-Profilname (nutzt Standardkette, falls nicht gesetzt) |
 | `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Git-Pull beim Start + 24-Std.-Periodenprüfung, Selbst-Neustart bei Update |
 
@@ -1430,19 +1434,18 @@ Das Reduzieren von `max_analysis_images` senkt die KI-Vision-Kosten pro Analyse.
 > [!NOTE]
 > Die folgenden Tabellen enthalten **Referenzpreise zu Planungszwecken**. Die App selbst zeigt **Live-Preise pro Modell** in der Seitenleiste des Image Studios — abgerufen von der AWS Pricing API während der Registry-Aktualisierung und in `model_registry.json` gespeichert. Die In-App-Kostenschätzung aktualisiert sich dynamisch basierend auf ausgewähltem Modell, Qualitätsstufe, Region und Batch-Größe.
 
-Referenzpreise stammen von der offiziellen [Amazon-Bedrock-Preisseite](https://aws.amazon.com/bedrock/pricing/) für die **Standardregionen** der App — `us-west-2` (Claude, Stability AI) und `us-east-1` (Amazon Nova Canvas, Titan Image, Nova Sonic). Die Preise können in anderen AWS-Regionen abweichen; die App zeigt in der Seitenleiste des Image Studios stets **Live-Preise für Ihre tatsächlich konfigurierte Region** an (abgerufen von der AWS Pricing API). Siehe auch [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) für monatliche Team-Prognosen und Deployment-Kostenschätzungen.
+Referenzpreise stammen von der offiziellen [Amazon-Bedrock-Preisseite](https://aws.amazon.com/bedrock/pricing/) für die **Standardregionen** der App — `us-west-2` (Claude, Stability AI) und `us-east-1` (Amazon Nova Sonic, Nova Reel). Die Preise können in anderen AWS-Regionen abweichen; die App zeigt in der Seitenleiste des Image Studios stets **Live-Preise für Ihre tatsächlich konfigurierte Region** an (abgerufen von der AWS Pricing API). Siehe auch [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) für monatliche Team-Prognosen und Deployment-Kostenschätzungen.
 
 ### 📝 12.1 Preise pro Einheit
 
 | Service | Modell | Kosten | Einheit |
 |---------|--------|--------|---------|
-| **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00 Eingabe / $15.00 Ausgabe | pro 1M Tokens |
-| **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00 Eingabe / $25.00 Ausgabe | pro 1M Tokens |
+| **Claude Sonnet** (neueste, per Sync) | neuester Sonnet per Sync | $3.00 Eingabe / $15.00 Ausgabe | pro 1M Tokens |
+| **Claude Opus** (neueste, per Sync) | neuester Opus per Sync | $5.00 Eingabe / $25.00 Ausgabe | pro 1M Tokens |
 | **Claude Opus (Vision)** | dasselbe | ~$0.008 | pro 1024×1024-Bildeingabe |
-| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | pro Bild (1024×1024 Premium) |
-| **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | pro Bild |
 | **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | pro Bild |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | pro Bild |
+| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | pro Bild |
 | **Remove Background** | Stability AI | $0.07 | pro Bild |
 | **Creative Upscale** | Stability AI | $0.60 | pro Bild |
 | **SVG-Konvertierung** | Lokal (vtracer/potrace) | $0.00 | kostenlos |
@@ -1456,9 +1459,9 @@ Diese LLM-Aufrufe sind im Generierungs-Workflow enthalten, aber nicht separat in
 
 | Aufruf | Modell | Wann | Ungefähre Kosten |
 |--------|--------|------|------------------|
-| **Prompt Pre-Check** | Claude Sonnet 4.6 | Vor der Generierung (falls Umschalter aktiviert) | ~$0.005 |
-| **Moderation Rewrite** | Claude Sonnet 4.6 | Nur wenn alle Modelle einen Prompt ablehnen | ~$0.005 |
-| **Type Studio Layout** | Claude Opus 4.6 | Bei jeder KI-Layout-Vorschlagsanfrage | ~$0.02–$0.05 |
+| **Prompt Pre-Check** | Claude Sonnet | Vor der Generierung (falls Umschalter aktiviert) | ~$0.005 |
+| **Moderation Rewrite** | Claude Sonnet | Nur wenn alle Modelle einen Prompt ablehnen | ~$0.005 |
+| **Type Studio Layout** | Claude Opus | Bei jeder KI-Layout-Vorschlagsanfrage | ~$0.02–$0.05 |
 
 Diese sind gering — Vorprüfung und Moderations-Umschreiben kosten jeweils einen Bruchteil eines Cents. Type-Studio-Layout ist mit einer Ein-Options-Prompt-Verfeinerung vergleichbar.
 
@@ -1470,11 +1473,13 @@ Diese sind gering — Vorprüfung und Moderations-Umschreiben kosten jeweils ein
 
 Beinhaltet Prompt-Verfeinerung/Konzeptgenerierung + Bildgenerierung:
 
-| Szenario | Nova Canvas | Titan Image v2 | Stable Diffusion 3.5 Large | Stable Image Ultra |
-|----------|-------------|----------------|----------------------------|--------------------|
-| 1 Option × 1 Variation | ~$0.07 | ~$0.02 | ~$0.09 | ~$0.15 |
-| 1 Option × 5 Variationen | ~$0.31 | ~$0.06 | ~$0.41 | ~$0.71 |
-| 5 Optionen × 5 Variationen | ~$1.55 | ~$0.30 | ~$2.05 | ~$3.55 |
+| Szenario | Stable Image Core | Stable Diffusion 3.5 Large | Stable Image Ultra |
+|----------|-------------------|----------------------------|--------------------|
+| 1 Option × 1 Variation | ~$0.05 | ~$0.09 | ~$0.15 |
+| 1 Option × 5 Variationen | ~$0.21 | ~$0.41 | ~$0.71 |
+| 5 Optionen × 5 Variationen | ~$1.05 | ~$2.05 | ~$3.55 |
+
+Selbst gehostete SageMaker-Modelle (FLUX, HunyuanImage, Qwen-Image) werden nach GPU-Zeit auf Ihrer eigenen Instanz abgerechnet (scale-to-zero im Leerlauf), nicht pro Bild — siehe [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) für das Compute-Kostenmodell.
 
 ### 📝 12.5 Nachbearbeitungs-Add-ons (pro Bild)
 
@@ -1491,8 +1496,8 @@ Beinhaltet Prompt-Verfeinerung/Konzeptgenerierung + Bildgenerierung:
 
 | Beispiel | Konfiguration | Gesamtkosten |
 |----------|---------------|--------------|
-| **Am günstigsten** | 1×1, Titan Image, keine Verarbeitung | ~$0.02 |
-| **Standard** | 1×5, Nova Canvas, Remove BG | ~$0.66 |
+| **Am günstigsten** | 1×1, Stable Image Core, keine Verarbeitung | ~$0.05 |
+| **Standard** | 1×5, Stable Diffusion 3.5 Large, Remove BG | ~$0.76 |
 | **Vollständige Erkundung** | 5×5, Stable Diffusion 3.5 Large, Remove BG + SVG | ~$3.80 |
 | **Premium** | 5×5, Stable Image Ultra, Remove BG + Upscale + SVG | ~$20.30 |
 

@@ -33,7 +33,7 @@ ArtSmoker एक सेल्फ-होस्टेड वेब एप्लि
 - **वन-क्लिक इमेज-टू-3D** — किसी भी 2D गेम एसेट या कैरेक्टर इमेज से सीधे टेक्सचर्ड 3D मॉडल (GLB) जनरेट करें। मल्टी-व्यू सिंथेसिस और टेक्सचर बेकिंग से गेम-इंजन-रेडी मेश बनते हैं जो सीधे Unity, Unreal, या Blender में इम्पोर्ट होते हैं — कोई मैन्युअल मॉडलिंग ज़रूरी नहीं
 - **आपका AWS अकाउंट, आपका IP** — सब कुछ आपके अपने प्राइवेट AWS अकाउंट में चलता है। सभी आर्टवर्क, प्रॉम्प्ट्स, स्टाइल्स और जनरेट किए गए एसेट्स आपके आइसोलेटेड एनवायरनमेंट में ही रहते हैं — कोई डेटा थर्ड-पार्टी सर्विसेज़ तक नहीं जाता। आप अपने क्रिएटिव IP पर पूर्ण स्वामित्व और नियंत्रण बनाए रखते हैं
 
-**Amazon Bedrock मॉडल्स**: Claude Sonnet/Opus (प्रॉम्प्ट इंजीनियरिंग और चैट), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI सेवाएँ (इमेज एडिटिंग), Nova Reel, Luma AI Ray (वीडियो जनरेशन), साथ ही Chat Studio के लिए 16 प्रदाताओं से 80+ LLM। **सेल्फ-होस्टेड मॉडल्स**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG आदि, Amazon SageMaker के माध्यम से — नए मॉडल्स जोड़ने के लिए विस्तारयोग्य कैटलॉग के साथ।
+**Amazon Bedrock मॉडल्स**: Claude Sonnet/Opus (प्रॉम्प्ट इंजीनियरिंग और चैट), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Stability AI सेवाएँ (इमेज एडिटिंग), Nova Reel, Luma AI Ray (वीडियो जनरेशन), साथ ही Chat Studio के लिए 16 प्रदाताओं से 80+ LLM। **सेल्फ-होस्टेड मॉडल्स**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG आदि, Amazon SageMaker के माध्यम से — नए मॉडल्स जोड़ने के लिए विस्तारयोग्य कैटलॉग के साथ।
 
 **[अभी शुरू करें — आवश्यकताएँ और इंस्टॉलेशन पर जाएँ ▸](#get-started)**
 
@@ -182,7 +182,7 @@ ArtSmoker दो मोड में काम करता है — **स्�
 
 प्रत्येक मॉडल स्वतंत्र रूप से चलता है: यदि सख्त मॉडल्स प्रॉम्प्ट को ब्लॉक करते हैं, तो जिन मॉडल्स ने इसे स्वीकार किया उनसे परिणाम मिलते हैं। लागत अनुमान मॉडल्स चेक/अनचेक करने पर लाइव अपडेट होता है।
 
-वैकल्पिक **"Model-optimized prompts"** टॉगल प्रत्येक मॉडल की ताकत के अनुसार प्रॉम्प्ट को अनुकूलित करता है — प्रॉम्प्ट प्रति मॉडल फिर से लिखे जाते हैं (जैसे SD 3.5 के लिए क्वालिटी बूस्टर, FLUX.2 के लिए प्राकृतिक भाषा, Nova Canvas के लिए संक्षिप्त कैप्शन)।
+वैकल्पिक **"Model-optimized prompts"** टॉगल प्रत्येक मॉडल की ताकत के अनुसार प्रॉम्प्ट को अनुकूलित करता है — प्रॉम्प्ट प्रति मॉडल फिर से लिखे जाते हैं (जैसे SD 3.5 के लिए क्वालिटी बूस्टर, FLUX.2 के लिए प्राकृतिक भाषा, Qwen-Image के लिए संक्षिप्त कैप्शन)।
 
 ### 📝 1.5 Video Studio
 
@@ -374,9 +374,9 @@ aws sts get-caller-identity
 ┌──────────────────────┐  ┌──────────────────────────┐
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
-│  Claude Sonnet 4.6   │  │  Nova Canvas             │
-│  Claude Opus 4.6     │  │  Titan Image v2          │
-│  SD 3.5 Large        │  │  Nova Sonic              │
+│  Claude Sonnet       │  │  Nova Sonic (voice)      │
+│  Claude Opus         │  │  Nova Reel (video)       │
+│  SD 3.5 Large        │  │                          │
 │  Stable Image Ultra  │  │                          │
 │  Stability AI (post) │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (अन्य रीजन)
@@ -397,8 +397,8 @@ aws sts get-caller-identity
 |-----|-----------|
 | बैकएंड | FastAPI (Python 3.11+), boto3, Pydantic |
 | फ़्रंटएंड | Vanilla JS, Tailwind CSS (CDN) |
-| AI (LLM) | Claude Sonnet 4.6 (तेज़ कार्य), Claude Opus 4.6 (जटिल कार्य) |
-| AI (इमेज) | Nova Canvas, Titan Image v2, Stable Diffusion 3.5 Large, Stable Image Ultra |
+| AI (LLM) | Claude Sonnet (तेज़ कार्य), Claude Opus (जटिल कार्य) |
+| AI (इमेज) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core |
 | AI (पोस्ट-प्रोसेसिंग) | Stability AI (Remove Background, Creative Upscale) |
 | AI (चैट) | Bedrock ConverseStream के माध्यम से 16 प्रदाताओं से 80+ LLM |
 | AI (वीडियो) | Nova Reel v1.0/v1.1 (2 मिनट तक), Luma AI Ray v2 (9 सेकंड तक) |
@@ -427,16 +427,15 @@ ArtSmoker एक **लोकल/विश्वसनीय-नेटवर्�
 > [!NOTE]
 > नीचे दी गई तालिकाएँ **योजना के उद्देश्य से संदर्भ मूल्य** हैं। ऐप स्वयं Image Studio साइडबार में **लाइव प्रति-मॉडल मूल्य** दिखाता है — AWS Pricing API से रजिस्ट्री रिफ़्रेश के दौरान प्राप्त और `model_registry.json` में संग्रहीत।
 
-संदर्भ मूल्य आधिकारिक [Amazon Bedrock मूल्य निर्धारण पृष्ठ](https://aws.amazon.com/bedrock/pricing/) से ऐप के डिफ़ॉल्ट रीजनों के लिए लिए गए हैं — us-west-2 (Claude, Stability AI) और us-east-1 (Amazon Nova Canvas, Titan Image, Nova Sonic)। अन्य AWS रीजनों में मूल्य भिन्न हो सकते हैं; ऐप हमेशा आपके वास्तविक कॉन्फ़िगर किए गए रीजन के लिए Image Studio साइडबार में लाइव मूल्य दिखाता है। मासिक टीम अनुमानों और परिनियोजन लागत आकलनों के लिए [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) भी देखें।
+संदर्भ मूल्य आधिकारिक [Amazon Bedrock मूल्य निर्धारण पृष्ठ](https://aws.amazon.com/bedrock/pricing/) से ऐप के डिफ़ॉल्ट रीजनों के लिए लिए गए हैं — us-west-2 (Claude, Stability AI) और us-east-1 (Amazon Nova Sonic)। अन्य AWS रीजनों में मूल्य भिन्न हो सकते हैं; ऐप हमेशा आपके वास्तविक कॉन्फ़िगर किए गए रीजन के लिए Image Studio साइडबार में लाइव मूल्य दिखाता है। मासिक टीम अनुमानों और परिनियोजन लागत आकलनों के लिए [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) भी देखें।
 
 | सेवा | मॉडल | लागत | इकाई |
 |------|------|------|------|
-| **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00 इनपुट / $15.00 आउटपुट | प्रति 10 लाख टोकन |
-| **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00 इनपुट / $25.00 आउटपुट | प्रति 10 लाख टोकन |
-| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | प्रति इमेज |
-| **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | प्रति इमेज |
+| **Claude Sonnet** | (नवीनतम) | $3.00 इनपुट / $15.00 आउटपुट | प्रति 10 लाख टोकन |
+| **Claude Opus** | (नवीनतम) | $5.00 इनपुट / $25.00 आउटपुट | प्रति 10 लाख टोकन |
 | **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | प्रति इमेज |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | प्रति इमेज |
+| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | प्रति इमेज |
 | **Remove Background** | Stability AI | $0.07 | प्रति इमेज |
 | **Creative Upscale** | Stability AI | $0.60 | प्रति इमेज |
 | **SVG कन्वर्शन** | लोकल (vtracer/potrace) | $0.00 | मुफ़्त |

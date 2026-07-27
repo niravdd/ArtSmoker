@@ -33,7 +33,7 @@ ArtSmoker — это самостоятельно размещаемое веб-
 - **Изображение в 3D одним кликом** — генерируйте текстурированную 3D-модель (GLB) непосредственно из любого 2D-ассета или изображения персонажа. Мультиракурсный синтез и запекание текстур создают меши, готовые для игрового движка, которые импортируются напрямую в Unity, Unreal или Blender — без ручного моделирования
 - **Ваш AWS-аккаунт, ваша IP** — всё работает в вашем собственном приватном AWS-аккаунте. Все работы, промпты, стили и сгенерированные ассеты остаются в вашей изолированной среде — никакие данные не уходят в сторонние сервисы. Вы сохраняете полное право собственности и контроль над своей творческой IP
 
-**Модели Amazon Bedrock**: Claude Sonnet/Opus (промпт-инженерия и чат), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, Stability AI (редактирование изображений), Nova Reel, Luma AI Ray (генерация видео), а также более 80 LLM от 16 провайдеров для Chat Studio. **Self-hosted модели**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG и другие через Amazon SageMaker — с расширяемым каталогом для добавления новых моделей.
+**Модели Amazon Bedrock**: Claude Sonnet/Opus (промпт-инженерия и чат), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Stability AI (редактирование изображений), Nova Reel, Luma AI Ray (генерация видео), а также более 80 LLM от 16 провайдеров для Chat Studio. **Self-hosted модели**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG и другие через Amazon SageMaker — с расширяемым каталогом для добавления новых моделей.
 
 **[Начать сейчас — перейти к предварительным требованиям и установке ▸](#get-started)**
 
@@ -182,7 +182,7 @@ ArtSmoker работает в двух режимах — **автономный
 
 Каждая модель работает независимо: если строгие модели блокируют промпт, вы всё равно получаете результаты от моделей, которые его приняли. Оценка стоимости обновляется в реальном времени при выборе/снятии моделей.
 
-Опциональный переключатель **«Model-optimized prompts»** адаптирует промпт под сильные стороны каждой модели — промпты переписываются для каждой модели (например, бустеры качества для SD 3.5, естественный язык для FLUX.2, краткие описания для Nova Canvas).
+Опциональный переключатель **«Model-optimized prompts»** адаптирует промпт под сильные стороны каждой модели — промпты переписываются для каждой модели (например, бустеры качества для SD 3.5, естественный язык для FLUX.2, краткие описания для Qwen-Image).
 
 ### 📝 1.5 Video Studio
 
@@ -374,9 +374,9 @@ aws sts get-caller-identity
 ┌──────────────────────┐  ┌──────────────────────────┐
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
-│  Claude Sonnet 4.6   │  │  Nova Canvas             │
-│  Claude Opus 4.6     │  │  Titan Image v2          │
-│  SD 3.5 Large        │  │  Nova Sonic              │
+│  Claude Sonnet       │  │  Nova Sonic (voice)      │
+│  Claude Opus         │  │  Nova Reel (video)       │
+│  SD 3.5 Large        │  │                          │
 │  Stable Image Ultra  │  │                          │
 │  Stability AI (post) │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (другие регионы)
@@ -397,8 +397,8 @@ aws sts get-caller-identity
 |------|-----------|
 | Бэкенд | FastAPI (Python 3.11+), boto3, Pydantic |
 | Фронтенд | Vanilla JS, Tailwind CSS (CDN) |
-| ИИ (LLM) | Claude Sonnet 4.6 (быстрые задачи), Claude Opus 4.6 (сложные задачи) |
-| ИИ (Изображения) | Nova Canvas, Titan Image v2, Stable Diffusion 3.5 Large, Stable Image Ultra |
+| ИИ (LLM) | Claude Sonnet (быстрые задачи), Claude Opus (сложные задачи) |
+| ИИ (Изображения) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core |
 | ИИ (Постобработка) | Stability AI (Remove Background, Creative Upscale) |
 | ИИ (Чат) | 80+ LLM от 16 провайдеров через Bedrock ConverseStream |
 | ИИ (Видео) | Nova Reel v1.0/v1.1 (до 2 мин), Luma AI Ray v2 (до 9 сек) |
@@ -427,16 +427,15 @@ ArtSmoker спроектирован как **инструмент разраб�
 > [!NOTE]
 > Таблицы ниже — это **справочные цены для планирования**. Приложение показывает **актуальные цены по моделям** в боковой панели Image Studio — получаемые из AWS Pricing API при обновлении реестра и сохранённые в `model_registry.json`.
 
-Справочные цены взяты с официальной [страницы ценообразования Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) для регионов, используемых приложением по умолчанию — us-west-2 (Claude, Stability AI) и us-east-1 (Amazon Nova Canvas, Titan Image, Nova Sonic). В других регионах AWS цены могут отличаться; приложение всегда показывает актуальные цены для вашего фактически настроенного региона в боковой панели Image Studio. См. также [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) для ежемесячных прогнозов по команде и оценок стоимости развёртывания.
+Справочные цены взяты с официальной [страницы ценообразования Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) для регионов, используемых приложением по умолчанию — us-west-2 (Claude, Stability AI) и us-east-1 (Amazon Nova Sonic). В других регионах AWS цены могут отличаться; приложение всегда показывает актуальные цены для вашего фактически настроенного региона в боковой панели Image Studio. См. также [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) для ежемесячных прогнозов по команде и оценок стоимости развёртывания.
 
 | Сервис | Модель | Стоимость | Единица |
 |--------|--------|-----------|---------|
-| **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00 вход / $15.00 выход | за 1 млн токенов |
-| **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00 вход / $25.00 выход | за 1 млн токенов |
-| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | за изображение |
-| **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | за изображение |
+| **Claude Sonnet** | (последняя версия) | $3.00 вход / $15.00 выход | за 1 млн токенов |
+| **Claude Opus** | (последняя версия) | $5.00 вход / $25.00 выход | за 1 млн токенов |
 | **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | за изображение |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | за изображение |
+| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | за изображение |
 | **Remove Background** | Stability AI | $0.07 | за изображение |
 | **Creative Upscale** | Stability AI | $0.60 | за изображение |
 | **SVG-конвертация** | Локально (vtracer/potrace) | $0.00 | бесплатно |

@@ -33,7 +33,7 @@ ArtSmoker 是一个自托管的 Web 应用程序，以简洁的创意界面封�
 - **一键图像转 3D** —— 从任意 2D 游戏资产或角色图像直接生成带纹理的 3D 模型（GLB）。多视图合成和纹理烘焙生成可直接导入 Unity、Unreal 或 Blender 的游戏引擎可用网格 —— 无需手动建模
 - **您的 AWS 账户，您的 IP** —— 一切运行在您自己的私有 AWS 账户中。所有作品、提示词、风格和生成的资产都保留在您的隔离环境内 —— 没有数据流向第三方服务。您对自己的创意 IP 拥有完全的所有权和控制权
 
-**Amazon Bedrock 模型**：Claude Sonnet/Opus（提示词工程和聊天）、Nova Canvas、Titan Image、Stable Diffusion 3.5 Large、Stable Image Ultra、Stability AI 服务（图像编辑）、Nova Reel、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。**自托管模型**：HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG 等，通过 Amazon SageMaker —— 附带可扩展目录以添加新模型。
+**Amazon Bedrock 模型**：Claude Sonnet/Opus（提示词工程和聊天）、Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core、Stability AI 服务（图像编辑）、Nova Reel、Luma AI Ray（视频生成），以及 Chat Studio 可用的来自 16 个供应商的 80 多个 LLM。**自托管模型**：HunyuanImage 3.0（BF16/NF4）、FLUX.2、FLUX.1、TripoSG 等，通过 Amazon SageMaker —— 附带可扩展目录以添加新模型。
 
 **[立即开始 —— 跳转至前置条件和安装 ▸](#get-started)**
 
@@ -183,7 +183,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 每个模型独立运行：如果较严格的模型阻止了提示词，您仍然可以获得接受该提示词的模型的结果。成本估算随模型的勾选/取消勾选实时更新。
 
-可选的**"Model-optimized prompts"**切换会针对每个模型的优势调整提示词 —— 提示词按模型重写（例如：SD 3.5的质量增强词、FLUX.2的自然语言、Nova Canvas的简洁描述）。
+可选的**"Model-optimized prompts"**切换会针对每个模型的优势调整提示词 —— 提示词按模型重写（例如：SD 3.5的质量增强词、FLUX.2的自然语言、Qwen-Image的文本渲染）。
 
 ### 📝 1.5 Video Studio
 
@@ -375,9 +375,9 @@ aws sts get-caller-identity
 ┌──────────────────────┐  ┌──────────────────────────┐
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
-│  Claude Sonnet 4.6   │  │  Nova Canvas             │
-│  Claude Opus 4.6     │  │  Titan Image v2          │
-│  SD 3.5 Large        │  │  Nova Sonic              │
+│  Claude Sonnet       │  │  Nova Sonic (voice)      │
+│  Claude Opus         │  │  Nova Reel (video)       │
+│  SD 3.5 Large        │  │                          │
 │  Stable Image Ultra  │  │                          │
 │  Stability AI (post) │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (其他区域)
@@ -398,8 +398,8 @@ aws sts get-caller-identity
 |------|------|
 | 后端 | FastAPI (Python 3.11+)、boto3、Pydantic |
 | 前端 | Vanilla JS、Tailwind CSS (CDN) |
-| AI (LLM) | Claude Sonnet 4.6（快速任务）、Claude Opus 4.6（复杂任务） |
-| AI (图像) | Nova Canvas、Titan Image v2、Stable Diffusion 3.5 Large、Stable Image Ultra |
+| AI (LLM) | Claude Sonnet（快速任务）、Claude Opus（复杂任务） |
+| AI (图像) | Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core |
 | AI (后处理) | Stability AI（背景去除、Creative Upscale） |
 | AI (聊天) | 通过 Bedrock ConverseStream 的 16 个供应商 80 多个 LLM |
 | AI (视频) | Nova Reel v1.0/v1.1（最长 2 分钟）、Luma AI Ray v2（最长 9 秒） |
@@ -428,14 +428,13 @@ ArtSmoker 设计为**本地/受信网络开发工具** —— 在开发者自己
 > [!NOTE]
 > 下表为**规划用的参考定价**。应用本身在 Image Studio 侧边栏中显示**实时的每模型定价** —— 在注册表刷新时从 AWS Pricing API 获取并存储在 `model_registry.json` 中。
 
-参考价格取自官方 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)，对应应用的默认区域 —— us-west-2（Claude、Stability AI）和 us-east-1（Amazon Nova Canvas、Titan Image、Nova Sonic）。其他 AWS 区域的价格可能有所不同；应用始终会在 Image Studio 侧边栏中显示你实际配置区域的实时定价。月度团队预算估算和部署成本估算另请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
+参考价格取自官方 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)，对应应用的默认区域 —— us-west-2（Claude、Stability AI）和 us-east-1（Amazon Nova Sonic）。其他 AWS 区域的价格可能有所不同；应用始终会在 Image Studio 侧边栏中显示你实际配置区域的实时定价。月度团队预算估算和部署成本估算另请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
 
 | 服务 | 模型 | 成本 | 单位 |
 |------|------|------|------|
-| **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00 输入 / $15.00 输出 | 每百万 token |
-| **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00 输入 / $25.00 输出 | 每百万 token |
-| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | 每张图像 |
-| **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | 每张图像 |
+| **Claude Sonnet** | (最新) | $3.00 输入 / $15.00 输出 | 每百万 token |
+| **Claude Opus** | (最新) | $5.00 输入 / $25.00 输出 | 每百万 token |
+| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | 每张图像 |
 | **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | 每张图像 |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | 每张图像 |
 | **背景去除** | Stability AI | $0.07 | 每张图像 |

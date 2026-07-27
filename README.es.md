@@ -33,7 +33,7 @@ ArtSmoker es una aplicación web autoalojada que envuelve Amazon Bedrock en una 
 - **Imagen a 3D en un clic** — genere un modelo 3D texturizado (GLB) directamente desde cualquier asset 2D o imagen de personaje. La síntesis multivista y el baking de texturas producen mallas listas para el motor de juego que se importan directamente en Unity, Unreal o Blender — sin modelado manual
 - **Su cuenta AWS, su IP** — todo se ejecuta en su propia cuenta privada de AWS. Todas las obras, prompts, estilos y recursos generados permanecen dentro de su entorno aislado — ningún dato sale hacia servicios de terceros. Usted mantiene la propiedad y el control total de su IP creativa
 
-**Modelos de Amazon Bedrock**: Claude Sonnet/Opus (ingeniería de prompts y chat), Nova Canvas, Titan Image, Stable Diffusion 3.5 Large, Stable Image Ultra, servicios de Stability AI (edición de imágenes), Nova Reel, Luma AI Ray (generación de video), más de 80 LLMs de 16 proveedores para Chat Studio. **Modelos autoalojados**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG y más a través de Amazon SageMaker — con un catálogo extensible para agregar nuevos modelos.
+**Modelos de Amazon Bedrock**: Claude Sonnet/Opus (ingeniería de prompts y chat), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, servicios de Stability AI (edición de imágenes), Nova Reel, Luma AI Ray (generación de video), más de 80 LLMs de 16 proveedores para Chat Studio. **Modelos autoalojados**: HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG y más a través de Amazon SageMaker — con un catálogo extensible para agregar nuevos modelos.
 
 **[Comience ahora — saltar a Requisitos previos e instalación ▸](#get-started)**
 
@@ -183,7 +183,7 @@ El menú desplegable de modelos soporta **multi-selección basada en casillas de
 
 Cada modelo se ejecuta de forma independiente: si modelos más estrictos bloquean el prompt, aún obtiene resultados de los modelos que lo aceptaron. La estimación de costos se actualiza en tiempo real al marcar/desmarcar modelos.
 
-El toggle opcional **"Model-optimized prompts"** adapta el prompt a las fortalezas de cada modelo — los prompts se reescriben por modelo (ej: impulsores de calidad para SD 3.5, lenguaje natural para FLUX.2, descripciones concisas para Nova Canvas).
+El toggle opcional **"Model-optimized prompts"** adapta el prompt a las fortalezas de cada modelo — los prompts se reescriben por modelo (ej: impulsores de calidad para SD 3.5, lenguaje natural para FLUX.2, descripciones concisas para Qwen-Image).
 
 ### 📝 1.5 Video Studio
 
@@ -375,9 +375,9 @@ Para permisos IAM detallados, instrucciones de instalación, opciones de configu
 ┌──────────────────────┐  ┌──────────────────────────┐
 │  us-west-2           │  │  us-east-1               │
 │                      │  │                          │
-│  Claude Sonnet 4.6   │  │  Nova Canvas             │
-│  Claude Opus 4.6     │  │  Titan Image v2          │
-│  SD 3.5 Large        │  │  Nova Sonic              │
+│  Claude Sonnet       │  │  Nova Sonic (voice)      │
+│  Claude Opus         │  │  Nova Reel (video)       │
+│  SD 3.5 Large        │  │                          │
 │  Stable Image Ultra  │  │                          │
 │  Stability AI (post) │  │                          │
 └──────────────────────┘  └──────────────────────────┘ ... (otras regiones)
@@ -398,8 +398,8 @@ Para permisos IAM detallados, instrucciones de instalación, opciones de configu
 |------|-----------|
 | Backend | FastAPI (Python 3.11+), boto3, Pydantic |
 | Frontend | Vanilla JS, Tailwind CSS (CDN) |
-| IA (LLM) | Claude Sonnet 4.6 (tareas rápidas), Claude Opus 4.6 (tareas complejas) |
-| IA (Imagen) | Nova Canvas, Titan Image v2, Stable Diffusion 3.5 Large, Stable Image Ultra |
+| IA (LLM) | Claude Sonnet (tareas rápidas), Claude Opus (tareas complejas) |
+| IA (Imagen) | Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core |
 | IA (Postprocesamiento) | Stability AI (Remove Background, Creative Upscale) |
 | IA (Chat) | Más de 80 LLMs de 16 proveedores vía Bedrock ConverseStream |
 | IA (Video) | Nova Reel v1.0/v1.1 (hasta 2 min), Luma AI Ray v2 (hasta 9 seg) |
@@ -428,16 +428,15 @@ ArtSmoker está diseñado como una **herramienta de desarrollo para red local/co
 > [!NOTE]
 > Las tablas a continuación son **precios de referencia para planificación**. La propia aplicación muestra **precios en vivo por modelo** en la barra lateral del Image Studio — obtenidos de la API de precios de AWS durante la actualización del registro y almacenados en `model_registry.json`.
 
-Los precios de referencia se toman de la [página oficial de precios de Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) para las regiones predeterminadas de la aplicación — us-west-2 (Claude, Stability AI) y us-east-1 (Amazon Nova Canvas, Titan Image, Nova Sonic). Los precios pueden variar en otras regiones de AWS; la aplicación siempre muestra precios en vivo para la región que tengas configurada en la barra lateral del Image Studio. Consulta también [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) para proyecciones mensuales de equipo y estimaciones de costos de despliegue.
+Los precios de referencia se toman de la [página oficial de precios de Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) para las regiones predeterminadas de la aplicación — us-west-2 (Claude, Stability AI) y us-east-1 (Amazon Nova Sonic). Los precios pueden variar en otras regiones de AWS; la aplicación siempre muestra precios en vivo para la región que tengas configurada en la barra lateral del Image Studio. Consulta también [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) para proyecciones mensuales de equipo y estimaciones de costos de despliegue.
 
 | Servicio | Modelo | Costo | Unidad |
 |----------|--------|-------|--------|
-| **Claude Sonnet 4.6** | `us.anthropic.claude-sonnet-4-6` | $3.00 entrada / $15.00 salida | por 1M de tokens |
-| **Claude Opus 4.6** | `us.anthropic.claude-opus-4-6-v1` | $5.00 entrada / $25.00 salida | por 1M de tokens |
-| **Nova Canvas** | `amazon.nova-canvas-v1:0` | $0.06 | por imagen |
-| **Titan Image v2** | `amazon.titan-image-generator-v2:0` | $0.01 | por imagen |
+| **Claude Sonnet** | (última versión) | $3.00 entrada / $15.00 salida | por 1M de tokens |
+| **Claude Opus** | (última versión) | $5.00 entrada / $25.00 salida | por 1M de tokens |
 | **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | por imagen |
 | **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | por imagen |
+| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | por imagen |
 | **Remove Background** | Stability AI | $0.07 | por imagen |
 | **Creative Upscale** | Stability AI | $0.60 | por imagen |
 | **Conversión SVG** | Local (vtracer/potrace) | $0.00 | gratis |
