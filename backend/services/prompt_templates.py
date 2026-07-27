@@ -1,7 +1,10 @@
 """Prompt Templates — manages editable LLM directive prompts.
 
-All templates are stored in prompt_templates.json.
-Users can view, edit, and reset templates via the admin API.
+Runtime SOURCE OF TRUTH is prompt_templates.json (git-tracked), overlaid by
+prompt_templates.user.json (gitignored user edits). The _DEFAULTS dict in this
+file is a CODE SEED that (re)generates/backfills the JSON — it is NOT read at
+runtime once the JSON exists. Mirrors the model_registry.json pattern.
+Users view, edit, and reset templates via the admin API (writes to .user.json).
 Code reads templates via get_template(name) instead of hardcoded strings.
 
 Template variables use {curly_braces} and are substituted at runtime.
@@ -832,32 +835,74 @@ Output ONLY the fixed template text with all variables inserted. No explanations
 }
 
 
-# ── Load / Save (Layered: code defaults + user overrides) ────────────────
+# ── Load / Save (Layered: JSON defaults + user overrides) ────────────────
 #
-# Source of truth: the _DEFAULTS dict in this Python file (above).
+# SINGLE SOURCE OF TRUTH AT RUNTIME: prompt_templates.json (git-tracked).
+# Mirrors the model_registry.json pattern — the code reads the JSON, never the
+# Python dict, at runtime. This keeps behaviour consistent with the Prompt
+# Template editor (which edits the same template set) and with our layered-config
+# principle (no hard-coding: the editable JSON is the control surface).
 #
-# Two files:
-#   prompt_templates.json      — git-tracked reference copy. NEVER written at
-#                                runtime. Updated only by git pull from the repo.
-#   prompt_templates.user.json — user overrides only (edited templates).
-#                                Gitignored. Survives git pulls and code updates.
+# The _DEFAULTS dict in this file is a CODE SEED, used only to (re)generate the
+# JSON: on load, any template present in the code seed but MISSING from the JSON
+# is written into it (covers a fresh clone with no JSON, and new templates added
+# in code). Existing JSON entries are NEVER overwritten by the seed — the JSON
+# wins, so hand/UI edits to the git-tracked file are preserved. To force the JSON
+# to match the code seed for a specific template, delete that entry from the JSON
+# (or use the reset endpoint).
 #
-# Load order: code _DEFAULTS → overlay user overrides. User edits always win.
-# User edits only write to .user.json — the git-tracked file is read-only.
+# Three layers, load order: JSON defaults → (seed-fill missing) → user overrides.
+#   prompt_templates.json      — git-tracked runtime source of truth.
+#   prompt_templates.user.json — user overrides only (edited templates). Gitignored.
+#
+# User edits write to .user.json (gitignored); the reset endpoint restores the
+# JSON default. The git-tracked JSON is only written to backfill missing seeds.
 
 _user_overrides: dict = {}  # Raw user overrides (only modified templates)
+# Fields from a template entry that belong in the git-tracked JSON default
+# (everything except runtime-only metadata like "modified"/"warning").
+_SEED_FIELDS = ("label", "description", "used_by", "variables", "model", "text", "system_prompt")
+
+
+def _seed_entry(default: dict) -> dict:
+    """Project a _DEFAULTS entry down to the fields we persist in the JSON."""
+    return {k: default[k] for k in _SEED_FIELDS if k in default}
 
 
 def _load():
-    """Load templates: code defaults → user overrides on top."""
+    """Load templates: JSON defaults (seed-filled from code) → user overrides."""
     global _templates, _user_overrides
 
-    # 1. Start from code _DEFAULTS (always the source of truth for defaults)
-    _templates = {}
-    for name, default in _DEFAULTS.items():
-        _templates[name] = {**default, "modified": False}
+    # 1. Load git-tracked JSON — the runtime source of truth.
+    json_defaults = {}
+    if _DEFAULTS_PATH.exists():
+        try:
+            json_defaults = json.loads(_DEFAULTS_PATH.read_text())
+        except Exception as exc:
+            logger.error("Failed to read prompt_templates.json (%s) — falling back to code seed", exc)
+            json_defaults = {}
 
-    # 2. Overlay user overrides (local-only, gitignored)
+    # 2. Seed-fill: write any code-seed template MISSING from the JSON into it
+    #    (fresh clone / newly added templates). Never overwrite existing entries.
+    missing = [n for n in _DEFAULTS if n not in json_defaults]
+    if missing or not json_defaults:
+        for name in missing:
+            json_defaults[name] = _seed_entry(_DEFAULTS[name])
+        try:
+            _write_json_defaults(json_defaults)
+            logger.info("prompt_templates.json seeded with %d new template(s) from code: %s",
+                        len(missing), ", ".join(missing) if missing else "(all)")
+        except Exception as exc:
+            logger.warning("Could not write prompt_templates.json (%s) — using in-memory seed", exc)
+
+    # 3. Build the runtime view from JSON defaults.
+    _templates = {}
+    for name, entry in json_defaults.items():
+        if name.startswith("_"):
+            continue
+        _templates[name] = {**entry, "modified": False}
+
+    # 4. Overlay user overrides (local-only, gitignored) — these win.
     _user_overrides = {}
     if _USER_PATH.exists():
         try:
@@ -872,17 +917,21 @@ def _load():
                         _templates[name]["system_prompt"] = overrides["system_prompt"]
                     _templates[name]["modified"] = True
             user_count = len([k for k in _user_overrides if not k.startswith("_")])
-            logger.info("Prompt templates loaded: %d defaults + %d user overrides", len(_DEFAULTS), user_count)
+            logger.info("Prompt templates loaded: %d defaults + %d user overrides", len(_templates), user_count)
         except Exception as exc:
             logger.warning("Failed to read user overrides: %s", exc)
     else:
         logger.info("Prompt templates loaded: %d templates", len(_templates))
-        # First deployment — stamp the user file so we know defaults have been initialized
         _stamp_deployment()
 
-    # Note: prompt_templates.json (git-tracked) is NEVER written at runtime.
-    # Templates are loaded from the _DEFAULTS dict in code — the file is a
-    # git-delivered reference only. This keeps the file clean for auto-updates.
+
+def _write_json_defaults(defaults: dict):
+    """Write the git-tracked prompt_templates.json (the runtime source of truth).
+
+    Only called to backfill missing code-seed templates — existing entries are
+    passed through untouched by the caller. Keeps a stable key order for clean
+    git diffs."""
+    _DEFAULTS_PATH.write_text(json.dumps(defaults, indent=2, ensure_ascii=False))
 
 
 def _stamp_deployment():
@@ -1013,11 +1062,25 @@ def update_template(name: str, text: str, force: bool = False, system_prompt: st
     return {**_templates[name], "missing_variables": missing}
 
 
+def _json_default(name: str) -> dict | None:
+    """The current git-tracked JSON default for a template (source of truth for
+    reset), falling back to the code seed if the JSON lacks it."""
+    if _DEFAULTS_PATH.exists():
+        try:
+            jd = json.loads(_DEFAULTS_PATH.read_text())
+            if name in jd:
+                return jd[name]
+        except Exception:
+            pass
+    return _seed_entry(_DEFAULTS[name]) if name in _DEFAULTS else None
+
+
 def reset_template(name: str) -> dict:
-    """Reset a template to its default text. Removes from user overrides."""
-    if name not in _DEFAULTS:
+    """Reset a template to its JSON default text. Removes from user overrides."""
+    base = _json_default(name)
+    if base is None:
         raise ValueError(f"Unknown template: {name}")
-    _templates[name] = {**_DEFAULTS[name], "modified": False}
+    _templates[name] = {**base, "modified": False}
     # Remove from user overrides
     _user_overrides.pop(name, None)
     _save_user()
@@ -1025,9 +1088,9 @@ def reset_template(name: str) -> dict:
 
 
 def reset_all_templates():
-    """Reset all templates to defaults. Clears all user overrides."""
+    """Reset all templates to their JSON defaults. Clears all user overrides."""
     global _templates, _user_overrides
-    _templates = {name: {**default, "modified": False} for name, default in _DEFAULTS.items()}
     _user_overrides = {}
     _save_user()
+    _load()  # rebuild the runtime view from JSON defaults (no overrides left)
     return _templates
