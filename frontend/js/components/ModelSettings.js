@@ -1181,8 +1181,11 @@
             // added templates always appear (self-healing). friendlyLabel is an
             // optional nicety — the authoritative label/description come from the
             // registry and are shown by _renderSingleTemplate.
+            // Six workflow sections — every template placed once, nothing hidden.
+            // Any registry template NOT listed here still self-heals into a
+            // catch-all "Other" group below (so newly added prompts always appear).
             const GROUPS = [
-                { key: 'image_studio', label: t('nav.image_studio'), color: 'text-brand-accent', templates: [
+                { key: 'image_generation', label: 'Image Generation', color: 'text-brand-accent', templates: [
                     { name: 'image_refine_single', friendlyLabel: 'Prompt Refinement — how your text is turned into a detailed image prompt' },
                     { name: 'image_concepts_multi', friendlyLabel: 'Creative Options — how multiple distinct concepts are generated from one idea' },
                     { name: 'image_refine_marketing', friendlyLabel: 'Marketing Banners — specialized prompt for banner compositions' },
@@ -1192,7 +1195,8 @@
                     { name: 'prompt_decompose', friendlyLabel: 'Prompt Designer — breaks your idea into editable visual components' },
                     { name: 'prompt_recompose', friendlyLabel: 'Prompt Designer — recomposes edited components into a final prompt' },
                 ]},
-                { key: 'reference_guided', label: 'Reference-Guided (Image Inspiration)', color: 'text-cyan-400', templates: [
+                { key: 'image_editing', label: 'Image Editing & Reference', color: 'text-cyan-400', templates: [
+                    { name: 'edit_prompt_suggestion', friendlyLabel: 'Generate Prompt (Edit tab) — reads the image + intent and suggests an edit prompt per mode' },
                     { name: 'reference_intent_extraction', friendlyLabel: 'Inspired-By — reads reference image(s) + your instruction into an enhanced prompt' },
                     { name: 'reference_edit_instruction', friendlyLabel: 'Match-the-Reference — shapes your instruction for the reference edit model' },
                     { name: 'inpaint_removal_transform', friendlyLabel: 'Inpaint Removal — turns a "remove X" request into a fill description' },
@@ -1202,32 +1206,24 @@
                     { name: 'style_hints_generation', friendlyLabel: 'Style Hints — how analyzed style is distilled into generation directives' },
                     { name: 'style_cohesion_check', friendlyLabel: 'Cohesion Check — quick check if references are unified or diverse' },
                 ]},
+                { key: 'three_d_video', label: '3D & Video', color: 'text-pink-400', templates: [
+                    { name: 'three_d_source_analysis', friendlyLabel: 'Source Check — detects if a 2D image is cropped/incomplete before image-to-3D' },
+                    { name: 'video_enhance_prompt', friendlyLabel: 'Video Prompt Enhancement — adds camera movements, lighting, and temporal cues' },
+                ]},
                 { key: 'moderation', label: 'Content Safety', color: 'text-amber-400', templates: [
                     { name: 'moderation_prescreen', friendlyLabel: 'Pre-Screen — predicts if a prompt will be blocked before generating' },
                     { name: 'moderation_rewrite', friendlyLabel: 'Rewrite — rewrites blocked prompts to pass moderation' },
                 ]},
-                { key: 'three_d', label: '3D Generation', color: 'text-pink-400', templates: [
-                    { name: 'three_d_source_analysis', friendlyLabel: 'Source Check — detects if a 2D image is cropped/incomplete before image-to-3D' },
-                ]},
-                { key: 'video_studio', label: t('nav.video_studio'), color: 'text-emerald-400', templates: [
-                    { name: 'video_enhance_prompt', friendlyLabel: 'Prompt Enhancement — adds camera movements, lighting, and temporal cues' },
-                ]},
-                { key: 'type_studio', label: t('nav.type_studio'), color: 'text-cyan-400', templates: [
-                    { name: 'typestudio_layout', friendlyLabel: 'Text Layout — designs text positions, fonts, sizes, and effects' },
-                    { name: 'typestudio_layout_output_multi', friendlyLabel: 'Text Layout Output (multiple) — output format for multiple layout options' },
-                    { name: 'typestudio_layout_output_single', friendlyLabel: 'Text Layout Output (single) — output format for one layout' },
-                ]},
-                { key: 'chat_studio', label: t('nav.chat_studio'), color: 'text-indigo-400', templates: [
-                    { name: 'chat_context_compact', friendlyLabel: 'Context Compaction — summarizes older messages to free context space' },
-                    { name: 'chat_title_generate', friendlyLabel: 'Session Title — auto-generates a title from the first exchange' },
-                ]},
-                { key: 'translation', label: 'Translation', color: 'text-teal-400', templates: [
+                { key: 'system_utilities', label: 'System & Utilities', color: 'text-teal-400', templates: [
                     { name: 'translate_detect_language', friendlyLabel: 'Language Detection — detects language when heuristics are ambiguous' },
                     { name: 'translate_to_english', friendlyLabel: 'Translation to English — translates non-English prompts before generation' },
-                ]},
-                { key: 'admin', label: 'Template Editor (meta)', color: 'text-brand-text-muted', templates: [
-                    { name: 'admin_template_enhance', friendlyLabel: 'Enhance-with-AI — the prompt used by the "Enhance with AI" button here' },
-                    { name: 'admin_template_fix_variables', friendlyLabel: 'Fix Variables — the prompt used by "Fix & Save" to reinsert missing variables' },
+                    { name: 'chat_context_compact', friendlyLabel: 'Chat: Context Compaction — summarizes older messages to free context space' },
+                    { name: 'chat_title_generate', friendlyLabel: 'Chat: Session Title — auto-generates a title from the first exchange' },
+                    { name: 'typestudio_layout', friendlyLabel: 'Type Studio: Text Layout — designs text positions, fonts, sizes, and effects' },
+                    { name: 'typestudio_layout_output_multi', friendlyLabel: 'Type Studio: Layout Output (multiple) — output format for multiple layout options' },
+                    { name: 'typestudio_layout_output_single', friendlyLabel: 'Type Studio: Layout Output (single) — output format for one layout' },
+                    { name: 'admin_template_enhance', friendlyLabel: 'Template Editor: Enhance-with-AI — the prompt behind the "Enhance with AI" button here' },
+                    { name: 'admin_template_fix_variables', friendlyLabel: 'Template Editor: Fix Variables — the prompt behind "Fix & Save" to reinsert missing variables' },
                 ]},
             ];
 
