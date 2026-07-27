@@ -425,21 +425,20 @@ ArtSmoker 设计为**本地/受信网络开发工具** —— 在开发者自己
 
 ## 📌 12. Amazon Bedrock 定价和成本明细
 
-> [!NOTE]
-> 下表为**规划用的参考定价**。应用本身在 Image Studio 侧边栏中显示**实时的每模型定价** —— 在注册表刷新时从 AWS Pricing API 获取并存储在 `model_registry.json` 中。
+> [!IMPORTANT]
+> **模型弃用和变更很快。** 新模型频繁推出、旧模型频繁退役，因此文档中硬编码的任何具体模型名称或价格都会很快过时。ArtSmoker 会自动处理这一点 —— 每次**从 AWS 同步**都会重新发现当前的模型阵容，将共享 LLM 槽位自动滚动到最新的 Claude Sonnet/Opus，并从 AWS Pricing API 将实时的每模型定价刷新到 `model_registry.json`。**应用才是唯一可信来源** —— 无论是哪些模型存在，还是它们各自的价格（根据你所选的模型、质量档位、区域和批量大小，在 Image Studio 侧边栏中实时显示）。下方的模型名称和任何数字**仅为示例说明** —— 请始终在应用内或官方 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)确认当前的模型/价格。
 
 参考价格取自官方 [Amazon Bedrock 定价页面](https://aws.amazon.com/bedrock/pricing/)，对应应用的默认区域 —— us-west-2（Claude、Stability AI）和 us-east-1（Amazon Nova Sonic）。其他 AWS 区域的价格可能有所不同；应用始终会在 Image Studio 侧边栏中显示你实际配置区域的实时定价。月度团队预算估算和部署成本估算另请参阅 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)。
 
-| 服务 | 模型 | 成本 | 单位 |
-|------|------|------|------|
-| **Claude Sonnet** | (最新) | $3.00 输入 / $15.00 输出 | 每百万 token |
-| **Claude Opus** | (最新) | $5.00 输入 / $25.00 输出 | 每百万 token |
-| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | 每张图像 |
-| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | 每张图像 |
-| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | 每张图像 |
-| **背景去除** | Stability AI | $0.07 | 每张图像 |
-| **Creative Upscale** | Stability AI | $0.60 | 每张图像 |
-| **SVG 转换** | 本地（vtracer/potrace） | $0.00 | 免费 |
+哪些操作会产生费用及其计费单位（当前单价请参阅应用内）：
+
+| 服务 | 计费方式 | 说明 |
+|------|----------|------|
+| **LLM 提示工程与聊天**（Claude Sonnet / Opus，同步时自动滚动到最新版） | 按输入/输出 token | 提示优化、概念、聊天、风格分析、内容审核 |
+| **Bedrock 图像生成**（Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core） | 按每张图像 | 价格 Ultra ≫ SD 3.5 ≫ Core；实时数字在应用内显示 |
+| **自托管图像/3D**（FLUX、HunyuanImage、Qwen-Image、TripoSG、TRELLIS.2） | 按 SageMaker 实例的 GPU 秒 | 空闲时 scale-to-zero（$0）；不按每张图像计费 |
+| **后处理**（背景去除、Creative Upscale） | 按每张图像 | Stability AI 服务 |
+| **SVG 转换** | 免费 | 本地（vtracer/potrace）—— $0.00 |
 
 > [!TIP]
 > **关键要点**：图像生成本身很便宜（$0.01-$0.14/张）。**Creative Upscale $0.60/张是最大的成本因素** —— 请在最终选定的资产上选择性使用，而非对整批使用。背景去除 $0.07/张较为合理。SVG 转换免费（本地运行）。

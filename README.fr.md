@@ -425,21 +425,20 @@ ArtSmoker est conçu comme un **outil de développement local/réseau de confian
 
 ## 📌 12. Tarification Amazon Bedrock et ventilation des coûts
 
-> [!NOTE]
-> Les tableaux ci-dessous sont des **tarifs de référence à des fins de planification**. L'application elle-même affiche les **tarifs en direct par modèle** dans la barre latérale de l'Image Studio — récupérés depuis l'API AWS Pricing lors du rafraîchissement du registre et stockés dans `model_registry.json`.
+> [!IMPORTANT]
+> **Les modèles sont dépréciés et changent rapidement.** De nouveaux modèles sortent et les anciens sont retirés fréquemment, si bien que tout nom de modèle ou tarif codé en dur dans la documentation devient vite obsolète. ArtSmoker gère cela automatiquement — chaque **synchronisation depuis AWS** redécouvre la gamme de modèles actuelle, bascule automatiquement les emplacements LLM partagés vers les Claude Sonnet/Opus les plus récents, et rafraîchit les tarifs en direct par modèle depuis l'API AWS Pricing dans `model_registry.json`. **L'application fait autorité** — à la fois sur les modèles qui existent et sur leur coût (affiché en direct dans la barre latérale de l'Image Studio selon le modèle sélectionné, le niveau de qualité, la région et la taille du lot). Les noms de modèles et les chiffres ci-dessous ne sont que des **exemples illustratifs** — confirmez toujours les modèles/tarifs actuels dans l'application ou sur la [page de tarification Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) officielle.
 
 Les tarifs de référence proviennent de la [page de tarification Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) officielle, pour les régions par défaut de l'application — us-west-2 (Claude, Stability AI) et us-east-1 (Amazon Nova Sonic). Les tarifs peuvent varier dans les autres régions AWS ; l'application affiche toujours les tarifs en direct correspondant à la région que vous avez réellement configurée, dans la barre latérale de l'Image Studio. Consultez également [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) pour les projections mensuelles par équipe et les estimations de coût de déploiement.
 
-| Service | Modèle | Coût | Unité |
-|---------|--------|------|-------|
-| **Claude Sonnet** | (dernière version) | $3.00 entrée / $15.00 sortie | par million de tokens |
-| **Claude Opus** | (dernière version) | $5.00 entrée / $25.00 sortie | par million de tokens |
-| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | par image |
-| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | par image |
-| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | par image |
-| **Remove Background** | Stability AI | $0.07 | par image |
-| **Creative Upscale** | Stability AI | $0.60 | par image |
-| **Conversion SVG** | Local (vtracer/potrace) | $0.00 | gratuit |
+Ce qui génère des coûts, et son unité de facturation (voir l'application pour le tarif unitaire actuel) :
+
+| Service | Facturé | Notes |
+|---------|---------|-------|
+| **Ingénierie de prompts LLM et chat** (Claude Sonnet / Opus, basculés vers les plus récents à la synchro) | par token entrée/sortie | Affinage de prompts, concepts, chat, analyse de style, modération |
+| **Génération d'images Bedrock** (Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | par image | Tarif Ultra ≫ SD 3.5 ≫ Core ; chiffre en direct affiché dans l'application |
+| **Images/3D auto-hébergés** (FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | par seconde-GPU de votre instance SageMaker | Scale-to-zero à l'inactivité ($0) ; non facturé par image |
+| **Post-traitement** (Remove Background, Creative Upscale) | par image | Services Stability AI |
+| **Conversion SVG** | gratuit | Local (vtracer/potrace) — $0.00 |
 
 > [!TIP]
 > **Point clé** : La génération d'images en elle-même est peu coûteuse ($0.01 à $0.14/image). **Le Creative Upscale à $0.60/image est le coût dominant** — utilisez-le sélectivement sur les assets finaux choisis, pas sur l'ensemble du lot. Le Remove Background à $0.07/image est raisonnable. La conversion SVG est gratuite (exécution locale).

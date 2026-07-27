@@ -425,21 +425,20 @@ ArtSmoker está diseñado como una **herramienta de desarrollo para red local/co
 
 ## 📌 12. Precios de Amazon Bedrock y desglose de costos
 
-> [!NOTE]
-> Las tablas a continuación son **precios de referencia para planificación**. La propia aplicación muestra **precios en vivo por modelo** en la barra lateral del Image Studio — obtenidos de la API de precios de AWS durante la actualización del registro y almacenados en `model_registry.json`.
+> [!IMPORTANT]
+> **Los modelos se descontinúan y cambian rápido.** Salen nuevos modelos y se retiran los antiguos con frecuencia, por lo que cualquier nombre de modelo o precio fijado en la documentación queda obsoleto rápidamente. ArtSmoker maneja esto automáticamente — cada **Sincronización desde AWS** vuelve a descubrir la línea de modelos actual, rota automáticamente las ranuras LLM compartidas a los Claude Sonnet/Opus más recientes y actualiza los precios en vivo por modelo desde la API de precios de AWS en `model_registry.json`. **La aplicación es la fuente de la verdad** — tanto de qué modelos existen como de cuánto cuestan (mostrado en vivo en la barra lateral del Image Studio según el modelo seleccionado, el nivel de calidad, la región y el tamaño del lote). Los nombres de modelos y cualquier cifra a continuación son **solo ejemplos ilustrativos** — confirma siempre los modelos/precios actuales en la aplicación o en la [página oficial de precios de Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/).
 
 Los precios de referencia se toman de la [página oficial de precios de Amazon Bedrock](https://aws.amazon.com/bedrock/pricing/) para las regiones predeterminadas de la aplicación — us-west-2 (Claude, Stability AI) y us-east-1 (Amazon Nova Sonic). Los precios pueden variar en otras regiones de AWS; la aplicación siempre muestra precios en vivo para la región que tengas configurada en la barra lateral del Image Studio. Consulta también [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) para proyecciones mensuales de equipo y estimaciones de costos de despliegue.
 
-| Servicio | Modelo | Costo | Unidad |
-|----------|--------|-------|--------|
-| **Claude Sonnet** | (última versión) | $3.00 entrada / $15.00 salida | por 1M de tokens |
-| **Claude Opus** | (última versión) | $5.00 entrada / $25.00 salida | por 1M de tokens |
-| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | por imagen |
-| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | por imagen |
-| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | por imagen |
-| **Remove Background** | Stability AI | $0.07 | por imagen |
-| **Creative Upscale** | Stability AI | $0.60 | por imagen |
-| **Conversión SVG** | Local (vtracer/potrace) | $0.00 | gratis |
+Qué genera costo y su unidad de facturación (consulta la aplicación para el precio unitario actual):
+
+| Servicio | Facturado | Notas |
+|----------|-----------|-------|
+| **Ingeniería de prompts LLM y chat** (Claude Sonnet / Opus, rotados a los más recientes al Sincronizar) | por token de entrada/salida | Refinamiento de prompts, conceptos, chat, análisis de estilo, moderación |
+| **Generación de imágenes en Bedrock** (Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | por imagen | Precio Ultra ≫ SD 3.5 ≫ Core; cifra en vivo mostrada en la aplicación |
+| **Imágenes/3D autoalojados** (FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | por segundo-GPU de tu instancia de SageMaker | Scale-to-zero en inactividad ($0); no se factura por imagen |
+| **Post-procesamiento** (Remove Background, Creative Upscale) | por imagen | Servicios de Stability AI |
+| **Conversión SVG** | gratis | Local (vtracer/potrace) — $0.00 |
 
 > [!TIP]
 > **Punto clave**: La generación de imágenes en sí es económica ($0.01–$0.14/imagen). **Creative Upscale a $0.60/imagen es el mayor factor de costo** — úselo selectivamente en los recursos finales elegidos, no en el lote completo. Remove Background a $0.07/imagen es razonable. La conversión SVG es gratuita (se ejecuta localmente).

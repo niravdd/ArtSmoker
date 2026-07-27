@@ -425,21 +425,20 @@ ArtSmokerは**ローカル/信頼されたネットワーク開発ツール**と
 
 ## 📌 12. Amazon Bedrock料金とコスト内訳
 
-> [!NOTE]
-> 以下の表は**計画用の参考料金**です。アプリ自体はImage Studioサイドバーに**ライブのモデルごとの料金**を表示します — AWS Pricing APIからレジストリリフレッシュ時に取得され、`model_registry.json`に保存されます。
+> [!IMPORTANT]
+> **モデルは急速に非推奨化・変更されます。** 新しいモデルが頻繁に登場し、古いモデルは頻繁に廃止されるため、ドキュメントに記載された特定のモデル名や料金はすぐに古くなります。ArtSmokerはこれを自動的に処理します — **AWSから同期**するたびに現在のモデルラインナップを再検出し、共有LLMスロットを最新のClaude Sonnet/Opusに自動更新し、AWS Pricing APIからライブのモデルごとの料金を`model_registry.json`に更新します。**アプリが信頼できる唯一の情報源**です — どのモデルが存在し、いくらかかるか（選択したモデル・品質ティア・リージョン・バッチサイズに応じてImage Studioサイドバーにライブ表示）の両方について。以下のモデル名や数値は**あくまで参考例**です — 常にアプリ内または公式の[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)で現在のモデル/料金を確認してください。
 
 参考料金は、アプリのデフォルトリージョン — us-west-2（Claude、Stability AI）と us-east-1（Amazon Nova Sonic）— について、公式の[Amazon Bedrock料金ページ](https://aws.amazon.com/bedrock/pricing/)から取得しています。他のAWSリージョンでは料金が異なる場合があります。アプリは常に、実際に設定されているリージョンのライブ料金をImage Studioサイドバーに表示します。月次のチーム見積もりやデプロイのコスト試算については、[SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)も参照してください。
 
-| サービス | モデル | コスト | 単位 |
-|---------|-------|------|------|
-| **Claude Sonnet** | (最新) | $3.00入力 / $15.00出力 | 100万トークンあたり |
-| **Claude Opus** | (最新) | $5.00入力 / $25.00出力 | 100万トークンあたり |
-| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | 画像あたり |
-| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | 画像あたり |
-| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | 画像あたり |
-| **背景除去** | Stability AI | $0.07 | 画像あたり |
-| **Creative Upscale** | Stability AI | $0.60 | 画像あたり |
-| **SVG変換** | ローカル（vtracer/potrace） | $0.00 | 無料 |
+何にコストがかかるか、その課金単位（現在の単価はアプリを参照）：
+
+| サービス | 課金 | 備考 |
+|---------|------|------|
+| **LLMプロンプトエンジニアリング＆チャット**（Claude Sonnet / Opus、同期時に最新へ自動更新） | 入力/出力トークンあたり | プロンプト精緻化、コンセプト、チャット、スタイル分析、モデレーション |
+| **Bedrock画像生成**（Stable Diffusion 3.5 Large、Stable Image Ultra、Stable Image Core） | 画像あたり | 価格はUltra ≫ SD 3.5 ≫ Core、ライブ数値はアプリ内に表示 |
+| **セルフホスト画像/3D**（FLUX、HunyuanImage、Qwen-Image、TripoSG、TRELLIS.2） | SageMakerインスタンスのGPU秒あたり | アイドル時はscale-to-zeroで$0、画像単位の課金ではありません |
+| **後処理**（背景除去、Creative Upscale） | 画像あたり | Stability AIサービス |
+| **SVG変換** | 無料 | ローカル（vtracer/potrace）— $0.00 |
 
 > [!TIP]
 > **重要なポイント**：画像生成自体は安価（$0.01〜$0.14/画像）。**Creative Upscaleは$0.60/画像が最大のコスト要因** — 最終的に選択したアセットに選択的に使用し、バッチ全体には使わないでください。背景除去は$0.07/画像で妥当。SVG変換は無料（ローカル実行）。

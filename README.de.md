@@ -1431,24 +1431,22 @@ Das Reduzieren von `max_analysis_images` senkt die KI-Vision-Kosten pro Analyse.
 
 ## 📌 12. Amazon-Bedrock-Preise & Kostenaufschlüsselung
 
-> [!NOTE]
-> Die folgenden Tabellen enthalten **Referenzpreise zu Planungszwecken**. Die App selbst zeigt **Live-Preise pro Modell** in der Seitenleiste des Image Studios — abgerufen von der AWS Pricing API während der Registry-Aktualisierung und in `model_registry.json` gespeichert. Die In-App-Kostenschätzung aktualisiert sich dynamisch basierend auf ausgewähltem Modell, Qualitätsstufe, Region und Batch-Größe.
+> [!IMPORTANT]
+> **Modelle werden schnell abgekündigt und ändern sich.** Neue Modelle erscheinen und alte werden häufig eingestellt, sodass jeder in der Dokumentation fest hinterlegte Modellname oder Preis rasch veraltet. ArtSmoker handhabt dies automatisch — jede **Sync from AWS** erkennt das aktuelle Modellangebot neu, rollt die gemeinsam genutzten LLM-Slots automatisch auf den neuesten Claude Sonnet/Opus und aktualisiert die Live-Preise pro Modell von der AWS Pricing API in `model_registry.json`. **Die App ist die Quelle der Wahrheit** — sowohl dafür, welche Modelle existieren, als auch dafür, was sie kosten (live in der Seitenleiste des Image Studios angezeigt, entsprechend dem ausgewählten Modell, der Qualitätsstufe, der Region und der Batch-Größe). Modellnamen und alle nachstehenden Zahlen sind **nur illustrative Beispiele** — bestätigen Sie die aktuellen Modelle/Preise stets in der App oder auf der offiziellen [Amazon-Bedrock-Preisseite](https://aws.amazon.com/bedrock/pricing/).
 
-Referenzpreise stammen von der offiziellen [Amazon-Bedrock-Preisseite](https://aws.amazon.com/bedrock/pricing/) für die **Standardregionen** der App — `us-west-2` (Claude, Stability AI) und `us-east-1` (Amazon Nova Sonic, Nova Reel). Die Preise können in anderen AWS-Regionen abweichen; die App zeigt in der Seitenleiste des Image Studios stets **Live-Preise für Ihre tatsächlich konfigurierte Region** an (abgerufen von der AWS Pricing API). Siehe auch [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) für monatliche Team-Prognosen und Deployment-Kostenschätzungen.
+Die **Standardregionen** der App sind `us-west-2` (Claude, Stability AI) und `us-east-1` (Amazon Nova Sonic, Nova Reel); die Preise unterscheiden sich je nach Region. Siehe auch [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown) für das Kostenmodell.
 
 ### 📝 12.1 Preise pro Einheit
 
-| Service | Modell | Kosten | Einheit |
-|---------|--------|--------|---------|
-| **Claude Sonnet** (neueste, per Sync) | neuester Sonnet per Sync | $3.00 Eingabe / $15.00 Ausgabe | pro 1M Tokens |
-| **Claude Opus** (neueste, per Sync) | neuester Opus per Sync | $5.00 Eingabe / $25.00 Ausgabe | pro 1M Tokens |
-| **Claude Opus (Vision)** | dasselbe | ~$0.008 | pro 1024×1024-Bildeingabe |
-| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | pro Bild |
-| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | pro Bild |
-| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | pro Bild |
-| **Remove Background** | Stability AI | $0.07 | pro Bild |
-| **Creative Upscale** | Stability AI | $0.60 | pro Bild |
-| **SVG-Konvertierung** | Lokal (vtracer/potrace) | $0.00 | kostenlos |
+Was Kosten verursacht und die zugehörige Abrechnungseinheit (den aktuellen Preis pro Einheit finden Sie in der App):
+
+| Service | Abrechnung | Hinweise |
+|---------|-----------|----------|
+| **LLM-Prompt-Engineering & Chat** (Claude Sonnet / Opus, bei Sync automatisch auf die neueste Version gerollt) | pro Input-/Output-Token | Prompt-Verfeinerung, Konzepte, Chat, Stilanalyse, Moderation |
+| **Bedrock-Bildgenerierung** (Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | pro Bild | Ultra ≫ SD 3.5 ≫ Core im Preis; Live-Wert in der App angezeigt |
+| **Selbst gehostet Bild / 3D** (FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | pro SageMaker-GPU-Sekunde Ihrer Instanz | Scale-to-Zero im Leerlauf ($0); nicht pro Bild abgerechnet |
+| **Nachbearbeitung** (Remove Background, Creative Upscale) | pro Bild | Stability-AI-Services |
+| **SVG-Konvertierung** | kostenlos | Lokal (vtracer/potrace) — $0.00 |
 
 > [!NOTE]
 > Preise von der offiziellen [Amazon-Bedrock-Preisseite](https://aws.amazon.com/bedrock/pricing/) mit Stand März 2026. Preise können sich ändern — überprüfen Sie sie vor der Budgetierung stets anhand der offiziellen Quelle.

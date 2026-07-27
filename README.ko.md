@@ -425,21 +425,20 @@ ArtSmoker는 **로컬/신뢰 네트워크 개발 도구**로 설계되었습니�
 
 ## 📌 12. Amazon Bedrock 요금 및 비용 내역
 
-> [!NOTE]
-> 아래 표는 **계획용 참고 요금**입니다. 앱 자체는 Image Studio 사이드바에 **실시간 모델별 요금**을 표시합니다 — AWS Pricing API에서 레지스트리 새로 고침 시 가져와 `model_registry.json`에 저장됩니다.
+> [!IMPORTANT]
+> **모델은 빠르게 지원 중단되고 변경됩니다.** 새 모델이 자주 출시되고 오래된 모델은 자주 폐기되므로, 문서에 하드코딩된 특정 모델 이름이나 요금은 금방 오래된 정보가 됩니다. ArtSmoker는 이를 자동으로 처리합니다 — **AWS에서 동기화**할 때마다 현재 모델 라인업을 다시 검색하고, 공유 LLM 슬롯을 최신 Claude Sonnet/Opus로 자동 롤링하며, AWS Pricing API에서 실시간 모델별 요금을 `model_registry.json`으로 새로 고칩니다. **앱이 신뢰할 수 있는 유일한 출처**입니다 — 어떤 모델이 존재하는지와 각 요금이 얼마인지(선택한 모델, 품질 등급, 리전, 배치 크기에 따라 Image Studio 사이드바에 실시간 표시) 모두에 대해. 아래의 모델 이름과 숫자는 **예시일 뿐**입니다 — 항상 앱 내 또는 공식 [Amazon Bedrock 요금 페이지](https://aws.amazon.com/bedrock/pricing/)에서 현재 모델/요금을 확인하세요.
 
 참고 요금은 앱의 기본 리전 — us-west-2(Claude, Stability AI) 및 us-east-1(Amazon Nova Sonic) — 을 기준으로 공식 [Amazon Bedrock 요금 페이지](https://aws.amazon.com/bedrock/pricing/)에서 가져온 값입니다. 다른 AWS 리전에서는 요금이 다를 수 있으며, 앱은 항상 실제로 구성된 리전의 실시간 요금을 Image Studio 사이드바에 표시합니다. 월간 팀 단위 예상 비용 및 배포 비용 추정치는 [SPEC.md](SPEC.md#14-amazon-bedrock-pricing--cost-breakdown)도 함께 참조하세요.
 
-| 서비스 | 모델 | 비용 | 단위 |
-|--------|------|------|------|
-| **Claude Sonnet** | (최신) | $3.00 입력 / $15.00 출력 | 100만 토큰당 |
-| **Claude Opus** | (최신) | $5.00 입력 / $25.00 출력 | 100만 토큰당 |
-| **Stable Image Core** | `stability.stable-image-core-v1:1` | $0.04 | 이미지당 |
-| **Stable Diffusion 3.5 Large** | `stability.sd3-5-large-v1:0` | $0.08 | 이미지당 |
-| **Stable Image Ultra** | `stability.stable-image-ultra-v1:1` | $0.14 | 이미지당 |
-| **배경 제거** | Stability AI | $0.07 | 이미지당 |
-| **Creative Upscale** | Stability AI | $0.60 | 이미지당 |
-| **SVG 변환** | 로컬(vtracer/potrace) | $0.00 | 무료 |
+비용이 발생하는 항목과 과금 단위(현재 단가는 앱 참조):
+
+| 서비스 | 과금 | 비고 |
+|--------|------|------|
+| **LLM 프롬프트 엔지니어링 및 채팅**(Claude Sonnet / Opus, 동기화 시 최신으로 자동 롤링) | 입력/출력 토큰당 | 프롬프트 정제, 콘셉트, 채팅, 스타일 분석, 모더레이션 |
+| **Bedrock 이미지 생성**(Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core) | 이미지당 | 가격은 Ultra ≫ SD 3.5 ≫ Core; 실시간 수치는 앱 내 표시 |
+| **셀프 호스팅 이미지/3D**(FLUX, HunyuanImage, Qwen-Image, TripoSG, TRELLIS.2) | SageMaker 인스턴스의 GPU-초당 | 유휴 시 scale-to-zero($0); 이미지당 과금 아님 |
+| **후처리**(배경 제거, Creative Upscale) | 이미지당 | Stability AI 서비스 |
+| **SVG 변환** | 무료 | 로컬(vtracer/potrace) — $0.00 |
 
 > [!TIP]
 > **핵심 포인트**: 이미지 생성 자체는 저렴합니다($0.01~$0.14/이미지). **Creative Upscale이 $0.60/이미지로 가장 큰 비용 요인** — 최종 선택한 에셋에 선별적으로 사용하고, 전체 배치에는 사용하지 마세요. 배경 제거는 $0.07/이미지로 합리적입니다. SVG 변환은 무료(로컬 실행)입니다.
