@@ -1823,6 +1823,43 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
                 if progress:
                     progress(msg)
 
+    # ── New-tier discovery (generic; not locked to Sonnet/Opus) ──────────────
+    # Auto-roll only manages the KNOWN tiers above (Sonnet→fast, Opus→fallback,
+    # Opus→complex) — deliberately, so a brand-new tier is never SILENTLY swapped
+    # into a category (it could be specialized or cheaper-but-weaker, not a true
+    # upgrade for that slot). But we must never hide a new frontier model either:
+    # any ACTIVE Claude of an UNMANAGED tier (e.g. 'fable', or a future tier) that
+    # no category currently uses is surfaced as a notice so the user can assign it
+    # in Model Settings. This is fully generic — it keys off whatever tier token
+    # appears in the model_id, with zero hardcoded model names.
+    managed_tiers = {"sonnet", "opus"}  # tiers the auto-roll already places
+    assigned_ids = {
+        (registry.get("categories", {}).get(c, {}) or {}).get("current", "")
+        for c in ("fast_llm", "complex_llm", "fallback_llm", "voice")
+    }
+    seen_new_tiers = set()
+    for k, cfg in chat_models.items():
+        mid = (cfg.get("model_id", "") or "").lower()
+        if "claude" not in mid:
+            continue
+        if (cfg.get("lifecycle") or "ACTIVE").upper() != "ACTIVE":
+            continue
+        m = _re.search(r'claude-([a-z]+)-', mid)  # the tier token, e.g. 'fable'
+        tier = m.group(1) if m else None
+        if not tier or tier in managed_tiers or tier in seen_new_tiers:
+            continue
+        if cfg.get("model_id", "") in assigned_ids:
+            continue  # already assigned to a category — not "new/unused"
+        seen_new_tiers.add(tier)
+        label = cfg.get("label") or cfg.get("model_id", "")
+        msg = (f"New Claude model available: {label} ({cfg.get('model_id','')}) — "
+               f"a new '{tier}' tier not auto-assigned. Review in Model Settings to "
+               f"use it for a category or in Chat Studio.")
+        notices.append(msg)
+        logger.info(msg)
+        if progress:
+            progress(msg)
+
     return notices
 
 
