@@ -5906,6 +5906,7 @@
           "supports_negative_prompt": true,
           "max_prompt_length": 2000,
           "optimal_prompt_words": 75,
+          "vae_upcast_fp32": true,
           "positive_magic": ", Ultra HD, 4K, cinematic composition.",
           "typical_latency_seconds": 1200,
           "supported_sizes": [
