@@ -539,6 +539,8 @@
     "generated_prompt": "已生成的提示词",
     "generating": "生成中……",
     "generating_images": "图像生成中…… {{done}}/{{total}}",
+    "llm_retrying": "AI 模型无响应 — {{seconds}} 秒后重试 ({{attempt}}/{{max}})",
+    "llm_switching": "正在切换到备用 AI 模型 ({{model}})",
     "generation_complete": "生成完成！",
     "generation_failed": "生成失败",
     "generation_failed_status": "生成失败",

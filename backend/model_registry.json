@@ -5824,204 +5824,9 @@
           ]
         }
       },
-      "qwen_image_nf4": {
-        "label": "Qwen-Image (NF4)",
-        "description": "Text-to-image generator (NF4 quantized, single 48GB GPU) by Alibaba Qwen. Apache-2.0 (commercial-safe). 20B MMDiT with strong prompt following and exceptional text rendering (incl. non-Latin scripts). The 2512 refresh over the August base enhances human realism (less \"AI look\"), finer natural detail (fur/landscapes), and text rendering accuracy. A deployable custom generator alongside the Bedrock models. Its editing sibling, Qwen-Image-Edit, is a separate deploy.",
-        "category": "image_generation",
-        "studio": "image",
-        "provider": "Alibaba Qwen",
-        "license": "Apache-2.0",
-        "commercial": true,
-        "requires_hf_auth": false,
-        "hf_license_url": "https://huggingface.co/Qwen/Qwen-Image-2512",
-        "model_purpose": "text_to_image",
-        "prompt_limit": 2000,
-        "license_agreement": {
-          "required": true,
-          "license_name": "Apache-2.0",
-          "license_url": "https://huggingface.co/Qwen/Qwen-Image-2512/blob/main/LICENSE",
-          "commercial": true,
-          "key_terms": [
-            "Apache License 2.0 \u2014 commercial use permitted",
-            "Modification and redistribution allowed with license notice",
-            "No additional gating \u2014 weights are openly downloadable from HuggingFace"
-          ],
-          "warnings": []
-        },
-        "source": {
-          "type": "huggingface",
-          "repo_id": "Qwen/Qwen-Image-2512"
-        },
-        "requirements": {
-          "min_vram_gb": 48,
-          "recommended_instance": "ml.g6e.2xlarge",
-          "min_instance": "ml.g6e.xlarge",
-          "disk_gb": 70,
-          "allowed_instances": [
-            "ml.g6e.2xlarge",
-            "ml.g6e.4xlarge",
-            "ml.g6e.8xlarge"
-          ],
-          "min_host_ram_gb": 32,
-          "_note": "48 GB VRAM (g6e/L40S) is the baseline. The 24 GB L4 (g6.2xlarge) loads the NF4 model but OOMs during inference at Qwen's larger supported resolutions (1328\u00b2, 1664\u00d7928) \u2014 verified 2026-07-21 (CUDA OOM at 1328\u00b2 40 steps, 21.9/22 GB used). We never cap output quality to fit a smaller GPU; g6e is required so every supported size renders."
-        },
-        "invoke": {
-          "library": "diffusers",
-          "loader_class": "QwenImagePipeline",
-          "torch_dtype": "bfloat16",
-          "enable_model_cpu_offload": true,
-          "predictor_type": "text_to_image",
-          "input_fields": {
-            "prompt": {
-              "type": "string",
-              "required": true
-            },
-            "negative_prompt": {
-              "type": "string",
-              "required": false,
-              "default": " "
-            },
-            "width": {
-              "type": "int",
-              "default": 1024
-            },
-            "height": {
-              "type": "int",
-              "default": 1024
-            },
-            "num_inference_steps": {
-              "type": "int",
-              "default": 50
-            },
-            "true_cfg_scale": {
-              "type": "float",
-              "default": 4.0
-            },
-            "seed": {
-              "type": "int",
-              "required": false
-            }
-          },
-          "output_type": "base64_png",
-          "supports_negative_prompt": true,
-          "max_prompt_length": 2000,
-          "optimal_prompt_words": 75,
-          "vae_upcast_fp32": true,
-          "positive_magic": ", Ultra HD, 4K, cinematic composition.",
-          "typical_latency_seconds": 1200,
-          "supported_sizes": [
-            {
-              "w": 1024,
-              "h": 1024,
-              "label": "1024 \u00d7 1024"
-            },
-            {
-              "w": 1328,
-              "h": 1328,
-              "label": "1328 \u00d7 1328"
-            },
-            {
-              "w": 1664,
-              "h": 928,
-              "label": "1664 \u00d7 928 (16:9)"
-            },
-            {
-              "w": 928,
-              "h": 1664,
-              "label": "928 \u00d7 1664 (9:16)"
-            },
-            {
-              "w": 1472,
-              "h": 1104,
-              "label": "1472 \u00d7 1104 (4:3)"
-            },
-            {
-              "w": 1104,
-              "h": 1472,
-              "label": "1104 \u00d7 1472 (3:4)"
-            },
-            {
-              "w": 1584,
-              "h": 1056,
-              "label": "1584 \u00d7 1056 (3:2)"
-            },
-            {
-              "w": 1056,
-              "h": 1584,
-              "label": "1056 \u00d7 1584 (2:3)"
-            }
-          ],
-          "quantization_components": [
-            {
-              "name": "transformer",
-              "class": "QwenImageTransformer2DModel",
-              "module": "diffusers",
-              "subfolder": "transformer",
-              "quantization": "nf4",
-              "skip_quant_modules": [
-                "proj_out",
-                "norm_out",
-                "txt_norm",
-                "time_text_embed",
-                "img_in",
-                "txt_in",
-                "pos_embed"
-              ]
-            },
-            {
-              "name": "text_encoder",
-              "class": "Qwen2_5_VLForConditionalGeneration",
-              "module": "transformers",
-              "subfolder": "text_encoder",
-              "quantization": "nf4"
-            }
-          ],
-          "prompt_guidance": "Qwen-Image is a 20B text-to-image generator with excellent prompt following and best-in-class TEXT RENDERING (including non-Latin scripts). Write a rich natural-language description of the finished image. Structure: Subject \u2192 Action/Pose \u2192 Environment/Scene \u2192 Lighting \u2192 Composition/Camera \u2192 Style. Front-load the most important elements (the model attends most to what comes first). It follows detailed prose well, so be specific about materials, colors, and mood. STANDOUT STRENGTH: it renders embedded text (signs, labels, posters, titles, UI, logos-as-text) crisply \u2014 when text should appear IN the image, quote it verbatim in double quotes and say where it goes (e.g. a neon sign reading \"OPEN\"). Prefer positive description over negations; put exclusions in the negative prompt instead of writing 'no/without' in the prompt. Avoid keyword-spam; write like describing a photograph or painting."
-        },
-        "pricing": {
-          "estimated_cost_per_image": 0.03,
-          "instance_cost_per_hour": {
-            "ml.g6e.xlarge": 2.6054,
-            "ml.g6e.2xlarge": 2.8026
-          }
-        },
-        "deployment_tiers": [
-          {
-            "tier": "cost_optimized",
-            "instance": "ml.g6.2xlarge",
-            "precision": "nf4",
-            "label": "Cost-optimized (L4 24GB VRAM / 32GB RAM, NF4) \u2014 ~$1.22/hr",
-            "recommended": true
-          },
-          {
-            "tier": "full_quality",
-            "instance": "ml.g6e.xlarge",
-            "precision": "bfloat16",
-            "label": "Full quality (L40S 48GB VRAM / 32GB RAM, bf16) \u2014 ~$2.61/hr"
-          }
-        ],
-        "version": "1.0",
-        "last_updated": "2026-07-14",
-        "python_requirements": {
-          "base": [
-            "torch>=2.6.0,<2.7.0",
-            "torchvision>=0.21.0,<0.22.0",
-            "Pillow>=10.0",
-            "numpy>=1.24,<2.5"
-          ],
-          "model": [
-            "diffusers>=0.36.0,<0.38.0",
-            "transformers>=4.51.0,<4.60.0",
-            "accelerate>=1.6.0,<2.0.0",
-            "safetensors>=0.4.3",
-            "huggingface-hub>=0.34.0,<2.0",
-            "bitsandbytes>=0.43.3"
-          ]
-        }
-      },
       "qwen_image_bf16": {
-        "label": "Qwen-Image (BF16) \u2014 HQ",
-        "description": "Text-to-image generator (BF16 full precision, needs 96GB GPU \u2014 highest quality) by Alibaba Qwen. Apache-2.0 (commercial-safe). 20B MMDiT with strong prompt following and exceptional text rendering (incl. non-Latin scripts). The 2512 refresh over the August base enhances human realism (less \"AI look\"), finer natural detail (fur/landscapes), and text rendering accuracy. A deployable custom generator alongside the Bedrock models. Its editing sibling, Qwen-Image-Edit, is a separate deploy.",
+        "label": "Qwen-Image",
+        "description": "Text-to-image generator (BF16 full precision, multi-GPU \u2014 highest quality) by Alibaba Qwen. Apache-2.0 (commercial-safe). 20B MMDiT with strong prompt following and exceptional text rendering (incl. non-Latin scripts). The 2512 refresh over the August base enhances human realism (less \"AI look\"), finer natural detail (fur/landscapes), and text rendering accuracy. A deployable custom generator alongside the Bedrock models. Its editing sibling, Qwen-Image-Edit, is a separate deploy.",
         "category": "image_generation",
         "studio": "image",
         "provider": "Alibaba Qwen",
@@ -6049,23 +5854,23 @@
         },
         "requirements": {
           "min_vram_gb": 80,
-          "recommended_instance": "ml.g7e.2xlarge",
-          "min_instance": "ml.g6e.xlarge",
+          "recommended_instance": "ml.g6e.12xlarge",
+          "min_instance": "ml.g6e.12xlarge",
           "disk_gb": 70,
           "allowed_instances": [
-            "ml.g7e.2xlarge",
-            "ml.g7e.4xlarge",
-            "ml.g7e.8xlarge",
+            "ml.g6e.12xlarge",
             "ml.g7e.12xlarge"
           ],
-          "min_host_ram_gb": 32,
-          "_note": "BF16 full precision (~57GB) needs a 96GB Blackwell GPU (g7e single-GPU). Not quantized \u2014 highest quality, for the NF4-vs-BF16 quality comparison."
+          "min_host_ram_gb": 64,
+          "_note": "BF16 full precision (~57GB) does not fit one 48GB L40S. Deploy on ml.g6e.12xlarge (4x L40S = 192GB, SM 8.9) so the handler shards it via device_map=auto on the proven cu124 DLC. AVOID single-GPU g7e (Blackwell SM 12.0): the cu124 DLC torch has no SM 12.0 kernels -> inference crashes with 'no kernel image available'. g7e.12xlarge is multi-GPU but still Blackwell, keep only as last resort if a cu129 torch build is wired into the diffusers loader. Not quantized -- highest quality (BF16 verified clean vs NF4's residual grain)."
         },
         "invoke": {
           "library": "diffusers",
           "loader_class": "QwenImagePipeline",
           "torch_dtype": "bfloat16",
           "predictor_type": "text_to_image",
+          "device_map": "auto",
+          "transformer_class": "QwenImageTransformer2DModel",
           "input_fields": {
             "prompt": {
               "type": "string",

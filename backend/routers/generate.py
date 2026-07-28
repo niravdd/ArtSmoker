@@ -377,6 +377,15 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     from backend.services.cost_tracker import reset_costs, get_total_cost, get_cost_breakdown
     reset_costs()  # Start fresh cost tracking for this request
 
+    # Forward LLM retry/fallback status events (from bedrock_client, deep in the
+    # prompt pipeline) to the SSE stream so the UI can show "AI not responding,
+    # retrying / switching to backup". Runs in this worker thread, where the
+    # synchronous invoke_llm calls happen. Fresh thread per streaming request
+    # (per-request ThreadPoolExecutor), so no cross-request leakage.
+    if progress_cb:
+        from backend.services.bedrock_client import set_llm_notifier
+        set_llm_notifier(progress_cb)
+
     # Dispatch to All Models pipeline if requested
     if body.all_models:
         return _run_all_models_generation(body, progress_cb)

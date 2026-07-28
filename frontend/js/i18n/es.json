@@ -539,6 +539,8 @@
     "generated_prompt": "Prompt generado",
     "generating": "Generando...",
     "generating_images": "Generando imágenes... {{done}}/{{total}}",
+    "llm_retrying": "El modelo de IA no responde — reintentando en {{seconds}} s ({{attempt}}/{{max}})",
+    "llm_switching": "Cambiando al modelo de IA de respaldo ({{model}})",
     "generation_complete": "Generacion completada!",
     "generation_failed": "La generacion fallo",
     "generation_failed_status": "La generación falló",

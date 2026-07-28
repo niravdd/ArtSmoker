@@ -3,11 +3,82 @@
 import base64
 import json
 import logging
+import time
+from contextvars import ContextVar
 
 import boto3
 from botocore.config import Config as BotoConfig
+from botocore.exceptions import ClientError
 
 from backend.config import settings
+
+# Bedrock Converse error handling. TRANSIENT errors clear on their own — the
+# model is momentarily unavailable/throttled/warming — so we RETRY the same
+# (preferred) model a few times with a short backoff before giving up on it.
+# Only after those retries are exhausted do we fall back to a secondary model
+# in a different region (a quality downgrade, so it's the last resort).
+_LLM_TRANSIENT_ERROR_CODES = frozenset({
+    "ServiceUnavailableException",
+    "ThrottlingException",
+    "ModelNotReadyException",
+    "InternalServerException",
+    "ModelTimeoutException",
+})
+# Hard denial — the model isn't enabled in this region. A delay won't help, so
+# skip the retry loop and go straight to the fallback model+region.
+_LLM_DENIAL_ERROR_CODES = frozenset({
+    "AccessDeniedException",
+})
+# Any code in either set triggers a fallback once the primary is exhausted.
+_LLM_FALLBACK_ERROR_CODES = _LLM_TRANSIENT_ERROR_CODES | _LLM_DENIAL_ERROR_CODES
+
+# Same-model retry policy for transient errors (on top of boto3's own retries),
+# used for actual generation REQUESTS where the user is already waiting on a
+# result. LLM outages commonly last tens of seconds, so the backoff is generous:
+# 10s, 20s, 40s (≈70s total) before giving up on the preferred model.
+_LLM_RETRY_ATTEMPTS = 3       # extra attempts against the preferred model
+_LLM_RETRY_BASE_DELAY = 10.0  # seconds; exponential backoff (10, 20, 40)
+
+# Startup-probe retry policy — MUCH shorter. The probe is a non-fatal sanity
+# check run at server startup; a transient failure only produces a cosmetic
+# warning. We ride out a very brief blip (2s, then 4s) but must NOT block
+# "server ready" for ~70s — the generation path has its own robust retry +
+# fallback at request time, so a stale startup warning is harmless.
+_LLM_PROBE_RETRY_ATTEMPTS = 2   # quick attempts at startup
+_LLM_PROBE_BASE_DELAY = 2.0     # seconds; exponential backoff (2, 4)
+
+# Optional progress-notification hook. Request-scoped code (e.g. the generation
+# pipeline) may set this ContextVar to a callable that forwards an event dict to
+# the user (SSE). invoke_llm calls it when it retries a stalled LLM or switches
+# to the fallback model, so the UI can say "primary LLM not responding, retrying
+# … / switching to <model>". Unset (None) → silent no-op, so non-streaming
+# callers and the startup probe are unaffected. Model-agnostic.
+_llm_notify_cb: ContextVar = ContextVar("llm_notify_cb", default=None)
+
+
+def set_llm_notifier(cb) -> object:
+    """Install a progress-notification callback for this context. Returns the
+    token to restore with reset_llm_notifier(). cb receives one event dict."""
+    return _llm_notify_cb.set(cb)
+
+
+def reset_llm_notifier(token) -> None:
+    try:
+        _llm_notify_cb.reset(token)
+    except Exception:
+        pass
+
+
+def _notify_llm(event: dict) -> None:
+    """Forward an LLM-status event to the request's notifier, if any. Never
+    raises — notification must not break inference."""
+    cb = _llm_notify_cb.get()
+    if cb is None:
+        return
+    try:
+        cb(event)
+    except Exception as exc:
+        logger.debug("LLM notifier failed: %s", exc)
 
 logger = logging.getLogger(__name__)
 
@@ -98,18 +169,35 @@ def validate_aws_credentials() -> dict:
             # Probe via the model's RESOLVED path: Converse models use the boto3
             # 1-token call (registry-driven param gate); Mantle-only models
             # (e.g. GPT-5.x) use a 1-token call on the right Mantle API.
+            # Retry TRANSIENT errors (ServiceUnavailable/Throttling/…) BRIEFLY so
+            # a momentary Bedrock blip at startup doesn't produce a false "check
+            # failed" warning. Uses the SHORT probe backoff (2s, 4s) — never the
+            # generation path's ~70s — so it can't stall "server ready". A stale
+            # warning is harmless: the request path retries + falls back robustly.
             _endpoint, _api = _resolve_invoke_path(_id)
-            if _endpoint == "bedrock-mantle":
-                _invoke_llm_mantle(_id, _api, "hi", max_tokens=1, region=_region)
-                _probe_endpoint = "bedrock-mantle"
-            else:
-                _client = _get_client(_region)
-                _client.converse(
-                    modelId=_id,
-                    messages=[{"role": "user", "content": [{"text": "hi"}]}],
-                    inferenceConfig=_build_inference_config(_id, 1, 0.0),
-                )
-                _probe_endpoint = "bedrock-runtime"
+            for _attempt in range(_LLM_PROBE_RETRY_ATTEMPTS + 1):
+                try:
+                    if _endpoint == "bedrock-mantle":
+                        _invoke_llm_mantle(_id, _api, "hi", max_tokens=1, region=_region)
+                        _probe_endpoint = "bedrock-mantle"
+                    else:
+                        _client = _get_client(_region)
+                        _client.converse(
+                            modelId=_id,
+                            messages=[{"role": "user", "content": [{"text": "hi"}]}],
+                            inferenceConfig=_build_inference_config(_id, 1, 0.0),
+                        )
+                        _probe_endpoint = "bedrock-runtime"
+                    break
+                except ClientError as _probe_err:
+                    _code = _probe_err.response.get("Error", {}).get("Code", "")
+                    if _code in _LLM_TRANSIENT_ERROR_CODES and _attempt < _LLM_PROBE_RETRY_ATTEMPTS:
+                        _delay = _LLM_PROBE_BASE_DELAY * (2 ** _attempt)
+                        logger.info("Bedrock %s probe transient (%s) — retry %d/%d in %.1fs",
+                                    _label, _code, _attempt + 1, _LLM_PROBE_RETRY_ATTEMPTS, _delay)
+                        time.sleep(_delay)
+                        continue
+                    raise
             result["probes"].append({"role": _label, "model_id": _id, "region": _region,
                                      "endpoint": _probe_endpoint, "ok": True})
         except Exception as exc:
@@ -356,6 +444,32 @@ def _invoke_llm_mantle(
     return text
 
 
+def _short_model_label(model_id: str) -> str:
+    """Human-friendly model name from a Bedrock id / inference-profile arn.
+    e.g. 'us.anthropic.claude-opus-4-8' → 'claude-opus-4-8'. Best-effort — falls
+    back to the raw id. Used only in user-facing status messages."""
+    if not model_id:
+        return "AI model"
+    mid = model_id.split("/")[-1]          # strip arn path if present
+    if mid.startswith(("us.", "eu.", "apac.")):
+        mid = mid.split(".", 1)[1]
+    return mid.split(".", 1)[1] if "." in mid else mid
+
+
+def _extract_converse_text(response: dict) -> str:
+    """Concatenate the text blocks from a Bedrock Converse response.
+
+    A Converse message's `content` is a LIST of blocks whose FIRST element is
+    NOT guaranteed to be a text block — models with extended thinking emit a
+    `reasoningContent` block first, and tool-use turns emit `toolUse` blocks.
+    Indexing `content[0]["text"]` therefore raises KeyError: 'text' on those
+    responses. Iterate and keep only real text blocks. Model-agnostic — works
+    for every Converse-capable model (Claude, Nova, etc.)."""
+    blocks = (response or {}).get("output", {}).get("message", {}).get("content", []) or []
+    parts = [b["text"] for b in blocks if isinstance(b, dict) and "text" in b]
+    return "".join(parts)
+
+
 def invoke_llm(
     prompt: str,
     *,
@@ -421,50 +535,77 @@ def invoke_llm(
 
     messages = [{"role": "user", "content": content_blocks}]
 
-    converse_kwargs = {
-        "modelId": model_id,
-        "messages": messages,
-        "inferenceConfig": _build_inference_config(model_id, max_tokens, temperature),
-    }
-    if system:
-        converse_kwargs["system"] = [{"text": system}]
-
-    try:
-        response = client.converse(**converse_kwargs)
-        text = response["output"]["message"]["content"][0]["text"]
-        # Track LLM cost
-        usage = response.get("usage", {})
-        in_tok = usage.get("inputTokens", 0)
-        out_tok = usage.get("outputTokens", 0)
-        if in_tok or out_tok:
-            from backend.services.cost_tracker import add_cost, compute_llm_cost
-            llm_cost = compute_llm_cost(model_id, in_tok, out_tok)
-            add_cost("llm", llm_cost, f"{model_id}: {in_tok} in, {out_tok} out")
-        return text
-    except client.exceptions.AccessDeniedException:
-        fallback_id, fallback_region = _get_fallback_llm()
-        logger.warning(
-            "Access denied for %s, falling back to %s in %s",
-            model_id, fallback_id, fallback_region,
+    def _run(a_client, a_model_id, cost_label):
+        """Invoke Converse on a client, extract text, and record cost."""
+        response = a_client.converse(
+            modelId=a_model_id,
+            messages=messages,
+            inferenceConfig=_build_inference_config(a_model_id, max_tokens, temperature),
+            **({"system": [{"text": system}]} if system else {}),
         )
-        fallback_client = _get_client(fallback_region)
-        fallback_kwargs = {
-            "modelId": fallback_id,
-            "messages": messages,
-            "inferenceConfig": _build_inference_config(fallback_id, max_tokens, temperature),
-        }
-        if system:
-            fallback_kwargs["system"] = [{"text": system}]
-        response = fallback_client.converse(**fallback_kwargs)
-        text = response["output"]["message"]["content"][0]["text"]
+        text = _extract_converse_text(response)
         usage = response.get("usage", {})
         in_tok = usage.get("inputTokens", 0)
         out_tok = usage.get("outputTokens", 0)
         if in_tok or out_tok:
             from backend.services.cost_tracker import add_cost, compute_llm_cost
-            llm_cost = compute_llm_cost(fallback_id, in_tok, out_tok)
-            add_cost("llm", llm_cost, f"{fallback_id} (fallback): {in_tok} in, {out_tok} out")
+            llm_cost = compute_llm_cost(a_model_id, in_tok, out_tok)
+            add_cost("llm", llm_cost, f"{cost_label}: {in_tok} in, {out_tok} out")
         return text
+
+    # First: try the PREFERRED model, retrying it with a short backoff on
+    # TRANSIENT errors (the LLM is briefly unavailable/throttled/warming — this
+    # usually clears in a second or two, and retrying the SAME model preserves
+    # quality). boto3 has its own retry layer; this adds model-aware retries on
+    # top. AccessDenied is NOT transient (model not enabled here) — break
+    # immediately to the fallback. Non-fallback codes (e.g. ValidationException)
+    # re-raise unchanged.
+    last_err = None
+    for attempt in range(_LLM_RETRY_ATTEMPTS + 1):
+        try:
+            return _run(client, model_id, model_id)
+        except ClientError as err:
+            err_code = err.response.get("Error", {}).get("Code", "")
+            if err_code not in _LLM_FALLBACK_ERROR_CODES:
+                raise
+            last_err = err
+            # Only transient errors are worth retrying the same model.
+            if err_code in _LLM_TRANSIENT_ERROR_CODES and attempt < _LLM_RETRY_ATTEMPTS:
+                delay = _LLM_RETRY_BASE_DELAY * (2 ** attempt)
+                logger.warning(
+                    "LLM %s transient error (%s) — retry %d/%d in %.1fs",
+                    model_id, err_code, attempt + 1, _LLM_RETRY_ATTEMPTS, delay,
+                )
+                _notify_llm({
+                    "type": "llm_status", "state": "retrying",
+                    "model": model_id, "error_code": err_code,
+                    "attempt": attempt + 1, "max_attempts": _LLM_RETRY_ATTEMPTS,
+                    "retry_in_seconds": delay,
+                    "message": f"AI model ({_short_model_label(model_id)}) is not responding — "
+                               f"retrying in {int(delay)}s ({attempt + 1}/{_LLM_RETRY_ATTEMPTS})…",
+                })
+                time.sleep(delay)
+                continue
+            break  # denial, or transient retries exhausted → fall back
+
+    # Preferred model exhausted — fall back to a secondary model in a DIFFERENT
+    # region (a quality downgrade, so it's the last resort).
+    fallback_id, fallback_region = _get_fallback_llm()
+    if fallback_id == model_id and fallback_region == region:
+        raise last_err  # fallback == primary; nothing new to try
+    fb_code = last_err.response.get("Error", {}).get("Code", "") if last_err else "?"
+    logger.warning(
+        "Primary LLM %s exhausted (%s) — falling back to %s in %s",
+        model_id, fb_code, fallback_id, fallback_region,
+    )
+    _notify_llm({
+        "type": "llm_status", "state": "switching",
+        "model": model_id, "fallback_model": fallback_id,
+        "fallback_region": fallback_region, "error_code": fb_code,
+        "message": f"AI model ({_short_model_label(model_id)}) unavailable — "
+                   f"switching to backup ({_short_model_label(fallback_id)})…",
+    })
+    return _run(_get_client(fallback_region), fallback_id, f"{fallback_id} (fallback)")
 
 
 # ── Generic image generation (registry-driven) ──────────────────────────

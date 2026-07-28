@@ -1936,6 +1936,25 @@
                     }
                     break;
 
+                case 'llm_status': {
+                    // AI (prompt) model is stalling — bedrock_client is retrying
+                    // the preferred model or switching to the registry-configured
+                    // backup. Surface it so the wait doesn't look like a hang.
+                    if (evt.state === 'retrying') {
+                        if (text) text.textContent = t('image_studio.llm_retrying')
+                            .replace('{{model}}', evt.model || 'AI model')
+                            .replace('{{seconds}}', Math.round(evt.retry_in_seconds || 0))
+                            .replace('{{attempt}}', evt.attempt || 1)
+                            .replace('{{max}}', evt.max_attempts || 1);
+                        if (sub) sub.textContent = evt.message || '';
+                    } else if (evt.state === 'switching') {
+                        if (text) text.textContent = t('image_studio.llm_switching')
+                            .replace('{{model}}', evt.fallback_model || 'backup AI model');
+                        if (sub) sub.textContent = evt.message || '';
+                    }
+                    break;
+                }
+
                 case 'image_done': {
                     const done = evt.completed || 0;
                     const tot = evt.total || total;

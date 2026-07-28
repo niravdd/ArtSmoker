@@ -149,6 +149,8 @@
     "concepts_ready": "{{count}} अवधारणा{{plural}} तैयार",
     "saving_assets": "एसेट और मेटाडेटा सहेजे जा रहे हैं",
     "generating_images": "चित्र बन रहे हैं... {{done}}/{{total}}",
+    "llm_retrying": "AI मॉडल प्रतिक्रिया नहीं दे रहा — {{seconds}}से में पुनः प्रयास ({{attempt}}/{{max}})",
+    "llm_switching": "बैकअप AI मॉडल ({{model}}) पर स्विच किया जा रहा है",
     "option_variation_complete": "विकल्प {{opt}}, भिन्नता {{var}} पूरा",
     "option_variation_failed": "विकल्प {{opt}}, भिन्नता {{var}} विफल — जारी",
     "api_throttled": "API थ्रॉटल हुआ — पुनः प्रयास की प्रतीक्षा...",

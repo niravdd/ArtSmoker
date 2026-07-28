@@ -149,6 +149,8 @@
     "concepts_ready": "{{count}} concept{{plural}} ready",
     "saving_assets": "Saving assets and metadata",
     "generating_images": "Generating images... {{done}}/{{total}}",
+    "llm_retrying": "AI model not responding — retrying in {{seconds}}s ({{attempt}}/{{max}})",
+    "llm_switching": "Switching to backup AI model ({{model}})",
     "option_variation_complete": "Option {{opt}}, Variation {{var}} complete",
     "option_variation_failed": "Option {{opt}}, Variation {{var}} failed — continuing",
     "api_throttled": "API throttled — waiting to retry...",

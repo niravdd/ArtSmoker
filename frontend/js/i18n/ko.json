@@ -539,6 +539,8 @@
     "generated_prompt": "생성된 프롬프트",
     "generating": "생성 중...",
     "generating_images": "이미지 생성 중... {{done}}/{{total}}",
+    "llm_retrying": "AI 모델이 응답하지 않음 — {{seconds}}초 후 재시도 ({{attempt}}/{{max}})",
+    "llm_switching": "백업 AI 모델 ({{model}})로 전환 중",
     "generation_complete": "생성이 완료되었습니다!",
     "generation_failed": "생성에 실패했습니다",
     "generation_failed_status": "생성 실패",

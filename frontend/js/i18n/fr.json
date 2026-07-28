@@ -539,6 +539,8 @@
     "generated_prompt": "Prompt généré",
     "generating": "Génération en cours...",
     "generating_images": "Génération des images... {{done}}/{{total}}",
+    "llm_retrying": "Le modèle d'IA ne répond pas — nouvel essai dans {{seconds}} s ({{attempt}}/{{max}})",
+    "llm_switching": "Basculement vers le modèle d'IA de secours ({{model}})",
     "generation_complete": "Génération terminée !",
     "generation_failed": "Échec de la génération",
     "generation_failed_status": "Échec de la génération",

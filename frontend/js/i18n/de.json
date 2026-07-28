@@ -149,6 +149,8 @@
     "concepts_ready": "{{count}} Konzept{{plural}} bereit",
     "saving_assets": "Assets und Metadaten werden gespeichert",
     "generating_images": "Bilder werden generiert... {{done}}/{{total}}",
+    "llm_retrying": "KI-Modell antwortet nicht — erneuter Versuch in {{seconds}} s ({{attempt}}/{{max}})",
+    "llm_switching": "Wechsel zum Backup-KI-Modell ({{model}})",
     "option_variation_complete": "Option {{opt}}, Variation {{var}} abgeschlossen",
     "option_variation_failed": "Option {{opt}}, Variation {{var}} fehlgeschlagen — wird fortgesetzt",
     "api_throttled": "API gedrosselt — warte auf erneuten Versuch...",

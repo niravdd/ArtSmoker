@@ -1313,7 +1313,29 @@ def _load_diffusers(model_dir):
     expects_quantization = bool(_config.get("quantization_components"))
 
     if device_map:
-        logger.info("Skipping .to(cuda)/offload — model placed by device_map")
+        # The transformer was sharded across GPUs via device_map (has its own
+        # hf_device_map). The pipeline's OTHER components (text_encoder, vae,
+        # scheduler-less modules) are loaded on CPU by default and must be moved
+        # onto a GPU, or inference device-mismatches ("expected all tensors on
+        # the same device"). We cannot call pipe.to("cuda") — that would try to
+        # move the already-dispatched transformer and error — so place each
+        # non-sharded component individually on cuda:0. Generic: only runs when a
+        # model opts into device_map (FLUX/Hunyuan/NF4 don't set it).
+        logger.info("device_map set — transformer sharded; placing other components on cuda:0")
+        placed = []
+        for attr_name in ("text_encoder", "text_encoder_2", "vae", "image_encoder"):
+            comp = getattr(pipe, attr_name, None)
+            if comp is None:
+                continue
+            # Skip anything that itself carries an hf_device_map (already dispatched).
+            if getattr(comp, "hf_device_map", None):
+                continue
+            try:
+                comp.to("cuda:0")
+                placed.append(attr_name)
+            except Exception as e:
+                logger.warning("  could not move %s to cuda:0: %s", attr_name, e)
+        logger.info("  placed on cuda:0: %s", placed or "none")
     elif all_quantized:
         # All expected components are NF4 quantized (on GPU). Total ~15 GB fits on 44.5+ GB.
         logger.info("All components NF4 quantized — moving pipeline to GPU (fast inference)")

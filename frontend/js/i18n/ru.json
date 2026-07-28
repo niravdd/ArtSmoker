@@ -149,6 +149,8 @@
     "concepts_ready": "{{count}} концепт{{plural}} готово",
     "saving_assets": "Сохранение ассетов и метаданных",
     "generating_images": "Генерация изображений... {{done}}/{{total}}",
+    "llm_retrying": "Модель ИИ не отвечает — повтор через {{seconds}} с ({{attempt}}/{{max}})",
+    "llm_switching": "Переключение на резервную модель ИИ ({{model}})",
     "option_variation_complete": "Вариант {{opt}}, Вариация {{var}} готовы",
     "option_variation_failed": "Вариант {{opt}}, Вариация {{var}} не удались — продолжаем",
     "api_throttled": "API ограничен — ожидание повторной попытки...",
