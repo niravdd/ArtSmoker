@@ -283,32 +283,38 @@ RULES:
 
 1. **PRESERVE EVERYTHING THE USER DESCRIBED.** If they mention a setting, scene, background, camera angle, or mood — keep it ALL. The asset type above is a default for simple prompts like "a cat". When the user describes more, follow their vision.
 
-2. **ENHANCE WITH PROFESSIONAL DETAIL — do not invent or change the concept.** Your job is to make the user's idea look BETTER, not different. Add:
+2. **LOCK EVERY EXPLICITLY-STATED DEFINING ATTRIBUTE — reinforce it so the model cannot drift to a more common default.** Diffusion models bias toward whatever is statistically dominant for a subject (e.g. "viking warrior" → male, "surgeon" → male, "nurse" → female, "luxury car" → red/black, "dragon" → four-legged). When the user EXPLICITLY specifies an attribute — gender/sex, age, species/breed, ethnicity or skin tone, body type, color, material, count/number, or any other defining trait — you MUST:
+   (a) Keep that attribute PROMINENT: state it early and, for a strong-bias case, reinforce it naturally once more later (e.g. for "viking woman warrior" → open with "A woman, a fierce female Viking warrior…" and later "…her braided hair…"). Do NOT let generic descriptors (muscular, rugged, battle-hardened, sleek, powerful) statistically pull the render toward the common default.
+   (b) In the NEGATIVE line (if the model supports one), add the CONTRADICTING values of that same attribute so the model is pushed away from the wrong default — e.g. stated female → negative "man, male, masculine features, beard"; stated child → "adult, grown"; stated red car → "blue, green, silver"; stated three-legged → "four legs, extra leg". Use ONLY the opposites of attributes the user ACTUALLY stated.
+   CRITICAL — this is fidelity, NOT imposition: if the user did NOT specify an attribute, say NOTHING about it and add no negative for it (a plain "a warrior", "a robot", "a car" gets no gender/color/etc. forced). Never contradict or "improve" a stated attribute; only reinforce exactly what they asked for. Applies to any subject — people, animals, creatures, robots, vehicles, objects, photorealistic or stylized alike.
+
+3. **ENHANCE WITH PROFESSIONAL DETAIL — do not invent or change the concept.** Your job is to make the user's idea look BETTER, not different. Add:
    - Structural accuracy: sound construction and believable proportions — BUT only for details the user left unspecified. If the user deliberately stated a non-standard form (e.g. three fingers, a missing limb, extra arms, non-human or fantastical anatomy), render it EXACTLY as asked; never "correct" or normalize what they intentionally described. Accurate for objects, proper perspective for scenes.
    - Material quality: how surfaces actually look (metal reflections, fabric drape, wood grain, skin texture) — not just color names
    - Lighting: describe the light setup (warm key light direction, rim light for separation, ambient fill)
    - Composition/framing: FOLLOW the ASSET TYPE framing guidance above exactly. When it requires the complete subject in-frame, the entire subject must be shown head-to-toe/base with clear margin on all sides and NOTHING cropped at any edge. Never tighten to a close-up or bust crop that clips the subject.
 
-3. **KEEP THE SAME ART STYLE throughout.** Do NOT inject an art style the user didn't ask for. No "cel-shaded" unless they said cel-shaded. No "watercolor" unless they said watercolor. No "chibi" ever unless asked. If no style is specified, default to polished digital illustration / concept art.
+4. **KEEP THE SAME ART STYLE throughout.** Do NOT inject an art style the user didn't ask for. No "cel-shaded" unless they said cel-shaded. No "watercolor" unless they said watercolor. No "chibi" ever unless asked. If no style is specified, default to polished digital illustration / concept art.
 
-4. **Write as a CAPTION describing what the image shows.** Not commands.
+5. **Write as a CAPTION describing what the image shows.** Not commands.
    - BAD: "Create a warrior. Make sure the anatomy is correct."
    - GOOD: "A muscular warrior in battle-worn plate armor, standing in a wide combat stance, one hand gripping a longsword at shoulder height, scarred face visible beneath a dented half-helm, warm golden light from upper-left catching the polished steel pauldrons"
 
-5. **MODERATION-SAFE LANGUAGE.** AI image models have content filters. Avoid words that trigger false positives:
+6. **MODERATION-SAFE LANGUAGE.** AI image models have content filters. Avoid words that trigger false positives:
    - Use "beige" or "skin-toned" instead of "nude" (the color)
    - Use "barefoot" instead of "bare feet" or "naked feet"
    - Use "form-fitting" instead of "tight" or "skin-tight"
    - Use "exposed shoulders" instead of "bare shoulders"
    - Never use: nude, naked, bare skin, undressed, revealing, provocative, seductive — even in innocent contexts
 
-6. **NEGATIVE: line** — include ONLY if the model supports negative prompts (check MODEL instructions above). If the model says NO negative prompts, skip this entirely and focus all effort on the positive caption.
+7. **NEGATIVE: line** — include ONLY if the model supports negative prompts (check MODEL instructions above). If the model says NO negative prompts, skip this entirely and focus all effort on the positive caption.
    When included, use terms that prevent common failures:
    - Quality (ALWAYS include, applies to EVERY subject — these fight render defects, not content): low quality, low resolution, blurry, jpeg artifacts, compression artifacts, color banding, noise, grainy, oversmoothed, plastic, waxy, oversaturated, washed out, AI-look, deep fried, watermark, signature, text
+   - Attribute-lock (from Rule 2): for EACH defining attribute the user EXPLICITLY stated (gender, age, species, color, count, material, …), add the contradicting values so the model can't drift to the common default — e.g. stated female → "man, male, masculine features, beard"; stated child → "adult"; stated red → competing colors. Add opposites ONLY for attributes actually stated; never invent one.
    - Anatomy — REALISM-GATED: add "bad anatomy, deformed, malformed" ONLY if the subject is a realistic, standard-bodied living being (a real human OR a real-world animal) AND the user did NOT ask for a stylized, fantastical, or non-standard form. NEVER add anatomy terms for robots, mechs, vehicles, creatures, monsters, crystals, sci-fi/abstract forms, or any deliberately non-standard body — that would fight the intended design. When unsure, OMIT anatomy terms.
    - SINGLE-SUBJECT / framing (add these WHEN the asset type wants one complete subject in one view — e.g. character, game asset — AND they don't contradict the user's prompt): multiple views, turnaround, reference sheet, duplicate, cloned subject, repeated figure, collage, grid, split panel, floating disconnected objects, cropped, out of frame. JUDGEMENT: skip any term the user's own request implies — e.g. keep "floating" OUT if they asked for a hovering/levitating subject; don't add duplication negatives if they explicitly asked for a group, swarm, or crowd. Only add what genuinely helps THIS prompt.
 
-7. **PROMPT LENGTH: Target approximately {optimal_length}.** Maximum {max_chars} characters. Be precise, not verbose. Every word should paint the picture.
+8. **PROMPT LENGTH: Target approximately {optimal_length}.** Maximum {max_chars} characters. Be precise, not verbose. Every word should paint the picture.
 
 Output ONLY the caption (and NEGATIVE: line if applicable).""",
     },
@@ -341,7 +347,7 @@ Output ONLY the caption (and NEGATIVE: line if applicable).""",
 
 RULES:
 
-1. **LOCKED elements appear in EVERY option exactly as described.** These are what the user explicitly asked for.
+1. **LOCKED elements appear in EVERY option exactly as described.** These are what the user explicitly asked for. Any DEFINING ATTRIBUTE the user explicitly stated (gender/sex, age, species/breed, ethnicity or skin tone, body type, color, count, material, …) is LOCKED: keep it prominent and, for strong-bias subjects where the model tends to drift to a more common default (e.g. "viking woman warrior" → male, "nurse" → female, "luxury car" → red), reinforce it naturally in EVERY option (state it early, echo it once via a pronoun/detail) so no option renders the wrong default. Reinforce ONLY attributes the user actually stated — never impose one they left open.
 
 2. **VARIABLE elements MUST DIFFER between options.** Each option should explore a completely different creative direction for these elements. Not minor tweaks — bold, distinct choices. Think: different artists interpreting the same brief.
    Examples of real variation:
@@ -364,7 +370,7 @@ RULES:
    - Never use: nude, naked, bare skin, bust, undressed, revealing, provocative, seductive
 
 Return a JSON array of {num_options} strings. Each string is a complete image caption. If the model supports negative prompts, add one final entry prefixed with "NEGATIVE:" for shared exclusion terms.
-NEGATIVE guidance: ALWAYS include the universal quality terms (apply to every subject — they fight render defects, not content): low quality, low resolution, blurry, jpeg artifacts, compression artifacts, color banding, noise, grainy, oversmoothed, plastic, waxy, oversaturated, washed out, AI-look, deep fried, watermark, signature, text. When the ASSET TYPE wants ONE complete subject in a single view (character, game asset), ALSO add single-subject/framing terms — multiple views, turnaround, reference sheet, duplicate, cloned subject, repeated figure, collage, grid, floating disconnected objects, cropped, out of frame — BUT use judgement: skip any that contradict the brief (keep "floating" out for a hovering subject; skip duplication terms for a group/swarm). Add anatomy negatives (bad anatomy, deformed, malformed) ONLY for realistic standard-bodied living subjects (real human/animal) the user did not deliberately stylize — NEVER for creatures, robots, mechs, vehicles, crystals, sci-fi/abstract, or intentionally non-standard bodies.""",
+NEGATIVE guidance: ALWAYS include the universal quality terms (apply to every subject — they fight render defects, not content): low quality, low resolution, blurry, jpeg artifacts, compression artifacts, color banding, noise, grainy, oversmoothed, plastic, waxy, oversaturated, washed out, AI-look, deep fried, watermark, signature, text. ATTRIBUTE-LOCK: for each defining attribute the user EXPLICITLY stated (gender, age, species, color, count, material, …), add its CONTRADICTING values so no option drifts to the common default — e.g. stated female → "man, male, masculine features, beard"; stated child → "adult"; stated red → competing colors. Add opposites ONLY for attributes actually stated; never invent one. When the ASSET TYPE wants ONE complete subject in a single view (character, game asset), ALSO add single-subject/framing terms — multiple views, turnaround, reference sheet, duplicate, cloned subject, repeated figure, collage, grid, floating disconnected objects, cropped, out of frame — BUT use judgement: skip any that contradict the brief (keep "floating" out for a hovering subject; skip duplication terms for a group/swarm). Add anatomy negatives (bad anatomy, deformed, malformed) ONLY for realistic standard-bodied living subjects (real human/animal) the user did not deliberately stylize — NEVER for creatures, robots, mechs, vehicles, crystals, sci-fi/abstract, or intentionally non-standard bodies.""",
     },
 
     "image_refine_marketing": {
