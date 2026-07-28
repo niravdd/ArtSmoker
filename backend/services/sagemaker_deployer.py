@@ -1487,6 +1487,14 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
             # Async input is keyed by endpoint_name; output is keyed by the
             # catalog_key (base, e.g. "triposg"). Clean instance key and catalog
             # key to be safe.
+            # Resolve the CATALOG key. The model-cache and (for HF models) the
+            # handler artifacts are written under the catalog key, NOT the deployed
+            # instance key (the deployer's ARTSMOKER_CACHE_PREFIX uses the catalog
+            # key). Prefer the registry's recorded catalog_key; else derive it by
+            # matching the instance key against known catalog keys (instance keys are
+            # "<catalog_key>_<hash>"). Without this, a delete_s3 teardown leaves the
+            # cache at {catalog_key}/model-cache/ behind, and a later redeploy silently
+            # reuses those STALE quantized weights instead of re-quantizing fresh.
             catalog_key = ""
             try:
                 from .model_registry import get_registry as _gr
@@ -1498,12 +1506,29 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
                         break
             except Exception:
                 pass
+            if not catalog_key:
+                try:
+                    from .custom_models import get_catalog as _gc
+                    _cat = _gc()
+                    _cat_keys = set(_cat.get("models", _cat).keys())
+                    if model_key in _cat_keys:
+                        catalog_key = model_key
+                    else:
+                        for _ck in _cat_keys:
+                            if model_key.startswith(_ck + "_"):
+                                catalog_key = _ck
+                                break
+                except Exception:
+                    pass
             prefixes = [
                 f"{S3_MODEL_PREFIX}/{model_key}/",
                 f"{S3_MODEL_PREFIX}/inference-input/{endpoint_name}/",
                 f"{S3_MODEL_PREFIX}/inference-output/{model_key}/",
             ]
+            # Clean the catalog-key artifacts + model-cache too (the cache lives at
+            # {catalog_key}/model-cache/). This is the fix for stale-cache reuse.
             if catalog_key and catalog_key != model_key:
+                prefixes.append(f"{S3_MODEL_PREFIX}/{catalog_key}/")
                 prefixes.append(f"{S3_MODEL_PREFIX}/inference-output/{catalog_key}/")
             for prefix in prefixes:
                 bucket_obj.objects.filter(Prefix=prefix).delete()
