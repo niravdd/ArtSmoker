@@ -5957,7 +5957,8 @@
               "class": "QwenImageTransformer2DModel",
               "module": "diffusers",
               "subfolder": "transformer",
-              "quantization": "nf4"
+              "quantization": "nf4",
+              "skip_quant_modules": ["proj_out", "norm_out", "txt_norm", "time_text_embed", "img_in", "txt_in", "pos_embed"]
             },
             {
               "name": "text_encoder",

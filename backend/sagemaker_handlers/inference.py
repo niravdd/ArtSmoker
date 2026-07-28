@@ -1083,23 +1083,18 @@ def _load_diffusers(model_dir):
             # projection (proj_out) and normalization/modulation layers — is a
             # documented cause of noise/grain and instability (diffusers docs
             # recommend skipping proj_out for SD3; bnb applies llm_int8_skip_modules
-            # to the 4-bit path too). Catalog-driven per component via
-            # `skip_quant_modules`; defaults to the usual sensitive set for
-            # text_to_image so grain is minimized out of the box. Generic — any
-            # model/component can override the list.
-            # Default skip set = the sensitive, low-parameter-count layers of a
-            # diffusion transformer whose quantization most hurts fidelity: the
-            # final output projection + the adaptive/normalization + embed/input
-            # layers. These names are the VERIFIED top-level submodules of
-            # QwenImageTransformer2DModel (proj_out, norm_out, txt_norm,
-            # time_text_embed, img_in, txt_in, pos_embed) — skipping them keeps the
-            # bulk transformer_blocks in NF4 (still ~fits 48GB) while removing the
-            # grain-prone layers from 4-bit. A model whose layers differ can
-            # override via the catalog's per-component `skip_quant_modules`.
-            default_skips = (["proj_out", "norm_out", "txt_norm", "time_text_embed",
-                              "img_in", "txt_in", "pos_embed"]
-                             if _get_env("PREDICTOR_TYPE", "") == "text_to_image" else [])
-            skip_modules = comp.get("skip_quant_modules", default_skips) or None
+            # to the 4-bit path too).
+            #
+            # STRICTLY OPT-IN, PER MODEL/COMPONENT — there is NO global default.
+            # The skip list is entirely catalog-driven via the component's
+            # `skip_quant_modules` (or the model-level invoke `skip_quant_modules`).
+            # This is deliberate: skip-module NAMES are architecture-specific (a
+            # Qwen transformer's proj_out/img_in/txt_norm differ from FLUX's), so a
+            # shared default would silently mis-skip on other models and could alter
+            # a working model's quantization. Models opt in with THEIR OWN verified
+            # names; any model that doesn't set it quantizes exactly as before
+            # (zero behavior change for FLUX, Hunyuan, etc.).
+            skip_modules = comp.get("skip_quant_modules") or _config.get("skip_quant_modules") or None
             if comp_quant in ("int8", "8bit"):
                 qconfig = BnbConfig(load_in_8bit=True, llm_int8_skip_modules=skip_modules)
             elif comp_quant in ("int4", "4bit", "nf4"):
