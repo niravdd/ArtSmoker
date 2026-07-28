@@ -1078,8 +1078,30 @@ def _load_diffusers(model_dir):
             else:
                 from transformers import BitsAndBytesConfig as BnbConfig
 
+            # Modules to KEEP in full precision (never quantize). Quantizing a
+            # diffusion transformer's most sensitive layers — the final output
+            # projection (proj_out) and normalization/modulation layers — is a
+            # documented cause of noise/grain and instability (diffusers docs
+            # recommend skipping proj_out for SD3; bnb applies llm_int8_skip_modules
+            # to the 4-bit path too). Catalog-driven per component via
+            # `skip_quant_modules`; defaults to the usual sensitive set for
+            # text_to_image so grain is minimized out of the box. Generic — any
+            # model/component can override the list.
+            # Default skip set = the sensitive, low-parameter-count layers of a
+            # diffusion transformer whose quantization most hurts fidelity: the
+            # final output projection + the adaptive/normalization + embed/input
+            # layers. These names are the VERIFIED top-level submodules of
+            # QwenImageTransformer2DModel (proj_out, norm_out, txt_norm,
+            # time_text_embed, img_in, txt_in, pos_embed) — skipping them keeps the
+            # bulk transformer_blocks in NF4 (still ~fits 48GB) while removing the
+            # grain-prone layers from 4-bit. A model whose layers differ can
+            # override via the catalog's per-component `skip_quant_modules`.
+            default_skips = (["proj_out", "norm_out", "txt_norm", "time_text_embed",
+                              "img_in", "txt_in", "pos_embed"]
+                             if _get_env("PREDICTOR_TYPE", "") == "text_to_image" else [])
+            skip_modules = comp.get("skip_quant_modules", default_skips) or None
             if comp_quant in ("int8", "8bit"):
-                qconfig = BnbConfig(load_in_8bit=True)
+                qconfig = BnbConfig(load_in_8bit=True, llm_int8_skip_modules=skip_modules)
             elif comp_quant in ("int4", "4bit", "nf4"):
                 # bnb_4bit_compute_dtype MUST match torch_dtype (bf16). Left unset it
                 # defaults to float32, so NF4 matmuls dequantize to fp32 while the
@@ -1087,15 +1109,21 @@ def _load_diffusers(model_dir):
                 # degrades quality and slows inference. Double-quant ("nested") saves
                 # ~0.4 bits/param at no quality cost (QLoRA recipe). Both are the
                 # official diffusers/bitsandbytes NF4 recommendation.
+                # llm_int8_skip_modules is bnb's shared "leave these unquantized"
+                # list (applies to 4-bit too) — keeps proj_out/norms in bf16.
                 qconfig = BnbConfig(
                     load_in_4bit=True,
                     bnb_4bit_quant_type="nf4",
                     bnb_4bit_compute_dtype=_get_torch_dtype(),
                     bnb_4bit_use_double_quant=True,
+                    llm_int8_skip_modules=skip_modules,
                 )
             else:
                 logger.warning("Unknown quantization type '%s' for %s — skipping", comp_quant, comp_name)
                 continue
+            if skip_modules:
+                logger.info("Quantizing %s with %s — keeping unquantized: %s",
+                            comp_name, comp_quant, skip_modules)
 
             CompClass = _import_class(comp_module, comp_class)
             load_kwargs = {
