@@ -153,6 +153,11 @@
     "meta_three_d_section": "Modèle 3D",
     "meta_style_section": "Style",
     "meta_file_info": "Informations du fichier",
+    "meta_designer_unused": "Concepteur de prompt non utilisé — amélioré directement depuis le prompt",
+    "meta_version": "Version",
+    "meta_current_version": "actuelle",
+    "meta_full_path": "Chemin du fichier",
+    "meta_no_prompts": "Aucun détail de prompt enregistré",
     "meta_user_prompt": "Prompt de l'utilisateur",
     "meta_moderation_rewrite": "Réécriture de modération",
     "meta_moderation_note": "Ce prompt a été automatiquement réécrit pour passer les filtres de contenu.",
@@ -391,7 +396,8 @@
     "success": "Succès",
     "tokens": "Tokens",
     "unknown": "inconnu",
-    "warning": "Avertissement"
+    "warning": "Avertissement",
+    "optional": "facultatif"
   },
   "confirm": {
     "cancel": "Annuler",

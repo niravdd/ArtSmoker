@@ -153,6 +153,11 @@
     "meta_three_d_section": "3D模型",
     "meta_style_section": "风格",
     "meta_file_info": "文件信息",
+    "meta_designer_unused": "未使用提示词设计器 — 直接从提示词增强",
+    "meta_version": "版本",
+    "meta_current_version": "当前",
+    "meta_full_path": "文件路径",
+    "meta_no_prompts": "未记录提示词详情",
     "meta_user_prompt": "用户提示词",
     "meta_moderation_rewrite": "审核重写",
     "meta_moderation_note": "此提示词已自动重写以通过内容过滤器。",
@@ -391,7 +396,8 @@
     "success": "成功",
     "tokens": "Token 数",
     "unknown": "未知",
-    "warning": "警告"
+    "warning": "警告",
+    "optional": "可选"
   },
   "confirm": {
     "cancel": "取消",

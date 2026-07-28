@@ -55,7 +55,8 @@
     "tokens": "Tokens",
     "prompt": "Prompt",
     "settings": "Settings",
-    "download": "Download"
+    "download": "Download",
+    "optional": "optional"
   },
   "confirm": {
     "default_title": "Confirm",
@@ -892,6 +893,11 @@
     "meta_three_d_section": "3D Model",
     "meta_style_section": "Style",
     "meta_file_info": "File Info",
+    "meta_designer_unused": "Prompt Designer not used — enhanced directly from the prompt",
+    "meta_version": "Version",
+    "meta_current_version": "current",
+    "meta_full_path": "File Path",
+    "meta_no_prompts": "No prompt details recorded",
     "meta_user_prompt": "User's Prompt",
     "meta_moderation_rewrite": "Moderation Rewrite",
     "meta_moderation_note": "This prompt was automatically rewritten to pass content filters.",

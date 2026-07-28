@@ -55,7 +55,8 @@
     "tokens": "Tokens",
     "prompt": "Prompt",
     "settings": "Einstellungen",
-    "download": "Download"
+    "download": "Download",
+    "optional": "optional"
   },
   "confirm": {
     "default_title": "Bestätigen",
@@ -892,6 +893,11 @@
     "meta_three_d_section": "3D-Modell",
     "meta_style_section": "Stil",
     "meta_file_info": "Dateiinformationen",
+    "meta_designer_unused": "Prompt-Designer nicht verwendet — direkt aus dem Prompt verbessert",
+    "meta_version": "Version",
+    "meta_current_version": "aktuell",
+    "meta_full_path": "Dateipfad",
+    "meta_no_prompts": "Keine Prompt-Details aufgezeichnet",
     "meta_user_prompt": "Prompt des Benutzers",
     "meta_moderation_rewrite": "Moderationsumschreibung",
     "meta_moderation_note": "Dieser Prompt wurde automatisch umgeschrieben, um die Inhaltsfilter zu bestehen.",

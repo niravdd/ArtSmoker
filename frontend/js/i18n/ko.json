@@ -153,6 +153,11 @@
     "meta_three_d_section": "3D 모델",
     "meta_style_section": "스타일",
     "meta_file_info": "파일 정보",
+    "meta_designer_unused": "프롬프트 디자이너 미사용 — 프롬프트에서 직접 향상",
+    "meta_version": "버전",
+    "meta_current_version": "현재",
+    "meta_full_path": "파일 경로",
+    "meta_no_prompts": "기록된 프롬프트 세부 정보 없음",
     "meta_user_prompt": "사용자 프롬프트",
     "meta_moderation_rewrite": "검열 재작성",
     "meta_moderation_note": "이 프롬프트는 콘텐츠 필터를 통과하기 위해 자동으로 재작성되었습니다.",
@@ -391,7 +396,8 @@
     "success": "성공",
     "tokens": "토큰",
     "unknown": "알 수 없음",
-    "warning": "경고"
+    "warning": "경고",
+    "optional": "선택 사항"
   },
   "confirm": {
     "cancel": "취소",

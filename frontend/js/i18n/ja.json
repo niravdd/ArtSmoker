@@ -153,6 +153,11 @@
     "meta_three_d_section": "3Dモデル",
     "meta_style_section": "スタイル",
     "meta_file_info": "ファイル情報",
+    "meta_designer_unused": "プロンプトデザイナー未使用 — プロンプトから直接強化",
+    "meta_version": "バージョン",
+    "meta_current_version": "現在",
+    "meta_full_path": "ファイルパス",
+    "meta_no_prompts": "プロンプトの詳細は記録されていません",
     "meta_user_prompt": "ユーザーのプロンプト",
     "meta_moderation_rewrite": "モデレーション書き換え",
     "meta_moderation_note": "コンテンツフィルターを通過するため、このプロンプトは自動的に書き換えられました。",
@@ -391,7 +396,8 @@
     "success": "成功",
     "tokens": "トークン",
     "unknown": "不明",
-    "warning": "警告"
+    "warning": "警告",
+    "optional": "任意"
   },
   "confirm": {
     "cancel": "キャンセル",

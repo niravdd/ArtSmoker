@@ -116,7 +116,13 @@
     // ── t() — the main translation function ──────────────────────────
 
     window.t = function (key, params) {
-        let str = _strings[key] || _fallback[key] || key;
+        // An EMPTY string is a valid translation (e.g. a hint that's blank in
+        // English) — only fall through to the next source when the key is
+        // genuinely ABSENT, not merely empty. Using `||` here would turn a
+        // legitimate "" into the raw key text on screen.
+        let str = key;
+        if (Object.prototype.hasOwnProperty.call(_strings, key)) str = _strings[key];
+        else if (Object.prototype.hasOwnProperty.call(_fallback, key)) str = _fallback[key];
 
         // Replace {{param}} placeholders
         if (params) {

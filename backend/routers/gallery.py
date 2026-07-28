@@ -440,10 +440,21 @@ async def delete_assets(body: DeleteRequest):
 
 @router.get("/{asset_id}")
 async def get_asset_metadata(asset_id: str):
-    """Get the full metadata dictionary for a generated asset."""
+    """Get the full metadata dictionary for a generated asset.
+
+    Enriches the stored metadata with `storage_dir` — the absolute on-disk
+    directory holding this asset's files — so the viewer can show the exact
+    file path for whichever version is currently selected (current version =
+    asset.png; older versions = asset_v{N}.png, per the versioning convention).
+    """
     meta = _get_meta(asset_id)
     if meta is None:
         raise HTTPException(404, detail=f"Asset '{asset_id}' not found.")
+    meta = dict(meta)  # copy so we never mutate the cached dict
+    try:
+        meta["storage_dir"] = str(store.generated_asset_dir(asset_id).resolve())
+    except Exception:
+        meta["storage_dir"] = ""
     return meta
 
 

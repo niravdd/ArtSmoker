@@ -55,7 +55,8 @@
     "tokens": "टोकन",
     "prompt": "प्रॉम्प्ट",
     "settings": "सेटिंग्स",
-    "download": "डाउनलोड"
+    "download": "डाउनलोड",
+    "optional": "वैकल्पिक"
   },
   "confirm": {
     "default_title": "पुष्टि करें",
@@ -838,6 +839,11 @@
     "meta_three_d_section": "3D मॉडल",
     "meta_style_section": "शैली",
     "meta_file_info": "फ़ाइल जानकारी",
+    "meta_designer_unused": "प्रॉम्प्ट डिज़ाइनर उपयोग नहीं हुआ — सीधे प्रॉम्प्ट से बेहतर बनाया गया",
+    "meta_version": "संस्करण",
+    "meta_current_version": "वर्तमान",
+    "meta_full_path": "फ़ाइल पथ",
+    "meta_no_prompts": "कोई प्रॉम्प्ट विवरण दर्ज नहीं",
     "meta_user_prompt": "उपयोगकर्ता का प्रॉम्प्ट",
     "meta_moderation_rewrite": "मॉडरेशन पुनर्लेखन",
     "meta_moderation_note": "सामग्री फ़िल्टर पास करने के लिए इस प्रॉम्प्ट को स्वचालित रूप से पुनर्लिखित किया गया था।",

@@ -55,7 +55,8 @@
     "tokens": "Токены",
     "prompt": "Промпт",
     "settings": "Настройки",
-    "download": "Скачать"
+    "download": "Скачать",
+    "optional": "необязательно"
   },
   "confirm": {
     "default_title": "Подтверждение",
@@ -838,6 +839,11 @@
     "meta_three_d_section": "3D-модель",
     "meta_style_section": "Стиль",
     "meta_file_info": "Информация о файле",
+    "meta_designer_unused": "Дизайнер промптов не использован — улучшено прямо из промпта",
+    "meta_version": "Версия",
+    "meta_current_version": "текущая",
+    "meta_full_path": "Путь к файлу",
+    "meta_no_prompts": "Детали промпта не записаны",
     "meta_user_prompt": "Промпт пользователя",
     "meta_moderation_rewrite": "Модерационная перезапись",
     "meta_moderation_note": "Этот промпт был автоматически переписан для прохождения фильтров контента.",

@@ -32,7 +32,6 @@ from backend.services.prompt_engineer import (
     get_last_negative_prompt,
     refine_marketing_prompt,
     refine_prompt,
-    refine_prompt_structured,
 )
 from backend.services.prompt_templates import get_template
 from backend.storage.local_store import store
@@ -84,6 +83,27 @@ def _slugify_prompt(prompt: str, max_len: int = 40) -> str:
     if len(slug) > max_len:
         slug = slug[:max_len].rsplit("-", 1)[0]
     return slug or "asset"
+
+
+def _consolidate_decomposed(decomposed_data: dict | None) -> str:
+    """Flatten Prompt-Designer decomposed fields into one plain-text string.
+
+    This is the DETERMINISTIC Step-2 consolidation (no LLM): it space-joins every
+    field value across sections. It is both the text shown in the read-only Step-2
+    box AND the value stored as the "source" of the Step-3 enhanced prompt. Returns
+    "" when there's no decomposed data (e.g. a plain type-and-Generate that never
+    used the Designer)."""
+    if not decomposed_data or not isinstance(decomposed_data, dict):
+        return ""
+    parts = []
+    for section in decomposed_data.values():
+        if isinstance(section, dict):
+            for field in section.values():
+                if isinstance(field, dict) and field.get("value"):
+                    parts.append(str(field["value"]).strip())
+                elif isinstance(field, str) and field.strip():
+                    parts.append(field.strip())
+    return " ".join(parts)
 
 
 def _resolve_model_size(model_key: str, width: int, height: int) -> tuple[int, int]:
@@ -260,6 +280,13 @@ def _build_variant(
             "prompt": body.prompt,
             "enhanced_prompt": enhanced_prompt,
             "negative_prompt": negative_prompt,
+            # Step-2 provenance — always present but EMPTY (falsy) when the Prompt
+            # Designer wasn't used, so it never contaminates downstream prompt
+            # enhancement (all consumers use `... or ...`). The post-generation
+            # patch overwrites with the real consolidation when the Designer WAS
+            # used. "Not used" wording is a display-only concern (frontend).
+            "recomposed_prompt": "",
+            "decomposed_data": None,
             "style_id": body.style_id,
             "style_snapshot": style_snapshot,
             "asset_type": body.asset_type.value,
@@ -325,6 +352,16 @@ def _build_variant(
         "original_language_prompt": translation_result["original"] if translation_result and translation_result["was_translated"] else None,
         "enhanced_prompt": enhanced_prompt,
         "negative_prompt": negative_prompt,
+        # Step-2 provenance — always present for a consistent metadata shape, but
+        # EMPTY (falsy) when the Prompt Designer wasn't used. Must stay empty (not
+        # a sentinel string): the frontend echoes recomposed_prompt back into the
+        # Generate payload and downstream code does `recomposed_prompt or prompt`
+        # / `... or meta.get("recomposed_prompt") or ...` — a non-empty sentinel
+        # would contaminate prompt enhancement. The "not used" wording is a
+        # DISPLAY-ONLY concern, applied in the frontend. The post-generation patch
+        # overwrites these with the real consolidation when the Designer was used.
+        "recomposed_prompt": "",
+        "decomposed_data": None,
         "style_id": body.style_id,
         "style_snapshot": style_snapshot,
         "asset_type": body.asset_type.value,
@@ -519,27 +556,31 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         try:
             if body.asset_type == AssetType.MARKETING_BANNER and n_opts == 1:
                 concept_prompts = [refine_marketing_prompt(body.prompt, style_profile, image_model=model_id)]
+            elif n_opts == 1:
+                # Single option: ONE enhancement pass produces the Step-3 prompt
+                # that goes to the model. We deliberately do NOT force
+                # decompose→recompose here — decomposition is offered only via the
+                # optional Prompt Designer, and when the user uses it the frontend
+                # sends a pre-composed prompt (handled by the branch above). A
+                # plain "type and Generate" gets a single refine, no imposed
+                # decomposition and no redundant second enhancement. If the
+                # frontend did supply a recomposed prompt, enhance that; else the
+                # raw prompt. (refine_prompt sets the negative-prompt contextvar.)
+                enhanced = refine_prompt(
+                    recomposed_prompt or body.prompt, style_profile, body.asset_type, image_model=model_id,
+                )
+                concept_prompts = [enhanced]
             else:
-                # ALWAYS decompose (style is baked in at this stage)
-                if not decomposed_data:
-                    try:
-                        recomposed_prompt, decomposed_data = refine_prompt_structured(
-                            body.prompt, style_profile, body.asset_type, image_model=model_id,
-                        )
-                    except Exception:
-                        logger.warning("Decomposition failed, proceeding with raw prompt")
-
-                if n_opts == 1:
-                    enhanced = refine_prompt(
-                        recomposed_prompt or body.prompt, style_profile, body.asset_type, image_model=model_id,
-                    )
-                    concept_prompts = [enhanced]
-                else:
-                    concept_prompts = generate_concept_prompts(
-                        body.prompt, style_profile, body.asset_type, n_opts, image_model=model_id,
-                        decomposed_data=decomposed_data,
-                        vary_fields=body.vary_fields,
-                    )
+                # Multiple options: generate N distinct concepts in a single pass.
+                # Uses decomposed_data for lock/vary variety WHEN the user supplied
+                # it via the Designer; otherwise works from the raw prompt directly
+                # (generate_concept_prompts has its own default vary logic). No
+                # forced decomposition either way.
+                concept_prompts = generate_concept_prompts(
+                    body.prompt, style_profile, body.asset_type, n_opts, image_model=model_id,
+                    decomposed_data=decomposed_data,
+                    vary_fields=body.vary_fields,
+                )
         except PromptRefusalError as refusal:
             logger.warning("Claude refused to refine prompt: %s", refusal.reason[:200])
             emit({"type": "prompt_refused",
@@ -568,21 +609,11 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     elif negative_prompt:
         logger.info("Using negative prompt from refinement: %s", negative_prompt[:100])
 
-    # Build flat concatenation of decomposed fields for Step 2 display.
-    # This shows the structured breakdown as plain text, distinct from the
-    # LLM-enhanced prompt in Step 3.
-    display_recomposed = recomposed_prompt or ""
-    if decomposed_data and isinstance(decomposed_data, dict):
-        parts = []
-        for section in decomposed_data.values():
-            if isinstance(section, dict):
-                for field in section.values():
-                    if isinstance(field, dict) and field.get("value"):
-                        parts.append(field["value"].strip())
-                    elif isinstance(field, str) and field.strip():
-                        parts.append(field.strip())
-        if parts:
-            display_recomposed = " ".join(parts)
+    # Step-2 consolidation: flat plain-text join of the decomposed fields (the
+    # "source" of the Step-3 enhanced prompt), distinct from the LLM-enhanced
+    # Step-3 text. Empty for a plain type-and-Generate (no Designer used); falls
+    # back to any frontend-supplied recomposed_prompt.
+    display_recomposed = _consolidate_decomposed(decomposed_data) or (recomposed_prompt or "")
 
     emit({"type": "prompts_ready",
           "prompts": concept_prompts,
@@ -819,17 +850,22 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         cost_breakdown=cost_breakdown,
     )
 
-    # Persist recomposed + decomposed prompt data to all variant metadata files
-    # so they're available when loading from Gallery later.
-    if recomposed_prompt or decomposed_data:
+    # Persist the Step-2 recomposed prompt + decomposed data to all variant
+    # metadata so they're available when loading from Gallery later. We store
+    # `display_recomposed` (the flat consolidation of the decomposed fields) —
+    # the SAME text shown in the Step-2 box — so the stored "source" of the
+    # Step-3 enhanced prompt matches exactly what the user saw. Only meaningful
+    # when the user used the Prompt Designer; a plain type-and-Generate leaves
+    # it empty (no imposed decomposition).
+    if display_recomposed or decomposed_data:
         for opt in options:
             for v in opt.variants:
                 try:
                     meta_path = store.generated_asset_dir(v.id) / "metadata.json"
                     if meta_path.exists():
                         meta = json.loads(meta_path.read_text())
-                        if recomposed_prompt:
-                            meta["recomposed_prompt"] = recomposed_prompt
+                        if display_recomposed:
+                            meta["recomposed_prompt"] = display_recomposed
                         if decomposed_data:
                             meta["decomposed_data"] = decomposed_data
                         meta_path.write_text(json.dumps(meta, indent=2))
@@ -937,16 +973,12 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
     concept_prompts: dict[str, list[str]] = {}
     negative_prompts: dict[str, list[str]] = {}
 
-    # Use frontend-provided decomposed data if available, else decompose once for all models
-    all_models_recomposed = body.recomposed_prompt or None
+    # Step-2 provenance: use ONLY frontend-provided Designer data (the user opted
+    # into decomposition). We do NOT force-decompose here — a plain "type and
+    # Generate" across all models gets a single refine per model, same as the
+    # single-model path. all_models_decomposed feeds concept variety when present.
     all_models_decomposed = body.decomposed_data or None
-    if not all_models_recomposed and not body.pre_composed:
-        try:
-            all_models_recomposed, all_models_decomposed = refine_prompt_structured(
-                body.prompt, style_profile, body.asset_type,
-            )
-        except Exception:
-            pass  # Non-fatal
+    all_models_recomposed = _consolidate_decomposed(all_models_decomposed) or (body.recomposed_prompt or None)
 
     try:
         if body.model_optimized_prompts:
@@ -956,7 +988,8 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                     if body.asset_type == AssetType.MARKETING_BANNER:
                         p = refine_marketing_prompt(body.prompt, style_profile, image_model=mk)
                     else:
-                        p, _ = refine_prompt_structured(body.prompt, style_profile, body.asset_type, image_model=mk)
+                        # ONE refine pass — no forced decomposition.
+                        p = refine_prompt(body.recomposed_prompt or body.prompt, style_profile, body.asset_type, image_model=mk)
                     concept_prompts[mk] = [p]
                     negative_prompts[mk] = [get_last_negative_prompt()]
                 else:
@@ -978,7 +1011,8 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 if body.asset_type == AssetType.MARKETING_BANNER:
                     p = refine_marketing_prompt(body.prompt, style_profile)
                 else:
-                    p, _ = refine_prompt_structured(body.prompt, style_profile, body.asset_type)
+                    # ONE refine pass — no forced decomposition.
+                    p = refine_prompt(body.recomposed_prompt or body.prompt, style_profile, body.asset_type)
                 shared_prompts = [p]
                 shared_negatives = [get_last_negative_prompt() or body.negative_prompt or ""]
             else:

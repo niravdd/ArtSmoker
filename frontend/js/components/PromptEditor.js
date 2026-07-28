@@ -99,8 +99,10 @@
             const panel = this.container.querySelector('.decomposed-panel');
             const textarea = this.container.querySelector('.decomposed-textarea');
             if (panel && textarea) {
-                textarea.value = text;
-                panel.classList.remove('hidden');
+                textarea.value = text || '';
+                // Show the Step-2 box only when there's consolidated text; hide it
+                // when cleared (empty) so we don't leave a blank panel behind.
+                panel.classList.toggle('hidden', !(text && text.trim()));
             }
         }
 
@@ -251,7 +253,10 @@
 
             this._textareaEl.addEventListener('input', () => {
                 this._updateCharCount();
-                if (this._composedText) this._clearComposed();
+                // Editing Step 1 invalidates any prior composition AND any
+                // Designer-derived Step-2 data (it no longer matches this text).
+                // Clear when EITHER exists so nothing stale is sent on Generate.
+                if (this._composedText || this._recomposedPrompt || this._decomposedData) this._clearComposed();
                 this._assetTypeConfirmed = false;  // New text = re-check asset type
                 this._galleryReload = false;       // User is writing fresh — not a reload
                 if (this._changeCb) this._changeCb(this._textareaEl.value);
@@ -372,39 +377,51 @@
             }
         }
 
+        _consolidateDesigner(designerData) {
+            // DETERMINISTIC Step-2 consolidation (no LLM): flatten every field
+            // value across sections into one plain-text string. Mirrors the
+            // backend _consolidate_decomposed so the Step-2 box and the stored
+            // "source" match. This is the input the single enhance pass turns
+            // into the Step-3 prompt.
+            if (!designerData || typeof designerData !== 'object') return '';
+            const parts = [];
+            for (const section of Object.values(designerData)) {
+                if (section && typeof section === 'object') {
+                    for (const field of Object.values(section)) {
+                        if (field && typeof field === 'object' && field.value) {
+                            parts.push(String(field.value).trim());
+                        } else if (typeof field === 'string' && field.trim()) {
+                            parts.push(field.trim());
+                        }
+                    }
+                }
+            }
+            return parts.filter(Boolean).join(' ');
+        }
+
         async _composeFromDesigner(designerData) {
-            // Step 2 complete: recompose from designer data, then auto-trigger Step 3
-            // 1. Recompose the structured data into a flat recomposed prompt
-            // 2. Feed that into Step 3's enhance flow (same as clicking the button)
+            // Step 2 → Step 3 with a SINGLE LLM pass:
+            //   1. Consolidate the designer fields into flat text (no LLM) — this
+            //      is the Step-2 box content and the recorded source of Step 3.
+            //   2. Enhance that once for the model → the Step-3 prompt sent to it.
+            // (Previously this did recompose-LLM THEN refine-LLM — two passes that
+            //  double-enhanced and added latency/cost.)
             if (this._isComposing) return;
             this._isComposing = true;
 
-            // Show loading on Step 3 button while both steps run
             const origHTML = this._btnCompose.innerHTML;
             this._btnCompose.innerHTML = `<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('prompt_editor.composing') : 'Composing...'}`;
             this._btnCompose.disabled = true;
 
             try {
-                // Step 2 → Recompose
-                const recomposeResp = await fetch('/api/refine-prompt/recompose', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        structured: designerData,
-                        image_model: this.opts.imageModel || 'nova_canvas',
-                    }),
-                });
-                if (!recomposeResp.ok) throw new Error('Recompose failed');
-                const recomposeResult = await recomposeResp.json();
-                const recomposedPrompt = recomposeResult.prompt;
-
-                // Show recomposed prompt in Step 2 textarea
+                // Step 2 → deterministic consolidation (no LLM call)
+                const recomposedPrompt = this._consolidateDesigner(designerData);
                 this.setDecomposedText(recomposedPrompt);
                 this._recomposedPrompt = recomposedPrompt;
 
-                // Step 3 → Enhance for model (using recomposed as input)
+                // Step 3 → single enhance for the model (the consolidation is input)
                 const enhancePayload = {
-                    prompt: recomposedPrompt,
+                    prompt: recomposedPrompt || this._textareaEl.value,
                     style_id: this.opts.styleId || undefined,
                     asset_type: this.opts.assetType || undefined,
                     image_model: this.opts.imageModel || undefined,
@@ -414,7 +431,7 @@
 
                 this._originalText = this._textareaEl.value;
                 this._composedText = enhanced;
-                this._negativePrompt = enhanceResult.negative_prompt || recomposeResult.negative_prompt || '';
+                this._negativePrompt = enhanceResult.negative_prompt || '';
                 this._userComposed = true;
                 this._showComposed(enhanced);
             } catch (err) {
@@ -508,6 +525,15 @@
             this._composedText = null;
             this._negativePrompt = '';
             this._userComposed = false;
+            // Also drop the Step-2 Designer-derived data so a subsequently
+            // edited/retyped prompt does NOT carry stale recomposed_prompt /
+            // decomposed_data / vary_fields into the next Generate (they'd no
+            // longer match the new prompt). Cleared together as one unit.
+            this._recomposedPrompt = null;
+            this._decomposedData = null;
+            this._designerData = null;
+            this._varyFlags = null;
+            this.setDecomposedText('');
             this._composedPanel.classList.add('hidden');
             this._btnClearComposed?.classList.add('hidden');
             this._composedTextarea.value = '';
