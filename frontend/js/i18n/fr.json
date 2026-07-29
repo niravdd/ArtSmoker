@@ -1256,7 +1256,18 @@
     "subgroup_generation": "Génération",
     "subgroup_editing": "Édition d’image",
     "bucket_required_title": "Un bucket S3 est requis",
-    "bucket_required_desc": "Déployer un modèle auto-hébergé téléverse son gestionnaire vers S3, où sont aussi conservés les tâches en arrière-plan et les notifications. Définissez un bucket S3 dans les paramètres de Video Studio (Paramètres des modèles → Video Studio) avant de déployer."
+    "bucket_required_desc": "Déployer un modèle auto-hébergé téléverse son gestionnaire vers S3, où sont aussi conservés les tâches en arrière-plan et les notifications. Définissez un bucket S3 dans les paramètres de Video Studio (Paramètres des modèles → Video Studio) avant de déployer.",
+    "s3_bucket_label": "Compartiment S3",
+    "s3_change": "Modifier",
+    "s3_bucket_placeholder": "Saisir le nom du compartiment S3",
+    "s3_save": "Enregistrer",
+    "s3_saving": "Enregistrement…",
+    "s3_saved": "Compartiment S3 enregistré",
+    "s3_required": "Nom du compartiment requis",
+    "s3_set_in_settings": "Vous pouvez le définir dans Paramètres des modèles → Modèles personnalisés.",
+    "open_model_settings": "Ouvrir les paramètres des modèles personnalisés",
+    "s3_locked": "Verrouillé",
+    "s3_locked_hint": "Lié à {{reasons}}. Pour le changer, supprimez les modèles personnalisés déployés."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

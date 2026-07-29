@@ -309,11 +309,17 @@ def list_catalog(force: bool = False):
     # custom model (the inference handler / model.tar.gz is uploaded there) and is
     # also where async-jobs + notices persist. If it's missing, the frontend shows
     # an upfront prompt so the user configures it BEFORE hitting a deploy failure.
-    from backend.services.sagemaker_deployer import get_deployment_s3_bucket
+    from backend.services.sagemaker_deployer import get_deployment_s3_bucket, get_bucket_dependencies
+    _bkt = get_deployment_s3_bucket() or ""
+    # bucket_locked: has dependencies → the UI shows a read-only record (no change
+    # offered) since a deployed endpoint permanently binds this bucket.
+    _deps = get_bucket_dependencies() if _bkt else {"locked": False, "reasons": []}
     return {
         "models": result,
         "bundles": _get_all_bundles_info(),
-        "deployment_bucket": get_deployment_s3_bucket() or "",
+        "deployment_bucket": _bkt,
+        "bucket_locked": _deps["locked"],
+        "bucket_lock_reasons": _deps["reasons"],
     }
 
 
@@ -992,6 +998,81 @@ def check_hf_token_status():
     from backend.services.sagemaker_deployer import has_hf_token, get_hf_token_arn
     stored = has_hf_token()
     return {"stored": stored, "arn": get_hf_token_arn() if stored else None}
+
+
+@router.get("/s3-bucket-status")
+def check_s3_bucket_status(verify: bool = False):
+    """Report whether the custom-model S3 bucket is configured (and optionally
+    reachable), PLUS whether it's locked (has dependencies). Drives the Custom
+    Models setter's current-state + the Image Studio / 3D preflight.
+
+    `verify=false` (default) = cheap presence check (no head_bucket).
+    `verify=true` = also head_bucket (used when the user explicitly checks).
+
+    `locked=True` means a custom endpoint is deployed / a job is in-flight /
+    ArtSmoker data exists in the bucket — SageMaker has baked this bucket into
+    immutable endpoint config, so it must NOT be changed. The setter enforces
+    this server-side; the UI shows a read-only record.
+    """
+    from backend.services.sagemaker_deployer import check_deployment_bucket, get_bucket_dependencies
+    result = check_deployment_bucket(require_access=verify)
+    if result.get("bucket"):
+        deps = get_bucket_dependencies()
+        result["locked"] = deps["locked"]
+        result["lock_reasons"] = deps["reasons"]
+    else:
+        result["locked"] = False
+        result["lock_reasons"] = []
+    return result
+
+
+class UpdateS3BucketRequest(BaseModel):
+    s3_bucket: str
+
+
+@router.post("/s3-bucket")
+async def set_s3_bucket(body: UpdateS3BucketRequest):
+    """Set the custom-model S3 bucket from Model Settings → Custom Models.
+
+    Writes the SAME `video_settings.s3_bucket` that get_deployment_s3_bucket()
+    reads (custom models and Video Studio share one bucket by design), and
+    validates it (head_bucket + read/write test) via the shared video-settings
+    update path — so there is one validated write path, not two.
+
+    REFUSES to change the bucket once it's LOCKED (a custom endpoint is deployed,
+    a job is in-flight, or ArtSmoker data exists in the current bucket). Switching
+    then would silently break live endpoints — SageMaker baked the old bucket into
+    their immutable ModelDataUrl / S3OutputPath at deploy time. Setting the SAME
+    value is always allowed (idempotent no-op).
+    """
+    from backend.routers.admin import update_video_settings_endpoint, VideoSettingsUpdate
+    from backend.services.sagemaker_deployer import (
+        invalidate_bucket_access_cache, get_deployment_s3_bucket, get_bucket_dependencies,
+    )
+
+    name = (body.s3_bucket or "").strip()
+    if not name:
+        raise HTTPException(400, detail="Bucket name cannot be empty")
+
+    current = get_deployment_s3_bucket()
+    if name != current and current:
+        deps = get_bucket_dependencies()
+        if deps["locked"]:
+            raise HTTPException(
+                409,
+                detail=(
+                    f"The S3 bucket can't be changed: {', '.join(deps['reasons'])} depend on "
+                    f"\"{current}\". SageMaker permanently binds deployed endpoints to their "
+                    f"bucket, so switching would break them. Tear down deployed custom models "
+                    f"(and let in-flight jobs finish) before changing the bucket."
+                ),
+            )
+
+    # Reuse the video-settings update path (validates then persists). It raises
+    # HTTPException(400, ...) with a clear message on NoSuchBucket / access errors.
+    result = await update_video_settings_endpoint(VideoSettingsUpdate(s3_bucket=name))
+    invalidate_bucket_access_cache()  # freshly-validated bucket — drop stale probe
+    return {"status": "saved", "s3_bucket": name, "video_settings": result}
 
 
 @router.get("/gated-access/{model_key}")

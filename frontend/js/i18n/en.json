@@ -1298,7 +1298,18 @@
     "subgroup_generation": "Generation",
     "subgroup_editing": "Image Editing",
     "bucket_required_title": "S3 bucket required to deploy",
-    "bucket_required_desc": "Deploying a self-hosted model uploads its handler to S3, and background jobs + notices persist there too. Set an S3 bucket in Video Studio settings (Model Settings → Video Studio) before deploying."
+    "bucket_required_desc": "Deploying a self-hosted model uploads its handler to S3, and background jobs + notices persist there too. Set an S3 bucket in Video Studio settings (Model Settings → Video Studio) before deploying.",
+    "s3_bucket_label": "S3 Bucket",
+    "s3_change": "Change",
+    "s3_bucket_placeholder": "Enter S3 bucket name",
+    "s3_save": "Save",
+    "s3_saving": "Saving…",
+    "s3_saved": "S3 bucket saved",
+    "s3_required": "Bucket name required",
+    "s3_set_in_settings": "You can set it here in Model Settings → Custom Models.",
+    "open_model_settings": "Open Custom Models settings",
+    "s3_locked": "Locked",
+    "s3_locked_hint": "Bound to {{reasons}}. Tear down deployed custom models to change it."
   },
   "voice_input": {
     "record": "Record voice input",

@@ -2430,6 +2430,29 @@
             btn.disabled = true;
             btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
 
+            // S3 bucket preflight — 3D generation runs on a custom (self-hosted)
+            // endpoint that needs the deployment bucket for its async input/output.
+            // Catch a missing bucket here with a clear pointer instead of a failed
+            // job. (A deployed 3D endpoint usually implies a bucket was set, but the
+            // bucket can be cleared later — so we still guard.)
+            try {
+                const st = await (await fetch('/api/custom-models/s3-bucket-status')).json();
+                if (!st.ok) {
+                    this._reset3DGenerateBtn(btn);
+                    const go = await window.showConfirm?.(
+                        st.message || t('custom_models.bucket_required_desc'),
+                        {
+                            title: t('custom_models.bucket_required_title'),
+                            detail: t('custom_models.s3_set_in_settings'),
+                            confirmLabel: t('custom_models.open_model_settings'),
+                            cancelLabel: t('common.cancel'),
+                        },
+                    );
+                    if (go) window.ModelSettings?.open?.('custom-models');
+                    return;
+                }
+            } catch { /* status endpoint unreachable — let backend guard handle it */ }
+
             // Re-sync to the TRUE current version before generating. The backend's
             // current_version is the single source of truth — it advances on every
             // edit (outpaint/inpaint/bg-removal) and asset.png always IS the current

@@ -100,6 +100,151 @@ def get_deployment_s3_bucket() -> str:
     return os.environ.get("ARTSMOKER_CUSTOM_MODELS_BUCKET", "")
 
 
+# Short-lived cache of head_bucket accessibility results so we don't probe S3 on
+# every single async invocation. Keyed by bucket name → (ok, reason, ts).
+_bucket_access_cache: dict = {}
+_BUCKET_ACCESS_TTL_SECONDS = 120
+
+
+def check_deployment_bucket(require_access: bool = True, use_cache: bool = True) -> dict:
+    """Preflight: is the custom-model S3 bucket configured AND (optionally) reachable?
+
+    Single source of truth reused by deploy, async-invoke, and the status
+    endpoint so every path fails with the SAME clear guidance instead of a raw
+    boto3 error deep in a call. Returns:
+      {"ok": bool, "bucket": str, "reason": str, "message": str}
+    reason ∈ {"", "not_configured", "not_found", "access_denied", "error"}.
+    `require_access=False` checks only that a bucket NAME is set (cheap, no S3
+    call). `require_access=True` also does a cached head_bucket."""
+    bucket = get_deployment_s3_bucket()
+    if not bucket:
+        return {
+            "ok": False, "bucket": "", "reason": "not_configured",
+            "message": "No S3 bucket is configured for custom models. Set one in "
+                       "Model Settings → Custom Models before deploying or running "
+                       "self-hosted (custom) models.",
+        }
+    if not require_access:
+        return {"ok": True, "bucket": bucket, "reason": "", "message": ""}
+
+    # Cached accessibility probe.
+    if use_cache:
+        cached = _bucket_access_cache.get(bucket)
+        if cached is not None:
+            ok, reason, ts = cached
+            try:
+                import time as _t
+                fresh = (_t.time() - ts) < _BUCKET_ACCESS_TTL_SECONDS
+            except Exception:
+                fresh = False
+            if fresh:
+                return {"ok": ok, "bucket": bucket, "reason": reason,
+                        "message": _bucket_access_message(bucket, reason)}
+
+    ok, reason = True, ""
+    try:
+        s3 = boto3.client("s3", region_name=_get_region())
+        s3.head_bucket(Bucket=bucket)
+    except Exception as exc:
+        code = ""
+        resp = getattr(exc, "response", None)
+        if isinstance(resp, dict):
+            code = str(resp.get("Error", {}).get("Code", ""))
+        if code in ("404", "NoSuchBucket"):
+            ok, reason = False, "not_found"
+        elif code in ("403", "AccessDenied", "401"):
+            ok, reason = False, "access_denied"
+        else:
+            ok, reason = False, "error"
+    try:
+        import time as _t
+        _bucket_access_cache[bucket] = (ok, reason, _t.time())
+    except Exception:
+        pass
+    return {"ok": ok, "bucket": bucket, "reason": reason,
+            "message": _bucket_access_message(bucket, reason)}
+
+
+def _bucket_access_message(bucket: str, reason: str) -> str:
+    if reason == "not_found":
+        return (f"The configured S3 bucket \"{bucket}\" was not found. Re-check the "
+                f"name in Model Settings → Custom Models, or create it.")
+    if reason == "access_denied":
+        return (f"Access to S3 bucket \"{bucket}\" was denied. Check the bucket's "
+                f"region and that your AWS credentials can read/write it.")
+    if reason == "error":
+        return (f"Could not verify S3 bucket \"{bucket}\". Check your AWS "
+                f"credentials/region and try again.")
+    return ""
+
+
+def invalidate_bucket_access_cache(bucket: str = "") -> None:
+    """Drop cached accessibility results (call after the user changes the bucket)."""
+    if bucket:
+        _bucket_access_cache.pop(bucket, None)
+    else:
+        _bucket_access_cache.clear()
+
+
+def get_bucket_dependencies() -> dict:
+    """Report whether the configured bucket has DEPENDENCIES that make it unsafe
+    to change. Once a custom model is deployed, SageMaker bakes the bucket into
+    the endpoint's immutable ModelDataUrl / S3OutputPath, so switching buckets
+    would silently break live endpoints (they keep reading/writing the old
+    bucket). We therefore LOCK the bucket to read-only once anything depends on
+    it. Dependencies = any deployed custom endpoint, any in-flight job, or any
+    existing ArtSmoker artifacts already in the bucket.
+
+    Returns {"locked": bool, "reasons": [str], "endpoints": [str],
+             "pending_jobs": int, "has_s3_data": bool}."""
+    from backend.services.model_registry import get_registry
+    reg = get_registry()
+
+    # 1. Deployed custom endpoints (across all studio sections).
+    endpoints = []
+    for section in ("image_models", "post_processing", "video_models", "three_d_models"):
+        for key, cfg in (reg.get(section, {}) or {}).items():
+            ep = (cfg.get("deployment", {}) or {}).get("endpoint_name")
+            if ep:
+                endpoints.append(ep)
+
+    # 2. In-flight async jobs (2D/3D).
+    pending = 0
+    try:
+        from backend.services.async_jobs import get_pending_count
+        pending = get_pending_count()
+    except Exception:
+        pending = 0
+
+    # 3. Existing ArtSmoker artifacts in the bucket (e.g. cached weights left by a
+    #    torn-down model). Cheap: list one key under our prefix.
+    has_s3_data = False
+    bucket = get_deployment_s3_bucket()
+    if bucket:
+        try:
+            s3 = boto3.client("s3", region_name=_get_region())
+            resp = s3.list_objects_v2(Bucket=bucket, Prefix=f"{S3_MODEL_PREFIX}/", MaxKeys=1)
+            has_s3_data = resp.get("KeyCount", 0) > 0
+        except Exception:
+            has_s3_data = False  # can't tell → don't lock on this signal alone
+
+    reasons = []
+    if endpoints:
+        reasons.append(f"{len(endpoints)} deployed custom model endpoint(s)")
+    if pending:
+        reasons.append(f"{pending} in-flight job(s)")
+    if has_s3_data:
+        reasons.append("existing ArtSmoker data in the bucket")
+
+    return {
+        "locked": bool(reasons),
+        "reasons": reasons,
+        "endpoints": endpoints,
+        "pending_jobs": pending,
+        "has_s3_data": has_s3_data,
+    }
+
+
 def is_hf_source(model_key: str) -> bool:
     """Check if a model uses HuggingFace as its source (eligible for direct pull)."""
     from backend.services.custom_models import get_catalog_model

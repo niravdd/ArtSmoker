@@ -2222,17 +2222,42 @@
                 let html = '<div class="space-y-4">';
                 html += `<p class="text-xs text-brand-text-muted">${t('custom_models.description_line')}</p>`;
 
-                // Upfront S3-bucket prompt: a deployment bucket is REQUIRED to
-                // deploy any custom model (the handler is uploaded there) and is
-                // where async-jobs + notices persist. Warn here — before the user
-                // hits a confusing mid-deploy failure — with where to set it.
-                if (!data.deployment_bucket) {
-                    html += `<div class="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40 flex items-start gap-2.5">
-                        <svg class="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                // S3-bucket config — IN-PLACE setter at the top of Custom Models.
+                // A deployment bucket is REQUIRED to deploy any custom model (the
+                // handler is uploaded there) and is where async-jobs + 3D jobs +
+                // notices persist. Configure it here directly (no detour to Video
+                // Studio); writes the SAME shared video_settings.s3_bucket.
+                const _bkt = data.deployment_bucket || '';
+                const _bktLocked = !!data.bucket_locked;
+                const _bktLockReasons = (data.bucket_lock_reasons || []).join(', ');
+                if (_bkt) {
+                    // Set. If LOCKED (a custom endpoint is deployed / job in-flight /
+                    // ArtSmoker data present), show a READ-ONLY record — SageMaker
+                    // permanently binds deployed endpoints to this bucket, so it must
+                    // not change. Otherwise (set but unused) allow Change.
+                    html += `<div id="ms-s3-card" class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border flex items-center gap-2.5">
+                        <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         <div class="flex-1 min-w-0">
-                            <p class="text-xs font-semibold text-amber-300">${t('custom_models.bucket_required_title')}</p>
-                            <p class="text-[11px] text-brand-text-muted mt-0.5 leading-relaxed">${t('custom_models.bucket_required_desc')}</p>
+                            <p class="text-[10px] uppercase tracking-wider text-brand-text-muted">${t('custom_models.s3_bucket_label')}${_bktLocked ? ` · ${t('custom_models.s3_locked')}` : ''}</p>
+                            <p class="text-sm font-mono truncate">${this._esc ? this._esc(_bkt) : _bkt}</p>
+                            ${_bktLocked ? `<p class="text-[10px] text-brand-text-muted/70 mt-0.5">${t('custom_models.s3_locked_hint').replace('{{reasons}}', this._esc ? this._esc(_bktLockReasons) : _bktLockReasons)}</p>` : ''}
                         </div>
+                        ${_bktLocked ? '' : `<button id="ms-s3-edit" class="btn btn-secondary btn-sm text-xs whitespace-nowrap">${t('custom_models.s3_change')}</button>`}
+                    </div>`;
+                } else {
+                    html += `<div class="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40">
+                        <div class="flex items-start gap-2.5 mb-2">
+                            <svg class="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
+                            <div class="flex-1 min-w-0">
+                                <p class="text-xs font-semibold text-amber-300">${t('custom_models.bucket_required_title')}</p>
+                                <p class="text-[11px] text-brand-text-muted mt-0.5 leading-relaxed">${t('custom_models.bucket_required_desc')}</p>
+                            </div>
+                        </div>
+                        <div id="ms-s3-editor" class="flex gap-2">
+                            <input type="text" id="ms-s3-input" class="input flex-1 text-xs font-mono" placeholder="${t('custom_models.s3_bucket_placeholder')}" />
+                            <button id="ms-s3-save" class="btn btn-primary btn-sm text-xs whitespace-nowrap">${t('custom_models.s3_save')}</button>
+                        </div>
+                        <p id="ms-s3-msg" class="text-[10px] mt-1.5 hidden"></p>
                     </div>`;
                 }
 
@@ -2434,6 +2459,64 @@
                         this._loadCustomModels(modal);
                     }, 600000);  // 10 min for active models — catch scale-in
                 }
+
+                // S3-bucket setter handlers (in-place at top of Custom Models).
+                const _s3msg = (text, ok) => {
+                    const el = container.querySelector('#ms-s3-msg');
+                    if (!el) return;
+                    el.textContent = text;
+                    el.className = `text-[10px] mt-1.5 ${ok ? 'text-emerald-400' : 'text-red-400'}`;
+                    el.classList.remove('hidden');
+                };
+                const _saveS3 = async () => {
+                    const input = container.querySelector('#ms-s3-input');
+                    const saveBtn = container.querySelector('#ms-s3-save');
+                    const name = (input?.value || '').trim();
+                    if (!name) { _s3msg(t('custom_models.s3_required'), false); return; }
+                    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = t('custom_models.s3_saving'); }
+                    try {
+                        const resp = await fetch('/api/custom-models/s3-bucket', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ s3_bucket: name }),
+                        });
+                        if (!resp.ok) {
+                            const err = await resp.json().catch(() => ({}));
+                            throw new Error(err.detail || `HTTP ${resp.status}`);
+                        }
+                        _s3msg(t('custom_models.s3_saved'), true);
+                        window.showToast?.(t('custom_models.s3_saved'), 'success');
+                        // Reload the tab so deploy buttons re-enable + card shows the bucket.
+                        this._customModelsLoaded = false;
+                        this._loadCustomModels(modal, true);
+                    } catch (e) {
+                        _s3msg(e.message || 'Save failed', false);
+                    } finally {
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = t('custom_models.s3_save'); }
+                    }
+                };
+                container.querySelector('#ms-s3-save')?.addEventListener('click', _saveS3);
+                container.querySelector('#ms-s3-input')?.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') { e.preventDefault(); _saveS3(); }
+                });
+                // "Change" (bucket already set) → swap the card for the editor.
+                container.querySelector('#ms-s3-edit')?.addEventListener('click', () => {
+                    const card = container.querySelector('#ms-s3-card');
+                    if (!card) return;
+                    card.outerHTML = `<div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border">
+                        <p class="text-[10px] uppercase tracking-wider text-brand-text-muted mb-1.5">${t('custom_models.s3_bucket_label')}</p>
+                        <div class="flex gap-2">
+                            <input type="text" id="ms-s3-input" class="input flex-1 text-xs font-mono" value="${this._esc(_bkt)}" placeholder="${t('custom_models.s3_bucket_placeholder')}" />
+                            <button id="ms-s3-save" class="btn btn-primary btn-sm text-xs whitespace-nowrap">${t('custom_models.s3_save')}</button>
+                        </div>
+                        <p id="ms-s3-msg" class="text-[10px] mt-1.5 hidden"></p>
+                    </div>`;
+                    container.querySelector('#ms-s3-save')?.addEventListener('click', _saveS3);
+                    container.querySelector('#ms-s3-input')?.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') { e.preventDefault(); _saveS3(); }
+                    });
+                    container.querySelector('#ms-s3-input')?.focus();
+                });
 
                 // Attach deploy/teardown handlers
                 container.querySelectorAll('.ms-cm-deploy').forEach(btn => {

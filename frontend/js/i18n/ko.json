@@ -1256,7 +1256,18 @@
     "subgroup_generation": "생성",
     "subgroup_editing": "이미지 편집",
     "bucket_required_title": "배포하려면 S3 버킷 필요",
-    "bucket_required_desc": "셀프 호스팅 모델을 배포하면 핸들러가 S3에 업로드되고 백그라운드 작업과 알림도 거기에 저장됩니다. 배포하기 전에 Video Studio 설정(모델 설정 → Video Studio)에서 S3 버킷을 설정하세요."
+    "bucket_required_desc": "셀프 호스팅 모델을 배포하면 핸들러가 S3에 업로드되고 백그라운드 작업과 알림도 거기에 저장됩니다. 배포하기 전에 Video Studio 설정(모델 설정 → Video Studio)에서 S3 버킷을 설정하세요.",
+    "s3_bucket_label": "S3 버킷",
+    "s3_change": "변경",
+    "s3_bucket_placeholder": "S3 버킷 이름 입력",
+    "s3_save": "저장",
+    "s3_saving": "저장 중…",
+    "s3_saved": "S3 버킷 저장됨",
+    "s3_required": "버킷 이름이 필요합니다",
+    "s3_set_in_settings": "모델 설정 → 사용자 지정 모델에서 설정할 수 있습니다.",
+    "open_model_settings": "사용자 지정 모델 설정 열기",
+    "s3_locked": "잠김",
+    "s3_locked_hint": "{{reasons}}에 연결됨. 변경하려면 배포된 사용자 지정 모델을 제거하세요."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

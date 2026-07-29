@@ -1085,6 +1085,38 @@
                 } catch {}
             }
 
+            // ── S3 bucket preflight for CUSTOM (self-hosted) models ─────
+            // Custom async models need the deployment S3 bucket for input/output.
+            // Catch a missing bucket HERE — before pre-check / generation — with a
+            // clear pointer, instead of letting every option fail mid-generation.
+            // Bedrock models need no bucket, so they skip this entirely.
+            {
+                const _selModels = payload.all_models ? (payload.selected_models || []) : [payload.image_model];
+                const _needsBucket = _selModels.some(k => {
+                    const mi = MODELS.find(m => m.value === k);
+                    return mi?.model_source === 'custom_hosted';
+                });
+                if (_needsBucket) {
+                    try {
+                        const st = await (await fetch('/api/custom-models/s3-bucket-status')).json();
+                        if (!st.ok) {
+                            _resetBtn();
+                            const go = await window.showConfirm?.(
+                                st.message || t('custom_models.bucket_required_desc'),
+                                {
+                                    title: t('custom_models.bucket_required_title'),
+                                    detail: t('custom_models.s3_set_in_settings'),
+                                    confirmLabel: t('custom_models.open_model_settings'),
+                                    cancelLabel: t('common.cancel'),
+                                },
+                            );
+                            if (go) window.ModelSettings?.open?.('custom-models');
+                            return;
+                        }
+                    } catch { /* status endpoint unreachable — let backend guard handle it */ }
+                }
+            }
+
             // ── Prompt Pre-Check (if enabled and not skipped) ─────
             const preCheckOn = document.getElementById('gen-precheck')?.checked && !this._skipPreCheck;
             this._skipPreCheck = false; // Reset flag after reading

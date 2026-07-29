@@ -1256,7 +1256,18 @@
     "subgroup_generation": "Generación",
     "subgroup_editing": "Edición de imagen",
     "bucket_required_title": "Se requiere un bucket S3",
-    "bucket_required_desc": "Desplegar un modelo autoalojado sube su manejador a S3, donde también se conservan los trabajos en segundo plano y las notificaciones. Configura un bucket S3 en los ajustes de Video Studio (Ajustes de modelos → Video Studio) antes de desplegar."
+    "bucket_required_desc": "Desplegar un modelo autoalojado sube su manejador a S3, donde también se conservan los trabajos en segundo plano y las notificaciones. Configura un bucket S3 en los ajustes de Video Studio (Ajustes de modelos → Video Studio) antes de desplegar.",
+    "s3_bucket_label": "Bucket de S3",
+    "s3_change": "Cambiar",
+    "s3_bucket_placeholder": "Introduce el nombre del bucket de S3",
+    "s3_save": "Guardar",
+    "s3_saving": "Guardando…",
+    "s3_saved": "Bucket de S3 guardado",
+    "s3_required": "Se requiere el nombre del bucket",
+    "s3_set_in_settings": "Puedes configurarlo en Configuración de modelos → Modelos personalizados.",
+    "open_model_settings": "Abrir configuración de modelos personalizados",
+    "s3_locked": "Bloqueado",
+    "s3_locked_hint": "Vinculado a {{reasons}}. Para cambiarlo, elimina los modelos personalizados desplegados."
   },
   "prompt_designer": {
     "title": "Prompt Designer",

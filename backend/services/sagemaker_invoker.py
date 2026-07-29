@@ -179,7 +179,20 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
 
 def _upload_async_input(endpoint_name: str, payload: dict) -> str:
     """Upload async input to S3 and return the S3 URI."""
-    from backend.services.sagemaker_deployer import get_deployment_s3_bucket, S3_MODEL_PREFIX
+    from backend.services.sagemaker_deployer import (
+        get_deployment_s3_bucket, check_deployment_bucket, S3_MODEL_PREFIX,
+    )
+
+    # Preflight the PREREQUISITE only: is a bucket NAME configured? A custom async
+    # model needs the S3 bucket for its input/output, so fail with clear guidance
+    # HERE (before any boto3 call) rather than a raw put_object(Bucket="") error
+    # mid-generation. We deliberately do NOT head_bucket on this hot path — that
+    # can 403 for a perfectly usable bucket under tight/cross-account IAM and would
+    # false-block working generation. A genuine access error surfaces from the
+    # put_object below and is handled by the async job reliability layer.
+    check = check_deployment_bucket(require_access=False)
+    if not check["ok"]:
+        raise ValueError(check["message"])
 
     bucket = get_deployment_s3_bucket()
     key = f"{S3_MODEL_PREFIX}/inference-input/{endpoint_name}/{int(time.time() * 1000)}.json"

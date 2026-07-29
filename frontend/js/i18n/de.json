@@ -1298,7 +1298,18 @@
     "subgroup_generation": "Generierung",
     "subgroup_editing": "Bildbearbeitung",
     "bucket_required_title": "S3-Bucket zum Bereitstellen erforderlich",
-    "bucket_required_desc": "Beim Bereitstellen eines selbst gehosteten Modells wird sein Handler nach S3 hochgeladen; auch Hintergrundjobs und Benachrichtigungen werden dort gespeichert. Legen Sie vor dem Bereitstellen einen S3-Bucket in den Video-Studio-Einstellungen (Modelleinstellungen → Video Studio) fest."
+    "bucket_required_desc": "Beim Bereitstellen eines selbst gehosteten Modells wird sein Handler nach S3 hochgeladen; auch Hintergrundjobs und Benachrichtigungen werden dort gespeichert. Legen Sie vor dem Bereitstellen einen S3-Bucket in den Video-Studio-Einstellungen (Modelleinstellungen → Video Studio) fest.",
+    "s3_bucket_label": "S3-Bucket",
+    "s3_change": "Ändern",
+    "s3_bucket_placeholder": "S3-Bucket-Namen eingeben",
+    "s3_save": "Speichern",
+    "s3_saving": "Wird gespeichert…",
+    "s3_saved": "S3-Bucket gespeichert",
+    "s3_required": "Bucket-Name erforderlich",
+    "s3_set_in_settings": "Sie können ihn unter Modelleinstellungen → Benutzerdefinierte Modelle festlegen.",
+    "open_model_settings": "Einstellungen für benutzerdefinierte Modelle öffnen",
+    "s3_locked": "Gesperrt",
+    "s3_locked_hint": "Gebunden an {{reasons}}. Zum Ändern die bereitgestellten benutzerdefinierten Modelle entfernen."
   },
   "voice_input": {
     "record": "Spracheingabe aufnehmen",

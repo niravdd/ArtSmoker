@@ -1256,7 +1256,18 @@
     "subgroup_generation": "生成",
     "subgroup_editing": "画像編集",
     "bucket_required_title": "デプロイには S3 バケットが必要",
-    "bucket_required_desc": "セルフホストモデルのデプロイではハンドラーを S3 にアップロードし、バックグラウンドジョブや通知もそこに保存されます。デプロイ前に Video Studio 設定（モデル設定 → Video Studio）で S3 バケットを設定してください。"
+    "bucket_required_desc": "セルフホストモデルのデプロイではハンドラーを S3 にアップロードし、バックグラウンドジョブや通知もそこに保存されます。デプロイ前に Video Studio 設定（モデル設定 → Video Studio）で S3 バケットを設定してください。",
+    "s3_bucket_label": "S3バケット",
+    "s3_change": "変更",
+    "s3_bucket_placeholder": "S3バケット名を入力",
+    "s3_save": "保存",
+    "s3_saving": "保存中…",
+    "s3_saved": "S3バケットを保存しました",
+    "s3_required": "バケット名が必要です",
+    "s3_set_in_settings": "モデル設定 → カスタムモデルで設定できます。",
+    "open_model_settings": "カスタムモデル設定を開く",
+    "s3_locked": "ロック中",
+    "s3_locked_hint": "{{reasons}}に紐付けられています。変更するにはデプロイ済みのカスタムモデルを削除してください。"
   },
   "prompt_designer": {
     "title": "Prompt Designer",

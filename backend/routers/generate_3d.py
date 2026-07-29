@@ -755,10 +755,14 @@ async def generate_3d(body: ThreeDGenerateRequest):
         if _v is not None:
             payload[_f] = _v
 
-    # Upload payload to S3 for async invocation
+    # Upload payload to S3 for async invocation. Preflight the prerequisite with
+    # the shared check so 3D fails with the SAME clear, actionable message as the
+    # 2D custom path (presence-only — don't head_bucket on this hot path).
+    from backend.services.sagemaker_deployer import check_deployment_bucket
+    _bcheck = check_deployment_bucket(require_access=False)
+    if not _bcheck["ok"]:
+        raise HTTPException(400, detail=_bcheck["message"])
     bucket = get_deployment_s3_bucket()
-    if not bucket:
-        raise HTTPException(400, detail="S3 bucket not configured for custom model storage.")
 
     region = _get_region()
     input_key = f"{S3_MODEL_PREFIX}/inference-input/{endpoint_name}/{int(time.time() * 1000)}.json"
