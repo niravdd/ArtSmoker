@@ -20,8 +20,6 @@ class ImageModel(str, Enum):
     by the GenerationRequest validator. This enum is NOT the source
     of truth — the model registry is.
     """
-    NOVA_CANVAS = "nova_canvas"
-    TITAN_IMAGE = "titan_image"
     SD35_LARGE = "sd35_large"
     STABLE_IMAGE_ULTRA = "stable_image_ultra"
 

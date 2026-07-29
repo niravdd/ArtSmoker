@@ -20,8 +20,6 @@
     // Fallback models — used only if API fetch fails on first render.
     // The real model list is loaded dynamically from the registry via _loadModels().
     let MODELS = [
-        { value: 'nova_canvas', label: 'Nova Canvas' },
-        { value: 'titan_image', label: 'Titan Image v2' },
         { value: 'sd35_large', label: 'Stable Diffusion 3.5 Large' },
         { value: 'stable_image_ultra', label: 'Stable Image Ultra' },
         { value: 'all_models', label: '\u2500\u2500 All Available Models' },
@@ -1007,7 +1005,7 @@
                 model_optimized_prompts: isMultiModel && (document.getElementById('gen-model-optimized')?.checked || false),
                 style_id: this._getStyleId() || null,
                 asset_type: this._getAssetType(),
-                image_model: this._selectedModels[0] || 'nova_canvas',
+                image_model: this._selectedModels[0] || 'sd35_large',
                 quality: document.getElementById('gen-quality')?.value || null,
                 region: document.getElementById('gen-region')?.value || null,
                 width: size.w,
@@ -1378,7 +1376,7 @@
                 const analysis = await API.analyzeModeration({
                     prompt: originalPrompt,
                     error_message: errorMessage,
-                    image_model: payload?.image_model || 'nova_canvas',
+                    image_model: payload?.image_model || 'sd35_large',
                     width: 512,
                     height: 512,
                 });
@@ -2790,7 +2788,10 @@
             if (!note) return;
             const ip = this._getIpDeclaration();
             const model = (this._selectedModels?.[0] || '') || '';
-            const strictModels = ['nova_canvas', 'titan_image'];
+            // Strict-moderation models that block IP-referencing content regardless
+            // of ownership. (Nova Canvas + Titan Image — both removed from the tool —
+            // were the strict ones; kept as a hook for any future strict model.)
+            const strictModels = [];
 
             if ((ip.ip_owned || ip.ip_licensed) && strictModels.includes(model)) {
                 const modelData = MODELS.find(m => m.value === model);

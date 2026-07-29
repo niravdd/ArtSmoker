@@ -14,8 +14,6 @@ logger = logging.getLogger(__name__)
 
 # Prompt character limits per image model
 _MODEL_PROMPT_LIMITS: dict[str, int] = {
-    ImageModel.NOVA_CANVAS.value: 900,
-    ImageModel.TITAN_IMAGE.value: 480,
     ImageModel.SD35_LARGE.value: 2000,
     ImageModel.STABLE_IMAGE_ULTRA.value: 2000,
 }
