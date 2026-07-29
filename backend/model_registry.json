@@ -5673,23 +5673,24 @@
           "repo_id": "Qwen/Qwen-Image-Edit-2511"
         },
         "requirements": {
-          "min_vram_gb": 48,
-          "recommended_instance": "ml.g6e.2xlarge",
-          "min_instance": "ml.g6e.xlarge",
+          "min_vram_gb": 80,
+          "recommended_instance": "ml.g6e.12xlarge",
+          "min_instance": "ml.g6e.12xlarge",
           "disk_gb": 70,
           "allowed_instances": [
-            "ml.g6e.2xlarge",
-            "ml.g6e.4xlarge",
-            "ml.g6e.8xlarge"
+            "ml.g6e.12xlarge",
+            "ml.g5.12xlarge",
+            "ml.g6e.24xlarge",
+            "ml.g5.48xlarge",
+            "ml.g7e.12xlarge"
           ],
-          "min_host_ram_gb": 32,
-          "_note": "48 GB VRAM (g6e/L40S) is the baseline. The 24 GB L4 (g6.2xlarge) loads the NF4 model but OOMs during inference at Qwen's larger supported resolutions (1328², 1664×928) — verified 2026-07-21 (CUDA OOM at 1328² 40 steps, 21.9/22 GB used). We never cap output quality to fit a smaller GPU; g6e is required so every supported size renders."
+          "min_host_ram_gb": 64,
+          "_note": "BF16 full precision (~57GB) needs a MULTI-GPU instance (>=4 GPUs) so the handler shards it via device_map=auto. ml.g6e.12xlarge (4xL40S 192GB) is the VERIFIED, recommended home. Lower-cost candidates are viable on VRAM but NOT YET TESTED — verify before relying on them: g5.12xlarge (4xA10G 96GB, ~46% cheaper, A10G slower) is the cheapest; g6e.24xlarge (more host RAM) and g5.48xlarge (8xA10G) are headroom fallbacks. AVOID single-GPU (48GB<57GB) and single-GPU g7e/Blackwell (cu124 DLC lacks SM 12.0 kernels); g7e.12xlarge only as last resort with a cu129 build. Not quantized — highest quality (BF16 verified clean vs NF4 grain)."
         },
         "invoke": {
           "library": "diffusers",
           "loader_class": "QwenImageEditPlusPipeline",
           "torch_dtype": "bfloat16",
-          "enable_model_cpu_offload": true,
           "predictor_type": "image_edit",
           "input_fields": {
             "prompt": {
@@ -5729,46 +5730,21 @@
           "max_prompt_length": 2000,
           "optimal_prompt_words": 60,
           "typical_latency_seconds": 1200,
-          "quantization_components": [
-            {
-              "name": "transformer",
-              "class": "QwenImageTransformer2DModel",
-              "module": "diffusers",
-              "subfolder": "transformer",
-              "quantization": "nf4"
-            },
-            {
-              "name": "text_encoder",
-              "class": "Qwen2_5_VLForConditionalGeneration",
-              "module": "transformers",
-              "subfolder": "text_encoder",
-              "quantization": "nf4"
-            }
-          ],
-          "prompt_guidance": "Qwen-Image-Edit is an INSTRUCTION-FOLLOWING image editor, not a text-to-image generator. Write an imperative edit instruction, not a scene caption. Structure: (1) name the subject to KEEP from the reference (product, logo text, character identity, distinctive colors/shape), then (2) state the change to apply (new background, scene, wardrobe, lighting, mood). Example: 'Keep the red yogurt cup and its green leaf logo exactly; place it on sunlit beach sand at golden hour with soft rim light.' Be specific about what is preserved so identity survives. Quote any on-product text verbatim so the label stays legible (Qwen renders text well). Describe ONLY the new elements — do not re-describe unchanged parts of the reference. Keep it concise and directive (~40-70 words); avoid flowery prose, negations, and camera jargon. For multi-image references (product + logo, or a character from several angles), treat them as complementary views of ONE subject — optimal with 1 to 3 images."
+          "prompt_guidance": "Qwen-Image-Edit is an INSTRUCTION-FOLLOWING image editor, not a text-to-image generator. Write an imperative edit instruction, not a scene caption. Structure: (1) name the subject to KEEP from the reference (product, logo text, character identity, distinctive colors/shape), then (2) state the change to apply (new background, scene, wardrobe, lighting, mood). Example: 'Keep the red yogurt cup and its green leaf logo exactly; place it on sunlit beach sand at golden hour with soft rim light.' Be specific about what is preserved so identity survives. Quote any on-product text verbatim so the label stays legible (Qwen renders text well). Describe ONLY the new elements — do not re-describe unchanged parts of the reference. Keep it concise and directive (~40-70 words); avoid flowery prose, negations, and camera jargon. For multi-image references (product + logo, or a character from several angles), treat them as complementary views of ONE subject — optimal with 1 to 3 images.",
+          "device_map": "auto",
+          "transformer_class": "QwenImageTransformer2DModel",
+          "vae_upcast_fp32": true
         },
         "pricing": {
           "estimated_cost_per_image": 0.03,
           "instance_cost_per_hour": {
-            "ml.g6e.xlarge": 2.6054,
-            "ml.g6e.2xlarge": 2.8026
+            "ml.g6e.12xlarge": 13.1158,
+            "ml.g5.12xlarge": 7.09,
+            "ml.g6e.24xlarge": 18.832,
+            "ml.g5.48xlarge": 20.36,
+            "ml.g7e.12xlarge": 10.3576
           }
         },
-        "deployment_tiers": [
-          {
-            "tier": "cost_optimized",
-            "instance": "ml.g6.2xlarge",
-            "precision": "nf4",
-            "label": "Cost-optimized (L4 24GB VRAM / 32GB RAM, NF4) — ~$1.22/hr",
-            "recommended": true
-          },
-          {
-            "tier": "full_quality",
-            "instance": "ml.g6e.xlarge",
-            "precision": "bfloat16",
-            "label": "Full quality (L40S 48GB VRAM / 32GB RAM, bf16) — ~$2.61/hr"
-          }
-        ],
         "version": "1.0",
         "last_updated": "2026-07-14",
         "python_requirements": {
@@ -5823,10 +5799,13 @@
           "disk_gb": 70,
           "allowed_instances": [
             "ml.g6e.12xlarge",
+            "ml.g5.12xlarge",
+            "ml.g6e.24xlarge",
+            "ml.g5.48xlarge",
             "ml.g7e.12xlarge"
           ],
           "min_host_ram_gb": 64,
-          "_note": "BF16 full precision (~57GB) does not fit one 48GB L40S. Deploy on ml.g6e.12xlarge (4x L40S = 192GB, SM 8.9) so the handler shards it via device_map=auto on the proven cu124 DLC. AVOID single-GPU g7e (Blackwell SM 12.0): the cu124 DLC torch has no SM 12.0 kernels -> inference crashes with 'no kernel image available'. g7e.12xlarge is multi-GPU but still Blackwell, keep only as last resort if a cu129 torch build is wired into the diffusers loader. Not quantized -- highest quality (BF16 verified clean vs NF4's residual grain)."
+          "_note": "BF16 full precision (~57GB) needs a MULTI-GPU instance (>=4 GPUs) so the handler shards it via device_map=auto. ml.g6e.12xlarge (4xL40S 192GB) is the VERIFIED, recommended home. Lower-cost candidates are viable on VRAM but NOT YET TESTED — verify before relying on them: g5.12xlarge (4xA10G 96GB, ~46% cheaper, A10G slower) is the cheapest; g6e.24xlarge (more host RAM) and g5.48xlarge (8xA10G) are headroom fallbacks. AVOID single-GPU (48GB<57GB) and single-GPU g7e/Blackwell (cu124 DLC lacks SM 12.0 kernels); g7e.12xlarge only as last resort with a cu129 build. Not quantized — highest quality (BF16 verified clean vs NF4 grain)."
         },
         "invoke": {
           "library": "diffusers",
@@ -5920,8 +5899,11 @@
         "pricing": {
           "estimated_cost_per_image": 0.03,
           "instance_cost_per_hour": {
-            "ml.g6e.xlarge": 2.6054,
-            "ml.g6e.2xlarge": 2.8026
+            "ml.g6e.12xlarge": 13.1158,
+            "ml.g5.12xlarge": 7.09,
+            "ml.g6e.24xlarge": 18.832,
+            "ml.g5.48xlarge": 20.36,
+            "ml.g7e.12xlarge": 10.3576
           }
         },
         "deployment_tiers": [
