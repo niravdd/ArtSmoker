@@ -15,6 +15,7 @@ job is submitted.
 import base64
 import json
 import logging
+import os
 import threading
 import time
 from datetime import datetime, timezone
@@ -40,6 +41,44 @@ FAILED = "failed"
 STALE_JOB_THRESHOLD_SECONDS = 900   # 15 min before considering resubmission
 MAX_RESUBMITS = 3                    # Max resubmission attempts per job
 RESUBMIT_COOLDOWN_SECONDS = 60       # Min seconds between resubmission attempts
+
+# Host-wide save-failure backoff. A disk-full / disk-I/O error is a HOST problem,
+# not a per-job one — every queued job's save would fail identically. So on such
+# an error we abort the rest of the current poll cycle and back the whole poller
+# off (rather than spinning through N identical failures + N wasted S3 downloads
+# every cycle). Jobs stay PENDING with their S3 output preserved and retry
+# automatically once the condition clears — on both always-on and on-demand
+# (scale-to-zero) servers, and across restarts (resume_pending_jobs re-checks).
+_HOST_SAVE_BACKOFF_SECONDS = 300     # 5 min pause after a host-wide save failure
+
+
+class HostSaveError(Exception):
+    """Raised when a gallery save fails for a HOST-WIDE reason (no disk space,
+    disk I/O error) — i.e. retrying other jobs this cycle is pointless. Carries
+    the original error for logging."""
+
+
+def _is_host_wide_save_error(exc: BaseException) -> bool:
+    """True if the exception indicates a host-level storage failure (affects ALL
+    jobs), vs a per-job failure (e.g. corrupt image bytes for this one job).
+    Checks OSError errno (ENOSPC=no space, EIO=I/O error, EROFS=read-only fs,
+    EDQUOT=quota) and, defensively, the message text."""
+    import errno
+    e = exc
+    # Unwrap common wrappers to find an OSError if present.
+    seen = set()
+    while e is not None and id(e) not in seen:
+        seen.add(id(e))
+        if isinstance(e, OSError) and e.errno in (
+            errno.ENOSPC, errno.EIO, errno.EROFS, errno.EDQUOT, errno.EMFILE, errno.ENFILE,
+        ):
+            return True
+        e = getattr(e, "__cause__", None) or getattr(e, "__context__", None)
+    msg = str(exc).lower()
+    return any(s in msg for s in (
+        "no space left", "disk full", "input/output error", "read-only file system",
+        "quota exceeded", "too many open files",
+    ))
 
 
 def submit_job(
@@ -500,19 +539,36 @@ def _poll_loop():
 
         s3 = boto3.client("s3", region_name=region)
 
+        host_save_failure = False
         for job in pending:
             if _poller_stop.is_set():
                 break
             try:
                 _check_job(job, s3)
+            except HostSaveError:
+                # Host-wide storage failure — the remaining jobs in this cycle
+                # would fail identically (the detailed message + retry-guidance
+                # is already logged in _check_job). Abort the cycle and back off;
+                # all jobs stay PENDING with their S3 output preserved.
+                host_save_failure = True
+                break
             except Exception as e:
                 logger.warning("Async job poll error (%s): %s", job["job_id"], e)
 
         _flush_background_costs_if_due()
         _check_warm_period_closures()
 
-        # Poll interval — 10 seconds while jobs are active (fast feedback)
-        _poller_stop.wait(timeout=10)
+        if host_save_failure:
+            # Long backoff: give the operator/host time to free space or recover
+            # the disk before we retry the whole queue. Interruptible by stop.
+            logger.warning("%d image job(s) waiting on disk recovery — retrying in %d min. Free up disk space to speed this up.",
+                           len(pending), _HOST_SAVE_BACKOFF_SECONDS // 60)
+            _poller_stop.wait(timeout=_HOST_SAVE_BACKOFF_SECONDS)
+            if not _poller_stop.is_set():
+                logger.info("Retrying %d pending image job(s) now (disk backoff elapsed)…", len(pending))
+        else:
+            # Poll interval — 10 seconds while jobs are active (fast feedback)
+            _poller_stop.wait(timeout=10)
 
     # Final flush on shutdown
     _flush_background_costs_if_due(force=True)
@@ -906,10 +962,38 @@ def _check_job(job: dict, s3):
             _update_gallery_on_failure(job)
             return
 
-        # Decode and save to gallery
+        # Decode and save to gallery. This is the CRITICAL, must-not-lose step.
+        # If saving raises, we MUST NOT clean up S3 (the output is the only copy)
+        # and MUST release the finalization claim so the next poll retries —
+        # otherwise a transient disk/IO error would silently wedge the job
+        # (claimed, never completed, output eventually deleted). The S3 output is
+        # deleted ONLY after the gallery file is verified durable on disk.
         image_bytes = base64.b64decode(image_b64)
         completed_at = datetime.now(timezone.utc)
-        image_path = _update_gallery_on_complete(job, image_bytes)
+        try:
+            image_path = _update_gallery_on_complete(job, image_bytes)
+            # Verify the gallery image is actually on disk and non-empty BEFORE
+            # we consider the job done / delete the S3 output. A silent write
+            # failure must not lead to cleanup.
+            if not (image_path and os.path.isfile(image_path) and os.path.getsize(image_path) > 0):
+                raise IOError(f"gallery image not durable on disk: {image_path}")
+        except Exception as save_err:
+            # Release the claim so the poller retries next cycle; leave the job
+            # PENDING and the S3 output intact (recoverable). Never reaches cleanup.
+            with _lock:
+                job["_finalizing"] = False
+                job["_save_attempts"] = job.get("_save_attempts", 0) + 1
+            if _is_host_wide_save_error(save_err):
+                # Host-level storage failure — every other queued job would fail
+                # the same way. Abort the cycle and back the poller off instead of
+                # burning through N identical failures + N wasted S3 downloads.
+                logger.error("⚠ Disk problem saving image (%s). Pausing image saves for %d min; "
+                             "no jobs lost — they'll retry automatically once disk space/health recovers.",
+                             save_err, _HOST_SAVE_BACKOFF_SECONDS // 60)
+                raise HostSaveError(str(save_err)) from save_err
+            logger.warning("Couldn't save image for job %s (attempt %d): %s — kept in queue, will retry.",
+                           job["job_id"], job["_save_attempts"], save_err)
+            return
 
         # Calculate actual compute cost based on instance uptime
         submitted = datetime.fromisoformat(job["submitted_at"])
@@ -932,12 +1016,24 @@ def _check_job(job: dict, s3):
         # Track telemetry + cost
         _track_completion(job, duration_seconds, compute_cost)
 
-        # Clean up ALL S3 artifacts: input, output, AND job metadata.
-        # Job is complete — gallery has the image, no need to keep S3 state.
+        # Clean up ALL S3 artifacts: input, output, AND job metadata — ONLY now
+        # that the gallery image is verified durable on disk (checked above).
         _cleanup_s3(job, s3)
+
+        # If this job had previously failed to save (disk problem), announce the
+        # recovery so the user knows the queue is draining again.
+        if job.get("_save_attempts"):
+            logger.info("✓ Recovered: job %s saved after %d earlier failed attempt(s) — disk healthy again.",
+                        job["job_id"], job["_save_attempts"])
 
         logger.info("Async job complete: %s → %s (%d bytes, %.0fs, ~$%.4f)",
                      job["job_id"], image_path, len(image_bytes), duration_seconds, compute_cost)
+
+    except HostSaveError:
+        # Host-wide storage failure — must propagate to the poll loop so it
+        # aborts the rest of the cycle and backs off (not swallowed as a
+        # per-job S3 hiccup). Job already left PENDING + S3 preserved above.
+        raise
 
     except s3.exceptions.NoSuchKey:
         _check_stale_and_resubmit(job, s3)
@@ -1115,9 +1211,15 @@ def _cleanup_s3(job: dict, s3):
     """Delete ALL S3 artifacts for a completed/failed job: output, input, and job metadata.
 
     Each delete is independent — a failure on one does not skip the others.
+
+    Marks the job `_s3_cleaned` so any subsequent _persist_job_to_s3 becomes a
+    no-op — otherwise a cleanup-then-persist sequence (several terminal branches
+    historically did both) would immediately re-create the job file we just
+    deleted, leaving completed/failed jobs lingering in S3 forever.
     """
     from backend.services.sagemaker_deployer import get_deployment_s3_bucket
     bucket = get_deployment_s3_bucket()
+    job["_s3_cleaned"] = True
 
     # 1. Delete output file
     output_loc = job.get("output_location", "")
@@ -1151,6 +1253,11 @@ def _persist_job_to_s3(job: dict):
     Jobs are stored as JSON files under artsmoker/async-jobs/{job_id}.json
     in the same S3 bucket used for model storage.
     """
+    # Never re-create a job file that _cleanup_s3 has already deleted (terminal
+    # job). This is the invariant that keeps a cleanup-then-persist ordering
+    # bug from resurrecting completed/failed jobs in S3.
+    if job.get("_s3_cleaned"):
+        return
     try:
         import boto3
         from backend.services.sagemaker_deployer import get_deployment_s3_bucket
@@ -1346,7 +1453,28 @@ def resume_pending_jobs() -> int:
                 # can see the same output; the claim ensures only one saves it.
                 if image_b64 and _claim_finalization(job):
                     image_bytes = base64.b64decode(image_b64)
-                    image_path = _update_gallery_on_complete(job, image_bytes)
+                    # CRITICAL save (same guarantee as the live poller): if the
+                    # gallery write fails or isn't durable on disk, release the
+                    # claim, leave the job PENDING + S3 output intact, and skip
+                    # cleanup so a later poll retries. Never delete the only copy
+                    # of the image before it's safely in the gallery.
+                    try:
+                        image_path = _update_gallery_on_complete(job, image_bytes)
+                        if not (image_path and os.path.isfile(image_path) and os.path.getsize(image_path) > 0):
+                            raise IOError(f"gallery image not durable on disk: {image_path}")
+                    except Exception as save_err:
+                        with _lock:
+                            job["_finalizing"] = False
+                        if _is_host_wide_save_error(save_err):
+                            # Host-level storage failure — stop resuming the rest;
+                            # they'd all fail identically. Jobs stay PENDING + S3
+                            # preserved; the live poller (with backoff) retries.
+                            logger.error("⚠ Disk problem while restoring saved jobs (%s). Stopping restore; "
+                                         "no jobs lost — the poller will retry them once disk recovers.", save_err)
+                            break
+                        logger.warning("Couldn't restore job %s: %s — kept in queue, will retry.",
+                                       job["job_id"], save_err)
+                        continue
 
                     # Use S3 object timestamp as the real completion time
                     # (not "now", which includes wait time after server restart)
@@ -1368,8 +1496,13 @@ def resume_pending_jobs() -> int:
                         job["compute_cost_usd"] = compute_cost
 
                     _track_completion(job, duration, compute_cost)
+                    # Terminal state: _cleanup_s3 deletes the persisted job file
+                    # (and input/output). Do NOT _persist_job_to_s3 afterwards —
+                    # that would immediately re-create the file we just deleted,
+                    # leaving a completed job lingering in S3 forever. (The live
+                    # poller's completion path, above, is cleanup-only for the
+                    # same reason.)
                     _cleanup_s3(job, s3)
-                    _persist_job_to_s3(job)
                     resolved += 1
                     logger.info("Resumed job %s: complete (%d bytes, ~$%.4f)",
                                 job["job_id"], len(image_bytes), compute_cost)
@@ -1379,8 +1512,8 @@ def resume_pending_jobs() -> int:
                         job["error"] = "No image data in output"
                         job["completed_at"] = datetime.now(timezone.utc).isoformat()
                     _update_gallery_on_failure(job)
+                    # Terminal state — cleanup only, no re-persist (see above).
                     _cleanup_s3(job, s3)
-                    _persist_job_to_s3(job)
                     resolved += 1
 
             except Exception as e:
