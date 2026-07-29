@@ -65,6 +65,20 @@ def _get_model_region(model_key) -> str:
         return ""
 
 
+def _get_positive_magic(model_key) -> str:
+    """The model-specific 'positive magic' suffix (e.g. ', Ultra HD, 4K, …') that
+    a custom SageMaker handler appends to the prompt at inference time. It's added
+    remotely and never returned, so we resolve + record it here so the metadata
+    can show the FULL text the model actually saw (enhanced_prompt + this suffix)."""
+    key = model_key.value if hasattr(model_key, 'value') else str(model_key)
+    try:
+        from backend.services.model_registry import get_image_model
+        cfg = get_image_model(key)
+        return (cfg.get("invoke", {}) or {}).get("positive_magic", "") if cfg else ""
+    except Exception:
+        return ""
+
+
 def _slugify_prompt(prompt: str, max_len: int = 40) -> str:
     """Create a filesystem-safe slug from a prompt. Translates non-English text first."""
     # If prompt contains non-ASCII, translate to English for a meaningful slug
@@ -280,6 +294,9 @@ def _build_variant(
             "prompt": body.prompt,
             "enhanced_prompt": enhanced_prompt,
             "negative_prompt": negative_prompt,
+            # The positive-magic suffix the handler appends at inference (recorded
+            # so the display can show the full text the model actually saw).
+            "positive_magic": _get_positive_magic(effective_model),
             # Step-2 provenance — always present but EMPTY (falsy) when the Prompt
             # Designer wasn't used, so it never contaminates downstream prompt
             # enhancement (all consumers use `... or ...`). The post-generation
@@ -352,6 +369,9 @@ def _build_variant(
         "original_language_prompt": translation_result["original"] if translation_result and translation_result["was_translated"] else None,
         "enhanced_prompt": enhanced_prompt,
         "negative_prompt": negative_prompt,
+        # The positive-magic suffix the handler appends at inference (recorded so
+        # the display can show the full text the model actually saw).
+        "positive_magic": _get_positive_magic(effective_model),
         # Step-2 provenance — always present for a consistent metadata shape, but
         # EMPTY (falsy) when the Prompt Designer wasn't used. Must stay empty (not
         # a sentinel string): the frontend echoes recomposed_prompt back into the
@@ -1698,12 +1718,39 @@ async def edit_image(body: ImageEditRequest):
     if isinstance(result_bytes, dict) and result_bytes.get("async_submitted"):
         try:
             from backend.services.async_jobs import update_job_edit_context
+            # Persist the drawn mask now (name by job id — the version number isn't
+            # known until the async result lands) so the completion can reference it.
+            _async_mask_file = None
+            if mask_bytes:
+                try:
+                    _async_mask_file = f"edit_{result_bytes['job_id']}__mask.png"
+                    store.save_generated_image(body.source_image_id, _async_mask_file, mask_bytes)
+                except Exception:
+                    _async_mask_file = None
+            _src_meta = store.load_generation_metadata(body.source_image_id) or {}
+            _outpaint = {}
+            if any((body.outpaint_left, body.outpaint_right, body.outpaint_up, body.outpaint_down)):
+                _outpaint = {"left": body.outpaint_left, "right": body.outpaint_right,
+                             "up": body.outpaint_up, "down": body.outpaint_down}
             update_job_edit_context(
                 result_bytes["job_id"],
                 edit_asset_id=body.source_image_id,
                 edit_purpose=purpose,
                 edit_prompt=edit_prompt,
                 edit_seed=body.seed,
+                # Parity provenance so the async version record == the sync one.
+                edit_spec={
+                    "edit_prompt_sent": edit_prompt if edit_prompt and edit_prompt != body.prompt else None,
+                    "negative_prompt": body.negative_prompt,
+                    "mask_prompt": body.mask_prompt,
+                    "mask_file": _async_mask_file,
+                    "region": body.region or model_config.get("region", ""),
+                    "model_label": label,
+                    "extra_params": extra if extra else None,
+                    "source_dims": {"width": _src_meta.get("width"), "height": _src_meta.get("height")}
+                                   if _src_meta.get("width") else None,
+                    **({"outpaint_px": _outpaint} if _outpaint else {}),
+                },
             )
         except Exception as e:
             logger.error("Failed to tag async edit job %s: %s", result_bytes.get("job_id"), e)
@@ -1778,12 +1825,55 @@ async def edit_image(body: ImageEditRequest):
         logger.warning("SVG generation failed: %s", svg_err)
 
     # Add version record (this becomes the latest — archived by next edit)
+    # Persist the drawn inpaint/erase mask as a sidecar so the Metadata can show
+    # WHERE the edit was applied (previously the mask was decoded, sent, and
+    # discarded). Named per-version; referenced in the version record as mask_file.
+    _mask_file = None
+    if mask_bytes:
+        try:
+            _mask_file = f"asset_v{next_version}__mask.png"
+            store.save_generated_image(asset_id, _mask_file, mask_bytes)
+        except Exception as e:
+            logger.warning("Could not persist edit mask for %s: %s", asset_id, e)
+            _mask_file = None
+
+    # Capture the canvas dimensions before/after this edit so the metadata can
+    # show exactly how the image changed (esp. how an outpaint/extend grew it).
+    _old_dims = {"width": source_meta.get("width"), "height": source_meta.get("height")}
+    _new_dims = {"width": None, "height": None}
+    try:
+        from PIL import Image as _PILImage
+        import io as _io
+        with _PILImage.open(_io.BytesIO(result_bytes)) as _img:
+            _new_dims = {"width": _img.width, "height": _img.height}
+    except Exception:
+        pass
+    # Per-edge outpaint grow amounts (0 when not an outpaint / not specified).
+    _outpaint = {}
+    if any((body.outpaint_left, body.outpaint_right, body.outpaint_up, body.outpaint_down)):
+        _outpaint = {
+            "left": body.outpaint_left, "right": body.outpaint_right,
+            "up": body.outpaint_up, "down": body.outpaint_down,
+        }
+
     versions.append({
         "version": next_version,
         "type": purpose,
         "prompt": body.prompt,
+        # The ACTUAL instruction sent to the editor after any transform (inpaint
+        # removal→generative rewrite, instruction-editor folding). Differs from
+        # `prompt` when a transform ran — record both so the display is truthful.
+        "edit_prompt_sent": edit_prompt if edit_prompt and edit_prompt != body.prompt else None,
         "negative_prompt": body.negative_prompt,
+        # The refined/enhanced text (for an edit, the instruction is the prompt;
+        # kept for uniform per-version display alongside generated versions).
+        "enhanced_prompt": edit_prompt or body.prompt,
         "mask_prompt": body.mask_prompt,
+        "mask_file": _mask_file,
+        # Canvas dimensions before/after + per-edge grow (outpaint/extend spec).
+        "source_dims": _old_dims if _old_dims.get("width") else None,
+        "result_dims": _new_dims if _new_dims.get("width") else None,
+        **({"outpaint_px": _outpaint} if _outpaint else {}),
         "original_language": edit_original_language,
         "original_language_prompts": edit_original_prompts if edit_original_prompts else None,
         "image_model": body.model,

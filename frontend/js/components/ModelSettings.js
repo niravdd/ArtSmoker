@@ -110,7 +110,7 @@
                         <div class="ms-tab-panel" data-ms-panel="image-studio">
                             <div class="flex items-center justify-between mb-3">
                                 <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_image')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="image-studio">Show All</button>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="image-studio">${t('model_settings.ms_show_all')}</button>
                             </div>
                             <div id="ms-image-models" class="space-y-3">
                                 ${this._renderImageModels(reg)}
@@ -121,7 +121,7 @@
                         <div class="ms-tab-panel hidden" data-ms-panel="video-studio">
                             <div class="flex items-center justify-between mb-3">
                                 <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_video')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="video-studio">Show All</button>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="video-studio">${t('model_settings.ms_show_all')}</button>
                             </div>
                             <details class="ms-collapsible">
                                 <summary class="text-sm font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none mb-2">${t('model_settings.tab_video')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.video_models || {}).length})</span></summary>
@@ -135,7 +135,7 @@
                         <div class="ms-tab-panel hidden" data-ms-panel="chat-studio">
                             <div class="flex items-center justify-between mb-3">
                                 <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_chat')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="chat-studio">Show All</button>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="chat-studio">${t('model_settings.ms_show_all')}</button>
                             </div>
                             <div id="ms-chat-models" class="space-y-2">
                                 ${this._renderChatModels(reg)}
@@ -146,7 +146,7 @@
                         <div class="ms-tab-panel hidden" data-ms-panel="type-studio">
                             <div class="flex items-center justify-between mb-3">
                                 <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_type')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="type-studio">Show All</button>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="type-studio">${t('model_settings.ms_show_all')}</button>
                             </div>
                             <div class="space-y-4">
                                 <details class="ms-collapsible">
@@ -173,7 +173,7 @@
                         <div class="ms-tab-panel hidden" data-ms-panel="shared-ai">
                             <div class="flex items-center justify-between mb-3">
                                 <p class="text-[10px] text-brand-text-muted">${t('model_settings.desc_shared')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="shared-ai">Show All</button>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="shared-ai">${t('model_settings.ms_show_all')}</button>
                             </div>
                             <div class="space-y-4">
                                 <details class="ms-collapsible">
@@ -193,11 +193,11 @@
                                 <span class="text-[10px] text-brand-text-muted flex-shrink-0">${t('model_settings.templates_refinement_model')}:</span>
                                 <select id="ms-tmpl-model" class="input text-xs font-mono flex-1"></select>
                                 <input type="text" id="ms-tmpl-instructions" class="input text-xs flex-1" placeholder="${t('model_settings.templates_instructions_placeholder')}">
-                                <button id="ms-tmpl-toggle-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" title="Show or hide all template editors">View All</button>
-                                <button id="ms-tmpl-reset-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-red-500 hover:text-red-400 whitespace-nowrap" title="Reset ALL prompt templates to their built-in defaults">${t('model_settings.templates_reset_all') || 'Reset All'}</button>
+                                <button id="ms-tmpl-toggle-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" title="${t('model_settings.ms_show_hide_editors')}">${t('model_settings.ms_view_all')}</button>
+                                <button id="ms-tmpl-reset-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-red-500 hover:text-red-400 whitespace-nowrap" title="${t('model_settings.ms_reset_all_templates')}">${t('model_settings.templates_reset_all') || 'Reset All'}</button>
                             </div>
                             <div id="ms-templates-list" class="space-y-3">
-                                <p class="text-xs text-brand-text-muted text-center py-4">Loading templates...</p>
+                                <p class="text-xs text-brand-text-muted text-center py-4">${t('model_settings.ms_loading_templates')}</p>
                             </div>
                         </div>
 
@@ -206,7 +206,7 @@
                             <div class="flex items-center justify-between mb-3">
                                 <p class="text-xs text-brand-text-muted">${t('custom_models.subtitle')}</p>
                                 <div class="flex gap-2">
-                                    <button id="ms-cm-hf-token" class="btn btn-sm text-xs flex items-center gap-1 border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 rounded-lg px-3 py-1.5" title="Manage your shared HuggingFace token for gated models">
+                                    <button id="ms-cm-hf-token" class="btn btn-sm text-xs flex items-center gap-1 border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 rounded-lg px-3 py-1.5" title="${t('model_settings.ms_manage_hf')}">
                                         🔑 HF Token
                                     </button>
                                     <button id="ms-cm-add" class="btn btn-sm text-xs flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5" title="${t('custom_models.add_model_advanced_hint')}">
@@ -218,7 +218,7 @@
                                 </div>
                             </div>
                             <div id="ms-custom-models-content">
-                                <p class="text-xs text-brand-text-muted">Loading custom models catalog...</p>
+                                <p class="text-xs text-brand-text-muted">${t('custom_models.loading_catalog')}</p>
                             </div>
                         </div>
 
@@ -898,7 +898,7 @@
                         await API.admin.updateImageModel(key, { enabled });
                         window.showToast?.(`${key} ${enabled ? t('common.enabled') : t('common.disabled')}`, 'success');
                     } catch (err) {
-                        window.showToast?.('Failed: ' + (err.message || ''), 'error');
+                        window.showToast?.(t('model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                         cb.checked = !enabled; // Revert
                         container?.classList.toggle('opacity-50', enabled);
                     }
@@ -924,7 +924,7 @@
                         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                         window.showToast?.(`${key} ${enabled ? t('common.enabled') : t('common.disabled')}`, 'success');
                     } catch (err) {
-                        window.showToast?.('Failed: ' + (err.message || ''), 'error');
+                        window.showToast?.(t('model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                         cb.checked = !enabled;
                         cb.closest('.rounded-lg')?.classList.toggle('opacity-50', enabled);
                     }
@@ -946,7 +946,7 @@
                         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
                         window.showToast?.(`${key} ${enabled ? t('common.enabled') : t('common.disabled')}`, 'success');
                     } catch (err) {
-                        window.showToast?.('Failed: ' + (err.message || ''), 'error');
+                        window.showToast?.(t('model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                         cb.checked = !enabled;
                         container?.classList.toggle('opacity-50', enabled);
                     }
@@ -969,9 +969,9 @@
                     btn.disabled = true;
                     try {
                         await API.admin.updateImageModel(key, data);
-                        window.showToast?.(`${key} updated`, 'success');
+                        window.showToast?.(t('model_settings.ms_updated').replace('{{name}}', key), 'success');
                     } catch (err) {
-                        window.showToast?.('Failed: ' + (err.message || ''), 'error');
+                        window.showToast?.(t('model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                     }
                     btn.disabled = false;
                 });
@@ -1061,9 +1061,9 @@
                     btn.disabled = true;
                     try {
                         await API.admin.updateCategory(cat, { current: modelId, region });
-                        window.showToast?.(`${cat} updated`, 'success');
+                        window.showToast?.(t('model_settings.ms_updated').replace('{{name}}', cat), 'success');
                     } catch (err) {
-                        window.showToast?.('Failed: ' + (err.message || ''), 'error');
+                        window.showToast?.(t('model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                     }
                     btn.disabled = false;
                 });
@@ -1078,7 +1078,7 @@
                     try {
                         await API.admin.updatePostProcess(key, { enabled });
                     } catch (err) {
-                        window.showToast?.('Failed: ' + (err.message || ''), 'error');
+                        window.showToast?.(t('model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                         cb.checked = !enabled;
                     }
                 });
@@ -1096,9 +1096,9 @@
                     btn.disabled = true;
                     try {
                         await API.admin.updatePostProcess(key, data);
-                        window.showToast?.(`${key} updated`, 'success');
+                        window.showToast?.(t('model_settings.ms_updated').replace('{{name}}', key), 'success');
                     } catch (err) {
-                        window.showToast?.('Failed: ' + (err.message || ''), 'error');
+                        window.showToast?.(t('model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                     }
                     btn.disabled = false;
                 });
@@ -1161,7 +1161,7 @@
                         modelSel.innerHTML = (modelData.models || []).map(m =>
                             `<option value="${this._esc(m.model_id)}" data-region="${this._esc(m.region)}">${this._esc(m.label)} (${this._esc(m.provider)})</option>`
                         ).join('');
-                    } catch { modelSel.innerHTML = '<option value="">No models available</option>'; }
+                    } catch { modelSel.innerHTML = `<option value="">${t('model_settings.ms_no_models')}</option>`; }
                 }
 
                 this._renderTemplates(modal);
@@ -1243,7 +1243,7 @@
                         <summary class="text-sm font-semibold ${group.color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${this._esc(group.label)} <span class="text-[10px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></summary>
                         <div class="mt-2">
                             <div class="flex justify-end mb-1">
-                                <button class="ms-tmpl-group-toggle text-[9px] text-brand-text-muted hover:text-brand-accent cursor-pointer" data-group="${group.key}">Expand editors</button>
+                                <button class="ms-tmpl-group-toggle text-[9px] text-brand-text-muted hover:text-brand-accent cursor-pointer" data-group="${group.key}">${t('model_settings.ms_expand_editors')}</button>
                             </div>
                             <div class="space-y-2">
                                 ${groupTemplates.map(gt => {
@@ -1371,14 +1371,14 @@
                             if (missing?.length || (typeof message === 'string' && message.includes('missing'))) {
                                 const varList = missing?.join(', ') || message;
                                 const doFix = await window.showConfirm?.(
-                                    'Required variables are missing from your template.', {
-                                    title: 'Missing Variables',
-                                    detail: `Missing: ${varList}\n\nThese variables are replaced with actual values at runtime. Without them, the feature won't receive the expected input.\n\nClick "Fix & Save" to let the AI insert the missing variables in the right places automatically.`,
-                                    confirmLabel: 'Fix & Save',
+                                    t('model_settings.ms_missing_vars_msg'), {
+                                    title: t('model_settings.ms_missing_vars_title'),
+                                    detail: t('model_settings.ms_missing_vars_detail').replace('{{vars}}', varList),
+                                    confirmLabel: t('model_settings.ms_fix_save'),
                                 });
                                 if (doFix) {
                                     // Call API with fix_variables=true
-                                    btn.textContent = 'Fixing...';
+                                    btn.textContent = t('model_settings.ms_fixing');
                                     const fixResp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}`, {
                                         method: 'PATCH',
                                         headers: { 'Content-Type': 'application/json' },
@@ -1386,7 +1386,7 @@
                                     });
                                     if (fixResp.ok) {
                                         const fixResult = await fixResp.json();
-                                        window.showToast?.(`Template fixed and saved — ${fixResult.fixed_variables?.length || 0} variables inserted`, 'success');
+                                        window.showToast?.(t('model_settings.ms_template_fixed').replace('{{count}}', fixResult.fixed_variables?.length || 0), 'success');
                                         this._templatesLoaded = false;
                                         this._loadTemplates(modal);
                                     } else {
@@ -1488,7 +1488,7 @@
                         this._templatesLoaded = false;
                         this._loadTemplates(modal);
                     } catch (err) {
-                        window.showToast?.('Reset failed: ' + err.message, 'error');
+                        window.showToast?.(t('model_settings.ms_reset_failed') + ': ' + err.message, 'error');
                     }
                 });
             });
@@ -1707,15 +1707,15 @@
                                 <label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-emerald-500/30 has-[:checked]:border-emerald-500/50 has-[:checked]:bg-emerald-500/5">
                                     <input type="radio" name="deploy-type" value="async" checked class="mt-0.5" />
                                     <div>
-                                        <span class="text-xs font-medium text-brand-text">On-Demand (scale-to-zero)</span>
-                                        <p class="text-[10px] text-brand-text-muted">$0 when idle. Cold start ~5-15 min on first request. Recommended for development.</p>
+                                        <span class="text-xs font-medium text-brand-text">${t('custom_models.ondemand_title')}</span>
+                                        <p class="text-[10px] text-brand-text-muted">${t('custom_models.ondemand_desc')}</p>
                                     </div>
                                 </label>
                                 <label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-amber-500/30 has-[:checked]:border-amber-500/50 has-[:checked]:bg-amber-500/5">
                                     <input type="radio" name="deploy-type" value="realtime" class="mt-0.5" />
                                     <div>
-                                        <span class="text-xs font-medium text-brand-text">Always-On (no cold start)</span>
-                                        <p class="text-[10px] text-brand-text-muted deploy-always-on-cost">Model stays loaded. Billed continuously even when idle.</p>
+                                        <span class="text-xs font-medium text-brand-text">${t('custom_models.alwayson_title')}</span>
+                                        <p class="text-[10px] text-brand-text-muted deploy-always-on-cost">${t('custom_models.alwayson_desc')}</p>
                                     </div>
                                 </label>
                             </div>
@@ -1753,7 +1753,7 @@
                         infoEl.textContent = `Est. ~$${cost.toFixed(2)}/hr when running`;
                     }
                     if (alwaysOnCost && cost > 0) {
-                        alwaysOnCost.textContent = `Model stays loaded. Costs ~$${cost.toFixed(2)}/hr continuously, even when idle.`;
+                        alwaysOnCost.textContent = t('custom_models.alwayson_cost').replace('{{cost}}', cost.toFixed(2));
                     }
 
                     // Show/hide quota section based on selected instance
@@ -2340,7 +2340,7 @@
                         const deploying = !scalingUp && !isInService && (m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying' || (m.deploy_progress && m.deploy_stage !== 'failed'));
                         const failed = m.deployment_status === 'Failed' || m.deploy_stage === 'failed';
                         const deployed = active || idle;
-                        const cacheHint = m.has_cache ? 'Cached — faster startup' : 'Cold start on activation';
+                        const cacheHint = m.has_cache ? t('custom_models.cached_faster') : t('custom_models.cold_start_activation');
                         const statusColor = active ? 'text-emerald-400' : idle ? 'text-blue-400' : warmingUp ? 'text-cyan-400' : (deploying || scalingUp) ? 'text-amber-400' : failed ? 'text-red-400' : 'text-brand-text-muted/50';
                         // On failure, surface the REAL reason (e.g. InsufficientInstanceCapacity)
                         // and note that we auto-clean it so the user can redeploy.
@@ -2523,12 +2523,12 @@
                     btn.addEventListener('click', () => {
                         // Disable immediately to prevent double-click
                         btn.disabled = true;
-                        btn.textContent = 'Starting...';
+                        btn.textContent = t('custom_models.starting');
                         btn.className = 'btn btn-sm text-[10px] px-3 py-1 rounded bg-amber-500/20 border border-amber-500/30 text-amber-400 cursor-wait';
                         // Update the status text next to it
                         const statusEl = btn.closest('.flex')?.querySelector('.text-brand-text-muted\\/50, .text-\\[10px\\]');
                         if (statusEl && statusEl.textContent.trim() === t('custom_models.not_deployed')) {
-                            statusEl.textContent = 'Preparing deployment...';
+                            statusEl.textContent = t('custom_models.preparing_deploy');
                             statusEl.className = 'text-[10px] font-medium text-amber-400';
                         }
                         this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal, false, btn.dataset.license);
@@ -2704,7 +2704,7 @@
                 }
             } catch (err) {
                 window.hideLoading?.();
-                window.showToast?.(`Deployment failed: ${err.message}`, 'error');
+                window.showToast?.(t('model_settings.ms_failed') + ': ' + err.message, 'error');
             }
         },
 
@@ -2741,7 +2741,7 @@
                 if (!repoUrl) return;
 
                 const detectBtn = backdrop.querySelector('.cm-detect');
-                detectBtn.textContent = 'Detecting...';
+                detectBtn.textContent = t('custom_models.detecting');
                 detectBtn.disabled = true;
 
                 try {
@@ -2808,7 +2808,7 @@
                         body: JSON.stringify({ key, entry: detectedEntry }),
                     });
                     if (resp.ok) {
-                        window.showToast?.(`Model "${detectedEntry.label}" added to catalog`, 'success');
+                        window.showToast?.(t('custom_models.model_added').replace('{{name}}', detectedEntry.label), 'success');
                         backdrop.remove();
                         this._customModelsLoaded = false;
                         this._loadCustomModels(modal);
@@ -2817,7 +2817,7 @@
                         window.showToast?.(err.detail || 'Failed to add model', 'error');
                     }
                 } catch (err) {
-                    window.showToast?.(`Failed: ${err.message}`, 'error');
+                    window.showToast?.(t('model_settings.ms_failed') + ': ' + err.message, 'error');
                 }
             });
 
@@ -2863,7 +2863,7 @@
                             return;
                         }
                         if (status.stage === 'failed') {
-                            window.showToast?.(`Deployment failed: ${status.error}`, 'error');
+                            window.showToast?.(t('model_settings.ms_failed') + ': ' + status.error, 'error');
                             this._customModelsLoaded = false;
                             this._loadCustomModels(modal);
                             this._activePolls.delete(modelKey);
@@ -2893,7 +2893,7 @@
                     this._loadCustomModels(modal);
                 }
             } catch (err) {
-                window.showToast?.(`Teardown failed: ${err.message}`, 'error');
+                window.showToast?.(t('model_settings.ms_failed') + ': ' + err.message, 'error');
             }
         },
 
@@ -2912,19 +2912,19 @@
             backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
             backdrop.innerHTML = `
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
-                    <h3 class="text-sm font-semibold text-brand-text">🔑 HuggingFace Token</h3>
+                    <h3 class="text-sm font-semibold text-brand-text">🔑 ${t('custom_models.hf_title')}</h3>
                     <div class="text-xs text-brand-text-muted space-y-2">
-                        <p>Status: ${stored
-                            ? '<span class="text-emerald-400 font-medium">Token stored</span> (encrypted in AWS Secrets Manager)'
-                            : '<span class="text-amber-400 font-medium">No token stored</span>'
+                        <p>${t('custom_models.hf_status')} ${stored
+                            ? `<span class="text-emerald-400 font-medium">${t('model_settings.ms_token_stored')}</span> ${t('custom_models.hf_encrypted')}`
+                            : `<span class="text-amber-400 font-medium">${t('model_settings.ms_no_token')}</span>`
                         }</p>
-                        <p>A single Read-only token is shared across all gated HuggingFace models. It's stored encrypted in your AWS account and used by Amazon SageMaker containers at startup.</p>
+                        <p>${t('custom_models.hf_desc')}</p>
                     </div>
-                    <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="hf_xxxxxxxxx (paste to ${stored ? 'update' : 'store'} token)" autocomplete="off" />
+                    <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="${stored ? t('custom_models.hf_placeholder_update') : t('custom_models.hf_placeholder_store')}" autocomplete="off" />
                     <div class="flex gap-2 justify-end">
-                        ${stored ? '<button class="hf-delete btn btn-sm text-xs px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10">Delete Token</button>' : ''}
-                        <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Close</button>
-                        <button class="hf-save btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Save Token</button>
+                        ${stored ? `<button class="hf-delete btn btn-sm text-xs px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10">${t('model_settings.ms_delete_token')}</button>` : ''}
+                        <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('model_settings.ms_close')}</button>
+                        <button class="hf-save btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('model_settings.ms_save_token')}</button>
                     </div>
                 </div>`;
 
@@ -2934,7 +2934,7 @@
 
             backdrop.querySelector('.hf-save').addEventListener('click', async () => {
                 const token = backdrop.querySelector('.hf-token-input').value.trim();
-                if (!token) { window.showToast?.('Please enter a token', 'error'); return; }
+                if (!token) { window.showToast?.(t('custom_models.enter_token'), 'error'); return; }
                 try {
                     const resp = await fetch('/api/custom-models/hf-token', {
                         method: 'POST',
@@ -2942,14 +2942,14 @@
                         body: JSON.stringify({ hf_token: token }),
                     });
                     if (resp.ok) {
-                        window.showToast?.('HuggingFace token saved', 'success');
+                        window.showToast?.(t('custom_models.token_saved'), 'success');
                         cleanup();
                     } else {
                         const err = await resp.json();
                         window.showToast?.(err.detail || 'Failed to save token', 'error');
                     }
                 } catch (err) {
-                    window.showToast?.(`Failed: ${err.message}`, 'error');
+                    window.showToast?.(t('model_settings.ms_failed') + ': ' + err.message, 'error');
                 }
             });
 
@@ -2959,10 +2959,10 @@
                     if (!await window.showConfirm(t('custom_models.delete_token_confirm'), { title: t('custom_models.delete_token_title'), confirmLabel: t('custom_models.remove'), danger: true })) return;
                     try {
                         await fetch('/api/custom-models/hf-token', { method: 'DELETE' });
-                        window.showToast?.('HuggingFace token deleted', 'success');
+                        window.showToast?.(t('custom_models.token_deleted'), 'success');
                         cleanup();
                     } catch (err) {
-                        window.showToast?.(`Failed: ${err.message}`, 'error');
+                        window.showToast?.(t('model_settings.ms_failed') + ': ' + err.message, 'error');
                     }
                 });
             }

@@ -13,6 +13,7 @@ job is submitted.
 """
 
 import base64
+import io
 import json
 import logging
 import os
@@ -229,12 +230,17 @@ def update_job_asset_id(job_id: str, asset_id: str, generate_svg: bool = False, 
 
 
 def update_job_edit_context(job_id: str, edit_asset_id: str, edit_purpose: str = "image_edit",
-                            edit_prompt: str = "", edit_seed=None):
+                            edit_prompt: str = "", edit_seed=None, edit_spec: dict | None = None):
     """Tag an async job as an EDIT of an existing asset (called from /edit).
 
     Marks job_kind="edit" so the poller's completion routes to the version-aware
     save (archive current version → save result as a new version of edit_asset_id)
     instead of creating a fresh gallery asset. Re-persists so it survives restart.
+
+    `edit_spec` carries the rest of the edit provenance (negative_prompt, mask_prompt,
+    region, model_label, extra_params, outpaint_px, source_dims, mask_file, …) so the
+    async edit version record reaches PARITY with the sync one and the Metadata view
+    is identical whether the edit ran sync or async.
     """
     with _lock:
         job = _jobs.get(job_id)
@@ -244,6 +250,7 @@ def update_job_edit_context(job_id: str, edit_asset_id: str, edit_purpose: str =
             job["edit_purpose"] = edit_purpose
             job["edit_prompt"] = edit_prompt
             job["edit_seed"] = edit_seed
+            job["edit_spec"] = edit_spec or {}
     if job:
         _persist_job_to_s3(job)
 
@@ -417,11 +424,31 @@ def _update_gallery_on_edit_complete(job: dict, image_bytes: bytes):
     except Exception as e:
         logger.warning("Async edit SVG generation failed for %s: %s", asset_id, e)
 
+    # Bring the async edit version record to PARITY with the sync path (same
+    # fields → identical Metadata display regardless of sync/async execution).
+    _spec = job.get("edit_spec", {}) or {}
+    _new_dims = {"width": None, "height": None}
+    try:
+        from PIL import Image as _PILImage
+        with _PILImage.open(io.BytesIO(image_bytes)) as _img:
+            _new_dims = {"width": _img.width, "height": _img.height}
+    except Exception:
+        pass
     versions.append({
         "version": next_version, "type": job.get("edit_purpose", "image_edit"),
         "prompt": job.get("edit_prompt", ""),
+        "edit_prompt_sent": _spec.get("edit_prompt_sent"),
+        "enhanced_prompt": job.get("edit_prompt", ""),
+        "negative_prompt": _spec.get("negative_prompt", ""),
+        "mask_prompt": _spec.get("mask_prompt"),
+        "mask_file": _spec.get("mask_file"),
+        "source_dims": _spec.get("source_dims"),
+        "result_dims": _new_dims if _new_dims.get("width") else _spec.get("result_dims"),
+        **({"outpaint_px": _spec["outpaint_px"]} if _spec.get("outpaint_px") else {}),
         "image_model": job.get("model_key", ""),
-        "model_label": job.get("model_label", ""),
+        "model_label": job.get("model_label", "") or _spec.get("model_label", ""),
+        "region": _spec.get("region", ""),
+        "extra_params": _spec.get("extra_params"),
         "seed": job.get("edit_seed"),
         "timestamp": datetime.now(timezone.utc).isoformat(),
     })
@@ -1300,6 +1327,7 @@ def _persist_job_to_s3(job: dict):
             "edit_purpose": job.get("edit_purpose"),
             "edit_prompt": job.get("edit_prompt"),
             "edit_seed": job.get("edit_seed"),
+            "edit_spec": job.get("edit_spec"),  # parity provenance — survive restart
             "status": job["status"],
             "progress": job.get("progress", 0),
             "submitted_at": job["submitted_at"],

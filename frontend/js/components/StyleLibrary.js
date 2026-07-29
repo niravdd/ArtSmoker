@@ -632,7 +632,7 @@
                     </div>
                     <div class="px-5 py-3 border-b border-brand-border">
                         <div class="flex gap-2 items-center text-sm">
-                            <button id="browse-back-btn" class="p-1.5 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="Go to parent" disabled>
+                            <button id="browse-back-btn" class="p-1.5 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30 disabled:cursor-not-allowed" title="${t('misc.go_to_parent')}" disabled>
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                                 </svg>

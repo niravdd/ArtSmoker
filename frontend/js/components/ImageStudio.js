@@ -91,7 +91,7 @@
                                     <label class="block text-sm font-medium mb-1.5">${t('image_studio.model')}</label>
                                     <div id="gen-model-multi" class="relative">
                                         <button id="gen-model-btn" type="button" class="input text-left flex items-center justify-between w-full cursor-pointer">
-                                            <span id="gen-model-label" class="truncate text-sm">Select models...</span>
+                                            <span id="gen-model-label" class="truncate text-sm">${t('image_studio.select_models')}</span>
                                             <svg class="w-4 h-4 text-brand-text-muted flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                         </button>
                                         <div id="gen-model-dropdown" class="hidden absolute z-50 mt-1 min-w-full w-max max-h-60 overflow-y-auto rounded-lg border border-brand-border shadow-xl" style="background: var(--bg, #0f172a)"></div>
@@ -520,7 +520,7 @@
                     if (realModels.length) {
                         this._selectedModels = [realModels[0].value];
                         this._syncModelCheckboxes();
-                        window.showToast?.(`Selected ${realModels[0].label} — at least one model is required`, 'info');
+                        window.showToast?.(t('image_studio.selected_model_required').replace('{{model}}', realModels[0].label), 'info');
                     }
                 }
             });
@@ -535,7 +535,7 @@
                             if (realModels.length) {
                                 this._selectedModels = [realModels[0].value];
                                 this._syncModelCheckboxes();
-                                window.showToast?.(`Selected ${realModels[0].label} — at least one model is required`, 'info');
+                                window.showToast?.(t('image_studio.selected_model_required').replace('{{model}}', realModels[0].label), 'info');
                             }
                         }
                     }
@@ -961,9 +961,9 @@
                 const shouldContinue = await window.showConfirm(
                     `${modelNames} ${unsupportedModels.length === 1 ? 'does' : 'do'} not support ${size.label}. The closest supported size will be used for ${unsupportedModels.length === 1 ? 'this model' : 'these models'}.`,
                     {
-                        title: 'Dimension not supported by all models',
-                        confirmLabel: 'Continue anyway',
-                        cancelLabel: 'Change dimensions',
+                        title: t('image_studio.dim_unsupported_title'),
+                        confirmLabel: t('image_studio.continue_anyway'),
+                        cancelLabel: t('image_studio.change_dimensions'),
                     }
                 );
                 if (!shouldContinue) return;
@@ -1068,10 +1068,10 @@
                             const shouldSwitch = await window.showConfirm(
                                 assetCheck.reason,
                                 {
-                                    title: `Asset Type may not be right`,
-                                    detail: `You selected "${curLabel}" but your prompt looks like a "${sugLabel}". The right asset type significantly affects the quality of the generated image.`,
-                                    confirmLabel: `Switch to ${sugLabel}`,
-                                    cancelLabel: `Keep ${curLabel}`,
+                                    title: t('image_studio.asset_type_wrong_title'),
+                                    detail: t('image_studio.asset_type_wrong_detail').replace('{{cur}}', curLabel).replace('{{sug}}', sugLabel),
+                                    confirmLabel: t('image_studio.switch_to').replace('{{sug}}', sugLabel),
+                                    cancelLabel: t('image_studio.keep').replace('{{cur}}', curLabel),
                                 }
                             );
                             if (shouldSwitch) {
@@ -2363,8 +2363,8 @@
                     placeholder.innerHTML = `
                         <div class="flex flex-col items-center justify-center gap-3 py-12 text-cyan-400/60">
                             <div class="w-10 h-10 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
-                            <span class="text-sm font-medium">Generating with ${variant.model_label || 'custom model'}...</span>
-                            <span class="text-[10px] text-brand-text-muted/50">Image will appear automatically when ready</span>
+                            <span class="text-sm font-medium">${t('image_studio.generating_with').replace('{{model}}', variant.model_label || t('image_studio.custom_model_fallback'))}</span>
+                            <span class="text-[10px] text-brand-text-muted/50">${t('image_studio.image_when_ready')}</span>
                         </div>`;
                 }
             } else if (variant.png_path) {

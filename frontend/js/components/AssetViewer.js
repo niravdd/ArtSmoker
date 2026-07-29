@@ -163,7 +163,7 @@
                         <div class="tab-panel" data-panel="png">
                             <div class="relative">
                                 <div id="av-zoom-container" class="preview-checkerboard rounded-lg overflow-hidden" style="position:relative; height: 65vh; min-height: 300px;">
-                                    <img id="av-zoom-img" src="${pngUrl}" alt="Generated PNG" loading="lazy"
+                                    <img id="av-zoom-img" src="${pngUrl}" alt="${t('asset_viewer.alt_generated_png')}" loading="lazy"
                                          style="transform-origin: 0 0; transition: transform 0.1s ease-out; max-width: none;" />
                                     <!-- Measurement overlay: tracks the image's zoom/pan/fit transform,
                                          drawing a ruler + subject bounding box + per-edge margins. Hidden
@@ -230,7 +230,7 @@
                                          same structure as the 3D source-review dialog so the shared
                                          _wireMeasurement renderer draws rulers + extension bands here. -->
                                     <div class="relative w-full bg-brand-bg rounded-lg overflow-hidden border border-brand-border" style="height: 380px;">
-                                        <img id="av-out-img" class="w-full h-full object-contain" alt="Extend preview" crossorigin="anonymous" />
+                                        <img id="av-out-img" class="w-full h-full object-contain" alt="${t('asset_viewer.alt_extend_preview')}" crossorigin="anonymous" />
                                         <canvas id="av-out-measure" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
                                     </div>
                                     <div id="av-out-stats" class="text-[10px] text-brand-text-muted flex flex-wrap items-center gap-x-4 gap-y-1 px-1"></div>
@@ -278,7 +278,7 @@
                         <!-- SVG tab -->
                         <div class="tab-panel hidden" data-panel="svg">
                             <div class="preview-checkerboard rounded-lg flex items-center justify-center p-4 min-h-[300px]">
-                                <img src="${svgUrl}" alt="Generated SVG" class="max-w-full max-h-[60vh] rounded shadow-lg" loading="lazy"
+                                <img src="${svgUrl}" alt="${t('asset_viewer.alt_generated_svg')}" class="max-w-full max-h-[60vh] rounded shadow-lg" loading="lazy"
                                      onerror="this.parentElement.innerHTML='<p class=\\'text-brand-text-muted text-sm\\'>${t('asset_viewer.svg_error_inline')}</p>'" />
                             </div>
                         </div>
@@ -479,26 +479,35 @@
                 neutral: 'text-brand-text-muted', muted: 'text-brand-text-muted',
                 amber: 'text-amber-400/80', indigo: 'text-indigo-400/80',
             };
-            const promptBlock = (label, value, { tone = 'neutral', badge = '', copy = true, italic = false, note = '' } = {}) => {
+            // Smaller text + a capped, scrollable box (user scrolls to read long
+            // prompts rather than the card growing tall). `sub` renders a small
+            // caption above the value (e.g. "sent to the model", "none").
+            const promptBlock = (label, value, { tone = 'neutral', badge = '', copy = true, italic = false, note = '', sub = '', muted = false } = {}) => {
                 if (!value) return '';
                 return `
                     <div class="av-prompt-block">
-                        <div class="flex items-center gap-2 mb-1">
-                            <span class="text-xs font-medium ${LABEL_TONE[tone] || LABEL_TONE.neutral}">${label}</span>
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="text-[11px] font-medium ${LABEL_TONE[tone] || LABEL_TONE.neutral}">${label}</span>
                             ${badge}
                             ${copy ? copyBtn(value) : ''}
                         </div>
-                        ${note ? `<p class="text-[10px] text-brand-text-muted mb-1">${note}</p>` : ''}
-                        <p class="p-3 rounded-lg border ${TONE[tone] || TONE.neutral} whitespace-pre-wrap text-sm ${italic ? 'italic' : ''}">${this._esc(value)}</p>
+                        ${note ? `<p class="text-[9px] text-brand-text-muted mb-0.5">${note}</p>` : ''}
+                        <p class="p-2 rounded-lg border ${TONE[tone] || TONE.neutral} whitespace-pre-wrap text-[11px] leading-snug max-h-28 overflow-y-auto ${italic ? 'italic' : ''} ${muted ? 'text-brand-text-muted' : ''}">${this._esc(value)}${sub ? `<span class="block mt-1 text-[9px] text-brand-text-muted/70 not-italic">${sub}</span>` : ''}</p>
                     </div>`;
             };
 
-            // ── Section 1: Prompt Lineage ──────────────────────────────────
-            // All prompts use the SAME card treatment (promptBlock) — uniform
-            // padding/font/label, tone-accented only for semantic distinction.
+            // ── Prompt Lineage — IN ORDER for the SELECTED version ─────────
+            // 1. User's prompt  →  2. Prompt Designer (decomposed + recomposed,
+            // if used)  →  3. Refined prompt actually sent (with +/- prompting
+            // folded in)  →  4. For an edited version: what was sent to the editor
+            // (instruction, mask, outpaint/extend canvas-growth spec).
+            const ver = meta._version || null;                 // selected version record (null = base/v1)
+            const isEdit = !!(ver && ver.type && ver.type !== 'original');
             const enBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">EN</span>`;
             const langBadge = `<span class="px-1.5 py-0.5 rounded text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(meta.original_language || '?')}</span>`;
             let promptLineage = '';
+
+            // 1. USER PROMPT (original language + EN twin if translated)
             if (meta.original_language_prompt) {
                 promptLineage += promptBlock(t('asset_viewer.meta_user_prompt'), meta.original_language_prompt, { badge: langBadge });
                 promptLineage += promptBlock(t('asset_viewer.meta_user_prompt'), meta.original_prompt || meta.prompt, { badge: enBadge });
@@ -509,45 +518,61 @@
                 promptLineage += promptBlock(t('asset_viewer.meta_moderation_rewrite'), meta.moderation_original,
                     { tone: 'amber', note: t('asset_viewer.meta_moderation_note') });
             }
-            if (!isTypeStudio && meta.enhanced_prompt) {
-                promptLineage += promptBlock(t('asset_viewer.meta_enhanced_prompt'), meta.enhanced_prompt, { tone: 'muted' });
+
+            // 2. PROMPT DESIGNER (optional) — decomposed fields + concatenated
+            //    (recomposed) text. Only for non-edit views (a base generation).
+            if (!isTypeStudio && !isEdit) {
+                if (meta.decomposed_data && Object.keys(meta.decomposed_data).length > 0) {
+                    promptLineage += `
+                        <div class="av-prompt-block">
+                            <div class="text-[11px] font-medium ${LABEL_TONE.amber} mb-0.5">${t('asset_viewer.meta_decomposition')}</div>
+                            <div class="p-2 rounded-lg border ${TONE.amber} text-[11px] leading-snug max-h-28 overflow-y-auto space-y-1">
+                                ${this._renderDecomposed(meta.decomposed_data)}
+                            </div>
+                        </div>`;
+                }
+                if (meta.recomposed_prompt) {
+                    promptLineage += promptBlock(t('asset_viewer.meta_recomposed'), meta.recomposed_prompt,
+                        { tone: 'indigo', note: t('asset_viewer.meta_recomposed_note') });
+                } else if ('recomposed_prompt' in meta) {
+                    promptLineage += promptBlock(t('asset_viewer.meta_recomposed'), t('asset_viewer.meta_designer_unused'),
+                        { tone: 'muted', italic: true, copy: false });
+                }
             }
-            if (!isTypeStudio && meta.prompt && meta.prompt !== meta.enhanced_prompt) {
-                promptLineage += promptBlock(t('asset_viewer.meta_final_prompt'), meta.prompt);
+
+            // 3. REFINED PROMPT actually sent to the model — with the positive
+            //    suffix (positive_magic) + negative prompt folded in TOGETHER.
+            if (!isTypeStudio && !isEdit) {
+                const refined = meta.enhanced_prompt || meta.prompt || '';
+                if (refined) {
+                    const posMagic = meta.positive_magic ? this._esc(meta.positive_magic) : '';
+                    const negTxt = meta.negative_prompt ? this._esc(meta.negative_prompt) : t('asset_viewer.meta_none');
+                    // Copy button carries ONLY the refined prompt (via data-copy).
+                    // The positive/negative add-ons render in a SEPARATE element
+                    // OUTSIDE the copyable <p>, so "copy" never grabs them.
+                    promptLineage += `
+                        <div class="av-prompt-block">
+                            <div class="flex items-center gap-2 mb-0.5">
+                                <span class="text-[11px] font-medium ${LABEL_TONE.neutral}">${t('asset_viewer.meta_refined_prompt')}</span>
+                                ${copyBtn(refined)}
+                            </div>
+                            <p class="p-2 rounded-t-lg border border-b-0 ${TONE.neutral} whitespace-pre-wrap text-[11px] leading-snug max-h-32 overflow-y-auto">${this._esc(refined)}</p>
+                            <div class="p-2 rounded-b-lg border ${TONE.neutral} text-[9px] text-brand-text-muted/80 space-y-0.5">
+                                <div>${t('asset_viewer.meta_positive_add')}: ${posMagic || t('asset_viewer.meta_none')}</div>
+                                <div>${t('asset_viewer.meta_negative_add')}: ${negTxt}</div>
+                            </div>
+                        </div>`;
+                }
             } else if (isTypeStudio && meta.prompt) {
                 promptLineage += promptBlock(t('asset_viewer.meta_text_content'), meta.prompt);
             }
-            if (meta.negative_prompt) {
-                promptLineage += promptBlock(t('asset_viewer.meta_negative_exclusions'), meta.negative_prompt,
-                    { tone: 'amber', italic: true });
+
+            // 4. EDITED VERSION — what was sent to the EDITOR to act upon.
+            if (isEdit) {
+                promptLineage += this._renderEditLineage(ver, promptBlock, TONE, LABEL_TONE, meta);
             }
 
-            // ── Section 2: Prompt Design (Step-2 provenance) ──────────────
-            // recomposed_prompt is EMPTY when the Prompt Designer wasn't used —
-            // show a clear "not used" note instead of a blank/absent field, so
-            // the display is consistent whether or not the Designer ran.
-            let promptDesign = '';
-            if (!isTypeStudio) {
-                if (meta.recomposed_prompt) {
-                    promptDesign += promptBlock(t('asset_viewer.meta_recomposed'), meta.recomposed_prompt, { tone: 'indigo' });
-                } else if ('recomposed_prompt' in meta) {
-                    // Key present but empty → Designer not used (deliberate).
-                    promptDesign += `
-                        <div class="av-prompt-block">
-                            <div class="text-xs font-medium ${LABEL_TONE.indigo} mb-1">${t('asset_viewer.meta_recomposed')}</div>
-                            <p class="p-3 rounded-lg border ${TONE.muted} text-sm italic">${t('asset_viewer.meta_designer_unused')}</p>
-                        </div>`;
-                }
-            }
-            if (meta.decomposed_data && Object.keys(meta.decomposed_data).length > 0) {
-                promptDesign += `
-                    <div class="av-prompt-block">
-                        <div class="text-xs font-medium ${LABEL_TONE.amber} mb-1">${t('asset_viewer.meta_decomposition')}</div>
-                        <div class="p-3 rounded-lg border ${TONE.amber} text-xs space-y-2">
-                            ${this._renderDecomposed(meta.decomposed_data)}
-                        </div>
-                    </div>`;
-            }
+            let promptDesign = '';  // (folded into promptLineage above; kept for assembly compat)
 
             // ── Section 3: Generation Details (left "facts" rail) ──────────
             // Uniform label-over-value facts, one column, consistent typography.
@@ -751,41 +776,30 @@
                 </div>`;
             }
 
-            // ── Section 8: Edit History ────────────────────────────────────
+            // ── Version History — driven off the REAL versions[] data ──────
+            // (The old edit_history[] block was dead — the backend never wrote
+            // that key; version records live in meta.versions[] with different
+            // field names.) Compact timeline of all versions; the selected one
+            // is highlighted. Full per-version detail shows in Prompt Lineage.
             let editHistoryContent = '';
-            if (meta.edit_history?.length) {
-                editHistoryContent = `
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-2">
-                        ${t('asset_viewer.meta_edit_history')} (${meta.edit_count || meta.edit_history.length} edit${meta.edit_history.length > 1 ? 's' : ''})
-                    </label>
-                    ${meta.original_prompt ? `
-                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.meta_original_prompt_label')} "${this._esc(meta.original_prompt)}"</p>` : ''}
-                    ${meta.original_image_model ? `
-                    <p class="text-[10px] text-brand-text-dim mb-2">${t('asset_viewer.meta_originally_generated')} ${this._esc(meta.original_image_model)}</p>` : ''}
-                    <div class="space-y-2">
-                        ${meta.edit_history.map((edit, i) => `
-                        <div class="p-2 rounded bg-brand-bg/40 border-l-2 ${i === meta.edit_history.length - 1 ? 'border-emerald-400' : 'border-brand-border'}">
-                            <div class="flex items-center justify-between text-[10px] text-brand-text-muted mb-1">
-                                <span class="font-semibold">#${i + 1} ${this._esc(edit.edit_type || '?')}</span>
-                                <span>${edit.timestamp ? window.formatTimestamp(edit.timestamp) : ''}</span>
+            const allVersions = Array.isArray(meta.versions) ? meta.versions : [];
+            if (allVersions.length > 1) {
+                const selVer = this._currentVersion || meta.current_version || allVersions.length;
+                editHistoryContent = `<div class="space-y-1.5">
+                    ${allVersions.map(vr => {
+                        const isSel = vr.version === selVer;
+                        const kind = (vr.type || 'edit').replace(/_/g, ' ');
+                        const when = vr.timestamp ? window.formatTimestamp(vr.timestamp) : '';
+                        const model = this._esc(vr.model_label || vr.image_model || '');
+                        return `<div class="p-2 rounded border-l-2 ${isSel ? 'border-emerald-400 bg-emerald-400/5' : 'border-brand-border bg-brand-bg/40'}">
+                            <div class="flex items-center justify-between text-[10px]">
+                                <span class="font-semibold text-brand-text">v${vr.version} · ${this._esc(kind)}${isSel ? ` <span class="text-emerald-400/80">(${t('asset_viewer.meta_current_version')})</span>` : ''}</span>
+                                <span class="text-brand-text-muted">${when}</span>
                             </div>
-                            <p class="text-xs">${this._esc(edit.model_label || edit.edit_model || '')}</p>
-                            ${edit.original_language_prompts?.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5"><span class="text-[9px] text-brand-accent">(${edit.original_language || '?'})</span> "${this._esc(edit.original_language_prompts.prompt)}"</p>` : ''}
-                            ${edit.prompt ? `<p class="text-xs text-brand-text/70 mt-0.5">${edit.original_language_prompts?.prompt ? '<span class="text-[9px] text-emerald-400/70">(en)</span> ' : ''}"${this._esc(edit.prompt)}"</p>` : ''}
-                            ${edit.negative_prompt ? `<p class="text-[10px] text-amber-300/60 italic mt-0.5">${t('asset_viewer.meta_negative_label')} ${this._esc(edit.negative_prompt)}</p>` : ''}
-                            ${edit.mask_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_mask_label')} "${this._esc(edit.mask_prompt)}"</p>` : ''}
-                            ${edit.extra_params?.search_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_find_label')} "${this._esc(edit.extra_params.search_prompt)}"</p>` : ''}
-                            ${edit.extra_params?.select_prompt ? `<p class="text-[10px] text-brand-text-dim mt-0.5">${t('asset_viewer.meta_select_label')} "${this._esc(edit.extra_params.select_prompt)}"</p>` : ''}
-                            ${edit.replaced_original ? '<span class="text-[9px] text-amber-400/50">' + t('asset_viewer.meta_replaced_original') + '</span>' : '<span class="text-[9px] text-emerald-400/50">' + t('asset_viewer.meta_saved_as_new') + '</span>'}
-                        </div>
-                        `).join('')}
-                    </div>`;
-            } else if (meta.edit_type) {
-                editHistoryContent = `
-                    <label class="block text-xs text-brand-text-muted uppercase tracking-wider mb-1">${t('asset_viewer.meta_edit_info')}</label>
-                    <p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_type_label')}</span> ${this._esc(meta.edit_type)}</p>
-                    <p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_model_label')}</span> ${this._esc(meta.model_label || meta.edit_model || '')}</p>
-                    ${meta.source_image_id ? `<p class="text-sm"><span class="text-brand-text-muted">${t('asset_viewer.meta_source_label')}</span> ${this._esc(meta.source_image_id)}</p>` : ''}`;
+                            ${model ? `<p class="text-[10px] text-brand-text-muted mt-0.5">${model}</p>` : ''}
+                        </div>`;
+                    }).join('')}
+                </div>`;
             }
 
             // ── Section 9: File & Version ──────────────────────────────────
@@ -842,26 +856,29 @@
             // "Generation Details" and "Prompt Lineage" labels align on the same
             // baseline across the two columns.
             const railHeader = (label) => `<div class="text-xs font-semibold uppercase tracking-wider text-brand-text-muted py-2 mb-1 border-b border-brand-border/50">${label}</div>`;
-            const promptsCol = `
-                ${promptLineage ? section('prompts', t('asset_viewer.meta_prompt_lineage'), promptLineage, true) : ''}
-                ${promptDesign ? section('design', t('asset_viewer.meta_prompt_design'), promptDesign, false) : ''}`;
+            const promptsCol = promptLineage
+                ? section('prompts', t('asset_viewer.meta_prompt_lineage'), promptLineage, true)
+                : '';
+            // Left facts rail: generation details (incl. 3D for THIS version) +
+            // post-processing + version history + file/version. Everything
+            // valuable for the selected version, one consistent column.
             const factsRail = `
                 <div class="space-y-5">
                     <div>${railHeader(t('asset_viewer.meta_generation_details'))}${genDetails}</div>
+                    ${threeDContent ? `<div>${railHeader(t('asset_viewer.meta_three_d_section'))}${threeDContent}</div>` : ''}
+                    ${postProcessing ? `<div>${railHeader(t('asset_viewer.meta_post_processing'))}${postProcessing}</div>` : ''}
+                    ${editHistoryContent ? `<div>${railHeader(t('asset_viewer.meta_version_history'))}${editHistoryContent}</div>` : ''}
+                    ${styleContent ? `<div>${railHeader(t('asset_viewer.meta_style_section'))}${styleContent}</div>` : ''}
+                    ${ipContent ? `<div>${railHeader(t('asset_viewer.meta_ip_declaration'))}${ipContent}</div>` : ''}
                     <div>${railHeader(t('asset_viewer.meta_file_info'))}${fileInfoContent}</div>
                 </div>`;
             container.innerHTML = `
-                <div class="space-y-4">
-                    <div class="grid grid-cols-1 md:grid-cols-[minmax(0,220px)_minmax(0,1fr)] gap-6">
-                        <aside class="av-facts-rail">${factsRail}</aside>
-                        <div class="av-prompts-col min-w-0 space-y-4">${promptsCol || `<p class="text-sm text-brand-text-muted italic">${t('asset_viewer.meta_no_prompts')}</p>`}</div>
+                <div class="grid grid-cols-1 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] gap-6">
+                    <aside class="av-facts-rail">${factsRail}</aside>
+                    <div class="av-prompts-col min-w-0 space-y-4">
+                        ${promptsCol || `<p class="text-sm text-brand-text-muted italic">${t('asset_viewer.meta_no_prompts')}</p>`}
+                        ${isTypeStudio && typeStudioContent ? section('typestudio', t('asset_viewer.meta_type_studio_details'), typeStudioContent, true) : ''}
                     </div>
-                    ${postProcessing ? section('postproc', t('asset_viewer.meta_post_processing'), postProcessing, true) : ''}
-                    ${threeDContent ? section('threed', t('asset_viewer.meta_three_d_section'), threeDContent, true) : ''}
-                    ${styleContent ? section('style', t('asset_viewer.meta_style_section'), styleContent, false) : ''}
-                    ${ipContent ? section('ip', t('asset_viewer.meta_ip_declaration'), ipContent, true) : ''}
-                    ${editHistoryContent ? section('edithist', t('asset_viewer.meta_edit_history'), editHistoryContent, true) : ''}
-                    ${isTypeStudio ? section('typestudio', t('asset_viewer.meta_type_studio_details'), typeStudioContent, true) : ''}
                 </div>
             `;
 
@@ -1021,7 +1038,13 @@
                     // path. `_versioned` flags it so the panel can badge the version.
                     const metaContent = this._overlay?.querySelector('#asset-meta-content');
                     if (metaContent) {
-                        const versionMeta = { ...meta };
+                        // Overlay the selected version's own fields onto the base
+                        // meta so the whole Metadata panel reflects THIS version
+                        // (the version bar governs Metadata too). Pass the full
+                        // version record as _version so _populateMetadata can show
+                        // per-version edit specs (mask, outpaint dims, what was
+                        // sent to the editor) and the right 3D variant.
+                        const versionMeta = { ...meta, _version: v || null };
                         if (v) {
                             if (v.prompt != null) versionMeta.prompt = v.prompt;
                             if (v.enhanced_prompt != null) versionMeta.enhanced_prompt = v.enhanced_prompt;
@@ -1030,6 +1053,8 @@
                             if (v.image_model != null) versionMeta.image_model = v.image_model;
                             if (v.region != null) versionMeta.region = v.region;
                             if (v.seed != null) versionMeta.seed = v.seed;
+                            // A version's result_dims are its true canvas size.
+                            if (v.result_dims?.width) { versionMeta.width = v.result_dims.width; versionMeta.height = v.result_dims.height; }
                             if (v.original_language_prompts?.prompt) {
                                 versionMeta.original_language_prompt = v.original_language_prompts.prompt;
                                 versionMeta.original_language = v.original_language || versionMeta.original_language;
@@ -3178,12 +3203,12 @@
                         ></model-viewer>
                         <!-- Viewer controls overlay -->
                         <div class="absolute bottom-2 right-2 flex gap-1">
-                            <button id="av-3d-zoom-in" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="Zoom In">+</button>
-                            <button id="av-3d-zoom-out" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="Zoom Out">−</button>
-                            <button id="av-3d-reset" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white" title="Reset View">
+                            <button id="av-3d-zoom-in" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="${t('asset_viewer.zoom_in')}">+</button>
+                            <button id="av-3d-zoom-out" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="${t('asset_viewer.zoom_out')}">−</button>
+                            <button id="av-3d-reset" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white" title="${t('asset_viewer.reset_view')}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
                             </button>
-                            <button id="av-3d-autorotate" class="w-7 h-7 rounded bg-brand-accent/60 hover:bg-brand-accent/80 flex items-center justify-center text-white" title="Toggle Auto-Rotate">
+                            <button id="av-3d-autorotate" class="w-7 h-7 rounded bg-brand-accent/60 hover:bg-brand-accent/80 flex items-center justify-center text-white" title="${t('asset_viewer.toggle_autorotate')}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             </button>
                         </div>
@@ -3471,33 +3496,124 @@
             return safe;
         },
 
+        /**
+         * Render the "what was sent to the editor" lineage for an edited version.
+         * Shows: the edit instruction actually sent (post-transform), positive/
+         * negative prompting, mask (prompt + a thumbnail of the drawn mask if
+         * persisted), and the outpaint/extend canvas-growth spec (old→new dims +
+         * per-edge pixels). Driven entirely off the version record `v`.
+         */
+        _renderEditLineage(v, promptBlock, TONE, LABEL_TONE, meta) {
+            if (!v) return '';
+            let html = '';
+            const editLabel = (v.type || 'edit').replace(/_/g, ' ');
+
+            // The instruction actually sent to the editor (post-transform if any).
+            const sent = v.edit_prompt_sent || v.enhanced_prompt || v.prompt || '';
+            if (sent) {
+                const neg = v.negative_prompt ? this._esc(v.negative_prompt) : t('asset_viewer.meta_none');
+                // Copy carries ONLY `sent`; the negative renders in a separate
+                // element outside the copyable <p>.
+                html += `
+                    <div class="av-prompt-block">
+                        <div class="flex items-center gap-2 mb-0.5">
+                            <span class="text-[11px] font-medium ${LABEL_TONE.indigo}">${t('asset_viewer.meta_sent_to_editor')}</span>
+                            <span class="px-1.5 py-0.5 rounded text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${this._esc(editLabel)}</span>
+                            ${this._copyBtnFor ? this._copyBtnFor(sent) : ''}
+                        </div>
+                        <p class="p-2 rounded-t-lg border border-b-0 ${TONE.indigo} whitespace-pre-wrap text-[11px] leading-snug max-h-32 overflow-y-auto">${this._esc(sent)}</p>
+                        <div class="p-2 rounded-b-lg border ${TONE.indigo} text-[9px] text-brand-text-muted/80">${t('asset_viewer.meta_negative_add')}: ${neg}</div>
+                    </div>`;
+            }
+            if (v.prompt && v.edit_prompt_sent && v.prompt !== v.edit_prompt_sent) {
+                html += promptBlock(t('asset_viewer.meta_your_instruction'), v.prompt, { tone: 'muted', muted: true });
+            }
+
+            // Mask (natural-language and/or the drawn mask thumbnail).
+            if (v.mask_prompt) {
+                html += promptBlock(t('asset_viewer.meta_mask_area'), v.mask_prompt, { tone: 'amber' });
+            }
+            if (v.mask_file && meta?.id) {
+                html += `
+                    <div class="av-prompt-block">
+                        <div class="text-[11px] font-medium ${LABEL_TONE.amber} mb-0.5">${t('asset_viewer.meta_mask_drawn')}</div>
+                        <img src="/api/gallery/${encodeURIComponent(meta.id)}/mask/${encodeURIComponent(v.mask_file)}"
+                             class="max-h-32 rounded-lg border border-brand-border/40 bg-[repeating-conic-gradient(#0000_0deg_90deg,#ffffff10_90deg_180deg)]" alt="mask" />
+                    </div>`;
+            }
+
+            // Outpaint / extend canvas-growth spec: old → new dims + per-edge px.
+            const sd = v.source_dims, rd = v.result_dims, op = v.outpaint_px;
+            if (op || (sd?.width && rd?.width && (sd.width !== rd.width || sd.height !== rd.height))) {
+                const edges = op ? Object.entries(op).filter(([, px]) => px > 0)
+                    .map(([e, px]) => `${e} +${px}px`).join(', ') : '';
+                const dims = (sd?.width && rd?.width)
+                    ? `${sd.width}×${sd.height} → ${rd.width}×${rd.height}` : '';
+                const body = [dims, edges].filter(Boolean).join('  ·  ') || t('asset_viewer.meta_none');
+                html += `
+                    <div class="av-prompt-block">
+                        <div class="text-[11px] font-medium ${LABEL_TONE.neutral} mb-0.5">${t('asset_viewer.meta_canvas_change')}</div>
+                        <p class="p-2 rounded-lg border ${TONE.neutral} text-[11px] font-mono">${this._esc(body)}</p>
+                    </div>`;
+            }
+            return html;
+        },
+
+        _copyBtnFor(text) {
+            const escAttr = (s) => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return `<button class="av-copy-btn ml-2 px-1.5 py-0.5 rounded text-[9px] text-brand-text-muted hover:text-brand-accent hover:bg-brand-accent/10 border border-transparent hover:border-brand-accent/20 transition-colors" data-copy="${escAttr(text)}" title="${t('asset_viewer.meta_copy')}">${t('asset_viewer.meta_copy')}</button>`;
+        },
+
         _renderDecomposed(data) {
             if (!data || typeof data !== 'object') return '';
+
+            // Extract a field's display text. Prompt Designer fields are
+            // {value, source} objects (the actual schema); older data may be a
+            // bare string or an array of strings / {name,hex} color entries.
+            const fieldText = (v) => {
+                if (v == null) return '';
+                if (typeof v === 'string') return v.trim();
+                if (Array.isArray(v)) {
+                    return v.map(it => typeof it === 'string' ? it
+                        : (it && it.name ? `${it.name}${it.hex ? ` (${it.hex})` : ''}` : ''))
+                        .filter(Boolean).join(', ');
+                }
+                if (typeof v === 'object') {
+                    // {value, source} field object.
+                    if ('value' in v) return typeof v.value === 'string' ? v.value.trim() : fieldText(v.value);
+                    // some sections may nest arrays under a key (e.g. colors)
+                    return '';
+                }
+                return String(v);
+            };
+            const humanize = (k) => k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+
             const sections = [];
-            const _section = (label, obj) => {
-                if (!obj) return;
-                if (typeof obj === 'string') { sections.push(`<div><strong class="text-brand-text/80">${label}:</strong> ${this._esc(obj)}</div>`); return; }
-                if (Array.isArray(obj)) {
-                    const items = obj.map(item => typeof item === 'string' ? item : (item.name ? `${item.name} (${item.hex || ''})` : '')).filter(Boolean).join(', ');
-                    if (items) sections.push(`<div><strong class="text-brand-text/80">${label}:</strong> ${this._esc(items)}</div>`);
-                    return;
+            // Iterate EVERY section + EVERY field (no hardcoded key list) so all
+            // decomposed items are shown, not just five. Handles nested
+            // {value,source} fields and marks user-stated vs inferred.
+            for (const [sectionKey, sectionVal] of Object.entries(data)) {
+                if (sectionKey.startsWith('_')) continue;  // skip provenance (_meta etc.)
+                if (!sectionVal || typeof sectionVal !== 'object' || Array.isArray(sectionVal)) {
+                    const txt = fieldText(sectionVal);
+                    if (txt) sections.push(`<div><strong class="text-brand-text/80">${this._esc(humanize(sectionKey))}:</strong> ${this._esc(txt)}</div>`);
+                    continue;
                 }
                 const lines = [];
-                for (const [k, v] of Object.entries(obj)) {
-                    if (typeof v === 'string' && v.trim()) {
-                        lines.push(`<span class="text-brand-text-muted/60">${k.replace(/_/g, ' ')}:</span> ${this._esc(v)}`);
-                    } else if (Array.isArray(v)) {
-                        const items = v.map(item => typeof item === 'string' ? item : (item.name ? `${item.name} (${item.hex || ''})` : '')).filter(Boolean).join(', ');
-                        if (items) lines.push(`<span class="text-brand-text-muted/60">${k.replace(/_/g, ' ')}:</span> ${this._esc(items)}`);
-                    }
+                for (const [fieldKey, fieldVal] of Object.entries(sectionVal)) {
+                    const txt = fieldText(fieldVal);
+                    if (!txt) continue;
+                    // Show the source tag (user-stated vs inferred) when present.
+                    const src = (fieldVal && typeof fieldVal === 'object' && fieldVal.source) ? fieldVal.source : '';
+                    const srcTag = src === 'user'
+                        ? ` <span class="text-emerald-400/60 text-[9px]">(${t('asset_viewer.meta_src_user')})</span>`
+                        : (src === 'inferred' ? ` <span class="text-brand-text-muted/40 text-[9px]">(${t('asset_viewer.meta_src_inferred')})</span>` : '');
+                    lines.push(`<div><span class="text-brand-text-muted/60">${this._esc(humanize(fieldKey))}:</span> ${this._esc(txt)}${srcTag}</div>`);
                 }
-                if (lines.length) sections.push(`<div><strong class="text-brand-text/80">${label}:</strong><div class="ml-3 space-y-0.5">${lines.map(l => `<div>${l}</div>`).join('')}</div></div>`);
-            };
-            _section('Subject', data.subject);
-            _section('Scene', data.scene);
-            _section('Composition', data.composition);
-            _section('Lighting', data.lighting);
-            _section('Style', data.style);
+                if (lines.length) {
+                    sections.push(`<div><strong class="text-brand-text/80">${this._esc(humanize(sectionKey))}:</strong><div class="ml-3 space-y-0.5">${lines.join('')}</div></div>`);
+                }
+            }
             return sections.join('');
         },
     };

@@ -121,7 +121,7 @@
                                         <input type="file" id="vs-source-image" accept="image/png,image/jpeg" class="text-xs w-full">
                                         <p class="text-[10px] text-brand-text-muted">${t('video_studio.source_image_hint')}</p>
                                         <div id="vs-source-preview" class="hidden">
-                                            <img id="vs-source-img" class="max-h-24 rounded border border-brand-border" alt="Source">
+                                            <img id="vs-source-img" class="max-h-24 rounded border border-brand-border" alt="${t('common.source')}">
                                             <button id="vs-clear-source" class="btn btn-secondary btn-sm mt-1 text-[10px]">${t('video_studio.source_image_clear')}</button>
                                         </div>
                                     </div>

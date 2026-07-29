@@ -196,7 +196,7 @@
                                             <option value="">${t('type_studio.browse_recent')}</option>
                                         </select>
                                         <div id="ts-image-preview" class="hidden rounded-lg overflow-hidden border border-brand-border bg-brand-bg">
-                                            <img id="ts-image-preview-img" class="w-full h-auto" alt="Selected source image" />
+                                            <img id="ts-image-preview-img" class="w-full h-auto" alt="${t('misc.alt_selected_source')}" />
                                         </div>
                                     </div>
                                 </div>
@@ -351,7 +351,7 @@
                                         <div class="loading-spinner w-10 h-10 border-4 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
                                         <p id="ts-loading-text" class="text-sm text-brand-text-muted font-medium">${t('type_studio.processing')}</p>
                                     </div>
-                                    <img id="ts-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="Type Studio result" />
+                                    <img id="ts-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="${t('misc.alt_type_result')}" />
                                 </div>
 
                                 <!-- Download Bar -->

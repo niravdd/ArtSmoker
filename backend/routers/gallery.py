@@ -484,6 +484,22 @@ async def get_asset_version_svg(asset_id: str, version: int):
     return FileResponse(path, media_type="image/svg+xml", filename=f"{asset_id}_v{version}.svg")
 
 
+@router.get("/{asset_id}/mask/{mask_file}")
+async def get_asset_mask(asset_id: str, mask_file: str):
+    """Serve a persisted edit-mask sidecar (shows WHERE a fill/erase was applied).
+
+    Restricted to the mask-sidecar naming convention (…__mask.png) so this can
+    only serve mask files, never arbitrary paths (no traversal)."""
+    import os as _os
+    safe = _os.path.basename(mask_file)
+    if not safe.endswith("__mask.png"):
+        raise HTTPException(400, detail="Not a mask file.")
+    path = store.get_generated_file_path(asset_id, safe)
+    if path is None:
+        raise HTTPException(404, detail="Mask not found.")
+    return FileResponse(path, media_type="image/png", filename=safe)
+
+
 @router.get("/{asset_id}/png")
 async def get_asset_png(asset_id: str):
     """Serve the PNG file for a generated asset."""

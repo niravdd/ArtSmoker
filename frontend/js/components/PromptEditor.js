@@ -304,9 +304,9 @@
                                     check.reason,
                                     {
                                         title: typeof t !== 'undefined' ? t('prompt_designer.asset_mismatch_title') : 'Asset Type may not be right',
-                                        detail: `You selected "${curLabel}" but your prompt looks like a "${sugLabel}".`,
-                                        confirmLabel: `Switch to ${sugLabel}`,
-                                        cancelLabel: `Keep ${curLabel}`,
+                                        detail: t('prompt_editor.asset_type_wrong_detail').replace('{{cur}}', curLabel).replace('{{sug}}', sugLabel),
+                                        confirmLabel: t('image_studio.switch_to').replace('{{sug}}', sugLabel),
+                                        cancelLabel: t('image_studio.keep').replace('{{cur}}', curLabel),
                                     }
                                 );
                                 if (shouldSwitch) {
@@ -436,7 +436,7 @@
                 this._showComposed(enhanced);
             } catch (err) {
                 console.error('Failed to compose from designer data:', err);
-                window.showToast?.('Failed to generate enhanced prompt', 'error');
+                window.showToast?.(t('misc.pe_failed_enhance'), 'error');
             } finally {
                 this._btnCompose.innerHTML = origHTML;
                 this._btnCompose.disabled = false;
@@ -500,7 +500,7 @@
                 this._showComposed(composed);
             } catch (err) {
                 console.error('Compose error:', err);
-                window.showToast?.('Failed to compose prompt', 'error');
+                window.showToast?.(t('misc.pe_failed_compose'), 'error');
             } finally {
                 this._btnCompose.innerHTML = origHTML;
                 this._btnCompose.disabled = false;

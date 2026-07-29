@@ -74,7 +74,7 @@
                     <div class="flex items-center gap-3 flex-wrap">
                         <div id="cs-model-multi" class="relative flex-1 min-w-[200px]">
                             <button id="cs-model-btn" type="button" class="input text-left flex items-center justify-between w-full cursor-pointer text-xs font-mono">
-                                <span id="cs-model-label" class="truncate">Select model...</span>
+                                <span id="cs-model-label" class="truncate">${t('chat.select_model')}</span>
                                 <svg class="w-3.5 h-3.5 text-brand-text-muted flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </button>
                             <div id="cs-model-dropdown" class="hidden absolute z-50 mt-1 min-w-full w-max max-h-[28rem] overflow-y-auto rounded-lg border border-brand-border shadow-xl" style="background: var(--bg, #0f172a)"></div>
@@ -551,7 +551,7 @@
             }).then(r => r.json());
             await _loadSessions();
             await _loadSession(session.session_id);
-        } catch (err) { window.showToast?.('Failed to create session: ' + err.message, 'error'); }
+        } catch (err) { window.showToast?.(t('misc.chat_failed_session') + ': ' + err.message, 'error'); }
     }
 
     async function _loadSession(sessionId) {
@@ -677,7 +677,7 @@
             meta = `<div class="flex items-center gap-3 mt-2 text-[10px] text-brand-text-muted/60">
                 ${latency ? `<span>${latency}</span>` : ''}
                 <span>${(msg.input_tokens || 0).toLocaleString()} in / ${(msg.output_tokens || 0).toLocaleString()} out</span>
-                ${cost ? `<span class="text-brand-accent/60" title="Estimated cost based on published pricing">${cost}</span>` : ''}
+                ${cost ? `<span class="text-brand-accent/60" title="${t('misc.cost_tooltip')}">${cost}</span>` : ''}
                 ${modelLabel ? `<span class="font-mono">${_esc(modelLabel)}</span>` : ''}
             </div>`;
         }
