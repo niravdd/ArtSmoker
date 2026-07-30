@@ -146,11 +146,13 @@ def _has_command(cmd: str) -> bool:
 # 0.6.15 macOS-arm64 wheel) segfault when ANY kwarg is passed, so the subprocess
 # runner below falls back to vtracer's built-in defaults (which are already
 # colour/stacked/spline) if a parameterized run crashes.
-# Upstream cause + fix: the published cp314 wheels are built against pyo3 0.19
-# (no ABI-safe CPython 3.14 support) — visioncortex/vtracer PR #124 bumps pyo3
-# to 0.26. When that lands and a fixed wheel ships, `pip install -U vtracer`;
-# the kwargs crash should disappear and the tuned params run on the first try
-# (re-test then — this subprocess fallback can stay regardless).
+# Upstream cause + fix: the published 0.6.15 cp314 wheel is built against pyo3
+# 0.19, which has no ABI-safe CPython 3.14 support (visioncortex/vtracer #124).
+# The fix already landed on master via the "V1.0 rewrite" — the binding now uses
+# pyo3 0.26 + abi3-py38 — but is UNRELEASED (source is 1.0.0-alpha.x; PyPI still
+# serves the broken 0.6.15). Re-test the tuned params once a fixed wheel ships,
+# likely a pre-release: `pip install -U --pre vtracer`. This subprocess fallback
+# can stay regardless.
 _VTRACER_PARAMS = dict(
     filter_speckle=4,
     color_precision=6,
