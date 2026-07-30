@@ -191,6 +191,7 @@
     "export_tab": "导出与抠图",
     "export_intro": "此图像的矢量（SVG）与去背景抠图 — 可直接用于你的游戏、引擎或设计工具。",
     "export_bg_method": "抠图方式",
+    "three_d_bg_method": "去背景",
     "export_method_local": "本机处理（免费）",
     "export_method_bedrock": "AI（Amazon Bedrock）",
     "export_method_local_hint": "在你的设备上去除背景 — 无需费用，数据不会离开你的电脑。",

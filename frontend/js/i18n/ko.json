@@ -191,6 +191,7 @@
     "export_tab": "내보내기 및 컷아웃",
     "export_intro": "이 이미지의 벡터(SVG)와 배경을 제거한 컷아웃 — 게임, 엔진, 디자인 도구에 바로 사용할 수 있습니다.",
     "export_bg_method": "컷아웃 방식",
+    "three_d_bg_method": "배경 제거",
     "export_method_local": "기기에서 처리(무료)",
     "export_method_bedrock": "AI(Amazon Bedrock)",
     "export_method_local_hint": "배경 제거가 사용자의 기기에서 처리됩니다 — 비용이 없고 데이터가 외부로 전송되지 않습니다.",

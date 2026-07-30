@@ -690,6 +690,7 @@
     "export_tab": "Export & Freisteller",
     "export_intro": "Vektor (SVG) und freigestellte Varianten dieses Bildes — bereit für dein Spiel, deine Engine oder dein Design-Tool.",
     "export_bg_method": "Freistellen per",
+    "three_d_bg_method": "Hintergrund",
     "export_method_local": "Auf dem Gerät (kostenlos)",
     "export_method_bedrock": "KI (Amazon Bedrock)",
     "export_method_local_hint": "Der Hintergrund wird auf deinem Gerät entfernt — kostenlos, nichts verlässt deinen Computer.",

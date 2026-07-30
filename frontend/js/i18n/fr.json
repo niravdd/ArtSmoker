@@ -191,6 +191,7 @@
     "export_tab": "Export et découpes",
     "export_intro": "Vecteur (SVG) et découpes sans arrière-plan de cette image — prêts à intégrer dans votre jeu, moteur ou outil de conception.",
     "export_bg_method": "Découpe via",
+    "three_d_bg_method": "Détourage",
     "export_method_local": "Sur l'appareil (gratuit)",
     "export_method_bedrock": "IA (Amazon Bedrock)",
     "export_method_local_hint": "L'arrière-plan est supprimé sur votre machine — sans frais, rien ne quitte votre ordinateur.",

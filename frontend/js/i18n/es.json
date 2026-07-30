@@ -191,6 +191,7 @@
     "export_tab": "Exportar y recortes",
     "export_intro": "Vector (SVG) y recortes sin fondo de esta imagen — listos para tu juego, motor o herramienta de diseño.",
     "export_bg_method": "Recorte con",
+    "three_d_bg_method": "Quitar fondo",
     "export_method_local": "En el dispositivo (gratis)",
     "export_method_bedrock": "IA (Amazon Bedrock)",
     "export_method_local_hint": "El fondo se elimina en tu equipo — sin coste, nada sale de tu ordenador.",

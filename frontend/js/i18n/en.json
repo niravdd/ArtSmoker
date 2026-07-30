@@ -690,6 +690,7 @@
     "export_tab": "Export & Cutouts",
     "export_intro": "Vector (SVG) and background-removed cutouts of this image — ready to drop into your game, engine, or design tool.",
     "export_bg_method": "Cutout by",
+    "three_d_bg_method": "Remove bg",
     "export_method_local": "On device (free)",
     "export_method_bedrock": "AI (Amazon Bedrock)",
     "export_method_local_hint": "Background removed on your machine — no cost, nothing leaves your computer.",

@@ -1093,11 +1093,16 @@ def _sidecar_name(version: int, kind: str) -> str:
     return f"asset_v{version}__{kind}.png"
 
 
-def _ensure_cutout(asset_id: str, version: int, meta: dict = None) -> "Path | None":
+def _ensure_cutout(asset_id: str, version: int, meta: dict = None,
+                   bg_method: str = "local") -> "Path | None":
     """Return the path to version N's background-removed cutout, creating+caching
     it once if needed. If the version is already background-free, that file IS the
     cutout. Returns None only if the source image can't be found. Non-fatal on a
-    removal error (returns the original path so callers still have an image)."""
+    removal error (returns the original path so callers still have an image).
+
+    ``bg_method`` selects the remover: ``"local"`` (free rembg) or ``"bedrock"``
+    (paid SD). Cached cutout is reused regardless of method — a method change only
+    takes effect after the cached sidecar is cleared (e.g. via op="reset")."""
     if meta is None:
         meta = store.load_generation_metadata(asset_id) or {}
     src = _version_image_path(asset_id, version, meta)
@@ -1110,7 +1115,7 @@ def _ensure_cutout(asset_id: str, version: int, meta: dict = None) -> "Path | No
         return cached
     try:
         from backend.services.post_processor import remove_background
-        out = remove_background(src.read_bytes())
+        out = remove_background(src.read_bytes(), method=bg_method)
         return store.save_generated_image(asset_id, _sidecar_name(version, "cutout"), out)
     except Exception as e:
         logger.info("Cutout BG-removal failed for %s v%s (%s) — using original", asset_id, version, e)
@@ -1157,6 +1162,11 @@ class PrepareSourceRequest(BaseModel):
     left: int = 0
     right: int = 0
     mask: str | None = None         # base64 PNG mask (inpaint only)
+    # Background-removal method for the cutout/re-strip: "local" (free, on-device
+    # rembg) or "bedrock" (paid Amazon Bedrock SD). Defaults to local — the 3D
+    # mesher only needs the background gone, not a feathered edge, so the free
+    # path is the sensible default; the UI still offers Bedrock explicitly.
+    bg_method: str = "local"
 
 
 @router.post("/prepare-source")
@@ -1207,7 +1217,7 @@ async def prepare_source(body: PrepareSourceRequest):
             pass
 
     # Base cutout (created/cached once) — the immutable clean starting point.
-    cutout = _ensure_cutout(aid, ver, meta)
+    cutout = _ensure_cutout(aid, ver, meta, bg_method=body.bg_method)
     if cutout is None:
         raise HTTPException(404, detail=f"Image not found for asset '{aid}' v{ver}.")
 
@@ -1255,7 +1265,7 @@ async def prepare_source(body: PrepareSourceRequest):
 
     # Stability edit models re-bake a background, so re-strip to keep a clean cutout.
     try:
-        out = remove_background(out)
+        out = remove_background(out, method=body.bg_method)
     except Exception as e:
         logger.info("Post-%s re-strip failed for %s v%s (%s) — keeping as-is", body.op, aid, ver, e)
     saved = store.save_generated_image(aid, _sidecar_name(ver, "source"), out)

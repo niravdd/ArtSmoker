@@ -2313,6 +2313,17 @@
                         <img id="av-3d-preview-img" src="${previewUrl}" class="w-full h-full object-contain" alt="3D source" />
                     </div>
                     <p class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_preview_note')}</p>
+                    <!-- Background-removal method for the 3D cutout. Local (free,
+                         on-device) is the default; Bedrock (paid, softer edge) is
+                         offered explicitly. Threaded into every prepare-source call. -->
+                    <div class="flex items-center gap-2">
+                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('asset_viewer.three_d_bg_method')}</label>
+                        <select id="av-3d-bg-method" class="input text-[10px] py-0.5 flex-1">
+                            <option value="local">${t('asset_viewer.export_method_local')}</option>
+                            <option value="bedrock">${t('asset_viewer.export_method_bedrock')}</option>
+                        </select>
+                    </div>
+                    <p id="av-3d-bg-method-hint" class="text-[9px] text-brand-text-dim"></p>
                     ${isSubject ? `
                     <!-- Improve the Source sits WITH the image it acts on (most intuitive
                          placement) — the sole instance; not duplicated in the button row. -->
@@ -2537,6 +2548,26 @@
             const reviewBtn = container.querySelector('#av-3d-review');
             reviewBtn?.addEventListener('click', () => this._reviewSource(reviewBtn));
             this._update3DReviewStatus(container);
+
+            // Background-removal method selector: keep the cost hint in sync.
+            const bgSel = container.querySelector('#av-3d-bg-method');
+            bgSel?.addEventListener('change', () => this._update3DBgMethodHint(container));
+            this._update3DBgMethodHint(container);
+        },
+
+        /** Cost hint for the 3D background-removal method selector. */
+        _update3DBgMethodHint(scope) {
+            const sel = scope?.querySelector?.('#av-3d-bg-method');
+            const hint = scope?.querySelector?.('#av-3d-bg-method-hint');
+            if (!sel || !hint) return;
+            hint.textContent = sel.value === 'bedrock'
+                ? t('asset_viewer.export_method_bedrock_hint')
+                : t('asset_viewer.export_method_local_hint');
+        },
+
+        /** The 3D cutout background-removal method the user selected (default local). */
+        _bg3DMethod() {
+            return this._overlay?.querySelector('#av-3d-bg-method')?.value || 'local';
         },
 
         /** Reflect whether the current version's source has been reviewed this session. */
@@ -2592,7 +2623,7 @@
             let analysis = null;
             for (let attempt = 0; attempt < 2 && !(analysis && analysis.analyzed); attempt++) {
                 try {
-                    const r = await API.threeD.prepareSource({ asset_id: this._item?.id, version, op: 'cutout' });
+                    const r = await API.threeD.prepareSource({ asset_id: this._item?.id, version, op: 'cutout', bg_method: this._bg3DMethod() });
                     analysis = r?.analysis || null;
                     // The cutout now exists (cached server-side) — future reviews of
                     // this version won't re-remove the background, so label them
@@ -2854,7 +2885,7 @@
                     if (working) return;
                     setBusy(true, busyMsg);
                     try {
-                        const r = await API.threeD.prepareSource({ asset_id: this._item?.id, version, ...payload });
+                        const r = await API.threeD.prepareSource({ asset_id: this._item?.id, version, bg_method: this._bg3DMethod(), ...payload });
                         lastAnalysis = r?.analysis || lastAnalysis;
                         disableFillMode();
                         refreshImage();

@@ -191,6 +191,7 @@
     "export_tab": "書き出しと切り抜き",
     "export_intro": "この画像のベクター（SVG）と背景を除去した切り抜き — ゲーム、エンジン、デザインツールにそのまま使えます。",
     "export_bg_method": "切り抜き方法",
+    "three_d_bg_method": "背景除去",
     "export_method_local": "端末で処理（無料）",
     "export_method_bedrock": "AI（Amazon Bedrock）",
     "export_method_local_hint": "背景の除去はお使いの端末で行われます — 費用はかからず、データが外部に送信されることもありません。",
