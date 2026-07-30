@@ -5679,13 +5679,11 @@
           "disk_gb": 70,
           "allowed_instances": [
             "ml.g6e.12xlarge",
-            "ml.g5.12xlarge",
             "ml.g6e.24xlarge",
-            "ml.g5.48xlarge",
             "ml.g7e.12xlarge"
           ],
           "min_host_ram_gb": 64,
-          "_note": "BF16 full precision (~57GB) needs a MULTI-GPU instance (>=4 GPUs) so the handler shards it via device_map=auto. ml.g6e.12xlarge (4xL40S 192GB) is the VERIFIED, recommended home. Lower-cost candidates are viable on VRAM but NOT YET TESTED — verify before relying on them: g5.12xlarge (4xA10G 96GB, ~46% cheaper, A10G slower) is the cheapest; g6e.24xlarge (more host RAM) and g5.48xlarge (8xA10G) are headroom fallbacks. AVOID single-GPU (48GB<57GB) and single-GPU g7e/Blackwell (cu124 DLC lacks SM 12.0 kernels); g7e.12xlarge only as last resort with a cu129 build. Not quantized — highest quality (BF16 verified clean vs NF4 grain)."
+          "_note": "BF16 (~57GB) needs MULTI-GPU with ENOUGH PER-GPU VRAM. VERIFIED: ml.g6e.12xlarge (4xL40S, 48GB/GPU). device_map=auto shards the transformer, and the handler places the non-sharded text_encoder+VAE on GPU0 — this needs headroom BEYOND GPU0's transformer shard. TESTED + REJECTED: ml.g5.12xlarge (4xA10G, only 22GB/GPU) — the GPU0 transformer shard fills its 22GB, leaving no room for text_encoder/VAE -> CUDA OOM at load + VAE-fp32 fails (2026-07-30, endpoint reached InService but broken). So total VRAM fitting is NOT sufficient; PER-GPU VRAM must exceed one shard + the non-sharded comps. g5 (22GB/GPU) unusable until the handler caps device_map max_memory to reserve GPU0 room or CPU-offloads non-sharded comps on tight-VRAM GPUs. g6e.24xl = same 48GB L40S (should work, untested). AVOID single-GPU (48<57) and single-GPU g7e/Blackwell (cu124 DLC lacks SM12.0 kernels). Not quantized — highest quality."
         },
         "invoke": {
           "library": "diffusers",
@@ -5739,9 +5737,7 @@
           "estimated_cost_per_image": 0.03,
           "instance_cost_per_hour": {
             "ml.g6e.12xlarge": 13.1158,
-            "ml.g5.12xlarge": 7.09,
             "ml.g6e.24xlarge": 18.832,
-            "ml.g5.48xlarge": 20.36,
             "ml.g7e.12xlarge": 10.3576
           }
         },
@@ -5799,13 +5795,11 @@
           "disk_gb": 70,
           "allowed_instances": [
             "ml.g6e.12xlarge",
-            "ml.g5.12xlarge",
             "ml.g6e.24xlarge",
-            "ml.g5.48xlarge",
             "ml.g7e.12xlarge"
           ],
           "min_host_ram_gb": 64,
-          "_note": "BF16 full precision (~57GB) needs a MULTI-GPU instance (>=4 GPUs) so the handler shards it via device_map=auto. ml.g6e.12xlarge (4xL40S 192GB) is the VERIFIED, recommended home. Lower-cost candidates are viable on VRAM but NOT YET TESTED — verify before relying on them: g5.12xlarge (4xA10G 96GB, ~46% cheaper, A10G slower) is the cheapest; g6e.24xlarge (more host RAM) and g5.48xlarge (8xA10G) are headroom fallbacks. AVOID single-GPU (48GB<57GB) and single-GPU g7e/Blackwell (cu124 DLC lacks SM 12.0 kernels); g7e.12xlarge only as last resort with a cu129 build. Not quantized — highest quality (BF16 verified clean vs NF4 grain)."
+          "_note": "BF16 (~57GB) needs MULTI-GPU with ENOUGH PER-GPU VRAM. VERIFIED: ml.g6e.12xlarge (4xL40S, 48GB/GPU). device_map=auto shards the transformer, and the handler places the non-sharded text_encoder+VAE on GPU0 — this needs headroom BEYOND GPU0's transformer shard. TESTED + REJECTED: ml.g5.12xlarge (4xA10G, only 22GB/GPU) — the GPU0 transformer shard fills its 22GB, leaving no room for text_encoder/VAE -> CUDA OOM at load + VAE-fp32 fails (2026-07-30, endpoint reached InService but broken). So total VRAM fitting is NOT sufficient; PER-GPU VRAM must exceed one shard + the non-sharded comps. g5 (22GB/GPU) unusable until the handler caps device_map max_memory to reserve GPU0 room or CPU-offloads non-sharded comps on tight-VRAM GPUs. g6e.24xl = same 48GB L40S (should work, untested). AVOID single-GPU (48<57) and single-GPU g7e/Blackwell (cu124 DLC lacks SM12.0 kernels). Not quantized — highest quality."
         },
         "invoke": {
           "library": "diffusers",
@@ -5900,9 +5894,7 @@
           "estimated_cost_per_image": 0.03,
           "instance_cost_per_hour": {
             "ml.g6e.12xlarge": 13.1158,
-            "ml.g5.12xlarge": 7.09,
             "ml.g6e.24xlarge": 18.832,
-            "ml.g5.48xlarge": 20.36,
             "ml.g7e.12xlarge": 10.3576
           }
         },
