@@ -476,9 +476,13 @@ async def get_asset_version(asset_id: str, version: int):
 
 @router.get("/{asset_id}/version-svg/{version}")
 async def get_asset_version_svg(asset_id: str, version: int):
-    """Serve a specific SVG version of an asset."""
-    filename = f"asset_v{version}.svg"
-    path = store.get_generated_file_path(asset_id, filename)
+    """Serve a specific SVG version of an asset.
+
+    Mirrors the PNG version endpoint: the CURRENT version's with-bg SVG lives as
+    asset.svg (only OLDER versions are archived as asset_v{N}.svg), so fall back
+    to asset.svg when the version-specific file is absent."""
+    path = store.get_generated_file_path(asset_id, f"asset_v{version}.svg") \
+        or store.get_generated_file_path(asset_id, "asset.svg")
     if path is None:
         raise HTTPException(404, detail=f"SVG version {version} not found for asset '{asset_id}'.")
     return FileResponse(path, media_type="image/svg+xml", filename=f"{asset_id}_v{version}.svg")
@@ -520,6 +524,203 @@ async def get_asset_svg(asset_id: str):
     meta = _get_meta(asset_id)
     filename = (meta or {}).get("svg_filename", f"{asset_id}.svg")
     return FileResponse(path, media_type="image/svg+xml", filename=filename)
+
+
+# ── Export variants: background-removed cutouts (PNG + SVG) ────────────────
+#
+# The Export tab offers, per version, three artefacts:
+#   1. with-bg SVG   — the existing vector trace of the full image (asset.svg /
+#                      asset_v{N}.svg)
+#   2. no-bg PNG     — a transparent cutout (one background removal)
+#   3. no-bg SVG     — a FREE local vector trace of that same cutout
+# So a single background removal (local rembg = free, or paid Bedrock) serves
+# both no-bg artefacts. Cutouts are cached per version (asset__nobg_v{N}.png /
+# .svg) so editing the asset (new version) never serves a stale cutout.
+
+
+def _cutout_png_name(version: int) -> str:
+    return f"asset__nobg_v{version}.png"
+
+
+def _cutout_svg_name(version: int) -> str:
+    return f"asset__nobg_v{version}.svg"
+
+
+def _withbg_svg_name(version: int, current_version: int) -> str:
+    """The with-bg SVG file for a version (current lives as asset.svg)."""
+    return "asset.svg" if version == current_version else f"asset_v{version}.svg"
+
+
+def _resolve_version(meta: dict, version: int | None) -> int:
+    cur = meta.get("current_version") or (len(meta.get("versions", [])) or 1)
+    return version or cur
+
+
+def _version_png_path(asset_id: str, version: int, current_version: int):
+    """PNG bytes source for a version (current = asset.png, else asset_v{N}.png)."""
+    if version == current_version:
+        return store.get_generated_file_path(asset_id, "asset.png")
+    return store.get_generated_file_path(asset_id, f"asset_v{version}.png") \
+        or store.get_generated_file_path(asset_id, "asset.png")
+
+
+def _export_status(asset_id: str, meta: dict, version: int, current_version: int) -> dict:
+    """Which export artefacts already exist for a version, with serve URLs."""
+    withbg_svg = store.get_generated_file_path(asset_id, _withbg_svg_name(version, current_version))
+    nobg_png = store.get_generated_file_path(asset_id, _cutout_png_name(version))
+    nobg_svg = store.get_generated_file_path(asset_id, _cutout_svg_name(version))
+    cut_meta = (meta.get("cutouts") or {}).get(str(version), {})
+    return {
+        "version": version,
+        "withbg_svg": {
+            "exists": withbg_svg is not None,
+            "url": (f"/api/gallery/{asset_id}/version-svg/{version}"
+                    if withbg_svg is not None else None),
+        },
+        "nobg_png": {
+            "exists": nobg_png is not None,
+            "url": (f"/api/gallery/{asset_id}/cutout-png/{version}"
+                    if nobg_png is not None else None),
+        },
+        "nobg_svg": {
+            "exists": nobg_svg is not None,
+            "url": (f"/api/gallery/{asset_id}/cutout-svg/{version}"
+                    if nobg_svg is not None else None),
+        },
+        "method": cut_meta.get("method"),
+        "cost_usd": cut_meta.get("cost_usd", 0),
+    }
+
+
+@router.get("/{asset_id}/export-status")
+async def get_export_status(asset_id: str, version: int | None = Query(default=None)):
+    """Report which export artefacts (with-bg SVG, no-bg PNG, no-bg SVG) exist."""
+    meta = _get_meta(asset_id)
+    if meta is None:
+        raise HTTPException(404, detail=f"Asset '{asset_id}' not found.")
+    current_version = meta.get("current_version") or (len(meta.get("versions", [])) or 1)
+    v = _resolve_version(meta, version)
+    return _export_status(asset_id, meta, v, current_version)
+
+
+class ExportVariantsRequest(BaseModel):
+    method: str = "local"          # "local" (rembg, free) | "bedrock" (paid SD)
+    version: int | None = None     # defaults to the current version
+
+
+@router.post("/{asset_id}/export-variants")
+async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
+    """Produce (and cache) the background-removed cutout PNG + its vector SVG.
+
+    A single background removal yields the transparent PNG; the no-bg SVG is then
+    a free local vtracer trace of that cutout. Also ensures the with-bg SVG for
+    the version exists (traced locally). Idempotent per (version, method): if the
+    cutout already exists for the requested method it is reused, not regenerated.
+    """
+    from backend.services.post_processor import (
+        convert_to_svg,
+        remove_background,
+        BG_METHOD_LOCAL,
+        BG_METHOD_BEDROCK,
+    )
+
+    meta = _get_meta(asset_id)
+    if meta is None:
+        raise HTTPException(404, detail=f"Asset '{asset_id}' not found.")
+
+    method = BG_METHOD_LOCAL if body.method == BG_METHOD_LOCAL else BG_METHOD_BEDROCK
+    current_version = meta.get("current_version") or (len(meta.get("versions", [])) or 1)
+    version = _resolve_version(meta, body.version)
+
+    src_path = _version_png_path(asset_id, version, current_version)
+    if src_path is None:
+        raise HTTPException(404, detail=f"No image for asset '{asset_id}' version {version}.")
+
+    asset_dir = store.generated_asset_dir(asset_id)
+    cut_meta_all = meta.get("cutouts") or {}
+    prior = cut_meta_all.get(str(version), {})
+
+    # Ensure the with-bg SVG for this version exists (free local trace).
+    withbg_svg_path = asset_dir / _withbg_svg_name(version, current_version)
+    if not withbg_svg_path.exists():
+        try:
+            convert_to_svg(src_path.read_bytes(), withbg_svg_path)
+        except Exception:
+            logger.exception("with-bg SVG trace failed for %s v%d", asset_id, version)
+
+    cutout_png_path = asset_dir / _cutout_png_name(version)
+    cutout_svg_path = asset_dir / _cutout_svg_name(version)
+
+    cost_usd = 0.0
+    # Reuse the cached cutout if it exists AND was produced by the same method;
+    # a method switch (e.g. local → bedrock) regenerates for the higher quality.
+    reuse = (
+        cutout_png_path.exists()
+        and prior.get("method") == method
+    )
+    if not reuse:
+        try:
+            nobg_bytes = remove_background(src_path.read_bytes(), method=method)
+        except Exception as exc:
+            logger.exception("Background removal failed for %s v%d (%s)", asset_id, version, method)
+            raise HTTPException(502, detail=f"Background removal failed: {exc}")
+
+        cutout_png_path.write_bytes(nobg_bytes)
+        # Free local vector trace of the cutout.
+        try:
+            convert_to_svg(nobg_bytes, cutout_svg_path)
+        except Exception:
+            logger.exception("no-bg SVG trace failed for %s v%d", asset_id, version)
+
+        if method == BG_METHOD_BEDROCK:
+            try:
+                from backend.routers.generate import _get_model_price
+                from backend.services.post_processor import _find_model_key_by_purpose
+                bg_key = _find_model_key_by_purpose("remove_background")
+                cost_usd = float(_get_model_price(bg_key)) if bg_key else 0.0
+            except Exception:
+                cost_usd = 0.0
+
+        # Record cutout provenance in metadata (per version).
+        cut_meta_all[str(version)] = {"method": method, "cost_usd": round(cost_usd, 6)}
+        meta["cutouts"] = cut_meta_all
+        if cost_usd:
+            history = meta.get("cost_history", [])
+            history.append({"action": "remove_background", "model": "bedrock", "cost_usd": round(cost_usd, 6)})
+            meta["cost_history"] = history
+            meta["estimated_total_cost_usd"] = round(
+                sum(c.get("cost_usd", 0) for c in history), 6
+            )
+        store.save_generation_metadata(asset_id, meta)
+        _meta_cache.pop(asset_id, None)
+        meta = _get_meta(asset_id) or meta
+
+    logger.info(
+        "Export variants for %s v%d: method=%s reuse=%s cost=$%.4f",
+        asset_id, version, method, reuse, cost_usd,
+    )
+    status = _export_status(asset_id, meta, version, current_version)
+    status["reused"] = reuse
+    status["cost_incurred_usd"] = 0.0 if reuse else round(cost_usd, 6)
+    return status
+
+
+@router.get("/{asset_id}/cutout-png/{version}")
+async def get_cutout_png(asset_id: str, version: int):
+    """Serve the background-removed (transparent) PNG cutout for a version."""
+    path = store.get_generated_file_path(asset_id, _cutout_png_name(version))
+    if path is None:
+        raise HTTPException(404, detail=f"Cutout PNG not found for '{asset_id}' v{version}.")
+    return FileResponse(path, media_type="image/png", filename=f"{asset_id}_v{version}_nobg.png")
+
+
+@router.get("/{asset_id}/cutout-svg/{version}")
+async def get_cutout_svg(asset_id: str, version: int):
+    """Serve the background-removed vector SVG cutout for a version."""
+    path = store.get_generated_file_path(asset_id, _cutout_svg_name(version))
+    if path is None:
+        raise HTTPException(404, detail=f"Cutout SVG not found for '{asset_id}' v{version}.")
+    return FileResponse(path, media_type="image/svg+xml", filename=f"{asset_id}_v{version}_nobg.svg")
 
 
 @router.get("/{asset_id}/3d/{version}")

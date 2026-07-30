@@ -315,6 +315,36 @@
             svgUrl(id) {
                 return `/api/gallery/${encodeURIComponent(id)}/svg`;
             },
+
+            /** Which export artefacts (with-bg SVG, no-bg PNG, no-bg SVG) exist for a version. */
+            exportStatus(id, version) {
+                const qs = version ? `?version=${encodeURIComponent(version)}` : '';
+                return request(`/api/gallery/${encodeURIComponent(id)}/export-status${qs}`);
+            },
+
+            /** Produce (+cache) the bg-removed cutout PNG and its vector SVG.
+             *  method: 'local' (rembg, free) | 'bedrock' (paid Amazon Bedrock SD). */
+            createExportVariants(id, { method = 'local', version = null } = {}) {
+                return request(`/api/gallery/${encodeURIComponent(id)}/export-variants`, {
+                    method: 'POST',
+                    body: { method, version },
+                });
+            },
+
+            /** Background-removed PNG cutout download URL (per version). */
+            cutoutPngUrl(id, version) {
+                return `/api/gallery/${encodeURIComponent(id)}/cutout-png/${encodeURIComponent(version)}`;
+            },
+
+            /** Background-removed vector SVG cutout download URL (per version). */
+            cutoutSvgUrl(id, version) {
+                return `/api/gallery/${encodeURIComponent(id)}/cutout-svg/${encodeURIComponent(version)}`;
+            },
+
+            /** With-background vector SVG URL for a specific version. */
+            versionSvgUrl(id, version) {
+                return `/api/gallery/${encodeURIComponent(id)}/version-svg/${encodeURIComponent(version)}`;
+            },
         },
 
         /** Send a log entry to the server for recording */

@@ -143,7 +143,7 @@
                     <div class="tab-bar px-6 pt-3">
                         <button class="tab active" data-tab="png">${t('asset_viewer.png_tab')} <span id="av-tab-version-badge" class="text-[9px] opacity-60"></span></button>
                         <button class="tab" data-tab="edit">${t('asset_viewer.edit_tab')}</button>
-                        <button class="tab" data-tab="svg">${t('asset_viewer.svg_tab')} <span id="av-tab-svg-version" class="text-[9px] opacity-60"></span></button>
+                        <button class="tab" data-tab="svg">${t('asset_viewer.export_tab')} <span id="av-tab-svg-version" class="text-[9px] opacity-60"></span></button>
                         <button class="tab" data-tab="meta">${t('asset_viewer.metadata_tab')} <span id="av-tab-meta-version" class="text-[9px] opacity-60"></span></button>
                         <button class="tab" data-tab="3d">${t('asset_viewer.three_d_tab')}</button>
                     </div>
@@ -275,11 +275,28 @@
                             </div>
                         </div>
 
-                        <!-- SVG tab -->
+                        <!-- Export & Cutouts tab — vector SVG + background-removed variants -->
                         <div class="tab-panel hidden" data-panel="svg">
-                            <div class="preview-checkerboard rounded-lg flex items-center justify-center p-4 min-h-[300px]">
-                                <img src="${svgUrl}" alt="${t('asset_viewer.alt_generated_svg')}" class="max-w-full max-h-[60vh] rounded shadow-lg" loading="lazy"
-                                     onerror="this.parentElement.innerHTML='<p class=\\'text-brand-text-muted text-sm\\'>${t('asset_viewer.svg_error_inline')}</p>'" />
+                            <div class="space-y-3">
+                                <div class="flex items-start justify-between gap-3 flex-wrap">
+                                    <p class="text-[11px] text-brand-text-muted max-w-md">${t('asset_viewer.export_intro')}</p>
+                                    <!-- Background-removal method + generate control -->
+                                    <div class="flex items-center gap-2 flex-shrink-0">
+                                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.export_bg_method')}</label>
+                                        <select id="av-export-method" class="input text-xs py-1">
+                                            <option value="local">${t('asset_viewer.export_method_local')}</option>
+                                            <option value="bedrock">${t('asset_viewer.export_method_bedrock')}</option>
+                                        </select>
+                                        <button id="av-export-generate" class="btn btn-primary btn-sm">
+                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
+                                            ${t('asset_viewer.export_generate_cutouts')}
+                                        </button>
+                                    </div>
+                                </div>
+                                <p id="av-export-method-hint" class="text-[10px] text-brand-text-dim -mt-1"></p>
+                                <div id="av-export-status" class="text-xs text-brand-text-muted hidden"></div>
+                                <!-- Three-variant grid, populated by _renderExportPanel -->
+                                <div id="av-export-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-3"></div>
                             </div>
                         </div>
 
@@ -384,12 +401,18 @@
             // Edit in Type Studio: show for Type Studio assets only
             if (reloadTypeBtn) reloadTypeBtn.classList.toggle('hidden', !isTS);
 
-            // Show/hide SVG download button and tab based on whether SVG exists
+            // Show/hide the footer SVG download button based on whether a with-bg
+            // SVG exists. The Export & Cutouts tab itself is ALWAYS visible now —
+            // it offers on-demand generation of the vector + background-removed
+            // variants even when no SVG was produced at generation time.
             const hasSvg = !!(meta.svg_path);
             const svgDlBtn = this._overlay?.querySelector('.btn-dl-svg');
             if (svgDlBtn) svgDlBtn.classList.toggle('hidden', !hasSvg);
             const svgTab = this._overlay?.querySelector('[data-tab="svg"]');
-            if (svgTab) svgTab.classList.toggle('hidden', !hasSvg);
+            if (svgTab) svgTab.classList.remove('hidden');
+            // Reset export-panel cache (asset/version may have changed) and refresh.
+            this._exportStatus = null;
+            this._renderExportPanel();
 
             // Populate shared version bar if versions exist
             this._updateVersionBar(meta);
@@ -931,6 +954,143 @@
             verDetail.classList.toggle('hidden', !(promptTabs.has(tab) && hasContent));
         },
 
+        // ── Export & Cutouts panel ────────────────────────────────────────
+        //
+        // Three artefacts per version: (1) with-bg vector SVG, (2) background-
+        // removed transparent PNG, (3) background-removed vector SVG. (2)+(3) are
+        // produced on demand from a SINGLE background removal (the SVG is a free
+        // local trace of the cutout PNG), via local rembg (free) or paid Bedrock.
+
+        _exportCard({ titleKey, descKey, url, isSvg, filename, exists, checker }) {
+            const bg = checker ? 'preview-checkerboard' : 'bg-brand-bg/40';
+            const inner = exists
+                ? `<img src="${url}?t=${Date.now()}" alt="" class="max-w-full max-h-[34vh] object-contain rounded" loading="lazy" />`
+                : `<div class="flex flex-col items-center gap-1 text-brand-text-dim text-[11px] py-10">
+                        <svg class="w-6 h-6 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                        <span>${t('asset_viewer.export_not_generated')}</span>
+                   </div>`;
+            const dl = exists
+                ? `<a href="${url}" download="${this._esc(filename)}" class="btn btn-secondary btn-sm w-full justify-center">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
+                        ${isSvg ? t('asset_viewer.export_dl_svg') : t('asset_viewer.export_dl_png')}
+                   </a>`
+                : `<button class="btn btn-secondary btn-sm w-full justify-center opacity-40 cursor-not-allowed" disabled>${isSvg ? t('asset_viewer.export_dl_svg') : t('asset_viewer.export_dl_png')}</button>`;
+            return `
+                <div class="border border-brand-border rounded-lg overflow-hidden flex flex-col">
+                    <div class="px-3 py-2 border-b border-brand-border">
+                        <div class="text-xs font-medium text-brand-text">${t(titleKey)}</div>
+                        <div class="text-[10px] text-brand-text-muted">${t(descKey)}</div>
+                    </div>
+                    <div class="${bg} flex-1 flex items-center justify-center p-3 min-h-[180px]">${inner}</div>
+                    <div class="p-2">${dl}</div>
+                </div>`;
+        },
+
+        /** Render the three export cards from cached status (fetches if absent). */
+        async _renderExportPanel() {
+            const grid = this._overlay?.querySelector('#av-export-grid');
+            if (!grid || !this._item) return;
+            const assetId = this._item.id;
+            const version = this._currentVersion || this._meta?.current_version
+                || (this._meta?.versions?.length || 1);
+
+            // Update the method hint (cost implication) whenever we render.
+            this._updateExportMethodHint();
+
+            if (!this._exportStatus) {
+                try {
+                    this._exportStatus = await API.gallery.exportStatus(assetId, version);
+                } catch {
+                    this._exportStatus = null;
+                }
+            }
+            const s = this._exportStatus || {};
+            const withbgUrl = s.withbg_svg?.url || API.gallery.versionSvgUrl(assetId, version);
+            const withbgExists = !!s.withbg_svg?.exists;
+            const pngExists = !!s.nobg_png?.exists;
+            const svgExists = !!s.nobg_svg?.exists;
+
+            grid.innerHTML = [
+                this._exportCard({
+                    titleKey: 'asset_viewer.export_card_withbg_title',
+                    descKey: 'asset_viewer.export_card_withbg_desc',
+                    url: withbgUrl, isSvg: true, checker: false,
+                    filename: `${assetId}_v${version}.svg`, exists: withbgExists,
+                }),
+                this._exportCard({
+                    titleKey: 'asset_viewer.export_card_nobg_png_title',
+                    descKey: 'asset_viewer.export_card_nobg_png_desc',
+                    url: API.gallery.cutoutPngUrl(assetId, version), isSvg: false, checker: true,
+                    filename: `${assetId}_v${version}_nobg.png`, exists: pngExists,
+                }),
+                this._exportCard({
+                    titleKey: 'asset_viewer.export_card_nobg_svg_title',
+                    descKey: 'asset_viewer.export_card_nobg_svg_desc',
+                    url: API.gallery.cutoutSvgUrl(assetId, version), isSvg: true, checker: true,
+                    filename: `${assetId}_v${version}_nobg.svg`, exists: svgExists,
+                }),
+            ].join('');
+
+            // Reflect whichever method last produced the cutouts (if any).
+            const methodSel = this._overlay?.querySelector('#av-export-method');
+            if (methodSel && s.method) methodSel.value = s.method;
+
+            // If cutouts already exist, soften the CTA label to "Regenerate".
+            const genBtnLabel = this._overlay?.querySelector('#av-export-generate');
+            if (genBtnLabel) {
+                const span = genBtnLabel.childNodes[genBtnLabel.childNodes.length - 1];
+                const label = (pngExists && svgExists)
+                    ? t('asset_viewer.export_regenerate_cutouts')
+                    : t('asset_viewer.export_generate_cutouts');
+                if (span && span.nodeType === Node.TEXT_NODE) span.textContent = ' ' + label;
+            }
+        },
+
+        _updateExportMethodHint() {
+            const sel = this._overlay?.querySelector('#av-export-method');
+            const hint = this._overlay?.querySelector('#av-export-method-hint');
+            if (!sel || !hint) return;
+            hint.textContent = sel.value === 'bedrock'
+                ? t('asset_viewer.export_method_bedrock_hint')
+                : t('asset_viewer.export_method_local_hint');
+        },
+
+        /** Trigger on-demand generation of the bg-removed cutout PNG + SVG. */
+        async _generateExportCutouts() {
+            const btn = this._overlay?.querySelector('#av-export-generate');
+            const statusEl = this._overlay?.querySelector('#av-export-status');
+            const methodSel = this._overlay?.querySelector('#av-export-method');
+            if (!btn || !this._item) return;
+            const method = methodSel?.value || 'local';
+            const version = this._currentVersion || this._meta?.current_version
+                || (this._meta?.versions?.length || 1);
+
+            btn.disabled = true;
+            if (statusEl) {
+                statusEl.classList.remove('hidden', 'text-red-400');
+                statusEl.textContent = t('asset_viewer.export_working');
+            }
+            try {
+                const res = await API.gallery.createExportVariants(this._item.id, { method, version });
+                this._exportStatus = res;
+                await this._renderExportPanel();
+                if (statusEl) {
+                    const cost = res.cost_incurred_usd || 0;
+                    statusEl.textContent = cost > 0
+                        ? t('asset_viewer.export_done_cost', { cost: cost.toFixed(2) })
+                        : t('asset_viewer.export_done_free');
+                }
+            } catch (err) {
+                console.error('Export variants failed:', err);
+                if (statusEl) {
+                    statusEl.classList.add('text-red-400');
+                    statusEl.textContent = t('asset_viewer.export_error');
+                }
+            } finally {
+                btn.disabled = false;
+            }
+        },
+
         _updateVersionBar(meta) {
             const bar = this._overlay?.querySelector('#av-version-bar');
             const btns = this._overlay?.querySelector('#av-version-buttons');
@@ -981,13 +1141,10 @@
                         this._refitZoomOnLoad?.();
                     }
 
-                    // Update SVG image
-                    const svgImg = this._overlay?.querySelector('[data-panel="svg"] img');
-                    if (svgImg) {
-                        svgImg.src = version === currentVersion
-                            ? `/api/gallery/${assetId}/svg?t=${Date.now()}`
-                            : `/api/gallery/${assetId}/version-svg/${version}?t=${Date.now()}`;
-                    }
+                    // Refresh the Export & Cutouts panel for the selected version
+                    // (variants are cached per version, so re-fetch the status).
+                    this._exportStatus = null;
+                    this._renderExportPanel();
 
                     // Update the Edit tab's mask canvas AND the shared Extend preview
                     // to the selected version so edits act on what the user sees (both
@@ -1139,6 +1296,12 @@
                     syncTabChrome(tab.dataset.tab);
                 });
             });
+
+            // Export & Cutouts: generate button + method-hint refresh.
+            this._overlay.querySelector('#av-export-generate')
+                ?.addEventListener('click', () => this._generateExportCutouts());
+            this._overlay.querySelector('#av-export-method')
+                ?.addEventListener('change', () => this._updateExportMethodHint());
 
             // ── Previous / Next navigation ────────────────────────────
             const prevBtn = this._overlay.querySelector('.btn-prev');

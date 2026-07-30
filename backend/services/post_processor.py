@@ -11,6 +11,11 @@ from backend.services.bedrock_client import invoke_image_model
 
 logger = logging.getLogger(__name__)
 
+# Background-removal methods. "local" is free (rembg + u2net, runs on CPU);
+# "bedrock" is the paid Amazon Bedrock SD remover (higher quality, per-call cost).
+BG_METHOD_LOCAL = "local"
+BG_METHOD_BEDROCK = "bedrock"
+
 
 def _find_model_key_by_purpose(purpose: str) -> str | None:
     """Find the first enabled model key matching the given purpose from the registry."""
@@ -23,8 +28,48 @@ def _find_model_key_by_purpose(purpose: str) -> str | None:
 
 # ── Background removal ────────────────────────────────────────────────────
 
-def remove_background(image_bytes: bytes) -> bytes:
-    """Remove the background from a PNG image.
+# rembg session is expensive to build (loads the ONNX model) — build once, reuse.
+_rembg_session = None
+
+
+def _get_rembg_session():
+    """Lazily build and cache the rembg u2net session.
+
+    u2net is the default rembg model; its weights are Apache-2.0 (commercial-safe)
+    and it auto-downloads once to ~/.u2net/, then runs fully offline on CPU.
+    """
+    global _rembg_session
+    if _rembg_session is None:
+        from rembg import new_session
+        _rembg_session = new_session("u2net")
+    return _rembg_session
+
+
+def remove_background_local(image_bytes: bytes) -> bytes:
+    """Remove the background locally with rembg (u2net) — free, on-device, no API cost.
+
+    Args:
+        image_bytes: Input PNG image bytes.
+
+    Returns:
+        PNG image bytes with the background removed (transparent).
+    """
+    from rembg import remove
+
+    logger.info("Removing background locally (rembg/u2net) from image (%d bytes).", len(image_bytes))
+    # post_process_mask cleans up the alpha edge; force PNG bytes out.
+    result = remove(
+        image_bytes,
+        session=_get_rembg_session(),
+        post_process_mask=True,
+        force_return_bytes=True,
+    )
+    logger.info("Background removed locally: input=%d bytes, output=%d bytes.", len(image_bytes), len(result))
+    return result
+
+
+def remove_background_bedrock(image_bytes: bytes) -> bytes:
+    """Remove the background via the Amazon Bedrock SD remover (paid, higher quality).
 
     Uses the registry to find the remove_background model and invokes it
     via the generic image model invoker.
@@ -35,13 +80,33 @@ def remove_background(image_bytes: bytes) -> bytes:
     Returns:
         PNG image bytes with the background removed (transparent).
     """
-    logger.info("Removing background from image (%d bytes).", len(image_bytes))
+    logger.info("Removing background via Amazon Bedrock from image (%d bytes).", len(image_bytes))
     model_key = _find_model_key_by_purpose("remove_background")
     if not model_key:
         raise RuntimeError("No enabled remove_background model found in registry.")
     result = invoke_image_model(model_key, source_image=image_bytes)
-    logger.info("Background removed: input=%d bytes, output=%d bytes.", len(image_bytes), len(result))
+    logger.info("Background removed (Bedrock): input=%d bytes, output=%d bytes.", len(image_bytes), len(result))
     return result
+
+
+def remove_background(image_bytes: bytes, method: str = BG_METHOD_BEDROCK) -> bytes:
+    """Remove the background from a PNG image using the requested method.
+
+    Default is ``"bedrock"`` to preserve the behavior (and cost accounting) of
+    existing callers — the generation post-processing toggle and the 3D-prep
+    cutout both historically used the paid Bedrock remover. New callers that want
+    the free local path pass ``method="local"`` explicitly.
+
+    Args:
+        image_bytes: Input PNG image bytes.
+        method: ``"local"`` (rembg/u2net, free) or ``"bedrock"`` (paid SD remover).
+
+    Returns:
+        PNG image bytes with the background removed (transparent).
+    """
+    if method == BG_METHOD_LOCAL:
+        return remove_background_local(image_bytes)
+    return remove_background_bedrock(image_bytes)
 
 
 # ── Upscaling ─────────────────────────────────────────────────────────
@@ -76,13 +141,92 @@ def _has_command(cmd: str) -> bool:
     return shutil.which(cmd) is not None
 
 
-def _convert_with_vtracer(png_path: Path, svg_path: Path) -> bool:
-    """Attempt SVG conversion using vtracer CLI.
+# Tuned tracing params (speckle-filtered, colour-precise). Passed to the vtracer
+# binding when the platform's wheel accepts them; some wheels (observed: the
+# 0.6.15 macOS-arm64 wheel) segfault when ANY kwarg is passed, so the subprocess
+# runner below falls back to vtracer's built-in defaults (which are already
+# colour/stacked/spline) if a parameterized run crashes.
+_VTRACER_PARAMS = dict(
+    filter_speckle=4,
+    color_precision=6,
+    layer_difference=16,
+    corner_threshold=60,
+    length_threshold=4.0,
+    max_iterations=10,
+    splice_threshold=45,
+    path_precision=3,
+)
 
-    Returns True on success, False if vtracer is unavailable or fails.
+# Child-process script: trace PNG→SVG via the vtracer binding. Kept as a module
+# invocation string so a native crash (SIGSEGV) is contained in the child and can
+# never take down the uvicorn worker. argv: <png> <svg> <params-json|"">.
+_VTRACER_CHILD = (
+    "import sys, json, vtracer;"
+    "kw = json.loads(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else {};"
+    "vtracer.convert_image_to_svg_py(sys.argv[1], sys.argv[2], **kw)"
+)
+
+
+def _run_vtracer_child(png_path: Path, svg_path: Path, params: dict | None) -> bool:
+    """Run the vtracer binding in a child process; True iff it exited cleanly.
+
+    Isolating vtracer in a subprocess means a native segfault (some wheels crash
+    on kwargs) is contained — the child dies, we detect the non-zero/killed exit
+    and fall back, instead of the crash killing the API server.
     """
+    import json
+    import sys
+
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-c", _VTRACER_CHILD, str(png_path), str(svg_path),
+             json.dumps(params or {})],
+            capture_output=True,
+            text=True,
+            timeout=180,
+        )
+    except (subprocess.TimeoutExpired, OSError) as exc:
+        logger.warning("vtracer child process error: %s", exc)
+        return False
+
+    if proc.returncode == 0 and svg_path.exists() and svg_path.stat().st_size > 0:
+        return True
+    logger.warning(
+        "vtracer child failed (rc=%s, params=%s): %s",
+        proc.returncode, bool(params), (proc.stderr or "").strip()[:200],
+    )
+    return False
+
+
+def _convert_with_vtracer(png_path: Path, svg_path: Path) -> bool:
+    """Convert PNG→SVG using vtracer (true colour vector tracing).
+
+    Runs vtracer in a subprocess for crash-isolation. Tries the tuned params
+    first; if that run fails or crashes (kwargs segfault on some wheels), retries
+    with vtracer's built-in defaults (already colour/stacked/spline). Returns
+    True on success, False if vtracer is unavailable or both attempts fail.
+    """
+    try:
+        import vtracer  # noqa: F401 — presence check only; work happens in the child
+    except ImportError:
+        logger.debug("vtracer not installed.")
+        # Legacy CLI fallback, if a vtracer binary happens to be on PATH.
+        return _convert_with_vtracer_cli(png_path, svg_path)
+
+    # Attempt 1: tuned params. Attempt 2: no params (crash-safe defaults).
+    if _run_vtracer_child(png_path, svg_path, _VTRACER_PARAMS):
+        logger.info("vtracer conversion succeeded (tuned params): %s", svg_path)
+        return True
+    if _run_vtracer_child(png_path, svg_path, None):
+        logger.info("vtracer conversion succeeded (default params): %s", svg_path)
+        return True
+    return False
+
+
+def _convert_with_vtracer_cli(png_path: Path, svg_path: Path) -> bool:
+    """Legacy fallback: the vtracer CLI, if present on PATH."""
     if not _has_command("vtracer"):
-        logger.debug("vtracer not found on PATH.")
+        logger.debug("vtracer CLI not found on PATH.")
         return False
 
     try:
@@ -107,10 +251,10 @@ def _convert_with_vtracer(png_path: Path, svg_path: Path) -> bool:
             timeout=120,
             check=True,
         )
-        logger.info("vtracer conversion succeeded: %s", svg_path)
+        logger.info("vtracer (cli) conversion succeeded: %s", svg_path)
         return True
     except (subprocess.CalledProcessError, subprocess.TimeoutExpired, OSError) as exc:
-        logger.warning("vtracer conversion failed: %s", exc)
+        logger.warning("vtracer CLI conversion failed: %s", exc)
         return False
 
 
