@@ -1180,6 +1180,9 @@ async def teardown_model(model_key: str, delete_s3: bool = False):
             title="Model removed",
             message=f"{friendly} was torn down. You can redeploy it any time from Model Settings → Custom Models.",
             level="info",
+            # Collapse repeat teardowns of the same model into one unseen notice
+            # (without this, deploy→teardown cycles stack duplicate cards).
+            dedup_key=f"deploy_removed:{model_key}",
         )
     except Exception:
         pass
