@@ -1750,8 +1750,16 @@
                     // the edit runs in the background; the poller saves the new
                     // version when ready. Inform the user and stop — don't reload.
                     if (result.async) {
-                        if (statusEl) { statusEl.textContent = t('asset_viewer.edit_async_queued'); }
-                        window.showToast?.(t('asset_viewer.edit_async_queued'), 'info');
+                        // Match the 3D async UI: surface the job id + submit time so
+                        // the user can correlate with the async-jobs strip / logs.
+                        const jobInfo = result.async_job_id
+                            ? ' ' + t('asset_viewer.edit_async_job_info', {
+                                  id: result.async_job_id,
+                                  time: new Date().toLocaleTimeString(),
+                              })
+                            : '';
+                        if (statusEl) { statusEl.textContent = t('asset_viewer.edit_async_queued') + jobInfo; }
+                        window.showToast?.(t('asset_viewer.edit_async_queued') + jobInfo, 'info');
                         if (window.Gallery?.refresh) window.Gallery.refresh();
                         return;  // finally{} re-enables the button
                     }

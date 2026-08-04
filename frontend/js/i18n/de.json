@@ -1011,6 +1011,7 @@
     "three_d_untextured_notice": "Die Texturierung wurde für dieses Modell nicht abgeschlossen, daher wurde ein einfaches (untexturiertes) Mesh erzeugt. Es ist dennoch unverändert nutzbar — generieren Sie neu, um die Texturierung erneut zu versuchen.",
     "meta_3d_attribution": "Namensnennung",
     "edit_async_queued": "Bearbeitung läuft — die neue Version erscheint, sobald sie fertig ist.",
+    "edit_async_job_info": "(Job {{id}} · übermittelt {{time}})",
     "meta_refined_prompt": "Verfeinerter Prompt des Nutzers (auf das Zielmodell zugeschnitten)",
     "meta_recomposed_note": "Aus den Prompt-Designer-Feldern zusammengesetzt",
     "meta_positive_add": "Positiver Zusatz",

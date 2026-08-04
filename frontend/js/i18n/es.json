@@ -332,6 +332,7 @@
     "three_d_untextured_notice": "La texturización de este modelo no se completó, por lo que se generó una malla sin textura. Se puede usar tal cual; vuelve a generar para reintentar la texturización.",
     "meta_3d_attribution": "Atribución",
     "edit_async_queued": "Editando — la nueva versión aparecerá cuando esté lista.",
+    "edit_async_job_info": "(Trabajo {{id}} · enviado {{time}})",
     "meta_refined_prompt": "Prompt refinado del usuario (adaptado al modelo objetivo)",
     "meta_recomposed_note": "Concatenado desde los campos del Diseñador de prompts",
     "meta_positive_add": "Añadido positivo",

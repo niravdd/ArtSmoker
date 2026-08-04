@@ -1011,6 +1011,7 @@
     "three_d_untextured_notice": "Texturing didn't complete for this model, so a plain (untextured) mesh was produced. It's still usable as-is — regenerate to try texturing again.",
     "meta_3d_attribution": "Attribution",
     "edit_async_queued": "Edit is processing — the new version will appear when ready.",
+    "edit_async_job_info": "(Job {{id}} · submitted {{time}})",
     "meta_refined_prompt": "Refined prompt of the user prompt (tailored for the target model)",
     "meta_recomposed_note": "Concatenated from the Prompt Designer fields",
     "meta_positive_add": "Positive add-on",

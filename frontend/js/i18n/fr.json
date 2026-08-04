@@ -332,6 +332,7 @@
     "three_d_untextured_notice": "La texturation de ce modèle n'a pas abouti ; un maillage sans texture a donc été produit. Il reste utilisable tel quel — régénérez pour réessayer la texturation.",
     "meta_3d_attribution": "Attribution",
     "edit_async_queued": "Modification en cours — la nouvelle version apparaîtra une fois prête.",
+    "edit_async_job_info": "(Tâche {{id}} · soumise {{time}})",
     "meta_refined_prompt": "Prompt affiné de l'utilisateur (adapté au modèle cible)",
     "meta_recomposed_note": "Concaténé depuis les champs du Concepteur de prompt",
     "meta_positive_add": "Ajout positif",

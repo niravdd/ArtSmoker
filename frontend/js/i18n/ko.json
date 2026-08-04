@@ -332,6 +332,7 @@
     "three_d_untextured_notice": "이 모델의 텍스처링이 완료되지 않아 텍스처 없는 메시가 생성되었습니다. 그대로 사용할 수 있으며, 다시 생성하면 텍스처링을 재시도합니다.",
     "meta_3d_attribution": "저작자 표시",
     "edit_async_queued": "편집을 처리 중입니다 — 준비되면 새 버전이 나타납니다.",
+    "edit_async_job_info": "(작업 {{id}} · 제출 {{time}})",
     "meta_refined_prompt": "사용자 프롬프트 정제본 (대상 모델에 맞춤화)",
     "meta_recomposed_note": "프롬프트 디자이너 필드를 연결함",
     "meta_positive_add": "긍정 추가",

@@ -332,6 +332,7 @@
     "three_d_untextured_notice": "该模型的贴图未能完成，因此生成了无贴图的网格。它仍可直接使用——重新生成可再次尝试贴图。",
     "meta_3d_attribution": "署名",
     "edit_async_queued": "编辑处理中 — 新版本准备就绪后将会显示。",
+    "edit_async_job_info": "（任务 {{id}} · 提交于 {{time}}）",
     "meta_refined_prompt": "用户提示词的精炼版（针对目标模型优化）",
     "meta_recomposed_note": "由提示词设计器各字段拼接而成",
     "meta_positive_add": "正向追加",
