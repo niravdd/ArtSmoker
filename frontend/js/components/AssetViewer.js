@@ -350,6 +350,37 @@
             this._overlay = overlay;
         },
 
+        /** Render the info bar under the image. The model tags are per-VERSION:
+         *  the base tag is always the ORIGINAL generator; a second tag names the
+         *  editor model of the version being VIEWED (this._currentVersion),
+         *  shown only for edit versions whose model differs from the original.
+         *  Called on load and re-called by the version bar on every switch. */
+        _renderInfoBar(meta) {
+            const infoBar = this._overlay?.querySelector('#av-image-info');
+            if (!infoBar) return;
+            const createdDate = meta.created_at ? window.formatDate(meta.created_at) : '';
+            const modelLabel = meta.model_label || MODEL_LABELS[meta.image_model] || meta.image_model || '';
+            const typeLabel = TYPE_LABELS[meta.asset_type] || meta.asset_type || 'N/A';
+            const styleName = meta.style_snapshot?.name || meta.style_id || '';
+            let versionModelLabel = '';
+            try {
+                const viewedV = this._currentVersion || meta.current_version || (meta.versions?.length || 1);
+                const vrec = (meta.versions || []).find(v => v.version === viewedV);
+                const vm = vrec && vrec.type !== 'original'
+                    ? (vrec.model_label || vrec.image_model || '') : '';
+                if (vm && vm !== modelLabel) versionModelLabel = vm;
+            } catch {}
+            infoBar.innerHTML = [
+                meta.imported ? `<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>` : '',
+                modelLabel ? `<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(modelLabel)}${versionModelLabel ? ` <span class="opacity-60">· ${t('asset_viewer.version_original')}</span>` : ''}</span>` : '',
+                versionModelLabel ? `<span class="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">${this._esc(versionModelLabel)} <span class="opacity-60">· ${t('asset_viewer.version_this_edit')}</span></span>` : '',
+                styleName ? `<span class="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${this._esc(styleName)}</span>` : '',
+                typeLabel !== 'N/A' ? `<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${this._esc(typeLabel)}</span>` : '',
+                meta.width && meta.height ? `<span>${meta.width}×${meta.height}</span>` : '',
+                createdDate ? `<span>${createdDate}</span>` : '',
+            ].filter(Boolean).join('');
+        },
+
         _updateMetadata(meta) {
             const container = this._overlay?.querySelector('#asset-meta-content');
             if (!container) return;
@@ -373,31 +404,11 @@
             const typeLabel = TYPE_LABELS[meta.asset_type] || meta.asset_type || 'N/A';
             const styleName = meta.style_snapshot?.name || meta.style_id || '';
 
-            // For edited assets, the base model tag is the ORIGINAL generator —
-            // the CURRENT version's editor model (e.g. Qwen-Image-Edit for an
-            // inpaint version) is a separate tag so both provenances are visible.
-            let versionModelLabel = '';
-            try {
-                const _curV = meta.current_version || (meta.versions?.length || 1);
-                const _vrec = (meta.versions || []).find(v => v.version === _curV);
-                const _vm = _vrec && _vrec.type !== 'original'
-                    ? (_vrec.model_label || _vrec.image_model || '') : '';
-                if (_vm && _vm !== modelLabel) versionModelLabel = _vm;
-            } catch {}
-
-            // Update the image info bar (below the image, above metadata panel)
-            const infoBar = this._overlay?.querySelector('#av-image-info');
-            if (infoBar) {
-                infoBar.innerHTML = [
-                    meta.imported ? `<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>` : '',
-                    modelLabel ? `<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(modelLabel)}${versionModelLabel ? ` <span class="opacity-60">· ${t('asset_viewer.version_original')}</span>` : ''}</span>` : '',
-                    versionModelLabel ? `<span class="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">${this._esc(versionModelLabel)} <span class="opacity-60">· ${t('asset_viewer.version_this_edit')}</span></span>` : '',
-                    styleName ? `<span class="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${this._esc(styleName)}</span>` : '',
-                    typeLabel !== 'N/A' ? `<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${this._esc(typeLabel)}</span>` : '',
-                    meta.width && meta.height ? `<span>${meta.width}×${meta.height}</span>` : '',
-                    createdDate ? `<span>${createdDate}</span>` : '',
-                ].filter(Boolean).join('');
-            }
+            // Update the image info bar (below the image, above metadata panel).
+            // Extracted to a method: the version bar re-renders it on switch so
+            // the "this edit" tag always reflects the VIEWED version, not the
+            // asset's latest.
+            this._renderInfoBar(meta);
 
             this._populateMetadata(container, meta);
 
@@ -1142,6 +1153,10 @@
                     // Keep _currentVersion in sync FIRST so the Edit tab + 3D tab
                     // resolve against the chosen version (used below and by Edit).
                     this._currentVersion = version;
+
+                    // Re-render the info bar so the model tags track the VIEWED
+                    // version (the "this edit" tag must not stick to the latest).
+                    this._renderInfoBar(this._meta || meta || {});
 
                     // Update PNG image, then re-fit the zoom viewer to the new image
                     // (a taller extended version would otherwise overflow / sit
