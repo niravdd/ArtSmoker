@@ -1606,6 +1606,24 @@ async def edit_image(body: ImageEditRequest):
     extra = dict(body.extra_params or {})
     edit_meta = extra.pop("_meta", None)
 
+    # Translate non-English edit prompts — preserve originals for metadata
+    from backend.services.prompt_translator import translate_to_english
+    edit_original_language = "en"
+    edit_original_prompts = {}  # field → original non-English text
+
+    for field_name in ("prompt", "search_prompt", "select_prompt"):
+        val = getattr(body, field_name, None)
+        if not val:
+            continue
+        try:
+            tr = translate_to_english(val)
+            if tr["was_translated"]:
+                edit_original_language = tr["source_lang"]
+                edit_original_prompts[field_name] = val
+                setattr(body, field_name, tr["translated"])
+        except Exception:
+            pass
+
     # General instruction-driven edit models (e.g. Qwen-Image-Edit, model_purpose
     # "image_edit") are mask-free and don't understand Stability's search_prompt/
     # select_prompt/direction fields. When such a model is used for ANY Edit-tab
@@ -1614,11 +1632,11 @@ async def edit_image(body: ImageEditRequest):
     is_instruction_editor = purpose == "image_edit"
     _outpaint_geometry = None   # set only by the instruction-editor outpaint path
     _pre_pad_source = None
-    # The user's words, captured BEFORE any transform. The instruction-editor
-    # branch below mutates body.prompt in place (search folding, outpaint
-    # instruction build) — without this snapshot the version record would store
-    # the machine-built instruction as the "user prompt" and the raw input
-    # would be lost.
+    # The user's words (in English — translation above ran first), captured
+    # BEFORE the machine transforms below (search folding, outpaint instruction
+    # build). Without this snapshot the version record would store the built
+    # instruction as the "user prompt". The pre-translation original is kept
+    # separately in edit_original_prompts.
     user_prompt_raw = (body.prompt or "").strip()
     if is_instruction_editor:
         _search = extra.get("search_prompt") or extra.get("select_prompt") or ""
@@ -1666,24 +1684,6 @@ async def edit_image(body: ImageEditRequest):
                 400,
                 detail="Nothing to extend — set at least one direction (left, right, up or down) to a non-zero amount.",
             )
-
-    # Translate non-English edit prompts — preserve originals for metadata
-    from backend.services.prompt_translator import translate_to_english
-    edit_original_language = "en"
-    edit_original_prompts = {}  # field → original non-English text
-
-    for field_name in ("prompt", "search_prompt", "select_prompt"):
-        val = getattr(body, field_name, None)
-        if not val:
-            continue
-        try:
-            tr = translate_to_english(val)
-            if tr["was_translated"]:
-                edit_original_language = tr["source_lang"]
-                edit_original_prompts[field_name] = val
-                setattr(body, field_name, tr["translated"])
-        except Exception:
-            pass
 
     # Smart prompt transformation for inpainting:
     # Users often write removal instructions ("Remove X", "Delete X", "Get rid of X")

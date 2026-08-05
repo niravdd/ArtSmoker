@@ -355,8 +355,9 @@ def invoke_instruction_edit_sync(model_key: str, prompt: str, image_bytes: bytes
         "reference_images": [_b64.b64encode(image_bytes).decode()],
         "negative_prompt": " ",
     }
-    # Honor registry-driven inference defaults (steps, cfg) when defined.
-    for field_name, spec in (model_config.get("invoke", {}).get("payload_fields", {}) or {}).items():
+    # Honor registry-driven inference defaults (steps, cfg) when defined —
+    # same `input_fields` schema the async submit path uses.
+    for field_name, spec in (model_config.get("invoke", {}).get("input_fields", {}) or {}).items():
         if field_name not in payload and isinstance(spec, dict) and "default" in spec:
             payload[field_name] = spec["default"]
 

@@ -1931,6 +1931,10 @@
                 // Qwen hides brush/clear/hint immediately) — not only after a click.
                 const maskControls = this._overlay?.querySelector('#av-mask-controls');
                 if (maskControls) maskControls.classList.toggle('hidden', this._selectedEditModelIsMaskFree());
+                // Re-evaluate the Apply gate now that the model list (and thus
+                // mask-free knowledge) is loaded — the canvas-load evaluation may
+                // have run before this fetch resolved.
+                this._updateApplyEditGate?.();
             }).catch(() => {});
         },
 
