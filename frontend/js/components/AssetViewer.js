@@ -1448,6 +1448,31 @@
             let brushSize = 20;
             let editMode = 'inpaint';
 
+            // Track whether the user has painted anything since the last canvas
+            // (re)load/clear. Drives the Apply-Edit gate for mask-requiring
+            // model+mode combos — a submit without a mask used to fail with only
+            // a transient toast the user could easily miss ("SD job never ran").
+            canvas._maskPainted = false;
+            this._updateApplyEditGate = () => {
+                const btn = this._overlay?.querySelector('#av-edit-generate');
+                const statusEl = this._overlay?.querySelector('#av-edit-status');
+                if (!btn) return;
+                const needsMask = (editMode === 'inpaint' || editMode === 'erase')
+                    && !this._selectedEditModelIsMaskFree();
+                const blocked = needsMask && !canvas._maskPainted;
+                btn.disabled = blocked;
+                btn.classList.toggle('opacity-50', blocked);
+                btn.classList.toggle('cursor-not-allowed', blocked);
+                if (statusEl) {
+                    if (blocked) {
+                        statusEl.textContent = t('asset_viewer.mask_required_hint');
+                        statusEl.classList.remove('hidden');
+                    } else if (statusEl.textContent === t('asset_viewer.mask_required_hint')) {
+                        statusEl.textContent = '';
+                    }
+                }
+            };
+
             // Load the SELECTED version's image onto the mask canvas. Re-callable so
             // the Edit tab always shows/edits the version chosen in the version bar
             // (not whatever was loaded first). Clears any painted mask on reload.
@@ -1471,6 +1496,8 @@
                     canvas._imgH = img.height;
                     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
                     canvas._baseImageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    canvas._maskPainted = false;   // fresh canvas = no mask yet
+                    this._updateApplyEditGate?.();
                 };
                 img.src = url;
             };
@@ -1538,6 +1565,7 @@
                 const scaleX = canvas.width / rect.width;
                 const scaleY = canvas.height / rect.height;
                 paintAt((e.clientX - rect.left) * scaleX, (e.clientY - rect.top) * scaleY);
+                if (!canvas._maskPainted) { canvas._maskPainted = true; this._updateApplyEditGate?.(); }
             });
             canvas.addEventListener('mousemove', (e) => {
                 if (!painting) return;
@@ -1553,6 +1581,8 @@
                 if (canvas._baseImageData) {
                     ctx.putImageData(canvas._baseImageData, 0, 0);
                 }
+                canvas._maskPainted = false;
+                this._updateApplyEditGate?.();
             });
 
             // Edit mode switching
@@ -1636,6 +1666,9 @@
                     if (editHint) {
                         editHint.textContent = hints[editMode] || t('asset_viewer.edit_hint_full');
                     }
+
+                    // Mode changed — re-evaluate whether Apply needs a mask.
+                    this._updateApplyEditGate?.();
                 });
             });
 
@@ -1650,6 +1683,8 @@
             this._overlay.querySelector('#av-edit-model')?.addEventListener('change', () => {
                 const maskControls = this._overlay.querySelector('#av-mask-controls');
                 if (maskControls) maskControls.classList.toggle('hidden', this._selectedEditModelIsMaskFree());
+                // A mask-free model lifts the gate; a mask-requiring one restores it.
+                this._updateApplyEditGate?.();
             });
 
             // ✨ Generate Prompt — vision LLM reads the image + original prompt and
@@ -1731,7 +1766,12 @@
                     if (needsMask) {
                         const maskResult = this._extractMask(canvas);
                         if (maskResult.isEmpty) {
+                            // Belt-and-braces: the Apply gate should prevent this,
+                            // but if it's ever reached, block in BOTH the toast AND
+                            // the persistent status line (a toast alone was missed
+                            // and read as "job submitted").
                             window.showToast?.(t('asset_viewer.no_mask_full'), 'warning');
+                            if (statusEl) { statusEl.textContent = t('asset_viewer.no_mask_full'); statusEl.classList.remove('hidden'); }
                             btn.disabled = false;
                             btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ' + t('asset_viewer.apply_edit');
                             return;

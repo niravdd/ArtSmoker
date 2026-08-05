@@ -176,6 +176,10 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
     output_location = response.get("OutputLocation")
     if not output_location:
         raise RuntimeError("Async invocation returned no output location")
+    # Present when the endpoint config sets S3FailurePath — the model's error
+    # body lands here on a failed inference, letting the poller fail the job in
+    # seconds with the real cause (older endpoints without it return nothing).
+    failure_location = response.get("FailureLocation", "")
 
     # Parse S3 output location
     parts = output_location.replace("s3://", "").split("/", 1)
@@ -195,6 +199,7 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
         s3_key=s3_key,
         endpoint_name=endpoint_name,
         region=region,
+        failure_location=failure_location,
     )
 
     # Return sentinel — the caller knows this is async (not a final image)

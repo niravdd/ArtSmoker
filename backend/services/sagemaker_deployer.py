@@ -702,6 +702,12 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         config_params["AsyncInferenceConfig"] = {
             "OutputConfig": {
                 "S3OutputPath": f"s3://{bucket}/{S3_MODEL_PREFIX}/inference-output/{model_key}/",
+                # Without a failure path, a crashing inference leaves NO S3
+                # artifact at all — the poller can't tell "failed in 1s" from
+                # "still processing" and jobs sit 'generating' until the stale
+                # timeout (15 min+). With it, SageMaker writes the model's error
+                # here and the poller fails the job in seconds with the real cause.
+                "S3FailurePath": f"s3://{bucket}/{S3_MODEL_PREFIX}/inference-failures/{model_key}/",
             },
             "ClientConfig": {
                 "MaxConcurrentInvocationsPerInstance": max_concurrent,
@@ -1349,9 +1355,11 @@ def check_endpoint_status(endpoint_name: str) -> dict:
         warming_up = False
         warmup_detail = ""
         instance_count = 0
+        desired_count = 0
 
         for v in resp.get("ProductionVariants", []):
             instance_count = v.get("CurrentInstanceCount", 0)
+            desired_count = v.get("DesiredInstanceCount", instance_count)
 
         if status == "InService" and instance_count > 0:
             # Only check readiness when an instance is actually running.
@@ -1379,6 +1387,10 @@ def check_endpoint_status(endpoint_name: str) -> dict:
             "warming_up": warming_up,
             "warmup_detail": warmup_detail,
             "instance_count": instance_count,
+            # desired > current = scale-out requested but not yet fulfilled —
+            # e.g. blocked on InsufficientInstanceCapacity. The resubmit logic
+            # keys on this: resubmitting cannot help while provisioning is stuck.
+            "desired_instance_count": desired_count,
             "creation_time": resp.get("CreationTime", "").isoformat() if resp.get("CreationTime") else "",
             "last_modified": resp.get("LastModifiedTime", "").isoformat() if resp.get("LastModifiedTime") else "",
             # Surface the real reason for a Failed endpoint (e.g.
@@ -1842,6 +1854,14 @@ def get_endpoint_health(endpoint_name: str) -> dict:
     if ep_status in ("Creating", "Updating"):
         return {"alive": True, "progressing": True, "ready": False, "failed": False,
                 "detail": "Scaling out...", "stale_seconds": 0}
+
+    # InService, no instances, but scale-out already REQUESTED (desired>current):
+    # provisioning is in flight or blocked (e.g. InsufficientInstanceCapacity).
+    # Report progressing — resubmitting cannot help until an instance lands, so
+    # the resubmit path must WAIT here instead of burning its retry budget.
+    if ep_status == "InService" and instances == 0 and status_info.get("desired_instance_count", 0) > 0:
+        return {"alive": True, "progressing": True, "ready": False, "failed": False,
+                "detail": "Scale-out requested — waiting for capacity", "stale_seconds": 0}
 
     # InService but no instances — scaled to zero, waiting for auto-scale
     if ep_status == "InService" and instances == 0:

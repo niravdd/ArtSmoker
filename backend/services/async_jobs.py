@@ -97,6 +97,7 @@ def submit_job(
     generation_id: str = "",
     endpoint_name: str = "",
     region: str = "",
+    failure_location: str = "",
 ) -> dict:
     """Register a new async job for background polling.
 
@@ -126,6 +127,10 @@ def submit_job(
         # Region the ENDPOINT + its async S3 I/O live in. Empty = home region
         # (settings.aws_region_models) — every pre-existing job/endpoint.
         "region": region or "",
+        # S3 URI where SageMaker writes the model's error body on a FAILED
+        # inference (needs S3FailurePath in the endpoint config; empty for
+        # older endpoints — those fall back to the stale-timeout path).
+        "failure_location": failure_location or "",
         "status": PENDING,
         "progress": 0,
         "submitted_at": now,
@@ -382,6 +387,18 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
 
 def _update_gallery_on_edit_complete(job: dict, image_bytes: bytes):
     """Version-aware completion for async EDIT jobs (e.g. Qwen-Image-Edit).
+
+    Serialized per-asset against the sync /edit save (and other async edit
+    completions on the same asset) — both read-modify-write metadata.json;
+    unserialized they can compute the same next_version and clobber a record.
+    """
+    from backend.services.asset_locks import asset_write_lock
+    with asset_write_lock(job["edit_asset_id"]):
+        return _update_gallery_on_edit_complete_locked(job, image_bytes)
+
+
+def _update_gallery_on_edit_complete_locked(job: dict, image_bytes: bytes):
+    """Body of the async edit completion — caller MUST hold the asset lock.
 
     Mirrors the sync /edit versioned save: archive the current asset.png as the
     previous version, then save the edited result as a NEW version of the SAME
@@ -894,7 +911,10 @@ def _resubmit_job(job: dict, endpoint_name: str, s3):
     old_output = job.get("output_location", "")
 
     try:
-        sm_runtime = boto3.client("sagemaker-runtime", region_name=settings.aws_region_models)
+        # Resubmit in the JOB's region (cross-region endpoints carry it; empty =
+        # home region for every pre-existing job).
+        sm_runtime = boto3.client("sagemaker-runtime",
+                                  region_name=job.get("region") or settings.aws_region_models)
 
         response = sm_runtime.invoke_endpoint_async(
             EndpointName=endpoint_name,
@@ -912,6 +932,8 @@ def _resubmit_job(job: dict, endpoint_name: str, s3):
 
         with _lock:
             job["output_location"] = new_output
+            # The failure artifact follows the NEW invocation too.
+            job["failure_location"] = response.get("FailureLocation", "") or job.get("failure_location", "")
             job["s3_bucket"] = new_parts[0]
             job["s3_key"] = new_parts[1]
             job["endpoint_name"] = endpoint_name
@@ -971,11 +993,24 @@ def _check_job(job: dict, s3):
     parts = output_location.replace("s3://", "").split("/", 1)
     bucket, key = parts[0], parts[1]
 
-    # Check for failure file first — SageMaker writes errors to {output}.failure
-    try:
-        failure_key = key + ".failure"
-        failure_obj = s3.get_object(Bucket=bucket, Key=failure_key)
-        failure_body = failure_obj["Body"].read().decode("utf-8", errors="replace")
+    # Check for a failure artifact FIRST, at both possible locations:
+    #  1. job["failure_location"] — where SageMaker ACTUALLY writes the model's
+    #     error when the endpoint config sets S3FailurePath (returned as
+    #     FailureLocation at invoke time). This is the real mechanism — it fails
+    #     a crashing job in seconds instead of waiting out the stale timeout.
+    #  2. legacy "{output}.failure" convention — kept for older jobs/endpoints.
+    _failure_candidates = []
+    if job.get("failure_location"):
+        fparts = job["failure_location"].replace("s3://", "").split("/", 1)
+        if len(fparts) == 2:
+            _failure_candidates.append((fparts[0], fparts[1]))
+    _failure_candidates.append((bucket, key + ".failure"))
+    for f_bucket, f_key in _failure_candidates:
+        try:
+            failure_obj = s3.get_object(Bucket=f_bucket, Key=f_key)
+            failure_body = failure_obj["Body"].read().decode("utf-8", errors="replace")
+        except Exception:
+            continue  # no artifact at this candidate
         if not _claim_finalization(job):
             return  # another finalizer already handled this job
         with _lock:
@@ -984,15 +1019,13 @@ def _check_job(job: dict, s3):
             job["completed_at"] = datetime.now(timezone.utc).isoformat()
         _update_gallery_on_failure(job)
         _cleanup_s3(job, s3)
-        # Also delete the failure file
+        # Also delete the failure artifact itself
         try:
-            s3.delete_object(Bucket=bucket, Key=failure_key)
+            s3.delete_object(Bucket=f_bucket, Key=f_key)
         except Exception:
             pass
         logger.warning("Async job %s failed (error output in S3): %s", job["job_id"], job["error"][:200])
         return
-    except Exception:
-        pass  # No failure file — check for success
 
     try:
         obj = s3.get_object(Bucket=bucket, Key=key)

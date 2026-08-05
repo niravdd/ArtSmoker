@@ -1560,6 +1560,12 @@ async def edit_image(body: ImageEditRequest):
     from backend.services.cost_tracker import reset_costs, get_total_cost
     reset_costs()
 
+    # Breadcrumb ID for this edit request: every lifecycle log line (EDIT-START /
+    # EDIT-ASYNC / EDIT-DONE / EDIT-FAIL) carries it, so "did my edit run, and
+    # what happened?" is answerable with a single grep of the server log.
+    import uuid as _uuid
+    edit_trace_id = _uuid.uuid4().hex[:8]
+
     # Validate model exists and has an editing purpose
     model_config = get_image_model(body.model)
     if not model_config:
@@ -1705,8 +1711,10 @@ async def edit_image(body: ImageEditRequest):
             except Exception as e:
                 logger.warning("Inpaint prompt transform failed (using original): %s", e)
 
-    logger.info("Image edit: model=%s purpose=%s source=%s prompt=%s",
-                body.model, purpose, body.source_image_id, edit_prompt[:50] if edit_prompt else "(none)")
+    logger.info("EDIT-START [%s]: model=%s purpose=%s source=%s v=%s mask=%s prompt=%s",
+                edit_trace_id, body.model, purpose, body.source_image_id,
+                body.source_version or "current", "yes" if mask_bytes else "no",
+                edit_prompt[:50] if edit_prompt else "(none)")
 
     try:
         result_bytes = invoke_image_model(
@@ -1721,7 +1729,8 @@ async def edit_image(body: ImageEditRequest):
             extra_params=extra if extra else None,
         )
     except Exception as exc:
-        logger.error("Image edit failed: %s", exc)
+        logger.error("EDIT-FAIL [%s]: model=%s source=%s error=%s",
+                     edit_trace_id, body.model, body.source_image_id, exc)
         # A model ValidationException is a bad-input problem (400), not a gateway
         # failure (502) — surface the underlying detail so the UI can show it.
         if "ValidationException" in type(exc).__name__ or "ValidationException" in str(exc):
@@ -1785,6 +1794,8 @@ async def edit_image(body: ImageEditRequest):
             )
         except Exception as e:
             logger.error("Failed to tag async edit job %s: %s", result_bytes.get("job_id"), e)
+        logger.info("EDIT-ASYNC [%s]: handed to async job %s (%s) — completion logged by the poller",
+                    edit_trace_id, result_bytes.get("job_id"), label)
         return {
             "id": body.source_image_id,
             "async": True,
@@ -1807,143 +1818,154 @@ async def edit_image(body: ImageEditRequest):
 
     # ── Versioned save: keep all previous versions, latest is always asset.png ──
     asset_id = body.source_image_id
-    source_meta = store.load_generation_metadata(asset_id) or {}
 
-    # Determine current version number
-    versions = source_meta.get("versions", [])
-    if not versions:
-        # First edit — record the current state as version 1 (the original).
-        # The actual file archiving (asset.png → asset_v1.png) happens below
-        # in the "archive current" block before the new image is saved.
+    # Serialize against the async edit completion (async_jobs) — both writers
+    # read-modify-write this asset's metadata.json; unserialized, simultaneous
+    # completions can compute the same next_version and clobber a record.
+    from backend.services.asset_locks import asset_write_lock
+    _asset_lock = asset_write_lock(asset_id)
+    _asset_lock.acquire()
+    try:
+
+        source_meta = store.load_generation_metadata(asset_id) or {}
+
+        # Determine current version number
+        versions = source_meta.get("versions", [])
+        if not versions:
+            # First edit — record the current state as version 1 (the original).
+            # The actual file archiving (asset.png → asset_v1.png) happens below
+            # in the "archive current" block before the new image is saved.
+            versions.append({
+                "version": 1,
+                "type": "original",
+                "prompt": source_meta.get("prompt", ""),
+                "enhanced_prompt": source_meta.get("enhanced_prompt", ""),
+                "negative_prompt": source_meta.get("negative_prompt", ""),
+                "image_model": source_meta.get("image_model", ""),
+                "model_label": source_meta.get("model_label", ""),
+                "timestamp": source_meta.get("created_at", ""),
+            })
+
+        # New version number
+        next_version = len(versions) + 1
+        version_file = f"asset_v{next_version}.png"
+
+        # Archive the current asset.png as the previous version before overwriting
+        asset_dir = store.generated_asset_dir(asset_id)
+        import shutil
+        current_png = asset_dir / "asset.png"
+        if current_png.exists():
+            prev_version = next_version - 1
+            prev_file = f"asset_v{prev_version}.png"
+            if not (asset_dir / prev_file).exists():
+                shutil.copy2(str(current_png), str(asset_dir / prev_file))
+                logger.info("Archived asset.png → %s", prev_file)
+            # Also archive current SVG if it exists
+            current_svg = asset_dir / "asset.svg"
+            prev_svg = f"asset_v{prev_version}.svg"
+            if current_svg.exists() and not (asset_dir / prev_svg).exists():
+                shutil.copy2(str(current_svg), str(asset_dir / prev_svg))
+
+        # Save the new edited image as asset.png (becomes the latest)
+        store.save_generated_image(asset_id, "asset.png", result_bytes)
+
+        # Generate SVG for the new latest version
+        try:
+            from backend.services.post_processor import process_asset
+            svg_output_path = asset_dir / "asset.svg"
+            _, svg_path = process_asset(
+                image_bytes=result_bytes,
+                enhanced_prompt=body.prompt,
+                remove_bg=False,
+                do_upscale=False,
+                do_svg=True,
+                svg_output_path=svg_output_path,
+            )
+            if svg_path and svg_path.exists():
+                logger.info("Generated SVG for latest version")
+        except Exception as svg_err:
+            logger.warning("SVG generation failed: %s", svg_err)
+
+        # Add version record (this becomes the latest — archived by next edit)
+        # Persist the drawn inpaint/erase mask as a sidecar so the Metadata can show
+        # WHERE the edit was applied (previously the mask was decoded, sent, and
+        # discarded). Named per-version; referenced in the version record as mask_file.
+        _mask_file = None
+        if mask_bytes:
+            try:
+                _mask_file = f"asset_v{next_version}__mask.png"
+                store.save_generated_image(asset_id, _mask_file, mask_bytes)
+            except Exception as e:
+                logger.warning("Could not persist edit mask for %s: %s", asset_id, e)
+                _mask_file = None
+
+        # Capture the canvas dimensions before/after this edit so the metadata can
+        # show exactly how the image changed (esp. how an outpaint/extend grew it).
+        _old_dims = {"width": source_meta.get("width"), "height": source_meta.get("height")}
+        _new_dims = {"width": None, "height": None}
+        try:
+            from PIL import Image as _PILImage
+            import io as _io
+            with _PILImage.open(_io.BytesIO(result_bytes)) as _img:
+                _new_dims = {"width": _img.width, "height": _img.height}
+        except Exception:
+            pass
+        # Per-edge outpaint grow amounts (0 when not an outpaint / not specified).
+        _outpaint = {}
+        if any((body.outpaint_left, body.outpaint_right, body.outpaint_up, body.outpaint_down)):
+            _outpaint = {
+                "left": body.outpaint_left, "right": body.outpaint_right,
+                "up": body.outpaint_up, "down": body.outpaint_down,
+            }
+
         versions.append({
-            "version": 1,
-            "type": "original",
-            "prompt": source_meta.get("prompt", ""),
-            "enhanced_prompt": source_meta.get("enhanced_prompt", ""),
-            "negative_prompt": source_meta.get("negative_prompt", ""),
-            "image_model": source_meta.get("image_model", ""),
-            "model_label": source_meta.get("model_label", ""),
-            "timestamp": source_meta.get("created_at", ""),
+            "version": next_version,
+            "type": purpose,
+            # The USER's words as typed (pre-transform snapshot) — body.prompt may
+            # have been rewritten by the instruction-editor folding/outpaint build.
+            "prompt": user_prompt_raw or body.prompt,
+            # The ACTUAL instruction sent to the editor after any transform (inpaint
+            # removal→generative rewrite, instruction-editor folding). Differs from
+            # `prompt` when a transform ran — record both so the display is truthful.
+            "edit_prompt_sent": edit_prompt if edit_prompt and edit_prompt != (user_prompt_raw or body.prompt) else None,
+            "negative_prompt": body.negative_prompt,
+            # The refined/enhanced text (for an edit, the instruction is the prompt;
+            # kept for uniform per-version display alongside generated versions).
+            "enhanced_prompt": edit_prompt or body.prompt,
+            "mask_prompt": body.mask_prompt,
+            "mask_file": _mask_file,
+            # Canvas dimensions before/after + per-edge grow (outpaint/extend spec).
+            "source_dims": _old_dims if _old_dims.get("width") else None,
+            "result_dims": _new_dims if _new_dims.get("width") else None,
+            **({"outpaint_px": _outpaint} if _outpaint else {}),
+            "original_language": edit_original_language,
+            "original_language_prompts": edit_original_prompts if edit_original_prompts else None,
+            "image_model": body.model,
+            "model_label": label,
+            "region": body.region or model_config.get("region", ""),
+            "seed": body.seed,
+            "extra_params": extra if extra else None,
+            # Provenance for programmatic edits (e.g. 3D source-completion outpaint):
+            # what triggered it, the analysis verdict, directions + prompt used.
+            **({"edit_context": edit_meta} if edit_meta else {}),
+            "timestamp": datetime.utcnow().isoformat(),
         })
 
-    # New version number
-    next_version = len(versions) + 1
-    version_file = f"asset_v{next_version}.png"
-
-    # Archive the current asset.png as the previous version before overwriting
-    asset_dir = store.generated_asset_dir(asset_id)
-    import shutil
-    current_png = asset_dir / "asset.png"
-    if current_png.exists():
-        prev_version = next_version - 1
-        prev_file = f"asset_v{prev_version}.png"
-        if not (asset_dir / prev_file).exists():
-            shutil.copy2(str(current_png), str(asset_dir / prev_file))
-            logger.info("Archived asset.png → %s", prev_file)
-        # Also archive current SVG if it exists
-        current_svg = asset_dir / "asset.svg"
-        prev_svg = f"asset_v{prev_version}.svg"
-        if current_svg.exists() and not (asset_dir / prev_svg).exists():
-            shutil.copy2(str(current_svg), str(asset_dir / prev_svg))
-
-    # Save the new edited image as asset.png (becomes the latest)
-    store.save_generated_image(asset_id, "asset.png", result_bytes)
-
-    # Generate SVG for the new latest version
-    try:
-        from backend.services.post_processor import process_asset
-        svg_output_path = asset_dir / "asset.svg"
-        _, svg_path = process_asset(
-            image_bytes=result_bytes,
-            enhanced_prompt=body.prompt,
-            remove_bg=False,
-            do_upscale=False,
-            do_svg=True,
-            svg_output_path=svg_output_path,
-        )
-        if svg_path and svg_path.exists():
-            logger.info("Generated SVG for latest version")
-    except Exception as svg_err:
-        logger.warning("SVG generation failed: %s", svg_err)
-
-    # Add version record (this becomes the latest — archived by next edit)
-    # Persist the drawn inpaint/erase mask as a sidecar so the Metadata can show
-    # WHERE the edit was applied (previously the mask was decoded, sent, and
-    # discarded). Named per-version; referenced in the version record as mask_file.
-    _mask_file = None
-    if mask_bytes:
-        try:
-            _mask_file = f"asset_v{next_version}__mask.png"
-            store.save_generated_image(asset_id, _mask_file, mask_bytes)
-        except Exception as e:
-            logger.warning("Could not persist edit mask for %s: %s", asset_id, e)
-            _mask_file = None
-
-    # Capture the canvas dimensions before/after this edit so the metadata can
-    # show exactly how the image changed (esp. how an outpaint/extend grew it).
-    _old_dims = {"width": source_meta.get("width"), "height": source_meta.get("height")}
-    _new_dims = {"width": None, "height": None}
-    try:
-        from PIL import Image as _PILImage
-        import io as _io
-        with _PILImage.open(_io.BytesIO(result_bytes)) as _img:
-            _new_dims = {"width": _img.width, "height": _img.height}
-    except Exception:
-        pass
-    # Per-edge outpaint grow amounts (0 when not an outpaint / not specified).
-    _outpaint = {}
-    if any((body.outpaint_left, body.outpaint_right, body.outpaint_up, body.outpaint_down)):
-        _outpaint = {
-            "left": body.outpaint_left, "right": body.outpaint_right,
-            "up": body.outpaint_up, "down": body.outpaint_down,
-        }
-
-    versions.append({
-        "version": next_version,
-        "type": purpose,
-        # The USER's words as typed (pre-transform snapshot) — body.prompt may
-        # have been rewritten by the instruction-editor folding/outpaint build.
-        "prompt": user_prompt_raw or body.prompt,
-        # The ACTUAL instruction sent to the editor after any transform (inpaint
-        # removal→generative rewrite, instruction-editor folding). Differs from
-        # `prompt` when a transform ran — record both so the display is truthful.
-        "edit_prompt_sent": edit_prompt if edit_prompt and edit_prompt != (user_prompt_raw or body.prompt) else None,
-        "negative_prompt": body.negative_prompt,
-        # The refined/enhanced text (for an edit, the instruction is the prompt;
-        # kept for uniform per-version display alongside generated versions).
-        "enhanced_prompt": edit_prompt or body.prompt,
-        "mask_prompt": body.mask_prompt,
-        "mask_file": _mask_file,
-        # Canvas dimensions before/after + per-edge grow (outpaint/extend spec).
-        "source_dims": _old_dims if _old_dims.get("width") else None,
-        "result_dims": _new_dims if _new_dims.get("width") else None,
-        **({"outpaint_px": _outpaint} if _outpaint else {}),
-        "original_language": edit_original_language,
-        "original_language_prompts": edit_original_prompts if edit_original_prompts else None,
-        "image_model": body.model,
-        "model_label": label,
-        "region": body.region or model_config.get("region", ""),
-        "seed": body.seed,
-        "extra_params": extra if extra else None,
-        # Provenance for programmatic edits (e.g. 3D source-completion outpaint):
-        # what triggered it, the analysis verdict, directions + prompt used.
-        **({"edit_context": edit_meta} if edit_meta else {}),
-        "timestamp": datetime.utcnow().isoformat(),
-    })
-
-    # Update metadata — preserve ALL original fields, add version tracking
-    new_meta = dict(source_meta)
-    new_meta.update({
-        "original_prompt": source_meta.get("original_prompt") or source_meta.get("prompt", ""),
-        "original_image_model": source_meta.get("original_image_model") or source_meta.get("image_model", ""),
-        "versions": versions,
-        "current_version": next_version,
-        "last_edited_at": datetime.utcnow().isoformat(),
-        "last_edit_type": purpose,
-        "last_edit_model": body.model,
-        "last_edit_prompt": body.prompt,
-    })
-    store.save_generation_metadata(asset_id, new_meta)
+        # Update metadata — preserve ALL original fields, add version tracking
+        new_meta = dict(source_meta)
+        new_meta.update({
+            "original_prompt": source_meta.get("original_prompt") or source_meta.get("prompt", ""),
+            "original_image_model": source_meta.get("original_image_model") or source_meta.get("image_model", ""),
+            "versions": versions,
+            "current_version": next_version,
+            "last_edited_at": datetime.utcnow().isoformat(),
+            "last_edit_type": purpose,
+            "last_edit_model": body.model,
+            "last_edit_prompt": body.prompt,
+        })
+        store.save_generation_metadata(asset_id, new_meta)
+    finally:
+        _asset_lock.release()
 
     svg_url = new_meta.get("svg_path")
     png_filename = new_meta.get("png_filename", f"{asset_id}.png")
@@ -1956,6 +1978,9 @@ async def edit_image(body: ImageEditRequest):
         model=body.model or "",
         cost_usd=edit_cost,
     )
+
+    logger.info("EDIT-DONE [%s]: %s v%d saved (model=%s, cost=$%.4f)",
+                edit_trace_id, asset_id, next_version, body.model, edit_cost)
 
     return {
         "id": asset_id,
