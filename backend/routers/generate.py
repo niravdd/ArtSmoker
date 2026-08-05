@@ -1606,6 +1606,14 @@ async def edit_image(body: ImageEditRequest):
     # mode, fold the mode's intent into ONE natural instruction and drop the
     # Stability-only extras so they don't leak as unknown kwargs.
     is_instruction_editor = purpose == "image_edit"
+    _outpaint_geometry = None   # set only by the instruction-editor outpaint path
+    _pre_pad_source = None
+    # The user's words, captured BEFORE any transform. The instruction-editor
+    # branch below mutates body.prompt in place (search folding, outpaint
+    # instruction build) — without this snapshot the version record would store
+    # the machine-built instruction as the "user prompt" and the raw input
+    # would be lost.
+    user_prompt_raw = (body.prompt or "").strip()
     if is_instruction_editor:
         _search = extra.get("search_prompt") or extra.get("select_prompt") or ""
         _instr = (body.prompt or "").strip()
@@ -1613,13 +1621,22 @@ async def edit_image(body: ImageEditRequest):
             body.prompt = f"{_instr} (target: {_search})"
         elif _search and not _instr:
             body.prompt = f"Edit the {_search} in the image as instructed"
-        # Outpaint directions → a natural extend instruction (no direction kwargs).
-        _dirs = [d for d, v in (("left", body.outpaint_left), ("right", body.outpaint_right),
-                                 ("top", body.outpaint_up), ("bottom", body.outpaint_down)) if v > 0]
-        if _dirs and not (body.prompt or "").strip():
-            body.prompt = f"Extend/outpaint the image on the {', '.join(_dirs)} edge(s), continuing the scene naturally"
-        elif _dirs:
-            body.prompt = f"{(body.prompt or '').strip()} — extend the image on the {', '.join(_dirs)} edge(s)"
+        # Outpaint for instruction editors: these models CANNOT grow a canvas —
+        # told to "extend the image" they REFRAME (pan/crop) and lose content.
+        # Instead: pre-pad the source with noise band(s), instruct the model to
+        # complete ONLY the band(s), then restore geometry + blend the original
+        # back after the result returns (see instruction_outpaint.py).
+        if any(v > 0 for v in (body.outpaint_left, body.outpaint_right,
+                               body.outpaint_up, body.outpaint_down)):
+            from backend.services.instruction_outpaint import (
+                pad_image_for_outpaint, build_outpaint_instruction)
+            _pre_pad_source = source_bytes
+            source_bytes, _outpaint_geometry = pad_image_for_outpaint(
+                source_bytes, left=body.outpaint_left, right=body.outpaint_right,
+                up=body.outpaint_up, down=body.outpaint_down)
+            body.prompt = build_outpaint_instruction(
+                body.prompt, left=body.outpaint_left, right=body.outpaint_right,
+                up=body.outpaint_up, down=body.outpaint_down)
         # Strip Stability-only fields; Qwen takes only prompt + reference image(s).
         for _k in ("search_prompt", "select_prompt", "left", "right", "up", "down",
                    "grow_mask", "creativity", "control_strength"):
@@ -1732,15 +1749,27 @@ async def edit_image(body: ImageEditRequest):
             if any((body.outpaint_left, body.outpaint_right, body.outpaint_up, body.outpaint_down)):
                 _outpaint = {"left": body.outpaint_left, "right": body.outpaint_right,
                              "up": body.outpaint_up, "down": body.outpaint_down}
+            # Instruction-editor outpaint: persist the ORIGINAL (pre-pad) source as
+            # a job sidecar + the pad geometry, so the async completion can restore
+            # the canvas size and blend the original pixels back over the result.
+            _geom_file = None
+            if _outpaint_geometry is not None:
+                try:
+                    _geom_file = f"edit_{result_bytes['job_id']}__prepad_src.png"
+                    store.save_generated_image(body.source_image_id, _geom_file, _pre_pad_source)
+                except Exception:
+                    _geom_file = None
             update_job_edit_context(
                 result_bytes["job_id"],
                 edit_asset_id=body.source_image_id,
                 edit_purpose=purpose,
-                edit_prompt=edit_prompt,
+                # The USER's words (pre-transform) — the machine-built instruction
+                # goes in edit_spec.edit_prompt_sent for truthful display.
+                edit_prompt=user_prompt_raw or edit_prompt,
                 edit_seed=body.seed,
                 # Parity provenance so the async version record == the sync one.
                 edit_spec={
-                    "edit_prompt_sent": edit_prompt if edit_prompt and edit_prompt != body.prompt else None,
+                    "edit_prompt_sent": edit_prompt if edit_prompt and edit_prompt != (user_prompt_raw or body.prompt) else None,
                     "negative_prompt": body.negative_prompt,
                     "mask_prompt": body.mask_prompt,
                     "mask_file": _async_mask_file,
@@ -1750,6 +1779,8 @@ async def edit_image(body: ImageEditRequest):
                     "source_dims": {"width": _src_meta.get("width"), "height": _src_meta.get("height")}
                                    if _src_meta.get("width") else None,
                     **({"outpaint_px": _outpaint} if _outpaint else {}),
+                    **({"outpaint_geometry": _outpaint_geometry,
+                        "prepad_source_file": _geom_file} if _outpaint_geometry else {}),
                 },
             )
         except Exception as e:
@@ -1762,6 +1793,17 @@ async def edit_image(body: ImageEditRequest):
             "model_label": label,
             "message": "Edit is processing — the new version will appear when ready.",
         }
+
+    # Instruction-editor outpaint (sync): the model may return a different
+    # resolution bucket and regenerates the whole frame — restore the padded
+    # canvas size and blend the ORIGINAL pixels back over the original region.
+    if _outpaint_geometry is not None and isinstance(result_bytes, (bytes, bytearray)):
+        try:
+            from backend.services.instruction_outpaint import restore_geometry_and_blend
+            result_bytes = restore_geometry_and_blend(
+                result_bytes, _pre_pad_source, _outpaint_geometry)
+        except Exception as e:
+            logger.warning("Outpaint geometry restore failed (using raw result): %s", e)
 
     # ── Versioned save: keep all previous versions, latest is always asset.png ──
     asset_id = body.source_image_id
@@ -1859,11 +1901,13 @@ async def edit_image(body: ImageEditRequest):
     versions.append({
         "version": next_version,
         "type": purpose,
-        "prompt": body.prompt,
+        # The USER's words as typed (pre-transform snapshot) — body.prompt may
+        # have been rewritten by the instruction-editor folding/outpaint build.
+        "prompt": user_prompt_raw or body.prompt,
         # The ACTUAL instruction sent to the editor after any transform (inpaint
         # removal→generative rewrite, instruction-editor folding). Differs from
         # `prompt` when a transform ran — record both so the display is truthful.
-        "edit_prompt_sent": edit_prompt if edit_prompt and edit_prompt != body.prompt else None,
+        "edit_prompt_sent": edit_prompt if edit_prompt and edit_prompt != (user_prompt_raw or body.prompt) else None,
         "negative_prompt": body.negative_prompt,
         # The refined/enhanced text (for an edit, the instruction is the prompt;
         # kept for uniform per-version display alongside generated versions).

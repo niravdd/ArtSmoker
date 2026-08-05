@@ -39,6 +39,27 @@ def _get_region() -> str:
     return settings.aws_region_models
 
 
+def _endpoint_region(model_config: dict) -> str:
+    """Region an endpoint actually lives in.
+
+    The deployment block may carry an explicit `region` (endpoints deployed
+    outside the home region, e.g. during a capacity drought). Falls back to the
+    session/config region — identical to the old behavior for every existing
+    entry, which carries no `region` key.
+    """
+    return (model_config.get("deployment", {}) or {}).get("region") or _get_region()
+
+
+def _endpoint_bucket(model_config: dict) -> str:
+    """S3 bucket for an endpoint's async input — SageMaker async I/O should live
+    in the endpoint's own region. Falls back to the configured home bucket."""
+    override = (model_config.get("deployment", {}) or {}).get("s3_bucket")
+    if override:
+        return override
+    from backend.services.sagemaker_deployer import get_deployment_s3_bucket
+    return get_deployment_s3_bucket()
+
+
 def invoke_custom_model(
     model_key: str,
     payload: dict,
@@ -89,7 +110,7 @@ def invoke_custom_model(
             result = _submit_async_job(endpoint_name, model_key, model_config, payload)
             return result
         else:
-            result = _invoke_realtime(endpoint_name, payload)
+            result = _invoke_realtime(endpoint_name, payload, region=_endpoint_region(model_config))
 
         if estimated_cost > 0:
             add_cost("custom_model", estimated_cost, f"{model_config.get('label', model_key)} × 1")
@@ -112,9 +133,9 @@ def invoke_custom_model(
         raise RuntimeError(f"Custom model '{model_config.get('label', model_key)}' failed: {exc}")
 
 
-def _invoke_realtime(endpoint_name: str, payload: dict) -> dict:
+def _invoke_realtime(endpoint_name: str, payload: dict, region: str | None = None) -> dict:
     """Invoke a real-time Amazon SageMaker endpoint."""
-    sm_runtime = boto3.client("sagemaker-runtime", region_name=_get_region(), config=_SM_CONFIG)
+    sm_runtime = boto3.client("sagemaker-runtime", region_name=region or _get_region(), config=_SM_CONFIG)
 
     response = sm_runtime.invoke_endpoint(
         EndpointName=endpoint_name,
@@ -137,9 +158,11 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
     from backend.services.async_jobs import submit_job
     from backend.services.sagemaker_deployer import get_deployment_s3_bucket
 
-    sm_runtime = boto3.client("sagemaker-runtime", region_name=_get_region(), config=_SM_CONFIG)
+    region = _endpoint_region(model_config)
+    sm_runtime = boto3.client("sagemaker-runtime", region_name=region, config=_SM_CONFIG)
 
-    input_location = _upload_async_input(endpoint_name, payload)
+    input_location = _upload_async_input(endpoint_name, payload, region=region,
+                                         bucket=_endpoint_bucket(model_config))
     invoke_kwargs = {
         "EndpointName": endpoint_name,
         "ContentType": "application/json",
@@ -171,14 +194,20 @@ def _submit_async_job(endpoint_name: str, model_key: str, model_config: dict, pa
         s3_bucket=s3_bucket,
         s3_key=s3_key,
         endpoint_name=endpoint_name,
+        region=region,
     )
 
     # Return sentinel — the caller knows this is async (not a final image)
     return {"async_submitted": True, "job_id": job_id, "model": model_key, "model_label": model_config.get("label", model_key)}
 
 
-def _upload_async_input(endpoint_name: str, payload: dict) -> str:
-    """Upload async input to S3 and return the S3 URI."""
+def _upload_async_input(endpoint_name: str, payload: dict,
+                        region: str | None = None, bucket: str | None = None) -> str:
+    """Upload async input to S3 and return the S3 URI.
+
+    region/bucket default to the home region + configured deployment bucket;
+    cross-region endpoints pass their own (async I/O must be same-region).
+    """
     from backend.services.sagemaker_deployer import (
         get_deployment_s3_bucket, check_deployment_bucket, S3_MODEL_PREFIX,
     )
@@ -190,15 +219,15 @@ def _upload_async_input(endpoint_name: str, payload: dict) -> str:
     # can 403 for a perfectly usable bucket under tight/cross-account IAM and would
     # false-block working generation. A genuine access error surfaces from the
     # put_object below and is handled by the async job reliability layer.
-    check = check_deployment_bucket(require_access=False)
-    if not check["ok"]:
-        raise ValueError(check["message"])
-
-    bucket = get_deployment_s3_bucket()
+    if not bucket:
+        check = check_deployment_bucket(require_access=False)
+        if not check["ok"]:
+            raise ValueError(check["message"])
+        bucket = get_deployment_s3_bucket()
     key = f"{S3_MODEL_PREFIX}/inference-input/{endpoint_name}/{int(time.time() * 1000)}.json"
 
     payload_bytes = json.dumps(payload).encode()
-    s3 = boto3.client("s3", region_name=_get_region())
+    s3 = boto3.client("s3", region_name=region or _get_region())
     s3.put_object(
         Bucket=bucket,
         Key=key,
@@ -207,7 +236,7 @@ def _upload_async_input(endpoint_name: str, payload: dict) -> str:
     )
 
     from backend.services.cost_tracker import add_s3_cost
-    add_s3_cost("put", len(payload_bytes), "async inference input", region=_get_region())
+    add_s3_cost("put", len(payload_bytes), "async inference input", region=region or _get_region())
 
     return f"s3://{bucket}/{key}"
 
@@ -292,6 +321,82 @@ def invoke_custom_image_model(
         raise RuntimeError("Custom model returned no image data")
 
     return base64.b64decode(image_b64)
+
+
+def invoke_instruction_edit_sync(model_key: str, prompt: str, image_bytes: bytes,
+                                 timeout_seconds: int = 900) -> bytes:
+    """Run an instruction-edit (image_edit) job and WAIT for the result bytes.
+
+    For flows that need a synchronous result from an async-type endpoint (e.g.
+    the 3D "Improve the Source" extend op). Deliberately BYPASSES the async job
+    tracker: tracker jobs are gallery-bound (completion saves a new asset or
+    version), which is wrong for sidecar flows. Submits directly, polls the S3
+    output location, and returns the edited image bytes.
+
+    Raises RuntimeError on timeout (with a warm-up hint — a scale-to-zero
+    endpoint may need minutes to provision + load) or on model failure.
+    """
+    import base64 as _b64
+    from backend.services.model_registry import get_image_model
+
+    model_config = get_image_model(model_key) or {}
+    endpoint_name = (model_config.get("deployment") or {}).get("endpoint_name", "")
+    if not endpoint_name:
+        raise RuntimeError(f"No deployed endpoint for model '{model_key}'")
+    ep_region = _endpoint_region(model_config)
+
+    payload = {
+        "prompt": prompt,
+        "reference_images": [_b64.b64encode(image_bytes).decode()],
+        "negative_prompt": " ",
+    }
+    # Honor registry-driven inference defaults (steps, cfg) when defined.
+    for field_name, spec in (model_config.get("invoke", {}).get("payload_fields", {}) or {}).items():
+        if field_name not in payload and isinstance(spec, dict) and "default" in spec:
+            payload[field_name] = spec["default"]
+
+    sm_runtime = boto3.client("sagemaker-runtime", region_name=ep_region, config=_SM_CONFIG)
+    input_location = _upload_async_input(endpoint_name, payload, region=ep_region,
+                                         bucket=_endpoint_bucket(model_config))
+    response = sm_runtime.invoke_endpoint_async(
+        EndpointName=endpoint_name,
+        ContentType="application/json",
+        InputLocation=input_location,
+    )
+    output_location = response.get("OutputLocation")
+    if not output_location:
+        raise RuntimeError("Async invocation returned no output location")
+    out_bucket, out_key = _parse_s3_uri(output_location)
+
+    s3 = boto3.client("s3", region_name=ep_region)
+    deadline = time.time() + timeout_seconds
+    try:
+        while time.time() < deadline:
+            try:
+                body = s3.get_object(Bucket=out_bucket, Key=out_key)["Body"].read()
+            except s3.exceptions.NoSuchKey:
+                time.sleep(10)
+                continue
+            except Exception:
+                time.sleep(10)
+                continue
+            result = json.loads(body)
+            image_b64 = result.get("image", "")
+            if not image_b64:
+                raise RuntimeError(f"Edit model returned no image: {str(result)[:200]}")
+            return _b64.b64decode(image_b64)
+        raise RuntimeError(
+            f"Instruction edit timed out after {timeout_seconds}s — the endpoint may be "
+            f"scaled to zero (cold start takes several minutes). Warm it up with a "
+            f"gallery edit first, or retry shortly.")
+    finally:
+        # Best-effort cleanup of the input + output artifacts (no tracker owns them).
+        for loc in (input_location, output_location):
+            try:
+                b, k = _parse_s3_uri(loc)
+                s3.delete_object(Bucket=b, Key=k)
+            except Exception:
+                pass
 
 
 def invoke_custom_post_process(

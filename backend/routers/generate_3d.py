@@ -1167,6 +1167,11 @@ class PrepareSourceRequest(BaseModel):
     # mesher only needs the background gone, not a feathered edge, so the free
     # path is the sensible default; the UI still offers Bedrock explicitly.
     bg_method: str = "local"
+    # Optional model override for op="extend". Default "" keeps the existing
+    # behavior (first enabled Bedrock outpainting model). If set to a model whose
+    # model_purpose is "image_edit" (e.g. Qwen-Image-Edit), the extend runs via
+    # the instruction-outpaint recipe (pre-pad + complete-the-band + blend-back).
+    edit_model: str = ""
 
 
 @router.post("/prepare-source")
@@ -1232,15 +1237,39 @@ async def prepare_source(body: PrepareSourceRequest):
                     for k in ("up", "down", "left", "right")}
             if not any(dirs.values()):
                 raise HTTPException(400, detail="Set at least one extend direction (up/down/left/right).")
-            key = _find_model_key_by_purpose("outpainting")
-            if not key:
-                raise HTTPException(400, detail="No outpainting model available.")
-            # ALWAYS extend the CUTOUT (never a prior __source) so the canvas never
-            # compounds — re-extend just redoes it larger from the clean base.
-            out = invoke_image_model(
-                key, (body.prompt or "").strip(), source_image=cutout.read_bytes(),
-                extra_params={k: v for k, v in dirs.items() if v > 0},
-            )
+            # Instruction editor chosen (e.g. Qwen-Image-Edit): pre-pad the canvas,
+            # ask the model to complete ONLY the band(s), blend the original back.
+            # Runs synchronously (waits on the async endpoint) — same UX contract
+            # as the Bedrock path. Isolated: only fires when the UI explicitly
+            # selects an image_edit-purpose model; default path is unchanged.
+            _edit_cfg = None
+            if body.edit_model:
+                from backend.services.model_registry import get_image_model
+                _edit_cfg = get_image_model(body.edit_model) or {}
+            if _edit_cfg and _edit_cfg.get("model_purpose") == "image_edit":
+                from backend.services.instruction_outpaint import (
+                    pad_image_for_outpaint, build_outpaint_instruction,
+                    restore_geometry_and_blend)
+                from backend.services.sagemaker_invoker import invoke_instruction_edit_sync
+                _src = cutout.read_bytes()
+                padded, geom = pad_image_for_outpaint(
+                    _src, left=dirs["left"], right=dirs["right"],
+                    up=dirs["up"], down=dirs["down"])
+                instruction = build_outpaint_instruction(
+                    (body.prompt or "").strip(), left=dirs["left"],
+                    right=dirs["right"], up=dirs["up"], down=dirs["down"])
+                out = invoke_instruction_edit_sync(body.edit_model, instruction, padded)
+                out = restore_geometry_and_blend(out, _src, geom)
+            else:
+                key = _find_model_key_by_purpose("outpainting")
+                if not key:
+                    raise HTTPException(400, detail="No outpainting model available.")
+                # ALWAYS extend the CUTOUT (never a prior __source) so the canvas
+                # never compounds — re-extend redoes it larger from the clean base.
+                out = invoke_image_model(
+                    key, (body.prompt or "").strip(), source_image=cutout.read_bytes(),
+                    extra_params={k: v for k, v in dirs.items() if v > 0},
+                )
         elif body.op == "inpaint":
             if not body.mask:
                 raise HTTPException(400, detail="A mask is required to fill/replace a region.")

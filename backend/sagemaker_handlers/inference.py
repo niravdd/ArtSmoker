@@ -429,6 +429,58 @@ def _get_env_bool(key, default=False):
     return _get_env(key, str(default)).lower() in ("true", "1", "yes")
 
 
+def _make_vae_encode_cast(vae):
+    """Wrap vae.encode so a VAE_UPCAST_FP32'd (fp32) VAE can encode bf16 inputs.
+
+    Edit/img2img pipelines VAE-encode the reference image; with the VAE upcast
+    to fp32 a bf16 input crashes in conv3d ("Input type ... and bias type ...").
+    Casting only the INPUT is not enough either: the returned latents come out
+    fp32 and then hit the bf16 transformer ("mat1 and mat2 must have the same
+    dtype"). So round-trip: cast input UP to the VAE dtype, encode, and cast the
+    latent distribution parameters back DOWN to the original input dtype.
+    """
+    _orig_encode = vae.encode
+
+    def _encode_cast(x, *args, **kw):
+        in_dtype = getattr(x, "dtype", None)
+        if in_dtype is not None and in_dtype != vae.dtype:
+            x = x.to(vae.dtype)
+        out = _orig_encode(x, *args, **kw)
+        if in_dtype is not None and in_dtype != vae.dtype:
+            _cast_latent_output(out, in_dtype)
+        return out
+
+    return _encode_cast
+
+
+def _cast_latent_output(out, dtype):
+    """Cast a vae.encode return value's latents to `dtype`, in place where possible.
+
+    Handles AutoencoderKLOutput(latent_dist=...), the (dist,) tuple form from
+    return_dict=False, DiagonalGaussianDistribution directly, and plain tensors.
+    Distribution parameters AND the eagerly-computed mean/logvar/std/var are all
+    cast so .mode() (argmax sampling, used by Qwen edit) and .sample() both
+    return the caller's dtype.
+    """
+    if out is None:
+        return out
+    if isinstance(out, tuple):
+        for item in out:
+            _cast_latent_output(item, dtype)
+        return out
+    dist = getattr(out, "latent_dist", out)
+    if hasattr(dist, "parameters") and hasattr(dist.parameters, "to"):
+        dist.parameters = dist.parameters.to(dtype)
+        for attr in ("mean", "logvar", "std", "var"):
+            val = getattr(dist, attr, None)
+            if val is not None and hasattr(val, "to"):
+                setattr(dist, attr, val.to(dtype))
+    latents = getattr(out, "latents", None)
+    if latents is not None and hasattr(latents, "to"):
+        out.latents = latents.to(dtype)
+    return out
+
+
 # ── Dev hot-reload (generic code overlay) ──────────────────────────────────
 # On a dev box, the deployer sets ARTSMOKER_DEV_HOTRELOAD=1 and points
 # ARTSMOKER_HOTRELOAD_KEY at an S3 overlay archive (overlay.tar.gz, rooted at
@@ -1396,19 +1448,12 @@ def _load_diffusers(model_dir):
         try:
             pipe.vae = pipe.vae.to(torch.float32)
             # Pipelines that ENCODE through the VAE (edit/img2img reference images)
-            # pass bf16 tensors from the bf16 text/image path straight into the now-
-            # fp32 conv weights → "Input type (c10::BFloat16) and bias type (float)
-            # should be the same". Decode is safe (diffusers casts latents to the
-            # VAE dtype), but encode is not — so cast encode inputs to the VAE dtype.
-            _orig_vae_encode = pipe.vae.encode
-
-            def _encode_cast(x, *args, **kw):
-                if hasattr(x, "dtype") and x.dtype != pipe.vae.dtype:
-                    x = x.to(pipe.vae.dtype)
-                return _orig_vae_encode(x, *args, **kw)
-
-            pipe.vae.encode = _encode_cast
-            logger.info("VAE upcast to float32 for decode (VAE_UPCAST_FP32=1); encode inputs auto-cast to fp32")
+            # pass bf16 tensors into the now-fp32 conv weights → dtype crash; and
+            # fp32 latents out of encode crash in the bf16 transformer. Round-trip
+            # cast both directions (see _make_vae_encode_cast).
+            pipe.vae.encode = _make_vae_encode_cast(pipe.vae)
+            pipe.vae._artsmoker_encode_cast2 = True
+            logger.info("VAE upcast to float32 for decode (VAE_UPCAST_FP32=1); encode round-trip cast installed")
         except Exception as e:
             logger.warning("VAE fp32 upcast failed: %s", e)
 
@@ -2994,18 +3039,15 @@ def _predict_image_edit(input_data, model_dict):
     # should be the same" in conv3d. Wrap vae.encode to cast its input to the
     # VAE dtype. Lives HERE (not only in the loader) because hot-reload re-execs
     # predictors against the already-warm pipe. Idempotent via a marker attr.
+    # STRICTLY scoped: only fires for models that set the VAE_UPCAST_FP32 lever
+    # (currently the two Qwen BF16 entries) — any other edit/img2img model's VAE
+    # is never touched, matching the load-time wrap's gating.
     vae = getattr(pipe, "vae", None)
-    if vae is not None and not getattr(vae, "_artsmoker_encode_cast", False):
-        _orig_encode = vae.encode
-
-        def _encode_cast(x, *args, **kw):
-            if hasattr(x, "dtype") and x.dtype != vae.dtype:
-                x = x.to(vae.dtype)
-            return _orig_encode(x, *args, **kw)
-
-        vae.encode = _encode_cast
-        vae._artsmoker_encode_cast = True
-        logger.info("Wrapped vae.encode with dtype auto-cast (vae dtype=%s)", vae.dtype)
+    if (_get_env_bool("VAE_UPCAST_FP32") and vae is not None
+            and not getattr(vae, "_artsmoker_encode_cast2", False)):
+        vae.encode = _make_vae_encode_cast(vae)
+        vae._artsmoker_encode_cast2 = True
+        logger.info("Wrapped vae.encode with dtype round-trip cast (vae dtype=%s)", vae.dtype)
 
     # Reference images: accept a list ("reference_images"), or a single "image".
     refs = input_data.get("reference_images")

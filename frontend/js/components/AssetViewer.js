@@ -373,12 +373,25 @@
             const typeLabel = TYPE_LABELS[meta.asset_type] || meta.asset_type || 'N/A';
             const styleName = meta.style_snapshot?.name || meta.style_id || '';
 
+            // For edited assets, the base model tag is the ORIGINAL generator —
+            // the CURRENT version's editor model (e.g. Qwen-Image-Edit for an
+            // inpaint version) is a separate tag so both provenances are visible.
+            let versionModelLabel = '';
+            try {
+                const _curV = meta.current_version || (meta.versions?.length || 1);
+                const _vrec = (meta.versions || []).find(v => v.version === _curV);
+                const _vm = _vrec && _vrec.type !== 'original'
+                    ? (_vrec.model_label || _vrec.image_model || '') : '';
+                if (_vm && _vm !== modelLabel) versionModelLabel = _vm;
+            } catch {}
+
             // Update the image info bar (below the image, above metadata panel)
             const infoBar = this._overlay?.querySelector('#av-image-info');
             if (infoBar) {
                 infoBar.innerHTML = [
                     meta.imported ? `<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>` : '',
-                    modelLabel ? `<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(modelLabel)}</span>` : '',
+                    modelLabel ? `<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(modelLabel)}${versionModelLabel ? ` <span class="opacity-60">· ${t('asset_viewer.version_original')}</span>` : ''}</span>` : '',
+                    versionModelLabel ? `<span class="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">${this._esc(versionModelLabel)} <span class="opacity-60">· ${t('asset_viewer.version_this_edit')}</span></span>` : '',
                     styleName ? `<span class="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${this._esc(styleName)}</span>` : '',
                     typeLabel !== 'N/A' ? `<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${this._esc(typeLabel)}</span>` : '',
                     meta.width && meta.height ? `<span>${meta.width}×${meta.height}</span>` : '',

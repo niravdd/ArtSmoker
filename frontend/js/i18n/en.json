@@ -832,6 +832,7 @@
     "meta_saved_as_new": "saved as new",
     "version_label": "Version:",
     "version_original": "Original",
+    "version_this_edit": "this edit",
     "svg_error_inline": "SVG not available for this asset.",
     "three_d_tab": "3D Model",
     "three_d_unsupported": "3D model generation is available for Game Asset and Character asset types only.",

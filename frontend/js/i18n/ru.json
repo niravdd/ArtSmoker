@@ -832,6 +832,7 @@
     "meta_saved_as_new": "сохранено как новый",
     "version_label": "Версия:",
     "version_original": "Оригинал",
+    "version_this_edit": "эта правка",
     "svg_error_inline": "SVG недоступен для этого ассета.",
     "three_d_tab": "3D-модель",
     "three_d_unsupported": "Генерация 3D-модели доступна только для типов «Игровой ассет» и «Персонаж».",

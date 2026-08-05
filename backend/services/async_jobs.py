@@ -96,6 +96,7 @@ def submit_job(
     variation_index: int = 0,
     generation_id: str = "",
     endpoint_name: str = "",
+    region: str = "",
 ) -> dict:
     """Register a new async job for background polling.
 
@@ -122,6 +123,9 @@ def submit_job(
         "variation_index": variation_index,
         "generation_id": generation_id or asset_id,
         "endpoint_name": endpoint_name,
+        # Region the ENDPOINT + its async S3 I/O live in. Empty = home region
+        # (settings.aws_region_models) — every pre-existing job/endpoint.
+        "region": region or "",
         "status": PENDING,
         "progress": 0,
         "submitted_at": now,
@@ -391,6 +395,28 @@ def _update_gallery_on_edit_complete(job: dict, image_bytes: bytes):
     source_meta = store.load_generation_metadata(asset_id) or {}
     asset_dir = store.generated_asset_dir(asset_id)
 
+    # Instruction-editor outpaint: restore padded-canvas geometry and blend the
+    # original source pixels back over the result (same treatment as the sync
+    # path in /api/generate/edit — see instruction_outpaint.py). The pre-pad
+    # source was saved as a job sidecar at submit time.
+    _spec_pre = job.get("edit_spec", {}) or {}
+    geom = _spec_pre.get("outpaint_geometry")
+    prepad_file = _spec_pre.get("prepad_source_file")
+    if geom and prepad_file:
+        try:
+            from backend.services.instruction_outpaint import restore_geometry_and_blend
+            prepad_path = asset_dir / prepad_file
+            if prepad_path.exists():
+                image_bytes = restore_geometry_and_blend(
+                    image_bytes, prepad_path.read_bytes(), geom)
+                prepad_path.unlink(missing_ok=True)  # sidecar no longer needed
+            else:
+                logger.warning("Outpaint pre-pad sidecar missing for %s (%s) — using raw result",
+                               job["job_id"], prepad_file)
+        except Exception as e:
+            logger.warning("Async outpaint geometry restore failed for %s (using raw result): %s",
+                           job["job_id"], e)
+
     versions = source_meta.get("versions", [])
     if not versions:
         versions.append({
@@ -438,7 +464,9 @@ def _update_gallery_on_edit_complete(job: dict, image_bytes: bytes):
         "version": next_version, "type": job.get("edit_purpose", "image_edit"),
         "prompt": job.get("edit_prompt", ""),
         "edit_prompt_sent": _spec.get("edit_prompt_sent"),
-        "enhanced_prompt": job.get("edit_prompt", ""),
+        # Parity with sync: the enhanced/sent instruction when a transform ran,
+        # else the user's words (edit_prompt now carries the RAW user prompt).
+        "enhanced_prompt": _spec.get("edit_prompt_sent") or job.get("edit_prompt", ""),
         "negative_prompt": _spec.get("negative_prompt", ""),
         "mask_prompt": _spec.get("mask_prompt"),
         "mask_file": _spec.get("mask_file"),
@@ -565,13 +593,18 @@ def _poll_loop():
             continue
 
         s3 = boto3.client("s3", region_name=region)
+        _regional_s3 = {}  # region → client (cross-region endpoints, e.g. capacity-drought deploys)
 
         host_save_failure = False
         for job in pending:
             if _poller_stop.is_set():
                 break
+            _job_region = job.get("region") or region
+            if _job_region != region and _job_region not in _regional_s3:
+                _regional_s3[_job_region] = boto3.client("s3", region_name=_job_region)
+            _job_s3 = _regional_s3.get(_job_region, s3)
             try:
-                _check_job(job, s3)
+                _check_job(job, _job_s3)
             except HostSaveError:
                 # Host-wide storage failure — the remaining jobs in this cycle
                 # would fail identically (the detailed message + retry-guidance

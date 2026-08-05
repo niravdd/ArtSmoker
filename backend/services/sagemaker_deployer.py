@@ -752,6 +752,10 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         "config_name": config_name,
         "endpoint_type": endpoint_type,
         "instance_type": instance,
+        # Explicit deployment location: the invoker + async poller resolve their
+        # AWS clients from this (falls back to the home region when absent, but
+        # every new deploy self-describes so cross-region entries "just work").
+        "region": _get_region(),
         "status": "Creating",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "texture_backend": _eff_tb,
