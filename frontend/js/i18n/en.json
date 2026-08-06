@@ -836,7 +836,7 @@
     "version_delete_btn": "Delete version",
     "version_delete_title": "Delete this version",
     "version_delete_confirm": "Delete version v{{version}} permanently? Other versions keep their numbers.",
-    "version_delete_last_confirm": "This is the only remaining version — deleting it removes the whole asset permanently. Continue?",
+    "version_delete_last_confirm": "Deleting this removes the whole asset from the Gallery permanently — there are no other versions to fall back to. Continue?",
     "version_delete_detail": "The version's image, SVG and related files are removed. This cannot be undone.",
     "version_deleted": "Version v{{version}} deleted — now showing v{{current}}.",
     "version_delete_asset_gone": "Last version deleted — the asset has been removed.",

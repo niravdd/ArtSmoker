@@ -218,7 +218,7 @@
     "version_delete_btn": "バージョンを削除",
     "version_delete_title": "このバージョンを削除",
     "version_delete_confirm": "バージョン v{{version}} を完全に削除しますか？他のバージョンの番号は変わりません。",
-    "version_delete_last_confirm": "これは最後のバージョンです — 削除するとアセット全体が完全に削除されます。続行しますか？",
+    "version_delete_last_confirm": "これを削除するとアセット全体がギャラリーから完全に削除されます — 戻れる他のバージョンはありません。続行しますか？",
     "version_delete_detail": "このバージョンの画像、SVG、関連ファイルが削除されます。元に戻せません。",
     "version_deleted": "バージョン v{{version}} を削除しました — v{{current}} を表示中。",
     "version_delete_asset_gone": "最後のバージョンを削除 — アセットは削除されました。",

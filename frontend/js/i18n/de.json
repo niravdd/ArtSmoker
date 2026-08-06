@@ -836,7 +836,7 @@
     "version_delete_btn": "Version löschen",
     "version_delete_title": "Diese Version löschen",
     "version_delete_confirm": "Version v{{version}} endgültig löschen? Andere Versionen behalten ihre Nummern.",
-    "version_delete_last_confirm": "Dies ist die einzige verbleibende Version — beim Löschen wird das gesamte Asset endgültig entfernt. Fortfahren?",
+    "version_delete_last_confirm": "Beim Löschen wird das gesamte Asset dauerhaft aus der Galerie entfernt — es gibt keine anderen Versionen als Rückfallebene. Fortfahren?",
     "version_delete_detail": "Bild, SVG und zugehörige Dateien der Version werden entfernt. Dies kann nicht rückgängig gemacht werden.",
     "version_deleted": "Version v{{version}} gelöscht — jetzt wird v{{current}} angezeigt.",
     "version_delete_asset_gone": "Letzte Version gelöscht — das Asset wurde entfernt.",
