@@ -216,6 +216,8 @@
     "version_label": "버전:",
     "version_original": "원본",
     "version_delete_btn": "버전 삭제",
+    "version_loading": "버전 불러오는 중…",
+    "version_load_failed": "이 버전의 이미지를 불러오지 못했습니다 — 다시 시도하세요.",
     "version_delete_title": "이 버전 삭제",
     "version_delete_confirm": "버전 v{{version}}을(를) 영구 삭제할까요? 다른 버전의 번호는 유지됩니다.",
     "version_delete_last_confirm": "삭제하면 에셋 전체가 갤러리에서 영구 제거됩니다 — 되돌아갈 다른 버전이 없습니다. 계속할까요?",

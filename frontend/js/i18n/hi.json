@@ -834,6 +834,8 @@
     "version_label": "संस्करण:",
     "version_original": "मूल",
     "version_delete_btn": "संस्करण हटाएँ",
+    "version_loading": "संस्करण लोड हो रहा है…",
+    "version_load_failed": "इस संस्करण की छवि लोड नहीं हो सकी — फिर से प्रयास करें।",
     "version_delete_title": "यह संस्करण हटाएँ",
     "version_delete_confirm": "संस्करण v{{version}} स्थायी रूप से हटाएँ? अन्य संस्करण अपने नंबर बनाए रखेंगे।",
     "version_delete_last_confirm": "इसे हटाने से पूरा एसेट गैलरी से स्थायी रूप से हट जाएगा — वापस लौटने के लिए कोई अन्य संस्करण नहीं है। जारी रखें?",

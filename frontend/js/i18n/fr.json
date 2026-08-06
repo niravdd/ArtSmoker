@@ -216,6 +216,8 @@
     "version_label": "Version :",
     "version_original": "Original",
     "version_delete_btn": "Supprimer la version",
+    "version_loading": "Chargement de la version…",
+    "version_load_failed": "Impossible de charger l'image de cette version — réessayez.",
     "version_delete_title": "Supprimer cette version",
     "version_delete_confirm": "Supprimer définitivement la version v{{version}} ? Les autres versions conservent leurs numéros.",
     "version_delete_last_confirm": "Cette suppression retire définitivement tout l'asset de la Galerie — il n'existe aucune autre version de repli. Continuer ?",

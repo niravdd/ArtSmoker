@@ -169,6 +169,16 @@
                                 <div id="av-zoom-container" class="preview-checkerboard rounded-lg overflow-hidden" style="position:relative; height: 65vh; min-height: 300px;">
                                     <img id="av-zoom-img" src="${pngUrl}" alt="${t('asset_viewer.alt_generated_png')}" loading="lazy"
                                          style="transform-origin: 0 0; transition: transform 0.1s ease-out; max-width: none;" />
+                                    <!-- Version-switch loading overlay: shown while the newly
+                                         selected version's PNG downloads. Without it the PREVIOUS
+                                         version keeps showing (browsers hold the old pixels until
+                                         the new src finishes) and users mistake it for the new one. -->
+                                    <div id="av-zoom-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-brand-bg/60 backdrop-blur-[2px]">
+                                        <div class="flex flex-col items-center gap-2">
+                                            <div class="loading-spinner w-8 h-8 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
+                                            <span class="text-xs text-brand-text-muted">${t('asset_viewer.version_loading')}</span>
+                                        </div>
+                                    </div>
                                     <!-- Measurement overlay: tracks the image's zoom/pan/fit transform,
                                          drawing a ruler + subject bounding box + per-edge margins. Hidden
                                          until toggled via the Measure button. pointer-events-none so it
@@ -1179,11 +1189,28 @@
                     // Update PNG image, then re-fit the zoom viewer to the new image
                     // (a taller extended version would otherwise overflow / sit
                     // off-centre with the previous version's scale & pan).
+                    // While the new PNG downloads, dim the stale image and show the
+                    // loading overlay — otherwise the browser keeps rendering the
+                    // PREVIOUS version's pixels and slow loads read as "switched".
                     const img = this._overlay?.querySelector('#av-zoom-img');
                     if (img) {
+                        const loadingEl = this._overlay?.querySelector('#av-zoom-loading');
+                        const settle = () => {
+                            loadingEl?.classList.add('hidden');
+                            img.style.opacity = '';
+                        };
+                        loadingEl?.classList.remove('hidden');
+                        img.style.opacity = '0.25';
+                        img.addEventListener('load', settle, { once: true });
+                        img.addEventListener('error', () => {
+                            settle();
+                            window.showToast?.(t('asset_viewer.version_load_failed'), 'error');
+                        }, { once: true });
                         img.src = version === currentVersion
                             ? `/api/gallery/${assetId}/png?t=${Date.now()}`
                             : `/api/gallery/${assetId}/version/${version}?t=${Date.now()}`;
+                        // Cached/instant loads may complete synchronously on src set.
+                        if (img.complete && img.naturalWidth > 0) settle();
                         this._refitZoomOnLoad?.();
                     }
 

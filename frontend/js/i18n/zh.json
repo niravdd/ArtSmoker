@@ -216,6 +216,8 @@
     "version_label": "版本：",
     "version_original": "原始版本",
     "version_delete_btn": "删除版本",
+    "version_loading": "正在加载版本…",
+    "version_load_failed": "无法加载该版本的图像 — 请重试。",
     "version_delete_title": "删除此版本",
     "version_delete_confirm": "永久删除版本 v{{version}}？其他版本的编号保持不变。",
     "version_delete_last_confirm": "删除后整个资源将从图库中永久移除 — 没有其他版本可供回退。继续吗？",

@@ -834,6 +834,8 @@
     "version_label": "Version:",
     "version_original": "Original",
     "version_delete_btn": "Delete version",
+    "version_loading": "Loading version…",
+    "version_load_failed": "Could not load this version's image — try again.",
     "version_delete_title": "Delete this version",
     "version_delete_confirm": "Delete version v{{version}} permanently? Other versions keep their numbers.",
     "version_delete_last_confirm": "Deleting this removes the whole asset from the Gallery permanently — there are no other versions to fall back to. Continue?",
