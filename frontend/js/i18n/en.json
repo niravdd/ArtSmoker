@@ -834,7 +834,6 @@
     "version_label": "Version:",
     "version_original": "Original",
     "version_delete_btn": "Delete version",
-    "version_single_hint": "single version",
     "version_delete_title": "Delete this version",
     "version_delete_confirm": "Delete version v{{version}} permanently? Other versions keep their numbers.",
     "version_delete_last_confirm": "This is the only remaining version — deleting it removes the whole asset permanently. Continue?",

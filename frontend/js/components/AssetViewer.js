@@ -1141,7 +1141,9 @@
             bar.classList.remove('hidden');
             const currentVersion = meta.current_version || versions.length;
             if (versions.length < 2) {
-                btns.innerHTML = `<span class="text-[10px] text-brand-text-dim">${t('asset_viewer.version_single_hint')}</span>`;
+                // Same term + pill styling as the multi-version bar uses for v1
+                // ("Original") — a single/un-versioned asset IS its original.
+                btns.innerHTML = `<span class="px-2 py-1 rounded text-[10px] bg-brand-accent text-white">${t('asset_viewer.version_original')}</span>`;
                 if (detail) detail.classList.add('hidden');
                 return;
             }
