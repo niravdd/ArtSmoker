@@ -104,7 +104,7 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 - 🛡️ **Modération intelligente** — Test canari, changement automatique de modèle, réécriture assistée par l'IA
 - ⚙️ **Model Registry** — Interface d'administration organisée par studio (Image, Video, Chat, Type, Shared), découverte Bedrock, support des modèles personnalisés
 - 📝 **Prompt Templates** — 19 prompts directifs LLM éditables, amélioration assistée par l'IA, validation de variables avec correction automatique
-- 📦 **Versionnement des assets** — Édition sur place avec historique des versions (v1, v2, ...) et navigation entre versions
+- 📦 **Versionnage des assets** — édition sur place avec historique des versions (v1, v2…), navigation entre versions et suppression par version : ne supprimez qu'une seule version (les autres gardent leurs numéros), la visionneuse bascule sur la version précédente — supprimer la dernière version retire tout l'asset
 - 💰 **Suivi des coûts** — Dépenses AWS estimées par requête, par session, par asset — envoyées à la télémétrie PulseBoard
 - 🌐 **i18n en 8 langues** — Traduction complète de l'UI (EN, JA, ZH, KO, HI, RU, FR, ES), détection automatique des prompts non anglais, aperçu bilingue
 - 🔍 **Support des modèles personnalisés** — Découverte automatique des modèles Bedrock fine-tunés, importés et déployés

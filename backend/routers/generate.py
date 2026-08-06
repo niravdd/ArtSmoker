@@ -1847,15 +1847,20 @@ async def edit_image(body: ImageEditRequest):
             })
 
         # New version number
-        next_version = len(versions) + 1
+        # Max-based (not len+1): version deletion leaves TOMBSTONE records and
+        # numbering is sparse — a new version must never reuse a deleted number.
+        next_version = max(v.get("version", 0) for v in versions) + 1
         version_file = f"asset_v{next_version}.png"
 
-        # Archive the current asset.png as the previous version before overwriting
+        # Archive the current asset.png as the previous version before overwriting.
+        # Archive under the TRUE current_version (not next_version-1): with sparse
+        # numbering after a version delete, next-1 may be a deleted number and the
+        # bytes in asset.png belong to current_version, whatever its number is.
         asset_dir = store.generated_asset_dir(asset_id)
         import shutil
         current_png = asset_dir / "asset.png"
         if current_png.exists():
-            prev_version = next_version - 1
+            prev_version = source_meta.get("current_version") or (next_version - 1)
             prev_file = f"asset_v{prev_version}.png"
             if not (asset_dir / prev_file).exists():
                 shutil.copy2(str(current_png), str(asset_dir / prev_file))

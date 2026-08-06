@@ -153,6 +153,10 @@
                         <div class="flex items-center gap-2">
                             <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('asset_viewer.version_label')}</span>
                             <div id="av-version-buttons" class="flex gap-1 flex-wrap"></div>
+                            <button id="av-version-delete" class="ml-auto flex-shrink-0 px-2 py-1 rounded text-[10px] text-red-400/80 border border-red-500/20 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer" title="${t('asset_viewer.version_delete_title')}">
+                                <svg class="w-3 h-3 inline -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                                <span id="av-version-delete-label">${t('asset_viewer.version_delete_btn')}</span>
+                            </button>
                         </div>
                         <div id="av-version-detail" class="text-[10px] text-brand-text-muted mt-1 hidden"></div>
                     </div>
@@ -1121,7 +1125,9 @@
             const detail = this._overlay?.querySelector('#av-version-detail');
             if (!bar || !btns) return;
 
-            const versions = meta.versions || [];
+            // Tombstoned (deleted) versions are metadata records only — never
+            // rendered as pills. Numbering is sparse by design (never reused).
+            const versions = (meta.versions || []).filter(v => !v.deleted);
             if (versions.length < 2) {
                 bar.classList.add('hidden');
                 return;
@@ -1283,6 +1289,70 @@
             if (!this._overlay) return;
 
             this._overlay.querySelector('.btn-close').addEventListener('click', () => this.close());
+
+            // Per-version delete (version bar). Deletes ONLY the selected
+            // version (tombstone + files); the whole-asset delete stays in the
+            // Gallery. On success: switch to the promoted/previous version, or —
+            // if that was the last version — the asset itself is gone: navigate
+            // to the next/previous item in the list, else close the viewer.
+            this._overlay.querySelector('#av-version-delete')?.addEventListener('click', async () => {
+                const delBtn = this._overlay.querySelector('#av-version-delete');
+                const meta = this._meta || {};
+                const live = (meta.versions || []).filter(v => !v.deleted);
+                const viewedV = this._currentVersion || meta.current_version || (live.length || 1);
+                const isLast = live.length <= 1;
+                const q = isLast
+                    ? t('asset_viewer.version_delete_last_confirm')
+                    : t('asset_viewer.version_delete_confirm', { version: viewedV });
+                const ok = await window.showConfirm(q, {
+                    title: t('asset_viewer.version_delete_title'),
+                    detail: t('asset_viewer.version_delete_detail'),
+                    confirmLabel: t('asset_viewer.version_delete_btn'),
+                    danger: true,
+                });
+                if (!ok) return;
+                delBtn.disabled = true;
+                try {
+                    const resp = await fetch(
+                        `/api/gallery/${encodeURIComponent(this._item?.id || '')}/version/${viewedV}`,
+                        { method: 'DELETE' });
+                    const d = await resp.json().catch(() => ({}));
+                    if (!resp.ok) throw new Error(d.detail || `${resp.status}`);
+                    if (d.file_errors && d.file_errors.length) {
+                        // Metadata is consistent; some files remained (orphans, not
+                        // corruption) — tell the user honestly.
+                        window.showToast?.(t('asset_viewer.version_delete_partial',
+                            { count: d.file_errors.length }), 'warning');
+                    }
+                    if (window.Gallery?.refresh) window.Gallery.refresh();
+                    if (d.asset_deleted) {
+                        // Whole asset gone — go to a neighbour or close.
+                        window.showToast?.(t('asset_viewer.version_delete_asset_gone'), 'success');
+                        const list = this._list, idx = this._listIndex;
+                        if (list && list.length > 1 && idx >= 0) {
+                            list.splice(idx, 1);
+                            const nextIdx = Math.min(idx, list.length - 1);
+                            this.close();
+                            this.open(list[nextIdx], list, nextIdx);
+                        } else {
+                            this.close();
+                        }
+                        return;
+                    }
+                    window.showToast?.(t('asset_viewer.version_deleted',
+                        { version: viewedV, current: d.current_version }), 'success');
+                    // Reopen the SAME asset fresh — metadata, version bar, image,
+                    // edit canvas, export panel all re-resolve to the new current.
+                    const list = this._list, idx = this._listIndex;
+                    const item = this._item;
+                    this.close();
+                    this.open(item, list, idx);
+                } catch (err) {
+                    window.showToast?.(t('asset_viewer.version_delete_failed') + ': ' + err.message, 'error');
+                } finally {
+                    delBtn.disabled = false;
+                }
+            });
 
             this._overlay.addEventListener('click', (e) => {
                 if (e.target === this._overlay) this.close();

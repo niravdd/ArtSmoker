@@ -444,16 +444,22 @@ def _update_gallery_on_edit_complete_locked(job: dict, image_bytes: bytes):
             "model_label": source_meta.get("model_label", ""),
             "timestamp": source_meta.get("created_at", ""),
         })
-    next_version = len(versions) + 1
+    # Max-based (not len+1): version deletion leaves TOMBSTONE records and
+    # numbering is sparse — a new version must never reuse a deleted number.
+    next_version = max(v.get("version", 0) for v in versions) + 1
 
-    # Archive current asset.png (+svg) as the previous version
+    # Archive current asset.png (+svg) as the previous version. Archive under
+    # the TRUE current_version (not next-1): with sparse numbering after a
+    # version delete, next-1 may be a deleted number — asset.png's bytes belong
+    # to current_version, whatever its number is.
     current_png = asset_dir / "asset.png"
     if current_png.exists():
-        prev_file = f"asset_v{next_version - 1}.png"
+        _prev_v = source_meta.get("current_version") or (next_version - 1)
+        prev_file = f"asset_v{_prev_v}.png"
         if not (asset_dir / prev_file).exists():
             shutil.copy2(str(current_png), str(asset_dir / prev_file))
         current_svg = asset_dir / "asset.svg"
-        prev_svg = f"asset_v{next_version - 1}.svg"
+        prev_svg = f"asset_v{_prev_v}.svg"
         if current_svg.exists() and not (asset_dir / prev_svg).exists():
             shutil.copy2(str(current_svg), str(asset_dir / prev_svg))
 

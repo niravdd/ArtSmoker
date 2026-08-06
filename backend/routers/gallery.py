@@ -438,6 +438,174 @@ async def delete_assets(body: DeleteRequest):
     return {"deleted": deleted, "not_found": not_found}
 
 
+@router.delete("/{asset_id}/version/{version}")
+async def delete_asset_version(asset_id: str, version: int):
+    """Delete ONE version of an asset — files + metadata references — leaving a
+    tombstone record (sparse numbering: later versions are NEVER renumbered).
+
+    Semantics (user-specified 2026-08-06):
+      • The version's physical files are removed: asset_v{N}.png/.svg + every
+        version-named sidecar (__mask, __cutout, __source, __prepad_src, the
+        export artefacts asset__nobg_v{N}.*) + that version's 3D artifacts
+        (asset_3d_v{N}*.glb and the three_d v{N} bucket).
+      • The versions[] record is replaced by a TOMBSTONE: {version, deleted:
+        true, deleted_at} — keeps numbering sparse/stable and records when.
+      • If the deleted version was the CURRENT one, the next-lower surviving
+        version is PROMOTED: its archived PNG/SVG become asset.png/asset.svg
+        and current_version repoints to it.
+      • Deleting the LAST surviving version deletes the WHOLE asset
+        (returns {asset_deleted: true} so the UI can close/navigate).
+
+    Corruption safety: all validation runs FIRST; the promotion copy (new
+    current's bytes → asset.png) happens BEFORE the old files are removed and
+    BEFORE metadata is saved — so a crash mid-way leaves extra files (harmless)
+    rather than a metadata record pointing at missing files. File deletions are
+    per-file best-effort with failures collected and reported.
+    """
+    import shutil
+    from backend.services.asset_locks import asset_write_lock
+
+    # Serialize against the sync/async edit writers — a version save landing
+    # mid-delete would otherwise race this read-modify-write of metadata.json.
+    with asset_write_lock(asset_id):
+        return _delete_asset_version_locked(asset_id, version)
+
+
+def _delete_asset_version_locked(asset_id: str, version: int):
+    """Body of delete_asset_version — caller MUST hold the asset write lock."""
+    import shutil
+
+    # ── Validate everything up-front (no side effects yet) ──────────────────
+    meta = store.load_generation_metadata(asset_id)
+    if meta is None:
+        raise HTTPException(404, detail=f"Asset '{asset_id}' not found.")
+    versions = meta.get("versions") or []
+    if not versions:
+        # Un-versioned asset (single implicit version) — treat as whole-asset.
+        if version != 1:
+            raise HTTPException(404, detail=f"Version {version} not found.")
+        if not store.delete_generated_asset(asset_id):
+            raise HTTPException(500, detail="Failed to delete the asset directory.")
+        _meta_cache.pop(asset_id, None)
+        logger.info("VERSION-DELETE: %s had no version records — whole asset deleted", asset_id)
+        return {"asset_deleted": True, "deleted_version": version}
+
+    vrec = next((v for v in versions if v.get("version") == version), None)
+    if vrec is None:
+        raise HTTPException(404, detail=f"Version {version} not found.")
+    if vrec.get("deleted"):
+        raise HTTPException(409, detail=f"Version {version} is already deleted.")
+
+    surviving = [v for v in versions if not v.get("deleted") and v.get("version") != version]
+    current_version = meta.get("current_version") or (len(versions) or 1)
+
+    # ── Last surviving version → delete the whole asset ─────────────────────
+    if not surviving:
+        if not store.delete_generated_asset(asset_id):
+            raise HTTPException(500, detail="Failed to delete the asset directory.")
+        _meta_cache.pop(asset_id, None)
+        logger.info("VERSION-DELETE: %s v%d was the last version — whole asset deleted",
+                    asset_id, version)
+        return {"asset_deleted": True, "deleted_version": version}
+
+    asset_dir = store.generated_asset_dir(asset_id)
+    now = datetime.now(timezone.utc).isoformat()
+    was_current = (version == current_version)
+    new_current = max(v["version"] for v in surviving) if was_current else current_version
+    file_errors: list[str] = []
+
+    # ── PROMOTION FIRST (copy before any delete — crash-safe ordering) ──────
+    # If the current version is being deleted, materialize the new current's
+    # bytes into asset.png/asset.svg BEFORE removing anything. The new current
+    # keeps its archived asset_v{N}.png too (versioning convention tolerates
+    # both existing; readers try archived-name first, then asset.png).
+    if was_current:
+        promo_png = asset_dir / f"asset_v{new_current}.png"
+        if not promo_png.exists():
+            raise HTTPException(
+                500, detail=(f"Cannot promote v{new_current}: its archived file is missing. "
+                             f"Nothing was deleted."))
+        try:
+            shutil.copy2(str(promo_png), str(asset_dir / "asset.png"))
+            promo_svg = asset_dir / f"asset_v{new_current}.svg"
+            if promo_svg.exists():
+                shutil.copy2(str(promo_svg), str(asset_dir / "asset.svg"))
+            else:
+                # No SVG for the promoted version — remove the stale current SVG
+                # rather than leave the deleted version's trace behind.
+                (asset_dir / "asset.svg").unlink(missing_ok=True)
+        except Exception as e:
+            raise HTTPException(500, detail=f"Promotion failed ({e}). Nothing was deleted.")
+
+    # ── Metadata: tombstone + repoint (saved BEFORE file removal) ────────────
+    tombstone = {"version": version, "deleted": True, "deleted_at": now,
+                 "type": vrec.get("type", ""), "model_label": vrec.get("model_label", "")}
+    meta["versions"] = [tombstone if v.get("version") == version else v for v in versions]
+    meta["current_version"] = new_current
+    # Drop per-version references owned by the deleted version.
+    if isinstance(meta.get("cutouts"), dict):
+        meta["cutouts"].pop(str(version), None)
+    three_d = meta.get("three_d")
+    removed_3d_files: list[str] = []
+    if isinstance(three_d, dict) and f"v{version}" in three_d:
+        for variant in (three_d[f"v{version}"].get("variants") or []):
+            fn = variant.get("glb_filename")
+            if fn:
+                removed_3d_files.append(fn)
+        three_d.pop(f"v{version}", None)
+    meta["three_d_versions"] = [e for e in (meta.get("three_d_versions") or [])
+                                if e.get("version") != version]
+    try:
+        store.save_generation_metadata(asset_id, meta)
+    except Exception as e:
+        raise HTTPException(500, detail=f"Metadata update failed ({e}). Files were not removed; "
+                                        f"the asset may show a stale current version — retry.")
+    _meta_cache.pop(asset_id, None)
+
+    # ── Physical files LAST (metadata no longer references any of them) ─────
+    candidates = [
+        f"asset_v{version}.png", f"asset_v{version}.svg",
+        f"asset_v{version}__mask.png", f"asset_v{version}__cutout.png",
+        f"asset_v{version}__source.png",
+        _cutout_png_name(version), _cutout_svg_name(version),
+        f"asset_3d_v{version}.glb",
+    ] + removed_3d_files
+    # Any other version-suffixed sidecars (e.g. edit_{job}__prepad, future ones)
+    try:
+        for p in asset_dir.glob(f"asset_3d_v{version}__*.glb"):
+            candidates.append(p.name)
+    except Exception:
+        pass
+    deleted_files = []
+    for name in dict.fromkeys(candidates):  # dedupe, keep order
+        try:
+            p = asset_dir / name
+            if p.exists():
+                p.unlink()
+                deleted_files.append(name)
+        except Exception as e:
+            file_errors.append(f"{name}: {e}")
+
+    if file_errors:
+        # Metadata is already consistent (tombstoned) — leftover files are
+        # orphans, not corruption. Report honestly so the user can retry/inspect.
+        logger.warning("VERSION-DELETE: %s v%d tombstoned but %d file(s) could not be removed: %s",
+                       asset_id, version, len(file_errors), "; ".join(file_errors))
+    logger.info("VERSION-DELETE: %s v%d deleted (%d files) — current now v%d%s",
+                asset_id, version, len(deleted_files), new_current,
+                " (promoted)" if was_current else "")
+    return {
+        "asset_deleted": False,
+        "deleted_version": version,
+        "deleted_at": now,
+        "current_version": new_current,
+        "promoted": was_current,
+        "deleted_files": deleted_files,
+        "file_errors": file_errors,   # non-empty = orphaned files remain (not corruption)
+        "surviving_versions": [v["version"] for v in surviving],
+    }
+
+
 @router.get("/{asset_id}")
 async def get_asset_metadata(asset_id: str):
     """Get the full metadata dictionary for a generated asset.

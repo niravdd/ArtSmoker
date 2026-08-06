@@ -102,7 +102,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 🛡️ **Smart moderation** — Canary testing, auto model switching, AI-assisted rewriting
 - ⚙️ **Model Registry** — Admin UI organized by studio (Image, Video, Chat, Type, Shared), Bedrock discovery, custom model support
 - 📝 **Prompt Templates** — 28 editable LLM directive prompts, AI-assisted refinement, variable validation with auto-fix
-- 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...) and version navigation
+- 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...), version navigation, and per-version delete: remove just one version (others keep their numbers), with the viewer switching to the previous version — deleting the last version removes the whole asset
 - 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
 - 🌐 **9-Language i18n** — Full UI translation (EN, JA, ZH, KO, HI, RU, FR, ES, DE), auto-detect non-English prompts (English UI skips detection entirely), bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically

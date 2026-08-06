@@ -104,7 +104,7 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 - 🛡️ **Moderación inteligente** — Prueba canary, cambio automático de modelo, reescritura asistida por IA
 - ⚙️ **Model Registry** — UI de administración organizada por estudio (Image, Video, Chat, Type, Shared), descubrimiento de Bedrock, soporte de modelos personalizados
 - 📝 **Prompt Templates** — 19 prompts de directivas LLM editables, refinamiento asistido por IA, validación de variables con corrección automática
-- 📦 **Versionado de recursos** — Edición in situ con historial de versiones (v1, v2, ...) y navegación entre versiones
+- 📦 **Versionado de assets** — edición in situ con historial de versiones (v1, v2…), navegación entre versiones y borrado por versión: elimina solo una versión (las demás conservan sus números) y el visor cambia a la versión anterior — borrar la última versión elimina todo el asset
 - 💰 **Seguimiento de costos** — Gasto estimado de AWS por solicitud, por sesión, por recurso — enviado a telemetría PulseBoard
 - 🌐 **i18n en 8 idiomas** — Traducción completa de la UI (EN, JA, ZH, KO, HI, RU, FR, ES), detección automática de prompts no ingleses, vista previa bilingüe
 - 🔍 **Soporte de modelos personalizados** — Descubra automáticamente modelos Bedrock personalizados afinados, importados y desplegados
