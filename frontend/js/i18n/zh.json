@@ -216,6 +216,7 @@
     "version_label": "版本：",
     "version_original": "原始版本",
     "version_delete_btn": "删除版本",
+    "version_single_hint": "单一版本",
     "version_delete_title": "删除此版本",
     "version_delete_confirm": "永久删除版本 v{{version}}？其他版本的编号保持不变。",
     "version_delete_last_confirm": "这是仅剩的最后一个版本 — 删除它将永久移除整个资源。继续吗？",

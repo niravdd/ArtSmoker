@@ -216,6 +216,7 @@
     "version_label": "バージョン：",
     "version_original": "オリジナル",
     "version_delete_btn": "バージョンを削除",
+    "version_single_hint": "単一バージョン",
     "version_delete_title": "このバージョンを削除",
     "version_delete_confirm": "バージョン v{{version}} を完全に削除しますか？他のバージョンの番号は変わりません。",
     "version_delete_last_confirm": "これは最後のバージョンです — 削除するとアセット全体が完全に削除されます。続行しますか？",

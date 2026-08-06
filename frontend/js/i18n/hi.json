@@ -834,6 +834,7 @@
     "version_label": "संस्करण:",
     "version_original": "मूल",
     "version_delete_btn": "संस्करण हटाएँ",
+    "version_single_hint": "एकमात्र संस्करण",
     "version_delete_title": "यह संस्करण हटाएँ",
     "version_delete_confirm": "संस्करण v{{version}} स्थायी रूप से हटाएँ? अन्य संस्करण अपने नंबर बनाए रखेंगे।",
     "version_delete_last_confirm": "यह एकमात्र बचा हुआ संस्करण है — इसे हटाने से पूरा एसेट स्थायी रूप से हट जाएगा। जारी रखें?",

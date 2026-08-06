@@ -834,6 +834,7 @@
     "version_label": "Версия:",
     "version_original": "Оригинал",
     "version_delete_btn": "Удалить версию",
+    "version_single_hint": "единственная версия",
     "version_delete_title": "Удалить эту версию",
     "version_delete_confirm": "Удалить версию v{{version}} навсегда? Остальные версии сохранят свои номера.",
     "version_delete_last_confirm": "Это единственная оставшаяся версия — её удаление навсегда удалит весь ассет. Продолжить?",

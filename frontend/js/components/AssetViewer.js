@@ -284,15 +284,19 @@
                             <div class="space-y-3">
                                 <div class="flex items-start justify-between gap-3 flex-wrap">
                                     <p class="text-[11px] text-brand-text-muted max-w-md">${t('asset_viewer.export_intro')}</p>
-                                    <!-- Background-removal method + generate control -->
-                                    <div class="flex items-center gap-2 flex-shrink-0">
-                                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.export_bg_method')}</label>
+                                    <!-- Background-removal method + generate control.
+                                         whitespace-nowrap on the label and button keeps
+                                         each from wrapping mid-text; the row itself never
+                                         wraps (flex-nowrap) — the intro paragraph shrinks
+                                         instead. -->
+                                    <div class="flex items-center gap-2 flex-shrink-0 flex-nowrap">
+                                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">${t('asset_viewer.export_bg_method')}</label>
                                         <select id="av-export-method" class="input text-xs py-1">
                                             <option value="local">${t('asset_viewer.export_method_local')}</option>
                                             <option value="bedrock">${t('asset_viewer.export_method_bedrock')}</option>
                                         </select>
-                                        <button id="av-export-generate" class="btn btn-primary btn-sm">
-                                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
+                                        <button id="av-export-generate" class="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0">
+                                            <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
                                             ${t('asset_viewer.export_generate_cutouts')}
                                         </button>
                                     </div>
@@ -1128,13 +1132,19 @@
             // Tombstoned (deleted) versions are metadata records only — never
             // rendered as pills. Numbering is sparse by design (never reused).
             const versions = (meta.versions || []).filter(v => !v.deleted);
-            if (versions.length < 2) {
-                bar.classList.add('hidden');
-                return;
-            }
 
+            // The bar is ALWAYS shown (it hosts the per-version Delete button,
+            // which must be available even for a single/un-versioned asset —
+            // deleting the only version deletes the whole asset). With fewer
+            // than 2 versions there's nothing to switch between, so the pills
+            // are skipped and only the label + Delete button render.
             bar.classList.remove('hidden');
             const currentVersion = meta.current_version || versions.length;
+            if (versions.length < 2) {
+                btns.innerHTML = `<span class="text-[10px] text-brand-text-dim">${t('asset_viewer.version_single_hint')}</span>`;
+                if (detail) detail.classList.add('hidden');
+                return;
+            }
 
             btns.innerHTML = versions.map(v => `
                 <button class="av-version-btn px-2 py-1 rounded text-[10px] transition-all cursor-pointer

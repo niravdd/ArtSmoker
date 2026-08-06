@@ -216,6 +216,7 @@
     "version_label": "Versión:",
     "version_original": "Original",
     "version_delete_btn": "Eliminar versión",
+    "version_single_hint": "versión única",
     "version_delete_title": "Eliminar esta versión",
     "version_delete_confirm": "¿Eliminar la versión v{{version}} permanentemente? Las demás versiones conservan sus números.",
     "version_delete_last_confirm": "Esta es la única versión restante — eliminarla borra todo el asset permanentemente. ¿Continuar?",
