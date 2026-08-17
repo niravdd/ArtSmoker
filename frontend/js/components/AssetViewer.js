@@ -871,11 +871,12 @@
                 const svgFile = isCurrent ? (meta.svg_filename) : `asset_v${curVer}.svg`;
                 fileInfoContent += fact('SVG', `${this._esc(dir ? dir + '/' + svgFile : svgFile)}`, { mono: true, wrap: true });
             }
-            // 3D model file path for the VIEWED version (only when that version
-            // actually has a model — threeDData is version-exact, no fallback).
+            // 3D model file path for the VIEWED version's DEFAULT variant (only
+            // when that version actually has a model — version-exact, no fallback).
             // The variant record's field is `glb_filename` (older shapes used
             // `glb_file`); tolerate both so the path always renders when present.
-            const glbFile = threeDData?.glb_filename || threeDData?.glb_file;
+            const _def3d = this._default3DVariant(meta, curVer);
+            const glbFile = _def3d?.glb_filename || _def3d?.glb_file;
             if (glbFile) {
                 const glbPath = dir ? `${dir}/${glbFile}` : glbFile;
                 fileInfoContent += fact('GLB', `${this._esc(glbPath)}${copyBtn(glbPath)}`, { mono: true, wrap: true });
