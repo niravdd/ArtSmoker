@@ -12,6 +12,9 @@ backend/*.user.json
 # Claude Code project instructions (local only)
 CLAUDE.md
 
+# Claude Code local workspace (skills, settings — never publish to repos)
+.claude/
+
 # Internal design docs (merge into SPEC.md after proven)
 gpu_optimiser.md
 
