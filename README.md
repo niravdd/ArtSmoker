@@ -8,15 +8,15 @@
 
 ## 📌 0. Overview
 
-**ArtSmoker turns an idea into game-engine-ready art — in minutes, without a pipeline.** Describe a character, prop, environment, or piece of key art in plain language and get production-ready 2D art, fully-textured 3D models, and video — all matched to your project's visual identity, all inside your own private cloud. The newest AI image, editing, 3D, and video models sit behind one clean, artist-first interface with real creative controls, so your team directs the look while the technical machinery disappears.
+**ArtSmoker turns an idea into game-engine-ready art — in minutes, with no pipeline for you to manage.** Describe a character, prop, environment, or piece of key art in plain language and get production-ready 2D art, fully-textured 3D models, and video — all matched to your project's visual identity, all kept within your own environment. The newest AI image, editing, 3D, and video models sit behind one clean, artist-first interface with real creative controls: ArtSmoker runs the entire production pipeline for you, so your team directs the look instead of wrangling the machinery.
 
 ### 📝 The Problem
 
 Creative teams in game and media studios want the leverage of generative AI — but today that power is locked behind developer tooling they were never meant to manage:
 
 - **It's built for engineers, not artists** — the best models live behind cloud consoles, command lines, SDKs, and REST APIs. No director or concept artist should need a terminal to make a piece of art.
-- **Prompting is its own craft** — consistent, on-brief results demand model-specific prompt structure, negative prompts, and style directives that most artists shouldn't have to master.
-- **The best models are scattered and hard to run** — powerful image, editing, 3D, and video models ship constantly across different providers and formats; standing each one up (packaging, GPUs, quantization, scaling) is a full engineering project on its own.
+- **Clear ideas, cryptic prompts** — artists know exactly what they want, but the models don't take direction in plain creative language; consistent, on-brief results still hinge on prompt structure, negative prompts, and model-specific phrasing that sit between the brief and the output.
+- **The best AI models are scattered and hard to run** — powerful AI models for image, editing, 3D, and video ship constantly across different providers and formats; standing each one up (packaging, GPUs, quantization, scaling) is a full engineering project on its own.
 - **Editing and 3D are separate worlds** — inpainting, outpainting, relighting, reference-guided edits, and turning a 2D concept into a textured 3D model each normally need their own tools, APIs, and specialists.
 - **Staying on-brand is manual** — keeping every asset true to your established look usually means babysitting each generation by hand.
 
@@ -28,7 +28,7 @@ ArtSmoker is a self-hosted creative studio that puts today's best generative mod
 - **On-brand by default** — feed ArtSmoker your existing art and its vision models learn your visual identity, so every asset comes out matching your project's look and feel.
 - **2D, edited, and in 3D — end to end** — generate, then refine in place with inpainting, outpainting, relighting, search-and-replace, and reference-guided edits; turn any 2D asset into a **fully-textured, game-engine-ready 3D model** that drops straight into Unity, Unreal, or Blender — no manual modeling, UV unwrapping, or texture painting. Plus cinematic video and a multi-model chat studio for ideation.
 - **Every model, one click** — use the latest hosted models across regions, or deploy curated open-source models (Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2, and more) to your own GPUs with a single click — packaging, quantization, auto-scaling, and job tracking all handled, every model validated end-to-end before it ships.
-- **Your cloud, your IP** — everything runs in your own private account. Artwork, prompts, styles, and generated assets never leave your environment; you keep full ownership and control of your creative IP.
+- **Runs where you want — and your IP stays yours** — install it on a single artist's desktop or a shared instance for the whole team; **no GPU of your own required** (the heavy compute runs on managed AWS services, or on auto-scaling endpoints ArtSmoker spins up and scales back to zero for you). It connects only to your own AWS account — artwork, prompts, styles, and generated assets stay in your environment, nothing goes to third-party services, and you keep full ownership of your creative IP.
 
 **Amazon Bedrock models**: Claude Sonnet/Opus (prompt engineering & chat), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Stability AI services (image editing), Nova Reel, Luma AI Ray (video generation), and 80+ LLMs from 16 providers for Chat Studio. **Self-hosted models**: Qwen-Image (text-to-image) & Qwen-Image-Edit (reference-guided + instruction editing, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG & TRELLIS.2 (image-to-3D), and more via Amazon SageMaker — with an extensible catalog for adding new models.
 
