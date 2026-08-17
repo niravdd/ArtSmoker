@@ -8,28 +8,27 @@
 
 ## 📌 0. Overview
 
-A simple, artist-friendly interface for Amazon Bedrock's image and video generation models. ArtSmoker helps creative teams use Bedrock efficiently — without needing to learn the API, CLI, or prompt engineering.
+**ArtSmoker turns an idea into game-engine-ready art — in minutes, without a pipeline.** Describe a character, prop, environment, or piece of key art in plain language and get production-ready 2D art, fully-textured 3D models, and video — all matched to your project's visual identity, all inside your own private cloud. The newest AI image, editing, 3D, and video models sit behind one clean, artist-first interface with real creative controls, so your team directs the look while the technical machinery disappears.
 
 ### 📝 The Problem
 
-Creative teams and game studios want to use AI for asset generation, but face real barriers:
+Creative teams in game and media studios want the leverage of generative AI — but today that power is locked behind developer tooling they were never meant to manage:
 
-- **No simple interface** — artists shouldn't need to log into the Bedrock console or write API calls to generate images
-- **Prompt engineering is hard** — composing effective prompts with proper negative prompts, style directives, and model-specific formatting takes expertise most artists don't have
-- **Teams don't build/train their own models** — they need access to the many models already available on Bedrock, through something they can actually use
-- **Image editing is inaccessible** — inpainting, outpainting, search & replace, and style transfer all require API knowledge
-- **2D-to-3D is a separate pipeline** — getting from a 2D concept to a game-engine-ready textured 3D model normally requires manual modeling, UV unwrapping, and texture painting — or expensive third-party tools
+- **It's built for engineers, not artists** — the best models live behind cloud consoles, command lines, SDKs, and REST APIs. No director or concept artist should need a terminal to make a piece of art.
+- **Prompting is its own craft** — consistent, on-brief results demand model-specific prompt structure, negative prompts, and style directives that most artists shouldn't have to master.
+- **The best models are scattered and hard to run** — powerful image, editing, 3D, and video models ship constantly across different providers and formats; standing each one up (packaging, GPUs, quantization, scaling) is a full engineering project on its own.
+- **Editing and 3D are separate worlds** — inpainting, outpainting, relighting, reference-guided edits, and turning a 2D concept into a textured 3D model each normally need their own tools, APIs, and specialists.
+- **Staying on-brand is manual** — keeping every asset true to your established look usually means babysitting each generation by hand.
 
 ### 📝 The Solution
 
-ArtSmoker is a self-hosted web application that wraps Amazon Bedrock in a clean creative interface — purpose-built for game asset production, with applicability across other creative industries such as advertising, e-commerce, publishing, and digital media where AI-generated visual content is valuable.
+ArtSmoker is a self-hosted creative studio that puts today's best generative models behind one artist-first interface — purpose-built for game asset production, and equally at home in film, advertising, e-commerce, publishing, and any team that lives on original visual content.
 
-- **Artists describe what they need** in plain language — ArtSmoker handles prompt decomposition, enhancement, model-specific optimisation, and style application behind the scenes. A guided Prompt Designer lets users fine-tune individual visual elements (subject, scene, lighting, colours) with lock/vary controls for genuinely distinct creative options
-- **Style-aware generation** — upload your game's existing art, and ArtSmoker's vision models learn your visual identity. Every generated asset matches your game's look and feel
-- **All Bedrock models, all regions** — fully configurable. Choose your text-to-image models, video models, and regions. The system discovers available models dynamically via the Bedrock API
-- **Self-hosted open-source models — 1-click deploy** — browse a curated catalog of pre-tested models (Qwen-Image, HunyuanImage 3.0, FLUX.2, and more), pick a GPU instance, and deploy to Amazon SageMaker with one click. Everything is handled: inference packaging, quantisation, CUDA configuration, auto-scaling, and job tracking. Every catalog model is validated end-to-end before shipping
-- **Image-to-3D in one click** — generate a textured 3D model (GLB) directly from any 2D game asset or character image. Multi-view synthesis and texture baking produce game-engine-ready meshes that import directly into Unity, Unreal, or Blender — no manual modeling required
-- **Your AWS account, your IP** — everything runs in your own private AWS account. All artwork, prompts, styles, and generated assets stay within your isolated environment — no data leaves to third-party services. You retain full ownership and control of your creative IP
+- **Describe it in plain language** — ArtSmoker handles prompt decomposition, enhancement, and model-specific optimization behind the scenes. A guided **Prompt Designer** lets you shape each visual element — subject, scene, lighting, colour — with lock/vary controls to explore genuinely different directions without losing what's already working.
+- **On-brand by default** — feed ArtSmoker your existing art and its vision models learn your visual identity, so every asset comes out matching your project's look and feel.
+- **2D, edited, and in 3D — end to end** — generate, then refine in place with inpainting, outpainting, relighting, search-and-replace, and reference-guided edits; turn any 2D asset into a **fully-textured, game-engine-ready 3D model** that drops straight into Unity, Unreal, or Blender — no manual modeling, UV unwrapping, or texture painting. Plus cinematic video and a multi-model chat studio for ideation.
+- **Every model, one click** — use the latest hosted models across regions, or deploy curated open-source models (Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2, and more) to your own GPUs with a single click — packaging, quantization, auto-scaling, and job tracking all handled, every model validated end-to-end before it ships.
+- **Your cloud, your IP** — everything runs in your own private account. Artwork, prompts, styles, and generated assets never leave your environment; you keep full ownership and control of your creative IP.
 
 **Amazon Bedrock models**: Claude Sonnet/Opus (prompt engineering & chat), Stable Diffusion 3.5 Large, Stable Image Ultra, Stable Image Core, Stability AI services (image editing), Nova Reel, Luma AI Ray (video generation), and 80+ LLMs from 16 providers for Chat Studio. **Self-hosted models**: Qwen-Image (text-to-image) & Qwen-Image-Edit (reference-guided + instruction editing, Apache-2.0), HunyuanImage 3.0 (BF16/NF4), FLUX.2, FLUX.1, TripoSG & TRELLIS.2 (image-to-3D), and more via Amazon SageMaker — with an extensible catalog for adding new models.
 
