@@ -565,9 +565,12 @@ def _delete_asset_version_locked(asset_id: str, version: int):
     # ── Physical files LAST (metadata no longer references any of them) ─────
     candidates = [
         f"asset_v{version}.png", f"asset_v{version}.svg",
-        f"asset_v{version}__mask.png", f"asset_v{version}__cutout.png",
-        f"asset_v{version}__source.png",
+        f"asset_v{version}__mask.png", f"asset_v{version}__source.png",
+        # Shared cutout PNG + its vector SVG (canonical), plus the legacy export
+        # names for assets created before cutout unification. dict.fromkeys below
+        # dedupes (canonical PNG == the 3D __cutout name).
         _cutout_png_name(version), _cutout_svg_name(version),
+        _legacy_cutout_png_name(version), _legacy_cutout_svg_name(version),
         f"asset_3d_v{version}.glb",
     ] + removed_3d_files
     # Any other version-suffixed sidecars (e.g. edit_{job}__prepad, future ones)
@@ -706,11 +709,26 @@ async def get_asset_svg(asset_id: str):
 # .svg) so editing the asset (new version) never serves a stale cutout.
 
 
+# The background-removed cutout is ONE shared artefact per version, used by BOTH
+# the 3D workflow (Improve-the-Source / mesher prep, which writes
+# asset_v{N}__cutout.png via generate_3d._ensure_cutout) AND the Export & Cutouts
+# tab. They perform the identical operation (remove_background of the version
+# image), so the canonical name IS the 3D sidecar name — no separate export file.
+# The old export name (asset__nobg_v{N}.*) is still READ for assets made before
+# this unification.
 def _cutout_png_name(version: int) -> str:
-    return f"asset__nobg_v{version}.png"
+    return f"asset_v{version}__cutout.png"
 
 
 def _cutout_svg_name(version: int) -> str:
+    return f"asset_v{version}__cutout.svg"
+
+
+def _legacy_cutout_png_name(version: int) -> str:
+    return f"asset__nobg_v{version}.png"
+
+
+def _legacy_cutout_svg_name(version: int) -> str:
     return f"asset__nobg_v{version}.svg"
 
 
@@ -732,12 +750,44 @@ def _version_png_path(asset_id: str, version: int, current_version: int):
         or store.get_generated_file_path(asset_id, "asset.png")
 
 
+def _is_version_bg_free(asset_id: str, version: int, meta: dict) -> bool:
+    """True when the 2D version is already a transparent cutout (a bg_free 3D
+    source-prep commit, or a remove_background edit) — then the version image IS
+    its own no-bg cutout and no separate file is needed. Delegates to the single
+    source of truth in the 3D router."""
+    try:
+        from backend.routers.generate_3d import _version_is_bg_free
+        return _version_is_bg_free(asset_id, version, meta)
+    except Exception:
+        return False
+
+
+def _resolve_cutout_png(asset_id: str, version: int, meta: dict, current_version: int):
+    """Path to the version's no-bg cutout PNG (the SINGLE shared artefact):
+    the version image itself when the version is already background-free, else the
+    canonical shared cutout (asset_v{N}__cutout.png, written by 3D or Export), else
+    the legacy export file. None if no cutout exists yet."""
+    if _is_version_bg_free(asset_id, version, meta):
+        return _version_png_path(asset_id, version, current_version)
+    return (store.get_generated_file_path(asset_id, _cutout_png_name(version))
+            or store.get_generated_file_path(asset_id, _legacy_cutout_png_name(version)))
+
+
+def _resolve_cutout_svg(asset_id: str, version: int):
+    """Path to the version's no-bg vector SVG (canonical, else legacy)."""
+    return (store.get_generated_file_path(asset_id, _cutout_svg_name(version))
+            or store.get_generated_file_path(asset_id, _legacy_cutout_svg_name(version)))
+
+
 def _export_status(asset_id: str, meta: dict, version: int, current_version: int) -> dict:
-    """Which export artefacts already exist for a version, with serve URLs."""
+    """Which export artefacts already exist for a version, with serve URLs. The
+    no-bg cutout is the SHARED artefact — so a cutout created by the 3D workflow
+    shows here too (and a background-free version needs no separate file)."""
     withbg_svg = store.get_generated_file_path(asset_id, _withbg_svg_name(version, current_version))
-    nobg_png = store.get_generated_file_path(asset_id, _cutout_png_name(version))
-    nobg_svg = store.get_generated_file_path(asset_id, _cutout_svg_name(version))
+    nobg_png = _resolve_cutout_png(asset_id, version, meta, current_version)
+    nobg_svg = _resolve_cutout_svg(asset_id, version)
     cut_meta = (meta.get("cutouts") or {}).get(str(version), {})
+    bg_free = _is_version_bg_free(asset_id, version, meta)
     return {
         "version": version,
         "withbg_svg": {
@@ -755,8 +805,10 @@ def _export_status(asset_id: str, meta: dict, version: int, current_version: int
             "url": (f"/api/gallery/{asset_id}/cutout-svg/{version}"
                     if nobg_svg is not None else None),
         },
-        "method": cut_meta.get("method"),
+        # A background-free version is its own cutout with no removal cost.
+        "method": ("none" if bg_free else cut_meta.get("method")),
         "cost_usd": cut_meta.get("cost_usd", 0),
+        "bg_free": bg_free,
     }
 
 
@@ -820,52 +872,86 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
     cutout_svg_path = asset_dir / _cutout_svg_name(version)
 
     cost_usd = 0.0
-    # Reuse the cached cutout if it exists AND was produced by the same method;
-    # a method switch (e.g. local → bedrock) regenerates for the higher quality.
-    reuse = (
-        cutout_png_path.exists()
-        and prior.get("method") == method
-    )
-    if not reuse:
-        try:
-            nobg_bytes = remove_background(src_path.read_bytes(), method=method)
-        except Exception as exc:
-            logger.exception("Background removal failed for %s v%d (%s)", asset_id, version, method)
-            raise HTTPException(502, detail=f"Background removal failed: {exc}")
+    bg_free = _is_version_bg_free(asset_id, version, meta)
 
-        cutout_png_path.write_bytes(nobg_bytes)
-        # Free local vector trace of the cutout.
-        try:
-            convert_to_svg(nobg_bytes, cutout_svg_path)
-        except Exception:
-            logger.exception("no-bg SVG trace failed for %s v%d", asset_id, version)
-
-        if method == BG_METHOD_BEDROCK:
+    if bg_free:
+        # The version image is ALREADY a transparent cutout (3D source-prep commit
+        # / remove_background edit) — no removal, no separate PNG file. Just ensure
+        # its vector trace exists so the no-bg SVG card populates.
+        reuse = True
+        if _resolve_cutout_svg(asset_id, version) is None:
             try:
-                from backend.routers.generate import _get_model_price
-                from backend.services.post_processor import _find_model_key_by_purpose
-                bg_key = _find_model_key_by_purpose("remove_background")
-                cost_usd = float(_get_model_price(bg_key)) if bg_key else 0.0
+                convert_to_svg(src_path.read_bytes(), cutout_svg_path)
             except Exception:
-                cost_usd = 0.0
-
-        # Record cutout provenance in metadata (per version).
-        cut_meta_all[str(version)] = {"method": method, "cost_usd": round(cost_usd, 6)}
+                logger.exception("no-bg SVG trace failed for %s v%d (bg-free)", asset_id, version)
+        cut_meta_all[str(version)] = {"method": "none", "cost_usd": 0.0}
         meta["cutouts"] = cut_meta_all
-        if cost_usd:
-            history = meta.get("cost_history", [])
-            history.append({"action": "remove_background", "model": "bedrock", "cost_usd": round(cost_usd, 6)})
-            meta["cost_history"] = history
-            meta["estimated_total_cost_usd"] = round(
-                sum(c.get("cost_usd", 0) for c in history), 6
-            )
         store.save_generation_metadata(asset_id, meta)
         _meta_cache.pop(asset_id, None)
         meta = _get_meta(asset_id) or meta
+    else:
+        # ONE shared cutout: reuse the canonical/legacy file if it already exists
+        # (whether the 3D workflow or a prior export made it) — the operation is
+        # identical, so there's no reason to remove the background twice. Only
+        # regenerate when the user EXPLICITLY switches to a different recorded
+        # method (local ↔ bedrock).
+        existing = (store.get_generated_file_path(asset_id, _cutout_png_name(version))
+                    or store.get_generated_file_path(asset_id, _legacy_cutout_png_name(version)))
+        method_switch = bool(prior.get("method") and prior["method"] not in (method, "none"))
+        reuse = existing is not None and not method_switch
+
+        if not reuse:
+            try:
+                nobg_bytes = remove_background(src_path.read_bytes(), method=method)
+            except Exception as exc:
+                logger.exception("Background removal failed for %s v%d (%s)", asset_id, version, method)
+                raise HTTPException(502, detail=f"Background removal failed: {exc}")
+
+            cutout_png_path.write_bytes(nobg_bytes)
+            try:
+                convert_to_svg(nobg_bytes, cutout_svg_path)
+            except Exception:
+                logger.exception("no-bg SVG trace failed for %s v%d", asset_id, version)
+
+            if method == BG_METHOD_BEDROCK:
+                try:
+                    from backend.routers.generate import _get_model_price
+                    from backend.services.post_processor import _find_model_key_by_purpose
+                    bg_key = _find_model_key_by_purpose("remove_background")
+                    cost_usd = float(_get_model_price(bg_key)) if bg_key else 0.0
+                except Exception:
+                    cost_usd = 0.0
+
+            cut_meta_all[str(version)] = {"method": method, "cost_usd": round(cost_usd, 6)}
+            meta["cutouts"] = cut_meta_all
+            if cost_usd:
+                history = meta.get("cost_history", [])
+                history.append({"action": "remove_background", "model": "bedrock", "cost_usd": round(cost_usd, 6)})
+                meta["cost_history"] = history
+                meta["estimated_total_cost_usd"] = round(
+                    sum(c.get("cost_usd", 0) for c in history), 6
+                )
+            store.save_generation_metadata(asset_id, meta)
+            _meta_cache.pop(asset_id, None)
+            meta = _get_meta(asset_id) or meta
+        else:
+            # Reusing the shared cutout: ensure its vector trace exists, and record
+            # the method if none was on file yet (e.g. cutout made by the 3D flow).
+            if _resolve_cutout_svg(asset_id, version) is None:
+                try:
+                    convert_to_svg(existing.read_bytes(), cutout_svg_path)
+                except Exception:
+                    logger.exception("no-bg SVG trace failed for %s v%d (reuse)", asset_id, version)
+            if not prior.get("method"):
+                cut_meta_all[str(version)] = {"method": method, "cost_usd": 0.0}
+                meta["cutouts"] = cut_meta_all
+                store.save_generation_metadata(asset_id, meta)
+                _meta_cache.pop(asset_id, None)
+                meta = _get_meta(asset_id) or meta
 
     logger.info(
-        "Export variants for %s v%d: method=%s reuse=%s cost=$%.4f",
-        asset_id, version, method, reuse, cost_usd,
+        "Export variants for %s v%d: method=%s bg_free=%s reuse=%s cost=$%.4f",
+        asset_id, version, method, bg_free, reuse, cost_usd,
     )
     status = _export_status(asset_id, meta, version, current_version)
     status["reused"] = reuse
@@ -875,8 +961,12 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
 
 @router.get("/{asset_id}/cutout-png/{version}")
 async def get_cutout_png(asset_id: str, version: int):
-    """Serve the background-removed (transparent) PNG cutout for a version."""
-    path = store.get_generated_file_path(asset_id, _cutout_png_name(version))
+    """Serve the background-removed (transparent) PNG cutout for a version — the
+    SHARED cutout (canonical/legacy), or the version image itself when it's
+    already background-free."""
+    meta = _get_meta(asset_id) or {}
+    cur = meta.get("current_version") or (len(meta.get("versions", [])) or 1)
+    path = _resolve_cutout_png(asset_id, version, meta, cur)
     if path is None:
         raise HTTPException(404, detail=f"Cutout PNG not found for '{asset_id}' v{version}.")
     return FileResponse(path, media_type="image/png", filename=f"{asset_id}_v{version}_nobg.png")
@@ -885,7 +975,7 @@ async def get_cutout_png(asset_id: str, version: int):
 @router.get("/{asset_id}/cutout-svg/{version}")
 async def get_cutout_svg(asset_id: str, version: int):
     """Serve the background-removed vector SVG cutout for a version."""
-    path = store.get_generated_file_path(asset_id, _cutout_svg_name(version))
+    path = _resolve_cutout_svg(asset_id, version)
     if path is None:
         raise HTTPException(404, detail=f"Cutout SVG not found for '{asset_id}' v{version}.")
     return FileResponse(path, media_type="image/svg+xml", filename=f"{asset_id}_v{version}_nobg.svg")
