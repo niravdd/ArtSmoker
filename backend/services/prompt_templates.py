@@ -13,8 +13,28 @@ Templates may also have a system_prompt field for the LLM system message.
 
 import json
 import logging
+from contextlib import contextmanager
 from datetime import datetime
+from functools import wraps
 from pathlib import Path
+
+from backend.services.safe_write import atomic_write_text, named_write_lock
+
+
+def _templates_write(fn):
+    """Serialize a prompt-templates writer across threads AND worker processes.
+
+    Both persisters (_write_json_defaults for the git-tracked file, _save_user
+    for the gitignored overrides) are wrapped so concurrent collaborators on a
+    shared host can't lost-update. Paired with atomic_write_text so a reader
+    never sees a partial file. The two writers never call each other, so the
+    non-reentrant lock is safe.
+    """
+    @wraps(fn)
+    def _wrapped(*args, **kwargs):
+        with named_write_lock("prompt_templates"):
+            return fn(*args, **kwargs)
+    return _wrapped
 
 logger = logging.getLogger(__name__)
 
@@ -931,13 +951,14 @@ def _load():
         _stamp_deployment()
 
 
+@_templates_write
 def _write_json_defaults(defaults: dict):
     """Write the git-tracked prompt_templates.json (the runtime source of truth).
 
     Only called to backfill missing code-seed templates — existing entries are
     passed through untouched by the caller. Keeps a stable key order for clean
     git diffs."""
-    _DEFAULTS_PATH.write_text(json.dumps(defaults, indent=2, ensure_ascii=False))
+    atomic_write_text(_DEFAULTS_PATH, json.dumps(defaults, indent=2, ensure_ascii=False))
 
 
 def _stamp_deployment():
@@ -951,14 +972,52 @@ def _stamp_deployment():
     _save_user()
 
 
-def _save_user():
-    """Write only user-modified templates to the user overrides file."""
+def _save_user_nolock():
+    """Persist user overrides. LOCK-FREE body — caller MUST hold the
+    prompt_templates lock (via _templates_write or templates_transaction)."""
     if _user_overrides:
         _user_overrides["_last_updated"] = datetime.utcnow().isoformat()
-        _USER_PATH.write_text(json.dumps(_user_overrides, indent=2, ensure_ascii=False, default=str))
+        atomic_write_text(_USER_PATH, json.dumps(_user_overrides, indent=2, ensure_ascii=False, default=str))
     elif _USER_PATH.exists():
         # No overrides left — clean up the file
         _USER_PATH.unlink()
+
+
+@_templates_write
+def _save_user():
+    """Locked persist of user overrides (see _save_user_nolock). Wholesale write
+    of the in-memory _user_overrides; for a mutation that must be safe against a
+    concurrent worker, use `with templates_transaction():` which reloads first."""
+    _save_user_nolock()
+
+
+@contextmanager
+def templates_transaction():
+    """Atomic reload→mutate→save for prompt templates, safe across worker
+    processes. Under the prompt_templates lock it reloads _templates and
+    _user_overrides from disk (so a mutation rebases onto the latest state,
+    never a stale per-worker cache), yields for the caller to mutate the module
+    globals, then persists the user overrides.
+
+    Mutate the module-level _templates / _user_overrides inside the block (item
+    assignment — no `global` needed); the transaction persists on exit. The lock
+    is reentrant, so the reload's own seed-fill writes are safe.
+    """
+    global _templates, _user_overrides
+    with named_write_lock("prompt_templates"):
+        prev_t, prev_u = _templates, _user_overrides
+        _load()               # rebase in-memory caches onto the latest disk state
+        # _load() REBINDS both globals — copy the reloaded content back into the
+        # original objects and restore the references so identity is preserved
+        # (no orphaned stale dict for anything still holding an earlier ref).
+        if prev_u is not None and prev_u is not _user_overrides:
+            fresh = _user_overrides
+            prev_u.clear(); prev_u.update(fresh); _user_overrides = prev_u
+        if prev_t is not None and prev_t is not _templates:
+            fresh = _templates
+            prev_t.clear(); prev_t.update(fresh); _templates = prev_t
+        yield
+        _save_user_nolock()
 
 
 # ── Load on import ────────────────────────────────────────────────────────
@@ -1048,22 +1107,24 @@ def update_template(name: str, text: str, force: bool = False, system_prompt: st
             f"To save anyway, use force=True (API: add ?force=true)."
         )
 
-    if name not in _templates:
-        _templates[name] = {**_DEFAULTS[name]}
-    _templates[name]["text"] = text
-    _templates[name]["modified"] = True
-    if system_prompt is not None:
-        _templates[name]["system_prompt"] = system_prompt
-    if missing:
-        _templates[name]["warning"] = f"Missing variables: {', '.join(missing)}"
-    else:
-        _templates[name].pop("warning", None)
+    # Reload→mutate→save atomically so a concurrent worker's other template
+    # edits are rebased in, not clobbered.
+    with templates_transaction():
+        if name not in _templates:
+            _templates[name] = {**_DEFAULTS[name]}
+        _templates[name]["text"] = text
+        _templates[name]["modified"] = True
+        if system_prompt is not None:
+            _templates[name]["system_prompt"] = system_prompt
+        if missing:
+            _templates[name]["warning"] = f"Missing variables: {', '.join(missing)}"
+        else:
+            _templates[name].pop("warning", None)
 
-    # Save to user overrides file (only the changed fields)
-    _user_overrides[name] = {"text": text}
-    if system_prompt is not None:
-        _user_overrides[name]["system_prompt"] = system_prompt
-    _save_user()
+        # Save to user overrides file (only the changed fields)
+        _user_overrides[name] = {"text": text}
+        if system_prompt is not None:
+            _user_overrides[name]["system_prompt"] = system_prompt
 
     return {**_templates[name], "missing_variables": missing}
 
@@ -1086,17 +1147,16 @@ def reset_template(name: str) -> dict:
     base = _json_default(name)
     if base is None:
         raise ValueError(f"Unknown template: {name}")
-    _templates[name] = {**base, "modified": False}
-    # Remove from user overrides
-    _user_overrides.pop(name, None)
-    _save_user()
+    with templates_transaction():
+        _templates[name] = {**base, "modified": False}
+        # Remove from user overrides
+        _user_overrides.pop(name, None)
     return _templates[name]
 
 
 def reset_all_templates():
     """Reset all templates to their JSON defaults. Clears all user overrides."""
-    global _templates, _user_overrides
-    _user_overrides = {}
-    _save_user()
+    with templates_transaction():
+        _user_overrides.clear()   # in-place (identity preserved); persisted on exit → user file removed
     _load()  # rebuild the runtime view from JSON defaults (no overrides left)
     return _templates

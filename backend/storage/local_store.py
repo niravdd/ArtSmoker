@@ -5,6 +5,7 @@ import shutil
 from pathlib import Path
 
 from backend.config import settings
+from backend.services.safe_write import atomic_write_text
 
 
 class LocalStore:
@@ -31,7 +32,7 @@ class LocalStore:
 
     def save_style_profile(self, style_id: str, data: dict) -> Path:
         path = self.style_dir(style_id) / "profile.json"
-        path.write_text(json.dumps(data, indent=2, default=str))
+        atomic_write_text(path, json.dumps(data, indent=2, default=str))
         return path
 
     def load_style_profile(self, style_id: str) -> dict | None:
@@ -94,8 +95,13 @@ class LocalStore:
         return path
 
     def save_generation_metadata(self, asset_id: str, data: dict) -> Path:
+        # Atomic write (temp-in-same-dir + os.replace): a concurrent reader never
+        # sees a half-written metadata.json, and a crash mid-write leaves the
+        # previous file intact. Callers that read-modify-write hold
+        # asset_write_lock(asset_id) around the whole sequence (this method does
+        # NOT take that lock — doing so would deadlock those callers).
         path = self.generated_asset_dir(asset_id) / "metadata.json"
-        path.write_text(json.dumps(data, indent=2, default=str))
+        atomic_write_text(path, json.dumps(data, indent=2, default=str))
         return path
 
     def load_generation_metadata(self, asset_id: str) -> dict | None:

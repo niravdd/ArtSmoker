@@ -46,7 +46,7 @@ async def replace_registry(request: Request):
     has required top-level keys before saving. With the layered system,
     this writes changes as user overrides (differences from defaults).
     """
-    from backend.services.model_registry import get_registry, _save, _load
+    from backend.services.model_registry import registry_transaction
 
     try:
         body = await request.json()
@@ -59,11 +59,13 @@ async def replace_registry(request: Request):
     if missing:
         raise HTTPException(400, detail=f"Missing required keys: {', '.join(missing)}")
 
-    # Replace the in-memory registry and save (writes diff to .user.json)
-    registry = get_registry()
-    registry.clear()
-    registry.update(body)
-    _save()
+    # Replace the in-memory registry and save (writes diff to .user.json),
+    # atomically under the cross-process lock so a concurrent worker write can't
+    # interleave. The admin editor is authoritatively replacing the whole
+    # document, so a clear()+update(body) overwrite is intended.
+    with registry_transaction() as registry:
+        registry.clear()
+        registry.update(body)
     logger.info("Full registry replaced via PUT /api/admin/models")
 
     return {"status": "saved", "keys": list(body.keys())}
@@ -2065,7 +2067,12 @@ def _run_refresh_all_regions():
                 continue
             regions = cfg.get("available_regions", [])
             if not regions and cfg.get("enabled", True):
-                update_image_model(key, {"enabled": False})
+                # Mutate the accumulating registry dict directly (like the
+                # chat/video loops below) — NOT via update_image_model(), whose
+                # transaction would reload from disk mid-Sync and wipe the
+                # in-memory changes accumulated so far. Sync is a single
+                # read→accumulate→save-once batch (see the _save() at the end).
+                registry["image_models"][key]["enabled"] = False
                 disabled.append(key)
                 logger.debug("Disabled image model %s — no longer found in any region", key)
         for key, cfg in list(registry.get("chat_models", {}).items()):
@@ -2461,7 +2468,11 @@ def _discover_custom_models(region: str) -> dict:
             registered.append({"key": key, "model_name": model_name, "type": "imported_llm"})
             logger.info("Registered imported model: %s (%s, %s) in %s", key, model_name, architecture, region)
 
-    # Save registry
+    # Save registry. Like Sync, discovery is a read-once → accumulate across
+    # (slow) AWS calls → save-once batch: a per-mutation transaction would wipe
+    # the accumulation on reload, and wrapping the whole function would hold the
+    # cross-process lock across the AWS scans. The wholesale save is intentional
+    # (discovery data is AWS-authoritative) and remains atomic + locked.
     if registered or updated_list:
         _save()
 

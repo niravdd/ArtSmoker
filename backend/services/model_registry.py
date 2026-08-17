@@ -9,10 +9,31 @@ a dynamic, configurable registry.
 
 import json
 import logging
+from contextlib import contextmanager
 from datetime import datetime, timezone
+from functools import wraps
 from pathlib import Path
 
+from backend.services.safe_write import atomic_write_text, named_write_lock
+
 logger = logging.getLogger(__name__)
+
+
+def _registry_write(fn):
+    """Serialize a registry writer across threads AND worker processes.
+
+    Every function that persists registry state (all write to
+    model_registry.user.json, plus promote_to_base which also touches the
+    git-tracked base file) is wrapped so a concurrent collaborator on a shared
+    host can't lost-update the file. Paired with atomic_write_text at each write
+    site, a reader never sees a partial file. Leaf writers must NOT call one
+    another (the lock is non-reentrant) — verified: none do.
+    """
+    @wraps(fn)
+    def _wrapped(*args, **kwargs):
+        with named_write_lock("model_registry"):
+            return fn(*args, **kwargs)
+    return _wrapped
 
 _REGISTRY_PATH = Path(__file__).resolve().parent.parent / "model_registry.json"       # Git-tracked defaults (READ-ONLY at runtime)
 _USER_PREFS_PATH = Path(__file__).resolve().parent.parent / "model_registry.user.json"  # ALL runtime state (gitignored)
@@ -153,8 +174,10 @@ def _deep_merge_runtime(runtime: dict) -> int:
     return count
 
 
-def _save():
-    """Save the full registry to the runtime state file (user.json).
+def _save_nolock():
+    """Persist the in-memory registry to user.json. LOCK-FREE body — the caller
+    MUST already hold the model_registry lock (via the _registry_write decorator
+    or a registry_transaction). Never call this directly from an unlocked path.
 
     NEVER writes to the git-tracked main file. All runtime changes —
     Sync discoveries, user preferences, custom model registrations,
@@ -184,11 +207,62 @@ def _save():
         if k not in output:
             output[k] = v
     output["_last_updated"] = datetime.now(timezone.utc).isoformat()
-    _USER_PREFS_PATH.write_text(json.dumps(output, indent=2, default=str))
+    atomic_write_text(_USER_PREFS_PATH, json.dumps(output, indent=2, default=str))
     if not _save._silent:
         logger.info("Model registry saved.")
 
+
+@_registry_write
+def _save():
+    """Locked persist of the in-memory registry (see _save_nolock).
+
+    NOTE: this writes the CURRENT in-memory _registry wholesale. For a mutation
+    that must be safe against a concurrent write from another gunicorn worker,
+    prefer `with registry_transaction() as reg:` — it reloads from disk first so
+    the mutation rebases onto the latest state instead of clobbering it. Plain
+    _save() remains for callers that have just rebuilt _registry from disk (e.g.
+    startup seeding) or where a lost-update is not a concern.
+    """
+    _save_nolock()
+
 _save._silent = False
+
+
+@contextmanager
+def registry_transaction():
+    """Atomic reload→mutate→save for the model registry, safe across worker
+    processes. Under the process/thread-safe registry lock it reloads _registry
+    from disk (so the caller mutates the CURRENT on-disk state, never a stale
+    per-worker cache), yields the fresh registry for mutation, then persists.
+
+    This turns every "get_registry(); …mutate…; _save()" sequence into a true
+    cross-worker read-modify-write — no lost update when multiple gunicorn
+    workers write concurrently, and deletions/edits rebase correctly onto other
+    workers' changes.
+
+        with registry_transaction() as reg:
+            reg["image_models"][key]["enabled"] = True
+
+    Do the READ that informs the mutation INSIDE the block (post-reload) so it
+    sees current state. Do NOT call _save() inside — the transaction persists on
+    exit. The lock is reentrant, so nested locked writers (_save_user_pref,
+    set_warm_marker, …) called from within are safe.
+    """
+    global _registry
+    with named_write_lock("model_registry"):
+        prev = _registry
+        _load()               # rebase the in-memory cache onto the latest disk state
+        # _load() REBINDS _registry to a fresh dict. Copy the reloaded content
+        # back into the original object and restore the reference, so any caller
+        # still holding an earlier get_registry() result keeps seeing the live
+        # registry (identity preserved) rather than an orphaned stale dict.
+        if prev is not None and prev is not _registry:
+            fresh = _registry
+            prev.clear()
+            prev.update(fresh)
+            _registry = prev
+        yield _registry       # caller mutates the fresh (identity-stable) dict
+        _save_nolock()        # persist the rebased + mutated result
 
 # Fields per model that are user-specific and should NOT be promoted to the base file
 _USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready"}
@@ -196,6 +270,7 @@ _USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready"}
 _USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances", "three_d_defaults", "_warm_mode"}
 
 
+@_registry_write
 def promote_to_base():
     """Promote discovered data from in-memory registry to model_registry.json.
 
@@ -278,7 +353,7 @@ def promote_to_base():
             base[section] = merged.get(section, base.get(section))
 
     base["last_updated"] = datetime.now(timezone.utc).isoformat()
-    _REGISTRY_PATH.write_text(json.dumps(base, indent=2, default=str))
+    atomic_write_text(_REGISTRY_PATH, json.dumps(base, indent=2, default=str))
     logger.info("Promoted discovered data to model_registry.json")
 
     # Step 2: Rewrite user file with only user-specific overrides
@@ -323,7 +398,7 @@ def promote_to_base():
             user_output[k] = merged[k]
 
     user_output["_last_updated"] = datetime.now(timezone.utc).isoformat()
-    _USER_PREFS_PATH.write_text(json.dumps(user_output, indent=2, default=str))
+    atomic_write_text(_USER_PREFS_PATH, json.dumps(user_output, indent=2, default=str))
     logger.info("Cleaned user overrides in model_registry.user.json")
 
     return {
@@ -332,6 +407,7 @@ def promote_to_base():
     }
 
 
+@_registry_write
 def _save_user_pref(section: str, key: str, field: str, value):
     """Save a single user preference override to the user prefs file.
 
@@ -351,7 +427,7 @@ def _save_user_pref(section: str, key: str, field: str, value):
     prefs[section][key][field] = value
     prefs["_last_updated"] = datetime.utcnow().isoformat()
 
-    _USER_PREFS_PATH.write_text(json.dumps(prefs, indent=2, default=str))
+    atomic_write_text(_USER_PREFS_PATH, json.dumps(prefs, indent=2, default=str))
 
 
 # ── Dev keep-warm markers (runtime state, persisted in user.json) ─────────
@@ -369,6 +445,7 @@ def _read_user_prefs_raw() -> dict:
     return {}
 
 
+@_registry_write
 def set_warm_marker(endpoint_name: str, model_key: str, expires_at: str,
                     cooldown_seconds: int):
     """Persist a keep-warm marker for an endpoint (dev-mode only)."""
@@ -381,11 +458,12 @@ def set_warm_marker(endpoint_name: str, model_key: str, expires_at: str,
         "set_at": datetime.now(timezone.utc).isoformat(),
     }
     prefs["_last_updated"] = datetime.now(timezone.utc).isoformat()
-    _USER_PREFS_PATH.write_text(json.dumps(prefs, indent=2, default=str))
+    atomic_write_text(_USER_PREFS_PATH, json.dumps(prefs, indent=2, default=str))
     # Keep in-memory registry in sync so get_registry() reflects it.
     _registry["_warm_mode"] = dict(warm)
 
 
+@_registry_write
 def clear_warm_marker(endpoint_name: str):
     """Remove a keep-warm marker (on reset-warm, auto-revert, or teardown)."""
     prefs = _read_user_prefs_raw()
@@ -394,7 +472,7 @@ def clear_warm_marker(endpoint_name: str):
         del warm[endpoint_name]
         prefs["_warm_mode"] = warm
         prefs["_last_updated"] = datetime.now(timezone.utc).isoformat()
-        _USER_PREFS_PATH.write_text(json.dumps(prefs, indent=2, default=str))
+        atomic_write_text(_USER_PREFS_PATH, json.dumps(prefs, indent=2, default=str))
     if isinstance(_registry.get("_warm_mode"), dict):
         _registry["_warm_mode"].pop(endpoint_name, None)
 
@@ -951,15 +1029,19 @@ def update_category(name: str, updates: dict, user_pref: bool = False) -> dict:
     user_pref=True: User action from Model Settings UI → writes ONLY to .user.json.
     user_pref=False: System action (Sync, code) → writes to main file.
     """
-    if name not in _registry.get("categories", {}):
-        _registry.setdefault("categories", {})[name] = {}
-    _registry["categories"][name].update(updates)
     if user_pref:
+        # Targeted per-field override — _save_user_pref is a fresh-read RMW, so
+        # it's already safe against concurrent workers. Update this worker's
+        # cache too for immediate local reads.
+        _registry.setdefault("categories", {}).setdefault(name, {}).update(updates)
         for field, value in updates.items():
             _save_user_pref("categories", name, field, value)
-    else:
-        _save()
-    return _registry["categories"][name]
+        return _registry["categories"][name]
+    # System write (Sync/code) persists the whole registry — do it as a
+    # transaction so a concurrent worker's changes are rebased, not clobbered.
+    with registry_transaction() as reg:
+        reg.setdefault("categories", {}).setdefault(name, {}).update(updates)
+    return reg["categories"][name]
 
 
 def update_image_model(key: str, updates: dict, user_pref: bool = False) -> dict:
@@ -968,37 +1050,38 @@ def update_image_model(key: str, updates: dict, user_pref: bool = False) -> dict
     user_pref=True: User action (enable/disable from UI) → writes ONLY to .user.json.
     user_pref=False: System action (Sync from AWS) → writes to main file.
     """
-    if key not in _registry.get("image_models", {}):
-        _registry.setdefault("image_models", {})[key] = {}
-    _registry["image_models"][key].update(updates)
     if user_pref:
+        # Targeted per-field override (enable/disable) — already cross-worker safe.
+        _registry.setdefault("image_models", {}).setdefault(key, {}).update(updates)
         for field in _USER_PREF_FIELDS:
             if field in updates:
                 _save_user_pref("image_models", key, field, updates[field])
-    else:
-        _save()
-    return _registry["image_models"][key]
+        return _registry["image_models"][key]
+    # System write (Sync from AWS) — transaction rebases onto the latest disk state.
+    with registry_transaction() as reg:
+        reg.setdefault("image_models", {}).setdefault(key, {}).update(updates)
+    return reg["image_models"][key]
 
 
 def add_image_model(key: str, config: dict) -> dict:
     """Add a new image model to the registry."""
-    _registry.setdefault("image_models", {})[key] = config
-    _save()
+    with registry_transaction() as reg:
+        reg.setdefault("image_models", {})[key] = config
     return config
 
 
 def update_post_processing(key: str, updates: dict, user_pref: bool = False) -> dict:
     """Update a post-processing model config."""
-    if key not in _registry.get("post_processing", {}):
-        _registry.setdefault("post_processing", {})[key] = {}
-    _registry["post_processing"][key].update(updates)
     if user_pref:
+        # Targeted per-field override — already cross-worker safe.
+        _registry.setdefault("post_processing", {}).setdefault(key, {}).update(updates)
         for field in _USER_PREF_FIELDS:
             if field in updates:
                 _save_user_pref("post_processing", key, field, updates[field])
-    else:
-        _save()
-    return _registry["post_processing"][key]
+        return _registry["post_processing"][key]
+    with registry_transaction() as reg:
+        reg.setdefault("post_processing", {}).setdefault(key, {}).update(updates)
+    return reg["post_processing"][key]
 
 
 def reload():
@@ -1026,23 +1109,23 @@ def get_video_model_keys_sorted() -> list[str]:
 
 def add_video_model(key: str, config: dict) -> dict:
     """Add a new video model to the registry."""
-    _registry.setdefault("video_models", {})[key] = config
-    _save()
+    with registry_transaction() as reg:
+        reg.setdefault("video_models", {})[key] = config
     return config
 
 
 def update_video_model(key: str, updates: dict, user_pref: bool = False) -> dict:
     """Update a video model config."""
-    if key not in _registry.get("video_models", {}):
-        _registry.setdefault("video_models", {})[key] = {}
-    _registry["video_models"][key].update(updates)
     if user_pref:
+        # Targeted per-field override — already cross-worker safe.
+        _registry.setdefault("video_models", {}).setdefault(key, {}).update(updates)
         for field in _USER_PREF_FIELDS:
             if field in updates:
                 _save_user_pref("video_models", key, field, updates[field])
-    else:
-        _save()
-    return _registry["video_models"][key]
+        return _registry["video_models"][key]
+    with registry_transaction() as reg:
+        reg.setdefault("video_models", {}).setdefault(key, {}).update(updates)
+    return reg["video_models"][key]
 
 
 # ── Video settings (S3 bucket, storage preference) ────────────────────────
@@ -1059,13 +1142,13 @@ def get_video_settings() -> dict:
 
 def update_video_settings(updates: dict) -> dict:
     """Update video settings in the registry."""
-    current = _registry.get("video_settings", {
-        "s3_bucket": "",
-        "s3_prefix": "artsmoker/video/",
-        "store_local": True,
-        "s3_validated": False,
-    })
-    current.update(updates)
-    _registry["video_settings"] = current
-    _save()
+    with registry_transaction() as reg:
+        current = reg.get("video_settings", {
+            "s3_bucket": "",
+            "s3_prefix": "artsmoker/video/",
+            "store_local": True,
+            "s3_validated": False,
+        })
+        current.update(updates)
+        reg["video_settings"] = current
     return current

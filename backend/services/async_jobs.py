@@ -22,6 +22,8 @@ import time
 from datetime import datetime, timezone
 from pathlib import Path
 
+from backend.services.safe_write import atomic_write_text
+
 logger = logging.getLogger(__name__)
 
 # ── Job storage (in-memory, survives for the session) ────────────────────
@@ -307,7 +309,10 @@ def _persist_gallery_metadata(job: dict):
         "source": "async_sagemaker",
         "created_at": job["submitted_at"],
     }
-    (variant_dir / "metadata.json").write_text(json.dumps(meta, indent=2))
+    # Atomic: this is a fresh full-file write to a unique per-variant dir (no
+    # read-modify-write, so no lost-update risk), but a concurrent gallery read
+    # must never catch a half-written file.
+    atomic_write_text(variant_dir / "metadata.json", json.dumps(meta, indent=2))
     logger.debug("Gallery metadata persisted for async job %s", job["job_id"])
 
 

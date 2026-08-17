@@ -40,16 +40,15 @@ def _check_cache_quick(model_key: str) -> bool:
 def _record_license_acceptance(model_key: str, license_name: str):
     """Record that the user accepted a model's license in the user registry."""
     try:
-        from backend.services.model_registry import get_registry, _save
+        from backend.services.model_registry import registry_transaction
         from datetime import datetime, timezone
 
-        registry = get_registry()
-        acceptances = registry.setdefault("license_acceptances", {})
-        acceptances[model_key] = {
-            "license_name": license_name,
-            "accepted_at": datetime.now(timezone.utc).isoformat(),
-        }
-        _save()
+        with registry_transaction() as registry:
+            acceptances = registry.setdefault("license_acceptances", {})
+            acceptances[model_key] = {
+                "license_name": license_name,
+                "accepted_at": datetime.now(timezone.utc).isoformat(),
+            }
         logger.info("Recorded license acceptance for %s (%s)", model_key, license_name)
     except Exception as e:
         logger.warning("Failed to record license acceptance for %s: %s", model_key, e)
@@ -1482,9 +1481,8 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
     Uses a unique registry key derived from the endpoint name (includes instance type),
     so multiple deployments of the same model on different hardware coexist.
     """
-    from backend.services.model_registry import get_registry, _save
+    from backend.services.model_registry import registry_transaction
 
-    registry = get_registry()
     category = catalog_entry["category"]
 
     invoke = catalog_entry.get("invoke", {})
@@ -1526,54 +1524,56 @@ def _register_custom_model(model_key: str, catalog_entry: dict, deployment: dict
         "invoke": invoke,  # Snapshot from catalog at deploy time
     }
 
-    if category == "image_generation":
-        # Purpose is catalog-driven so edit models (e.g. Qwen-Image-Edit,
-        # model_purpose="image_edit") surface in the Edit tab + reference-guided
-        # flow, while generators keep the text_to_image default.
-        img_entry = {
-            **entry,
-            "model_purpose": catalog_entry.get("model_purpose", "text_to_image"),
-            "prompt_limit": invoke.get("max_prompt_length", 2048),
-            "moderation_strictness": "none",
-        }
-        if catalog_entry.get("capabilities"):
-            img_entry["capabilities"] = catalog_entry["capabilities"]
-        registry.setdefault("image_models", {})[registry_key] = img_entry
-    elif category in ("post_processing", "3d_generation"):
-        registry.setdefault("post_processing", {})[registry_key] = {
-            **entry,
-            "purpose": model_key,
-        }
-    elif category == "video_generation":
-        registry.setdefault("video_models", {})[registry_key] = entry
-    elif category == "utility":
-        registry.setdefault("utility_models", {})[registry_key] = entry
+    # Atomic reload→mutate→save so a concurrent worker's registry write isn't
+    # clobbered when a new deployment registers itself.
+    with registry_transaction() as registry:
+        if category == "image_generation":
+            # Purpose is catalog-driven so edit models (e.g. Qwen-Image-Edit,
+            # model_purpose="image_edit") surface in the Edit tab + reference-guided
+            # flow, while generators keep the text_to_image default.
+            img_entry = {
+                **entry,
+                "model_purpose": catalog_entry.get("model_purpose", "text_to_image"),
+                "prompt_limit": invoke.get("max_prompt_length", 2048),
+                "moderation_strictness": "none",
+            }
+            if catalog_entry.get("capabilities"):
+                img_entry["capabilities"] = catalog_entry["capabilities"]
+            registry.setdefault("image_models", {})[registry_key] = img_entry
+        elif category in ("post_processing", "3d_generation"):
+            registry.setdefault("post_processing", {})[registry_key] = {
+                **entry,
+                "purpose": model_key,
+            }
+        elif category == "video_generation":
+            registry.setdefault("video_models", {})[registry_key] = entry
+        elif category == "utility":
+            registry.setdefault("utility_models", {})[registry_key] = entry
 
-    _save()
     logger.info("Registered custom model %s (key=%s) in registry (category=%s)", model_key, registry_key, category)
 
 
 def _unregister_custom_model(model_key: str):
     """Remove a custom model from the registry (exact key or prefix match)."""
-    from backend.services.model_registry import get_registry, _save
+    from backend.services.model_registry import registry_transaction
 
-    registry = get_registry()
     removed = False
-
-    for section in ("image_models", "video_models", "post_processing", "utility_models"):
-        # Exact match
-        if model_key in registry.get(section, {}):
-            del registry[section][model_key]
-            removed = True
-        else:
-            # Prefix match: catalog key → deployed instance key with hash suffix
-            matches = [k for k in registry.get(section, {}) if k.startswith(model_key + "_")]
-            for k in matches:
-                del registry[section][k]
+    # Reload→mutate→save atomically: the delete rebases onto the latest disk
+    # state so a concurrent worker's write isn't clobbered.
+    with registry_transaction() as registry:
+        for section in ("image_models", "video_models", "post_processing", "utility_models"):
+            # Exact match
+            if model_key in registry.get(section, {}):
+                del registry[section][model_key]
                 removed = True
+            else:
+                # Prefix match: catalog key → deployed instance key with hash suffix
+                matches = [k for k in registry.get(section, {}) if k.startswith(model_key + "_")]
+                for k in matches:
+                    del registry[section][k]
+                    removed = True
 
     if removed:
-        _save()
         logger.info("Unregistered custom model %s from registry", model_key)
 
 

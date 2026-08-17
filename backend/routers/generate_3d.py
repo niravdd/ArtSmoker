@@ -11,7 +11,7 @@ import boto3
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.services.model_registry import get_registry, _save
+from backend.services.model_registry import get_registry, registry_transaction
 from backend.services.sagemaker_deployer import get_deployment_s3_bucket, S3_MODEL_PREFIX
 from backend.storage.local_store import store
 
@@ -690,15 +690,14 @@ async def get_3d_defaults():
 @router.put("/defaults")
 async def save_3d_defaults(body: ThreeDDefaultsRequest):
     """Save user's default 3D generation parameters."""
-    registry = get_registry()
-    registry["three_d_defaults"] = {
-        "steps": body.steps,
-        "guidance_scale": body.guidance_scale,
-        "faces": body.faces,
-        "octree_depth": body.octree_depth,
-        "quality": body.quality,
-    }
-    _save()
+    with registry_transaction() as registry:
+        registry["three_d_defaults"] = {
+            "steps": body.steps,
+            "guidance_scale": body.guidance_scale,
+            "faces": body.faces,
+            "octree_depth": body.octree_depth,
+            "quality": body.quality,
+        }
     return {"saved": True}
 
 

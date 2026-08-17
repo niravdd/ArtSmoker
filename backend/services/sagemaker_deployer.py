@@ -1117,21 +1117,34 @@ def _set_registry_model_ready(endpoint_name: str, ready: bool) -> bool:
     True if the endpoint was found.
     """
     try:
-        from backend.services.model_registry import get_registry, _save
+        from backend.services.model_registry import get_registry, registry_transaction
+        # Read-only scan first (this can be polled): locate the endpoint's entry
+        # without taking the write lock or persisting. Only open a transaction —
+        # which reloads + writes — when there's actually a match to mutate.
         reg = get_registry()
+        target = None
         for section in _DEPLOYABLE_REGISTRY_SECTIONS:
             for key, cfg in reg.get(section, {}).items():
-                if not isinstance(cfg, dict):
-                    continue
-                dep = cfg.get("deployment", {})
-                if dep.get("endpoint_name") == endpoint_name:
-                    if ready:
-                        dep["model_ready"] = True
-                    else:
-                        dep.pop("model_ready", None)
-                    _save()
-                    logger.info("model_ready=%s for %s in registry (%s)", ready, endpoint_name, section)
-                    return True
+                if isinstance(cfg, dict) and cfg.get("deployment", {}).get("endpoint_name") == endpoint_name:
+                    target = (section, key)
+                    break
+            if target:
+                break
+        if not target:
+            return False
+        section, key = target
+        # Rebase the mutation onto the latest disk state (re-find after reload,
+        # since the transaction rebuilds the registry from disk).
+        with registry_transaction() as reg2:
+            cfg = reg2.get(section, {}).get(key)
+            if isinstance(cfg, dict):
+                dep = cfg.setdefault("deployment", {})
+                if ready:
+                    dep["model_ready"] = True
+                else:
+                    dep.pop("model_ready", None)
+        logger.info("model_ready=%s for %s in registry (%s)", ready, endpoint_name, section)
+        return True
     except Exception as e:
         logger.debug("Failed to set model_ready for %s: %s", endpoint_name, e)
     return False
