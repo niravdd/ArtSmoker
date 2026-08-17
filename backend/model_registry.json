@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-08-17T00:36:35.082664+00:00",
+  "last_updated": "2026-08-17T05:47:48.941735+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -5080,6 +5080,355 @@
       ],
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "responses"
+    },
+    "gemma_4_26b_a4b": {
+      "label": "google.gemma-4-26b-a4b",
+      "model_id": "google.gemma-4-26b-a4b",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 6.5e-05,
+      "output_price_per_1k": 0.0002
+    },
+    "qwen3_coder_30b_a3b_instruct": {
+      "label": "qwen.qwen3-coder-30b-a3b-instruct",
+      "model_id": "qwen.qwen3-coder-30b-a3b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 7.5e-05,
+      "output_price_per_1k": 0.0003
+    },
+    "grok_4_3": {
+      "label": "xai.grok-4.3",
+      "model_id": "xai.grok-4.3",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "xAI",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.00025,
+      "output_price_per_1k": 0.00075
+    },
+    "glm_4_6": {
+      "label": "zai.glm-4.6",
+      "model_id": "zai.glm-4.6",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Z.AI",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.00132,
+      "output_price_per_1k": 0.00792
+    },
+    "gpt_5_4": {
+      "label": "openai.gpt-5.4",
+      "model_id": "openai.gpt-5.4",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "OpenAI",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "responses"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "responses",
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.0011
+    },
+    "qwen3_coder_480b_a35b_instruct": {
+      "label": "qwen.qwen3-coder-480b-a35b-instruct",
+      "model_id": "qwen.qwen3-coder-480b-a35b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.000225,
+      "output_price_per_1k": 0.0009
+    },
+    "v3_1": {
+      "label": "deepseek.v3.1",
+      "model_id": "deepseek.v3.1",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "DeepSeek",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.00029,
+      "output_price_per_1k": 0.00084
+    },
+    "gemma_4_e2b": {
+      "label": "google.gemma-4-e2b",
+      "model_id": "google.gemma-4-e2b",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 2e-05,
+      "output_price_per_1k": 4e-05
+    },
+    "claude_haiku_4_5": {
+      "label": "anthropic.claude-haiku-4-5",
+      "model_id": "anthropic.claude-haiku-4-5",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Anthropic",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "messages"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "messages"
+    },
+    "moonshotai_kimi_k2_thinking": {
+      "label": "moonshotai.kimi-k2-thinking",
+      "model_id": "moonshotai.kimi-k2-thinking",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Moonshotai",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.0003,
+      "output_price_per_1k": 0.00125
+    },
+    "qwen3_vl_235b_a22b_instruct": {
+      "label": "qwen.qwen3-vl-235b-a22b-instruct",
+      "model_id": "qwen.qwen3-vl-235b-a22b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.00026,
+      "output_price_per_1k": 0.00133
+    },
+    "qwen3_next_80b_a3b_instruct": {
+      "label": "qwen.qwen3-next-80b-a3b-instruct",
+      "model_id": "qwen.qwen3-next-80b-a3b-instruct",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Qwen",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 7e-05,
+      "output_price_per_1k": 0.0006
+    },
+    "gemma_4_31b": {
+      "label": "google.gemma-4-31b",
+      "model_id": "google.gemma-4-31b",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "Google",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 7e-05,
+      "output_price_per_1k": 0.0002
     }
   },
   "custom_model_catalog": {
@@ -7916,5 +8265,8 @@
     "ml.g6.12xlarge|eu-north-1": 6.1008,
     "ml.g6.16xlarge|eu-central-1": 5.3096,
     "ml.g6.24xlarge|ap-northeast-2": 10.26
+  },
+  "_txn_selftest": {
+    "ping": 42
   }
 }
