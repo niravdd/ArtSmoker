@@ -21,16 +21,23 @@ stay atomic regardless.
 """
 
 import json
+import logging
 import os
 import tempfile
 import threading
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 try:
     import fcntl  # POSIX advisory file locks
     _HAS_FLOCK = True
 except ImportError:  # pragma: no cover - non-POSIX
     _HAS_FLOCK = False
+
+# Warn ONCE per process if cross-process locking degrades — a persistent
+# environmental condition, so repeating it on every acquire would just spam.
+_flock_degraded_warned = False
 
 
 def atomic_write_text(path: "Path | str", text: str, encoding: str = "utf-8") -> None:
@@ -118,8 +125,20 @@ class _WriteLock:
                     fh = open(self._lock_path, "a+")
                     fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
                     _flock_state[self._key] = {"depth": 1, "fh": fh}
-                except Exception:
+                except Exception as exc:
                     # flock unavailable/failed → degrade to in-process lock only.
+                    # Loud one-time warning: on a multi-worker host this means
+                    # writes from OTHER worker processes are NO LONGER serialized
+                    # (in-worker threads still are). Critical for troubleshooting
+                    # lost-update reports on a shared box.
+                    global _flock_degraded_warned
+                    if not _flock_degraded_warned:
+                        _flock_degraded_warned = True
+                        logger.warning(
+                            "Cross-process file lock unavailable (%s at %s) — degrading to "
+                            "IN-PROCESS locking only. Concurrent writes from separate worker "
+                            "processes are NOT serialized; safe only for a single-worker deploy. "
+                            "Cause: %r", self._key, self._lock_path, exc)
                     try:
                         fh.close()  # type: ignore[has-type]
                     except (OSError, NameError, UnboundLocalError):
