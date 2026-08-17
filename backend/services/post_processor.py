@@ -141,18 +141,16 @@ def _has_command(cmd: str) -> bool:
     return shutil.which(cmd) is not None
 
 
-# Tuned tracing params (speckle-filtered, colour-precise). Passed to the vtracer
-# binding when the platform's wheel accepts them; some wheels (observed: the
-# 0.6.15 macOS-arm64 wheel) segfault when ANY kwarg is passed, so the subprocess
-# runner below falls back to vtracer's built-in defaults (which are already
-# colour/stacked/spline) if a parameterized run crashes.
-# Upstream cause + fix: the published 0.6.15 cp314 wheel is built against pyo3
-# 0.19, which has no ABI-safe CPython 3.14 support (visioncortex/vtracer #124).
-# The fix already landed on master via the "V1.0 rewrite" — the binding now uses
-# pyo3 0.26 + abi3-py38 — but is UNRELEASED (source is 1.0.0-alpha.x; PyPI still
-# serves the broken 0.6.15). Re-test the tuned params once a fixed wheel ships,
-# likely a pre-release: `pip install -U --pre vtracer`. This subprocess fallback
-# can stay regardless.
+# Tuned tracing params (speckle-filtered, colour-precise). Map 1:1 onto vtracer's
+# config keys on BOTH APIs (see _VTRACER_CHILD).
+# History: the published 0.6.15 cp314 wheel was built against pyo3 0.19 (no
+# ABI-safe CPython 3.14 support) and SEGFAULTED whenever ANY kwarg was passed
+# (visioncortex/vtracer #124). The maintainer's fix shipped in the V1.0 rewrite
+# (pyo3 0.26 + abi3-py38), released as the 1.0.0aN pre-releases — the maintainer
+# pointed us to 1.0.0a2 on the PR; we pin >=1.0.0a3 (its successor, full platform
+# coverage). On 1.0.0a3 the tuned-params call returns cleanly (verified rc=0), so
+# there's no more crash / macOS crash-reporter dialog. The subprocess isolation
+# below is KEPT regardless as defense-in-depth for any future native fault.
 _VTRACER_PARAMS = dict(
     filter_speckle=4,
     color_precision=6,
@@ -167,10 +165,17 @@ _VTRACER_PARAMS = dict(
 # Child-process script: trace PNG→SVG via the vtracer binding. Kept as a module
 # invocation string so a native crash (SIGSEGV) is contained in the child and can
 # never take down the uvicorn worker. argv: <png> <svg> <params-json|"">.
+# API-agnostic: v1.0+ exposes Config + convert_file(in, out, config); the legacy
+# 0.6.x binding exposed convert_image_to_svg_py(in, out, **kwargs). Prefer the new
+# API (fixed, no segfault); fall back to the legacy call so a stale 0.6.x env still
+# functions (its kwargs crash is still contained + handled by the no-params retry).
 _VTRACER_CHILD = (
     "import sys, json, vtracer;"
     "kw = json.loads(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else {};"
-    "vtracer.convert_image_to_svg_py(sys.argv[1], sys.argv[2], **kw)"
+    "cfg = vtracer.Config(**kw) if (kw and hasattr(vtracer, 'Config')) else None;"
+    "(vtracer.convert_file(sys.argv[1], sys.argv[2], config=cfg) "
+    "if hasattr(vtracer, 'convert_file') "
+    "else vtracer.convert_image_to_svg_py(sys.argv[1], sys.argv[2], **kw))"
 )
 
 

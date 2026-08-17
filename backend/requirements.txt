@@ -10,5 +10,5 @@ huggingface_hub>=0.23  # For downloading custom model weights from HuggingFace
 openai>=1.50  # Amazon Bedrock Mantle endpoint (OpenAI-compatible Chat Completions + Responses APIs)
 aws-bedrock-token-generator>=1.0  # Short-term Bedrock bearer token (derived from AWS creds) for Mantle
 requests>=2.31  # Anthropic Messages API over the Mantle endpoint
-vtracer>=0.6.11  # Local PNG->true-vector SVG tracing (no CLI/server, cross-platform wheels)
+vtracer>=1.0.0a3  # Local PNG->true-vector SVG tracing. >=1.0.0a3 = the pyo3-0.26/abi3 V1.0 rewrite that fixes the CPython 3.14 kwargs segfault (visioncortex/vtracer #124); the pre-release marker in the spec lets pip select it. New API: vtracer.Config + convert_file (see post_processor._VTRACER_CHILD).
 rembg[cpu]>=2.0.65  # Local background removal (MIT lib + u2net Apache-2.0 weights); runs on CPU via onnxruntime — no per-use cost
