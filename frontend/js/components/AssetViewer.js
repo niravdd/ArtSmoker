@@ -1118,13 +1118,33 @@
             const version = this._currentVersion || this._meta?.current_version
                 || (this._meta?.versions?.length || 1);
 
+            // Decide whether to regenerate. Reuse the freshest status we have.
+            let s = this._exportStatus;
+            if (!s || s.version !== version) {
+                try { s = await API.gallery.exportStatus(this._item.id, version); } catch { s = null; }
+            }
+            const pngExists = !!s?.nobg_png?.exists;
+            const svgExists = !!s?.nobg_svg?.exists;
+            let force = false;
+            if (pngExists && svgExists) {
+                // Both already exist — don't silently overwrite; ask first.
+                const ok = await window.showConfirm?.(
+                    t('asset_viewer.export_regen_confirm'),
+                    { title: t('asset_viewer.export_regen_title'),
+                      confirmLabel: t('asset_viewer.export_regen_yes'), danger: true });
+                if (!ok) return;   // keep the existing cutouts untouched
+                force = true;
+            }
+            // else: PNG-without-SVG (just trace the SVG from the existing PNG) or
+            // neither (generate) — both handled by force=false server-side.
+
             btn.disabled = true;
             if (statusEl) {
                 statusEl.classList.remove('hidden', 'text-red-400');
                 statusEl.textContent = t('asset_viewer.export_working');
             }
             try {
-                const res = await API.gallery.createExportVariants(this._item.id, { method, version });
+                const res = await API.gallery.createExportVariants(this._item.id, { method, version, force });
                 this._exportStatus = res;
                 await this._renderExportPanel();
                 if (statusEl) {

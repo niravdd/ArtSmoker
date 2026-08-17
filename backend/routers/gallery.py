@@ -826,6 +826,10 @@ async def get_export_status(asset_id: str, version: int | None = Query(default=N
 class ExportVariantsRequest(BaseModel):
     method: str = "local"          # "local" (rembg, free) | "bedrock" (paid SD)
     version: int | None = None     # defaults to the current version
+    # force=False (default): reuse an existing cutout PNG, only filling in a
+    # MISSING SVG (never re-removes the background). force=True: regenerate and
+    # overwrite BOTH (the UI asks the user first when both already exist).
+    force: bool = False
 
 
 @router.post("/{asset_id}/export-variants")
@@ -849,6 +853,7 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
         raise HTTPException(404, detail=f"Asset '{asset_id}' not found.")
 
     method = BG_METHOD_LOCAL if body.method == BG_METHOD_LOCAL else BG_METHOD_BEDROCK
+    force = bool(body.force)   # regenerate + overwrite both (UI confirms first)
     current_version = meta.get("current_version") or (len(meta.get("versions", [])) or 1)
     version = _resolve_version(meta, body.version)
 
@@ -876,10 +881,11 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
 
     if bg_free:
         # The version image is ALREADY a transparent cutout (3D source-prep commit
-        # / remove_background edit) — no removal, no separate PNG file. Just ensure
-        # its vector trace exists so the no-bg SVG card populates.
+        # / remove_background edit) — no removal, no separate PNG file. The PNG can
+        # never be "regenerated" (it IS the version image), so force only affects
+        # the SVG: (re)trace it when forced or when it's missing.
         reuse = True
-        if _resolve_cutout_svg(asset_id, version) is None:
+        if force or _resolve_cutout_svg(asset_id, version) is None:
             try:
                 convert_to_svg(src_path.read_bytes(), cutout_svg_path)
             except Exception:
@@ -890,15 +896,15 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
         _meta_cache.pop(asset_id, None)
         meta = _get_meta(asset_id) or meta
     else:
-        # ONE shared cutout: reuse the canonical/legacy file if it already exists
+        # ONE shared cutout: reuse the canonical/legacy PNG if it already exists
         # (whether the 3D workflow or a prior export made it) — the operation is
-        # identical, so there's no reason to remove the background twice. Only
-        # regenerate when the user EXPLICITLY switches to a different recorded
-        # method (local ↔ bedrock).
+        # identical, so the background is never removed twice. force=True (user
+        # confirmed a regenerate-both) always redoes the PNG; otherwise reuse it
+        # and only fill in a missing SVG. A method change alone does NOT silently
+        # regenerate — the UI routes that through the same force confirmation.
         existing = (store.get_generated_file_path(asset_id, _cutout_png_name(version))
                     or store.get_generated_file_path(asset_id, _legacy_cutout_png_name(version)))
-        method_switch = bool(prior.get("method") and prior["method"] not in (method, "none"))
-        reuse = existing is not None and not method_switch
+        reuse = existing is not None and not force
 
         if not reuse:
             try:
@@ -935,19 +941,16 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
             _meta_cache.pop(asset_id, None)
             meta = _get_meta(asset_id) or meta
         else:
-            # Reusing the shared cutout: ensure its vector trace exists, and record
-            # the method if none was on file yet (e.g. cutout made by the 3D flow).
+            # Reusing the shared cutout PNG (existing): DON'T re-remove the
+            # background — only fill in a MISSING SVG by tracing the existing PNG
+            # (the "PNG exists, no SVG → just make the SVG" case). The PNG's
+            # method record is left untouched (tracing doesn't change how the
+            # cutout was produced), so we never mislabel a reused cutout's method.
             if _resolve_cutout_svg(asset_id, version) is None:
                 try:
                     convert_to_svg(existing.read_bytes(), cutout_svg_path)
                 except Exception:
                     logger.exception("no-bg SVG trace failed for %s v%d (reuse)", asset_id, version)
-            if not prior.get("method"):
-                cut_meta_all[str(version)] = {"method": method, "cost_usd": 0.0}
-                meta["cutouts"] = cut_meta_all
-                store.save_generation_metadata(asset_id, meta)
-                _meta_cache.pop(asset_id, None)
-                meta = _get_meta(asset_id) or meta
 
     logger.info(
         "Export variants for %s v%d: method=%s bg_free=%s reuse=%s cost=$%.4f",

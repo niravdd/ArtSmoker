@@ -324,10 +324,10 @@
 
             /** Produce (+cache) the bg-removed cutout PNG and its vector SVG.
              *  method: 'local' (rembg, free) | 'bedrock' (paid Amazon Bedrock SD). */
-            createExportVariants(id, { method = 'local', version = null } = {}) {
+            createExportVariants(id, { method = 'local', version = null, force = false } = {}) {
                 return request(`/api/gallery/${encodeURIComponent(id)}/export-variants`, {
                     method: 'POST',
-                    body: { method, version },
+                    body: { method, version, force },
                 });
             },
 
