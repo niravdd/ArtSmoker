@@ -57,6 +57,15 @@ class Settings(BaseSettings):
     # one — hence a dedicated grace. Set 0 to disable.
     deploy_scale_in_grace_minutes: int = 20
 
+    # ── Logging ────────────────────────────────────────────────────────────
+    # File logging is applied by the run.py launcher (the canonical entry point).
+    # It writes to a file when EITHER gate is on: this config flag (default TRUE)
+    # OR a --log-file given on the command line. When on, run.py mirrors the
+    # server's full console output to the file (append-only, session-framed).
+    # Override via ARTSMOKER_LOG_TO_FILE / ARTSMOKER_LOG_FILE (or .env).
+    log_to_file: bool = True
+    log_file: Path = Path(__file__).resolve().parent.parent / "logs" / "artsmoker.log"
+
     # ── Generation defaults ───────────────────────────────────────────────
     default_image_width: int = 1024
     default_image_height: int = 1024

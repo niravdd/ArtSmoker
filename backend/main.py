@@ -66,11 +66,113 @@ from fastapi.staticfiles import StaticFiles
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from backend.config import settings
+from backend.config import settings, APP_VERSION
 from backend.routers import admin, browse, chat, custom_deploy, gallery, generate, generate_3d, refine, styles, transcribe, typestudio, video
 from backend.services.bedrock_client import validate_aws_credentials
 
 logger = logging.getLogger(__name__)
+
+
+# ── Optional file logging (config-gated, default ON; env-overridable) ──────
+# Populated by _setup_file_logging when file logging is active, so the lifespan
+# can surface the path at startup and write the shutdown banner reliably.
+_file_log_path = None
+_file_log_shutdown = None
+
+
+class _PlainFormatter(logging.Formatter):
+    """Same layout as the console formatter, minus the ANSI colour codes."""
+    def format(self, record):
+        ts = self.formatTime(record, _log_datefmt)
+        name = _ColorFormatter.NAME_MAP.get(record.name, record.name)
+        return f"{ts}  {record.levelname.ljust(8)}  {name}  {record.getMessage()}"
+
+
+def _setup_file_logging():
+    """Attach an append-only FileHandler to the root + uvicorn loggers when file
+    logging is enabled.
+
+    ONE gate, works no matter how the app is launched (uvicorn, gunicorn, tests):
+    on when settings.log_to_file is True (default) — override with
+    ARTSMOKER_LOG_TO_FILE / ARTSMOKER_LOG_FILE (env or .env). Every worker
+    process appends to the SAME file; a session banner (with pid + UTC launch
+    time) frames each start, and an atexit hook writes the shutdown banner
+    (duration + pid). Log lines are single writes under O_APPEND, so concurrent
+    workers interleave line-safely.
+    """
+    import atexit
+    import os as _os
+    import platform
+    import socket
+    from datetime import datetime, timezone
+
+    if not getattr(settings, "log_to_file", False):
+        return
+    path = Path(settings.log_file)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fh = logging.FileHandler(path, mode="a", encoding="utf-8")  # 'a' = append-only
+        fh.setFormatter(_PlainFormatter())
+    except Exception as exc:  # never let logging setup break startup
+        logger.warning("File logging disabled — could not open %s: %r", settings.log_file, exc)
+        return
+
+    # Add to the root logger AND uvicorn's loggers (they have propagate=False +
+    # their own handler list, so a root-only handler would miss uvicorn output).
+    logging.root.addHandler(fh)
+    for _uv in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+        logging.getLogger(_uv).addHandler(fh)
+
+    started = datetime.now(timezone.utc)
+    pid = _os.getpid()
+    _line = "=" * 80
+
+    def _block(title: str, rows: list[tuple[str, str]]) -> str:
+        body = "\n".join(f"===   {k:<9}: {v}" for k, v in rows)
+        return f"\n{_line}\n=== ArtSmoker {title}\n{body}\n{_line}\n"
+
+    # Write banners straight to the file (append) so they stay file-only + clean.
+    def _write(text: str):
+        try:
+            with open(path, "a", encoding="utf-8") as f:
+                f.write(text)
+        except OSError:
+            pass
+
+    _write(_block("SESSION START", [
+        ("launched", started.isoformat()),
+        ("version", APP_VERSION),
+        ("pid", str(pid)),
+        ("host", socket.gethostname()),
+        ("python", f"{platform.python_version()} ({platform.system()} {platform.release()}, {platform.machine()})"),
+        ("cwd", _os.getcwd()),
+        ("logfile", str(path)),
+    ]))
+
+    _done = {"v": False}
+
+    def _shutdown():
+        # Idempotent: called from the lifespan shutdown (reliable under uvicorn)
+        # AND registered with atexit as a fallback; whichever fires first writes
+        # the banner, the other is a no-op.
+        if _done["v"]:
+            return
+        _done["v"] = True
+        ended = datetime.now(timezone.utc)
+        _write(_block("SESSION SHUTDOWN", [
+            ("stopped", ended.isoformat()),
+            ("version", APP_VERSION),
+            ("pid", str(pid)),
+            ("ran", f"{(ended - started).total_seconds():.0f}s"),
+        ]))
+    atexit.register(_shutdown)
+
+    global _file_log_path, _file_log_shutdown
+    _file_log_path = path
+    _file_log_shutdown = _shutdown
+
+
+_setup_file_logging()
 
 # ── Frontend directory ─────────────────────────────────────────────────────
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
@@ -237,12 +339,18 @@ async def lifespan(app: FastAPI):
                         _reg_save()
                     _sync_progress(f"Scanning {len(all_regions)} regions for available models...")
 
-                    # Step 3: Scan each region
-                    from backend.services.model_registry import update_image_model
+                    # Step 3: Scan each region. Reset available_regions first,
+                    # then PERSIST the reset BEFORE scanning: the scan calls
+                    # transactional mutators (auto_register_image_models →
+                    # add/update_image_model) which reload the registry from disk,
+                    # and would otherwise wipe an unsaved in-memory reset. Mutate
+                    # `registry` directly (not via update_image_model) so we don't
+                    # trigger a reload mid-reset.
                     for key in list(registry.get("image_models", {}).keys()):
-                        update_image_model(key, {"available_regions": []})
+                        registry["image_models"][key]["available_regions"] = []
                     for key in list(registry.get("chat_models", {}).keys()):
                         registry["chat_models"][key]["available_regions"] = []
+                    _reg_save()
 
                     total_new = 0
                     total_updated = 0
@@ -450,6 +558,11 @@ async def lifespan(app: FastAPI):
     if not _server_state["sync_in_progress"]:
         _server_state["ready"] = True
         logger.info("ArtSmoker ready.")
+
+    # Surface the active log file as part of the startup messages.
+    if _file_log_path:
+        logger.info("File logging → %s (append-only, session-framed)", _file_log_path)
+
     yield
     # Shutdown
     stop_periodic_checker()
@@ -462,6 +575,10 @@ async def lifespan(app: FastAPI):
         pass
     track_server_stop()
     logger.info("ArtSmoker backend shutting down.")
+    # Write the file-log SESSION SHUTDOWN banner here (the lifespan shutdown runs
+    # reliably on graceful stop, unlike atexit under uvicorn's signal handling).
+    if _file_log_shutdown is not None:
+        _file_log_shutdown()
 
 
 # ── Application ────────────────────────────────────────────────────────────
