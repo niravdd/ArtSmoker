@@ -481,9 +481,12 @@
                     || bucket.variants[bucket.variants.length - 1];
             }
             // Flat list (default-per-version) — backend keeps this in sync.
-            return meta.three_d_versions?.find(v => v.version === version)
-                || (version === 1 ? meta.three_d_versions?.[0] : null)
-                || null;
+            // EXACT-version match only: a version that never had a 3D model must
+            // resolve to null (→ "Generate Now"), never borrow another version's
+            // model. (The old `version===1 → three_d_versions[0]` fallback made a
+            // cropped Original show the full-body model generated from a later
+            // outpainted version.)
+            return meta.three_d_versions?.find(v => v.version === version) || null;
         },
 
         _populateMetadata(container, meta) {
@@ -716,8 +719,10 @@
             // (Legacy `meta.three_d.v{N}` is still honored as a fallback.)
             let threeDContent = '';
             const currentVer = this._currentVersion || meta.current_version || (meta.versions?.length || 1);
-            const threeDData = this._default3DVariant(meta, currentVer)
-                || this._default3DVariant(meta, 1);
+            // The 3D section reflects the VIEWED version ONLY — no cross-version
+            // fallback (a version with no 3D model must show nothing here, not
+            // borrow v1's model). Matches the 3D tab's metadata-driven display.
+            const threeDData = this._default3DVariant(meta, currentVer);
             if (threeDData) {
                 const pl = threeDData.pipeline || {};
                 const created3D = threeDData.created_at || threeDData.generated_at;
@@ -890,8 +895,14 @@
                 const svgFile = isCurrent ? (meta.svg_filename) : `asset_v${curVer}.svg`;
                 fileInfoContent += fact('SVG', `${this._esc(dir ? dir + '/' + svgFile : svgFile)}`, { mono: true, wrap: true });
             }
-            if (threeDData?.glb_file) {
-                fileInfoContent += fact('GLB', `${this._esc(dir ? dir + '/' + threeDData.glb_file : threeDData.glb_file)}`, { mono: true, wrap: true });
+            // 3D model file path for the VIEWED version (only when that version
+            // actually has a model — threeDData is version-exact, no fallback).
+            // The variant record's field is `glb_filename` (older shapes used
+            // `glb_file`); tolerate both so the path always renders when present.
+            const glbFile = threeDData?.glb_filename || threeDData?.glb_file;
+            if (glbFile) {
+                const glbPath = dir ? `${dir}/${glbFile}` : glbFile;
+                fileInfoContent += fact('GLB', `${this._esc(glbPath)}${copyBtn(glbPath)}`, { mono: true, wrap: true });
             }
             fileInfoContent += `</div>`;
 
@@ -2397,19 +2408,13 @@
                     });
                     return;
                 }
-                // Fallback: check if GLB file exists on disk
-                try {
-                    const checkResp = await fetch(glbUrl, { method: 'GET', headers: { 'Range': 'bytes=0-0' } });
-                    if (checkResp.ok || checkResp.status === 206) {
-                        this._render3DComplete(container, {
-                            download_url: glbUrl,
-                            file_size: parseInt(checkResp.headers.get('content-range')?.split('/')?.pop() || '0'),
-                            vertices: 0,
-                            faces: 0,
-                        });
-                        return;
-                    }
-                } catch {}
+                // NO disk-probe fallback here. Whether a version "has" a 3D model
+                // is decided SOLELY by its metadata record (above) — probing
+                // GET /3d/{ver} would let the serve route's legacy bare-GLB
+                // fallback (asset_3d.glb → v1) surface a model under a version
+                // that never generated one (e.g. a cropped Original showing the
+                // full-body model made from a later outpainted version). With no
+                // record for this version, fall through to "Generate Now".
 
                 // No existing 3D model — check if generation is available (model deployed)
                 const availability = await API.threeD.check();
