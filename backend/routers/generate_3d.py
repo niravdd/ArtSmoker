@@ -1569,8 +1569,6 @@ async def record_source_review(body: RecordSourceReviewRequest):
     history — each result's completeness verdict + what was still missing — is
     reviewable later, not just shown transiently in the popup.
     """
-    meta = store.load_generation_metadata(body.asset_id) or {}
-    versions = meta.get("versions", [])
     r = body.review or {}
     review = {
         "complete": bool(r.get("complete", True)),
@@ -1579,11 +1577,16 @@ async def record_source_review(body: RecordSourceReviewRequest):
         "reason": r.get("reason", ""),
         "reviewed_at": datetime.now(timezone.utc).isoformat(),
     }
-    for v in versions:
-        if v.get("version") == body.version:
-            v["source_review"] = review
-            store.save_generation_metadata(body.asset_id, meta)
-            return {"ok": True}
+    # Per-asset lock: shared with the 3D finalize + 2D edit/commit writers so
+    # this RMW of metadata.json can't lost-update against a concurrent write.
+    from backend.services.asset_locks import asset_write_lock
+    with asset_write_lock(body.asset_id):
+        meta = store.load_generation_metadata(body.asset_id) or {}
+        for v in meta.get("versions", []):
+            if v.get("version") == body.version:
+                v["source_review"] = review
+                store.save_generation_metadata(body.asset_id, meta)
+                return {"ok": True}
     return {"ok": False, "detail": "version not found"}
 
 
@@ -1620,30 +1623,35 @@ async def set_default_3d_variant(body: SetDefaultVariantRequest):
     (asset_3d_v{N}.glb, plus asset_3d.glb for v1) from the chosen variant so the
     gallery/thumbnail/legacy route serve it.
     """
-    meta = store.load_generation_metadata(body.asset_id) or {}
-    nested = _migrate_legacy_3d(meta)
-    vbucket = nested.get(f"v{body.version}")
-    if not vbucket:
-        raise HTTPException(404, detail=f"No 3D models for asset '{body.asset_id}' version {body.version}.")
-    chosen = next((v for v in vbucket.get("variants", []) if v.get("variant_id") == body.variant_id), None)
-    if not chosen:
-        raise HTTPException(404, detail=f"Variant '{body.variant_id}' not found.")
+    # Serialize with the other metadata writers on this asset (3D finalize, 2D
+    # edit/commit) — all take this per-asset lock, so concurrent writes to
+    # metadata.json can't lost-update each other.
+    from backend.services.asset_locks import asset_write_lock
+    with asset_write_lock(body.asset_id):
+        meta = store.load_generation_metadata(body.asset_id) or {}
+        nested = _migrate_legacy_3d(meta)
+        vbucket = nested.get(f"v{body.version}")
+        if not vbucket:
+            raise HTTPException(404, detail=f"No 3D models for asset '{body.asset_id}' version {body.version}.")
+        chosen = next((v for v in vbucket.get("variants", []) if v.get("variant_id") == body.variant_id), None)
+        if not chosen:
+            raise HTTPException(404, detail=f"Variant '{body.variant_id}' not found.")
 
-    asset_dir = store.generated_asset_dir(body.asset_id)
-    # Ensure every variant has a PRIVATE file first, so reading the chosen
-    # variant's bytes can never read from (or be clobbered by) the canonical file.
-    _ensure_variant_files(asset_dir, body.asset_id, vbucket, body.version)
-    src = asset_dir / chosen["glb_filename"]
-    if not src.exists():
-        raise HTTPException(404, detail="Variant GLB file is missing on disk.")
-    data = src.read_bytes()
-    (asset_dir / f"asset_3d_v{body.version}.glb").write_bytes(data)
-    if body.version == 1:
-        (asset_dir / "asset_3d.glb").write_bytes(data)
+        asset_dir = store.generated_asset_dir(body.asset_id)
+        # Ensure every variant has a PRIVATE file first, so reading the chosen
+        # variant's bytes can never read from (or be clobbered by) the canonical file.
+        _ensure_variant_files(asset_dir, body.asset_id, vbucket, body.version)
+        src = asset_dir / chosen["glb_filename"]
+        if not src.exists():
+            raise HTTPException(404, detail="Variant GLB file is missing on disk.")
+        data = src.read_bytes()
+        (asset_dir / f"asset_3d_v{body.version}.glb").write_bytes(data)
+        if body.version == 1:
+            (asset_dir / "asset_3d.glb").write_bytes(data)
 
-    vbucket["default_variant"] = body.variant_id
-    meta["three_d_versions"] = _flatten_three_d_versions(nested)
-    store.save_generation_metadata(body.asset_id, meta)
+        vbucket["default_variant"] = body.variant_id
+        meta["three_d_versions"] = _flatten_three_d_versions(nested)
+        store.save_generation_metadata(body.asset_id, meta)
     return {"ok": True, "default_variant": body.variant_id}
 
 
@@ -1915,52 +1923,62 @@ def _finalize_3d_job(job: dict, s3) -> dict:
             "created_at": created_at,
         }
 
-        meta = store.load_generation_metadata(asset_id) or {}
-        nested = _migrate_legacy_3d(meta)
-        vkey = f"v{version}"
-        vbucket = nested.setdefault(vkey, {"default_variant": None, "variants": []})
-        # Replace any existing variant with the same id (same pipeline+deploy),
-        # else append. Clean up the OLD variant's GLB file if its name changed.
-        existing = next((v for v in vbucket["variants"] if v.get("variant_id") == vid), None)
-        if existing:
-            old_fn = existing.get("glb_filename")
-            if old_fn and old_fn != variant_filename:
-                (asset_dir / old_fn).unlink(missing_ok=True)
-            vbucket["variants"] = [v if v.get("variant_id") != vid else variant
-                                   for v in vbucket["variants"]]
-        else:
-            vbucket["variants"].append(variant)
+        # Serialize the metadata read-modify-write against the 2D edit/commit
+        # writers (which hold the SAME per-asset lock). Without this, a 3D job
+        # finalizing while the user commits a new 2D version on the same asset
+        # would lost-update metadata.json (drop the new version, or the 3D). The
+        # global _3d_finalize_lock only serializes 3D finalizes against EACH
+        # OTHER, not against the 2D writers. Lock order here is
+        # _3d_finalize_lock (held by the caller) → asset_write_lock; the 2D
+        # writers take only asset_write_lock, so there's no deadlock.
+        from backend.services.asset_locks import asset_write_lock
+        with asset_write_lock(asset_id):
+            meta = store.load_generation_metadata(asset_id) or {}
+            nested = _migrate_legacy_3d(meta)
+            vkey = f"v{version}"
+            vbucket = nested.setdefault(vkey, {"default_variant": None, "variants": []})
+            # Replace any existing variant with the same id (same pipeline+deploy),
+            # else append. Clean up the OLD variant's GLB file if its name changed.
+            existing = next((v for v in vbucket["variants"] if v.get("variant_id") == vid), None)
+            if existing:
+                old_fn = existing.get("glb_filename")
+                if old_fn and old_fn != variant_filename:
+                    (asset_dir / old_fn).unlink(missing_ok=True)
+                vbucket["variants"] = [v if v.get("variant_id") != vid else variant
+                                       for v in vbucket["variants"]]
+            else:
+                vbucket["variants"].append(variant)
 
-        # Default-variant policy: a brand-new generation (no prior default) OR a
-        # regen the user asked to "replace" becomes the default. A regen saved as
-        # a NEW variant leaves the existing default untouched.
-        make_default = (not vbucket.get("default_variant")) or bool(job.get("set_default", True))
-        if make_default:
-            vbucket["default_variant"] = vid
+            # Default-variant policy: a brand-new generation (no prior default) OR a
+            # regen the user asked to "replace" becomes the default. A regen saved as
+            # a NEW variant leaves the existing default untouched.
+            make_default = (not vbucket.get("default_variant")) or bool(job.get("set_default", True))
+            if make_default:
+                vbucket["default_variant"] = vid
 
-        # Give EVERY variant a private GLB file before any canonical write. A
-        # migrated legacy variant points at asset_3d.glb (the same file we
-        # materialize the default into) — without this, switching the default to
-        # a different variant would overwrite the legacy variant's only copy.
-        _ensure_variant_files(asset_dir, asset_id, vbucket, version)
+            # Give EVERY variant a private GLB file before any canonical write. A
+            # migrated legacy variant points at asset_3d.glb (the same file we
+            # materialize the default into) — without this, switching the default to
+            # a different variant would overwrite the legacy variant's only copy.
+            _ensure_variant_files(asset_dir, asset_id, vbucket, version)
 
-        # Materialize the DEFAULT variant as the version's canonical file(s) so
-        # the legacy gallery route (asset_3d.glb / asset_3d_v{N}.glb) serves it.
-        # Reads from the default variant's now-PRIVATE file (never the canonical
-        # file itself), so the copy is always from a stable, distinct source.
-        default_id = vbucket["default_variant"]
-        default_variant = next((v for v in vbucket["variants"] if v.get("variant_id") == default_id), variant)
-        default_bytes = glb_bytes if default_variant is variant else \
-            (asset_dir / default_variant["glb_filename"]).read_bytes()
-        (asset_dir / f"asset_3d_v{version}.glb").write_bytes(default_bytes)
-        if version == 1:
-            (asset_dir / "asset_3d.glb").write_bytes(default_bytes)
+            # Materialize the DEFAULT variant as the version's canonical file(s) so
+            # the legacy gallery route (asset_3d.glb / asset_3d_v{N}.glb) serves it.
+            # Reads from the default variant's now-PRIVATE file (never the canonical
+            # file itself), so the copy is always from a stable, distinct source.
+            default_id = vbucket["default_variant"]
+            default_variant = next((v for v in vbucket["variants"] if v.get("variant_id") == default_id), variant)
+            default_bytes = glb_bytes if default_variant is variant else \
+                (asset_dir / default_variant["glb_filename"]).read_bytes()
+            (asset_dir / f"asset_3d_v{version}.glb").write_bytes(default_bytes)
+            if version == 1:
+                (asset_dir / "asset_3d.glb").write_bytes(default_bytes)
 
-        # Keep the legacy flat list in sync (default variant per version) so any
-        # un-migrated reader still works.
-        meta["three_d_versions"] = _flatten_three_d_versions(nested)
-        meta["has_3d"] = True
-        store.save_generation_metadata(asset_id, meta)
+            # Keep the legacy flat list in sync (default variant per version) so any
+            # un-migrated reader still works.
+            meta["three_d_versions"] = _flatten_three_d_versions(nested)
+            meta["has_3d"] = True
+            store.save_generation_metadata(asset_id, meta)
 
         # Update job status
         job["status"] = "complete"

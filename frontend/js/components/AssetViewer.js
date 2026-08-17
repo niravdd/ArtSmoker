@@ -489,6 +489,61 @@
             return meta.three_d_versions?.find(v => v.version === version) || null;
         },
 
+        /** Render ONE 3D variant's metadata fields. When `multi` (the version has
+         *  several 3D sub-variants), each is wrapped in a titled sub-card with a
+         *  "Default" badge on the served one; a single variant renders bare. */
+        _render3DVariantMeta(v, isDefault, multi, copyBtn) {
+            const pl = v.pipeline || {};
+            const created = v.created_at || v.generated_at;
+            const field = (labelKey, html) =>
+                `<div><label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t(labelKey)}</label><p>${html}</p></div>`;
+            const wide = (labelKey, html) =>
+                `<div class="col-span-2 sm:col-span-3"><label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t(labelKey)}</label><p>${html}</p></div>`;
+            let g = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">`;
+            if (created) g += field('asset_viewer.meta_3d_generated', window.formatTimestamp(created));
+            if (pl.geometry_model || v.model_key)
+                g += field('asset_viewer.meta_3d_geometry', this._esc(pl.geometry_model || v.model_key));
+            if (pl.texture_label || pl.texture_backend)
+                g += field('asset_viewer.meta_3d_texture', this._esc(pl.texture_label || pl.texture_backend));
+            if (v.model_key)
+                g += wide('asset_viewer.meta_3d_endpoint', `<span class="font-mono text-xs">${this._esc(v.model_key)}${pl.instance_type ? ` <span class="text-brand-text-muted">(${this._esc(pl.instance_type)})</span>` : ''}</span>`);
+            else if (pl.instance_type)
+                g += field('asset_viewer.meta_3d_instance', `<span class="font-mono text-xs">${this._esc(pl.instance_type)}</span>`);
+            if (v.job_id)
+                g += wide('asset_viewer.meta_3d_job_id', `<span class="font-mono text-xs text-brand-text-muted">${this._esc(v.job_id)}${copyBtn(v.job_id)}</span>`);
+            if (pl.has_pbr)
+                g += field('asset_viewer.meta_3d_pbr', `<span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">PBR</span>`);
+            let _attrib = Array.isArray(pl.attributions) ? pl.attributions.slice() : [];
+            const _usedDino = pl.pipeline_type === 'trellis2_full' || pl.texture_backend === 'trellis2';
+            if (_usedDino && pl.textured !== false && !_attrib.includes('Built with DINOv3')) _attrib.push('Built with DINOv3');
+            if (_attrib.length)
+                g += wide('asset_viewer.meta_3d_attribution', _attrib.map(a => `<span class="px-1.5 py-0.5 rounded text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(a)}</span>`).join(' '));
+            if (v.params) {
+                const p = v.params;
+                const paramStr = [
+                    p.steps ? `steps: ${p.steps}` : '',
+                    p.guidance ? `guidance: ${p.guidance}` : '',
+                    p.mesh_resolution ? `depth: ${p.mesh_resolution}` : '',
+                    p.max_faces ? `faces: ${p.max_faces}` : '',
+                    p.texture_resolution ? `tex: ${p.texture_resolution}` : '',
+                ].filter(Boolean).join(', ');
+                if (paramStr) g += wide('asset_viewer.meta_3d_params', `<span class="font-mono text-xs">${this._esc(paramStr)}</span>`);
+            }
+            if (v.size_bytes || v.vertices || v.faces)
+                g += wide('asset_viewer.meta_3d_file', `<span class="text-xs">${v.size_bytes ? this._formatBytes(v.size_bytes) : ''}${v.vertices ? ` / ${v.vertices.toLocaleString()} vertices` : ''}${v.faces ? ` / ${v.faces.toLocaleString()} faces` : ''}</span>`);
+            if (pl.license_name)
+                g += wide('asset_viewer.meta_3d_license', `<span class="text-xs">${this._esc(pl.license_name)}${pl.commercial === true ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('asset_viewer.meta_3d_commercial')}</span>` : ''}${pl.license_accepted_at ? ` <span class="text-brand-text-muted">— ${window.formatTimestamp(pl.license_accepted_at)}</span>` : ''}</span>`);
+            g += `</div>`;
+            if (!multi) return g;
+            // Multi-variant: wrap in a titled sub-card, default badged.
+            const title = this._esc(pl.geometry_model || v.model_key || t('asset_viewer.meta_3d_variant'))
+                + (pl.texture_label ? ` · ${this._esc(pl.texture_label)}` : '');
+            const badge = isDefault
+                ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-brand-accent/15 text-brand-accent border border-brand-accent/25">${t('asset_viewer.meta_3d_default')}</span>` : '';
+            return `<div class="border border-brand-border rounded-lg p-3 mb-2">
+                <div class="text-xs font-medium text-brand-text mb-2">${title}${badge}</div>${g}</div>`;
+        },
+
         _populateMetadata(container, meta) {
             const createdAt = meta.created_at ? window.formatTimestamp(meta.created_at) : 'N/A';
             const isTypeStudio = meta.type === 'type-studio';
@@ -719,107 +774,28 @@
             // (Legacy `meta.three_d.v{N}` is still honored as a fallback.)
             let threeDContent = '';
             const currentVer = this._currentVersion || meta.current_version || (meta.versions?.length || 1);
-            // The 3D section reflects the VIEWED version ONLY — no cross-version
-            // fallback (a version with no 3D model must show nothing here, not
-            // borrow v1's model). Matches the 3D tab's metadata-driven display.
-            const threeDData = this._default3DVariant(meta, currentVer);
-            if (threeDData) {
-                const pl = threeDData.pipeline || {};
-                const created3D = threeDData.created_at || threeDData.generated_at;
-                threeDContent = `<div class="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2 text-sm">`;
-                if (created3D) {
-                    threeDContent += `<div>
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_generated')}</label>
-                        <p>${window.formatTimestamp(created3D)}</p>
-                    </div>`;
-                }
-                // Geometry model (e.g. TripoSG / TRELLIS.2 full pipeline)
-                if (pl.geometry_model || threeDData.model_key) {
-                    threeDContent += `<div>
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_geometry')}</label>
-                        <p>${this._esc(pl.geometry_model || threeDData.model_key)}</p>
-                    </div>`;
-                }
-                // Texture backend label (Hunyuan / MV-Adapter bake / TRELLIS.2)
-                if (pl.texture_label || pl.texture_backend) {
-                    threeDContent += `<div>
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_texture')}</label>
-                        <p>${this._esc(pl.texture_label || pl.texture_backend)}</p>
-                    </div>`;
-                }
-                // Exact deployed endpoint that produced this asset (disambiguates
-                // multiple deployments of the same model).
-                if (threeDData.model_key) {
-                    threeDContent += `<div class="col-span-2 sm:col-span-3">
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_endpoint')}</label>
-                        <p class="font-mono text-xs">${this._esc(threeDData.model_key)}${pl.instance_type ? ` <span class="text-brand-text-muted">(${this._esc(pl.instance_type)})</span>` : ''}</p>
-                    </div>`;
-                } else if (pl.instance_type) {
-                    threeDContent += `<div>
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_instance')}</label>
-                        <p class="font-mono text-xs">${this._esc(pl.instance_type)}</p>
-                    </div>`;
-                }
-                if (threeDData.job_id) {
-                    threeDContent += `<div class="col-span-2 sm:col-span-3">
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_job_id')}</label>
-                        <p class="font-mono text-xs text-brand-text-muted">${this._esc(threeDData.job_id)}${copyBtn(threeDData.job_id)}</p>
-                    </div>`;
-                }
-                if (pl.has_pbr) {
-                    threeDContent += `<div>
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_pbr')}</label>
-                        <p class="text-sm"><span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">PBR</span></p>
-                    </div>`;
-                }
-                // Third-party attribution required by a component's license (e.g.
-                // "Built with DINOv3" — TRELLIS.2's Meta DINOv3 encoder mandates it).
-                // Shown as a metadata field wherever the asset is surfaced. Prefer the
-                // stored `attributions` (recorded at generation / backfilled), but
-                // DERIVE it at display time as a safety net for any old record that
-                // used trellis2/DINOv3 yet predates the flag — so the required notice
-                // never silently goes missing.
-                let _attrib = Array.isArray(pl.attributions) ? pl.attributions.slice() : [];
-                const _usedDino = pl.pipeline_type === 'trellis2_full' || pl.texture_backend === 'trellis2';
-                if (_usedDino && pl.textured !== false && !_attrib.includes('Built with DINOv3')) {
-                    _attrib.push('Built with DINOv3');
-                }
-                if (_attrib.length) {
-                    threeDContent += `<div class="col-span-2 sm:col-span-3">
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_attribution')}</label>
-                        <p class="text-sm">${_attrib.map(a => `<span class="px-1.5 py-0.5 rounded text-[9px] bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(a)}</span>`).join(' ')}</p>
-                    </div>`;
-                }
-                if (threeDData.params) {
-                    const p = threeDData.params;
-                    const paramStr = [
-                        p.steps ? `steps: ${p.steps}` : '',
-                        p.guidance ? `guidance: ${p.guidance}` : '',
-                        p.mesh_resolution ? `depth: ${p.mesh_resolution}` : '',
-                        p.max_faces ? `faces: ${p.max_faces}` : '',
-                        p.texture_resolution ? `tex: ${p.texture_resolution}` : '',
-                    ].filter(Boolean).join(', ');
-                    if (paramStr) {
-                        threeDContent += `<div class="col-span-2 sm:col-span-3">
-                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_params')}</label>
-                            <p class="font-mono text-xs">${this._esc(paramStr)}</p>
-                        </div>`;
-                    }
-                }
-                if (threeDData.size_bytes || threeDData.vertices || threeDData.faces) {
-                    threeDContent += `<div class="col-span-2 sm:col-span-3">
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_file')}</label>
-                        <p class="text-xs">${threeDData.size_bytes ? this._formatBytes(threeDData.size_bytes) : ''}${threeDData.vertices ? ` / ${threeDData.vertices.toLocaleString()} vertices` : ''}${threeDData.faces ? ` / ${threeDData.faces.toLocaleString()} faces` : ''}</p>
-                    </div>`;
-                }
-                // License consent provenance (the license accepted at deploy time)
-                if (pl.license_name) {
-                    threeDContent += `<div class="col-span-2 sm:col-span-3">
-                        <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-0.5">${t('asset_viewer.meta_3d_license')}</label>
-                        <p class="text-xs">${this._esc(pl.license_name)}${pl.commercial === true ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('asset_viewer.meta_3d_commercial')}</span>` : ''}${pl.license_accepted_at ? ` <span class="text-brand-text-muted">— ${window.formatTimestamp(pl.license_accepted_at)}</span>` : ''}</p>
-                    </div>`;
-                }
-                threeDContent += `</div>`;
+            // The 3D section reflects the VIEWED version ONLY. A 2D version can hold
+            // MULTIPLE 3D sub-variants (e.g. TripoSG + TRELLIS.2) — show them ALL,
+            // default first + badged, with a count header so the user isn't misled
+            // into thinking "3/3" (2D versions) equals the number of 3D models.
+            const bucket3d = meta.three_d?.[`v${currentVer}`];
+            let variants3d = Array.isArray(bucket3d?.variants) ? bucket3d.variants.slice() : [];
+            if (!variants3d.length) {   // legacy flat fallback → single entry
+                const single = this._default3DVariant(meta, currentVer);
+                if (single) variants3d = [single];
+            }
+            if (variants3d.length) {
+                const defaultId = bucket3d?.default_variant;
+                const multi = variants3d.length > 1;
+                // Default variant first.
+                variants3d.sort((a, b) =>
+                    (b.variant_id === defaultId ? 1 : 0) - (a.variant_id === defaultId ? 1 : 0));
+                const header = multi
+                    ? `<div class="text-[11px] text-brand-text-muted mb-2">${t('asset_viewer.meta_3d_variant_count', { count: variants3d.length })}</div>`
+                    : '';
+                threeDContent = header + variants3d
+                    .map(v => this._render3DVariantMeta(v, v.variant_id === defaultId, multi, copyBtn))
+                    .join('');
             }
 
             // ── Section 6: Style ───────────────────────────────────────────
