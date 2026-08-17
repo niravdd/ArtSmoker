@@ -54,12 +54,13 @@ echo "push-both: pushing main → origin (GitHub)…"
 git push origin main
 
 # 2) GitLab — replay any new commits onto the orphan-based line, then push.
+# (Portable: no `mapfile` — macOS ships bash 3.2. cherry-pick takes the range.)
 base=$(git rev-parse "$MARK")
-mapfile -t NEW < <(git rev-list --reverse "${base}..main") || true
-if [ "${#NEW[@]}" -gt 0 ]; then
-  echo "push-both: mirroring ${#NEW[@]} new commit(s) onto gitlab-main…"
+count=$(git rev-list --count "${base}..main")
+if [ "$count" -gt 0 ]; then
+  echo "push-both: mirroring $count new commit(s) onto gitlab-main…"
   git switch -q gitlab-main
-  if ! git cherry-pick -x "${NEW[@]}"; then
+  if ! git cherry-pick -x "${base}..main"; then
     echo "push-both: cherry-pick hit a conflict. Resolve it, run 'git cherry-pick --continue'," >&2
     echo "  then 'git switch main' and re-run this script." >&2
     exit 1
