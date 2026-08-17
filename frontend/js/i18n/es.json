@@ -261,6 +261,8 @@
     "three_d_src_completing": "Completando imagen…",
     "three_d_src_completed": "Imagen completada — nueva versión creada",
     "three_d_src_failed": "No se pudo completar la imagen — continuando tal cual",
+    "three_d_src_committed": "Fuente mejorada guardada como versión v{{version}} — generando 3D a partir de ella.",
+    "three_d_src_commit_failed": "No se pudo guardar la fuente mejorada como versión",
     "three_d_src_reviewing": "Revisando el resultado…",
     "three_d_src_nodir": "No se sugirió dirección de extensión — omitiendo.",
     "three_d_src_still": "Aún parece incompleto tras extender.",

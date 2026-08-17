@@ -896,6 +896,8 @@
     "three_d_src_completing": "Bild wird vervollständigt…",
     "three_d_src_completed": "Bild vervollständigt — neue Version erstellt",
     "three_d_src_failed": "Bild konnte nicht vervollständigt werden — wird unverändert fortgesetzt",
+    "three_d_src_committed": "Verbesserte Quelle als Version v{{version}} gespeichert — 3D wird daraus erzeugt.",
+    "three_d_src_commit_failed": "Die verbesserte Quelle konnte nicht als Version gespeichert werden",
     "three_d_src_reviewing": "Ergebnis wird geprüft…",
     "three_d_src_nodir": "Keine Erweiterungsrichtung vorgeschlagen — wird übersprungen.",
     "three_d_src_still": "Wirkt auch nach dem Erweitern noch unvollständig.",

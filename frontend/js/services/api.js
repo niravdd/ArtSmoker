@@ -540,6 +540,15 @@
             prepareSource(body) {
                 return request('/api/generate/3d/prepare-source', { method: 'POST', body });
             },
+            /** Commit a version's prepared __source (Improve-the-Source result) as a
+             *  NEW 2D version, so 3D attributes to it (not the untouched Original).
+             *  No-op → { committed:false } when no improvement was made. */
+            commitSource(assetId, version, ops = [], prompt = '') {
+                return request('/api/generate/3d/commit-source', {
+                    method: 'POST',
+                    body: { asset_id: assetId, version, ops, prompt },
+                });
+            },
             /** Persist a completion re-review verdict onto a 2D version's record. */
             recordReview(assetId, version, review) {
                 return request('/api/generate/3d/record-source-review', {

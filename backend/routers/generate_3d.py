@@ -1071,7 +1071,8 @@ def _version_is_bg_free(asset_id: str, version: int, meta: dict = None) -> bool:
     for v in (meta.get("versions") or []):
         if v.get("version") == version:
             ec = v.get("edit_context") or {}
-            return (v.get("type") == "remove_background"
+            return bool(v.get("bg_free")          # explicit marker (3D source-prep commit)
+                    or v.get("type") == "remove_background"
                     or ec.get("op") == "remove_background")
     return False
 
@@ -1301,6 +1302,144 @@ async def prepare_source(body: PrepareSourceRequest):
     result = {"ok": True, "analysis": _analyze_source_bytes(saved.read_bytes(), meta)}
     _flush_source_cost()
     return result
+
+
+class ThreeDCommitSourceRequest(BaseModel):
+    asset_id: str
+    version: int = 1
+    # Ops the user ran in the improve dialog (for the version's `type` + provenance).
+    ops: list[str] = []
+    prompt: str = ""
+
+
+@router.post("/commit-source")
+async def commit_source(body: ThreeDCommitSourceRequest):
+    """Materialize a version's PREPARED 3D source (the `__source` sidecar produced
+    by Improve-the-Source Extend/Fill) as a NEW 2D version — so the improved image
+    is a first-class, visible version and any 3D generated from it attributes to
+    THAT version, not the untouched Original.
+
+    Commit-time versioning: the improve dialog experiments freely on the sidecar
+    (unlimited rounds, no version churn); this is called ONCE, on "Use this for
+    3D", only when an improvement was actually made. If there's no `__source`
+    sidecar (user made no changes), it's a no-op → {committed: false}.
+
+    Mirrors the Edit tab's versioned save (archive current → save new asset.png →
+    append version record → repoint current_version), under the SAME per-asset
+    write lock, with sparse max+1 numbering. The committed image is already
+    background-free (the improve flow re-strips after each op), so it's marked
+    bg_free and pre-cached as the new version's __cutout (3D skips re-removal).
+    """
+    import io
+    import shutil
+    from backend.services.asset_locks import asset_write_lock
+
+    aid, ver = body.asset_id, body.version
+    with asset_write_lock(aid):
+        meta = store.load_generation_metadata(aid) or {}
+        if not meta:
+            raise HTTPException(404, detail=f"Asset '{aid}' not found.")
+
+        src_path = store.get_generated_file_path(aid, _sidecar_name(ver, "source"))
+        if src_path is None or not src_path.exists():
+            # No prepared source = user made no changes → nothing to version.
+            return {"committed": False, "version": ver}
+        improved_bytes = src_path.read_bytes()
+
+        asset_dir = store.generated_asset_dir(aid)
+        versions = meta.get("versions", [])
+        if not versions:
+            # Seed the implicit original as v1 so the new version is v2+ (same as /edit).
+            versions.append({
+                "version": 1, "type": "original",
+                "prompt": meta.get("prompt", ""),
+                "enhanced_prompt": meta.get("enhanced_prompt", ""),
+                "image_model": meta.get("image_model", ""),
+                "model_label": meta.get("model_label", ""),
+                "timestamp": meta.get("created_at", ""),
+            })
+        # Sparse max+1 (tombstones/deletions never reuse a number) — matches /edit.
+        next_version = max(v.get("version", 0) for v in versions) + 1
+
+        # Archive the outgoing current asset.png/.svg under its TRUE current number.
+        current_png = asset_dir / "asset.png"
+        if current_png.exists():
+            prev_v = meta.get("current_version") or (next_version - 1)
+            prev_png = asset_dir / f"asset_v{prev_v}.png"
+            if not prev_png.exists():
+                shutil.copy2(str(current_png), str(prev_png))
+            current_svg = asset_dir / "asset.svg"
+            prev_svg = asset_dir / f"asset_v{prev_v}.svg"
+            if current_svg.exists() and not prev_svg.exists():
+                shutil.copy2(str(current_svg), str(prev_svg))
+
+        # The improved (bg-free) image becomes the new current version. No separate
+        # __cutout sidecar is stored: the version record's `bg_free: true` (below)
+        # makes _version_is_bg_free short-circuit _ensure_cutout to the version's
+        # OWN image, and _prepared_source_path falls back to it too — so the version
+        # IS its cutout everywhere 3D needs one (no duplicate file).
+        store.save_generated_image(aid, "asset.png", improved_bytes)
+
+        # Regenerate the current SVG from the new image (best-effort).
+        try:
+            from backend.services.post_processor import process_asset
+            process_asset(image_bytes=improved_bytes, enhanced_prompt=(body.prompt or ""),
+                          remove_bg=False, do_upscale=False, do_svg=True,
+                          svg_output_path=asset_dir / "asset.svg")
+        except Exception as e:
+            logger.warning("commit-source: SVG generation failed for %s v%s (%s)", aid, next_version, e)
+
+        # Version type from the ops the user actually ran (extend→outpainting,
+        # fill→inpainting), so the record + version-bar label are truthful.
+        _ops = set(body.ops or [])
+        vtype = "outpainting" if "extend" in _ops else ("inpainting" if "inpaint" in _ops else "source_prep")
+        _dims = {"width": None, "height": None}
+        try:
+            from PIL import Image as _PILImage
+            with _PILImage.open(io.BytesIO(improved_bytes)) as _img:
+                _dims = {"width": _img.width, "height": _img.height}
+        except Exception:
+            pass
+
+        versions.append({
+            "version": next_version,
+            "type": vtype,
+            "prompt": (body.prompt or "").strip(),
+            "enhanced_prompt": (body.prompt or "").strip(),
+            "image_model": meta.get("image_model", ""),
+            "model_label": meta.get("model_label", ""),
+            "result_dims": _dims if _dims.get("width") else None,
+            # Already-background-free (improve flow re-strips) — see _version_is_bg_free.
+            "bg_free": True,
+            # Provenance: this version was committed from the 3D Improve-the-Source flow.
+            "edit_context": {"trigger": "3d_source_completion",
+                             "committed_from_version": ver, "ops": sorted(_ops)},
+            "timestamp": datetime.utcnow().isoformat(),
+        })
+
+        new_meta = dict(meta)
+        new_meta.update({
+            "original_prompt": meta.get("original_prompt") or meta.get("prompt", ""),
+            "original_image_model": meta.get("original_image_model") or meta.get("image_model", ""),
+            "versions": versions,
+            "current_version": next_version,
+            "width": _dims.get("width") or meta.get("width"),
+            "height": _dims.get("height") or meta.get("height"),
+            "last_edited_at": datetime.utcnow().isoformat(),
+            "last_edit_type": vtype,
+        })
+        store.save_generation_metadata(aid, new_meta)
+
+        # The prepared source is now consumed into the new version — drop the OLD
+        # version's __source sidecar so re-reviewing it won't re-show the change.
+        try:
+            src_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
+    logger.info("commit-source: %s v%s improved-source committed as new v%d (type=%s)",
+                aid, ver, next_version, vtype)
+    return {"committed": True, "version": next_version, "type": vtype}
 
 
 class AnalyzeSourceRequest(BaseModel):

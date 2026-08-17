@@ -261,6 +261,8 @@
     "three_d_src_completing": "正在补全图像…",
     "three_d_src_completed": "图像已补全 — 已创建新版本",
     "three_d_src_failed": "无法补全图像 — 按原样继续",
+    "three_d_src_committed": "已将改进的源图保存为版本 v{{version}} — 正在据此生成 3D。",
+    "three_d_src_commit_failed": "无法将改进的源图保存为版本",
     "three_d_src_reviewing": "正在检查结果…",
     "three_d_src_nodir": "未建议扩展方向 — 跳过。",
     "three_d_src_still": "扩展后仍显得不完整。",

@@ -2829,8 +2829,30 @@
             }
             // Self-contained review dialog — stays open through every Extend/Fill,
             // shows progress in place, resolves only on "Use this image" / "Cancel".
-            const approved = await this._showSourceReview(version, analysis || { analyzed: false });
-            if (approved) this._sourceApprovedVersion = version;
+            const result = await this._showSourceReview(version, analysis || { analyzed: false });
+            if (result && result.approved) {
+                this._sourceApprovedVersion = version;
+                // Commit-time versioning (Option A): if the user actually improved
+                // the source (ran Extend/Fill), materialize the prepared image as a
+                // NEW 2D version and switch to it — so any 3D generated now attributes
+                // to the improved version, and the untouched Original stays clean.
+                // If nothing was changed, no version is created (generate from Original
+                // as-is, as before).
+                if (Array.isArray(result.ops) && result.ops.length) {
+                    try {
+                        const c = await API.threeD.commitSource(this._item?.id, version, result.ops, result.prompt || '');
+                        if (c && c.committed) {
+                            this._meta = await API.gallery.get(this._item.id);
+                            this._currentVersion = c.version;
+                            this._sourceApprovedVersion = c.version;
+                            if (window.Gallery?.refresh) window.Gallery.refresh();
+                            window.showToast?.(t('asset_viewer.three_d_src_committed', { version: c.version }), 'success');
+                        }
+                    } catch (e) {
+                        window.showToast?.(t('asset_viewer.three_d_src_commit_failed') + (e.message ? ': ' + e.message : ''), 'error');
+                    }
+                }
+            }
             // Rebuild the form (refreshes the SOURCE preview to the prepared image).
             this._update3DContent();
         },
@@ -3005,8 +3027,18 @@
                 const useBtn = $('.av-sr-use'), extendBtn = $('.av-sr-extend'), fillBtn = $('.av-sr-fill');
                 const busy = $('#av-sr-busy'), busyText = $('#av-sr-busy-text');
                 let fillMode = false, maskWired = false, working = false;
+                // Track which improve ops actually ran + the last prompt used, so
+                // the commit-time versioning (on "Use this for 3D") can create a
+                // truthfully-typed new 2D version only when a change was made.
+                const opsRun = new Set();
+                let lastImprovePrompt = '';
 
-                const done = (v) => { this._redrawMeasurement = null; backdrop.remove(); resolve(v); };
+                const done = (v) => {
+                    this._redrawMeasurement = null;
+                    backdrop.remove();
+                    resolve(v ? { approved: true, ops: [...opsRun], prompt: lastImprovePrompt }
+                              : { approved: false });
+                };
                 const setBusy = (on, text) => {
                     working = on;
                     busy.style.display = on ? 'flex' : 'none';
@@ -3080,6 +3112,12 @@
                     setBusy(true, busyMsg);
                     try {
                         const r = await API.threeD.prepareSource({ asset_id: this._item?.id, version, bg_method: this._bg3DMethod(), ...payload });
+                        // Record the improvement so commit-time versioning knows a
+                        // change was made (and its type/prompt) — extend/inpaint only.
+                        if (payload.op === 'extend' || payload.op === 'inpaint') {
+                            opsRun.add(payload.op);
+                            if (payload.prompt) lastImprovePrompt = payload.prompt;
+                        }
                         lastAnalysis = r?.analysis || lastAnalysis;
                         disableFillMode();
                         refreshImage();

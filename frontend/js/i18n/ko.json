@@ -261,6 +261,8 @@
     "three_d_src_completing": "이미지 완성 중…",
     "three_d_src_completed": "이미지 완성됨 — 새 버전 생성",
     "three_d_src_failed": "이미지를 완성하지 못했습니다 — 그대로 진행합니다",
+    "three_d_src_committed": "개선된 소스를 버전 v{{version}}(으)로 저장했습니다 — 여기서 3D를 생성합니다.",
+    "three_d_src_commit_failed": "개선된 소스를 버전으로 저장하지 못했습니다",
     "three_d_src_reviewing": "결과 검토 중…",
     "three_d_src_nodir": "확장 방향 제안이 없어 건너뜁니다.",
     "three_d_src_still": "확장 후에도 여전히 불완전해 보입니다.",

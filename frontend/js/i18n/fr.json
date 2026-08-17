@@ -261,6 +261,8 @@
     "three_d_src_completing": "Complétion de l'image…",
     "three_d_src_completed": "Image complétée — nouvelle version créée",
     "three_d_src_failed": "Impossible de compléter l'image — on continue tel quel",
+    "three_d_src_committed": "Source améliorée enregistrée comme version v{{version}} — génération 3D à partir de celle-ci.",
+    "three_d_src_commit_failed": "Impossible d'enregistrer la source améliorée comme version",
     "three_d_src_reviewing": "Vérification du résultat…",
     "three_d_src_nodir": "Aucune direction d'extension suggérée — ignoré.",
     "three_d_src_still": "Toujours incomplet après l'extension.",
