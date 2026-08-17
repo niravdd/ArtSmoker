@@ -720,11 +720,14 @@ async def generate_3d(body: ThreeDGenerateRequest):
     if not endpoint_name or not enabled:
         raise HTTPException(400, detail="3D generation model is not deployed. Deploy from Custom Models first.")
 
-    # Read the PREPARED 3D source for this version: the __source sidecar (Extend/
-    # Fill result) if present, else the cached __cutout, else the raw version. This
-    # is how the "Improve the Source" work reaches 3D WITHOUT creating 2D versions.
-    # (The handler also strips BG server-side, so a raw version still works.)
-    image_path = _prepared_source_path(body.asset_id, body.version)
+    # 3D generates from the version's CUTOUT (background-removed version image) —
+    # the SAME artefact the Export tab shows, so the "SOURCE FOR 3D" preview and
+    # the actual 3D input always match. Improvements are committed as their OWN 2D
+    # version (commit-time versioning), so we never read a persistent __source
+    # sidecar here — that's transient, scoped to an active improve-dialog session.
+    # A bg_free version is its own cutout. (The handler also strips BG server-side
+    # as a backstop, so a raw version still works.)
+    image_path = _ensure_cutout(body.asset_id, body.version)
     if image_path is None:
         raise HTTPException(404, detail=f"Image not found for asset '{body.asset_id}' version {body.version}.")
 
@@ -1137,16 +1140,20 @@ def _prepared_source_path(asset_id: str, version: int, meta: dict = None):
 
 
 @router.get("/source-preview/{asset_id}/{version}")
-async def source_preview(asset_id: str, version: int):
-    """Serve the EXACT image that will go to the 3D pipeline for a version — the
-    prepared __source sidecar if present, otherwise the background-removed cutout
-    (created+cached once). Never creates a 2D version. Lets the 3D form show the
-    user precisely what gets converted, even without opening the review dialog."""
+async def source_preview(asset_id: str, version: int, prepared: bool = False):
+    """Serve the image the 3D pipeline uses for a version.
+
+    Default (prepared=False) = the version's CUTOUT — the same artefact the Export
+    tab and 3D generation use, so the form's "SOURCE FOR 3D" preview always matches
+    what gets converted (and Export). prepared=True additionally prefers the active
+    improve-dialog working file (__source, an Extend/Fill result) — used ONLY by the
+    open review dialog to show its in-session edits. Never creates a 2D version."""
     from fastapi.responses import FileResponse
     meta = store.load_generation_metadata(asset_id) or {}
-    # Prefer an already-prepared source (Extend/Fill result); else ensure the cutout.
-    prepared = store.get_generated_file_path(asset_id, _sidecar_name(version, "source"))
-    path = prepared or _ensure_cutout(asset_id, version, meta)
+    path = None
+    if prepared:
+        path = store.get_generated_file_path(asset_id, _sidecar_name(version, "source"))
+    path = path or _ensure_cutout(asset_id, version, meta)
     if path is None:
         raise HTTPException(404, detail=f"Image not found for asset '{asset_id}' v{version}.")
     return FileResponse(path, media_type="image/png")

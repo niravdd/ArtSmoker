@@ -532,8 +532,13 @@
             },
             /** URL of the EXACT prepared image that goes to the 3D pipeline for a
              *  version (bg-removed cutout or Extend/Fill result; sidecar, not a version). */
-            sourcePreviewUrl(assetId, version = 1) {
-                return `/api/generate/3d/source-preview/${encodeURIComponent(assetId)}/${version}`;
+            /** URL of the image the 3D pipeline uses for a version. Default =
+             *  the version CUTOUT (matches the Export tab + actual generation).
+             *  prepared=true prefers the active improve-dialog working file
+             *  (__source) — for the open review dialog's live view only. The URL
+             *  always carries a query, so append cache-busting with `&t=…`. */
+            sourcePreviewUrl(assetId, version = 1, prepared = false) {
+                return `/api/generate/3d/source-preview/${encodeURIComponent(assetId)}/${version}?prepared=${prepared ? 1 : 0}`;
             },
             /** Prepare a version's 3D source in place via sidecars (no 2D versions).
              *  op: 'cutout' | 'extend' | 'inpaint' | 'reset'. Returns { ok, analysis }. */

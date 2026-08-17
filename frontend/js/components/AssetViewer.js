@@ -2498,7 +2498,8 @@
             // The EXACT background-removed image that will go to the 3D pipeline,
             // shown on the right so the user is crystal-clear on the pipeline input
             // without opening Review. Server caches the cutout (removes BG once).
-            const previewUrl = API.threeD.sourcePreviewUrl(this._item?.id, this._currentVersion || 1) + `?t=${Date.now()}`;
+            // Form "SOURCE FOR 3D" = the version CUTOUT (matches Export + generation).
+            const previewUrl = API.threeD.sourcePreviewUrl(this._item?.id, this._currentVersion || 1) + `&t=${Date.now()}`;
             const isSubject = (this._meta?.asset_type === 'character' || this._meta?.asset_type === 'game_asset');
             const previewPanelHtml = `
                 <div class="w-full lg:w-64 lg:flex-shrink-0 space-y-2">
@@ -2811,6 +2812,14 @@
                     ? t('asset_viewer.three_d_src_removing_bg')
                     : t('asset_viewer.three_d_src_reviewing')}`;
             }
+            // Start each improve session from the CLEAN cutout: drop any stale or
+            // uncommitted prepared source (__source) from a prior session. With
+            // commit-time versioning, uncommitted improve work isn't persisted —
+            // and this also clears legacy pre-versioning __source sidecars so the
+            // dialog never shows an old full-body source under a cropped Original.
+            try {
+                await API.threeD.prepareSource({ asset_id: this._item?.id, version, op: 'reset', bg_method: this._bg3DMethod() });
+            } catch (e) { /* best-effort */ }
             // Ensure the cutout exists + get an initial completeness verdict. One call
             // (op:'cutout') removes BG once (cached) and returns the analysis. Retry
             // once on a transient failure before falling back to "review & decide".
@@ -2956,7 +2965,9 @@
         _showSourceReview(version, analysis) {
             return new Promise((resolve) => {
                 const id = encodeURIComponent(this._item?.id);
-                const srcUrlFor = () => API.threeD.sourcePreviewUrl(this._item?.id, version) + `?t=${Date.now()}`;
+                // Review dialog shows the LIVE working source (prepared=true) so
+                // each Extend/Fill round is visible during the session.
+                const srcUrlFor = () => API.threeD.sourcePreviewUrl(this._item?.id, version, true) + `&t=${Date.now()}`;
 
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
