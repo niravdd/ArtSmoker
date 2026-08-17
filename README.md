@@ -653,6 +653,15 @@ Open **http://localhost:8000** — the frontend is served by FastAPI, no separat
 
 On startup, the console shows AWS credential validation results. If something's wrong, you'll see a clear error box. You can also check `http://localhost:8000/api/health` for the status.
 
+**Logs.** In addition to the console, ArtSmoker writes a full, **append-only** log to `logs/artsmoker.log` **by default**, so you can review a past session after the app has closed. Each run is framed by a session banner (launch time, version, pid, host) and closed with a shutdown banner (stop time, duration). To change the path or turn it off:
+
+```bash
+ARTSMOKER_LOG_FILE=/var/log/artsmoker/app.log uvicorn backend.main:app   # custom path
+ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # disable file logging
+```
+
+(Or set `log_to_file` / `log_file` in a local `.env`. With multiple workers, every worker appends to the same file.)
+
 ### 📝 4.2 Multi-User / Shared Test Box / Production (macOS / Linux)
 
 For any environment with more than one concurrent user — whether a shared dev/test box, staging, or production — use **gunicorn** with multiple workers:
@@ -678,6 +687,9 @@ gunicorn backend.main:app \
 
 > [!TIP]
 > **gunicorn** is Linux/macOS only. On Windows, use `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2` for multi-worker serving.
+
+> [!NOTE]
+> **Safe for concurrent users.** All server writes — image/version metadata and the model & prompt registries — are written atomically and serialized **across worker processes** (POSIX file locks), so simultaneous edits from multiple collaborators on a shared box never corrupt a file or lose an update. File logging works the same across workers — each appends to the one `logs/artsmoker.log`.
 
 <a id="43-ec2--cloud-deployment"></a>
 

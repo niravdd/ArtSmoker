@@ -645,6 +645,15 @@ python -m uvicorn backend.main:app --reload       # Windows
 
 Beim Start zeigt die Konsole die Ergebnisse der AWS-Anmeldeinformationsvalidierung an. Wenn etwas nicht stimmt, sehen Sie eine deutliche Fehlerbox. Sie können den Status auch unter `http://localhost:8000/api/health` prüfen.
 
+**Protokolle.** Zusätzlich zur Konsole schreibt ArtSmoker **standardmäßig** ein vollständiges, **anfügendes** (append-only) Protokoll nach `logs/artsmoker.log`, damit Sie eine frühere Sitzung auch nach dem Beenden der App noch einsehen können. Jeder Lauf wird von einem Sitzungs-Banner (Startzeit, Version, PID, Host) eingerahmt und mit einem Shutdown-Banner (Stoppzeit, Dauer) abgeschlossen. So ändern Sie den Pfad oder schalten es aus:
+
+```bash
+ARTSMOKER_LOG_FILE=/var/log/artsmoker/app.log uvicorn backend.main:app   # eigener Pfad
+ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # Datei-Logging deaktivieren
+```
+
+(Oder setzen Sie `log_to_file` / `log_file` in einer lokalen `.env`. Bei mehreren Workern hängt jeder Worker an dieselbe Datei an.)
+
 ### 📝 4.2 Mehrbenutzer / gemeinsame Testmaschine / Produktion (macOS / Linux)
 
 Für jede Umgebung mit mehr als einem gleichzeitigen Nutzer — ob eine gemeinsame Dev-/Test-Maschine, Staging oder Produktion — verwenden Sie **gunicorn** mit mehreren Workern:
@@ -670,6 +679,9 @@ gunicorn backend.main:app \
 
 > [!TIP]
 > **gunicorn** ist nur für Linux/macOS. Verwenden Sie unter Windows `uvicorn backend.main:app --host 0.0.0.0 --port 8000 --workers 2` für Multi-Worker-Betrieb.
+
+> [!NOTE]
+> **Sicher für gleichzeitige Nutzer.** Alle Server-Schreibvorgänge — Bild-/Versions-Metadaten sowie die Modell- und Prompt-Registries — werden atomar geschrieben und **prozessübergreifend** serialisiert (POSIX-Dateisperren), sodass gleichzeitige Änderungen mehrerer Mitarbeiter auf einer gemeinsamen Maschine niemals eine Datei beschädigen oder ein Update verlieren. Das Datei-Logging funktioniert über alle Worker hinweg gleich — jeder hängt an dieselbe `logs/artsmoker.log` an.
 
 <a id="43-ec2--cloud-deployment"></a>
 

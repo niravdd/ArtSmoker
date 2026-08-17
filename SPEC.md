@@ -78,6 +78,13 @@
   - [16.3 Phase 2: App Runner + S3](#163-phase-2-containerized-deployment--app-runner--s3)
   - [16.4 Phase 3: CloudFront + Async](#164-phase-3-optimized-delivery--cloudfront--async-generation)
   - [16.5 Phase 4: Multi-Tenant](#165-phase-4-multi-tenant-platform)
+- [17. Concurrency, Thread-Safety & File Logging](#17-concurrency-thread-safety--file-logging)
+  - [17.1 Atomic writes](#171-atomic-writes)
+  - [17.2 Cross-process locking](#172-cross-process-locking-_writelock)
+  - [17.3 Per-asset metadata writes](#173-per-asset-metadata-writes)
+  - [17.4 Registry & prompt transactions](#174-registry--prompt-transactions)
+  - [17.5 Batch-Sync exceptions](#175-batch-sync-exceptions)
+  - [17.6 File logging](#176-file-logging)
 
 ---
 
@@ -1961,7 +1968,7 @@ ArtSmoker is designed as a **local/trusted-network development tool** — it run
    - On startup: call `validate_aws_credentials()` from `bedrock_client.py` — stores result in a module-level `_aws_status` dict.
    - On startup: initialize PulseBoard telemetry (`telemetry_init()`, `track_server_start()`) — fire-and-forget.
    - Log a prominent error box if credentials are missing, a warning if some Bedrock checks fail, or an info message if all checks pass.
-3. **Colored console logging** — custom `_ColorFormatter` using ANSI 256-color codes. Each log level gets a distinct color (cyan for INFO, yellow for WARNING, red for ERROR). Timestamps are included. The formatter overrides uvicorn's default logger for consistent output.
+3. **Logging (console + optional file)** — custom `_ColorFormatter` (ANSI 256-color) on a `StreamHandler`: distinct colour per level, timestamps, applied to the root logger AND uvicorn's loggers (`uvicorn`, `uvicorn.error`, `uvicorn.access` — which have `propagate=False`) for consistent output. **File logging is ON by default** (`settings.log_to_file`; disable with `ARTSMOKER_LOG_TO_FILE=false`): `_setup_file_logging()` attaches an **append-only** `FileHandler` (plain, non-ANSI `_PlainFormatter`) to the root + uvicorn loggers, writing to `settings.log_file` (default `logs/artsmoker.log`; override `ARTSMOKER_LOG_FILE`). Every process appends to the same file (O_APPEND ⇒ line-safe across workers); each run is framed by a **SESSION START** banner (launched, version, pid, host, python, cwd, logfile) and a **SESSION SHUTDOWN** banner (stop time, duration) written from the FastAPI lifespan shutdown (reliable under uvicorn's signal handling; `atexit` fallback, idempotent). The active log path is echoed in the startup messages. See §17.
 4. **NoCacheStaticMiddleware** — custom `BaseHTTPMiddleware` that adds `Cache-Control: no-cache, no-store, must-revalidate` and `Pragma: no-cache` headers to all responses where the request path does NOT start with `/api/`. This ensures frontend static files are never cached during development.
 5. **CORS middleware** — `CORSMiddleware` with `allow_origins=["*"]`, `allow_credentials=True`, `allow_methods=["*"]`, `allow_headers=["*"]`. Development-mode open CORS.
 6. **Include all routers**: styles, generate, refine, transcribe, gallery, browse, typestudio, video, chat, admin — in that order.
@@ -2666,7 +2673,60 @@ Rough monthly costs for a small team (10 users, ~500 generation batches/month). 
 > [!TIP]
 > **Biggest cost levers**: Image model choice (Stable Image Core at $0.04 vs Ultra at $0.14 = 3.5× difference), batch size (3×3 = 9 images vs 5×5 = 25 = 2.8× difference), and Creative Upscale ($0.60/image — only use on final selected assets).
 
-## 17. Disclaimer
+## 17. Concurrency, Thread-Safety & File Logging
+
+ArtSmoker is designed to run **multi-worker** in production (`gunicorn -w 2 …`; see §16) and be used by **multiple collaborators simultaneously** on a shared host. Every server-side write to mutable on-disk state is therefore made **atomic** (no torn/corrupt file) and **serialized across both threads and worker processes** (no lost update). The primitives live in `backend/services/safe_write.py`; the per-asset and registry writers build on them.
+
+### 17.1 Atomic writes
+
+`atomic_write_text(path, text)` writes to a temp file in the **same directory**, does `flush()` + `os.fsync()`, then `os.replace(tmp, path)`. `os.replace` is an atomic rename on POSIX, so a concurrent reader always sees either the complete old file or the complete new one — never a partial write — and a crash mid-write leaves the previous file intact. `atomic_write_json(...)` is the JSON wrapper. This is the primary defence against corruption and is used for every `metadata.json` and both registries.
+
+### 17.2 Cross-process locking (`_WriteLock`)
+
+`_WriteLock` combines a **reentrant** in-process `threading.RLock` (per key) with a cross-process `fcntl.flock(LOCK_EX)` on a lock file under `data/.locks/` (gitignored). It serializes a read-modify-write across BOTH threads in one worker AND separate worker processes on the same host.
+
+- **Reentrant**: the flock is opened once and reference-counted by depth (`_flock_state`), so a thread that already holds a key can re-acquire it (e.g. a transaction body calling a leaf writer that shares the same lock) without self-deadlocking. Distinct threads/processes still block each other — full mutual exclusion.
+- Supports both `with lock:` and explicit `acquire()` / `release()`.
+- **Graceful degradation**: if `flock` is unavailable (non-POSIX / odd filesystem) it degrades to in-process-only locking and logs a **one-time WARNING**, so a lost-update on a shared host is diagnosable. Atomic writes still apply regardless.
+- Factories: `named_write_lock(name)` (registries) and `asset_write_lock(asset_id)` (`backend/services/asset_locks.py`).
+
+### 17.3 Per-asset metadata writes
+
+There is **no in-memory cache** of a gallery asset's `metadata.json` — every writer does a fresh `store.load_generation_metadata()` → modify → `atomic_write_text` **inside** `asset_write_lock(asset_id)`. So it is inherently a correct cross-worker read-modify-write; the in-memory copy can never drift because there isn't one. Writers that hold this lock: the sync edit save (`/api/generate/edit`), the async edit completion (`async_jobs`), and the 3D finalize / set-default / source-review / commit-source / version-delete paths. The model and S3 calls happen **outside** the lock — only fast local file ops run under it, so different assets never contend and same-asset edits don't stall on generation. Result: N concurrent "create a new version" requests on one asset produce a gapless `1..N+1` sequence — no lost version, no duplicate version number.
+
+Lock ordering: the only nested order is `_3d_finalize_lock → asset_write_lock`; the 2D writers take only `asset_write_lock`, so there is no reverse path and no deadlock.
+
+### 17.4 Registry & prompt transactions
+
+The model registry (`model_registry.json` + `.user.json`) and prompt templates (`prompt_templates.json` + `.user.json`) ARE cached in memory (`_registry`; `_templates` / `_user_overrides`). A wholesale save of a stale per-worker cache could clobber another worker's change, so **discrete mutations run in a transaction**:
+
+- `registry_transaction()` and `templates_transaction()` (context managers): under the module lock they **reload from disk** (rebasing onto the latest state), yield the fresh state for mutation, then persist (`_save_nolock` / `_save_user_nolock`).
+- The reload is **identity-preserving** — reloaded content is copied back into the original dict and the reference restored — so any caller still holding an earlier `get_registry()` result keeps seeing the live registry (prevents a class of orphaned-stale-dict bugs).
+- Converted mutators: `add/update_image_model`, `add/update_video_model`, `update_category`, `update_post_processing`, `update_video_settings`, 3D defaults, custom-model register/unregister, license acceptance, `model_ready`, full-registry PUT, and prompt-template `update` / `reset` / `reset_all`.
+- `_save_user_pref` (targeted per-field enable/disable override) was already a fresh-read RMW and is left as-is — cross-worker safe.
+
+Proven: 3 processes writing 300 distinct models concurrently lose none; a naïve wholesale save loses ~2/3.
+
+### 17.5 Batch-Sync exceptions
+
+The AWS Sync (`admin.py` `_run_refresh_all_regions`) and the startup auto-Sync (`main.py` lifespan) are **read-once → accumulate across (slow) AWS calls → save-once** batches. A per-mutation transaction would wipe the accumulation on reload, and holding the lock across the multi-minute AWS scan would stall other workers. They therefore keep a **wholesale** `_save()` (still atomic + locked); discovery data is AWS-authoritative. Rules encoded to keep this correct:
+
+- Inside a batch, mutate the shared `registry` dict **directly**, never via a transactional mutator (which would reload mid-batch and drop unsaved in-memory changes).
+- Any pre-scan reset (e.g. clearing `available_regions`) must be **persisted before** the scan, because the scan's `auto_register_image_models` calls transactional mutators that reload from disk.
+- Startup seeders (`ensure_format_families`, `ensure_code_defaults`) run once at import, pre-traffic, and use plain locked `_save()`.
+
+### 17.6 File logging
+
+Configured in `backend/config.py`: `log_to_file` (default **True**) and `log_file` (default `logs/artsmoker.log`), both overridable via `ARTSMOKER_LOG_TO_FILE` / `ARTSMOKER_LOG_FILE` (or `.env`). `_setup_file_logging()` in `main.py` attaches an **append-only** `FileHandler` (plain `_PlainFormatter`, no ANSI) to the root logger AND the uvicorn loggers (`uvicorn`, `uvicorn.error`, `uvicorn.access` — which have `propagate=False`, so a root-only handler would miss them). Every worker process appends to the same file; log records are single writes under `O_APPEND`, so lines from concurrent workers interleave line-safely, and `StreamHandler.emit` flushes after every record (nothing buffered at risk, even on a hard kill).
+
+Session framing (written straight to the file, so the banners stay file-only and clean):
+
+- **SESSION START** on attach: launched (UTC), version, pid, host, python, cwd, logfile.
+- **SESSION SHUTDOWN**: stop time, version, pid, duration — written from the FastAPI **lifespan shutdown** (reliable under uvicorn's signal handling), with an `atexit` fallback and an idempotency guard so it's written exactly once.
+
+The active log path is echoed in the startup messages. No external launcher is needed — the app writes the file itself regardless of how it is started (`uvicorn`, `gunicorn`, tests).
+
+## 18. Disclaimer
 
 **Generated Content Quality**: All images, videos, and other assets generated by ArtSmoker are produced by AI models available through Amazon Bedrock, including both first-party AWS models and third-party models. The quality, accuracy, and appropriateness of generated content depend entirely on the prompts provided, the models selected, and the style references uploaded by the user. The authors and contributors of ArtSmoker make no guarantees regarding the quality, suitability, or fitness for purpose of any generated content.
 
