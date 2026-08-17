@@ -184,7 +184,16 @@ Jedes Modell läuft unabhängig: Wenn strengere Modelle den Prompt blockieren, e
 
 Ein optionaler Umschalter **„Model-optimized prompts"** passt den Prompt an die Stärken jedes Modells an — Prompts werden pro Modell umgeschrieben (z. B. Qualitäts-Booster für SD 3.5, natürliche Sprache für FLUX.2, prägnante Bildunterschriften für Qwen-Image).
 
-### 📝 1.5 Video Studio
+### 📝 1.5 Referenzgeführte Generierung
+
+Statt einen Prompt von Grund auf zu schreiben, können Sie **aus 1–3 Referenzbildern plus einer Anweisung** generieren — wählen Sie den Modus mit dem Segment-Umschalter oben im Prompt-Bereich des Image Studio:
+
+- **Match the reference** — behalten Sie das Motiv, Produkt oder die Figur aus Ihrer Referenz bei und ändern Sie den Rest (Thema, Hintergrund, Kleidung, Beleuchtung) genau so, wie es Ihre Anweisung vorgibt. Ideal für konsistente Charaktere oder Produktaufnahmen über mehrere Szenen hinweg. Dieser Modus läuft auf einem selbst gehosteten Instruction-Editor (Qwen-Image-Edit) und erscheint, **sobald er bereitgestellt ist** — andernfalls verweist ArtSmoker Sie direkt darauf, ihn über Custom Models bereitzustellen (ein Klick, derselbe Ablauf wie bei den 3D-Pipelines). Kommerziell unbedenklich (Apache-2.0).
+- **Inspired by the reference** — die Vision-KI von ArtSmoker liest Ihre Referenz(en) und Anweisung, schreibt einen optimierten Prompt (der Ihnen zuerst gezeigt wird) und generiert dann mit Ihren normalen Text-zu-Bild-Modellen. **Immer verfügbar** — keine Bereitstellung nötig. Ideal, um einen Look, eine Farbpalette oder Komposition zu übernehmen, ohne das Motiv zu kopieren.
+
+Beide Modi erfordern eine Anweisung, damit Sie die Kontrolle darüber behalten, *wofür* die Referenz dient. Die referenzgeführte Generierung ist getrennt von der Stil-Bibliothek (die viele Bilder zu einem wiederverwendbaren Stilprofil analysiert) — verwenden Sie sie für einmalige, bildgesteuerte Generierungen.
+
+### 📝 1.6 Video Studio
 
 Generieren Sie KI-gestützte Videos und Animationen aus Text-Prompts. Unterstützt **Amazon Nova Reel** (v1.0, v1.1) und **Luma AI Ray** (v2.0).
 
@@ -220,7 +229,7 @@ Speichermodus: lokaler Download (Standard) oder Streaming aus S3 bei Bedarf.
 
 **Verbesserung von Video-Prompts**: Das LLM fügt Kamerabewegungen (Schwenk, Zoom, Dolly, Tracking), Beleuchtungsdetails und zeitliche Hinweise hinzu. Da Videomodelle keine Negativ-Prompts unterstützen, werden zu vermeidende Konzepte auf natürliche Weise in den positiven Prompt eingewoben.
 
-### 📝 1.6 Chat Studio
+### 📝 1.7 Chat Studio
 
 Eine voll ausgestattete LLM-Chat-Oberfläche — wie eine selbst gehostete konversationelle KI, die in Ihrem eigenen AWS-Konto läuft, ohne Datenzugriff durch Dritte.
 
@@ -250,7 +259,7 @@ Eine voll ausgestattete LLM-Chat-Oberfläche — wie eine selbst gehostete konve
 
 **Preistransparenz:** Der Modell-Auswähler zeigt die Kosten pro 1K Tokens an, die Preisinfo-Leiste zeigt die geschätzten Kosten für Konversationen mit 10K und 100K Tokens.
 
-### 📝 1.7 Asset-Typ-Bewusstsein
+### 📝 1.8 Asset-Typ-Bewusstsein
 
 Der ausgewählte **Asset-Typ** verändert grundlegend, wie die KI Ihren Prompt interpretiert — nicht nur das Bildmodell, sondern jede Stufe der Pipeline. Wenn Sie „hospital" eingeben und verschiedene Asset-Typen wählen, erhalten Sie völlig unterschiedliche Ergebnisse:
 
@@ -268,7 +277,7 @@ Das ist in jeder Phase von Bedeutung:
 - **Konzeptgenerierung** — Bei der Generierung mehrerer Optionen erstellt die KI N verschiedene Design-Interpretationen, die alle die strukturellen Regeln des Asset-Typs respektieren. Eine Character-Option hat immer eine lesbare Silhouette; eine Marketing-Banner-Option hat immer eine textsichere Zone ohne gerenderten Text.
 - **Das Ergebnis** — Zwei Bilder aus demselben Prompt, aber mit unterschiedlichen Asset-Typen sehen völlig anders aus. Ein Game-Asset-„warrior" ist ein einzelnes, zentriertes Charakter-Sprite. Ein Marketing-Banner-„warrior" ist eine epische Schlachtszene mit einer sauberen Zone für ein Schlagzeilen-Overlay.
 
-### 📝 1.8 3D-Modell-Generierung (Image-to-3D)
+### 📝 1.9 3D-Modell-Generierung (Image-to-3D)
 
 Generieren Sie produktionsreife, vollständig texturierte 3D-Meshes aus jedem 2D-Bild — direkt im Asset Viewer. Wählen Sie ein **Game Asset**- oder **Character**-Bild, öffnen Sie die Registerkarte **3D Model** und klicken Sie auf Generate. Das Ergebnis ist eine spielengine-fertige GLB, die Sie umkreisen, zoomen und herunterladen können — ohne manuelle Modellierung, UV-Unwrapping oder Texture-Painting.
 
