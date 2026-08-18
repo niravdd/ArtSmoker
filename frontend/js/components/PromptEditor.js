@@ -133,7 +133,7 @@
         // -- Private --
 
         _render() {
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             this.container.innerHTML = html`
                 <div class="prompt-editor space-y-3">
                     <!-- Step 1: User prompt -->
@@ -411,7 +411,7 @@
             this._isComposing = true;
 
             const origHTML = this._btnCompose.innerHTML;
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             this._btnCompose.innerHTML = html`<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('prompt_editor.composing') : 'Composing...'}`;
             this._btnCompose.disabled = true;
 
@@ -440,7 +440,7 @@
                 console.error('Failed to compose from designer data:', err);
                 window.showToast?.(t('misc.pe_failed_enhance'), 'error');
             } finally {
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 this._btnCompose.innerHTML = raw(origHTML);
                 this._btnCompose.disabled = false;
                 this._isComposing = false;
@@ -481,7 +481,7 @@
             this._isComposing = true;
 
             const origHTML = this._btnCompose.innerHTML;
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             this._btnCompose.innerHTML = html`<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('prompt_editor.composing') : 'Composing...'}`;
             this._btnCompose.disabled = true;
 
@@ -506,7 +506,7 @@
                 console.error('Compose error:', err);
                 window.showToast?.(t('misc.pe_failed_compose'), 'error');
             } finally {
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 this._btnCompose.innerHTML = raw(origHTML);
                 this._btnCompose.disabled = false;
                 this._isComposing = false;

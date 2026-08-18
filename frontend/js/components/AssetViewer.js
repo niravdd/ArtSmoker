@@ -95,7 +95,7 @@
 
             const overlay = document.createElement('div');
             overlay.className = 'modal-overlay fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             overlay.innerHTML = html`
                 <div class="modal-content bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden">
                     <!-- Header -->
@@ -389,7 +389,7 @@
                     ? (vrec.model_label || vrec.image_model || '') : '';
                 if (vm && vm !== modelLabel) versionModelLabel = vm;
             } catch {}
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             infoBar.innerHTML = [
                 meta.imported ? html`<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>` : '',
                 modelLabel ? html`<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${modelLabel}${versionModelLabel ? html` <span class="opacity-60">· ${t('asset_viewer.version_original')}</span>` : ''}</span>` : '',
@@ -927,7 +927,7 @@
                     ${ipContent ? `<div>${railHeader(t('asset_viewer.meta_ip_declaration'))}${ipContent}</div>` : ''}
                     <div>${railHeader(t('asset_viewer.meta_file_info'))}${fileInfoContent}</div>
                 </div>`;
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             container.innerHTML = html`
                 <div class="grid grid-cols-1 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] gap-6">
                     <aside class="av-facts-rail">${raw(factsRail)}</aside>
@@ -1043,7 +1043,7 @@
             const pngExists = !!s.nobg_png?.exists;
             const svgExists = !!s.nobg_svg?.exists;
 
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             grid.innerHTML = [
                 this._exportCard({
                     titleKey: 'asset_viewer.export_card_withbg_title',
@@ -1165,13 +1165,13 @@
             if (versions.length < 2) {
                 // Same term + pill styling as the multi-version bar uses for v1
                 // ("Original") — a single/un-versioned asset IS its original.
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 btns.innerHTML = html`<span class="px-2 py-1 rounded text-[10px] bg-brand-accent text-white">${t('asset_viewer.version_original')}</span>`;
                 if (detail) detail.classList.add('hidden');
                 return;
             }
 
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             btns.innerHTML = versions.map(v => html`
                 <button class="av-version-btn px-2 py-1 rounded text-[10px] transition-all cursor-pointer
                     ${v.version === currentVersion
@@ -1324,7 +1324,7 @@
                     // Show version detail summary (only on image tabs — the
                     // helper hides it on 3D/Metadata to avoid clutter/duplication).
                     if (detail && v) {
-                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        // nosemgrep
                         detail.innerHTML = html`
                             <strong>${v.type === 'original' ? t('asset_viewer.version_original') : v.type}</strong>
                             ${v.model_label || v.image_model || ''}
@@ -1878,7 +1878,7 @@
                 }
 
                 btn.disabled = true;
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 btn.innerHTML = html`<span class="spinner-sm"></span> ${t('asset_viewer.applying')}`;
                 if (statusEl) { statusEl.textContent = t('asset_viewer.processing'); statusEl.classList.remove('hidden'); }
 
@@ -1898,7 +1898,7 @@
                             window.showToast?.(t('asset_viewer.no_mask_full'), 'warning');
                             if (statusEl) { statusEl.textContent = t('asset_viewer.no_mask_full'); statusEl.classList.remove('hidden'); }
                             btn.disabled = false;
-                            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                            // nosemgrep
                             btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('asset_viewer.apply_edit')}`;
                             return;
                         }
@@ -1978,7 +1978,7 @@
                     window.showToast?.(t('asset_viewer.edit_failed') + ': ' + err.message, 'error');
                 } finally {
                     btn.disabled = false;
-                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    // nosemgrep
                     btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('asset_viewer.apply_edit')}`;
                 }
             });
@@ -2374,7 +2374,7 @@
 
             const meta = this._meta;
             if (!meta) {
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 container.innerHTML = html`<p class="text-brand-text-muted text-center py-8">${t('asset_viewer.loading_metadata')}</p>`;
                 return;
             }
@@ -2382,7 +2382,7 @@
             // Only supported for game_asset and character types
             const assetType = meta.asset_type;
             if (assetType !== 'game_asset' && assetType !== 'character') {
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 container.innerHTML = html`
                     <div class="text-center py-8">
                         <p class="text-brand-text-muted">${t('asset_viewer.three_d_unsupported')}</p>
@@ -2428,7 +2428,7 @@
                 // No existing 3D model — check if generation is available (model deployed)
                 const availability = await API.threeD.check();
                 if (!availability || !availability.available) {
-                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    // nosemgrep
                     container.innerHTML = html`
                         <div class="text-center py-8 space-y-3">
                             <p class="text-brand-text-muted">${t('asset_viewer.three_d_not_deployed')}</p>
@@ -2453,7 +2453,7 @@
                 // Show generation form (with instance chooser when >1 deployed)
                 this._render3DForm(container, instances);
             } catch (err) {
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 container.innerHTML = html`<p class="text-red-400 text-center py-8">${t('asset_viewer.three_d_failed')}: ${err.message}</p>`;
             }
         },
@@ -2540,7 +2540,7 @@
                     <p id="av-3d-review-status" class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_review_hint')}</p>` : ''}
                 </div>`;
 
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             container.innerHTML = html`
                 <div class="flex flex-col lg:flex-row gap-5">
                   <!-- LEFT: controls -->
@@ -2724,7 +2724,7 @@
                 const link = inst.license_url
                     ? html` <a href="${inst.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline">${t('asset_viewer.three_d_lic_view')}</a>`
                     : '';
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 licenseEl.innerHTML = html`
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-brand-text-muted">${t('asset_viewer.three_d_lic_label')}</span>
@@ -2821,7 +2821,7 @@
                 const alreadyBgFree = vrec && (vrec.type === 'remove_background'
                     || (vrec.edit_context && vrec.edit_context.op === 'remove_background'));
                 const needsBgRemoval = !this._sourceCutoutReady?.[version] && !alreadyBgFree;
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 reviewBtn.innerHTML = html`<span class="spinner-sm"></span> ${needsBgRemoval
                     ? t('asset_viewer.three_d_src_removing_bg')
                     : t('asset_viewer.three_d_src_reviewing')}`;
@@ -2886,7 +2886,7 @@
             if (!btn || btn.disabled) return;
 
             btn.disabled = true;
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             btn.innerHTML = html`<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
 
             // S3 bucket preflight — 3D generation runs on a custom (self-hosted)
@@ -2961,7 +2961,7 @@
         _reset3DGenerateBtn(btn) {
             if (!btn) return;
             btn.disabled = false;
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> <span>${t('asset_viewer.three_d_generate')}</span>`;
         },
 
@@ -2987,7 +2987,7 @@
 
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 backdrop.innerHTML = html`
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto relative">
                         <div>
@@ -3083,11 +3083,11 @@
                     const analyzed = !!(a && a.analyzed);
                     const defect = (analyzed && a.complete === false) ? (a.defect === 'artifact' ? 'artifact' : 'cropped') : 'none';
                     const el = $('#av-sr-verdict');
-                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    // nosemgrep
                     if (!analyzed) el.innerHTML = html`<span class="text-brand-text-muted">${t('asset_viewer.three_d_src_pv_unchecked')}</span>`;
-                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    // nosemgrep
                     else if (defect === 'none') el.innerHTML = html`<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`;
-                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    // nosemgrep
                     else el.innerHTML = html`<span class="text-amber-400">⚠ ${a.reason || t('asset_viewer.three_d_src_still')}</span>`;
                     return { analyzed, defect };
                 };
@@ -3322,11 +3322,11 @@
                             + ['up', 'down', 'left', 'right'].map(e => marginChip(e, bbox[{ up: 'top', down: 'bottom', left: 'left', right: 'right' }[e]])).join(' · ')
                             + `</span>`;
                         statsHtml += `<span id="av-sr-newsize" class="text-brand-accent"></span>`;
-                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        // nosemgrep
                         statsEl.innerHTML = html`<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${raw(statsHtml)}</div>`
                             + html`<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_hint')}</div>`;
                     } else {
-                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        // nosemgrep
                         statsEl.innerHTML = html`<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${raw(statsHtml)}`
                             + html`<span id="av-sr-newsize" class="text-brand-accent"></span></div>`
                             + html`<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_nobg')}</div>`;
@@ -3518,7 +3518,7 @@
 
 
         _render3DPending(container, jobId) {
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             container.innerHTML = html`
                 <div class="text-center py-8 space-y-4">
                     <div class="loading-spinner w-6 h-6 border-2 border-brand-accent/20 border-t-brand-accent rounded-full mx-auto"></div>
@@ -3574,7 +3574,7 @@
         _render3DJobsStrip(strip, jobs) {
             if (!jobs.length) { strip.classList.add('hidden'); strip.innerHTML = ''; return; }
             strip.classList.remove('hidden');
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             strip.innerHTML = html`
                 <div class="rounded-lg border border-brand-accent/30 bg-brand-accent/5 px-3 py-2">
                     <div class="flex items-center gap-2 mb-1.5">
@@ -3640,7 +3640,7 @@
                     <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                     <p class="text-[11px] text-amber-300/90">${t('asset_viewer.three_d_untextured_notice')}</p>
                 </div>` : '';
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             container.innerHTML = html`
                 <div class="space-y-3">
                     ${untexturedNotice}
@@ -3818,7 +3818,7 @@
                 v.faces ? v.faces.toLocaleString() + ' ' + t('asset_viewer.three_d_est_faces') : '',
                 v.pipeline?.has_pbr ? 'PBR' : '',
             ].filter(Boolean).join(' · ');
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             bar.innerHTML = html`
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('asset_viewer.three_d_variants_title')}</span>

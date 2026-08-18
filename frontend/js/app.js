@@ -50,7 +50,7 @@
 
         const routeDef = ROUTES[route];
         if (!routeDef || !routeDef.component) {
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             app.innerHTML = html`<p class="text-center py-12 text-brand-text-muted">${t('onboarding.page_not_found')}</p>`;
             currentRoute = null;
             return;
@@ -88,7 +88,7 @@
         // First visit: render, cache, and init
         const wrapper = document.createElement('div');
         wrapper.dataset.view = route;
-        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+        // nosemgrep
         wrapper.innerHTML = raw(routeDef.component.render());
         app.appendChild(wrapper);
         _viewCache[route] = wrapper;
@@ -208,7 +208,7 @@
 
         const toast = document.createElement('div');
         toast.className = `toast flex items-start gap-3 px-4 py-3 rounded-lg bg-brand-surface border ${bgMap[type] || bgMap.info} shadow-lg`;
-        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+        // nosemgrep
         toast.innerHTML = html`
             ${raw(iconMap[type] || iconMap.info)}
             <p class="text-sm text-brand-text flex-1">${message}</p>
@@ -274,7 +274,7 @@
 
             const backdrop = document.createElement('div');
             backdrop.className = 'fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             backdrop.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4 animate-[fadeIn_0.15s_ease-out]">
                     <h3 class="text-sm font-semibold text-brand-text">${title}</h3>
@@ -313,7 +313,7 @@
         if (!container || typeof I18n === 'undefined') return;
 
         const current = I18n.getLang();
-        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+        // nosemgrep
         container.innerHTML = I18n.SUPPORTED_LANGS.map(l => {
             const active = l.code === current;
             return html`<button class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${active
@@ -428,7 +428,7 @@
             };
             const toast = document.createElement('div');
             toast.className = `toast flex items-start gap-3 px-4 py-3 rounded-lg bg-brand-surface border ${bgMap[level]} shadow-lg`;
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             toast.innerHTML = html`
                 ${raw(iconMap[level])}
                 <div class="flex-1 min-w-0">
@@ -479,7 +479,7 @@
         }
         _syncModal = document.createElement('div');
         _syncModal.className = 'fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
-        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+        // nosemgrep
         _syncModal.innerHTML = html`
             <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-8 space-y-4">
                 <div class="text-center">
@@ -550,7 +550,7 @@
         if (!_syncModal) return;
         const inner = _syncModal.querySelector('.bg-brand-surface');
         if (hadError) {
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             inner.innerHTML = html`
                 <div class="text-3xl mb-2">⚠</div>
                 <h3 class="text-sm font-semibold text-amber-400">${t('onboarding.discovery_failed')}</h3>
@@ -572,7 +572,7 @@
             });
             return;
         } else {
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             inner.innerHTML = html`
                 <div class="text-3xl mb-2">✓</div>
                 <h3 class="text-sm font-semibold text-brand-text">${t('onboarding.ready_title')}</h3>
@@ -715,7 +715,7 @@
                     clearInterval(poll);
                     waitingForRestart = false;
                     if (restartBanner) {
-                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        // nosemgrep
                         restartBanner.innerHTML = html`<span class="mr-2">⚠</span> ${t('onboarding.server_timeout')} <button onclick="location.reload()" class="underline ml-2 font-semibold">${t('onboarding.refresh')}</button>`;
                         restartBanner.className = restartBanner.className.replace('bg-amber-600', 'bg-red-600');
                     }

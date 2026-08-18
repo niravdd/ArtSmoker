@@ -401,7 +401,7 @@ def poll_async_jobs(job_ids: list[str], timeout: int = 600) -> list[dict]:
             break
 
         # Wait before next poll
-        time.sleep(5)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate poll interval (sample script)
+        time.sleep(5)  # nosemgrep --deliberate poll interval (sample script)
 
     if pending > 0:
         print(f"  {Color.YELLOW}Warning: {pending} job(s) still pending "

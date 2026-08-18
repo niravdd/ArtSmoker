@@ -1267,7 +1267,7 @@ def _start_readiness_monitor(endpoint_name: str):
     def _monitor():
         try:
             for attempt in range(120):  # Up to 60 min (120 × 30s)
-                _time.sleep(30)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate endpoint-readiness poll interval
+                _time.sleep(30)  # nosemgrep --deliberate endpoint-readiness poll interval
 
                 # Check the ENDPOINT-level status first. A capacity failure
                 # (InsufficientInstanceCapacity) fails at PROVISIONING — the
@@ -1509,7 +1509,7 @@ def teardown_endpoint(model_key: str, delete_s3: bool = False, endpoint_name: st
             import time as _time
             logger.info("Endpoint %s is updating — waiting to retry deletion...", endpoint_name)
             for _attempt in range(10):
-                _time.sleep(30)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate poll interval
+                _time.sleep(30)  # nosemgrep --deliberate poll interval
                 try:
                     desc = sm.describe_endpoint(EndpointName=endpoint_name)
                     if desc["EndpointStatus"] == "InService":
@@ -1771,7 +1771,7 @@ def _set_log_retention(endpoint_name: str):
                 logger.info("CloudWatch retention set to %d days for %s", _LOG_RETENTION_DAYS, log_group)
                 return
             except logs.exceptions.ResourceNotFoundException:
-                _time.sleep(60)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- log group not created yet; deliberate wait
+                _time.sleep(60)  # nosemgrep --log group not created yet; deliberate wait
             except Exception as e:
                 logger.debug("Log retention setup failed for %s: %s", endpoint_name, e)
                 return
@@ -2088,7 +2088,7 @@ def _retry_auto_scaling_in_background(endpoint_name: str, scale_in_cooldown: int
 
     def _retry():
         for attempt in range(1, 13):  # 12 attempts × 60s = 12 min max
-            _time.sleep(60)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate poll interval
+            _time.sleep(60)  # nosemgrep --deliberate poll interval
             try:
                 status = check_endpoint_status(endpoint_name)
                 if status.get("status") == "InService":

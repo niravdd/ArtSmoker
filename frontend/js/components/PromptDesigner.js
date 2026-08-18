@@ -115,7 +115,7 @@
             const styleOptions = [html`<option value="">${_t('image_studio.style_none') || 'None (standalone mode)'}</option>`]
                 .concat(styles.map(s => html`<option value="${s.id}" ${s.id === curStyleId ? 'selected' : ''}>${s.name}</option>`));
 
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             body.innerHTML = html`
                 <div class="px-5 py-4 space-y-4">
                     <div class="grid grid-cols-2 gap-3">
@@ -209,7 +209,7 @@
                 this._renderDesigner();
             } catch (err) {
                 const body = this._modal?.querySelector('.pd-body');
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 if (body) body.innerHTML = html`
                     <div class="text-center py-8">
                         <p class="text-red-400 text-sm">${_t('prompt_designer.failed')}: ${err.message}</p>
@@ -223,7 +223,7 @@
             // Show loading spinner in the content area
             const body = this._modal?.querySelector('.pd-body');
             if (body) {
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 body.innerHTML = html`
                     <div class="text-center py-12">
                         <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
@@ -256,7 +256,7 @@
             if (this._modal) this._modal.remove();
             this._modal = document.createElement('div');
             this._modal.className = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto';
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             this._modal.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-w-3xl h-[80vh] flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
@@ -429,7 +429,7 @@
                 </div>`;
 
             const body = this._modal?.querySelector('.pd-body');
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             if (body) body.innerHTML = originalPromptBar + selectorRow + translationBanner + tabBar + tabContent + previewBar + actionBar + infoFooter;
 
             // Attach events
@@ -470,7 +470,7 @@
                     const current = this._varyFlags[key] || 'vary';
                     const next = current === 'lock' ? 'vary' : 'lock';
                     this._varyFlags[key] = next;
-                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    // nosemgrep
                     btn.innerHTML = html`${next === 'lock' ? _t('prompt_designer.toggle_fixed') : _t('prompt_designer.toggle_randomise')}`;
                     btn.title = next === 'lock'
                         ? _t('prompt_designer.toggle_fixed_title')

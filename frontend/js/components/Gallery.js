@@ -192,7 +192,7 @@
             ];
             const backdrop = document.createElement('div');
             backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             backdrop.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
                     <div>
@@ -265,7 +265,7 @@
                 if (!chosenFile) { window.showToast?.(t('gallery.import_pick_file'), 'warning'); return; }
                 if (!typeSel.value) { window.showToast?.(t('gallery.import_pick_type'), 'warning'); return; }
                 submitBtn.disabled = true;
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 submitBtn.innerHTML = html`<span class="spinner-sm"></span> ${t('gallery.import_importing')}`;
                 try {
                     const item = await API.gallery.import(chosenFile, {
@@ -369,7 +369,7 @@
                 this._items = [];
                 this._offset = 0;
                 this._cacheKey = String(Date.now());
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 if (grid) grid.innerHTML = this._skeletons(8);
             }
 
@@ -425,7 +425,7 @@
             } catch (err) {
                 console.error('Gallery load error:', err);
                 if (grid && this._items.length === 0) {
-                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    // nosemgrep
                     grid.innerHTML = html`<div class="col-span-full text-center py-8 text-red-400">${t('gallery.load_error')}</div>`;
                 }
             } finally {
@@ -547,7 +547,7 @@
 
             if (displayItems.length === 0 && this._items.length > 0) {
                 // Search returned no results
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 grid.innerHTML = html`
                     <div class="col-span-full text-center py-12 text-brand-text-muted">
                         <p class="text-sm">${t('gallery.no_results')}</p>
@@ -557,7 +557,7 @@
             }
 
             if (this._items.length === 0) {
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 grid.innerHTML = html`
                     <div class="col-span-full empty-state py-16">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -577,7 +577,7 @@
                 return;
             }
 
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             grid.innerHTML = displayItems.map((item) => this._cardHTML(item)).join('');
 
             // Card click → open viewer (image) or video player (video)

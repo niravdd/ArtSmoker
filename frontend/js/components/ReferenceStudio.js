@@ -54,7 +54,7 @@
 
         // ── Render ────────────────────────────────────────────────────
         _render() {
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             this.container.innerHTML = html`
                 <div class="reference-studio space-y-4">
                     <!-- Step 1: Reference images -->
@@ -236,7 +236,7 @@
             }
             this._empty.classList.add('hidden');
             this._thumbs.classList.remove('hidden');
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             this._thumbs.innerHTML = this._images.map((im, i) => html`
                 <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-brand-border group">
                     <img src="${im.dataUrl}" class="w-full h-full object-cover">

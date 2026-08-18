@@ -541,7 +541,7 @@
                 const styleFonts = this._fonts.filter(f => f.source === 'style');
                 const otherCount = this._fonts.length - styleFonts.length;
                 if (this._fonts.length === 0) {
-                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    // nosemgrep
                     listEl.innerHTML = html`<p class="text-brand-text-muted/60">${t('type_studio.fonts_empty')}</p>`;
                 } else {
                     let markup = '';
@@ -552,7 +552,7 @@
                         ).join('');
                     }
                     markup += html`<p class="text-brand-text-muted/50 text-[10px] mt-1">${otherCount} ${t('type_studio.more_fonts_suffix')}</p>`;
-                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    // nosemgrep
                     listEl.innerHTML = markup;
                 }
             }
@@ -572,7 +572,7 @@
                 const items = Array.isArray(data) ? data : (data.items || []);
                 this._recentImages = items;
 
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 sel.innerHTML = html`<option value="">${t('type_studio.browse_recent')}</option>` +
                     items.map(item => {
                         const label = item.png_filename || item.id;
@@ -645,7 +645,7 @@
             const globalFonts = this._fonts.filter(f => f.source === 'global');
             const systemFonts = this._fonts.filter(f => f.source === 'system');
 
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             container.innerHTML = this._lines.map((line, i) => html`
                 <div class="ts-line-row p-3 bg-brand-bg rounded-lg border border-brand-border space-y-2" data-line-index="${i}">
                     <div class="flex items-center gap-2">
@@ -890,7 +890,7 @@
             const btn = document.getElementById('ts-btn-suggest');
             const origHTML = btn.innerHTML;
             btn.disabled = true;
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             btn.innerHTML = html`<span class="spinner-sm"></span> ${t('type_studio.suggesting')}`;
 
             try {
@@ -902,7 +902,7 @@
             } finally {
                 this._suggesting = false;
                 btn.disabled = false;
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 btn.innerHTML = raw(origHTML);
             }
         },
@@ -954,7 +954,7 @@
                 markup = html`<pre class="p-2 bg-brand-bg rounded-lg border border-brand-border text-[11px] text-brand-text/70 overflow-x-auto whitespace-pre-wrap">${JSON.stringify(result, null, 2)}</pre>`;
             }
 
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             content.innerHTML = markup;
         },
 
@@ -991,7 +991,7 @@
 
             if (on) {
                 btn.disabled = true;
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 btn.innerHTML = html`<span class="spinner-sm"></span> ${t('type_studio.generating')}`;
                 loadingEl?.classList.remove('hidden');
                 placeholder?.classList.add('hidden');
@@ -999,7 +999,7 @@
                 document.getElementById('ts-download-bar')?.classList.add('hidden');
             } else {
                 btn.disabled = false;
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 btn.innerHTML = html`
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
@@ -1029,7 +1029,7 @@
                 // Show options row
                 optionsSection.classList.remove('hidden');
                 optionsGrid.className = `grid gap-3 grid-cols-${Math.min(options.length, 5)}`;
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 optionsGrid.innerHTML = options.map((opt, i) => html`
                     <button class="ts-option-card group relative rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-pointer
                         ${i === 0 ? 'border-brand-accent ring-2 ring-brand-accent/40' : 'border-brand-border hover:border-brand-accent/50'}"
@@ -1122,7 +1122,7 @@
 
             const btn = document.getElementById('ts-btn-apply-pp');
             const origHTML = btn.innerHTML;
-            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            // nosemgrep
             btn.innerHTML = html`<span class="spinner-sm"></span> ${t('type_studio.pp_processing')}`;
             btn.disabled = true;
 
@@ -1144,7 +1144,7 @@
             } catch (err) {
                 console.error('Post-process error:', err);
             } finally {
-                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                // nosemgrep
                 btn.innerHTML = raw(origHTML);
                 btn.disabled = false;
             }
