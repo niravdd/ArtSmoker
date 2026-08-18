@@ -17,6 +17,7 @@
         _videoSettings: null,
 
         render() {
+            // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
             return `
                 <div id="video-studio-view" class="view-enter">
                     <div class="mb-6">

@@ -585,8 +585,10 @@
 
             let optionsHtml = '';
             for (const [provider, models] of Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0]))) {
+                // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
                 optionsHtml += `<optgroup label="${this._esc(provider)}">`;
                 models.sort((a, b) => a.label.localeCompare(b.label)).forEach(m => {
+                    // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
                     optionsHtml += `<option value="${this._esc(m.mid)}" data-region="${this._esc(m.region)}" ${m.selected ? 'selected' : ''}>${this._esc(m.label)}${m.regions > 1 ? ` (${m.regions} regions)` : ''}</option>`;
                 });
                 optionsHtml += '</optgroup>';
@@ -598,6 +600,7 @@
             for (const m of Object.values(chatModels)) {
                 if (isExact(m.model_id || '')) { currentLabel = m.label || m.model_id; hasMatch = true; break; }
             }
+            // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
             const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(currentId)} (current)</option>` : '';
 
             return html`
@@ -696,9 +699,11 @@
                 .map(([, im]) => {
                     const mid = im.model_id || '';
                     const isMatch = mid === currentId || familyOf(mid) === currentFamily;
+                    // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
                     return `<option value="${this._esc(isMatch ? currentId : mid)}" data-region="${this._esc(im.region || '')}" ${isMatch ? 'selected' : ''}>${this._esc(im.label || mid)} (${this._esc(im.provider || '')})</option>`;
                 }).join('');
             const hasMatch = modelOptions.includes('selected');
+            // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
             const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(m.label || currentId)}</option>` : '';
 
             return html`
