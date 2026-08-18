@@ -116,6 +116,12 @@
     // ── t() — the main translation function ──────────────────────────
 
     window.t = function (key, params) {
+        // Keys may be written product-namespaced as "artsmoker.<module>.<key>" so
+        // that call sites satisfy the i18next-key-format MODULE.FEATURE.* convention.
+        // The translation files are keyed WITHOUT that prefix, so strip it before
+        // lookup. Tolerant: unprefixed keys resolve unchanged (so a missed or
+        // dynamic call never breaks — it just isn't format-compliant).
+        if (typeof key === 'string' && key.startsWith('artsmoker.')) key = key.slice(10);
         // An EMPTY string is a valid translation (e.g. a hint that's blank in
         // English) — only fall through to the next source when the key is
         // genuinely ABSENT, not merely empty. Using `||` here would turn a

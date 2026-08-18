@@ -94,7 +94,7 @@
             this.container.innerHTML = html`
                 <div class="voice-input-wrap inline-flex items-center gap-2">
                     <button type="button" class="voice-btn btn btn-secondary btn-sm rounded-full w-9 h-9 !p-0 relative"
-                            title="${t('misc.voice_record')}">
+                            title="${t('artsmoker.misc.voice_record')}">
                         <svg class="voice-icon-mic w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M19 11a7 7 0 01-14 0m7 7v4m-4 0h8m-4-16a3 3 0 00-3 3v4a3 3 0 006 0V6a3 3 0 00-3-3z"/>
