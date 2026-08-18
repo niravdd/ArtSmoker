@@ -74,7 +74,7 @@
 
             // Gallery reload with no decomposed data — don't re-analyze
             if (opts.galleryReload && !opts.decomposedData) {
-                this._showModal(`
+                this._showModal(html`
                     <div class="text-center py-12">
                         <p class="text-sm text-brand-text-muted">${_t('prompt_designer.no_decomposed_data')}</p>
                         <p class="text-[10px] text-brand-text-muted/50 mt-2">${_t('prompt_designer.no_decomposed_data_sub')}</p>
@@ -87,7 +87,7 @@
 
             if (this._originalPrompt) {
                 // Has prompt → decompose immediately
-                this._showModal(`
+                this._showModal(html`
                     <div class="text-center py-12">
                         <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
                         <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
@@ -109,14 +109,14 @@
             const assetType = this._opts?.assetType || 'photorealistic';
             const curStyleId = this._opts?.styleId || '';
             const assetOptions = ASSET_TYPES.map(a =>
-                `<option value="${a.value}" ${a.value === assetType ? 'selected' : ''}>${_t(a.labelKey)}</option>`
-            ).join('');
+                html`<option value="${a.value}" ${a.value === assetType ? 'selected' : ''}>${_t(a.labelKey)}</option>`
+            );
             const styles = this._stylesList || [];
-            const styleOptions = [`<option value="">${_t('image_studio.style_none') || 'None (standalone mode)'}</option>`]
-                .concat(styles.map(s => `<option value="${s.id}" ${s.id === curStyleId ? 'selected' : ''}>${s.name}</option>`))
-                .join('');
+            const styleOptions = [html`<option value="">${_t('image_studio.style_none') || 'None (standalone mode)'}</option>`]
+                .concat(styles.map(s => html`<option value="${s.id}" ${s.id === curStyleId ? 'selected' : ''}>${s.name}</option>`));
 
-            body.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            body.innerHTML = html`
                 <div class="px-5 py-4 space-y-4">
                     <div class="grid grid-cols-2 gap-3">
                         <div>
@@ -141,10 +141,10 @@
                     <p class="text-[10px] text-brand-text-muted/40 text-center">${_t('prompt_designer.decompose_hint')}</p>
                 </div>
                 <div class="flex border-b border-brand-border opacity-30 pointer-events-none">
-                    ${TABS.map(tab => `<div class="flex-1 py-2.5 text-[11px] font-medium text-brand-text-muted/30 text-center">
+                    ${TABS.map(tab => html`<div class="flex-1 py-2.5 text-[11px] font-medium text-brand-text-muted/30 text-center">
                         <span class="block">${tab.icon}</span>
                         <span class="block mt-0.5">${_t(tab.labelKey)}</span>
-                    </div>`).join('')}
+                    </div>`)}
                 </div>
                 <div class="px-5 py-8 text-center text-brand-text-muted/20 text-xs">
                     ${_t('prompt_designer.empty_tabs_hint')}
@@ -209,7 +209,8 @@
                 this._renderDesigner();
             } catch (err) {
                 const body = this._modal?.querySelector('.pd-body');
-                if (body) body.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                if (body) body.innerHTML = html`
                     <div class="text-center py-8">
                         <p class="text-red-400 text-sm">${_t('prompt_designer.failed')}: ${err.message}</p>
                         <button class="btn btn-sm mt-4 px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted" onclick="PromptDesigner.close()">Close</button>
@@ -222,7 +223,8 @@
             // Show loading spinner in the content area
             const body = this._modal?.querySelector('.pd-body');
             if (body) {
-                body.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                body.innerHTML = html`
                     <div class="text-center py-12">
                         <div class="text-3xl mb-3" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
                         <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
@@ -254,7 +256,8 @@
             if (this._modal) this._modal.remove();
             this._modal = document.createElement('div');
             this._modal.className = 'fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto';
-            this._modal.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            this._modal.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-w-3xl h-[80vh] flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
                         <h2 class="text-sm font-semibold text-brand-text flex items-center gap-2">
@@ -279,7 +282,7 @@
             if (meta.was_translated) {
                 const langNames = { ja: '日本語', zh: '中文', ko: '한국어', hi: 'हिन्दी', ru: 'Русский', fr: 'Français', es: 'Español', de: 'Deutsch' };
                 const langName = langNames[meta.original_language] || meta.original_language;
-                translationBanner = `
+                translationBanner = html`
                     <div class="mx-5 mt-4 p-3 rounded-lg bg-brand-accent/5 border border-brand-accent/20 space-y-1.5">
                         <div class="flex items-center gap-2">
                             <span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent font-medium">${langName} → English</span>
@@ -291,31 +294,31 @@
             }
 
             // Tab bar
-            let tabBar = '<div class="flex border-b border-brand-border">';
+            const tabBarButtons = [];
             for (const tab of TABS) {
                 const active = tab.key === this._activeTab;
                 const count = (d[tab.key] ? Object.values(d[tab.key]).filter(v => {
                     if (v && typeof v === 'object' && v.value) return v.value.length > 0;
                     return v && typeof v === 'string' && v.length > 0;
                 }).length : 0);
-                tabBar += `<button class="pd-tab flex-1 py-2.5 text-[11px] font-medium transition-all border-b-2 ${
+                tabBarButtons.push(html`<button class="pd-tab flex-1 py-2.5 text-[11px] font-medium transition-all border-b-2 ${
                     active
                         ? 'text-brand-accent border-brand-accent bg-brand-accent/5'
                         : 'text-brand-text-muted border-transparent hover:text-brand-text hover:bg-white/3'
                 }" data-tab="${tab.key}">
                     <span class="block">${tab.icon}</span>
                     <span class="block mt-0.5">${_t(tab.labelKey)}</span>
-                    ${count ? `<span class="text-[9px] opacity-50">(${count})</span>` : ''}
-                </button>`;
+                    ${count ? html`<span class="text-[9px] opacity-50">(${count})</span>` : ''}
+                </button>`);
             }
-            tabBar += '</div>';
+            const tabBar = html`<div class="flex border-b border-brand-border">${tabBarButtons}</div>`;
 
             // Tab content
-            let tabContent = '';
+            const tabContentEls = [];
             for (const tab of TABS) {
                 const sectionData = d[tab.key] || {};
                 const isActive = tab.key === this._activeTab;
-                let fields = '';
+                const fields = [];
 
                 for (const field of tab.fields) {
                     const raw = sectionData[field] || '';
@@ -328,7 +331,7 @@
                         ? _t('prompt_designer.toggle_fixed_title')
                         : _t('prompt_designer.toggle_randomise_title');
                     const toggleBg = isLocked ? 'bg-amber-500/15 text-amber-400' : 'bg-brand-accent/10 text-brand-accent';
-                    fields += `
+                    fields.push(html`
                         <div class="pd-field group">
                             <div class="flex items-center justify-between mb-1">
                                 <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium">${_fieldLabel(field)}</label>
@@ -340,7 +343,7 @@
                                 ${isLocked ? 'border-l-2 border-l-amber-500/50' : 'border-l-2 border-l-brand-accent/30'}"
                                 rows="${value.length > 150 ? 3 : 2}"
                                 data-section="${tab.key}" data-field="${field}">${value}</textarea>
-                        </div>`;
+                        </div>`);
                 }
 
                 // Color palette (in Style tab)
@@ -348,12 +351,10 @@
                 if (tab.key === 'style') {
                     const palette = d.style?.color_palette || [];
                     if (palette.length) {
-                        colorHtml = `
+                        colorHtml = html`
                             <div class="mt-3">
                                 <label class="text-[10px] text-brand-text-muted uppercase tracking-wide font-medium block mb-2">${_t('prompt_designer.color_palette')}</label>
-                                <div class="grid grid-cols-2 gap-2">`;
-                        for (const color of palette) {
-                            colorHtml += `
+                                <div class="grid grid-cols-2 gap-2">${palette.map(color => html`
                                 <div class="flex items-center gap-2.5 bg-black/20 rounded-lg px-3 py-2.5 border border-brand-border/30">
                                     <div class="w-10 h-10 rounded-lg border-2 border-white/10 flex-shrink-0 shadow-inner" style="background-color: ${color.hex}"></div>
                                     <div class="min-w-0">
@@ -361,35 +362,34 @@
                                         <div class="text-[10px] text-brand-text-muted font-mono">${color.hex}</div>
                                         <div class="text-[9px] text-brand-text-muted/60 truncate">${color.usage || ''}</div>
                                     </div>
-                                </div>`;
-                        }
-                        colorHtml += '</div></div>';
+                                </div>`)}</div>
+                            </div>`;
                     }
                 }
 
-                tabContent += `<div class="pd-tab-content p-4 space-y-3 ${isActive ? '' : 'hidden'}" data-tab-content="${tab.key}">
+                tabContentEls.push(html`<div class="pd-tab-content p-4 space-y-3 ${isActive ? '' : 'hidden'}" data-tab-content="${tab.key}">
                     ${fields}${colorHtml}
-                </div>`;
+                </div>`);
             }
+            const tabContent = html`${tabContentEls}`;
 
             // Original prompt (always visible at top of content)
-            const originalPromptBar = this._originalPrompt ? `
+            const originalPromptBar = this._originalPrompt ? html`
                 <div class="mx-5 mt-3 mb-1">
                     <label class="block text-[9px] text-brand-text-muted uppercase tracking-wider mb-1">${_t('prompt_designer.original_prompt_label')}</label>
-                    <p class="text-[11px] text-brand-text/70 italic bg-black/10 rounded-lg px-3 py-2 line-clamp-2">${this._esc(this._originalPrompt)}</p>
+                    <p class="text-[11px] text-brand-text/70 italic bg-black/10 rounded-lg px-3 py-2 line-clamp-2">${this._originalPrompt}</p>
                 </div>` : '';
 
             // Asset Type + Art Style selector row
             const curAssetType = this._opts?.assetType || 'photorealistic';
             const curStyleId = this._opts?.styleId || '';
             const assetOptions = ASSET_TYPES.map(a =>
-                `<option value="${a.value}" ${a.value === curAssetType ? 'selected' : ''}>${_t(a.labelKey)}</option>`
-            ).join('');
+                html`<option value="${a.value}" ${a.value === curAssetType ? 'selected' : ''}>${_t(a.labelKey)}</option>`
+            );
             const styles = this._stylesList || [];
-            const styleOptions = [`<option value="">${_t('image_studio.style_none') || 'None (standalone mode)'}</option>`]
-                .concat(styles.map(s => `<option value="${s.id}" ${s.id === curStyleId ? 'selected' : ''}>${s.name}</option>`))
-                .join('');
-            const selectorRow = `
+            const styleOptions = [html`<option value="">${_t('image_studio.style_none') || 'None (standalone mode)'}</option>`]
+                .concat(styles.map(s => html`<option value="${s.id}" ${s.id === curStyleId ? 'selected' : ''}>${s.name}</option>`));
+            const selectorRow = html`
                 <div class="mx-5 mt-3 mb-2 flex items-center gap-4">
                     <div class="flex items-center gap-1.5 min-w-0">
                         <label class="text-[9px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">${_t('image_studio.asset_type')}</label>
@@ -402,7 +402,7 @@
                 </div>`;
 
             // Live preview (constructed from current fields — no LLM, instant)
-            const previewBar = `
+            const previewBar = html`
                 <div class="mx-5 mb-2">
                     <div class="flex items-center justify-between mb-1">
                         <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('prompt_designer.prompt_preview')} <span class="text-brand-text-muted/40">${_t('prompt_designer.preview_subtitle')}</span></label>
@@ -412,14 +412,14 @@
                 </div>`;
 
             // Action bar
-            const actionBar = `
+            const actionBar = html`
                 <div class="flex items-center justify-end px-5 py-3 border-t border-brand-border bg-black/10 gap-2">
                     <button class="pd-cancel text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${_t('prompt_designer.cancel')}</button>
                     <button class="pd-save text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${_t('prompt_designer.save_continue')}</button>
                 </div>`;
 
             // Info footer explaining lock/vary — below buttons, visible on every tab
-            const infoFooter = `
+            const infoFooter = html`
                 <div class="px-5 py-2.5 bg-black/5">
                     <p class="text-[10.5px] text-brand-text-muted/80 leading-loose">
                         <span class="text-brand-accent font-medium">${_t('prompt_designer.footer_randomise')}</span> <span class="text-brand-text-muted/50">${_t('prompt_designer.footer_randomise_default')}</span> — ${_t('prompt_designer.footer_randomise_desc')}<br>
@@ -429,6 +429,7 @@
                 </div>`;
 
             const body = this._modal?.querySelector('.pd-body');
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
             if (body) body.innerHTML = originalPromptBar + selectorRow + translationBanner + tabBar + tabContent + previewBar + actionBar + infoFooter;
 
             // Attach events
@@ -469,7 +470,8 @@
                     const current = this._varyFlags[key] || 'vary';
                     const next = current === 'lock' ? 'vary' : 'lock';
                     this._varyFlags[key] = next;
-                    btn.innerHTML = next === 'lock' ? _t('prompt_designer.toggle_fixed') : _t('prompt_designer.toggle_randomise');
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    btn.innerHTML = html`${next === 'lock' ? _t('prompt_designer.toggle_fixed') : _t('prompt_designer.toggle_randomise')}`;
                     btn.title = next === 'lock'
                         ? _t('prompt_designer.toggle_fixed_title')
                         : _t('prompt_designer.toggle_randomise_title');

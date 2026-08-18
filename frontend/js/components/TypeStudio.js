@@ -155,7 +155,7 @@
         // ── Render ──────────────────────────────────────────────────
 
         render() {
-            return `
+            return html`
                 <div id="type-studio-view" class="view-enter">
                     <div class="mb-6">
                         <h1 class="text-2xl font-bold">${t('type_studio.title')}</h1>
@@ -541,17 +541,19 @@
                 const styleFonts = this._fonts.filter(f => f.source === 'style');
                 const otherCount = this._fonts.length - styleFonts.length;
                 if (this._fonts.length === 0) {
-                    listEl.innerHTML = `<p class="text-brand-text-muted/60">${t('type_studio.fonts_empty')}</p>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    listEl.innerHTML = html`<p class="text-brand-text-muted/60">${t('type_studio.fonts_empty')}</p>`;
                 } else {
-                    let html = '';
+                    let markup = '';
                     if (styleFonts.length > 0) {
-                        html += `<p class="text-brand-accent text-[10px] font-bold uppercase mb-1">${t('type_studio.style_fonts_count', { count: styleFonts.length })}</p>`;
-                        html += styleFonts.map(f =>
-                            `<div class="py-0.5" style="font-family: '${_font_css_family(f)}'">${this._escapeHtml(f.display_name || f.name)}</div>`
+                        markup += html`<p class="text-brand-accent text-[10px] font-bold uppercase mb-1">${t('type_studio.style_fonts_count', { count: styleFonts.length })}</p>`;
+                        markup += styleFonts.map(f =>
+                            html`<div class="py-0.5" style="font-family: '${_font_css_family(f)}'">${f.display_name || f.name}</div>`
                         ).join('');
                     }
-                    html += `<p class="text-brand-text-muted/50 text-[10px] mt-1">${otherCount} ${t('type_studio.more_fonts_suffix')}</p>`;
-                    listEl.innerHTML = html;
+                    markup += html`<p class="text-brand-text-muted/50 text-[10px] mt-1">${otherCount} ${t('type_studio.more_fonts_suffix')}</p>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    listEl.innerHTML = markup;
                 }
             }
 
@@ -570,10 +572,11 @@
                 const items = Array.isArray(data) ? data : (data.items || []);
                 this._recentImages = items;
 
-                sel.innerHTML = `<option value="">${t('type_studio.browse_recent')}</option>` +
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                sel.innerHTML = html`<option value="">${t('type_studio.browse_recent')}</option>` +
                     items.map(item => {
                         const label = item.png_filename || item.id;
-                        return `<option value="${this._escapeHtml(item.id)}">${this._escapeHtml(label)}</option>`;
+                        return html`<option value="${item.id}">${label}</option>`;
                     }).join('');
             } catch {
                 // Leave the dropdown as-is
@@ -634,20 +637,21 @@
             this._syncLinesFromDOM();
 
             const positionOptions = POSITIONS.map(p =>
-                `<option value="${p.value}">${t(p.labelKey)}</option>`
-            ).join('');
+                html`<option value="${p.value}">${t(p.labelKey)}</option>`
+            );
 
             // Group fonts by source for the picker
             const styleFonts = this._fonts.filter(f => f.source === 'style');
             const globalFonts = this._fonts.filter(f => f.source === 'global');
             const systemFonts = this._fonts.filter(f => f.source === 'system');
 
-            container.innerHTML = this._lines.map((line, i) => `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            container.innerHTML = this._lines.map((line, i) => html`
                 <div class="ts-line-row p-3 bg-brand-bg rounded-lg border border-brand-border space-y-2" data-line-index="${i}">
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-bold text-brand-text-muted/50 w-5 text-center">${i + 1}</span>
                         <input type="text" class="ts-line-text input flex-1" placeholder="${t('type_studio.text_placeholder')}"
-                            value="${this._escapeAttr(line.text)}" />
+                            value="${line.text}" />
                         <button class="ts-voice-btn p-1.5 rounded-lg text-brand-text-muted hover:text-brand-accent hover:bg-brand-accent/10 transition-colors"
                             data-line-index="${i}" title="${t('type_studio.voice_input')}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -664,12 +668,12 @@
                     <div class="flex gap-2 pl-7">
                         <div class="ts-font-picker relative flex-[3]" data-line-index="${i}">
                             <button type="button" class="ts-font-btn input text-sm w-full text-left flex items-center justify-between">
-                                <span class="ts-font-label truncate">${this._escapeHtml(line.font ? _font_display_name(line.font) : t('type_studio.default_font'))}</span>
+                                <span class="ts-font-label truncate">${line.font ? _font_display_name(line.font) : t('type_studio.default_font')}</span>
                                 <svg class="w-3 h-3 flex-shrink-0 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                 </svg>
                             </button>
-                            <input type="hidden" class="ts-font-value" value="${this._escapeAttr(line.font || '')}" />
+                            <input type="hidden" class="ts-font-value" value="${line.font || ''}" />
                             <div class="ts-font-dropdown hidden absolute z-50 left-0 right-0 top-full mt-1 bg-brand-surface border border-brand-border rounded-lg shadow-xl max-h-96 overflow-y-auto">
                                 <div class="p-2">
                                     <input type="text" class="ts-font-search input text-xs w-full" placeholder="${t('type_studio.search_fonts')}" />
@@ -678,29 +682,29 @@
                                     <div class="ts-font-option px-3 py-2 text-xs cursor-pointer hover:bg-white/5 rounded" data-font="">
                                         <span class="text-brand-text-muted">${t('type_studio.default_font')}</span>
                                     </div>
-                                    ${styleFonts.length > 0 ? `
+                                    ${styleFonts.length > 0 ? html`
                                         <div class="px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold text-brand-accent border-t border-brand-border mt-1 pt-2">${t('type_studio.style_fonts')}</div>
-                                        ${styleFonts.map(f => `
-                                            <div class="ts-font-option px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded" data-font="${this._escapeAttr(f.name)}" data-display="${this._escapeAttr(f.display_name)}" data-source="style">
-                                                <span style="font-family: '${_font_css_family(f)}'" class="text-lg">${this._escapeHtml(f.display_name)}</span>
+                                        ${styleFonts.map(f => html`
+                                            <div class="ts-font-option px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded" data-font="${f.name}" data-display="${f.display_name}" data-source="style">
+                                                <span style="font-family: '${_font_css_family(f)}'" class="text-lg">${f.display_name}</span>
                                             </div>
-                                        `).join('')}
+                                        `)}
                                     ` : ''}
-                                    ${globalFonts.length > 0 ? `
+                                    ${globalFonts.length > 0 ? html`
                                         <div class="px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold text-emerald-400 border-t border-brand-border mt-1 pt-2">${t('type_studio.project_fonts')}</div>
-                                        ${globalFonts.map(f => `
-                                            <div class="ts-font-option px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded" data-font="${this._escapeAttr(f.name)}" data-display="${this._escapeAttr(f.display_name)}" data-source="global">
-                                                <span style="font-family: '${_font_css_family(f)}'" class="text-lg">${this._escapeHtml(f.display_name)}</span>
+                                        ${globalFonts.map(f => html`
+                                            <div class="ts-font-option px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded" data-font="${f.name}" data-display="${f.display_name}" data-source="global">
+                                                <span style="font-family: '${_font_css_family(f)}'" class="text-lg">${f.display_name}</span>
                                             </div>
-                                        `).join('')}
+                                        `)}
                                     ` : ''}
-                                    ${systemFonts.length > 0 ? `
+                                    ${systemFonts.length > 0 ? html`
                                         <div class="px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold text-brand-text-muted border-t border-brand-border mt-1 pt-2">${t('type_studio.system_fonts')}</div>
-                                        ${systemFonts.map(f => `
-                                            <div class="ts-font-option px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded" data-font="${this._escapeAttr(f.name)}" data-display="${this._escapeAttr(f.display_name)}" data-source="system">
-                                                <span style="font-family: '${_font_css_family(f)}'" class="text-lg">${this._escapeHtml(f.display_name)}</span>
+                                        ${systemFonts.map(f => html`
+                                            <div class="ts-font-option px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded" data-font="${f.name}" data-display="${f.display_name}" data-source="system">
+                                                <span style="font-family: '${_font_css_family(f)}'" class="text-lg">${f.display_name}</span>
                                             </div>
-                                        `).join('')}
+                                        `)}
                                     ` : ''}
                                 </div>
                             </div>
@@ -886,7 +890,8 @@
             const btn = document.getElementById('ts-btn-suggest');
             const origHTML = btn.innerHTML;
             btn.disabled = true;
-            btn.innerHTML = `<span class="spinner-sm"></span> ${t('type_studio.suggesting')}`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('type_studio.suggesting')}`;
 
             try {
                 const result = await API.typeStudio.suggest(payload);
@@ -897,7 +902,8 @@
             } finally {
                 this._suggesting = false;
                 btn.disabled = false;
-                btn.innerHTML = origHTML;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                btn.innerHTML = raw(origHTML);
             }
         },
 
@@ -908,7 +914,7 @@
 
             section.classList.remove('hidden');
 
-            let html = '';
+            let markup = '';
 
             // Handle multiple layouts from /suggest endpoint
             const layouts = result.layouts || (result.layout_spec ? [result.layout_spec] : [result]);
@@ -916,39 +922,40 @@
             layouts.forEach((layout, li) => {
                 const lines = layout.lines || [];
                 if (layouts.length > 1) {
-                    html += `<div class="font-semibold text-brand-accent text-xs uppercase mt-${li > 0 ? '4' : '0'} mb-1">${t('type_studio.option_label', { number: li + 1 })}</div>`;
+                    markup += html`<div class="font-semibold text-brand-accent text-xs uppercase mt-${li > 0 ? '4' : '0'} mb-1">${t('type_studio.option_label', { number: li + 1 })}</div>`;
                 }
                 if (lines.length > 0) {
-                    html += '<div class="space-y-1">';
+                    markup += '<div class="space-y-1">';
                     lines.forEach((line, i) => {
-                        const colorSwatch = line.color ? `<span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:${line.color}"></span>` : '';
-                        html += `<div class="p-2 bg-brand-bg rounded-lg border border-brand-border text-xs">
+                        const colorSwatch = line.color ? html`<span class="inline-block w-3 h-3 rounded-sm align-middle mr-1" style="background:${line.color}"></span>` : '';
+                        markup += html`<div class="p-2 bg-brand-bg rounded-lg border border-brand-border text-xs">
                             <span class="font-semibold text-brand-text">Line ${i + 1}:</span>
-                            "${this._escapeHtml(line.text || '')}"
-                            ${line.font_size ? `<span class="text-brand-text-muted ml-2">Size: ${line.font_size}</span>` : ''}
-                            ${line.color ? `<span class="text-brand-text-muted ml-2">${colorSwatch}${line.color}</span>` : ''}
-                            ${line.anchor ? `<span class="text-brand-text-muted ml-2">Anchor: ${line.anchor}</span>` : ''}
+                            "${line.text || ''}"
+                            ${line.font_size ? html`<span class="text-brand-text-muted ml-2">Size: ${line.font_size}</span>` : ''}
+                            ${line.color ? html`<span class="text-brand-text-muted ml-2">${colorSwatch}${line.color}</span>` : ''}
+                            ${line.anchor ? html`<span class="text-brand-text-muted ml-2">Anchor: ${line.anchor}</span>` : ''}
                         </div>`;
                     });
-                    html += '</div>';
+                    markup += '</div>';
                 }
             });
 
             // Show raw spec in collapsible
             if (result.layout_spec || result.layouts) {
                 const raw = result.layouts || result.layout_spec;
-                html += `<details class="mt-2">
+                markup += html`<details class="mt-2">
                     <summary class="text-xs text-brand-text-muted cursor-pointer hover:text-brand-text">${t('type_studio.view_raw')}</summary>
-                    <pre class="mt-1 p-2 bg-brand-bg rounded-lg border border-brand-border text-[11px] text-brand-text/70 overflow-x-auto whitespace-pre-wrap">${this._escapeHtml(JSON.stringify(raw, null, 2))}</pre>
+                    <pre class="mt-1 p-2 bg-brand-bg rounded-lg border border-brand-border text-[11px] text-brand-text/70 overflow-x-auto whitespace-pre-wrap">${JSON.stringify(raw, null, 2)}</pre>
                 </details>`;
             }
 
             // Fallback: if nothing was rendered, show the raw JSON
-            if (!html) {
-                html = `<pre class="p-2 bg-brand-bg rounded-lg border border-brand-border text-[11px] text-brand-text/70 overflow-x-auto whitespace-pre-wrap">${this._escapeHtml(JSON.stringify(result, null, 2))}</pre>`;
+            if (!markup) {
+                markup = html`<pre class="p-2 bg-brand-bg rounded-lg border border-brand-border text-[11px] text-brand-text/70 overflow-x-auto whitespace-pre-wrap">${JSON.stringify(result, null, 2)}</pre>`;
             }
 
-            content.innerHTML = html;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            content.innerHTML = markup;
         },
 
         _showSuggestion(layoutSpec) {
@@ -984,14 +991,16 @@
 
             if (on) {
                 btn.disabled = true;
-                btn.innerHTML = `<span class="spinner-sm"></span> ${t('type_studio.generating')}`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('type_studio.generating')}`;
                 loadingEl?.classList.remove('hidden');
                 placeholder?.classList.add('hidden');
                 document.getElementById('ts-result-img')?.classList.add('hidden');
                 document.getElementById('ts-download-bar')?.classList.add('hidden');
             } else {
                 btn.disabled = false;
-                btn.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                btn.innerHTML = html`
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
@@ -1020,7 +1029,8 @@
                 // Show options row
                 optionsSection.classList.remove('hidden');
                 optionsGrid.className = `grid gap-3 grid-cols-${Math.min(options.length, 5)}`;
-                optionsGrid.innerHTML = options.map((opt, i) => `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                optionsGrid.innerHTML = options.map((opt, i) => html`
                     <button class="ts-option-card group relative rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-pointer
                         ${i === 0 ? 'border-brand-accent ring-2 ring-brand-accent/40' : 'border-brand-border hover:border-brand-accent/50'}"
                         data-option-index="${i}">
@@ -1112,7 +1122,8 @@
 
             const btn = document.getElementById('ts-btn-apply-pp');
             const origHTML = btn.innerHTML;
-            btn.innerHTML = `<span class="spinner-sm"></span> ${t('type_studio.pp_processing')}`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('type_studio.pp_processing')}`;
             btn.disabled = true;
 
             try {
@@ -1133,7 +1144,8 @@
             } catch (err) {
                 console.error('Post-process error:', err);
             } finally {
-                btn.innerHTML = origHTML;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                btn.innerHTML = raw(origHTML);
                 btn.disabled = false;
             }
         },

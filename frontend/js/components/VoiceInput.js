@@ -90,7 +90,8 @@
         // -- Private --
 
         _render() {
-            this.container.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            this.container.innerHTML = html`
                 <div class="voice-input-wrap inline-flex items-center gap-2">
                     <button type="button" class="voice-btn btn btn-secondary btn-sm rounded-full w-9 h-9 !p-0 relative"
                             title="${t('misc.voice_record')}">

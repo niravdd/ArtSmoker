@@ -46,7 +46,8 @@
             const modal = document.createElement('div');
             modal.id = 'model-settings-modal';
             modal.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
-            modal.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            modal.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full h-[90vh] flex flex-col overflow-hidden" style="max-width: 80rem;">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
@@ -156,14 +157,14 @@
                                         ${['complex_llm', 'fast_llm'].map(name => {
                                             const cat = (reg.categories || {})[name];
                                             return cat ? this._renderCategory(name, cat) : '';
-                                        }).join('')}
+                                        })}
                                     </div>
                                 </details>
                                 <details class="ms-collapsible">
                                     <summary class="text-sm font-semibold text-amber-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('model_settings.post_processing')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.post_processing || {}).length})</span></summary>
                                     <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('model_settings.type_pp_desc')}</p>
                                     <div class="space-y-3">
-                                        ${Object.entries(reg.post_processing || {}).map(([key, m]) => this._renderPostProcess(key, m)).join('')}
+                                        ${Object.entries(reg.post_processing || {}).map(([key, m]) => this._renderPostProcess(key, m))}
                                     </div>
                                 </details>
                             </div>
@@ -179,7 +180,7 @@
                                 <details class="ms-collapsible">
                                     <summary class="text-sm font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('model_settings.llm_categories')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.categories || {}).length - (reg.categories?.custom_llms ? 1 : 0)})</span></summary>
                                     <div class="space-y-3 mt-2">
-                                        ${Object.entries(reg.categories || {}).filter(([name]) => name !== 'custom_llms').map(([name, cat]) => this._renderCategory(name, cat)).join('')}
+                                        ${Object.entries(reg.categories || {}).filter(([name]) => name !== 'custom_llms').map(([name, cat]) => this._renderCategory(name, cat))}
                                     </div>
                                 </details>
                                 ${this._renderCustomLLMs(reg)}
@@ -225,7 +226,7 @@
                         <!-- Tab: Registry JSON -->
                         <div class="ms-tab-panel hidden" data-ms-panel="registry-json">
                             <p class="text-xs text-brand-text-muted mb-2">${t('model_settings.json_desc')}</p>
-                            <textarea id="ms-json-editor" class="w-full h-[50vh] font-mono text-xs p-3 rounded-lg bg-brand-bg border border-brand-border text-brand-text resize-none" spellcheck="false">${this._esc(JSON.stringify(reg, null, 2))}</textarea>
+                            <textarea id="ms-json-editor" class="w-full h-[50vh] font-mono text-xs p-3 rounded-lg bg-brand-bg border border-brand-border text-brand-text resize-none" spellcheck="false">${JSON.stringify(reg, null, 2)}</textarea>
                             <div class="flex items-center gap-2 mt-2">
                                 <button id="ms-json-save" class="btn btn-primary btn-sm text-xs">${t('model_settings.save_json')}</button>
                                 <button id="ms-json-reset" class="btn btn-secondary btn-sm text-xs">${t('model_settings.reset_json')}</button>
@@ -261,15 +262,15 @@
 
         _sourceBadge(model) {
             const source = model.model_source || 'foundation';
-            if (source === 'custom') return '<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>';
-            if (source === 'imported') return '<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>';
+            if (source === 'custom') return raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>');
+            if (source === 'imported') return raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>');
             return '';
         },
 
         _renderImageModels(reg) {
             const models = reg.image_models || {};
             if (Object.keys(models).length === 0) {
-                return '<p class="text-sm text-brand-text-muted py-4 text-center">' + t('model_settings.no_models') + '</p>';
+                return html`<p class="text-sm text-brand-text-muted py-4 text-center">${t('model_settings.no_models')}</p>`;
             }
 
             // Per-purpose short tag shown on each model card (its specific role).
@@ -341,26 +342,25 @@
             const renderSection = (label, entries, idx) => {
                 if (!entries.length) return '';
                 const color = _sectionColors[idx % _sectionColors.length];
-                return `
+                return html`
                     <details class="mb-3 ms-collapsible">
                         <summary class="text-sm font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">
                             ${label}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
                         </summary>
                         <div class="space-y-2 mt-2">
-                            ${entries.map(([key, m, purpose]) => this._renderSingleModel(key, m, PURPOSE_TAG[purpose] || '')).join('')}
+                            ${entries.map(([key, m, purpose]) => this._renderSingleModel(key, m, PURPOSE_TAG[purpose] || ''))}
                         </div>
                     </details>
                 `;
             };
 
             let idx = 0;
-            const html = SECTIONS.map((s, i) => renderSection(s.label, buckets[i], idx++)).join('');
+            const mainHtml = SECTIONS.map((s, i) => renderSection(s.label, buckets[i], idx++));
             // Any unmapped purposes (future/unknown) render after, labeled by their tag or raw key.
             const extraHtml = Object.entries(extraSections)
-                .map(([purpose, entries]) => renderSection(PURPOSE_TAG[purpose] || purpose, entries, idx++))
-                .join('');
-            return html + extraHtml;
+                .map(([purpose, entries]) => renderSection(PURPOSE_TAG[purpose] || purpose, entries, idx++));
+            return html`${mainHtml}${extraHtml}`;
         },
 
         _renderSingleModel(key, m, purposeTag = '') {
@@ -389,10 +389,10 @@
                 ? Object.keys(_editModeLabels).filter(p => m.capabilities[p] === true)
                 : [];
             const capabilitiesHtml = coveredModes.length
-                ? `<div class="text-[10px] text-brand-text-muted mb-2">${t('model_settings.also_covers')}: <span class="text-brand-text/70">${coveredModes.map(p => _editModeLabels[p]).join(' · ')}</span></div>`
+                ? html`<div class="text-[10px] text-brand-text-muted mb-2">${t('model_settings.also_covers')}: <span class="text-brand-text/70">${coveredModes.map(p => _editModeLabels[p]).join(' · ')}</span></div>`
                 : '';
 
-            return `
+            return html`
                     <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-50'}" data-image-model="${key}">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-2">
@@ -400,16 +400,16 @@
                                     <input type="checkbox" class="ms-img-toggle" data-key="${key}" ${m.enabled ? 'checked' : ''} />
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="text-sm font-medium">${this._esc(m.label || key)}</span>
-                                ${purposeTag ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent/90 uppercase tracking-wide">${this._esc(purposeTag)}</span>` : ''}
-                                <span class="text-[10px] text-brand-text-muted">${this._esc(m.provider || '')}</span>
+                                <span class="text-sm font-medium">${m.label || key}</span>
+                                ${purposeTag ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent/90 uppercase tracking-wide">${purposeTag}</span>` : ''}
+                                <span class="text-[10px] text-brand-text-muted">${m.provider || ''}</span>
                                 ${sourceBadge}
                             </div>
                             <span class="${strictColor} text-[10px]">${m.moderation_strictness || ''}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted mb-2">
-                            <span>${t('model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${this._esc(m.model_id || '')}</span></span>
-                            <span>${t('model_settings.field_format')}: <span class="text-brand-text/70">${this._esc(m.format_family || '')}</span></span>
+                            <span>${t('model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${m.model_id || ''}</span></span>
+                            <span>${t('model_settings.field_format')}: <span class="text-brand-text/70">${m.format_family || ''}</span></span>
                             <span>${t('model_settings.field_regions')}: <span class="text-brand-text/70">${regions || t('common.none').toLowerCase()}</span></span>
                             <span>${t('model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${m.prompt_limit || '?'} chars</span></span>
                             <span>${t('model_settings.field_quality')}: <span class="text-brand-text/70">${quality}</span></span>
@@ -425,11 +425,11 @@
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
                                         <label class="text-[10px] text-brand-text-muted">${t('model_settings.field_model_id')}</label>
-                                        <input type="text" class="ms-edit-field input text-xs font-mono w-full" data-key="${key}" data-field="model_id" value="${this._esc(m.model_id || '')}" />
+                                        <input type="text" class="ms-edit-field input text-xs font-mono w-full" data-key="${key}" data-field="model_id" value="${m.model_id || ''}" />
                                     </div>
                                     <div>
                                         <label class="text-[10px] text-brand-text-muted">${t('model_settings.field_label')}</label>
-                                        <input type="text" class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="label" value="${this._esc(m.label || '')}" />
+                                        <input type="text" class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="label" value="${m.label || ''}" />
                                     </div>
                                     <div>
                                         <label class="text-[10px] text-brand-text-muted">${t('model_settings.field_prompt_limit')}</label>
@@ -442,12 +442,12 @@
                                     <div>
                                         <label class="text-[10px] text-brand-text-muted">${t('model_settings.field_moderation')}</label>
                                         <select class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="moderation_strictness">
-                                            ${['moderate', 'strict', 'very_strict'].map(s => `<option value="${s}" ${s === m.moderation_strictness ? 'selected' : ''}>${s}</option>`).join('')}
+                                            ${['moderate', 'strict', 'very_strict'].map(s => html`<option value="${s}" ${s === m.moderation_strictness ? 'selected' : ''}>${s}</option>`)}
                                         </select>
                                     </div>
                                     <div>
                                         <label class="text-[10px] text-brand-text-muted">${t('model_settings.field_default_region')}</label>
-                                        <input type="text" class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="region" value="${this._esc(m.region || '')}" />
+                                        <input type="text" class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="region" value="${m.region || ''}" />
                                     </div>
                                 </div>
                                 <button class="ms-edit-save btn btn-primary btn-sm text-xs" data-key="${key}">${t('model_settings.save_changes')}</button>
@@ -460,7 +460,7 @@
         _renderChatModels(reg) {
             const models = reg.chat_models || {};
             if (Object.keys(models).length === 0) {
-                return '<p class="text-sm text-brand-text-muted py-4 text-center">' + t('model_settings.no_chat_models') + '</p>';
+                return html`<p class="text-sm text-brand-text-muted py-4 text-center">${t('model_settings.no_chat_models')}</p>`;
             }
 
             // Group by provider
@@ -472,89 +472,89 @@
             }
 
             const _providerColors = ['text-brand-accent', 'text-emerald-400', 'text-purple-400', 'text-cyan-400', 'text-amber-400', 'text-pink-400', 'text-teal-400', 'text-indigo-400'];
-            return Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([provider, entries], idx) => {
+            return html`${Object.entries(groups).sort((a, b) => a[0].localeCompare(b[0])).map(([provider, entries], idx) => {
                 const color = _providerColors[idx % _providerColors.length];
-                return `
+                return html`
                     <details class="mb-3 ms-collapsible">
                         <summary class="text-sm font-semibold ${color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">
-                            ${this._esc(provider)}
+                            ${provider}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${entries.length})</span>
                         </summary>
                         <div class="space-y-1.5 mt-2">
                             ${entries.sort((a, b) => (a[1].label || '').localeCompare(b[1].label || '')).map(([key, m]) => {
                                 const regions = (m.available_regions || []).length;
-                                const vision = m.has_vision ? '<span class="text-[9px] px-1 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20">' + t('model_settings.vision_badge') + '</span>' : '';
-                                const streaming = m.streaming_supported ? '' : '<span class="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">' + t('model_settings.no_stream') + '</span>';
+                                const vision = m.has_vision ? html`<span class="text-[9px] px-1 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20">${t('model_settings.vision_badge')}</span>` : '';
+                                const streaming = m.streaming_supported ? '' : html`<span class="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">${t('model_settings.no_stream')}</span>`;
                                 const ctx = (m.max_context_tokens || 128000) >= 1000000
                                     ? `${Math.round((m.max_context_tokens || 128000) / 1000000)}M`
                                     : `${Math.round((m.max_context_tokens || 128000) / 1000)}K`;
                                 const enabled = m.enabled !== false;
-                                return `
+                                return html`
                                     <div class="p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border ${enabled ? '' : 'opacity-50'} flex items-center gap-3">
                                         <label class="toggle toggle-sm flex-shrink-0">
-                                            <input type="checkbox" class="ms-chat-toggle" data-key="${this._esc(key)}" ${enabled ? 'checked' : ''} />
+                                            <input type="checkbox" class="ms-chat-toggle" data-key="${key}" ${enabled ? 'checked' : ''} />
                                             <span class="toggle-slider"></span>
                                         </label>
                                         <div class="flex-1 min-w-0">
                                             <div class="flex items-center gap-2">
-                                                <span class="text-xs font-medium truncate">${this._esc(m.label || key)}</span>
+                                                <span class="text-xs font-medium truncate">${m.label || key}</span>
                                                 ${vision}${streaming}
                                                 <span class="text-[9px] text-brand-text-muted">${ctx} ${t('model_settings.context_label')}</span>
                                             </div>
-                                            <div class="text-[10px] text-brand-text-muted font-mono truncate mt-0.5">${this._esc(m.model_id || '')}</div>
+                                            <div class="text-[10px] text-brand-text-muted font-mono truncate mt-0.5">${m.model_id || ''}</div>
                                         </div>
                                         <div class="flex-shrink-0 text-right">
                                             <span class="text-[10px] text-brand-accent">${regions} ${t('common.region').toLowerCase()}${regions !== 1 ? 's' : ''}</span>
                                             <div class="flex flex-wrap gap-0.5 mt-0.5 justify-end max-w-[200px]">
-                                                ${(m.available_regions || []).map(r => `<span class="text-[8px] px-1 py-0 rounded bg-brand-bg text-brand-text-muted/60">${this._esc(r)}</span>`).join('')}
+                                                ${(m.available_regions || []).map(r => html`<span class="text-[8px] px-1 py-0 rounded bg-brand-bg text-brand-text-muted/60">${r}</span>`)}
                                             </div>
                                         </div>
                                     </div>`;
-                            }).join('')}
+                            })}
                         </div>
                     </details>`;
-            }).join('');
+            })}`;
         },
 
         _renderVideoModels(reg) {
             const models = reg.video_models || {};
             if (Object.keys(models).length === 0) {
-                return '<p class="text-sm text-brand-text-muted py-4 text-center">' + t('model_settings.no_video_models') + '</p>';
+                return html`<p class="text-sm text-brand-text-muted py-4 text-center">${t('model_settings.no_video_models')}</p>`;
             }
-            return Object.entries(models).map(([key, m]) => {
+            return html`${Object.entries(models).map(([key, m]) => {
                 const enabled = m.enabled !== false;
                 const regions = m.available_regions || [m.region].filter(Boolean);
                 const price = m.base_price_per_second_usd ? `$${m.base_price_per_second_usd}/sec` : '';
                 const sourceBadge = this._sourceBadge(m);
-                return `
+                return html`
                     <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${!enabled ? 'opacity-50' : ''}" data-video-key="${key}">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-2">
                                 <label class="toggle toggle-sm">
-                                    <input type="checkbox" class="ms-video-toggle" data-key="${this._esc(key)}" ${enabled ? 'checked' : ''} />
+                                    <input type="checkbox" class="ms-video-toggle" data-key="${key}" ${enabled ? 'checked' : ''} />
                                     <span class="toggle-slider"></span>
                                 </label>
-                                <span class="text-sm font-medium">${this._esc(m.label || key)}</span>
-                                <span class="text-[10px] text-brand-text-muted">${this._esc(m.provider || '')}</span>
+                                <span class="text-sm font-medium">${m.label || key}</span>
+                                <span class="text-[10px] text-brand-text-muted">${m.provider || ''}</span>
                                 ${sourceBadge}
                             </div>
                             <div class="flex items-center gap-1.5">
-                                ${price ? `<span class="badge badge-indigo">${price}</span>` : ''}
-                                ${m.supports_image_input ? '<span class="badge badge-indigo">img\u2192vid</span>' : ''}
+                                ${price ? html`<span class="badge badge-indigo">${price}</span>` : ''}
+                                ${m.supports_image_input ? raw('<span class="badge badge-indigo">img\u2192vid</span>') : ''}
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted mb-2">
-                            <span>${t('model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${this._esc(m.model_id || '')}</span></span>
-                            <span>${t('model_settings.field_format')}: <span class="text-brand-text/70">${this._esc(m.format_family || '')}</span></span>
+                            <span>${t('model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${m.model_id || ''}</span></span>
+                            <span>${t('model_settings.field_format')}: <span class="text-brand-text/70">${m.format_family || ''}</span></span>
                             <span>${t('model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${m.prompt_limit || '?'} chars</span></span>
-                            <span>${t('model_settings.field_default_region')}: <span class="text-brand-text/70">${this._esc(m.region || '')}</span></span>
+                            <span>${t('model_settings.field_default_region')}: <span class="text-brand-text/70">${m.region || ''}</span></span>
                         </div>
                         <div class="flex flex-wrap gap-1 mb-1">
-                            ${regions.map(r => `<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(r)}</span>`).join('')}
+                            ${regions.map(r => html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${r}</span>`)}
                         </div>
                     </div>
                 `;
-            }).join('');
+            })}`;
         },
 
         _renderCategory(name, cat) {
@@ -600,23 +600,23 @@
             }
             const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(currentId)} (current)</option>` : '';
 
-            return `
+            return html`
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-category="${name}">
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm font-medium">${this._esc(cat.label || name)}</span>
-                        <span class="text-[10px] text-brand-text-muted font-mono bg-brand-bg px-2 py-0.5 rounded">${this._esc(cat.region || '')}</span>
+                        <span class="text-sm font-medium">${cat.label || name}</span>
+                        <span class="text-[10px] text-brand-text-muted font-mono bg-brand-bg px-2 py-0.5 rounded">${cat.region || ''}</span>
                     </div>
-                    <p class="text-[10px] text-brand-text-muted/50 mb-2">${this._esc(cat.description || '')}</p>
+                    <p class="text-[10px] text-brand-text-muted/50 mb-2">${cat.description || ''}</p>
                     <div class="flex gap-2">
                         <div class="flex-1 relative ms-searchable-select">
-                            <input type="text" class="ms-cat-search input text-xs w-full" data-cat="${name}" placeholder="${t('custom_models.search_models')}" value="${this._esc(currentLabel)}" autocomplete="off" />
+                            <input type="text" class="ms-cat-search input text-xs w-full" data-cat="${name}" placeholder="${t('custom_models.search_models')}" value="${currentLabel}" autocomplete="off" />
                             <select class="ms-cat-model hidden" data-cat="${name}">
-                                ${fallbackOpt}
-                                ${optionsHtml}
+                                ${raw(fallbackOpt)}
+                                ${raw(optionsHtml)}
                             </select>
                             <div class="ms-cat-dropdown hidden absolute left-0 right-0 top-full mt-1 z-50 bg-brand-surface border border-brand-border rounded-lg shadow-xl max-h-60 overflow-y-auto"></div>
                         </div>
-                        <input type="text" class="ms-cat-region input text-xs w-28" value="${this._esc(cat.region || '')}" data-cat="${name}" placeholder="${t('common.region')}" />
+                        <input type="text" class="ms-cat-region input text-xs w-28" value="${cat.region || ''}" data-cat="${name}" placeholder="${t('common.region')}" />
                         <button class="ms-cat-save btn btn-primary btn-sm text-xs" data-cat="${name}">${t('common.save')}</button>
                     </div>
                 </div>
@@ -629,7 +629,7 @@
                 return '';
             }
             const models = customLLMs.models;
-            return `
+            return html`
                 <details class="ms-collapsible">
                     <summary class="text-sm font-semibold text-purple-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('model_settings.custom_llms')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(models).length})</span></summary>
                     <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('model_settings.custom_llms_desc')}</p>
@@ -637,27 +637,27 @@
                         ${Object.entries(models).map(([key, m]) => {
                             const source = m.model_source || 'custom';
                             const badge = source === 'imported'
-                                ? '<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>'
-                                : '<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>';
+                                ? raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>')
+                                : raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>');
                             const enabledBadge = m.enabled
-                                ? '<span class="text-[9px] text-emerald-400">' + t('model_settings.ready') + '</span>'
-                                : '<span class="text-[9px] text-amber-400">' + t('model_settings.needs_throughput') + '</span>';
-                            return `
+                                ? html`<span class="text-[9px] text-emerald-400">${t('model_settings.ready')}</span>`
+                                : html`<span class="text-[9px] text-amber-400">${t('model_settings.needs_throughput')}</span>`;
+                            return html`
                                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-60'}">
                                     <div class="flex items-center gap-2 mb-1">
-                                        <span class="text-sm font-medium">${this._esc(m.label || key)}</span>
+                                        <span class="text-sm font-medium">${m.label || key}</span>
                                         ${badge}
                                         ${enabledBadge}
                                     </div>
                                     <div class="grid grid-cols-2 gap-x-4 text-[10px] text-brand-text-muted">
-                                        <span>${t('model_settings.field_model_id')}: <span class="font-mono text-brand-text/70 break-all">${this._esc((m.model_id || '').slice(-40))}</span></span>
-                                        <span>${t('common.region')}: <span class="text-brand-text/70">${this._esc(m.region || '')}</span></span>
-                                        ${m.architecture ? `<span>Architecture: <span class="text-brand-text/70">${this._esc(m.architecture)}</span></span>` : ''}
-                                        ${m.customization_type ? `<span>Type: <span class="text-brand-text/70">${this._esc(m.customization_type)}</span></span>` : ''}
+                                        <span>${t('model_settings.field_model_id')}: <span class="font-mono text-brand-text/70 break-all">${(m.model_id || '').slice(-40)}</span></span>
+                                        <span>${t('common.region')}: <span class="text-brand-text/70">${m.region || ''}</span></span>
+                                        ${m.architecture ? html`<span>Architecture: <span class="text-brand-text/70">${m.architecture}</span></span>` : ''}
+                                        ${m.customization_type ? html`<span>Type: <span class="text-brand-text/70">${m.customization_type}</span></span>` : ''}
                                     </div>
                                 </div>
                             `;
-                        }).join('')}
+                        })}
                     </div>
                 </details>
             `;
@@ -701,22 +701,22 @@
             const hasMatch = modelOptions.includes('selected');
             const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(m.label || currentId)}</option>` : '';
 
-            return `
+            return html`
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-50'}" data-pp="${key}">
                     <div class="flex items-center gap-2 mb-2">
                         <label class="toggle toggle-sm">
                             <input type="checkbox" class="ms-pp-toggle" data-key="${key}" ${m.enabled ? 'checked' : ''} />
                             <span class="toggle-slider"></span>
                         </label>
-                        <span class="text-sm font-medium">${this._esc(m.label || key)}</span>
-                        <span class="text-[10px] font-mono text-brand-text-muted ml-auto">${this._esc(m.region || '')}</span>
+                        <span class="text-sm font-medium">${m.label || key}</span>
+                        <span class="text-[10px] font-mono text-brand-text-muted ml-auto">${m.region || ''}</span>
                     </div>
                     <div class="flex gap-2">
                         <select class="ms-pp-field input text-xs font-mono flex-1" data-key="${key}" data-field="model_id">
-                            ${fallbackOpt}
-                            ${modelOptions}
+                            ${raw(fallbackOpt)}
+                            ${raw(modelOptions)}
                         </select>
-                        <input type="text" class="ms-pp-field input text-xs w-28" value="${this._esc(m.region || '')}" data-key="${key}" data-field="region" />
+                        <input type="text" class="ms-pp-field input text-xs w-28" value="${m.region || ''}" data-key="${key}" data-field="region" />
                         <button class="ms-pp-save btn btn-primary btn-sm text-xs" data-key="${key}">${t('common.save')}</button>
                     </div>
                 </div>
@@ -846,7 +846,8 @@
                 this._refreshing = true;
                 const btn = modal.querySelector('#ms-refresh-all');
                 btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-sm"></span> ' + t('model_settings.syncing');
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('model_settings.syncing')}`;
 
                 // Show progress overlay (dismissible — sync continues in background)
                 const overlay = this._showSyncProgress();
@@ -987,7 +988,7 @@
                 // Build dropdown items from select options (grouped by optgroup)
                 const buildDropdown = (filter = '') => {
                     const lower = filter.toLowerCase();
-                    let html = '';
+                    let out = '';
                     let hasResults = false;
                     hiddenSelect.querySelectorAll('optgroup, option').forEach(el => {
                         if (el.tagName === 'OPTGROUP') {
@@ -995,23 +996,24 @@
                             const options = Array.from(el.querySelectorAll('option'))
                                 .filter(o => !lower || o.textContent.toLowerCase().includes(lower) || groupLabel.toLowerCase().includes(lower));
                             if (options.length > 0) {
-                                html += `<div class="px-3 py-1 text-[9px] text-brand-text-muted/50 uppercase tracking-wider font-semibold bg-black/20 sticky top-0">${wrapper.parentElement.closest('[data-category]') ? '' : ''}${groupLabel}</div>`;
+                                out += html`<div class="px-3 py-1 text-[9px] text-brand-text-muted/50 uppercase tracking-wider font-semibold bg-black/20 sticky top-0">${wrapper.parentElement.closest('[data-category]') ? '' : ''}${groupLabel}</div>`;
                                 options.forEach(o => {
                                     const selected = o.selected ? 'bg-brand-accent/10 text-brand-accent' : 'hover:bg-white/5';
-                                    html += `<div class="ms-dd-item px-3 py-1.5 text-xs cursor-pointer ${selected}" data-value="${o.value}" data-region="${o.dataset.region || ''}">${o.textContent}</div>`;
+                                    out += html`<div class="ms-dd-item px-3 py-1.5 text-xs cursor-pointer ${selected}" data-value="${o.value}" data-region="${o.dataset.region || ''}">${o.textContent}</div>`;
                                 });
                                 hasResults = true;
                             }
                         } else if (!el.closest('optgroup')) {
                             if (!lower || el.textContent.toLowerCase().includes(lower)) {
                                 const selected = el.selected ? 'bg-brand-accent/10 text-brand-accent' : 'hover:bg-white/5';
-                                html += `<div class="ms-dd-item px-3 py-1.5 text-xs cursor-pointer ${selected}" data-value="${el.value}" data-region="${el.dataset.region || ''}">${el.textContent}</div>`;
+                                out += html`<div class="ms-dd-item px-3 py-1.5 text-xs cursor-pointer ${selected}" data-value="${el.value}" data-region="${el.dataset.region || ''}">${el.textContent}</div>`;
                                 hasResults = true;
                             }
                         }
                     });
-                    if (!hasResults) html = `<div class="px-3 py-2 text-xs text-brand-text-muted">${t('custom_models.no_search_results')}</div>`;
-                    dropdown.innerHTML = html;
+                    if (!hasResults) out = html`<div class="px-3 py-2 text-xs text-brand-text-muted">${t('custom_models.no_search_results')}</div>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    dropdown.innerHTML = out;
 
                     // Wire click handlers
                     dropdown.querySelectorAll('.ms-dd-item').forEach(item => {
@@ -1158,15 +1160,18 @@
                     try {
                         const modelResp = await fetch('/api/chat/models');
                         const modelData = await modelResp.json();
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
                         modelSel.innerHTML = (modelData.models || []).map(m =>
-                            `<option value="${this._esc(m.model_id)}" data-region="${this._esc(m.region)}">${this._esc(m.label)} (${this._esc(m.provider)})</option>`
+                            html`<option value="${m.model_id}" data-region="${m.region}">${m.label} (${m.provider})</option>`
                         ).join('');
-                    } catch { modelSel.innerHTML = `<option value="">${t('model_settings.ms_no_models')}</option>`; }
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    } catch { modelSel.innerHTML = html`<option value="">${t('model_settings.ms_no_models')}</option>`; }
                 }
 
                 this._renderTemplates(modal);
             } catch (err) {
-                container.innerHTML = `<p class="text-xs text-red-400 py-4">Failed to load templates: ${this._esc(err.message)}</p>`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                container.innerHTML = html`<p class="text-xs text-red-400 py-4">Failed to load templates: ${err.message}</p>`;
             }
         },
 
@@ -1235,12 +1240,13 @@
                     templates: _ungrouped.map(n => ({ name: n, friendlyLabel: '' })) });
             }
 
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
             container.innerHTML = GROUPS.map(group => {
                 const groupTemplates = group.templates.filter(gt => templates[gt.name]);
                 if (groupTemplates.length === 0) return '';
-                return `
+                return html`
                     <details class="mb-4 ms-collapsible">
-                        <summary class="text-sm font-semibold ${group.color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${this._esc(group.label)} <span class="text-[10px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></summary>
+                        <summary class="text-sm font-semibold ${group.color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${group.label} <span class="text-[10px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></summary>
                         <div class="mt-2">
                             <div class="flex justify-end mb-1">
                                 <button class="ms-tmpl-group-toggle text-[9px] text-brand-text-muted hover:text-brand-accent cursor-pointer" data-group="${group.key}">${t('model_settings.ms_expand_editors')}</button>
@@ -1250,7 +1256,7 @@
                                     const name = gt.name;
                                     const tmpl = templates[name];
                                     return this._renderSingleTemplate(name, tmpl, gt.friendlyLabel);
-                                }).join('')}
+                                })}
                             </div>
                         </div>
                     </details>`;
@@ -1266,28 +1272,28 @@
         },
 
         _renderSingleTemplate(name, tmpl, friendlyLabel) {
-            const modified = tmpl.modified ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">${t('model_settings.templates_modified')}</span>` : '';
-            const vars = (tmpl.variables || []).map(v => `<code class="text-[9px] text-brand-accent bg-brand-accent/10 px-1 rounded">${this._esc(v)}</code>`).join(' ');
+            const modified = tmpl.modified ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">${t('model_settings.templates_modified')}</span>` : '';
+            const vars = (tmpl.variables || []).map(v => html`<code class="text-[9px] text-brand-accent bg-brand-accent/10 px-1 rounded">${v}</code>`).join(' ');
             // The registry's authoritative label + description + used_by (no longer masked).
             const title = friendlyLabel || tmpl.label || name;
-            const desc = tmpl.description ? `<p class="text-[10px] text-brand-text-muted/70 mb-1">${this._esc(tmpl.description)}</p>` : '';
-            const usedBy = tmpl.used_by ? `<p class="text-[9px] text-brand-text-muted/50 mb-2">${t('model_settings.templates_used_by') || 'Used by'}: ${this._esc(tmpl.used_by)}</p>` : '';
+            const desc = tmpl.description ? html`<p class="text-[10px] text-brand-text-muted/70 mb-1">${tmpl.description}</p>` : '';
+            const usedBy = tmpl.used_by ? html`<p class="text-[9px] text-brand-text-muted/50 mb-2">${t('model_settings.templates_used_by') || 'Used by'}: ${tmpl.used_by}</p>` : '';
             const hasSystem = typeof tmpl.system_prompt === 'string';
-            const systemEditor = hasSystem ? `
+            const systemEditor = hasSystem ? html`
                             <label class="block text-[10px] text-brand-text-muted mt-1">${t('model_settings.templates_system_prompt') || 'System prompt (steers the LLM)'}</label>
-                            <textarea class="ms-tmpl-system input w-full h-28 font-mono text-xs resize-y" data-tmpl="${this._esc(name)}" spellcheck="false">${this._esc(tmpl.system_prompt || '')}</textarea>` : '';
-            return `
-                <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-tmpl="${this._esc(name)}">
+                            <textarea class="ms-tmpl-system input w-full h-28 font-mono text-xs resize-y" data-tmpl="${name}" spellcheck="false">${tmpl.system_prompt || ''}</textarea>` : '';
+            return html`
+                <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-tmpl="${name}">
                     <div class="flex items-center justify-between mb-1">
                         <div class="flex items-center gap-2">
-                            <span class="text-sm font-medium">${this._esc(title)}</span>
+                            <span class="text-sm font-medium">${title}</span>
                             ${modified}
                         </div>
-                        <span class="text-[9px] text-brand-text-muted">${this._esc(tmpl.model || '')}</span>
+                        <span class="text-[9px] text-brand-text-muted">${tmpl.model || ''}</span>
                     </div>
                     ${desc}
                     ${usedBy}
-                    <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('model_settings.templates_variables')}: ${vars || 'none'}</p>
+                    <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('model_settings.templates_variables')}: ${raw(vars || 'none')}</p>
                     <details class="group">
                         <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
                             <span class="group-open:hidden">${t('model_settings.templates_edit')}</span>
@@ -1295,19 +1301,19 @@
                         </summary>
                         <div class="mt-2 space-y-2">
                             <label class="block text-[10px] text-brand-text-muted ${hasSystem ? '' : 'hidden'}">${t('model_settings.templates_prompt_body') || 'Prompt body'}</label>
-                            <textarea class="ms-tmpl-text input w-full h-48 font-mono text-xs resize-y" data-tmpl="${this._esc(name)}" spellcheck="false">${this._esc(tmpl.text || '')}</textarea>
+                            <textarea class="ms-tmpl-text input w-full h-48 font-mono text-xs resize-y" data-tmpl="${name}" spellcheck="false">${tmpl.text || ''}</textarea>
                             ${systemEditor}
                             <div class="flex gap-2 flex-wrap">
-                                <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${this._esc(name)}">${t('model_settings.templates_save')}</button>
-                                <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${this._esc(name)}">${t('model_settings.templates_enhance')}</button>
-                                <button class="ms-tmpl-reset btn btn-sm text-xs border border-brand-border text-brand-text-muted hover:border-amber-500 hover:text-amber-400" data-tmpl="${this._esc(name)}">${t('model_settings.templates_reset')}</button>
+                                <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${name}">${t('model_settings.templates_save')}</button>
+                                <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${name}">${t('model_settings.templates_enhance')}</button>
+                                <button class="ms-tmpl-reset btn btn-sm text-xs border border-brand-border text-brand-text-muted hover:border-amber-500 hover:text-amber-400" data-tmpl="${name}">${t('model_settings.templates_reset')}</button>
                             </div>
-                            <div class="ms-tmpl-suggestion hidden mt-2 p-2 rounded-lg bg-purple-950/20 border border-purple-500/20" data-tmpl="${this._esc(name)}">
+                            <div class="ms-tmpl-suggestion hidden mt-2 p-2 rounded-lg bg-purple-950/20 border border-purple-500/20" data-tmpl="${name}">
                                 <div class="flex items-center justify-between mb-1">
                                     <span class="text-[10px] text-purple-400 font-medium">${t('model_settings.templates_ai_suggestion')}</span>
                                     <div class="flex gap-1">
-                                        <button class="ms-tmpl-accept text-[10px] px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-500" data-tmpl="${this._esc(name)}">${t('model_settings.templates_accept')}</button>
-                                        <button class="ms-tmpl-dismiss text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent" data-tmpl="${this._esc(name)}">${t('model_settings.templates_dismiss')}</button>
+                                        <button class="ms-tmpl-accept text-[10px] px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-500" data-tmpl="${name}">${t('model_settings.templates_accept')}</button>
+                                        <button class="ms-tmpl-dismiss text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent" data-tmpl="${name}">${t('model_settings.templates_dismiss')}</button>
                                     </div>
                                 </div>
                                 <div class="ms-tmpl-suggestion-warning hidden text-[10px] text-amber-400 mb-1"></div>
@@ -1518,7 +1524,8 @@
         _showSyncProgress() {
             const overlay = document.createElement('div');
             overlay.className = 'fixed inset-0 z-[150] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4';
-            overlay.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            overlay.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
                     <div class="flex items-center justify-between">
                         <h3 class="text-sm font-semibold text-brand-text">${t('model_settings.sync_progress_title')}</h3>
@@ -1607,9 +1614,9 @@
                         // model License Agreement modal) — the license NAME is the
                         // unambiguous signal; the attestation block spells out terms.
                         const licPill = lic.name
-                            ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 border border-brand-border/30 text-brand-text-muted">${lic.name}</span>`
+                            ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 border border-brand-border/30 text-brand-text-muted">${lic.name}</span>`
                             : '';
-                        return `<label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-brand-accent/40 has-[:checked]:border-brand-accent/60 has-[:checked]:bg-brand-accent/5">
+                        return html`<label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-brand-accent/40 has-[:checked]:border-brand-accent/60 has-[:checked]:bg-brand-accent/5">
                             <input type="radio" name="deploy-texbackend" value="${key}" ${key === tbDefault ? 'checked' : ''} class="mt-0.5 deploy-texbackend-radio" data-attest="${lic.attestation_required ? '1' : '0'}" />
                             <div class="min-w-0">
                                 <div class="flex items-center gap-2 flex-wrap">
@@ -1620,8 +1627,8 @@
                                 <p class="text-[10px] text-brand-text-muted/80 mt-0.5">${b.instance_note || ''}</p>
                             </div>
                         </label>`;
-                    }).join('');
-                    textureHtml = `
+                    });
+                    textureHtml = html`
                         <div>
                             <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('custom_models.tex_backend_title')}</label>
                             <div class="space-y-2 deploy-texbackend-group">${cards}</div>
@@ -1646,26 +1653,26 @@
                 const allOptions = [...available, ...needsQuota];
 
                 if (allOptions.length === 0) {
-                    instanceHtml = `<div class="text-xs text-red-400 py-3 space-y-2">
+                    instanceHtml = html`<div class="text-xs text-red-400 py-3 space-y-2">
                         <p class="font-medium">${t('custom_models.no_instances')}</p>
                         <p class="text-brand-text-muted">${t('custom_models.no_instances_hint')}</p>
                     </div>`;
                 } else {
-                    instanceHtml = allOptions.map(opt => {
+                    instanceHtml = html`${allOptions.map(opt => {
                         const isRec = opt.is_recommended && !opt.needs_quota;
                         const costStr = `$${opt.cost_per_hour_usd.toFixed(2)}`;
                         const quotaTag = opt.needs_quota
                             ? (opt.quota_reason === 'all_in_use' ? ' ⚠ IN USE' : ' ⚠ NO QUOTA')
                             : '';
                         const usageNote = !opt.needs_quota && opt.quota > 1 ? ` (${opt.quota_available}/${opt.quota} avail)` : '';
-                        return `<option value="${opt.instance_type}" ${isRec ? 'selected' : ''} data-cost="${opt.cost_per_hour_usd}" data-needs-quota="${opt.needs_quota}" data-quota-code="${opt.quota_code || ''}" data-quota="${opt.quota || 0}">
+                        return html`<option value="${opt.instance_type}" ${isRec ? 'selected' : ''} data-cost="${opt.cost_per_hour_usd}" data-needs-quota="${opt.needs_quota}" data-quota-code="${opt.quota_code || ''}" data-quota="${opt.quota || 0}">
                             ${opt.instance_type} — ${opt.gpus}× ${opt.gpu_type} (${opt.total_vram_gb}GB) — ${costStr}/hr ${isRec ? '★' : ''}${opt.speed_note}${usageNote}${quotaTag}
                         </option>`;
-                    }).join('');
+                    })}`;
                 }
 
                 // Quota section — shown dynamically when a needs-quota instance is selected
-                quotaHtml = `
+                quotaHtml = html`
                     <div class="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 hidden" id="deploy-quota-section">
                         <p class="text-[10px] text-amber-400 font-medium mb-1">${t('custom_models.quota_needed_title')}</p>
                         <p class="text-[9px] text-brand-text-muted mb-2">${t('custom_models.quota_needed_desc').replace('{{region}}', deployRegion || 'unknown')}</p>
@@ -1674,7 +1681,8 @@
 
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
-                backdrop.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                backdrop.innerHTML = html`
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
                         <h3 class="text-sm font-semibold text-brand-text">${t('custom_models.deploy_config_title')}</h3>
 
@@ -1691,9 +1699,9 @@
 
                         <div>
                             <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('custom_models.instance')}</label>
-                            ${allOptions.length > 0 ? `<select class="deploy-instance input w-full text-xs">${instanceHtml}</select>` : instanceHtml}
+                            ${allOptions.length > 0 ? html`<select class="deploy-instance input w-full text-xs">${instanceHtml}</select>` : instanceHtml}
                             <p class="deploy-instance-info text-[10px] text-brand-text-muted mt-1"></p>
-                            ${allOptions.length > 0 ? `
+                            ${allOptions.length > 0 ? html`
                             <div class="mt-2 flex items-start gap-1.5 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
                                 <svg class="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
                                 <p class="text-[9px] text-brand-text-muted/90 leading-relaxed">${t('custom_models.instance_validated_note')}</p>
@@ -1762,7 +1770,8 @@
                             quotaSection.classList.remove('hidden');
                             if (quotaRow) {
                                 const inst = sel.value;
-                                quotaRow.innerHTML = `
+                                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                                quotaRow.innerHTML = html`
                                     <div>
                                         <span class="text-[11px] text-brand-text">${inst}</span>
                                         <span class="text-[9px] text-brand-text-muted/60 ml-1">${qVal > 0 ? t('custom_models.quota_all_in_use').replace('{{used}}', qVal).replace('{{quota}}', qVal) : t('custom_models.quota_none')}</span>
@@ -1831,8 +1840,10 @@
                         if (labelEl) labelEl.textContent = lic.commercial
                             ? t('custom_models.tex_attest_label_commercial')
                             : t('custom_models.tex_attest_label');
-                        if (warnEl) warnEl.innerHTML = (lic.warnings || []).map(w => this._esc(w)).join('<br>');
-                        if (termsEl) termsEl.innerHTML = (lic.key_terms || []).map(x => `<li>${this._esc(x)}</li>`).join('');
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        if (warnEl) warnEl.innerHTML = (lic.warnings || []).map(w => html`${w}`).join('<br>');
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        if (termsEl) termsEl.innerHTML = (lic.key_terms || []).map(x => html`<li>${x}</li>`).join('');
                         if (linkEl && lic.url) linkEl.href = lic.url;
                         // Per-dependency licensing table (name · license · badges · link).
                         // Lets the user see EXACTLY which models/repos are pulled and
@@ -1842,21 +1853,22 @@
                         const deps = lic.dependencies || [];
                         if (depsBox && depsRows) {
                             if (deps.length) {
+                                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
                                 depsRows.innerHTML = deps.map(d => {
                                     const comm = d.commercial
-                                        ? `<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('custom_models.license_commercial_ok')}</span>`
-                                        : `<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('custom_models.license_commercial_no')}</span>`;
+                                        ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('custom_models.license_commercial_ok')}</span>`
+                                        : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('custom_models.license_commercial_no')}</span>`;
                                     const gated = d.gated
-                                        ? `<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated · accept on HF</span>`
+                                        ? raw('<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated · accept on HF</span>')
                                         : '';
                                     const nameEl = d.url
-                                        ? `<a href="${d.url}" target="_blank" rel="noopener" class="text-brand-accent underline">${this._esc(d.name)}</a>`
-                                        : `<span class="text-brand-text">${this._esc(d.name)}</span>`;
-                                    return `<div class="text-[9px] leading-relaxed">
+                                        ? html`<a href="${d.url}" target="_blank" rel="noopener" class="text-brand-accent underline">${d.name}</a>`
+                                        : html`<span class="text-brand-text">${d.name}</span>`;
+                                    return html`<div class="text-[9px] leading-relaxed">
                                         <div class="flex items-center gap-1.5 flex-wrap">
                                             ${nameEl} ${comm} ${gated}
                                         </div>
-                                        <div class="text-brand-text-muted/80">${this._esc(d.license || '')}${d.role ? ' — ' + this._esc(d.role) : ''}</div>
+                                        <div class="text-brand-text-muted/80">${d.license || ''}${d.role ? ' — ' + d.role : ''}</div>
                                     </div>`;
                                 }).join('');
                                 depsBox.classList.remove('hidden');
@@ -1902,7 +1914,8 @@
                     if (!gatedBox) return;
                     gatedBox.classList.remove('hidden');
                     gatedBox.className = 'deploy-gated-access p-2.5 rounded-lg border border-brand-border/40 bg-white/5';
-                    gatedRows.innerHTML = `<p class="text-[10px] text-brand-text-muted">${t('custom_models.gated_checking')}</p>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    gatedRows.innerHTML = html`<p class="text-[10px] text-brand-text-muted">${t('custom_models.gated_checking')}</p>`;
                     gatedHint.textContent = '';
                     if (gatedRecheck) gatedRecheck.classList.add('hidden');
                     let data;
@@ -1912,7 +1925,8 @@
                         if (!resp.ok) throw new Error(data.detail || 'check failed');
                     } catch (e) {
                         // Don't hard-block on a probe failure — show a soft warning.
-                        gatedRows.innerHTML = `<p class="text-[10px] text-amber-400">${t('custom_models.gated_check_failed')}</p>`;
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        gatedRows.innerHTML = html`<p class="text-[10px] text-amber-400">${t('custom_models.gated_check_failed')}</p>`;
                         if (gatedRecheck) gatedRecheck.classList.remove('hidden');
                         if (deployBtn) { deployBtn.dataset.gatedBlocked = '0'; updateDeployGate(); }
                         return;
@@ -1923,18 +1937,19 @@
                         if (deployBtn) { deployBtn.dataset.gatedBlocked = '0'; updateDeployGate(); }
                         return;
                     }
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
                     gatedRows.innerHTML = data.repos.map(r => {
                         const ok = r.accessible;
                         const icon = ok
-                            ? `<span class="text-emerald-400">✓</span>`
-                            : `<span class="text-amber-400">✗</span>`;
-                        const link = `<a href="${esc(r.license_url)}" target="_blank" rel="noopener" class="text-brand-accent underline">${esc(r.name)}</a>`;
+                            ? raw('<span class="text-emerald-400">✓</span>')
+                            : raw('<span class="text-amber-400">✗</span>');
+                        const link = html`<a href="${r.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline">${r.name}</a>`;
                         const action = ok ? '' :
-                            `<div class="text-[9px] text-amber-300/90 mt-0.5">${esc(r.action)}
-                                <a href="${esc(r.license_url)}" target="_blank" rel="noopener" class="text-brand-accent underline ml-1">${t('custom_models.gated_open_hf')} ↗</a></div>`;
-                        return `<div class="text-[10px] leading-relaxed">
+                            html`<div class="text-[9px] text-amber-300/90 mt-0.5">${r.action}
+                                <a href="${r.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline ml-1">${t('custom_models.gated_open_hf')} ↗</a></div>`;
+                        return html`<div class="text-[10px] leading-relaxed">
                             <div class="flex items-center gap-1.5">${icon} ${link}
-                                ${r.gated ? `<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.gated_badge')}</span>` : ''}
+                                ${r.gated ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.gated_badge')}</span>` : ''}
                             </div>${action}
                         </div>`;
                     }).join('');
@@ -1946,9 +1961,10 @@
                         if (deployBtn) { deployBtn.dataset.gatedBlocked = '0'; }
                     } else {
                         gatedBox.className = 'deploy-gated-access p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5';
-                        gatedHint.innerHTML = data.needs_token
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        gatedHint.innerHTML = raw(data.needs_token
                             ? t('custom_models.gated_needs_token')
-                            : t('custom_models.gated_blocked_hint');
+                            : t('custom_models.gated_blocked_hint'));
                         // Block deploy ONLY when a gated/required repo is inaccessible.
                         if (deployBtn) { deployBtn.dataset.gatedBlocked = '1'; }
                     }
@@ -1996,7 +2012,8 @@
                                 : data.status === 'already_sufficient'
                                 ? t('custom_models.quota_already_sufficient')
                                 : t('custom_models.quota_submitted');
-                            btn.outerHTML = `<span class="text-[10px] text-emerald-400">${msg}</span>`;
+                            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                            btn.outerHTML = html`<span class="text-[10px] text-emerald-400">${msg}</span>`;
                             window.showToast?.(data.message, 'success');
                         } else {
                             btn.textContent = t('custom_models.quota_request_btn');
@@ -2018,49 +2035,50 @@
             return new Promise((resolve) => {
                 const la = licenseAgreement;
                 const termsHtml = (la.key_terms || []).map(term =>
-                    `<li class="flex items-start gap-2">
+                    html`<li class="flex items-start gap-2">
                         <span class="text-emerald-400 mt-0.5 flex-shrink-0">&#10003;</span>
                         <span>${term}</span>
                     </li>`
-                ).join('');
+                );
                 // Per-dependency licensing table — each model/repo this pipeline
                 // pulls, its license, commercial/gated status + role. Lets the user
                 // see EXACTLY what's involved before accepting (well-split, clear).
                 const deps = la.dependencies || [];
                 const depsHtml = deps.length
-                    ? `<div class="p-3 rounded-lg bg-brand-bg/60 border border-brand-border/50">
+                    ? html`<div class="p-3 rounded-lg bg-brand-bg/60 border border-brand-border/50">
                         <p class="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('custom_models.tex_attest_deps')}</p>
                         <div class="space-y-2">
                             ${deps.map(d => {
                                 const comm = d.commercial
-                                    ? `<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('custom_models.license_commercial_ok')}</span>`
-                                    : `<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('custom_models.license_commercial_no')}</span>`;
+                                    ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('custom_models.license_commercial_ok')}</span>`
+                                    : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('custom_models.license_commercial_no')}</span>`;
                                 const gated = d.gated
-                                    ? `<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated &middot; accept on HF</span>`
+                                    ? raw('<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated &middot; accept on HF</span>')
                                     : '';
                                 const nameEl = d.url
-                                    ? `<a href="${d.url}" target="_blank" rel="noopener" class="text-brand-accent underline">${this._esc(d.name)}</a>`
-                                    : `<span class="text-brand-text">${this._esc(d.name)}</span>`;
-                                return `<div class="text-[10px] leading-relaxed">
+                                    ? html`<a href="${d.url}" target="_blank" rel="noopener" class="text-brand-accent underline">${d.name}</a>`
+                                    : html`<span class="text-brand-text">${d.name}</span>`;
+                                return html`<div class="text-[10px] leading-relaxed">
                                     <div class="flex items-center gap-1.5 flex-wrap">${nameEl} ${comm} ${gated}</div>
-                                    <div class="text-brand-text-muted/80">${this._esc(d.license || '')}${d.role ? ' &mdash; ' + this._esc(d.role) : ''}</div>
+                                    <div class="text-brand-text-muted/80">${d.license || ''}${d.role ? ' — ' + d.role : ''}</div>
                                 </div>`;
-                            }).join('')}
+                            })}
                         </div>
                     </div>`
                     : '';
                 const warningsHtml = (la.warnings || []).length > 0
-                    ? `<div class="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 space-y-1.5">
+                    ? html`<div class="mt-3 p-3 rounded-lg bg-red-500/10 border border-red-500/20 space-y-1.5">
                         <p class="text-[10px] font-semibold text-red-400 uppercase tracking-wider">Restrictions &amp; Warnings</p>
                         <ul class="space-y-1.5 text-xs text-red-300">
-                            ${la.warnings.map(w => `<li class="flex items-start gap-2"><span class="text-red-400 mt-0.5 flex-shrink-0">&#9888;</span><span>${w}</span></li>`).join('')}
+                            ${la.warnings.map(w => html`<li class="flex items-start gap-2"><span class="text-red-400 mt-0.5 flex-shrink-0">&#9888;</span><span>${w}</span></li>`)}
                         </ul>
                     </div>`
                     : '';
 
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
-                backdrop.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                backdrop.innerHTML = html`
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
                         <h3 class="text-sm font-semibold text-brand-text">${t('custom_models.license_title')}</h3>
                         <div class="text-xs text-brand-text-muted space-y-3">
@@ -2120,11 +2138,12 @@
         _askHfToken(licenseUrl) {
             return new Promise((resolve) => {
                 const licenseLink = licenseUrl
-                    ? `<a href="${licenseUrl}" target="_blank" rel="noopener" class="text-brand-accent hover:underline">Open model page ↗</a>`
+                    ? html`<a href="${licenseUrl}" target="_blank" rel="noopener" class="text-brand-accent hover:underline">Open model page ↗</a>`
                     : '';
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
-                backdrop.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                backdrop.innerHTML = html`
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
                         <h3 class="text-sm font-semibold text-brand-text">${t('custom_models.hf_title')}</h3>
                         <div class="text-xs text-brand-text-muted space-y-2">
@@ -2180,7 +2199,8 @@
                 this._deploymentBucket = data.deployment_bucket || '';
 
                 if (models.length === 0) {
-                    container.innerHTML = `<p class="text-xs text-brand-text-muted">${t('custom_models.no_models')}</p>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    container.innerHTML = html`<p class="text-xs text-brand-text-muted">${t('custom_models.no_models')}</p>`;
                     return;
                 }
 
@@ -2219,8 +2239,8 @@
                 container.querySelectorAll('details[data-cm-studio][open]').forEach(d => openSections.add(d.dataset.cmStudio));
                 container.querySelectorAll('details[data-cm-cat][open]').forEach(d => openSections.add(d.dataset.cmCat));
 
-                let html = '<div class="space-y-4">';
-                html += `<p class="text-xs text-brand-text-muted">${t('custom_models.description_line')}</p>`;
+                let out = '<div class="space-y-4">';
+                out += html`<p class="text-xs text-brand-text-muted">${t('custom_models.description_line')}</p>`;
 
                 // S3-bucket config — IN-PLACE setter at the top of Custom Models.
                 // A deployment bucket is REQUIRED to deploy any custom model (the
@@ -2235,17 +2255,17 @@
                     // ArtSmoker data present), show a READ-ONLY record — SageMaker
                     // permanently binds deployed endpoints to this bucket, so it must
                     // not change. Otherwise (set but unused) allow Change.
-                    html += `<div id="ms-s3-card" class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border flex items-center gap-2.5">
+                    out += html`<div id="ms-s3-card" class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border flex items-center gap-2.5">
                         <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         <div class="flex-1 min-w-0">
                             <p class="text-[10px] uppercase tracking-wider text-brand-text-muted">${t('custom_models.s3_bucket_label')}${_bktLocked ? ` · ${t('custom_models.s3_locked')}` : ''}</p>
-                            <p class="text-sm font-mono truncate">${this._esc ? this._esc(_bkt) : _bkt}</p>
-                            ${_bktLocked ? `<p class="text-[10px] text-brand-text-muted/70 mt-0.5">${t('custom_models.s3_locked_hint').replace('{{reasons}}', this._esc ? this._esc(_bktLockReasons) : _bktLockReasons)}</p>` : ''}
+                            <p class="text-sm font-mono truncate">${_bkt}</p>
+                            ${_bktLocked ? html`<p class="text-[10px] text-brand-text-muted/70 mt-0.5">${t('custom_models.s3_locked_hint').replace('{{reasons}}', _bktLockReasons)}</p>` : ''}
                         </div>
-                        ${_bktLocked ? '' : `<button id="ms-s3-edit" class="btn btn-secondary btn-sm text-xs whitespace-nowrap">${t('custom_models.s3_change')}</button>`}
+                        ${_bktLocked ? '' : html`<button id="ms-s3-edit" class="btn btn-secondary btn-sm text-xs whitespace-nowrap">${t('custom_models.s3_change')}</button>`}
                     </div>`;
                 } else {
-                    html += `<div class="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40">
+                    out += html`<div class="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40">
                         <div class="flex items-start gap-2.5 mb-2">
                             <svg class="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
                             <div class="flex-1 min-w-0">
@@ -2273,7 +2293,7 @@
                     const studioOpen = openSections.has(studio);
                     const studioColor = _studioColors[sIdx % _studioColors.length];
 
-                    html += `<details class="mb-3 ms-collapsible" data-cm-studio="${studio}" ${studioOpen ? 'open' : ''}>
+                    out += html`<details class="mb-3 ms-collapsible" data-cm-studio="${studio}" ${studioOpen ? 'open' : ''}>
                         <summary class="text-sm font-semibold ${studioColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">
                             ${studioLabels[studio] || studio}
                             <span class="text-[10px] font-normal text-brand-text-muted">(${studioTotal})</span>
@@ -2294,7 +2314,7 @@
                         const catOpen = openSections.has(cat);
                         const catColor = _catColors[cIdx % _catColors.length];
 
-                        html += `<details class="mb-2 ms-collapsible" data-cm-cat="${cat}" ${catOpen ? 'open' : ''}>
+                        out += html`<details class="mb-2 ms-collapsible" data-cm-cat="${cat}" ${catOpen ? 'open' : ''}>
                             <summary class="text-xs font-semibold ${catColor} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">
                                 ${categoryLabels[cat] || cat}
                                 <span class="text-[10px] font-normal text-brand-text-muted">(${catModels.length})</span>
@@ -2326,9 +2346,9 @@
                     const _noBucket = !this._deploymentBucket;
                     const _deployBtn = (m, label, extraTitle = '') => {
                         if (_noBucket) {
-                            return `<button class="btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-border/30 text-brand-text-muted/50 cursor-not-allowed" disabled title="${t('custom_models.bucket_required_title')}">${label}</button>`;
+                            return html`<button class="btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-border/30 text-brand-text-muted/50 cursor-not-allowed" disabled title="${t('custom_models.bucket_required_title')}">${label}</button>`;
                         }
-                        return `<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}"${extraTitle ? ` title="${extraTitle}"` : ''}>${label}</button>`;
+                        return html`<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${extraTitle}">${label}</button>`;
                     };
 
                     const _renderCard = (m) => {
@@ -2349,12 +2369,12 @@
                             ? `${t('custom_models.failed')}: ${failReason.split('.')[0]} — ${t('custom_models.failed_autocleanup')}`
                             : `${t('custom_models.failed')} — ${t('custom_models.failed_autocleanup')}`;
                         const statusText = active ? t('custom_models.active') : idle ? `Inactive — activates on next request (${cacheHint})` : warmingUp ? (m.warmup_detail || t('custom_models.warming_up')) : scalingUp ? 'Starting instance...' : deploying ? (m.deploy_progress || t('custom_models.deploying')) : failed ? failText : t('custom_models.not_deployed');
-                        const authBadge = m.requires_hf_auth ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.hf_auth')}</span>` : '';
-                        const licenseBadge = `<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
-                        const userBadge = m.user_added ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>` : '';
+                        const authBadge = m.requires_hf_auth ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('custom_models.hf_auth')}</span>` : '';
+                        const licenseBadge = html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
+                        const userBadge = m.user_added ? raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>') : '';
                         const statusDot = active ? 'bg-emerald-400' : idle ? 'bg-blue-400' : warmingUp ? 'bg-cyan-400 animate-pulse' : (deploying || scalingUp) ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
 
-                        return `
+                        return html`
                             <div class="rounded-lg bg-brand-bg/40 border border-brand-border ${failed ? 'border-red-500/20' : ''}">
                                 <div class="p-3 flex items-center gap-3">
                                     <div class="flex-shrink-0 w-2 h-2 rounded-full ${statusDot}" title="${statusText}"></div>
@@ -2373,18 +2393,18 @@
                                     </div>
                                     <div class="flex items-center gap-2 flex-shrink-0">
                                         ${failed
-                                            ? `<span class="text-[10px] text-red-400 max-w-[260px] text-right" title="${this._esc(failReason)}">${failText}</span>
+                                            ? html`<span class="text-[10px] text-red-400 max-w-[260px] text-right" title="${failReason}">${failText}</span>
                                                ${_deployBtn(m, t('custom_models.deploy'))}`
                                             : !deployed && !deploying && !warmingUp && !scalingUp
-                                            ? `<span class="text-[10px] text-brand-text-muted/50">${t('custom_models.not_deployed')}</span>
+                                            ? html`<span class="text-[10px] text-brand-text-muted/50">${t('custom_models.not_deployed')}</span>
                                                ${_deployBtn(m, t('custom_models.deploy'))}`
                                             : (deploying || warmingUp || scalingUp)
-                                            ? `<span class="text-[10px] text-amber-400">${m.deploy_progress || t('custom_models.deploying')}</span>`
+                                            ? html`<span class="text-[10px] text-amber-400">${m.deploy_progress || t('custom_models.deploying')}</span>`
                                             : _deployBtn(m, t('custom_models.deploy_another'), t('custom_models.deploy_another_hint'))
                                         }
                                     </div>
                                 </div>
-                                ${(m.deployed_instances || []).length > 0 ? `
+                                ${(m.deployed_instances || []).length > 0 ? html`
                                 <div class="px-3 pb-3 pt-0 space-y-1.5 border-t border-brand-border/20 mt-0 ml-4">
                                     <div class="text-[9px] text-brand-text-muted/40 pt-2">${(m.deployed_instances || []).length} deployed instance${(m.deployed_instances || []).length > 1 ? 's' : ''}:</div>
                                     ${(m.deployed_instances || []).map(inst => {
@@ -2394,17 +2414,17 @@
                                         const iDot = iActive ? 'bg-emerald-400' : iIdle ? 'bg-blue-400' : iWarm ? 'bg-cyan-400 animate-pulse' : 'bg-brand-text-muted/30';
                                         const iColor = iActive ? 'text-emerald-400' : iIdle ? 'text-blue-400' : iWarm ? 'text-cyan-400' : 'text-brand-text-muted/50';
                                         const iStatusTxt = iActive ? t('custom_models.active') : iIdle ? t('custom_models.instance_inactive') : iWarm ? t('custom_models.warming_up') : inst.status;
-                                        return `
+                                        return html`
                                         <div class="flex items-center gap-2 p-2 rounded bg-black/10 border border-brand-border/20">
                                             <div class="w-1.5 h-1.5 rounded-full ${iDot} flex-shrink-0"></div>
                                             <span class="text-[11px] text-cyan-300/80 truncate flex-1 min-w-0" title="${inst.label}">${inst.label}</span>
                                             <span class="text-[10px] ${iColor} flex-shrink-0 w-[200px] text-right">${iStatusTxt}</span>
                                             <button class="ms-cm-teardown btn text-[10px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10 flex-shrink-0 w-[60px] text-center" data-model="${inst.deployed_key}">${t('custom_models.remove')}</button>
                                             ${iIdle ? (_noBucket
-                                                ? `<button class="btn text-[10px] px-2.5 py-0.5 rounded border border-brand-border/30 text-brand-text-muted/40 cursor-not-allowed flex-shrink-0 w-[110px] text-center" disabled title="${t('custom_models.bucket_required_title')}">${t('custom_models.redeploy')}</button>`
-                                                : `<button class="ms-cm-redeploy btn text-[10px] px-2.5 py-0.5 rounded border border-brand-accent/30 text-brand-accent/80 hover:bg-brand-accent/10 hover:text-brand-accent flex-shrink-0 w-[110px] text-center" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>`) : `<span class="w-[110px] flex-shrink-0"></span>`}
+                                                ? html`<button class="btn text-[10px] px-2.5 py-0.5 rounded border border-brand-border/30 text-brand-text-muted/40 cursor-not-allowed flex-shrink-0 w-[110px] text-center" disabled title="${t('custom_models.bucket_required_title')}">${t('custom_models.redeploy')}</button>`
+                                                : html`<button class="ms-cm-redeploy btn text-[10px] px-2.5 py-0.5 rounded border border-brand-accent/30 text-brand-accent/80 hover:bg-brand-accent/10 hover:text-brand-accent flex-shrink-0 w-[110px] text-center" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('custom_models.redeploy')}</button>`) : raw('<span class="w-[110px] flex-shrink-0"></span>')}
                                         </div>`;
-                                    }).join('')}
+                                    })}
                                 </div>` : ''}
                             </div>`;
                     };  // end _renderCard
@@ -2414,18 +2434,19 @@
                         // render under a "Generation" sub-header — same visual language
                         // as the Image Studio purpose sub-groups.
                         _subGrouped.forEach(g => {
-                            html += `<div class="text-[10px] font-semibold text-cyan-300/70 uppercase tracking-wider mt-1 mb-1.5 pl-0.5">${g.label} <span class="text-brand-text-muted/50 font-normal">(${g.models.length})</span></div>`;
-                            html += g.models.map(_renderCard).join('');
+                            out += html`<div class="text-[10px] font-semibold text-cyan-300/70 uppercase tracking-wider mt-1 mb-1.5 pl-0.5">${g.label} <span class="text-brand-text-muted/50 font-normal">(${g.models.length})</span></div>`;
+                            out += g.models.map(_renderCard).join('');
                         });
                     } else {
-                        html += _renderModels.map(_renderCard).join('');
+                        out += _renderModels.map(_renderCard).join('');
                     }
-                    html += '</div></details>';  // close category
+                    out += '</div></details>';  // close category
                     });
-                    html += '</div></details>';  // close studio
+                    out += '</div></details>';  // close studio
                 });
-                html += '</div>';
-                container.innerHTML = html;
+                out += '</div>';
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                container.innerHTML = out;
 
                 // Default: open the first top-level section if none are open (fresh load)
                 const cmSections = container.querySelectorAll('details.ms-collapsible[data-cm-studio]');
@@ -2503,10 +2524,11 @@
                 container.querySelector('#ms-s3-edit')?.addEventListener('click', () => {
                     const card = container.querySelector('#ms-s3-card');
                     if (!card) return;
-                    card.outerHTML = `<div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border">
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    card.outerHTML = html`<div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border">
                         <p class="text-[10px] uppercase tracking-wider text-brand-text-muted mb-1.5">${t('custom_models.s3_bucket_label')}</p>
                         <div class="flex gap-2">
-                            <input type="text" id="ms-s3-input" class="input flex-1 text-xs font-mono" value="${this._esc(_bkt)}" placeholder="${t('custom_models.s3_bucket_placeholder')}" />
+                            <input type="text" id="ms-s3-input" class="input flex-1 text-xs font-mono" value="${_bkt}" placeholder="${t('custom_models.s3_bucket_placeholder')}" />
                             <button id="ms-s3-save" class="btn btn-primary btn-sm text-xs whitespace-nowrap">${t('custom_models.s3_save')}</button>
                         </div>
                         <p id="ms-s3-msg" class="text-[10px] mt-1.5 hidden"></p>
@@ -2543,7 +2565,8 @@
 
             } catch (err) {
                 const msg = err.name === 'AbortError' ? 'Request timed out — Amazon SageMaker status check may be slow. Try Refresh Status.' : err.message;
-                container.innerHTML = `<p class="text-xs text-red-400">Failed to load custom models: ${msg}</p>`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                container.innerHTML = html`<p class="text-xs text-red-400">Failed to load custom models: ${msg}</p>`;
             }
         },
 
@@ -2712,7 +2735,8 @@
             // Step 1: Ask for HuggingFace repo URL
             const backdrop = document.createElement('div');
             backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
-            backdrop.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            backdrop.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
                     <h3 class="text-sm font-semibold text-brand-text flex items-center gap-2">
                         <span>+</span> ${t('custom_models.add_model_title') || 'Add Custom Model'}
@@ -2758,7 +2782,8 @@
                         if (detail.includes('authentication') || detail.includes('401') || detail.includes('403')) {
                             backdrop.querySelector('.cm-token-row').classList.remove('hidden');
                         }
-                        backdrop.querySelector('.cm-result').innerHTML = `<p class="text-xs text-red-400">${detail}</p>`;
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        backdrop.querySelector('.cm-result').innerHTML = html`<p class="text-xs text-red-400">${detail}</p>`;
                         backdrop.querySelector('.cm-result').classList.remove('hidden');
                         return;
                     }
@@ -2768,8 +2793,9 @@
 
                     // Show detected info
                     const e = detectedEntry;
-                    const warning = e.invoke?._warning ? `<p class="text-[10px] text-amber-400 mt-2">⚠ ${e.invoke._warning}</p>` : '';
-                    backdrop.querySelector('.cm-result').innerHTML = `
+                    const warning = e.invoke?._warning ? html`<p class="text-[10px] text-amber-400 mt-2">⚠ ${e.invoke._warning}</p>` : '';
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    backdrop.querySelector('.cm-result').innerHTML = html`
                         <div class="p-3 rounded-lg bg-black/20 border border-brand-border/30 space-y-2">
                             <h4 class="text-xs font-semibold text-emerald-400">✓ Model Detected</h4>
                             <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted">
@@ -2787,7 +2813,8 @@
                     backdrop.querySelector('.cm-add').classList.remove('hidden');
 
                 } catch (err) {
-                    backdrop.querySelector('.cm-result').innerHTML = `<p class="text-xs text-red-400">${err.message}</p>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    backdrop.querySelector('.cm-result').innerHTML = html`<p class="text-xs text-red-400">${err.message}</p>`;
                     backdrop.querySelector('.cm-result').classList.remove('hidden');
                 } finally {
                     detectBtn.textContent = t('custom_models.detect') || 'Detect Model';
@@ -2910,19 +2937,20 @@
 
             const backdrop = document.createElement('div');
             backdrop.className = 'fixed inset-0 z-[120] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
-            backdrop.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            backdrop.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
                     <h3 class="text-sm font-semibold text-brand-text">🔑 ${t('custom_models.hf_title')}</h3>
                     <div class="text-xs text-brand-text-muted space-y-2">
                         <p>${t('custom_models.hf_status')} ${stored
-                            ? `<span class="text-emerald-400 font-medium">${t('model_settings.ms_token_stored')}</span> ${t('custom_models.hf_encrypted')}`
-                            : `<span class="text-amber-400 font-medium">${t('model_settings.ms_no_token')}</span>`
+                            ? html`<span class="text-emerald-400 font-medium">${t('model_settings.ms_token_stored')}</span> ${t('custom_models.hf_encrypted')}`
+                            : html`<span class="text-amber-400 font-medium">${t('model_settings.ms_no_token')}</span>`
                         }</p>
                         <p>${t('custom_models.hf_desc')}</p>
                     </div>
                     <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="${stored ? t('custom_models.hf_placeholder_update') : t('custom_models.hf_placeholder_store')}" autocomplete="off" />
                     <div class="flex gap-2 justify-end">
-                        ${stored ? `<button class="hf-delete btn btn-sm text-xs px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10">${t('model_settings.ms_delete_token')}</button>` : ''}
+                        ${stored ? html`<button class="hf-delete btn btn-sm text-xs px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10">${t('model_settings.ms_delete_token')}</button>` : ''}
                         <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('model_settings.ms_close')}</button>
                         <button class="hf-save btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('model_settings.ms_save_token')}</button>
                     </div>

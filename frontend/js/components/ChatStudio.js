@@ -316,7 +316,8 @@
         if (!el) return;
         if (_pendingImages.length === 0) { el.classList.add('hidden'); el.innerHTML = ''; return; }
         el.classList.remove('hidden');
-        el.innerHTML = _pendingImages.map((img, i) => `
+        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+        el.innerHTML = _pendingImages.map((img, i) => html`
             <div class="relative group">
                 <img src="${img.dataUrl}" class="w-16 h-16 object-cover rounded-lg border border-brand-border">
                 <button class="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-red-500 text-white text-[9px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity" onclick="this.closest('[id=cs-attachments]')?.dispatchEvent(new CustomEvent('remove-img', {detail: ${i}}))">&times;</button>
@@ -346,9 +347,9 @@
             byProvider[provider].push(m);
         }
 
-        let html = '';
+        const rows = [];
         for (const [provider, models] of Object.entries(byProvider)) {
-            html += `<div class="px-3 pt-2 pb-1 text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider">${_esc(provider)}</div>`;
+            rows.push(html`<div class="px-3 pt-2 pb-1 text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider">${provider}</div>`);
             for (const m of models) {
                 const ctx = m.max_context_tokens >= 1000000 ? `${Math.round(m.max_context_tokens / 1000000)}M` : `${Math.round(m.max_context_tokens / 1000)}K`;
                 const vision = m.has_vision ? ' [vision]' : '';
@@ -358,10 +359,11 @@
                 const price = m.pricing?.input_per_1k ? ` · $${m.pricing.input_per_1k}/1K in` : '';
                 const label = `${m.label} — ${ctx}${price}${vision}${source}${regionHint}`;
                 const active = m.model_id === _selectedModelId ? ' bg-brand-accent/15' : '';
-                html += `<div class="cs-model-item flex items-center gap-2 text-xs font-mono cursor-pointer py-1.5 px-3 hover:bg-brand-bg/60 whitespace-nowrap${active}" data-model-id="${_esc(m.model_id)}" data-label="${_esc(label)}">${_esc(label)}</div>`;
+                rows.push(html`<div class="cs-model-item flex items-center gap-2 text-xs font-mono cursor-pointer py-1.5 px-3 hover:bg-brand-bg/60 whitespace-nowrap${active}" data-model-id="${m.model_id}" data-label="${label}">${label}</div>`);
             }
         }
-        dd.innerHTML = html;
+        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+        dd.innerHTML = html`${rows}`;
 
         // If no selection yet, auto-select first model
         if (!_selectedModelId && _models.length) {
@@ -397,10 +399,12 @@
 
         const regions = model.available_regions || [model.region].filter(Boolean);
         if (regions.length <= 1) {
-            sel.innerHTML = `<option value="${_esc(regions[0] || '')}">${_esc(regions[0] || t('common.default'))}</option>`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            sel.innerHTML = html`<option value="${regions[0] || ''}">${regions[0] || t('common.default')}</option>`;
             sel.disabled = true;
         } else {
-            sel.innerHTML = regions.map(r => `<option value="${_esc(r)}">${_esc(r)}</option>`).join('');
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            sel.innerHTML = regions.map(r => html`<option value="${r}">${r}</option>`).join('');
             sel.disabled = false;
             // Restore region override if saved
             if (_currentSession?.region_override && regions.includes(_currentSession.region_override)) {
@@ -422,9 +426,11 @@
             const est10k = ((p.input_per_1k * 7) + (p.output_per_1k * 3)).toFixed(3);
             // Calculate what 100K tokens would cost (long conversation)
             const est100k = ((p.input_per_1k * 70) + (p.output_per_1k * 30)).toFixed(2);
-            el.innerHTML = `${t('chat_studio.pricing_label')}: <span class="text-brand-text/70">${input1k}/1K input</span> · <span class="text-brand-text/70">${output1k}/1K output</span> · <span class="text-brand-accent/70" title="Estimated cost for ~10K tokens (70% input, 30% output)">~$${est10k}/10K tokens</span> · <span class="text-amber-400/70" title="Estimated cost for ~100K tokens (70% input, 30% output)">~$${est100k}/100K tokens</span>`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            el.innerHTML = html`${t('chat_studio.pricing_label')}: <span class="text-brand-text/70">${input1k}/1K input</span> · <span class="text-brand-text/70">${output1k}/1K output</span> · <span class="text-brand-accent/70" title="Estimated cost for ~10K tokens (70% input, 30% output)">~$${est10k}/10K tokens</span> · <span class="text-amber-400/70" title="Estimated cost for ~100K tokens (70% input, 30% output)">~$${est100k}/100K tokens</span>`;
         } else {
-            el.innerHTML = `<span class="text-brand-text-muted/50">${t('chat_studio.pricing_not_available')}</span>`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            el.innerHTML = html`<span class="text-brand-text-muted/50">${t('chat_studio.pricing_not_available')}</span>`;
         }
     }
 
@@ -474,20 +480,21 @@
         if (!el) return;
         const filtered = filter ? _sessions.filter(s => s.title.toLowerCase().includes(filter)) : _sessions;
 
+        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
         el.innerHTML = filtered.length === 0
-            ? `<p class="text-[10px] text-brand-text-muted text-center py-4">${t('chat_studio.no_conversations')}</p>`
+            ? html`<p class="text-[10px] text-brand-text-muted text-center py-4">${t('chat_studio.no_conversations')}</p>`
             : filtered.map(s => {
                 const active = _currentSession?.session_id === s.session_id;
                 const msgs = s.message_count || 0;
                 const cost = s.total_cost_usd > 0 ? ` · $${s.total_cost_usd.toFixed(2)}` : '';
-                return `
-                    <div class="cs-session-item group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer text-xs transition-colors ${active ? 'bg-brand-accent/15 text-brand-accent' : 'text-brand-text-muted hover:bg-white/5'}" data-sid="${_esc(s.session_id)}">
-                        <span class="cs-session-title flex-1 truncate" data-sid="${_esc(s.session_id)}">${_esc(s.title)}</span>
+                return html`
+                    <div class="cs-session-item group flex items-center gap-1 px-2 py-1.5 rounded-lg cursor-pointer text-xs transition-colors ${active ? 'bg-brand-accent/15 text-brand-accent' : 'text-brand-text-muted hover:bg-white/5'}" data-sid="${s.session_id}">
+                        <span class="cs-session-title flex-1 truncate" data-sid="${s.session_id}">${s.title}</span>
                         <span class="text-[9px] opacity-60 flex-shrink-0">${msgs}${cost}</span>
                         <div class="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
-                            <button class="cs-rename-session text-brand-text-muted hover:text-brand-text text-[10px] px-0.5" data-sid="${_esc(s.session_id)}" title="${t('chat_studio.rename')}">${t('chat_studio.rename')}</button>
-                            <button class="cs-dup-session text-brand-text-muted hover:text-brand-text text-[10px] px-0.5" data-sid="${_esc(s.session_id)}" title="${t('chat_studio.duplicate')}">${t('chat_studio.duplicate')}</button>
-                            <button class="cs-delete-session text-red-400 hover:text-red-300 text-[10px] px-0.5" data-sid="${_esc(s.session_id)}" title="${t('common.delete')}">&times;</button>
+                            <button class="cs-rename-session text-brand-text-muted hover:text-brand-text text-[10px] px-0.5" data-sid="${s.session_id}" title="${t('chat_studio.rename')}">${t('chat_studio.rename')}</button>
+                            <button class="cs-dup-session text-brand-text-muted hover:text-brand-text text-[10px] px-0.5" data-sid="${s.session_id}" title="${t('chat_studio.duplicate')}">${t('chat_studio.duplicate')}</button>
+                            <button class="cs-delete-session text-red-400 hover:text-red-300 text-[10px] px-0.5" data-sid="${s.session_id}" title="${t('common.delete')}">&times;</button>
                         </div>
                     </div>`;
             }).join('');
@@ -523,7 +530,8 @@
                 const titleEl = el.querySelector(`.cs-session-title[data-sid="${btn.dataset.sid}"]`);
                 if (!titleEl) return;
                 const currentTitle = titleEl.textContent;
-                titleEl.innerHTML = `<input type="text" class="input text-[10px] w-full" value="${_esc(currentTitle)}">`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                titleEl.innerHTML = html`<input type="text" class="input text-[10px] w-full" value="${currentTitle}">`;
                 const inp = titleEl.querySelector('input');
                 inp.focus();
                 inp.select();
@@ -608,7 +616,8 @@
         const msgs = _currentSession?.messages || [];
 
         if (msgs.length === 0) {
-            el.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            el.innerHTML = html`
                 <div class="flex items-center justify-center h-full">
                     <div class="text-center text-brand-text-muted">
                         <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -621,6 +630,7 @@
             return;
         }
 
+        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
         el.innerHTML = msgs.map((msg, i) => _renderMessage(msg, i)).join('');
         _scrollToBottom();
     }
@@ -628,10 +638,10 @@
     function _renderMessage(msg, index) {
         // Model switch divider
         if (msg.role === 'system_divider') {
-            return `
+            return html`
                 <div class="flex items-center gap-3 py-1" data-msg-idx="${index}">
                     <div class="flex-1 border-t border-brand-border/50"></div>
-                    <span class="text-[10px] text-brand-text-muted/50 flex-shrink-0 px-2">${_esc(msg.content)}</span>
+                    <span class="text-[10px] text-brand-text-muted/50 flex-shrink-0 px-2">${msg.content}</span>
                     <div class="flex-1 border-t border-brand-border/50"></div>
                 </div>`;
         }
@@ -645,18 +655,18 @@
 
         let contentHtml;
         if (isUser) {
-            contentHtml = `<div class="text-sm whitespace-pre-wrap">${_esc(typeof msg.content === 'string' ? msg.content : '')}</div>`;
+            contentHtml = html`<div class="text-sm whitespace-pre-wrap">${typeof msg.content === 'string' ? msg.content : ''}</div>`;
             // Show attached images
             if (msg.images && msg.images.length > 0) {
-                contentHtml += `<div class="flex gap-2 mt-2 flex-wrap">${msg.images.map(img =>
-                    `<img src="data:image/png;base64,${img}" class="w-20 h-20 object-cover rounded-lg border border-brand-border">`
-                ).join('')}</div>`;
+                contentHtml = html`${contentHtml}<div class="flex gap-2 mt-2 flex-wrap">${msg.images.map(img =>
+                    html`<img src="data:image/png;base64,${img}" class="w-20 h-20 object-cover rounded-lg border border-brand-border">`
+                )}</div>`;
             }
         } else {
-            contentHtml = `<div class="cs-md-content text-sm">${_renderMarkdown(msg.content || '')}</div>`;
+            contentHtml = html`<div class="cs-md-content text-sm">${raw(_renderMarkdown(msg.content || ''))}</div>`;
             // Show content safety block if saved
             if (msg.content_blocked) {
-                contentHtml += `
+                contentHtml = html`${contentHtml}
                     <div class="cs-content-blocked mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                         <div class="flex items-center gap-2 mb-2">
                             <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -664,7 +674,7 @@
                             </svg>
                             <span class="text-sm font-medium text-amber-400">${t('chat_studio.content_safety')}</span>
                         </div>
-                        <div class="cs-md-content text-xs text-amber-200/80">${_renderMarkdown(msg.content_blocked)}</div>
+                        <div class="cs-md-content text-xs text-amber-200/80">${raw(_renderMarkdown(msg.content_blocked))}</div>
                     </div>`;
             }
         }
@@ -674,26 +684,26 @@
             const latency = msg.latency_ms ? `${(msg.latency_ms / 1000).toFixed(1)}s` : '';
             const cost = msg.cost_usd ? `~$${msg.cost_usd.toFixed(4)}` : '';
             const modelLabel = msg.model_id ? msg.model_id.split('.').pop().split(':')[0] : '';
-            meta = `<div class="flex items-center gap-3 mt-2 text-[10px] text-brand-text-muted/60">
-                ${latency ? `<span>${latency}</span>` : ''}
+            meta = html`<div class="flex items-center gap-3 mt-2 text-[10px] text-brand-text-muted/60">
+                ${latency ? html`<span>${latency}</span>` : ''}
                 <span>${(msg.input_tokens || 0).toLocaleString()} in / ${(msg.output_tokens || 0).toLocaleString()} out</span>
-                ${cost ? `<span class="text-brand-accent/60" title="${t('misc.cost_tooltip')}">${cost}</span>` : ''}
-                ${modelLabel ? `<span class="font-mono">${_esc(modelLabel)}</span>` : ''}
+                ${cost ? html`<span class="text-brand-accent/60" title="${t('misc.cost_tooltip')}">${cost}</span>` : ''}
+                ${modelLabel ? html`<span class="font-mono">${modelLabel}</span>` : ''}
             </div>`;
         }
 
         // Action buttons
         const actions = isUser
-            ? `<div class="hidden group-hover:flex items-center gap-1 mt-1">
+            ? html`<div class="hidden group-hover:flex items-center gap-1 mt-1">
                 <button data-action="edit" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('chat_studio.edit')}</button>
                 <button data-action="fork" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('chat_studio.fork')}</button>
                </div>`
-            : `<div class="hidden group-hover:flex items-center gap-1 mt-1">
+            : html`<div class="hidden group-hover:flex items-center gap-1 mt-1">
                 <button data-action="regenerate" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('chat_studio.regenerate')}</button>
                 <button data-action="fork" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('chat_studio.fork')}</button>
                </div>`;
 
-        return `
+        return html`
             <div class="group flex gap-3 ${isUser ? '' : 'cs-assistant-msg'}" data-msg-idx="${index}">
                 <div class="w-7 h-7 rounded-lg ${avatarClass} flex items-center justify-center text-[10px] font-bold flex-shrink-0 mt-0.5">${avatar}</div>
                 <div class="flex-1 min-w-0">
@@ -832,7 +842,8 @@
                     try { event = JSON.parse(line.slice(6)); } catch { continue; }
                     if (event.type === 'delta' && event.text) {
                         fullText += event.text;
-                        if (contentEl) contentEl.innerHTML = _renderMarkdown(fullText) + '<span class="cs-cursor animate-pulse">|</span>';
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        if (contentEl) contentEl.innerHTML = html`${raw(_renderMarkdown(fullText))}<span class="cs-cursor animate-pulse">|</span>`;
                         _scrollToBottom();
                     } else if (event.type === 'metadata') {
                         metadata = event;
@@ -841,21 +852,22 @@
                         // Content safety block — show styled warning with guidance
                         contentBlocked = event.message;
                         if (contentEl) {
-                            contentEl.innerHTML = (fullText ? _renderMarkdown(fullText) : '') +
-                                `<div class="cs-content-blocked mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                            contentEl.innerHTML = html`${raw(fullText ? _renderMarkdown(fullText) : '')}<div class="cs-content-blocked mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                                     <div class="flex items-center gap-2 mb-2">
                                         <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                                         </svg>
                                         <span class="text-sm font-medium text-amber-400">${t('chat_studio.content_safety')}</span>
                                     </div>
-                                    <div class="cs-md-content text-xs text-amber-200/80">${_renderMarkdown(event.message)}</div>
+                                    <div class="cs-md-content text-xs text-amber-200/80">${raw(_renderMarkdown(event.message))}</div>
                                 </div>`;
                         }
                         _scrollToBottom();
                     } else if (event.type === 'error') {
                         fullText += `\n\n**Error:** ${event.detail}`;
-                        if (contentEl) contentEl.innerHTML = _renderMarkdown(fullText);
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        if (contentEl) contentEl.innerHTML = raw(_renderMarkdown(fullText));
                     }
                 }
             }

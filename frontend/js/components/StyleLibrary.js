@@ -13,7 +13,7 @@
 
         /** Render the view HTML */
         render() {
-            return `
+            return html`
                 <div id="style-library" class="space-y-6 view-enter">
                     <!-- Header -->
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -157,7 +157,8 @@
             if (!grid) return;
 
             if (this._styles.length === 0) {
-                grid.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                grid.innerHTML = html`
                     <div class="col-span-full empty-state py-16">
                         <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
@@ -177,6 +178,7 @@
                 return;
             }
 
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
             grid.innerHTML = this._styles.map((s) => this._cardHTML(s)).join('');
 
             // Attach click listeners to cards
@@ -194,22 +196,22 @@
                 : null;
             const refCount = (style.reference_images || []).length;
 
-            return `
-                <div class="style-card card cursor-pointer overflow-hidden group" data-id="${this._esc(style.id)}">
+            return html`
+                <div class="style-card card cursor-pointer overflow-hidden group" data-id="${style.id}">
                     <div class="img-hover-zoom aspect-video bg-brand-bg flex items-center justify-center overflow-hidden">
                         ${thumb
-                            ? `<img src="${thumb}" alt="${this._esc(style.name)}" class="w-full h-full object-cover" loading="lazy"/>`
-                            : `<svg class="w-12 h-12 text-brand-text-muted/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            ? html`<img src="${thumb}" alt="${style.name}" class="w-full h-full object-cover" loading="lazy"/>`
+                            : html`<svg class="w-12 h-12 text-brand-text-muted/30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                </svg>`
                         }
                     </div>
                     <div class="p-4">
-                        <h3 class="font-semibold text-brand-text group-hover:text-brand-accent transition-colors truncate">${this._esc(style.name)}</h3>
-                        <p class="text-sm text-brand-text-muted mt-1 line-clamp-2">${this._esc(style.description || t('style_library.no_description'))}</p>
+                        <h3 class="font-semibold text-brand-text group-hover:text-brand-accent transition-colors truncate">${style.name}</h3>
+                        <p class="text-sm text-brand-text-muted mt-1 line-clamp-2">${style.description || t('style_library.no_description')}</p>
                         <div class="flex items-center gap-3 mt-3 text-xs text-brand-text-muted">
                             <span class="badge badge-indigo">${refCount} ref${refCount !== 1 ? 's' : ''}</span>
-                            ${style.analyzed_style ? `<span class="badge badge-green">${t('style_library.analyzed')}</span>` : ''}
+                            ${style.analyzed_style ? html`<span class="badge badge-green">${t('style_library.analyzed')}</span>` : ''}
                         </div>
                     </div>
                 </div>
@@ -229,7 +231,7 @@
                         </div>
                     </div>`;
             }
-            return html;
+            return raw(html);
         },
 
         // --------------------------------------------------------
@@ -247,10 +249,12 @@
             try {
                 const style = await API.styles.get(id);
                 if (this._activeDetail !== id) return; // user navigated away
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
                 overlay.innerHTML = this._detailHTML(style);
                 this._attachDetailEvents(style);
             } catch (err) {
-                overlay.innerHTML = `<div class="text-center py-12 text-red-400">${t('style_library.detail_failed')}</div>`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                overlay.innerHTML = html`<div class="text-center py-12 text-red-400">${t('style_library.detail_failed')}</div>`;
             }
         },
 
@@ -258,7 +262,7 @@
             const refs = style.reference_images || [];
             const analyzedJson = style.analyzed_style ? JSON.stringify(style.analyzed_style, null, 2) : null;
 
-            return `
+            return html`
                 <div class="card-static p-6 space-y-6 fade-in">
                     <!-- Back + Title -->
                     <div class="flex items-start justify-between gap-4">
@@ -269,8 +273,8 @@
                                 </svg>
                             </button>
                             <div>
-                                <h2 class="text-xl font-bold">${this._esc(style.name)}</h2>
-                                <p class="text-sm text-brand-text-muted mt-0.5">${this._esc(style.description || '')}</p>
+                                <h2 class="text-xl font-bold">${style.name}</h2>
+                                <p class="text-sm text-brand-text-muted mt-0.5">${style.description || ''}</p>
                             </div>
                         </div>
                         <div class="flex gap-2">
@@ -289,21 +293,21 @@
                         </div>
                     </div>
 
-                    ${style.generation_hints ? `
+                    ${style.generation_hints ? html`
                     <div>
                         <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('style_library.generation_hints_label')}</h3>
-                        <p class="text-sm p-3 rounded-lg bg-brand-bg/60">${this._esc(style.generation_hints)}</p>
+                        <p class="text-sm p-3 rounded-lg bg-brand-bg/60">${style.generation_hints}</p>
                     </div>` : ''}
 
                     <!-- Reference Images -->
                     <div>
                         <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wider mb-3">${t('style_library.ref_images_count', { count: refs.length })}</h3>
                         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 mb-4">
-                            ${refs.map((filename) => `
+                            ${refs.map((filename) => html`
                                 <div class="img-hover-zoom rounded-lg overflow-hidden aspect-square bg-brand-bg border border-brand-border">
                                     <img src="${API.styles.referenceUrl(style.id, filename)}" alt="Reference" class="w-full h-full object-cover" loading="lazy"/>
                                 </div>
-                            `).join('')}
+                            `)}
                         </div>
 
                         <!-- Upload Zone -->
@@ -355,7 +359,7 @@
                     </div>
 
                     <!-- Re-Analyze Button (only useful after editing hints or to refresh) -->
-                    ${refs.length > 0 ? `
+                    ${refs.length > 0 ? html`
                     <div class="flex items-center gap-3">
                         <button class="btn-analyze btn ${style.analyzed_style ? 'btn-secondary' : 'btn-primary'}" data-id="${style.id}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -370,10 +374,10 @@
                     </div>` : ''}
 
                     <!-- Analyzed Style JSON -->
-                    ${analyzedJson ? `
+                    ${analyzedJson ? html`
                     <div>
                         <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('style_library.analyzed_style_label')}</h3>
-                        <pre class="p-4 rounded-lg bg-brand-bg/80 text-xs text-brand-text-muted overflow-x-auto border border-brand-border font-mono leading-relaxed">${this._esc(analyzedJson)}</pre>
+                        <pre class="p-4 rounded-lg bg-brand-bg/80 text-xs text-brand-text-muted overflow-x-auto border border-brand-border font-mono leading-relaxed">${analyzedJson}</pre>
                     </div>` : ''}
                 </div>
             `;
@@ -445,7 +449,8 @@
                 }
                 const btn = document.getElementById('btn-import-path');
                 const origHTML = btn.innerHTML;
-                btn.innerHTML = `<span class="spinner-sm"></span> ${t('style_library.importing_analyzing')}`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('style_library.importing_analyzing')}`;
                 btn.disabled = true;
                 try {
                     await API.styles.importPath(style.id, path, true);
@@ -453,7 +458,8 @@
                     this._showDetail(style.id);
                     await this._loadStyles();
                 } catch (err) {
-                    btn.innerHTML = origHTML;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    btn.innerHTML = raw(origHTML);
                     btn.disabled = false;
                 }
             });
@@ -470,7 +476,8 @@
             document.querySelector('.btn-analyze')?.addEventListener('click', async () => {
                 const btn = document.querySelector('.btn-analyze');
                 const origHTML = btn.innerHTML;
-                btn.innerHTML = `<span class="spinner-sm"></span> ${t('style_library.analyzing')}`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('style_library.analyzing')}`;
                 btn.disabled = true;
                 try {
                     await API.styles.analyze(style.id);
@@ -478,7 +485,8 @@
                     // Refresh detail
                     this._showDetail(style.id);
                 } catch (err) {
-                    btn.innerHTML = origHTML;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    btn.innerHTML = raw(origHTML);
                     btn.disabled = false;
                 }
             });
@@ -620,7 +628,8 @@
             const modal = document.createElement('div');
             modal.id = 'browse-modal';
             modal.className = 'fixed inset-0 z-[90] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
-            modal.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            modal.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
                         <h3 class="text-base font-semibold">${mode === 's3' ? t('style_library.browse_s3_title') : t('style_library.browse_local_title')}</h3>
@@ -695,20 +704,22 @@
 
                 const list = modal.querySelector('#browse-list');
                 if (items.length === 0) {
-                    list.innerHTML = `<p class="text-center text-brand-text-muted text-sm py-8">${t('style_library.browse_empty')}</p>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    list.innerHTML = html`<p class="text-center text-brand-text-muted text-sm py-8">${t('style_library.browse_empty')}</p>`;
                     return;
                 }
-                list.innerHTML = items.map(item => `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                list.innerHTML = items.map(item => html`
                     <div class="browse-item w-full text-left px-3 py-2 rounded-lg hover:bg-white/5 flex items-center gap-3 text-sm transition-colors cursor-pointer select-none"
-                            data-path="${this._esc(item.path || item.uri || item.prefix || '')}"
+                            data-path="${item.path || item.uri || item.prefix || ''}"
                             data-type="${item.type}">
                         ${item.type === 'directory'
-                            ? '<svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>'
-                            : '<svg class="w-5 h-5 text-brand-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>'
+                            ? raw('<svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/></svg>')
+                            : raw('<svg class="w-5 h-5 text-brand-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>')
                         }
-                        <span class="flex-1 truncate">${this._esc(item.name)}</span>
-                        ${item.size ? `<span class="text-xs text-brand-text-muted">${(item.size / 1024).toFixed(0)}K</span>` : ''}
-                        ${item.type === 'directory' ? '<svg class="w-4 h-4 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>' : ''}
+                        <span class="flex-1 truncate">${item.name}</span>
+                        ${item.size ? html`<span class="text-xs text-brand-text-muted">${(item.size / 1024).toFixed(0)}K</span>` : ''}
+                        ${item.type === 'directory' ? raw('<svg class="w-4 h-4 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>') : ''}
                     </div>
                 `).join('');
 
@@ -758,7 +769,8 @@
                         items.push(...data.items);
                         renderList(items, data.current, `${data.image_count} image(s)`, data.parent);
                     } catch (err) {
-                        list.innerHTML = `<p class="text-center text-red-400 text-sm py-8">${err.message}</p>`;
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        list.innerHTML = html`<p class="text-center text-red-400 text-sm py-8">${err.message}</p>`;
                     }
                 };
                 navigate('~');
@@ -815,7 +827,8 @@
                             });
                         }
                     } catch (err) {
-                        list.innerHTML = `<p class="text-center text-red-400 text-sm py-8">${err.message}</p>`;
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        list.innerHTML = html`<p class="text-center text-red-400 text-sm py-8">${err.message}</p>`;
                     }
                 };
                 navigate._resetBucket = () => { currentBucket = ''; };

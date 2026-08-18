@@ -54,7 +54,8 @@
 
         // ── Render ────────────────────────────────────────────────────
         _render() {
-            this.container.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            this.container.innerHTML = html`
                 <div class="reference-studio space-y-4">
                     <!-- Step 1: Reference images -->
                     <div>
@@ -235,7 +236,8 @@
             }
             this._empty.classList.add('hidden');
             this._thumbs.classList.remove('hidden');
-            this._thumbs.innerHTML = this._images.map((im, i) => `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            this._thumbs.innerHTML = this._images.map((im, i) => html`
                 <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-brand-border group">
                     <img src="${im.dataUrl}" class="w-full h-full object-cover">
                     <button type="button" data-i="${i}" class="rs-thumb-remove absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-black/70 text-white text-[10px] leading-none flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">×</button>

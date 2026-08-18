@@ -50,7 +50,8 @@
 
         const routeDef = ROUTES[route];
         if (!routeDef || !routeDef.component) {
-            app.innerHTML = `<p class="text-center py-12 text-brand-text-muted">${t('onboarding.page_not_found')}</p>`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            app.innerHTML = html`<p class="text-center py-12 text-brand-text-muted">${t('onboarding.page_not_found')}</p>`;
             currentRoute = null;
             return;
         }
@@ -87,7 +88,8 @@
         // First visit: render, cache, and init
         const wrapper = document.createElement('div');
         wrapper.dataset.view = route;
-        wrapper.innerHTML = routeDef.component.render();
+        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+        wrapper.innerHTML = raw(routeDef.component.render());
         app.appendChild(wrapper);
         _viewCache[route] = wrapper;
 
@@ -206,9 +208,10 @@
 
         const toast = document.createElement('div');
         toast.className = `toast flex items-start gap-3 px-4 py-3 rounded-lg bg-brand-surface border ${bgMap[type] || bgMap.info} shadow-lg`;
-        toast.innerHTML = `
-            ${iconMap[type] || iconMap.info}
-            <p class="text-sm text-brand-text flex-1">${escapeHTML(message)}</p>
+        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+        toast.innerHTML = html`
+            ${raw(iconMap[type] || iconMap.info)}
+            <p class="text-sm text-brand-text flex-1">${message}</p>
             <button class="toast-close p-0.5 rounded hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors flex-shrink-0" title="${typeof t !== 'undefined' ? t('common.dismiss') : 'Dismiss'}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -271,14 +274,15 @@
 
             const backdrop = document.createElement('div');
             backdrop.className = 'fixed inset-0 z-[110] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4';
-            backdrop.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            backdrop.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4 animate-[fadeIn_0.15s_ease-out]">
-                    <h3 class="text-sm font-semibold text-brand-text">${escapeHTML(title)}</h3>
-                    <p class="text-sm text-brand-text-muted">${escapeHTML(message)}</p>
-                    ${detail ? `<p class="text-xs text-brand-text-muted/70 whitespace-pre-line">${escapeHTML(detail)}</p>` : ''}
+                    <h3 class="text-sm font-semibold text-brand-text">${title}</h3>
+                    <p class="text-sm text-brand-text-muted">${message}</p>
+                    ${detail ? html`<p class="text-xs text-brand-text-muted/70 whitespace-pre-line">${detail}</p>` : ''}
                     <div class="flex gap-2 justify-end pt-2">
-                        ${cancelLabel ? `<button class="cs-confirm-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${escapeHTML(cancelLabel)}</button>` : ''}
-                        <button class="cs-confirm-ok btn btn-sm text-xs px-4 py-2 rounded-lg ${btnClass} font-medium">${escapeHTML(confirmLabel)}</button>
+                        ${cancelLabel ? html`<button class="cs-confirm-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${cancelLabel}</button>` : ''}
+                        <button class="cs-confirm-ok btn btn-sm text-xs px-4 py-2 rounded-lg ${btnClass} font-medium">${confirmLabel}</button>
                     </div>
                 </div>`;
 
@@ -309,9 +313,10 @@
         if (!container || typeof I18n === 'undefined') return;
 
         const current = I18n.getLang();
+        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
         container.innerHTML = I18n.SUPPORTED_LANGS.map(l => {
             const active = l.code === current;
-            return `<button class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${active
+            return html`<button class="px-1.5 py-0.5 rounded text-[10px] font-medium transition-colors ${active
                 ? 'bg-brand-accent text-white'
                 : 'text-brand-text-muted hover:text-brand-text hover:bg-white/5'}" data-lang="${l.code}" title="${l.tooltip || l.label}">${l.flag}</button>`;
         }).join('');
@@ -423,11 +428,12 @@
             };
             const toast = document.createElement('div');
             toast.className = `toast flex items-start gap-3 px-4 py-3 rounded-lg bg-brand-surface border ${bgMap[level]} shadow-lg`;
-            toast.innerHTML = `
-                ${iconMap[level]}
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            toast.innerHTML = html`
+                ${raw(iconMap[level])}
                 <div class="flex-1 min-w-0">
-                    <p class="text-sm font-semibold text-brand-text">${_escapeNotice(n.title || 'Notice')}</p>
-                    <p class="text-xs text-brand-text-muted mt-0.5 leading-relaxed">${_escapeNotice(n.message || '')}</p>
+                    <p class="text-sm font-semibold text-brand-text">${n.title || 'Notice'}</p>
+                    <p class="text-xs text-brand-text-muted mt-0.5 leading-relaxed">${n.message || ''}</p>
                 </div>
                 <button class="toast-close p-0.5 rounded hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors flex-shrink-0" title="${typeof t !== 'undefined' ? t('common.dismiss') : 'Dismiss'}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -473,7 +479,8 @@
         }
         _syncModal = document.createElement('div');
         _syncModal.className = 'fixed inset-0 z-[200] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
-        _syncModal.innerHTML = `
+        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+        _syncModal.innerHTML = html`
             <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-8 space-y-4">
                 <div class="text-center">
                     <div class="text-3xl mb-2 sync-timer" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
@@ -543,7 +550,8 @@
         if (!_syncModal) return;
         const inner = _syncModal.querySelector('.bg-brand-surface');
         if (hadError) {
-            inner.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            inner.innerHTML = html`
                 <div class="text-3xl mb-2">⚠</div>
                 <h3 class="text-sm font-semibold text-amber-400">${t('onboarding.discovery_failed')}</h3>
                 <p class="text-xs text-brand-text-muted">${t('onboarding.discovery_failed_desc')} <strong>${t('onboarding.sync_from_aws')}</strong> ${t('onboarding.before_using')}</p>
@@ -564,7 +572,8 @@
             });
             return;
         } else {
-            inner.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            inner.innerHTML = html`
                 <div class="text-3xl mb-2">✓</div>
                 <h3 class="text-sm font-semibold text-brand-text">${t('onboarding.ready_title')}</h3>
                 <p class="text-xs text-brand-text-muted">${t('onboarding.ready_desc')}</p>
@@ -706,7 +715,8 @@
                     clearInterval(poll);
                     waitingForRestart = false;
                     if (restartBanner) {
-                        restartBanner.innerHTML = `<span class="mr-2">⚠</span> ${t('onboarding.server_timeout')} <button onclick="location.reload()" class="underline ml-2 font-semibold">${t('onboarding.refresh')}</button>`;
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        restartBanner.innerHTML = html`<span class="mr-2">⚠</span> ${t('onboarding.server_timeout')} <button onclick="location.reload()" class="underline ml-2 font-semibold">${t('onboarding.refresh')}</button>`;
                         restartBanner.className = restartBanner.className.replace('bg-amber-600', 'bg-red-600');
                     }
                 }

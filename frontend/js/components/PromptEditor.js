@@ -133,7 +133,8 @@
         // -- Private --
 
         _render() {
-            this.container.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            this.container.innerHTML = html`
                 <div class="prompt-editor space-y-3">
                     <!-- Step 1: User prompt -->
                     <div>
@@ -410,7 +411,8 @@
             this._isComposing = true;
 
             const origHTML = this._btnCompose.innerHTML;
-            this._btnCompose.innerHTML = `<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('prompt_editor.composing') : 'Composing...'}`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            this._btnCompose.innerHTML = html`<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('prompt_editor.composing') : 'Composing...'}`;
             this._btnCompose.disabled = true;
 
             try {
@@ -438,7 +440,8 @@
                 console.error('Failed to compose from designer data:', err);
                 window.showToast?.(t('misc.pe_failed_enhance'), 'error');
             } finally {
-                this._btnCompose.innerHTML = origHTML;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                this._btnCompose.innerHTML = raw(origHTML);
                 this._btnCompose.disabled = false;
                 this._isComposing = false;
             }
@@ -478,7 +481,8 @@
             this._isComposing = true;
 
             const origHTML = this._btnCompose.innerHTML;
-            this._btnCompose.innerHTML = `<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('prompt_editor.composing') : 'Composing...'}`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            this._btnCompose.innerHTML = html`<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('prompt_editor.composing') : 'Composing...'}`;
             this._btnCompose.disabled = true;
 
             try {
@@ -502,7 +506,8 @@
                 console.error('Compose error:', err);
                 window.showToast?.(t('misc.pe_failed_compose'), 'error');
             } finally {
-                this._btnCompose.innerHTML = origHTML;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                this._btnCompose.innerHTML = raw(origHTML);
                 this._btnCompose.disabled = false;
                 this._isComposing = false;
             }

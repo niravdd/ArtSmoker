@@ -95,11 +95,12 @@
 
             const overlay = document.createElement('div');
             overlay.className = 'modal-overlay fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
-            overlay.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            overlay.innerHTML = html`
                 <div class="modal-content bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
-                        <h2 class="text-lg font-semibold truncate flex-1">${this._esc(item.png_filename || t('asset_viewer.generated_asset'))}</h2>
+                        <h2 class="text-lg font-semibold truncate flex-1">${item.png_filename || t('asset_viewer.generated_asset')}</h2>
                         <div class="flex items-center gap-2 ml-4">
                             <button class="btn-reload btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="${t('asset_viewer.reload_studio_title')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -348,13 +349,13 @@
                          their own actions (the 3D tab has its own Download GLB). The
                          tab handler toggles #av-image-downloads visibility. -->
                     <div id="av-image-downloads" class="flex items-center justify-end gap-3 px-6 py-4 border-t border-brand-border">
-                        <a id="av-download-png" href="${pngUrl}" download="${this._esc(item.png_filename || 'asset.png')}" class="btn btn-secondary btn-sm">
+                        <a id="av-download-png" href="${pngUrl}" download="${item.png_filename || 'asset.png'}" class="btn btn-secondary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
                             ${t('asset_viewer.download_png')}
                         </a>
-                        <a id="av-download-svg" href="${svgUrl}" download="${this._esc(item.svg_filename || 'asset.svg')}" class="btn btn-secondary btn-sm btn-dl-svg">
+                        <a id="av-download-svg" href="${svgUrl}" download="${item.svg_filename || 'asset.svg'}" class="btn btn-secondary btn-sm btn-dl-svg">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
@@ -388,14 +389,15 @@
                     ? (vrec.model_label || vrec.image_model || '') : '';
                 if (vm && vm !== modelLabel) versionModelLabel = vm;
             } catch {}
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
             infoBar.innerHTML = [
-                meta.imported ? `<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>` : '',
-                modelLabel ? `<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${this._esc(modelLabel)}${versionModelLabel ? ` <span class="opacity-60">· ${t('asset_viewer.version_original')}</span>` : ''}</span>` : '',
-                versionModelLabel ? `<span class="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">${this._esc(versionModelLabel)} <span class="opacity-60">· ${t('asset_viewer.version_this_edit')}</span></span>` : '',
-                styleName ? `<span class="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${this._esc(styleName)}</span>` : '',
-                typeLabel !== 'N/A' ? `<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${this._esc(typeLabel)}</span>` : '',
-                meta.width && meta.height ? `<span>${meta.width}×${meta.height}</span>` : '',
-                createdDate ? `<span>${createdDate}</span>` : '',
+                meta.imported ? html`<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>` : '',
+                modelLabel ? html`<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${modelLabel}${versionModelLabel ? html` <span class="opacity-60">· ${t('asset_viewer.version_original')}</span>` : ''}</span>` : '',
+                versionModelLabel ? html`<span class="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">${versionModelLabel} <span class="opacity-60">· ${t('asset_viewer.version_this_edit')}</span></span>` : '',
+                styleName ? html`<span class="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${styleName}</span>` : '',
+                typeLabel !== 'N/A' ? html`<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${typeLabel}</span>` : '',
+                meta.width && meta.height ? html`<span>${meta.width}×${meta.height}</span>` : '',
+                createdDate ? html`<span>${createdDate}</span>` : '',
             ].filter(Boolean).join('');
         },
 
@@ -705,7 +707,7 @@
                 ? `<span class="px-1.5 py-0.5 rounded text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${t('asset_viewer.meta_all_models')}</span>` : '';
             let genDetails = `<div class="space-y-3">`;
             genDetails += fact(t('asset_viewer.meta_model'), modelLabel ? this._esc(modelLabel) : '');
-            genDetails += fact(t('asset_viewer.meta_type'), typeLabel);
+            genDetails += fact(t('asset_viewer.meta_type'), this._esc(typeLabel));
             genDetails += fact(t('asset_viewer.meta_style'), styleName ? this._esc(styleName) : '');
             genDetails += fact(t('asset_viewer.meta_dimensions'), `${meta.width || '?'} × ${meta.height || '?'}`);
             genDetails += fact(t('asset_viewer.meta_quality'), meta.quality ? this._esc(meta.quality) : '');
@@ -894,7 +896,7 @@
                         ${meta.lines.map((l, i) => `
                             <div class="text-sm p-2 rounded bg-brand-bg/40">
                                 <span class="text-brand-text-muted">${t('asset_viewer.meta_line', {num: i+1})}</span> "${this._esc(l.text)}"
-                                <span class="text-brand-text-muted/60 text-xs ml-2">${l.font || t('common.default')} / ${l.position || 'center'}</span>
+                                <span class="text-brand-text-muted/60 text-xs ml-2">${this._esc(l.font || t('common.default'))} / ${this._esc(l.position || 'center')}</span>
                             </div>
                         `).join('')}
                     </div>` : ''}`;
@@ -925,12 +927,13 @@
                     ${ipContent ? `<div>${railHeader(t('asset_viewer.meta_ip_declaration'))}${ipContent}</div>` : ''}
                     <div>${railHeader(t('asset_viewer.meta_file_info'))}${fileInfoContent}</div>
                 </div>`;
-            container.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            container.innerHTML = html`
                 <div class="grid grid-cols-1 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] gap-6">
-                    <aside class="av-facts-rail">${factsRail}</aside>
+                    <aside class="av-facts-rail">${raw(factsRail)}</aside>
                     <div class="av-prompts-col min-w-0 space-y-4">
-                        ${promptsCol || `<p class="text-sm text-brand-text-muted italic">${t('asset_viewer.meta_no_prompts')}</p>`}
-                        ${isTypeStudio && typeStudioContent ? section('typestudio', t('asset_viewer.meta_type_studio_details'), typeStudioContent, true) : ''}
+                        ${promptsCol ? raw(promptsCol) : html`<p class="text-sm text-brand-text-muted italic">${t('asset_viewer.meta_no_prompts')}</p>`}
+                        ${isTypeStudio && typeStudioContent ? raw(section('typestudio', t('asset_viewer.meta_type_studio_details'), typeStudioContent, true)) : ''}
                     </div>
                 </div>
             `;
@@ -994,18 +997,18 @@
         _exportCard({ titleKey, descKey, url, isSvg, filename, exists, checker }) {
             const bg = checker ? 'preview-checkerboard' : 'bg-brand-bg/40';
             const inner = exists
-                ? `<img src="${url}?t=${Date.now()}" alt="" class="max-w-full max-h-[34vh] object-contain rounded" loading="lazy" />`
-                : `<div class="flex flex-col items-center gap-1 text-brand-text-dim text-[11px] py-10">
+                ? html`<img src="${url}?t=${Date.now()}" alt="" class="max-w-full max-h-[34vh] object-contain rounded" loading="lazy" />`
+                : html`<div class="flex flex-col items-center gap-1 text-brand-text-dim text-[11px] py-10">
                         <svg class="w-6 h-6 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
                         <span>${t('asset_viewer.export_not_generated')}</span>
                    </div>`;
             const dl = exists
-                ? `<a href="${url}" download="${this._esc(filename)}" class="btn btn-secondary btn-sm w-full justify-center">
+                ? html`<a href="${url}" download="${filename}" class="btn btn-secondary btn-sm w-full justify-center">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
                         ${isSvg ? t('asset_viewer.export_dl_svg') : t('asset_viewer.export_dl_png')}
                    </a>`
-                : `<button class="btn btn-secondary btn-sm w-full justify-center opacity-40 cursor-not-allowed" disabled>${isSvg ? t('asset_viewer.export_dl_svg') : t('asset_viewer.export_dl_png')}</button>`;
-            return `
+                : html`<button class="btn btn-secondary btn-sm w-full justify-center opacity-40 cursor-not-allowed" disabled>${isSvg ? t('asset_viewer.export_dl_svg') : t('asset_viewer.export_dl_png')}</button>`;
+            return html`
                 <div class="border border-brand-border rounded-lg overflow-hidden flex flex-col">
                     <div class="px-3 py-2 border-b border-brand-border">
                         <div class="text-xs font-medium text-brand-text">${t(titleKey)}</div>
@@ -1040,6 +1043,7 @@
             const pngExists = !!s.nobg_png?.exists;
             const svgExists = !!s.nobg_svg?.exists;
 
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
             grid.innerHTML = [
                 this._exportCard({
                     titleKey: 'asset_viewer.export_card_withbg_title',
@@ -1161,12 +1165,14 @@
             if (versions.length < 2) {
                 // Same term + pill styling as the multi-version bar uses for v1
                 // ("Original") — a single/un-versioned asset IS its original.
-                btns.innerHTML = `<span class="px-2 py-1 rounded text-[10px] bg-brand-accent text-white">${t('asset_viewer.version_original')}</span>`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                btns.innerHTML = html`<span class="px-2 py-1 rounded text-[10px] bg-brand-accent text-white">${t('asset_viewer.version_original')}</span>`;
                 if (detail) detail.classList.add('hidden');
                 return;
             }
 
-            btns.innerHTML = versions.map(v => `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            btns.innerHTML = versions.map(v => html`
                 <button class="av-version-btn px-2 py-1 rounded text-[10px] transition-all cursor-pointer
                     ${v.version === currentVersion
                         ? 'bg-brand-accent text-white'
@@ -1174,7 +1180,7 @@
                     data-version="${v.version}" data-asset="${meta.id}"
                     title="${v.type}${v.timestamp ? ' — ' + window.formatTimestamp(v.timestamp) : ''}">
                     ${v.version === 1 ? t('asset_viewer.version_original') : 'v' + v.version}
-                    ${v.type !== 'original' ? '<span class="opacity-50 ml-0.5">' + v.type + '</span>' : ''}
+                    ${v.type !== 'original' ? html`<span class="opacity-50 ml-0.5">${v.type}</span>` : ''}
                 </button>
             `).join('');
 
@@ -1318,13 +1324,14 @@
                     // Show version detail summary (only on image tabs — the
                     // helper hides it on 3D/Metadata to avoid clutter/duplication).
                     if (detail && v) {
-                        detail.innerHTML = `
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        detail.innerHTML = html`
                             <strong>${v.type === 'original' ? t('asset_viewer.version_original') : v.type}</strong>
                             ${v.model_label || v.image_model || ''}
-                            ${v.original_language_prompts?.prompt ? ` — <span class="text-[9px] text-brand-accent">(${v.original_language || '?'})</span> "${this._esc(v.original_language_prompts.prompt)}"` : ''}
-                            ${v.prompt ? ` — ${v.original_language_prompts?.prompt ? '<span class="text-[9px] text-emerald-400/70">(en)</span> ' : ''}"${this._esc(v.prompt)}"` : ''}
-                            ${v.negative_prompt ? ` <span class="text-amber-300/60">[neg: ${this._esc(v.negative_prompt)}]</span>` : ''}
-                            ${v.timestamp ? ` <span class="text-brand-text-dim">${window.formatTimestamp(v.timestamp)}</span>` : ''}
+                            ${v.original_language_prompts?.prompt ? html` — <span class="text-[9px] text-brand-accent">(${v.original_language || '?'})</span> "${v.original_language_prompts.prompt}"` : ''}
+                            ${v.prompt ? html` — ${v.original_language_prompts?.prompt ? html`<span class="text-[9px] text-emerald-400/70">(en)</span> ` : ''}"${v.prompt}"` : ''}
+                            ${v.negative_prompt ? html` <span class="text-amber-300/60">[neg: ${v.negative_prompt}]</span>` : ''}
+                            ${v.timestamp ? html` <span class="text-brand-text-dim">${window.formatTimestamp(v.timestamp)}</span>` : ''}
                         `;
                         this._syncVersionDetailVisibility();
                     }
@@ -1871,7 +1878,8 @@
                 }
 
                 btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-sm"></span> ' + t('asset_viewer.applying');
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('asset_viewer.applying')}`;
                 if (statusEl) { statusEl.textContent = t('asset_viewer.processing'); statusEl.classList.remove('hidden'); }
 
                 try {
@@ -1890,7 +1898,8 @@
                             window.showToast?.(t('asset_viewer.no_mask_full'), 'warning');
                             if (statusEl) { statusEl.textContent = t('asset_viewer.no_mask_full'); statusEl.classList.remove('hidden'); }
                             btn.disabled = false;
-                            btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ' + t('asset_viewer.apply_edit');
+                            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                            btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('asset_viewer.apply_edit')}`;
                             return;
                         }
                         maskB64 = maskResult.data;
@@ -1969,7 +1978,8 @@
                     window.showToast?.(t('asset_viewer.edit_failed') + ': ' + err.message, 'error');
                 } finally {
                     btn.disabled = false;
-                    btn.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ' + t('asset_viewer.apply_edit');
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('asset_viewer.apply_edit')}`;
                 }
             });
         },
@@ -2364,14 +2374,16 @@
 
             const meta = this._meta;
             if (!meta) {
-                container.innerHTML = `<p class="text-brand-text-muted text-center py-8">${t('asset_viewer.loading_metadata')}</p>`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                container.innerHTML = html`<p class="text-brand-text-muted text-center py-8">${t('asset_viewer.loading_metadata')}</p>`;
                 return;
             }
 
             // Only supported for game_asset and character types
             const assetType = meta.asset_type;
             if (assetType !== 'game_asset' && assetType !== 'character') {
-                container.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                container.innerHTML = html`
                     <div class="text-center py-8">
                         <p class="text-brand-text-muted">${t('asset_viewer.three_d_unsupported')}</p>
                     </div>`;
@@ -2416,7 +2428,8 @@
                 // No existing 3D model — check if generation is available (model deployed)
                 const availability = await API.threeD.check();
                 if (!availability || !availability.available) {
-                    container.innerHTML = `
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    container.innerHTML = html`
                         <div class="text-center py-8 space-y-3">
                             <p class="text-brand-text-muted">${t('asset_viewer.three_d_not_deployed')}</p>
                             <button class="btn btn-sm btn-secondary av-3d-open-settings">${t('asset_viewer.three_d_open_settings')}</button>
@@ -2440,7 +2453,8 @@
                 // Show generation form (with instance chooser when >1 deployed)
                 this._render3DForm(container, instances);
             } catch (err) {
-                container.innerHTML = `<p class="text-red-400 text-center py-8">${t('asset_viewer.three_d_failed')}: ${this._esc(err.message)}</p>`;
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                container.innerHTML = html`<p class="text-red-400 text-center py-8">${t('asset_viewer.three_d_failed')}: ${err.message}</p>`;
             }
         },
 
@@ -2449,7 +2463,7 @@
             // deployed (mirrors the Image Studio model chooser). With 0 or 1
             // instance there's nothing to choose, so the server default is used.
             const showChooser = Array.isArray(instances) && instances.length > 1;
-            const chooserHtml = showChooser ? `
+            const chooserHtml = showChooser ? html`
                     <div>
                         <label class="text-xs text-brand-text-muted mb-1 block">${t('asset_viewer.three_d_model')}</label>
                         <select id="av-3d-model" class="input text-sm w-full max-w-xs">
@@ -2457,10 +2471,10 @@
                                 const ptype = inst.pipeline_type === 'trellis2_full'
                                     ? t('asset_viewer.three_d_pipe_trellis2_full')
                                     : t('asset_viewer.three_d_pipe_triposg');
-                                const inst_t = inst.instance_type ? ` · ${this._esc(inst.instance_type.replace('ml.', ''))}` : '';
+                                const inst_t = inst.instance_type ? ' · ' + inst.instance_type.replace('ml.', '') : '';
                                 const warming = inst.model_ready ? '' : ' · ' + t('asset_viewer.three_d_model_warming');
-                                return `<option value="${this._esc(inst.model_key)}" ${i === 0 ? 'selected' : ''}>${this._esc(ptype)}${inst_t}${warming}</option>`;
-                            }).join('')}
+                                return html`<option value="${inst.model_key}" ${i === 0 ? 'selected' : ''}>${ptype}${inst_t}${warming}</option>`;
+                            })}
                         </select>
                         <p class="text-[9px] text-brand-text-dim mt-1 max-w-xs">${t('asset_viewer.three_d_model_hint')}</p>
                     </div>
@@ -2469,7 +2483,7 @@
             // License / consent panel — shown for whichever pipeline is selected
             // (or the single deployed one). Informational: the binding acceptance
             // happened at DEPLOY time; here we surface it + confirm it's on record.
-            const licensePanelHtml = `<div id="av-3d-license" class="flex-1 min-w-[16rem] rounded-lg border border-brand-border bg-brand-bg/40 p-3 text-[11px] space-y-1 hidden"></div>`;
+            const licensePanelHtml = html`<div id="av-3d-license" class="flex-1 min-w-[16rem] rounded-lg border border-brand-border bg-brand-bg/40 p-3 text-[11px] space-y-1 hidden"></div>`;
 
             // Save-as choice: only when a 3D model ALREADY exists for this
             // version — i.e. this is a regeneration. Lets the user replace the
@@ -2478,7 +2492,7 @@
             const ver = this._currentVersion || 1;
             const hasExisting3D = !!(this._meta?.three_d?.[`v${ver}`]?.variants?.length
                 || this._meta?.three_d_versions?.some(v => v.version === ver));
-            const saveAsHtml = hasExisting3D ? `
+            const saveAsHtml = hasExisting3D ? html`
                     <div class="flex-1 min-w-[16rem] rounded-lg border border-brand-border bg-brand-bg/40 p-3">
                         <label class="text-xs text-brand-text-muted mb-2 block">${t('asset_viewer.three_d_saveas_title')}</label>
                         <label class="flex items-start gap-2 mb-1.5 cursor-pointer">
@@ -2498,7 +2512,7 @@
             // Form "SOURCE FOR 3D" = the version CUTOUT (matches Export + generation).
             const previewUrl = API.threeD.sourcePreviewUrl(this._item?.id, this._currentVersion || 1) + `&t=${Date.now()}`;
             const isSubject = (this._meta?.asset_type === 'character' || this._meta?.asset_type === 'game_asset');
-            const previewPanelHtml = `
+            const previewPanelHtml = html`
                 <div class="w-full lg:w-64 lg:flex-shrink-0 space-y-2">
                     <p class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_preview_title')}</p>
                     <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-border flex items-center justify-center" style="height: 220px;">
@@ -2516,7 +2530,7 @@
                         </select>
                     </div>
                     <p id="av-3d-bg-method-hint" class="text-[9px] text-brand-text-dim"></p>
-                    ${isSubject ? `
+                    ${isSubject ? html`
                     <!-- Improve the Source sits WITH the image it acts on (most intuitive
                          placement) — the sole instance; not duplicated in the button row. -->
                     <button id="av-3d-review" class="btn btn-sm bg-cyan-600 hover:bg-cyan-500 text-white w-full flex items-center justify-center gap-1.5">
@@ -2526,7 +2540,8 @@
                     <p id="av-3d-review-status" class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_review_hint')}</p>` : ''}
                 </div>`;
 
-            container.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            container.innerHTML = html`
                 <div class="flex flex-col lg:flex-row gap-5">
                   <!-- LEFT: controls -->
                   <div class="flex-1 min-w-0 space-y-4">
@@ -2699,20 +2714,21 @@
                 const inst = _selectedInstance();
                 if (!inst || !inst.license_name) { licenseEl.classList.add('hidden'); return; }
                 const commercialBadge = inst.commercial === true
-                    ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('asset_viewer.three_d_lic_commercial')}</span>`
+                    ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('asset_viewer.three_d_lic_commercial')}</span>`
                     : (inst.commercial === false
-                        ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('asset_viewer.three_d_lic_noncommercial')}</span>`
+                        ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('asset_viewer.three_d_lic_noncommercial')}</span>`
                         : '');
                 const acceptedLine = inst.license_accepted
-                    ? `<p class="text-emerald-400/90">✓ ${t('asset_viewer.three_d_lic_accepted')}${inst.license_accepted_at ? ' · ' + window.formatTimestamp(inst.license_accepted_at) : ''}</p>`
-                    : `<p class="text-amber-400/90">⚠ ${t('asset_viewer.three_d_lic_not_recorded')}</p>`;
+                    ? html`<p class="text-emerald-400/90">✓ ${t('asset_viewer.three_d_lic_accepted')}${inst.license_accepted_at ? ' · ' + window.formatTimestamp(inst.license_accepted_at) : ''}</p>`
+                    : html`<p class="text-amber-400/90">⚠ ${t('asset_viewer.three_d_lic_not_recorded')}</p>`;
                 const link = inst.license_url
-                    ? ` <a href="${this._esc(inst.license_url)}" target="_blank" rel="noopener" class="text-brand-accent underline">${t('asset_viewer.three_d_lic_view')}</a>`
+                    ? html` <a href="${inst.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline">${t('asset_viewer.three_d_lic_view')}</a>`
                     : '';
-                licenseEl.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                licenseEl.innerHTML = html`
                     <div class="flex items-center gap-2 flex-wrap">
                         <span class="text-brand-text-muted">${t('asset_viewer.three_d_lic_label')}</span>
-                        <span class="text-brand-text font-medium">${this._esc(inst.license_name)}</span>
+                        <span class="text-brand-text font-medium">${inst.license_name}</span>
                         ${commercialBadge}
                     </div>
                     ${acceptedLine}
@@ -2805,7 +2821,8 @@
                 const alreadyBgFree = vrec && (vrec.type === 'remove_background'
                     || (vrec.edit_context && vrec.edit_context.op === 'remove_background'));
                 const needsBgRemoval = !this._sourceCutoutReady?.[version] && !alreadyBgFree;
-                reviewBtn.innerHTML = `<span class="spinner-sm"></span> ${needsBgRemoval
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                reviewBtn.innerHTML = html`<span class="spinner-sm"></span> ${needsBgRemoval
                     ? t('asset_viewer.three_d_src_removing_bg')
                     : t('asset_viewer.three_d_src_reviewing')}`;
             }
@@ -2869,7 +2886,8 @@
             if (!btn || btn.disabled) return;
 
             btn.disabled = true;
-            btn.innerHTML = `<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
 
             // S3 bucket preflight — 3D generation runs on a custom (self-hosted)
             // endpoint that needs the deployment bucket for its async input/output.
@@ -2943,7 +2961,8 @@
         _reset3DGenerateBtn(btn) {
             if (!btn) return;
             btn.disabled = false;
-            btn.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> <span>${t('asset_viewer.three_d_generate')}</span>`;
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> <span>${t('asset_viewer.three_d_generate')}</span>`;
         },
 
         /**
@@ -2968,7 +2987,8 @@
 
                 const backdrop = document.createElement('div');
                 backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
-                backdrop.innerHTML = `
+                // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                backdrop.innerHTML = html`
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto relative">
                         <div>
                             <h3 class="text-sm font-semibold text-brand-text">${t('asset_viewer.three_d_src_pv_confirm_title')}</h3>
@@ -3004,9 +3024,9 @@
                                     <textarea id="av-sr-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_prompt_ph')}"></textarea>
                                 </div>
                                 <div class="grid grid-cols-4 gap-2">
-                                    ${['left','right','up','down'].map(dd => `
+                                    ${['left','right','up','down'].map(dd => html`
                                         <div><label class="text-[9px] text-brand-text-muted">${t('asset_viewer.outpaint_' + dd)}</label>
-                                        <input id="av-sr-${dd}" type="number" min="0" max="2000" value="0" class="input text-xs w-full" /></div>`).join('')}
+                                        <input id="av-sr-${dd}" type="number" min="0" max="2000" value="0" class="input text-xs w-full" /></div>`)}
                                 </div>
                                 <p class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_src_pv_extend_note')}</p>
                             </div>
@@ -3063,9 +3083,12 @@
                     const analyzed = !!(a && a.analyzed);
                     const defect = (analyzed && a.complete === false) ? (a.defect === 'artifact' ? 'artifact' : 'cropped') : 'none';
                     const el = $('#av-sr-verdict');
-                    if (!analyzed) el.innerHTML = `<span class="text-brand-text-muted">${t('asset_viewer.three_d_src_pv_unchecked')}</span>`;
-                    else if (defect === 'none') el.innerHTML = `<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`;
-                    else el.innerHTML = `<span class="text-amber-400">⚠ ${this._esc(a.reason || t('asset_viewer.three_d_src_still'))}</span>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    if (!analyzed) el.innerHTML = html`<span class="text-brand-text-muted">${t('asset_viewer.three_d_src_pv_unchecked')}</span>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    else if (defect === 'none') el.innerHTML = html`<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`;
+                    // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                    else el.innerHTML = html`<span class="text-amber-400">⚠ ${a.reason || t('asset_viewer.three_d_src_still')}</span>`;
                     return { analyzed, defect };
                 };
 
@@ -3292,19 +3315,21 @@
                         const tag = cropped ? ` ${t('asset_viewer.three_d_measure_cropped')}` : '';
                         return `<span class="${cls}">${t('asset_viewer.outpaint_' + edge)} ${val}px${tag}</span>`;
                     };
-                    let html = `<span><span class="text-brand-text">${t('asset_viewer.three_d_measure_size')}</span> ${W}×${H}px</span>`;
+                    let statsHtml = `<span><span class="text-brand-text">${t('asset_viewer.three_d_measure_size')}</span> ${W}×${H}px</span>`;
                     if (bbox) {
-                        html += `<span><span class="text-brand-text">${t('asset_viewer.three_d_measure_fill')}</span> ${pct}</span>`;
-                        html += `<span class="flex items-center gap-2"><span class="text-brand-text">${t('asset_viewer.three_d_measure_margins')}:</span> `
+                        statsHtml += `<span><span class="text-brand-text">${t('asset_viewer.three_d_measure_fill')}</span> ${pct}</span>`;
+                        statsHtml += `<span class="flex items-center gap-2"><span class="text-brand-text">${t('asset_viewer.three_d_measure_margins')}:</span> `
                             + ['up', 'down', 'left', 'right'].map(e => marginChip(e, bbox[{ up: 'top', down: 'bottom', left: 'left', right: 'right' }[e]])).join(' · ')
                             + `</span>`;
-                        html += `<span id="av-sr-newsize" class="text-brand-accent"></span>`;
-                        statsEl.innerHTML = `<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${html}</div>`
-                            + `<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_hint')}</div>`;
+                        statsHtml += `<span id="av-sr-newsize" class="text-brand-accent"></span>`;
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        statsEl.innerHTML = html`<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${raw(statsHtml)}</div>`
+                            + html`<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_hint')}</div>`;
                     } else {
-                        statsEl.innerHTML = `<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${html}`
-                            + `<span id="av-sr-newsize" class="text-brand-accent"></span></div>`
-                            + `<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_nobg')}</div>`;
+                        // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+                        statsEl.innerHTML = html`<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${raw(statsHtml)}`
+                            + html`<span id="av-sr-newsize" class="text-brand-accent"></span></div>`
+                            + html`<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_nobg')}</div>`;
                     }
                 }
                 // Draw only when the overlay is actually shown — it stays hidden on
@@ -3493,14 +3518,15 @@
 
 
         _render3DPending(container, jobId) {
-            container.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            container.innerHTML = html`
                 <div class="text-center py-8 space-y-4">
                     <div class="loading-spinner w-6 h-6 border-2 border-brand-accent/20 border-t-brand-accent rounded-full mx-auto"></div>
                     <div>
                         <p class="text-brand-text">${t('asset_viewer.three_d_pending_title')}</p>
                         <p class="text-[10px] text-brand-text-muted mt-1">${t('asset_viewer.three_d_pending_subtitle')}</p>
                     </div>
-                    <p class="text-[9px] text-brand-text-dim font-mono">${t('asset_viewer.three_d_job_id')}: ${this._esc(jobId)}</p>
+                    <p class="text-[9px] text-brand-text-dim font-mono">${t('asset_viewer.three_d_job_id')}: ${jobId}</p>
                 </div>`;
         },
 
@@ -3548,18 +3574,19 @@
         _render3DJobsStrip(strip, jobs) {
             if (!jobs.length) { strip.classList.add('hidden'); strip.innerHTML = ''; return; }
             strip.classList.remove('hidden');
-            strip.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            strip.innerHTML = html`
                 <div class="rounded-lg border border-brand-accent/30 bg-brand-accent/5 px-3 py-2">
                     <div class="flex items-center gap-2 mb-1.5">
                         <div class="loading-spinner w-3.5 h-3.5 border-2 border-brand-accent/30 border-t-brand-accent rounded-full"></div>
                         <span class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_jobs_running')} (${jobs.length})</span>
                     </div>
                     <div class="space-y-1">
-                        ${jobs.map(j => `
+                        ${jobs.map(j => html`
                             <div class="flex items-center justify-between gap-2 text-[11px]">
-                                <span class="text-brand-text">${this._esc(j.label || j.model_key || '3D')}</span>
-                                <span class="text-[9px] font-mono text-brand-text-dim">${this._esc(j.status)} · ${this._esc(j.job_id)}</span>
-                            </div>`).join('')}
+                                <span class="text-brand-text">${j.label || j.model_key || '3D'}</span>
+                                <span class="text-[9px] font-mono text-brand-text-dim">${j.status} · ${j.job_id}</span>
+                            </div>`)}
                     </div>
                 </div>`;
         },
@@ -3587,33 +3614,34 @@
                 _toolRows.push([t('asset_viewer.three_d_lic_label'), pl.license_name + commTxt]);
             }
             if (pl.license_accepted_at) _toolRows.push([t('asset_viewer.three_d_lic_accepted_col'), window.formatTimestamp(pl.license_accepted_at)]);
-            const toolsHtml = _toolRows.length ? `
+            const toolsHtml = _toolRows.length ? html`
                 <div class="rounded-lg border border-brand-border/40 bg-white/[0.02] px-4 py-3">
                     <p class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-2">${t('asset_viewer.three_d_pipeline_title')}</p>
                     <div class="grid grid-cols-2 gap-x-6 gap-y-1.5">
-                        ${_toolRows.map(([k, v]) => `
+                        ${_toolRows.map(([k, v]) => html`
                             <div class="flex items-center justify-between gap-2 text-[11px]">
                                 <span class="text-brand-text-muted">${k}</span>
-                                <span class="font-medium text-right truncate" title="${this._esc(String(v))}">${this._esc(String(v))}</span>
-                            </div>`).join('')}
+                                <span class="font-medium text-right truncate" title="${String(v)}">${String(v)}</span>
+                            </div>`)}
                     </div>
                 </div>` : '';
             // Parallel jobs: Regenerate is ALWAYS available — firing another job
             // adds it to the in-progress strip rather than blocking the view.
             const regenBtnClass = 'btn btn-sm btn-secondary';
-            const regenBtnLabel = `<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('asset_viewer.three_d_regenerate')}`;
+            const regenBtnLabel = html`<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('asset_viewer.three_d_regenerate')}`;
             // Untextured-fallback notice: the texture bake failed and the pipeline
             // shipped a usable but plain (untextured) mesh instead. We DON'T fail the
             // job (the user still gets geometry, no wasted time/cost) — we clearly
             // tell them what happened and that regenerating may fix it. Only when the
             // record explicitly says textured===false (older/missing → assume fine).
             const _untextured = data.pipeline && data.pipeline.textured === false;
-            const untexturedNotice = _untextured ? `
+            const untexturedNotice = _untextured ? html`
                 <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 flex items-start gap-2">
                     <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
                     <p class="text-[11px] text-amber-300/90">${t('asset_viewer.three_d_untextured_notice')}</p>
                 </div>` : '';
-            container.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            container.innerHTML = html`
                 <div class="space-y-3">
                     ${untexturedNotice}
                     <!-- Variant switcher — populated async when a version
@@ -3790,17 +3818,18 @@
                 v.faces ? v.faces.toLocaleString() + ' ' + t('asset_viewer.three_d_est_faces') : '',
                 v.pipeline?.has_pbr ? 'PBR' : '',
             ].filter(Boolean).join(' · ');
-            bar.innerHTML = `
+            // nosemgrep: javascript.browser.security.insecure-innerhtml.insecure-innerhtml
+            bar.innerHTML = html`
                 <div class="flex items-center gap-2 flex-wrap">
                     <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('asset_viewer.three_d_variants_title')}</span>
                     ${variants.map((v) => {
                         const isDefault = v.variant_id === defaultId;
                         const sub = subtitle(v);
-                        return `<button class="av-3d-variant-btn px-2 py-1 rounded text-[10px] transition-all cursor-pointer ${isDefault ? 'bg-brand-accent text-white' : 'bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent hover:text-brand-text'}"
-                                data-variant="${this._esc(v.variant_id)}" title="${this._esc(label(v))}${sub ? ' — ' + this._esc(sub) : ''}">
-                            ${this._esc(label(v))}${isDefault ? `<span class="opacity-60 ml-1">(${t('asset_viewer.three_d_variant_default')})</span>` : ''}
+                        return html`<button class="av-3d-variant-btn px-2 py-1 rounded text-[10px] transition-all cursor-pointer ${isDefault ? 'bg-brand-accent text-white' : 'bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent hover:text-brand-text'}"
+                                data-variant="${v.variant_id}" title="${label(v)}${sub ? ' — ' + sub : ''}">
+                            ${label(v)}${isDefault ? html`<span class="opacity-60 ml-1">(${t('asset_viewer.three_d_variant_default')})</span>` : ''}
                         </button>`;
-                    }).join('')}
+                    })}
                     <button id="av-3d-set-default" class="hidden px-2 py-1 rounded text-[10px] border border-brand-accent/50 text-brand-accent hover:bg-brand-accent/10 transition-colors cursor-pointer">${t('asset_viewer.three_d_variant_set_default')}</button>
                 </div>`;
             bar.classList.remove('hidden');
