@@ -65,7 +65,7 @@ _config = {}
 _model_dir = None  # Set in model_fn — needed by dev hot-reload to locate code/
 
 # ── S3 Model Cache ───────────────────────────────────────────────────────
-_CACHE_LOCAL_DIR = "/tmp/model-cache"
+_CACHE_LOCAL_DIR = "/tmp/model-cache"  # nosec B108 -- container-only ephemeral scratch on SageMaker
 _CACHE_INFO_FILE = ".cache-info.json"
 _loaded_from_cache = False       # Set True when loading from S3 cache
 _all_preserved_from_cache = False # Set True ONLY when all NF4 components preserved in cache
@@ -502,7 +502,7 @@ _hotreload_state = {"etag": None}
 # READ-ONLY, so we CANNOT extract there. Instead we extract to /tmp and prepend
 # it to sys.path so its packages shadow the baked ones, and re-exec the overlaid
 # inference.py from here. This is what makes hot-reload actually work on SM.
-_HOTRELOAD_DIR = "/tmp/artsmoker_hotreload/code"
+_HOTRELOAD_DIR = "/tmp/artsmoker_hotreload/code"  # nosec B108 -- container-only ephemeral scratch on SageMaker
 
 # Names re-bound into this module's globals when inference.py is overlaid.
 # Limited to the predictor surface (functions + their module-level constants
@@ -853,7 +853,7 @@ def _do_s3_cache_save(model_dict):
         except Exception:
             pass  # No cache yet — proceed
 
-        save_dir = "/tmp/model-save"
+        save_dir = "/tmp/model-save"  # nosec B108 -- container-only ephemeral scratch on SageMaker
         # Preserve early-saved quantized components (written during quantization loop).
         # Only clean non-component files (stale model_index.json etc), not component dirs.
         quant_comp_names = {
@@ -1248,7 +1248,7 @@ def _load_diffusers(model_dir):
             # they save bf16 without quant_state. We verify by checking safetensors for
             # bitsandbytes__* keys before writing quantization_config.json.
             if not _loaded_from_cache and _get_env("ARTSMOKER_CACHE_BUCKET"):
-                _early_save_dir = "/tmp/model-save"
+                _early_save_dir = "/tmp/model-save"  # nosec B108 -- container-only ephemeral scratch on SageMaker
                 comp_save_dir = os.path.join(_early_save_dir, comp_name)
                 try:
                     os.makedirs(comp_save_dir, exist_ok=True)
@@ -1995,7 +1995,7 @@ _hunyuan_ops_bg_lock = None
 # The DINOv3 image encoder (gated, commercial-OK) is pulled at runtime via HF
 # token — requires a "Built with DINOv3" attribution in the product UI.
 _TRELLIS2_REPO = "https://github.com/microsoft/TRELLIS.2.git"
-_TRELLIS2_RUN_DIR = "/tmp/trellis2_run"          # writable clone (package on sys.path)
+_TRELLIS2_RUN_DIR = "/tmp/trellis2_run"          # nosec B108 -- container scratch; writable clone (package on sys.path)
 _TRELLIS2_DEPS_PREFIX = f"{_TEXTURE_DEPS_PREFIX}/trellis2"
 # cached o_voxel/cumesh/flex_gemm wheels — arch-namespaced (sm_89 L40S, sm_86 A10G,
 # …) since CUDA-compiled wheels are NOT portable across GPU architectures.
@@ -2081,7 +2081,7 @@ def _ensure_nvdiffrast(blocking: bool = True) -> bool:
             if wheel_objs:
                 wheel_key = wheel_objs[0]
                 wheel_basename = os.path.basename(wheel_key)  # real 5-part name
-                wheel_path = os.path.join("/tmp", wheel_basename)
+                wheel_path = os.path.join("/tmp", wheel_basename)  # nosec B108 -- container-only ephemeral scratch on SageMaker
                 s3.download_file(bucket, wheel_key, wheel_path)
                 subprocess.check_call(["pip", "install", "--quiet", "--no-deps", "--force-reinstall", wheel_path], timeout=120)
                 import nvdiffrast  # noqa: F401
@@ -2114,10 +2114,10 @@ def _ensure_nvdiffrast(blocking: bool = True) -> bool:
         if bucket:
             try:
                 import glob
-                pip_cache_wheels = glob.glob("/tmp/pip-ephem-wheel-cache-*/wheels/**/nvdiffrast*.whl", recursive=True)
+                pip_cache_wheels = glob.glob("/tmp/pip-ephem-wheel-cache-*/wheels/**/nvdiffrast*.whl", recursive=True)  # nosec B108 -- container-only ephemeral scratch on SageMaker
                 wheel_src = pip_cache_wheels[0] if pip_cache_wheels else None
                 if not wheel_src:
-                    wheel_dir = "/tmp/nvdiffrast_wheel_export"
+                    wheel_dir = "/tmp/nvdiffrast_wheel_export"  # nosec B108 -- container-only ephemeral scratch on SageMaker
                     os.makedirs(wheel_dir, exist_ok=True)
                     subprocess.check_call(
                         ["pip", "wheel", "--no-build-isolation", "--no-deps",
@@ -2194,7 +2194,7 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, veri
             for o in listing.get("Contents", []):
                 k = o["Key"]
                 if k.endswith(".whl") and os.path.basename(k).startswith(s3_glob):
-                    wp = os.path.join("/tmp", os.path.basename(k))
+                    wp = os.path.join("/tmp", os.path.basename(k))  # nosec B108 -- container-only ephemeral scratch on SageMaker
                     s3.download_file(bucket, k, wp)
                     subprocess.check_call(["pip", "install", "--quiet", "--no-deps",
                                            "--force-reinstall", wp], timeout=180)
@@ -2216,7 +2216,7 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, veri
     logger.info("%s built + installed", pkg_name)
     if bucket:
         try:
-            wdir = f"/tmp/{pkg_name}_wheel_export"
+            wdir = f"/tmp/{pkg_name}_wheel_export"  # nosec B108 -- container-only ephemeral scratch on SageMaker
             os.makedirs(wdir, exist_ok=True)
             subprocess.check_call(["pip", "wheel", "--no-build-isolation", "--no-deps",
                                    "--wheel-dir", wdir, build_spec], timeout=1800, env={**os.environ})
@@ -2346,7 +2346,7 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     # cumesh + flex_gemm: clone --recursive to a local dir (NOT `git+`, which skips
     # submodules → broken simplify → shredded mesh), then build from that dir.
     def _recursive_clone(name, url):
-        dest = os.path.join("/tmp", f"trellis2_ext_{name}")
+        dest = os.path.join("/tmp", f"trellis2_ext_{name}")  # nosec B108 -- container-only ephemeral scratch on SageMaker
         if not os.path.isdir(os.path.join(dest, ".git")):
             import shutil as _sh
             if os.path.isdir(dest):
@@ -2482,7 +2482,7 @@ def _ensure_nvdiffrast_background():
     t.start()
 
 
-_HUNYUAN_RUN_DIR = "/tmp/hy3dpaint_run"  # writable copy of the vendored package
+_HUNYUAN_RUN_DIR = "/tmp/hy3dpaint_run"  # nosec B108 -- container scratch; writable copy of the vendored package
 
 
 def _hunyuan_writable_dir(code_dir):
@@ -2582,7 +2582,7 @@ def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
                 wheels = [o["Key"] for o in listing.get("Contents", []) if o["Key"].endswith(".whl")]
                 if wheels:
                     wkey = wheels[0]
-                    wpath = os.path.join("/tmp", os.path.basename(wkey))
+                    wpath = os.path.join("/tmp", os.path.basename(wkey))  # nosec B108 -- container-only ephemeral scratch on SageMaker
                     s3.download_file(bucket, wkey, wpath)
                     subprocess.check_call(["pip", "install", "--quiet", "--no-deps",
                                            "--force-reinstall", wpath], timeout=180)
@@ -2596,7 +2596,7 @@ def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
             logger.info("Building custom_rasterizer CUDA extension from source (~2-5 min)...")
             try:
                 subprocess.check_call(["pip", "install", "--quiet", "setuptools", "wheel", "ninja", "pybind11"], timeout=180)
-                wheel_dir = "/tmp/custom_rasterizer_wheel"
+                wheel_dir = "/tmp/custom_rasterizer_wheel"  # nosec B108 -- container-only ephemeral scratch on SageMaker
                 os.makedirs(wheel_dir, exist_ok=True)
                 subprocess.check_call(
                     ["pip", "wheel", "--no-build-isolation", "--no-deps",
@@ -2764,7 +2764,7 @@ def _hunyuan_realesrgan_path():
     import urllib.request as _urlreq
     _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
     _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
-    local = "/tmp/RealESRGAN_x4plus.pth"
+    local = "/tmp/RealESRGAN_x4plus.pth"  # nosec B108 -- container-only ephemeral scratch on SageMaker
     s3key = f"{_TEXTURE_DEPS_PREFIX}/RealESRGAN_x4plus.pth"
     url = "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.1.0/RealESRGAN_x4plus.pth"
     if not os.path.exists(local):
@@ -2804,8 +2804,8 @@ def _ensure_texture_quality_models():
     import boto3 as _boto3
     _s3 = _boto3.client("s3", region_name=os.environ.get("AWS_DEFAULT_REGION", "us-west-2"))
     _bucket = _get_env("ARTSMOKER_CACHE_BUCKET") or _get_env("ARTSMOKER_S3_BUCKET") or ""
-    _upscaler_path = "/tmp/RealESRGAN_x2plus.pth"
-    _inpaint_path = "/tmp/big-lama.pt"
+    _upscaler_path = "/tmp/RealESRGAN_x2plus.pth"  # nosec B108 -- container-only ephemeral scratch on SageMaker
+    _inpaint_path = "/tmp/big-lama.pt"  # nosec B108 -- container-only ephemeral scratch on SageMaker
     specs = [
         (_upscaler_path, f"{_TEXTURE_DEPS_PREFIX}/RealESRGAN_x2plus.pth",
          "https://github.com/xinntao/Real-ESRGAN/releases/download/v0.2.1/RealESRGAN_x2plus.pth", "RealESRGAN x2"),
@@ -2907,8 +2907,8 @@ def _load_texture_models(code_dir, hf_token):
     _inpaint_url = "https://github.com/Sanster/models/releases/download/add_big_lama/big-lama.pt"
     _upscaler_s3_key = f"{_TEXTURE_DEPS_PREFIX}/RealESRGAN_x2plus.pth"
     _inpaint_s3_key = f"{_TEXTURE_DEPS_PREFIX}/big-lama.pt"
-    _upscaler_path = "/tmp/RealESRGAN_x2plus.pth"
-    _inpaint_path = "/tmp/big-lama.pt"
+    _upscaler_path = "/tmp/RealESRGAN_x2plus.pth"  # nosec B108 -- container-only ephemeral scratch on SageMaker
+    _inpaint_path = "/tmp/big-lama.pt"  # nosec B108 -- container-only ephemeral scratch on SageMaker
 
     import urllib.request as _urlreq
 

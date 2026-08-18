@@ -20,12 +20,12 @@
 
     // System prompt templates
     const TEMPLATES = [
-        { name: () => t('artsmoker.chat_studio.template_general'), prompt: 'You are a helpful, accurate, and concise assistant.' },
-        { name: () => t('artsmoker.chat_studio.template_coding'), prompt: 'You are an expert software engineer. Write clean, efficient, well-documented code. Explain your reasoning. Use best practices and modern patterns. When showing code, always include the language in fenced code blocks.' },
-        { name: () => t('artsmoker.chat_studio.template_creative'), prompt: 'You are a creative writing assistant. Help with storytelling, dialogue, world-building, and prose. Be imaginative and evocative. Offer multiple options when asked.' },
-        { name: () => t('artsmoker.chat_studio.template_game'), prompt: 'You are a game design consultant. Help with game mechanics, level design, balance, narrative design, and player experience. Reference established design patterns and successful games as examples.' },
-        { name: () => t('artsmoker.chat_studio.template_data'), prompt: 'You are a data analysis expert. Help with data exploration, statistics, visualization recommendations, SQL queries, and Python/pandas code. Be precise with numbers.' },
-        { name: () => t('artsmoker.chat_studio.template_technical'), prompt: 'You are a technical documentation expert. Write clear, structured documentation with proper formatting. Use headings, bullet points, tables, and code examples. Optimize for readability.' },
+        { name: () => t('artsmoker.ui.chat_studio.template_general'), prompt: 'You are a helpful, accurate, and concise assistant.' },
+        { name: () => t('artsmoker.ui.chat_studio.template_coding'), prompt: 'You are an expert software engineer. Write clean, efficient, well-documented code. Explain your reasoning. Use best practices and modern patterns. When showing code, always include the language in fenced code blocks.' },
+        { name: () => t('artsmoker.ui.chat_studio.template_creative'), prompt: 'You are a creative writing assistant. Help with storytelling, dialogue, world-building, and prose. Be imaginative and evocative. Offer multiple options when asked.' },
+        { name: () => t('artsmoker.ui.chat_studio.template_game'), prompt: 'You are a game design consultant. Help with game mechanics, level design, balance, narrative design, and player experience. Reference established design patterns and successful games as examples.' },
+        { name: () => t('artsmoker.ui.chat_studio.template_data'), prompt: 'You are a data analysis expert. Help with data exploration, statistics, visualization recommendations, SQL queries, and Python/pandas code. Be precise with numbers.' },
+        { name: () => t('artsmoker.ui.chat_studio.template_technical'), prompt: 'You are a technical documentation expert. Write clear, structured documentation with proper formatting. Use headings, bullet points, tables, and code examples. Optimize for readability.' },
     ];
 
     window.ChatStudio = {
@@ -55,8 +55,8 @@
             <!-- Session Sidebar -->
             <div class="w-60 flex-shrink-0 flex flex-col bg-brand-surface/50 rounded-xl border border-brand-border overflow-hidden">
                 <div class="p-3 border-b border-brand-border space-y-2">
-                    <button id="cs-new-chat" class="btn btn-primary btn-sm w-full text-xs">${t('artsmoker.chat_studio.new_chat')}</button>
-                    <input id="cs-session-search" type="text" class="input text-[10px] w-full" placeholder="${t('artsmoker.chat_studio.search_sessions')}">
+                    <button id="cs-new-chat" class="btn btn-primary btn-sm w-full text-xs">${t('artsmoker.ui.chat_studio.new_chat')}</button>
+                    <input id="cs-session-search" type="text" class="input text-[10px] w-full" placeholder="${t('artsmoker.ui.chat_studio.search_sessions')}">
                 </div>
                 <div id="cs-session-list" class="flex-1 overflow-auto p-2 space-y-1"></div>
                 <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center py-2">ArtSmoker</p>
@@ -68,35 +68,35 @@
                 <div class="px-4 py-3 border-b border-brand-border space-y-2">
                     <!-- Sync hint (shown when few models available) -->
                     <div id="cs-sync-hint" class="hidden text-[10px] text-amber-400 bg-amber-400/5 border border-amber-400/20 rounded-lg px-3 py-1.5 flex items-center gap-2">
-                        <span>${t('artsmoker.chat_studio.sync_hint')}</span>
-                        <button id="cs-open-settings" class="text-brand-accent hover:text-brand-accent-hover font-medium">${t('artsmoker.chat_studio.open_settings')}</button>
+                        <span>${t('artsmoker.ui.chat_studio.sync_hint')}</span>
+                        <button id="cs-open-settings" class="text-brand-accent hover:text-brand-accent-hover font-medium">${t('artsmoker.ui.chat_studio.open_settings')}</button>
                     </div>
                     <div class="flex items-center gap-3 flex-wrap">
                         <div id="cs-model-multi" class="relative flex-1 min-w-[200px]">
                             <button id="cs-model-btn" type="button" class="input text-left flex items-center justify-between w-full cursor-pointer text-xs font-mono">
-                                <span id="cs-model-label" class="truncate">${t('artsmoker.chat.select_model')}</span>
+                                <span id="cs-model-label" class="truncate">${t('artsmoker.ui.chat.select_model')}</span>
                                 <svg class="w-3.5 h-3.5 text-brand-text-muted flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                             </button>
                             <div id="cs-model-dropdown" class="hidden absolute z-50 mt-1 min-w-full w-max max-h-[28rem] overflow-y-auto rounded-lg border border-brand-border shadow-xl" style="background: var(--bg, #0f172a)"></div>
                         </div>
-                        <select id="cs-region-picker" class="input text-[10px] font-mono w-32" title="${t('artsmoker.common.region')}"></select>
+                        <select id="cs-region-picker" class="input text-[10px] font-mono w-32" title="${t('artsmoker.ui.common.region')}"></select>
                         <div class="flex items-center gap-2 text-[10px] text-brand-text-muted">
-                            <span>${t('artsmoker.chat_studio.temperature')}: <input type="number" id="cs-temperature" class="input text-[10px] w-14 text-center" value="0.7" min="0" max="2" step="0.1"></span>
-                            <span>${t('artsmoker.chat_studio.max_tokens')}: <input type="number" id="cs-max-tokens" class="input text-[10px] w-16 text-center" value="4096" min="1" max="32000" step="256"></span>
+                            <span>${t('artsmoker.ui.chat_studio.temperature')}: <input type="number" id="cs-temperature" class="input text-[10px] w-14 text-center" value="0.7" min="0" max="2" step="0.1"></span>
+                            <span>${t('artsmoker.ui.chat_studio.max_tokens')}: <input type="number" id="cs-max-tokens" class="input text-[10px] w-16 text-center" value="4096" min="1" max="32000" step="256"></span>
                             <span>|</span>
-                            <button id="cs-export-md" class="text-brand-accent hover:text-brand-accent-hover" title="${t('artsmoker.chat_studio.export_title')}">${t('artsmoker.chat_studio.export_md')}</button>
-                            <button id="cs-compact-btn" class="text-amber-400 hover:text-amber-300" title="${t('artsmoker.chat_studio.compact_title')}">${t('artsmoker.chat_studio.compact')}</button>
-                            <button id="cs-search-btn" class="text-brand-text-muted hover:text-brand-text" title="${t('artsmoker.common.search')}">
+                            <button id="cs-export-md" class="text-brand-accent hover:text-brand-accent-hover" title="${t('artsmoker.ui.chat_studio.export_title')}">${t('artsmoker.ui.chat_studio.export_md')}</button>
+                            <button id="cs-compact-btn" class="text-amber-400 hover:text-amber-300" title="${t('artsmoker.ui.chat_studio.compact_title')}">${t('artsmoker.ui.chat_studio.compact')}</button>
+                            <button id="cs-search-btn" class="text-brand-text-muted hover:text-brand-text" title="${t('artsmoker.ui.common.search')}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
                             </button>
-                            <button id="cs-model-settings" class="p-1 rounded bg-emerald-700 text-white hover:bg-emerald-600 transition-colors" title="${t('artsmoker.chat_studio.model_settings')}">
+                            <button id="cs-model-settings" class="p-1 rounded bg-emerald-700 text-white hover:bg-emerald-600 transition-colors" title="${t('artsmoker.ui.chat_studio.model_settings')}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
                             </button>
                         </div>
                     </div>
                     <!-- Context bar -->
                     <div class="flex items-center gap-2">
-                        <span class="text-[10px] text-brand-text-muted flex-shrink-0">${t('artsmoker.chat_studio.context')}:</span>
+                        <span class="text-[10px] text-brand-text-muted flex-shrink-0">${t('artsmoker.ui.chat_studio.context')}:</span>
                         <div class="flex-1 h-2 rounded-full bg-brand-bg overflow-hidden">
                             <div id="cs-context-bar" class="h-full rounded-full bg-gradient-to-r from-brand-accent to-purple-500 transition-all duration-300" style="width: 0%"></div>
                         </div>
@@ -107,20 +107,20 @@
                     <!-- System prompt -->
                     <details class="group">
                         <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover select-none">
-                            <span class="group-open:hidden">${t('artsmoker.chat_studio.system_prompt')}</span>
-                            <span class="hidden group-open:inline">${t('artsmoker.chat_studio.system_prompt_hide')}</span>
+                            <span class="group-open:hidden">${t('artsmoker.ui.chat_studio.system_prompt')}</span>
+                            <span class="hidden group-open:inline">${t('artsmoker.ui.chat_studio.system_prompt_hide')}</span>
                         </summary>
                         <div class="flex gap-2 mt-1">
                             <select id="cs-template-picker" class="input text-[10px] w-40">
-                                <option value="">${t('artsmoker.chat_studio.templates')}</option>
+                                <option value="">${t('artsmoker.ui.chat_studio.templates')}</option>
                                 ${TEMPLATES.map(tpl => `<option value="${_esc(tpl.prompt)}">${_esc(tpl.name())}</option>`).join('')}
                             </select>
-                            <textarea id="cs-system-prompt" class="input text-xs flex-1 h-16 resize-y font-mono" placeholder="${t('artsmoker.chat_studio.system_prompt')}..."></textarea>
+                            <textarea id="cs-system-prompt" class="input text-xs flex-1 h-16 resize-y font-mono" placeholder="${t('artsmoker.ui.chat_studio.system_prompt')}..."></textarea>
                         </div>
                     </details>
                     <!-- Search bar (hidden by default) -->
                     <div id="cs-search-bar" class="hidden flex gap-2">
-                        <input id="cs-chat-search" type="text" class="input text-xs flex-1" placeholder="${t('artsmoker.chat_studio.search_in_chat')}">
+                        <input id="cs-chat-search" type="text" class="input text-xs flex-1" placeholder="${t('artsmoker.ui.chat_studio.search_in_chat')}">
                         <button id="cs-search-close" class="text-brand-text-muted hover:text-brand-text text-xs px-2">&times;</button>
                         <span id="cs-search-results" class="text-[10px] text-brand-text-muted self-center"></span>
                     </div>
@@ -135,21 +135,21 @@
                     <div id="cs-attachments" class="hidden flex gap-2 mb-2 flex-wrap"></div>
                     <div class="flex gap-2">
                         <div class="flex flex-col gap-1 justify-end">
-                            <label id="cs-attach-btn" class="btn btn-secondary btn-sm text-xs px-2 cursor-pointer" title="${t('artsmoker.chat_studio.attach_image')}">
+                            <label id="cs-attach-btn" class="btn btn-secondary btn-sm text-xs px-2 cursor-pointer" title="${t('artsmoker.ui.chat_studio.attach_image')}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/></svg>
                                 <input type="file" id="cs-file-input" class="hidden" accept="image/*" multiple>
                             </label>
                         </div>
-                        <textarea id="cs-input" class="input text-sm flex-1 resize-none" rows="2" placeholder="${t('artsmoker.chat_studio.input_placeholder')}"></textarea>
+                        <textarea id="cs-input" class="input text-sm flex-1 resize-none" rows="2" placeholder="${t('artsmoker.ui.chat_studio.input_placeholder')}"></textarea>
                         <div class="flex flex-col gap-1">
-                            <button id="cs-send" class="btn btn-primary btn-sm text-xs px-4 h-full">${t('artsmoker.chat_studio.send')}</button>
-                            <button id="cs-stop" class="btn btn-sm text-xs px-4 bg-red-600 hover:bg-red-500 text-white hidden">${t('artsmoker.chat_studio.stop')}</button>
+                            <button id="cs-send" class="btn btn-primary btn-sm text-xs px-4 h-full">${t('artsmoker.ui.chat_studio.send')}</button>
+                            <button id="cs-stop" class="btn btn-sm text-xs px-4 bg-red-600 hover:bg-red-500 text-white hidden">${t('artsmoker.ui.chat_studio.stop')}</button>
                         </div>
                     </div>
                     <div id="cs-totals" class="flex items-center gap-4 mt-2 text-[10px] text-brand-text-muted">
-                        <span>${t('artsmoker.chat_studio.tokens')}: <span id="cs-total-tokens" class="font-mono">0</span></span>
-                        <span>${t('artsmoker.chat_studio.est_cost')}: <span id="cs-total-cost" class="font-mono text-brand-accent">$0.00</span></span>
-                        <span>${t('artsmoker.chat_studio.messages')}: <span id="cs-msg-count" class="font-mono">0</span></span>
+                        <span>${t('artsmoker.ui.chat_studio.tokens')}: <span id="cs-total-tokens" class="font-mono">0</span></span>
+                        <span>${t('artsmoker.ui.chat_studio.est_cost')}: <span id="cs-total-cost" class="font-mono text-brand-accent">$0.00</span></span>
+                        <span>${t('artsmoker.ui.chat_studio.messages')}: <span id="cs-msg-count" class="font-mono">0</span></span>
                     </div>
                 </div>
             </div>
@@ -342,7 +342,7 @@
         // Group by provider
         const byProvider = {};
         for (const m of _models) {
-            const provider = m.provider || t('artsmoker.common.unknown');
+            const provider = m.provider || t('artsmoker.ui.common.unknown');
             if (!byProvider[provider]) byProvider[provider] = [];
             byProvider[provider].push(m);
         }
@@ -400,7 +400,7 @@
         const regions = model.available_regions || [model.region].filter(Boolean);
         if (regions.length <= 1) {
             // nosemgrep
-            sel.innerHTML = html`<option value="${regions[0] || ''}">${regions[0] || t('artsmoker.common.default')}</option>`;
+            sel.innerHTML = html`<option value="${regions[0] || ''}">${regions[0] || t('artsmoker.ui.common.default')}</option>`;
             sel.disabled = true;
         } else {
             // nosemgrep
@@ -427,10 +427,10 @@
             // Calculate what 100K tokens would cost (long conversation)
             const est100k = ((p.input_per_1k * 70) + (p.output_per_1k * 30)).toFixed(2);
             // nosemgrep
-            el.innerHTML = html`${t('artsmoker.chat_studio.pricing_label')}: <span class="text-brand-text/70">${input1k}/1K input</span> · <span class="text-brand-text/70">${output1k}/1K output</span> · <span class="text-brand-accent/70" title="Estimated cost for ~10K tokens (70% input, 30% output)">~$${est10k}/10K tokens</span> · <span class="text-amber-400/70" title="Estimated cost for ~100K tokens (70% input, 30% output)">~$${est100k}/100K tokens</span>`;
+            el.innerHTML = html`${t('artsmoker.ui.chat_studio.pricing_label')}: <span class="text-brand-text/70">${input1k}/1K input</span> · <span class="text-brand-text/70">${output1k}/1K output</span> · <span class="text-brand-accent/70" title="Estimated cost for ~10K tokens (70% input, 30% output)">~$${est10k}/10K tokens</span> · <span class="text-amber-400/70" title="Estimated cost for ~100K tokens (70% input, 30% output)">~$${est100k}/100K tokens</span>`;
         } else {
             // nosemgrep
-            el.innerHTML = html`<span class="text-brand-text-muted/50">${t('artsmoker.chat_studio.pricing_not_available')}</span>`;
+            el.innerHTML = html`<span class="text-brand-text-muted/50">${t('artsmoker.ui.chat_studio.pricing_not_available')}</span>`;
         }
     }
 
@@ -482,7 +482,7 @@
 
         // nosemgrep
         el.innerHTML = filtered.length === 0
-            ? html`<p class="text-[10px] text-brand-text-muted text-center py-4">${t('artsmoker.chat_studio.no_conversations')}</p>`
+            ? html`<p class="text-[10px] text-brand-text-muted text-center py-4">${t('artsmoker.ui.chat_studio.no_conversations')}</p>`
             : filtered.map(s => {
                 const active = _currentSession?.session_id === s.session_id;
                 const msgs = s.message_count || 0;
@@ -492,9 +492,9 @@
                         <span class="cs-session-title flex-1 truncate" data-sid="${s.session_id}">${s.title}</span>
                         <span class="text-[9px] opacity-60 flex-shrink-0">${msgs}${cost}</span>
                         <div class="hidden group-hover:flex items-center gap-0.5 flex-shrink-0">
-                            <button class="cs-rename-session text-brand-text-muted hover:text-brand-text text-[10px] px-0.5" data-sid="${s.session_id}" title="${t('artsmoker.chat_studio.rename')}">${t('artsmoker.chat_studio.rename')}</button>
-                            <button class="cs-dup-session text-brand-text-muted hover:text-brand-text text-[10px] px-0.5" data-sid="${s.session_id}" title="${t('artsmoker.chat_studio.duplicate')}">${t('artsmoker.chat_studio.duplicate')}</button>
-                            <button class="cs-delete-session text-red-400 hover:text-red-300 text-[10px] px-0.5" data-sid="${s.session_id}" title="${t('artsmoker.common.delete')}">&times;</button>
+                            <button class="cs-rename-session text-brand-text-muted hover:text-brand-text text-[10px] px-0.5" data-sid="${s.session_id}" title="${t('artsmoker.ui.chat_studio.rename')}">${t('artsmoker.ui.chat_studio.rename')}</button>
+                            <button class="cs-dup-session text-brand-text-muted hover:text-brand-text text-[10px] px-0.5" data-sid="${s.session_id}" title="${t('artsmoker.ui.chat_studio.duplicate')}">${t('artsmoker.ui.chat_studio.duplicate')}</button>
+                            <button class="cs-delete-session text-red-400 hover:text-red-300 text-[10px] px-0.5" data-sid="${s.session_id}" title="${t('artsmoker.ui.common.delete')}">&times;</button>
                         </div>
                     </div>`;
             }).join('');
@@ -509,7 +509,7 @@
         el.querySelectorAll('.cs-delete-session').forEach(btn => {
             btn.addEventListener('click', async (e) => {
                 e.stopPropagation();
-                if (!await window.showConfirm(t('artsmoker.chat_studio.delete_confirm'), { title: t('artsmoker.chat_studio.delete_title'), confirmLabel: t('artsmoker.common.delete'), danger: true })) return;
+                if (!await window.showConfirm(t('artsmoker.ui.chat_studio.delete_confirm'), { title: t('artsmoker.ui.chat_studio.delete_title'), confirmLabel: t('artsmoker.ui.common.delete'), danger: true })) return;
                 await fetch(`/api/chat/sessions/${btn.dataset.sid}`, { method: 'DELETE' });
                 if (_currentSession?.session_id === btn.dataset.sid) _currentSession = null;
                 await _loadSessions();
@@ -555,11 +555,11 @@
         try {
             const session = await fetch('/api/chat/sessions', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title: t('artsmoker.chat_studio.new_chat').replace('+ ', ''), model_id: model.model_id || '' }),
+                body: JSON.stringify({ title: t('artsmoker.ui.chat_studio.new_chat').replace('+ ', ''), model_id: model.model_id || '' }),
             }).then(r => r.json());
             await _loadSessions();
             await _loadSession(session.session_id);
-        } catch (err) { window.showToast?.(t('artsmoker.misc.chat_failed_session') + ': ' + err.message, 'error'); }
+        } catch (err) { window.showToast?.(t('artsmoker.ui.misc.chat_failed_session') + ': ' + err.message, 'error'); }
     }
 
     async function _loadSession(sessionId) {
@@ -623,8 +623,8 @@
                         <svg class="w-12 h-12 mx-auto mb-3 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
                         </svg>
-                        <p class="text-sm font-medium">${t('artsmoker.chat_studio.start_conversation')}</p>
-                        <p class="text-[10px] mt-1">${t('artsmoker.chat_studio.start_hint')}</p>
+                        <p class="text-sm font-medium">${t('artsmoker.ui.chat_studio.start_conversation')}</p>
+                        <p class="text-[10px] mt-1">${t('artsmoker.ui.chat_studio.start_hint')}</p>
                     </div>
                 </div>`;
             return;
@@ -672,7 +672,7 @@
                             <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                             </svg>
-                            <span class="text-sm font-medium text-amber-400">${t('artsmoker.chat_studio.content_safety')}</span>
+                            <span class="text-sm font-medium text-amber-400">${t('artsmoker.ui.chat_studio.content_safety')}</span>
                         </div>
                         <div class="cs-md-content text-xs text-amber-200/80">${raw(_renderMarkdown(msg.content_blocked))}</div>
                     </div>`;
@@ -687,7 +687,7 @@
             meta = html`<div class="flex items-center gap-3 mt-2 text-[10px] text-brand-text-muted/60">
                 ${latency ? html`<span>${latency}</span>` : ''}
                 <span>${(msg.input_tokens || 0).toLocaleString()} in / ${(msg.output_tokens || 0).toLocaleString()} out</span>
-                ${cost ? html`<span class="text-brand-accent/60" title="${t('artsmoker.misc.cost_tooltip')}">${cost}</span>` : ''}
+                ${cost ? html`<span class="text-brand-accent/60" title="${t('artsmoker.ui.misc.cost_tooltip')}">${cost}</span>` : ''}
                 ${modelLabel ? html`<span class="font-mono">${modelLabel}</span>` : ''}
             </div>`;
         }
@@ -695,12 +695,12 @@
         // Action buttons
         const actions = isUser
             ? html`<div class="hidden group-hover:flex items-center gap-1 mt-1">
-                <button data-action="edit" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('artsmoker.chat_studio.edit')}</button>
-                <button data-action="fork" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('artsmoker.chat_studio.fork')}</button>
+                <button data-action="edit" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('artsmoker.ui.chat_studio.edit')}</button>
+                <button data-action="fork" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('artsmoker.ui.chat_studio.fork')}</button>
                </div>`
             : html`<div class="hidden group-hover:flex items-center gap-1 mt-1">
-                <button data-action="regenerate" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('artsmoker.chat_studio.regenerate')}</button>
-                <button data-action="fork" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('artsmoker.chat_studio.fork')}</button>
+                <button data-action="regenerate" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('artsmoker.ui.chat_studio.regenerate')}</button>
+                <button data-action="fork" data-idx="${index}" class="text-[9px] text-brand-text-muted hover:text-brand-text px-1.5 py-0.5 rounded bg-white/5 hover:bg-white/10">${t('artsmoker.ui.chat_studio.fork')}</button>
                </div>`;
 
         return html`
@@ -743,7 +743,7 @@
         if (!text && _pendingImages.length === 0) return;
 
         const model = _getSelectedModel();
-        if (!model.model_id) { window.showToast?.(t('artsmoker.chat_studio.select_model'), 'error'); return; }
+        if (!model.model_id) { window.showToast?.(t('artsmoker.ui.chat_studio.select_model'), 'error'); return; }
 
         // If truncating (edit/fork), remove messages after truncateAt
         if (truncateAt !== null) {
@@ -758,7 +758,7 @@
             const newLabel = model.model_id.split('.').pop().split(':')[0];
             _currentSession.messages.push({
                 role: 'system_divider',
-                content: t('artsmoker.chat_studio.model_switched').replace('{{prev}}', prevLabel).replace('{{new}}', newLabel),
+                content: t('artsmoker.ui.chat_studio.model_switched').replace('{{prev}}', prevLabel).replace('{{new}}', newLabel),
                 timestamp: new Date().toISOString(),
                 prev_model: prevModelId,
                 new_model: model.model_id,
@@ -777,7 +777,7 @@
         _renderAttachments();
 
         // Quick title from first message (immediate, before LLM responds)
-        if (_currentSession.messages.filter(m => m.role === 'user').length === 1 && (_currentSession.title === 'New Chat' || _currentSession.title === t('artsmoker.chat_studio.new_chat').replace('+ ', ''))) {
+        if (_currentSession.messages.filter(m => m.role === 'user').length === 1 && (_currentSession.title === 'New Chat' || _currentSession.title === t('artsmoker.ui.chat_studio.new_chat').replace('+ ', ''))) {
             _currentSession.title = text.slice(0, 50) + (text.length > 50 ? '...' : '');
         }
 
@@ -858,7 +858,7 @@
                                         <svg class="w-4 h-4 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                                         </svg>
-                                        <span class="text-sm font-medium text-amber-400">${t('artsmoker.chat_studio.content_safety')}</span>
+                                        <span class="text-sm font-medium text-amber-400">${t('artsmoker.ui.chat_studio.content_safety')}</span>
                                     </div>
                                     <div class="cs-md-content text-xs text-amber-200/80">${raw(_renderMarkdown(event.message))}</div>
                                 </div>`;
@@ -872,7 +872,7 @@
                 }
             }
         } catch (err) {
-            if (err.name !== 'AbortError') fullText += `\n\n**${t('artsmoker.common.error')}:** ${err.message}`;
+            if (err.name !== 'AbortError') fullText += `\n\n**${t('artsmoker.ui.common.error')}:** ${err.message}`;
         }
 
         clearInterval(timerInterval);
@@ -999,7 +999,7 @@
 
         await _loadSessions();
         await _loadSession(newSession.session_id);
-        window.showToast?.(t('artsmoker.chat_studio.fork_success'), 'success');
+        window.showToast?.(t('artsmoker.ui.chat_studio.fork_success'), 'success');
     }
 
     // ── Export (Phase 2) ─────────────────────────────────────────────
@@ -1008,7 +1008,7 @@
         if (!_currentSession) return;
         try {
             const resp = await fetch(`/api/chat/sessions/${_currentSession.session_id}/export`);
-            if (!resp.ok) throw new Error(t('artsmoker.chat_studio.export_failed'));
+            if (!resp.ok) throw new Error(t('artsmoker.ui.chat_studio.export_failed'));
             const blob = await resp.blob();
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1016,7 +1016,7 @@
             a.download = resp.headers.get('Content-Disposition')?.match(/filename="(.+)"/)?.[1] || 'chat.md';
             a.click();
             URL.revokeObjectURL(url);
-        } catch (err) { window.showToast?.(t('artsmoker.chat_studio.export_failed') + ': ' + err.message, 'error'); }
+        } catch (err) { window.showToast?.(t('artsmoker.ui.chat_studio.export_failed') + ': ' + err.message, 'error'); }
     }
 
     // ── Compact (Phase 3) ────────────────────────────────────────────
@@ -1024,16 +1024,16 @@
     async function _compactContext() {
         if (!_currentSession || _streaming) return;
         const msgCount = _currentSession.messages?.length || 0;
-        if (msgCount <= 6) { window.showToast?.(t('artsmoker.chat_studio.compact_not_enough'), 'info'); return; }
+        if (msgCount <= 6) { window.showToast?.(t('artsmoker.ui.chat_studio.compact_not_enough'), 'info'); return; }
 
-        if (!await window.showConfirm(t('artsmoker.chat_studio.compact_confirm').replace('{{count}}', msgCount - 6), {
-            title: t('artsmoker.chat_studio.compact_title'),
-            detail: t('artsmoker.chat_studio.compact_detail'),
-            confirmLabel: t('artsmoker.chat_studio.compact_btn'),
+        if (!await window.showConfirm(t('artsmoker.ui.chat_studio.compact_confirm').replace('{{count}}', msgCount - 6), {
+            title: t('artsmoker.ui.chat_studio.compact_title'),
+            detail: t('artsmoker.ui.chat_studio.compact_detail'),
+            confirmLabel: t('artsmoker.ui.chat_studio.compact_btn'),
         })) return;
 
         try {
-            window.showLoading?.(t('artsmoker.chat_studio.compacting'));
+            window.showLoading?.(t('artsmoker.ui.chat_studio.compacting'));
             const resp = await fetch('/api/chat/compact', {
                 method: 'POST', headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ session_id: _currentSession.session_id, keep_recent: 6 }),
@@ -1042,15 +1042,15 @@
 
             if (!resp.ok) {
                 const err = await resp.json();
-                throw new Error(err.detail || t('artsmoker.model_settings.templates_enhance_failed'));
+                throw new Error(err.detail || t('artsmoker.ui.model_settings.templates_enhance_failed'));
             }
 
             const result = await resp.json();
-            window.showToast?.(t('artsmoker.chat_studio.compacted').replace('{{count}}', result.messages_removed), 'success');
+            window.showToast?.(t('artsmoker.ui.chat_studio.compacted').replace('{{count}}', result.messages_removed), 'success');
             await _loadSession(_currentSession.session_id);
         } catch (err) {
             window.hideLoading?.();
-            window.showToast?.(t('artsmoker.chat_studio.compact_title') + ': ' + err.message, 'error');
+            window.showToast?.(t('artsmoker.ui.chat_studio.compact_title') + ': ' + err.message, 'error');
         }
     }
 

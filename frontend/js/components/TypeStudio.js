@@ -158,8 +158,8 @@
             return html`
                 <div id="type-studio-view" class="view-enter">
                     <div class="mb-6">
-                        <h1 class="text-2xl font-bold">${t('artsmoker.type_studio.title')}</h1>
-                        <p class="text-brand-text-muted text-sm mt-1">${t('artsmoker.type_studio.subtitle')}</p>
+                        <h1 class="text-2xl font-bold">${t('artsmoker.ui.type_studio.title')}</h1>
+                        <p class="text-brand-text-muted text-sm mt-1">${t('artsmoker.ui.type_studio.subtitle')}</p>
                     </div>
 
                     <div class="flex flex-col lg:flex-row gap-6">
@@ -170,42 +170,42 @@
 
                                 <!-- Mode Toggle -->
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.type_studio.mode')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.type_studio.mode')}</label>
                                     <div class="grid grid-cols-2 gap-1 p-1 bg-brand-bg rounded-lg">
-                                        <button id="ts-mode-on-image" class="btn btn-sm text-xs ts-mode-btn ts-mode-active">${t('artsmoker.type_studio.mode_on_image')}</button>
-                                        <button id="ts-mode-standalone" class="btn btn-sm text-xs ts-mode-btn">${t('artsmoker.type_studio.mode_standalone')}</button>
+                                        <button id="ts-mode-on-image" class="btn btn-sm text-xs ts-mode-btn ts-mode-active">${t('artsmoker.ui.type_studio.mode_on_image')}</button>
+                                        <button id="ts-mode-standalone" class="btn btn-sm text-xs ts-mode-btn">${t('artsmoker.ui.type_studio.mode_standalone')}</button>
                                     </div>
                                 </div>
 
                                 <!-- Style Selector -->
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.type_studio.style')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.type_studio.style')}</label>
                                     <div class="select-expand-wrap">
                                         <select id="ts-style" class="input">
-                                            <option value="">${t('artsmoker.type_studio.style_none')}</option>
+                                            <option value="">${t('artsmoker.ui.type_studio.style_none')}</option>
                                         </select>
                                     </div>
                                 </div>
 
                                 <!-- Source Image (On Image mode only) -->
                                 <div id="ts-source-image-section">
-                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.type_studio.source_image')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.type_studio.source_image')}</label>
                                     <div class="space-y-2">
-                                        <input type="text" id="ts-image-id" class="input" placeholder="${t('artsmoker.type_studio.image_id_placeholder')}" />
+                                        <input type="text" id="ts-image-id" class="input" placeholder="${t('artsmoker.ui.type_studio.image_id_placeholder')}" />
                                         <select id="ts-recent-images" class="input">
-                                            <option value="">${t('artsmoker.type_studio.browse_recent')}</option>
+                                            <option value="">${t('artsmoker.ui.type_studio.browse_recent')}</option>
                                         </select>
                                         <div id="ts-image-preview" class="hidden rounded-lg overflow-hidden border border-brand-border bg-brand-bg">
-                                            <img id="ts-image-preview-img" class="w-full h-auto" alt="${t('artsmoker.misc.alt_selected_source')}" />
+                                            <img id="ts-image-preview-img" class="w-full h-auto" alt="${t('artsmoker.ui.misc.alt_selected_source')}" />
                                         </div>
                                     </div>
                                 </div>
 
                                 <!-- Font List -->
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.type_studio.fonts')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.type_studio.fonts')}</label>
                                     <div id="ts-font-list" class="text-xs text-brand-text-muted space-y-1">
-                                        <p>${t('artsmoker.type_studio.fonts_loading')}</p>
+                                        <p>${t('artsmoker.ui.type_studio.fonts_loading')}</p>
                                     </div>
                                 </div>
 
@@ -217,19 +217,19 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343"/>
                                     </svg>
-                                    <span id="ts-processing-label">${t('artsmoker.type_studio.post_processing')}</span>
+                                    <span id="ts-processing-label">${t('artsmoker.ui.type_studio.post_processing')}</span>
                                 </h2>
                                 <div class="space-y-3">
                                     <div class="flex items-center justify-between">
-                                        <label class="text-sm">${t('artsmoker.type_studio.remove_bg')}</label>
+                                        <label class="text-sm">${t('artsmoker.ui.type_studio.remove_bg')}</label>
                                         <label class="toggle"><input type="checkbox" id="ts-remove-bg"><span class="toggle-slider"></span></label>
                                     </div>
                                     <div class="flex items-center justify-between">
-                                        <label class="text-sm">${t('artsmoker.type_studio.convert_svg')}</label>
+                                        <label class="text-sm">${t('artsmoker.ui.type_studio.convert_svg')}</label>
                                         <label class="toggle"><input type="checkbox" id="ts-svg" checked><span class="toggle-slider"></span></label>
                                     </div>
                                     <div class="flex items-center justify-between">
-                                        <label class="text-sm">${t('artsmoker.type_studio.upscale')}</label>
+                                        <label class="text-sm">${t('artsmoker.ui.type_studio.upscale')}</label>
                                         <label class="toggle"><input type="checkbox" id="ts-upscale"><span class="toggle-slider"></span></label>
                                     </div>
                                 </div>
@@ -237,9 +237,9 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                     </svg>
-                                    ${t('artsmoker.type_studio.pp_apply')}
+                                    ${t('artsmoker.ui.type_studio.pp_apply')}
                                 </button>
-                                <p id="ts-pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">${t('artsmoker.type_studio.pp_hint')}</p>
+                                <p id="ts-pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">${t('artsmoker.ui.type_studio.pp_hint')}</p>
                             </div>
 
                             <button id="ts-model-settings-btn" class="w-full text-left p-3 rounded-lg bg-emerald-700 hover:bg-emerald-600 border border-emerald-500/30 transition-colors flex items-center gap-2 text-xs text-white font-medium mt-3">
@@ -247,7 +247,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
-                                ${t('artsmoker.type_studio.model_settings')}
+                                ${t('artsmoker.ui.type_studio.model_settings')}
                             </button>
 
                             <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-4">ArtSmoker</p>
@@ -262,28 +262,28 @@
                                     <svg class="w-5 h-5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/>
                                     </svg>
-                                    ${t('artsmoker.type_studio.text_lines')}
+                                    ${t('artsmoker.ui.type_studio.text_lines')}
                                 </h2>
                                 <div id="ts-lines-container" class="space-y-3"></div>
                                 <button id="ts-add-line" class="btn btn-secondary btn-sm">
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                     </svg>
-                                    ${t('artsmoker.type_studio.add_line')}
+                                    ${t('artsmoker.ui.type_studio.add_line')}
                                 </button>
                             </div>
 
                             <!-- Style Note -->
                             <div class="card-static p-5">
-                                <label class="block text-sm font-medium mb-1.5">${t('artsmoker.type_studio.style_note')}</label>
+                                <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.type_studio.style_note')}</label>
                                 <textarea id="ts-style-note" class="input min-h-[60px]" rows="2"
-                                    placeholder="${t('artsmoker.type_studio.style_note_placeholder')}"></textarea>
+                                    placeholder="${t('artsmoker.ui.type_studio.style_note_placeholder')}"></textarea>
                             </div>
 
                             <!-- Layout Options + AI Model -->
                             <div class="card-static p-5 space-y-3">
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.type_studio.layout_options')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.type_studio.layout_options')}</label>
                                     <select id="ts-num-options" class="input">
                                         <option value="1">1 layout</option>
                                         <option value="2">2 layouts</option>
@@ -291,17 +291,17 @@
                                         <option value="4">4 layouts</option>
                                         <option value="5">5 layouts</option>
                                     </select>
-                                    <p class="text-[10px] text-brand-text-muted mt-1">${t('artsmoker.type_studio.layout_desc')}</p>
+                                    <p class="text-[10px] text-brand-text-muted mt-1">${t('artsmoker.ui.type_studio.layout_desc')}</p>
                                 </div>
                                 <details class="group">
                                     <summary class="text-xs font-medium text-brand-text-muted cursor-pointer hover:text-brand-text">
-                                        <span class="group-open:hidden">\u25B8 ${t('artsmoker.type_studio.llm_model')}</span>
-                                        <span class="hidden group-open:inline">\u25BE ${t('artsmoker.type_studio.llm_model_expanded')}</span>
+                                        <span class="group-open:hidden">\u25B8 ${t('artsmoker.ui.type_studio.llm_model')}</span>
+                                        <span class="hidden group-open:inline">\u25BE ${t('artsmoker.ui.type_studio.llm_model_expanded')}</span>
                                     </summary>
                                     <div class="mt-1.5">
                                         <select id="ts-llm-complexity" class="input text-xs">
-                                            <option value="complex">${t('artsmoker.type_studio.llm_complex')}</option>
-                                            <option value="fast">${t('artsmoker.type_studio.llm_fast')}</option>
+                                            <option value="complex">${t('artsmoker.ui.type_studio.llm_complex')}</option>
+                                            <option value="fast">${t('artsmoker.ui.type_studio.llm_fast')}</option>
                                         </select>
                                         <p id="ts-llm-info" class="text-[10px] text-brand-text-dim mt-1"></p>
                                     </div>
@@ -314,27 +314,27 @@
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                                     </svg>
-                                    ${t('artsmoker.type_studio.suggest')}
+                                    ${t('artsmoker.ui.type_studio.suggest')}
                                 </button>
                                 <button id="ts-btn-generate" class="btn btn-primary btn-lg text-base">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                     </svg>
-                                    ${t('artsmoker.type_studio.generate')}
+                                    ${t('artsmoker.ui.type_studio.generate')}
                                 </button>
                             </div>
 
                             <!-- Layout Suggestion -->
                             <div id="ts-suggestion-section" class="hidden card-static p-5 space-y-3">
                                 <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
-                                    ${t('artsmoker.type_studio.ai_suggestion')}
+                                    ${t('artsmoker.ui.type_studio.ai_suggestion')}
                                 </h3>
                                 <div id="ts-suggestion-content" class="text-sm text-brand-text/80 leading-relaxed space-y-2"></div>
                             </div>
 
                             <!-- Options Row (shown when multiple options generated) -->
                             <div id="ts-options-section" class="hidden">
-                                <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide mb-2">${t('artsmoker.type_studio.layout_options_click')}</h3>
+                                <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide mb-2">${t('artsmoker.ui.type_studio.layout_options_click')}</h3>
                                 <div id="ts-options-grid" class="grid grid-cols-5 gap-3"></div>
                             </div>
 
@@ -345,13 +345,13 @@
                                         <svg class="w-16 h-16 mx-auto text-brand-text-muted/20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 6h16M4 12h8m-8 6h16"/>
                                         </svg>
-                                        <p class="text-brand-text-muted/40 text-sm">${t('artsmoker.type_studio.preview_placeholder')}</p>
+                                        <p class="text-brand-text-muted/40 text-sm">${t('artsmoker.ui.type_studio.preview_placeholder')}</p>
                                     </div>
                                     <div id="ts-loading" class="hidden absolute inset-0 bg-brand-bg/60 flex flex-col items-center justify-center gap-4">
                                         <div class="loading-spinner w-10 h-10 border-4 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                        <p id="ts-loading-text" class="text-sm text-brand-text-muted font-medium">${t('artsmoker.type_studio.processing')}</p>
+                                        <p id="ts-loading-text" class="text-sm text-brand-text-muted font-medium">${t('artsmoker.ui.type_studio.processing')}</p>
                                     </div>
-                                    <img id="ts-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="${t('artsmoker.misc.alt_type_result')}" />
+                                    <img id="ts-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="${t('artsmoker.ui.misc.alt_type_result')}" />
                                 </div>
 
                                 <!-- Download Bar -->
@@ -482,7 +482,7 @@
             document.getElementById('ts-llm-complexity')?.addEventListener('change', () => {
                 const infoEl = document.getElementById('ts-llm-info');
                 const val = document.getElementById('ts-llm-complexity')?.value;
-                if (infoEl) infoEl.textContent = val === 'complex' ? t('artsmoker.type_studio.llm_quality_higher') : t('artsmoker.type_studio.llm_quality_faster');
+                if (infoEl) infoEl.textContent = val === 'complex' ? t('artsmoker.ui.type_studio.llm_quality_higher') : t('artsmoker.ui.type_studio.llm_quality_faster');
             });
         },
 
@@ -542,16 +542,16 @@
                 const otherCount = this._fonts.length - styleFonts.length;
                 if (this._fonts.length === 0) {
                     // nosemgrep
-                    listEl.innerHTML = html`<p class="text-brand-text-muted/60">${t('artsmoker.type_studio.fonts_empty')}</p>`;
+                    listEl.innerHTML = html`<p class="text-brand-text-muted/60">${t('artsmoker.ui.type_studio.fonts_empty')}</p>`;
                 } else {
                     let markup = '';
                     if (styleFonts.length > 0) {
-                        markup += html`<p class="text-brand-accent text-[10px] font-bold uppercase mb-1">${t('artsmoker.type_studio.style_fonts_count', { count: styleFonts.length })}</p>`;
+                        markup += html`<p class="text-brand-accent text-[10px] font-bold uppercase mb-1">${t('artsmoker.ui.type_studio.style_fonts_count', { count: styleFonts.length })}</p>`;
                         markup += styleFonts.map(f =>
                             html`<div class="py-0.5" style="font-family: '${_font_css_family(f)}'">${f.display_name || f.name}</div>`
                         ).join('');
                     }
-                    markup += html`<p class="text-brand-text-muted/50 text-[10px] mt-1">${otherCount} ${t('artsmoker.type_studio.more_fonts_suffix')}</p>`;
+                    markup += html`<p class="text-brand-text-muted/50 text-[10px] mt-1">${otherCount} ${t('artsmoker.ui.type_studio.more_fonts_suffix')}</p>`;
                     // nosemgrep
                     listEl.innerHTML = markup;
                 }
@@ -573,7 +573,7 @@
                 this._recentImages = items;
 
                 // nosemgrep
-                sel.innerHTML = html`<option value="">${t('artsmoker.type_studio.browse_recent')}</option>` +
+                sel.innerHTML = html`<option value="">${t('artsmoker.ui.type_studio.browse_recent')}</option>` +
                     items.map(item => {
                         const label = item.png_filename || item.id;
                         return html`<option value="${item.id}">${label}</option>`;
@@ -609,7 +609,7 @@
 
         _removeLine(index) {
             if (this._lines.length <= 1) {
-                window.showToast?.(t('artsmoker.type_studio.line_min_required'), 'warning');
+                window.showToast?.(t('artsmoker.ui.type_studio.line_min_required'), 'warning');
                 return;
             }
             this._lines.splice(index, 1);
@@ -650,16 +650,16 @@
                 <div class="ts-line-row p-3 bg-brand-bg rounded-lg border border-brand-border space-y-2" data-line-index="${i}">
                     <div class="flex items-center gap-2">
                         <span class="text-[10px] font-bold text-brand-text-muted/50 w-5 text-center">${i + 1}</span>
-                        <input type="text" class="ts-line-text input flex-1" placeholder="${t('artsmoker.type_studio.text_placeholder')}"
+                        <input type="text" class="ts-line-text input flex-1" placeholder="${t('artsmoker.ui.type_studio.text_placeholder')}"
                             value="${line.text}" />
                         <button class="ts-voice-btn p-1.5 rounded-lg text-brand-text-muted hover:text-brand-accent hover:bg-brand-accent/10 transition-colors"
-                            data-line-index="${i}" title="${t('artsmoker.type_studio.voice_input')}">
+                            data-line-index="${i}" title="${t('artsmoker.ui.type_studio.voice_input')}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 01-3-3V5a3 3 0 116 0v6a3 3 0 01-3 3z"/>
                             </svg>
                         </button>
                         <button class="ts-remove-line p-1.5 rounded-lg text-brand-text-muted hover:text-red-400 hover:bg-red-400/10 transition-colors"
-                            data-line-index="${i}" title="${t('artsmoker.type_studio.remove_line')}">
+                            data-line-index="${i}" title="${t('artsmoker.ui.type_studio.remove_line')}">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                             </svg>
@@ -668,7 +668,7 @@
                     <div class="flex gap-2 pl-7">
                         <div class="ts-font-picker relative flex-[3]" data-line-index="${i}">
                             <button type="button" class="ts-font-btn input text-sm w-full text-left flex items-center justify-between">
-                                <span class="ts-font-label truncate">${line.font ? _font_display_name(line.font) : t('artsmoker.type_studio.default_font')}</span>
+                                <span class="ts-font-label truncate">${line.font ? _font_display_name(line.font) : t('artsmoker.ui.type_studio.default_font')}</span>
                                 <svg class="w-3 h-3 flex-shrink-0 text-brand-text-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
                                 </svg>
@@ -676,14 +676,14 @@
                             <input type="hidden" class="ts-font-value" value="${line.font || ''}" />
                             <div class="ts-font-dropdown hidden absolute z-50 left-0 right-0 top-full mt-1 bg-brand-surface border border-brand-border rounded-lg shadow-xl max-h-96 overflow-y-auto">
                                 <div class="p-2">
-                                    <input type="text" class="ts-font-search input text-xs w-full" placeholder="${t('artsmoker.type_studio.search_fonts')}" />
+                                    <input type="text" class="ts-font-search input text-xs w-full" placeholder="${t('artsmoker.ui.type_studio.search_fonts')}" />
                                 </div>
                                 <div class="ts-font-options">
                                     <div class="ts-font-option px-3 py-2 text-xs cursor-pointer hover:bg-white/5 rounded" data-font="">
-                                        <span class="text-brand-text-muted">${t('artsmoker.type_studio.default_font')}</span>
+                                        <span class="text-brand-text-muted">${t('artsmoker.ui.type_studio.default_font')}</span>
                                     </div>
                                     ${styleFonts.length > 0 ? html`
-                                        <div class="px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold text-brand-accent border-t border-brand-border mt-1 pt-2">${t('artsmoker.type_studio.style_fonts')}</div>
+                                        <div class="px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold text-brand-accent border-t border-brand-border mt-1 pt-2">${t('artsmoker.ui.type_studio.style_fonts')}</div>
                                         ${styleFonts.map(f => html`
                                             <div class="ts-font-option px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded" data-font="${f.name}" data-display="${f.display_name}" data-source="style">
                                                 <span style="font-family: '${_font_css_family(f)}'" class="text-lg">${f.display_name}</span>
@@ -691,7 +691,7 @@
                                         `)}
                                     ` : ''}
                                     ${globalFonts.length > 0 ? html`
-                                        <div class="px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold text-emerald-400 border-t border-brand-border mt-1 pt-2">${t('artsmoker.type_studio.project_fonts')}</div>
+                                        <div class="px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold text-emerald-400 border-t border-brand-border mt-1 pt-2">${t('artsmoker.ui.type_studio.project_fonts')}</div>
                                         ${globalFonts.map(f => html`
                                             <div class="ts-font-option px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded" data-font="${f.name}" data-display="${f.display_name}" data-source="global">
                                                 <span style="font-family: '${_font_css_family(f)}'" class="text-lg">${f.display_name}</span>
@@ -699,7 +699,7 @@
                                         `)}
                                     ` : ''}
                                     ${systemFonts.length > 0 ? html`
-                                        <div class="px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold text-brand-text-muted border-t border-brand-border mt-1 pt-2">${t('artsmoker.type_studio.system_fonts')}</div>
+                                        <div class="px-3 py-1.5 text-[9px] uppercase tracking-wider font-bold text-brand-text-muted border-t border-brand-border mt-1 pt-2">${t('artsmoker.ui.type_studio.system_fonts')}</div>
                                         ${systemFonts.map(f => html`
                                             <div class="ts-font-option px-3 py-2.5 cursor-pointer hover:bg-white/5 rounded" data-font="${f.name}" data-display="${f.display_name}" data-source="system">
                                                 <span style="font-family: '${_font_css_family(f)}'" class="text-lg">${f.display_name}</span>
@@ -758,9 +758,9 @@
                     opt.addEventListener('click', (e) => {
                         e.stopPropagation();
                         const fontName = opt.dataset.font || '';
-                        const displayName = opt.dataset.display || t('artsmoker.type_studio.default_font');
+                        const displayName = opt.dataset.display || t('artsmoker.ui.type_studio.default_font');
                         hiddenInput.value = fontName;
-                        label.textContent = fontName ? displayName : t('artsmoker.type_studio.default_font');
+                        label.textContent = fontName ? displayName : t('artsmoker.ui.type_studio.default_font');
                         dropdown.classList.add('hidden');
                     });
                 });
@@ -826,7 +826,7 @@
                         btn._recorder = recorder;
                         btn.classList.add('!text-red-400', 'recording-pulse');
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.type_studio.mic_denied'), 'warning');
+                        window.showToast?.(t('artsmoker.ui.type_studio.mic_denied'), 'warning');
                     }
                 });
             });
@@ -846,7 +846,7 @@
                 }));
 
             if (lines.length === 0) {
-                window.showToast?.(t('artsmoker.type_studio.text_required'), 'warning');
+                window.showToast?.(t('artsmoker.ui.type_studio.text_required'), 'warning');
                 return null;
             }
 
@@ -869,7 +869,7 @@
             if (this._mode === 'on-image') {
                 const imageId = this._selectedImageId || document.getElementById('ts-image-id')?.value?.trim();
                 if (!imageId) {
-                    window.showToast?.(t('artsmoker.type_studio.source_required'), 'warning');
+                    window.showToast?.(t('artsmoker.ui.type_studio.source_required'), 'warning');
                     return null;
                 }
                 payload.source_image_id = imageId;
@@ -891,12 +891,12 @@
             const origHTML = btn.innerHTML;
             btn.disabled = true;
             // nosemgrep
-            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.type_studio.suggesting')}`;
+            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.ui.type_studio.suggesting')}`;
 
             try {
                 const result = await API.typeStudio.suggest(payload);
                 this._renderSuggestion(result);
-                window.showToast?.(t('artsmoker.type_studio.layout_ready'), 'success');
+                window.showToast?.(t('artsmoker.ui.type_studio.layout_ready'), 'success');
             } catch (err) {
                 console.error('Suggest error:', err);
             } finally {
@@ -922,7 +922,7 @@
             layouts.forEach((layout, li) => {
                 const lines = layout.lines || [];
                 if (layouts.length > 1) {
-                    markup += html`<div class="font-semibold text-brand-accent text-xs uppercase mt-${li > 0 ? '4' : '0'} mb-1">${t('artsmoker.type_studio.option_label', { number: li + 1 })}</div>`;
+                    markup += html`<div class="font-semibold text-brand-accent text-xs uppercase mt-${li > 0 ? '4' : '0'} mb-1">${t('artsmoker.ui.type_studio.option_label', { number: li + 1 })}</div>`;
                 }
                 if (lines.length > 0) {
                     markup += '<div class="space-y-1">';
@@ -944,7 +944,7 @@
             if (result.layout_spec || result.layouts) {
                 const raw = result.layouts || result.layout_spec;
                 markup += html`<details class="mt-2">
-                    <summary class="text-xs text-brand-text-muted cursor-pointer hover:text-brand-text">${t('artsmoker.type_studio.view_raw')}</summary>
+                    <summary class="text-xs text-brand-text-muted cursor-pointer hover:text-brand-text">${t('artsmoker.ui.type_studio.view_raw')}</summary>
                     <pre class="mt-1 p-2 bg-brand-bg rounded-lg border border-brand-border text-[11px] text-brand-text/70 overflow-x-auto whitespace-pre-wrap">${JSON.stringify(raw, null, 2)}</pre>
                 </details>`;
             }
@@ -975,7 +975,7 @@
             try {
                 const result = await API.typeStudio.preview(payload);
                 this._showResult(result);
-                window.showToast?.(t('artsmoker.type_studio.generated'), 'success');
+                window.showToast?.(t('artsmoker.ui.type_studio.generated'), 'success');
             } catch (err) {
                 console.error('Generate error:', err);
             } finally {
@@ -992,7 +992,7 @@
             if (on) {
                 btn.disabled = true;
                 // nosemgrep
-                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.type_studio.generating')}`;
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.ui.type_studio.generating')}`;
                 loadingEl?.classList.remove('hidden');
                 placeholder?.classList.add('hidden');
                 document.getElementById('ts-result-img')?.classList.add('hidden');
@@ -1004,7 +1004,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
-                    ${t('artsmoker.type_studio.generate')}`;
+                    ${t('artsmoker.ui.type_studio.generate')}`;
                 loadingEl?.classList.add('hidden');
             }
         },
@@ -1016,7 +1016,7 @@
 
             // Switch to post-processing mode
             const labelEl = document.getElementById('ts-processing-label');
-            if (labelEl) labelEl.textContent = t('artsmoker.type_studio.post_processing_label');
+            if (labelEl) labelEl.textContent = t('artsmoker.ui.type_studio.post_processing_label');
             document.getElementById('ts-btn-apply-pp')?.classList.remove('hidden');
             document.getElementById('ts-pp-hint')?.classList.remove('hidden');
 
@@ -1035,10 +1035,10 @@
                         ${i === 0 ? 'border-brand-accent ring-2 ring-brand-accent/40' : 'border-brand-border hover:border-brand-accent/50'}"
                         data-option-index="${i}">
                         <div class="aspect-square bg-brand-bg">
-                            <img src="${opt.png_url}" alt="${t('artsmoker.type_studio.option_label', { number: i + 1 })}" class="w-full h-full object-cover" loading="lazy" />
+                            <img src="${opt.png_url}" alt="${t('artsmoker.ui.type_studio.option_label', { number: i + 1 })}" class="w-full h-full object-cover" loading="lazy" />
                         </div>
                         <div class="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                            ${t('artsmoker.type_studio.option_label', { number: i + 1 })}
+                            ${t('artsmoker.ui.type_studio.option_label', { number: i + 1 })}
                         </div>
                     </button>
                 `).join('');
@@ -1107,7 +1107,7 @@
         async _handlePostProcess() {
             const ids = this._lastResultAssetIds;
             if (!ids || ids.length === 0) {
-                window.showToast?.(t('artsmoker.type_studio.generate_first'), 'warning');
+                window.showToast?.(t('artsmoker.ui.type_studio.generate_first'), 'warning');
                 return;
             }
 
@@ -1116,14 +1116,14 @@
             const upscale = document.getElementById('ts-upscale')?.checked || false;
 
             if (!removeBg && !genSvg && !upscale) {
-                window.showToast?.(t('artsmoker.type_studio.enable_pp_option'), 'warning');
+                window.showToast?.(t('artsmoker.ui.type_studio.enable_pp_option'), 'warning');
                 return;
             }
 
             const btn = document.getElementById('ts-btn-apply-pp');
             const origHTML = btn.innerHTML;
             // nosemgrep
-            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.type_studio.pp_processing')}`;
+            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.ui.type_studio.pp_processing')}`;
             btn.disabled = true;
 
             try {
@@ -1134,7 +1134,7 @@
                     upscale: upscale,
                 });
                 const count = (result.processed || []).length;
-                window.showToast?.(t('artsmoker.type_studio.pp_applied'), 'success');
+                window.showToast?.(t('artsmoker.ui.type_studio.pp_applied'), 'success');
 
                 // Refresh preview
                 const img = document.getElementById('ts-result-img');
@@ -1218,7 +1218,7 @@
                 this._showSuggestion(meta.layout_spec);
             }
 
-            window.showToast?.(t('artsmoker.type_studio.asset_loaded'), 'success');
+            window.showToast?.(t('artsmoker.ui.type_studio.asset_loaded'), 'success');
         },
     };
 })();

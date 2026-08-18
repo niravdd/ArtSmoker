@@ -542,7 +542,8 @@ func downloadImages(result *GenerationResult, outputDir string) []string {
 	}
 
 	printStep(6, "Downloading generated images...")
-	if err := os.MkdirAll(outputDir, 0o750); err != nil {
+	// nosemgrep -- 0o700 is least-privilege for a directory (owner needs execute to traverse); 0o600 would be unusable
+	if err := os.MkdirAll(outputDir, 0o700); err != nil {
 		fmt.Printf("  %sFailed to create output dir: %s%s\n", colorRed, err, colorReset)
 		return nil
 	}

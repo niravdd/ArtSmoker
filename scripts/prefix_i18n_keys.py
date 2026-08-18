@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
 """
-One-shot: prefix bare t('…') call-site literals with 'artsmoker.' so they
-satisfy Probe's custom i18next-key-format rule (MODULE.FEATURE.*).
+Namespace i18n call-site keys to satisfy Probe's custom i18next-key-format rule,
+which requires MODULE.FEATURE.* where the FEATURE (2nd) segment is a clean word
+with NO underscore (the trailing "*" wildcard may contain underscores/dots).
 
-- Targets ONLY bare `t(` calls (the rule does not flag `_t(`), so the
-  lookbehind excludes `_`, `.`, `$`, and word chars → never matches
-  `_t(`, `.t(`, `split(`, `format(`, `assert(`, etc.
-- Skips literals already prefixed with `artsmoker.` (idempotent).
-- Handles ', ", and ` (template) literals and whitespace after `(`.
-- JSON translation files are UNCHANGED; window.t strips the prefix at runtime.
+Our module names contain underscores (model_settings, image_studio, …), so a bare
+"artsmoker." prefix fails — the underscore-module becomes FEATURE. Instead we use a
+TWO-segment constant prefix "artsmoker.ui." → FEATURE is the clean word "ui" and the
+real key lands in the wildcard. `window.t` strips "artsmoker.ui." before lookup, so
+the translation JSON is UNCHANGED and runtime is identical.
+
+This inserts the "ui." segment into keys already prefixed with "artsmoker." (an
+inline edit → no line-number shift). Idempotent (skips "artsmoker.ui." already).
 
 Usage:
-  python3 scripts/prefix_i18n_keys.py --dry   # report counts only
-  python3 scripts/prefix_i18n_keys.py         # apply in place
+  python3 scripts/prefix_i18n_keys.py --dry
+  python3 scripts/prefix_i18n_keys.py
 """
 import re
 import sys
@@ -32,9 +35,10 @@ FILES = [
     "frontend/js/services/api.js",
 ]
 
-# group1 = `t(` + optional ws + opening quote ; then NOT already 'artsmoker.'
-PATTERN = re.compile(r"(?<![\w.$])(t\(\s*[\"'`])(?!artsmoker\.)")
-REPL = r"\1artsmoker."
+# A quote immediately followed by `artsmoker.` (but NOT already `artsmoker.ui.`)
+# — this is a t() call-site key literal. Insert the `ui.` FEATURE segment.
+PATTERN = re.compile(r"([\"'`])artsmoker\.(?!ui\.)")
+REPL = r"\1artsmoker.ui."
 
 def main():
     dry = "--dry" in sys.argv
@@ -48,7 +52,7 @@ def main():
         if n and not dry:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(new)
-    print(f"----- {total} call sites {'would be' if dry else ''} prefixed")
+    print(f"----- {total} keys {'would be' if dry else ''} re-namespaced to artsmoker.ui.")
 
 if __name__ == "__main__":
     main()

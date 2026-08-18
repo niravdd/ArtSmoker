@@ -454,6 +454,7 @@ async function downloadImages(result, outputDir = 'output') {
     printStep(6, 'Downloading generated images...');
     // nosemgrep -- outputDir is a fixed local config constant, not user-controlled
     if (!existsSync(outputDir)) {
+        // nosemgrep -- outputDir is a fixed local config constant, not user-controlled
         mkdirSync(outputDir, { recursive: true });
     }
 

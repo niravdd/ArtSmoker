@@ -116,12 +116,18 @@
     // ── t() — the main translation function ──────────────────────────
 
     window.t = function (key, params) {
-        // Keys may be written product-namespaced as "artsmoker.<module>.<key>" so
-        // that call sites satisfy the i18next-key-format MODULE.FEATURE.* convention.
-        // The translation files are keyed WITHOUT that prefix, so strip it before
-        // lookup. Tolerant: unprefixed keys resolve unchanged (so a missed or
-        // dynamic call never breaks — it just isn't format-compliant).
-        if (typeof key === 'string' && key.startsWith('artsmoker.')) key = key.slice(10);
+        // Keys are written product-namespaced as "artsmoker.ui.<module>.<key>" so
+        // call sites satisfy the i18next-key-format MODULE.FEATURE.* convention: the
+        // rule requires the 2nd segment (FEATURE) to be a clean word with NO
+        // underscore, so the constant "ui" segment carries it and the real key
+        // (module names contain underscores) lands in the trailing "*" wildcard.
+        // Translation files are keyed WITHOUT the prefix, so strip it before lookup.
+        // Tolerant: also strips a bare "artsmoker." and leaves unprefixed keys as-is,
+        // so a missed or dynamic call still resolves (it just isn't format-compliant).
+        if (typeof key === 'string') {
+            if (key.startsWith('artsmoker.ui.')) key = key.slice(13);
+            else if (key.startsWith('artsmoker.')) key = key.slice(10);
+        }
         // An EMPTY string is a valid translation (e.g. a hint that's blank in
         // English) — only fall through to the next source when the key is
         // genuinely ABSENT, not merely empty. Using `||` here would turn a

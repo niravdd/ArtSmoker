@@ -139,22 +139,22 @@
                     <!-- Step 1: User prompt -->
                     <div>
                         <div class="flex items-center gap-2 mb-1.5">
-                            <span class="text-[10px] font-bold text-brand-accent bg-brand-accent/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.step') : 'STEP'} 1</span>
-                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide step1-label">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.step1_describe') : 'Describe your idea'}</span>
+                            <span class="text-[10px] font-bold text-brand-accent bg-brand-accent/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step') : 'STEP'} 1</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide step1-label">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step1_describe') : 'Describe your idea'}</span>
                             <div class="voice-container ml-auto"></div>
                         </div>
                         <div class="relative">
                             <textarea
                                 id="prompt-textarea"
                                 class="input w-full min-h-[100px] pr-12"
-                                placeholder="${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.placeholder') : 'Describe what you want to generate...'}"
+                                placeholder="${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.placeholder') : 'Describe what you want to generate...'}"
                                 rows="3"
                             ></textarea>
                             <div class="absolute bottom-2 right-2 flex items-center gap-1">
                                 <span class="char-count text-xs text-brand-text-muted tabular-nums">0</span>
                             </div>
                         </div>
-                        <p class="prompt-language-hint text-[9px] text-brand-text-muted/50 mt-0.5 ${typeof i18n !== 'undefined' && i18n.getLang() === 'en' ? 'hidden' : ''}">${typeof t !== 'undefined' ? t('artsmoker.image_studio.prompt_language_hint') : ''}</p>
+                        <p class="prompt-language-hint text-[9px] text-brand-text-muted/50 mt-0.5 ${typeof i18n !== 'undefined' && i18n.getLang() === 'en' ? 'hidden' : ''}">${typeof t !== 'undefined' ? t('artsmoker.ui.image_studio.prompt_language_hint') : ''}</p>
                     </div>
 
                     <!-- Translation preview (shown when non-English detected) -->
@@ -162,7 +162,7 @@
                         <div class="flex items-center gap-1 mb-1">
                             <span class="translation-lang-badge text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent font-medium"></span>
                             <div class="flex gap-0.5 ml-auto">
-                                <button type="button" class="translation-tab-original text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium">${typeof t !== 'undefined' ? t('artsmoker.common.prompt') : 'Original'}</button>
+                                <button type="button" class="translation-tab-original text-[10px] px-2 py-0.5 rounded bg-brand-accent text-white font-medium">${typeof t !== 'undefined' ? t('artsmoker.ui.common.prompt') : 'Original'}</button>
                                 <button type="button" class="translation-tab-english text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent">English</button>
                             </div>
                         </div>
@@ -172,14 +172,14 @@
                     <!-- Step 2: Prompt Designer (optional) -->
                     <div>
                         <div class="flex items-center gap-2 mb-1.5">
-                            <span class="text-[10px] font-bold text-amber-400 bg-amber-400/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.step') : 'STEP'} 2</span>
-                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.step2_refine') : 'Decompose & refine'}</span>
-                            <span class="text-[9px] text-brand-text-muted/40 italic ml-1">${typeof t !== 'undefined' ? t('artsmoker.common.optional') : 'optional'}</span>
+                            <span class="text-[10px] font-bold text-amber-400 bg-amber-400/10 rounded px-1.5 py-0.5">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step') : 'STEP'} 2</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step2_refine') : 'Decompose & refine'}</span>
+                            <span class="text-[9px] text-brand-text-muted/40 italic ml-1">${typeof t !== 'undefined' ? t('artsmoker.ui.common.optional') : 'optional'}</span>
                         </div>
                         <button type="button" class="btn-prompt-designer text-xs py-2.5 w-full rounded-lg flex items-center justify-center gap-2 bg-amber-500/15 border border-amber-500/30 text-amber-300 hover:bg-amber-500/25 hover:border-amber-500/50 transition-all font-medium">
-                            <span>🎨</span> ${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.prompt_designer') : 'Prompt Designer'}
+                            <span>🎨</span> ${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.prompt_designer') : 'Prompt Designer'}
                         </button>
-                        <p class="compose-note text-[10px] text-brand-text-muted/60 mt-1">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.step2_tip') : 'Breaks down your prompt into editable visual components — subject, scene, lighting, colors. Skip this and go straight to Generate if you prefer.'}</p>
+                        <p class="compose-note text-[10px] text-brand-text-muted/60 mt-1">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step2_tip') : 'Breaks down your prompt into editable visual components — subject, scene, lighting, colors. Skip this and go straight to Generate if you prefer.'}</p>
                         <div class="decomposed-panel hidden mt-2">
                             <textarea
                                 class="decomposed-textarea input w-full min-h-[120px] text-xs text-brand-text/70 bg-amber-950/10 border-amber-500/20"
@@ -193,16 +193,16 @@
                     <!-- Step 3: Enhanced Prompt Preview -->
                     <div>
                         <div class="flex items-center gap-2 mb-1.5">
-                            <span class="text-[10px] font-bold text-emerald-400/50 bg-emerald-400/5 rounded px-1.5 py-0.5 step3-badge">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.step') : 'STEP'} 3</span>
-                            <span class="text-[10px] text-brand-text-muted/50 uppercase tracking-wide step3-label">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.step3_review') : 'Enhanced prompt preview'}</span>
-                            <button type="button" class="btn-clear-composed hidden text-[10px] text-brand-text-muted hover:text-red-400 transition-colors ml-auto">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.clear') : 'Clear'}</button>
+                            <span class="text-[10px] font-bold text-emerald-400/50 bg-emerald-400/5 rounded px-1.5 py-0.5 step3-badge">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step') : 'STEP'} 3</span>
+                            <span class="text-[10px] text-brand-text-muted/50 uppercase tracking-wide step3-label">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step3_review') : 'Enhanced prompt preview'}</span>
+                            <button type="button" class="btn-clear-composed hidden text-[10px] text-brand-text-muted hover:text-red-400 transition-colors ml-auto">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.clear') : 'Clear'}</button>
                         </div>
                         <div class="composed-panel hidden space-y-2">
                             <textarea
                                 class="composed-textarea input w-full min-h-[80px] text-xs text-brand-text/80 bg-emerald-950/10 border-emerald-500/20"
                                 rows="3"
                             ></textarea>
-                            <p class="text-[10px] text-brand-text-muted/50">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.step3_desc') : 'This is what the image model will receive. You can edit it before generating.'}</p>
+                            <p class="text-[10px] text-brand-text-muted/50">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step3_desc') : 'This is what the image model will receive. You can edit it before generating.'}</p>
                         </div>
                         <div class="composed-placeholder">
                             <button type="button" class="btn-compose text-xs py-2 w-full rounded-lg flex items-center justify-center gap-2 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 hover:border-emerald-500/50 transition-all font-medium">
@@ -210,9 +210,9 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                         d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"/>
                                 </svg>
-                                ${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.generate_enhanced') : 'Generate Enhanced Prompt'}
+                                ${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.generate_enhanced') : 'Generate Enhanced Prompt'}
                             </button>
-                            <p class="text-[10px] text-brand-text-muted/30 mt-1 italic">${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.step3_hint') : 'Optional — click to preview the enhanced prompt before generating. Or just click Generate below to auto-enhance and create.'}</p>
+                            <p class="text-[10px] text-brand-text-muted/30 mt-1 italic">${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.step3_hint') : 'Optional — click to preview the enhanced prompt before generating. Or just click Generate below to auto-enhance and create.'}</p>
                         </div>
                     </div>
                 </div>
@@ -288,7 +288,7 @@
                 // Asset type classification — only once per prompt session
                 if (text && !this._assetTypeConfirmed) {
                     try {
-                        window.showLoading?.(typeof t !== 'undefined' ? t('artsmoker.prompt_designer.asset_check') : 'Checking asset type...');
+                        window.showLoading?.(typeof t !== 'undefined' ? t('artsmoker.ui.prompt_designer.asset_check') : 'Checking asset type...');
                         const resp = await fetch('/api/refine-prompt/classify-asset-type', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
@@ -305,10 +305,10 @@
                                 const shouldSwitch = await window.showConfirm(
                                     check.reason,
                                     {
-                                        title: typeof t !== 'undefined' ? t('artsmoker.prompt_designer.asset_mismatch_title') : 'Asset Type may not be right',
-                                        detail: t('artsmoker.prompt_editor.asset_type_wrong_detail').replace('{{cur}}', curLabel).replace('{{sug}}', sugLabel),
-                                        confirmLabel: t('artsmoker.image_studio.switch_to').replace('{{sug}}', sugLabel),
-                                        cancelLabel: t('artsmoker.image_studio.keep').replace('{{cur}}', curLabel),
+                                        title: typeof t !== 'undefined' ? t('artsmoker.ui.prompt_designer.asset_mismatch_title') : 'Asset Type may not be right',
+                                        detail: t('artsmoker.ui.prompt_editor.asset_type_wrong_detail').replace('{{cur}}', curLabel).replace('{{sug}}', sugLabel),
+                                        confirmLabel: t('artsmoker.ui.image_studio.switch_to').replace('{{sug}}', sugLabel),
+                                        cancelLabel: t('artsmoker.ui.image_studio.keep').replace('{{cur}}', curLabel),
                                     }
                                 );
                                 if (shouldSwitch) {
@@ -413,7 +413,7 @@
 
             const origHTML = this._btnCompose.innerHTML;
             // nosemgrep
-            this._btnCompose.innerHTML = html`<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.composing') : 'Composing...'}`;
+            this._btnCompose.innerHTML = html`<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.composing') : 'Composing...'}`;
             this._btnCompose.disabled = true;
 
             try {
@@ -439,7 +439,7 @@
                 this._showComposed(enhanced);
             } catch (err) {
                 console.error('Failed to compose from designer data:', err);
-                window.showToast?.(t('artsmoker.misc.pe_failed_enhance'), 'error');
+                window.showToast?.(t('artsmoker.ui.misc.pe_failed_enhance'), 'error');
             } finally {
                 // nosemgrep
                 this._btnCompose.innerHTML = raw(origHTML);
@@ -466,16 +466,16 @@
             if (!this._composeNote) return;
             const hasStyle = !!this.opts.styleId;
             if (hasStyle) {
-                this._composeNote.textContent = typeof t !== 'undefined' ? t('artsmoker.prompt_editor.compose_tip') : 'Your prompt will be composed with the selected style guidelines.';
+                this._composeNote.textContent = typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.compose_tip') : 'Your prompt will be composed with the selected style guidelines.';
             } else {
-                this._composeNote.textContent = typeof t !== 'undefined' ? t('artsmoker.prompt_editor.compose_tip') : 'AI will enhance your prompt with composition, lighting, and quality details.';
+                this._composeNote.textContent = typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.compose_tip') : 'AI will enhance your prompt with composition, lighting, and quality details.';
             }
         }
 
         async _handleCompose() {
             const text = this._textareaEl.value.trim();
             if (!text) {
-                window.showToast?.(typeof t !== 'undefined' ? t('artsmoker.prompt_editor.compose_error') : 'Enter a prompt first', 'warning');
+                window.showToast?.(typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.compose_error') : 'Enter a prompt first', 'warning');
                 return;
             }
             if (this._isComposing) return;
@@ -483,7 +483,7 @@
 
             const origHTML = this._btnCompose.innerHTML;
             // nosemgrep
-            this._btnCompose.innerHTML = html`<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('artsmoker.prompt_editor.composing') : 'Composing...'}`;
+            this._btnCompose.innerHTML = html`<span class="spinner-sm"></span> ${typeof t !== 'undefined' ? t('artsmoker.ui.prompt_editor.composing') : 'Composing...'}`;
             this._btnCompose.disabled = true;
 
             try {
@@ -505,7 +505,7 @@
                 this._showComposed(composed);
             } catch (err) {
                 console.error('Compose error:', err);
-                window.showToast?.(t('artsmoker.misc.pe_failed_compose'), 'error');
+                window.showToast?.(t('artsmoker.ui.misc.pe_failed_compose'), 'error');
             } finally {
                 // nosemgrep
                 this._btnCompose.innerHTML = raw(origHTML);
@@ -593,6 +593,7 @@
                 if (result.was_translated && result.source_lang !== 'en') {
                     this._lastTranslation = result;
                     const langNames = { ja: '日本語', zh: '中文', ko: '한국어', hi: 'हिन्दी', ru: 'Русский', fr: 'Français', es: 'Español', de: 'Deutsch' };
+                    // nosemgrep -- lookup by language code, not JSON-derived object keys
                     langBadge.textContent = `${langNames[result.source_lang] || result.source_lang} → English`;
                     englishText.textContent = result.translated;
                     preview.classList.remove('hidden');

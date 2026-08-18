@@ -57,7 +57,7 @@
         } catch (err) {
             // Network error or thrown above
             if (typeof window.showToast === 'function') {
-                window.showToast(err.message || (typeof t !== 'undefined' ? t('artsmoker.onboarding.network_error') : 'Network error'), 'error');
+                window.showToast(err.message || (typeof t !== 'undefined' ? t('artsmoker.ui.onboarding.network_error') : 'Network error'), 'error');
             }
             throw err;
         }

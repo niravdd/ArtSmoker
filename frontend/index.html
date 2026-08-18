@@ -5,10 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ArtSmoker — AI Art Asset Generator</title>
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
-    <!-- Tailwind Play CDN is a versionless JIT compiler that serves per-request
-         generated CSS, so it has no stable artifact to hash — SRI is not
-         applicable. This is our deliberate no-build-step styling choice. nosemgrep -->
-    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Tailwind Play CDN: versionless JIT compiler, no stable artifact to hash — SRI N/A (deliberate no-build-step choice) -->
+    <script src="https://cdn.tailwindcss.com"></script> <!-- nosemgrep -->
     <script>
         tailwind.config = {
             darkMode: 'class',

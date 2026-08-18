@@ -18,7 +18,7 @@
             // Reset state so tabs reload fresh content when modal is reopened
             this._customModelsLoaded = false;
             this._templatesLoaded = false;
-            window.showLoading?.(t('artsmoker.model_settings.loading_settings'));
+            window.showLoading?.(t('artsmoker.ui.model_settings.loading_settings'));
 
             try {
                 this._registry = await API.admin.getModels();
@@ -26,7 +26,7 @@
                 this._renderModal();
             } catch (err) {
                 window.hideLoading?.();
-                window.showToast?.(t('artsmoker.model_settings.load_failed') + ': ' + (err.message || ''), 'error');
+                window.showToast?.(t('artsmoker.ui.model_settings.load_failed') + ': ' + (err.message || ''), 'error');
             }
         },
 
@@ -36,7 +36,7 @@
 
             const lastUpdated = reg.last_updated
                 ? window.formatTimestamp(reg.last_updated)
-                : t('artsmoker.common.unknown');
+                : t('artsmoker.ui.common.unknown');
 
             // Count models per tab
             const imgCount = Object.keys(reg.image_models || {}).length;
@@ -56,14 +56,14 @@
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                             </svg>
-                            <h2 class="text-lg font-semibold">${t('artsmoker.model_settings.title')}</h2>
+                            <h2 class="text-lg font-semibold">${t('artsmoker.ui.model_settings.title')}</h2>
                         </div>
                         <div class="flex items-center gap-3">
-                            <button id="ms-refresh-all" class="btn btn-sm text-xs bg-amber-600 hover:bg-amber-500 text-white" title="${t('artsmoker.model_settings.sync_tooltip')}">
+                            <button id="ms-refresh-all" class="btn btn-sm text-xs bg-amber-600 hover:bg-amber-500 text-white" title="${t('artsmoker.ui.model_settings.sync_tooltip')}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                                ${t('artsmoker.model_settings.sync_aws')}
+                                ${t('artsmoker.ui.model_settings.sync_aws')}
                             </button>
-                            <span class="text-[10px] text-brand-text-muted" title="${t('artsmoker.model_settings.discovers_tooltip')}">${t('artsmoker.model_settings.updated')}: ${lastUpdated}</span>
+                            <span class="text-[10px] text-brand-text-muted" title="${t('artsmoker.ui.model_settings.discovers_tooltip')}">${t('artsmoker.ui.model_settings.updated')}: ${lastUpdated}</span>
                             <button class="ms-close p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -77,30 +77,30 @@
                         <!-- Sidebar tabs -->
                         <div class="w-48 flex-shrink-0 border-r border-brand-border bg-black/10 py-2 overflow-y-auto">
                             <button class="ms-vtab active w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors bg-brand-accent/10 text-brand-accent border-l-2 border-brand-accent" data-ms-tab="image-studio">
-                                🖼️  ${t('artsmoker.model_settings.tab_image')} <span class="text-[9px] opacity-50 ml-1">(${imgCount})</span>
+                                🖼️  ${t('artsmoker.ui.model_settings.tab_image')} <span class="text-[9px] opacity-50 ml-1">(${imgCount})</span>
                             </button>
                             <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="video-studio">
-                                🎬  ${t('artsmoker.model_settings.tab_video')} <span class="text-[9px] opacity-50 ml-1">(${vidCount})</span>
+                                🎬  ${t('artsmoker.ui.model_settings.tab_video')} <span class="text-[9px] opacity-50 ml-1">(${vidCount})</span>
                             </button>
                             <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="chat-studio">
-                                💬  ${t('artsmoker.model_settings.tab_chat')} <span class="text-[9px] opacity-50 ml-1">(${Object.keys(reg.chat_models || {}).length})</span>
+                                💬  ${t('artsmoker.ui.model_settings.tab_chat')} <span class="text-[9px] opacity-50 ml-1">(${Object.keys(reg.chat_models || {}).length})</span>
                             </button>
                             <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="type-studio">
-                                ✍️  ${t('artsmoker.model_settings.tab_type')}
+                                ✍️  ${t('artsmoker.ui.model_settings.tab_type')}
                             </button>
                             <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="shared-ai">
-                                ⚙️  ${t('artsmoker.model_settings.tab_shared')} <span class="text-[9px] opacity-50 ml-1">(${llmCount})</span>
+                                ⚙️  ${t('artsmoker.ui.model_settings.tab_shared')} <span class="text-[9px] opacity-50 ml-1">(${llmCount})</span>
                             </button>
                             <div class="border-t border-brand-border my-1"></div>
                             <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="custom-models">
-                                🔧  ${t('artsmoker.custom_models.tab_title')}
+                                🔧  ${t('artsmoker.ui.custom_models.tab_title')}
                             </button>
                             <div class="border-t border-brand-border my-1"></div>
                             <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="prompt-templates">
-                                📝  ${t('artsmoker.model_settings.tab_templates')}
+                                📝  ${t('artsmoker.ui.model_settings.tab_templates')}
                             </button>
                             <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="registry-json">
-                                { }  ${t('artsmoker.model_settings.tab_json')}
+                                { }  ${t('artsmoker.ui.model_settings.tab_json')}
                             </button>
                         </div>
 
@@ -110,8 +110,8 @@
                         <!-- Tab: Image Studio -->
                         <div class="ms-tab-panel" data-ms-panel="image-studio">
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.desc_image')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="image-studio">${t('artsmoker.model_settings.ms_show_all')}</button>
+                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.desc_image')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="image-studio">${t('artsmoker.ui.model_settings.ms_show_all')}</button>
                             </div>
                             <div id="ms-image-models" class="space-y-3">
                                 ${this._renderImageModels(reg)}
@@ -121,11 +121,11 @@
                         <!-- Tab: Video Studio -->
                         <div class="ms-tab-panel hidden" data-ms-panel="video-studio">
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.desc_video')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="video-studio">${t('artsmoker.model_settings.ms_show_all')}</button>
+                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.desc_video')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="video-studio">${t('artsmoker.ui.model_settings.ms_show_all')}</button>
                             </div>
                             <details class="ms-collapsible">
-                                <summary class="text-sm font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none mb-2">${t('artsmoker.model_settings.tab_video')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.video_models || {}).length})</span></summary>
+                                <summary class="text-sm font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none mb-2">${t('artsmoker.ui.model_settings.tab_video')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.video_models || {}).length})</span></summary>
                                 <div id="ms-video-models" class="space-y-3">
                                     ${this._renderVideoModels(reg)}
                                 </div>
@@ -135,8 +135,8 @@
                         <!-- Tab: Chat Studio -->
                         <div class="ms-tab-panel hidden" data-ms-panel="chat-studio">
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.desc_chat')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="chat-studio">${t('artsmoker.model_settings.ms_show_all')}</button>
+                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.desc_chat')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="chat-studio">${t('artsmoker.ui.model_settings.ms_show_all')}</button>
                             </div>
                             <div id="ms-chat-models" class="space-y-2">
                                 ${this._renderChatModels(reg)}
@@ -146,13 +146,13 @@
                         <!-- Tab: Type Studio -->
                         <div class="ms-tab-panel hidden" data-ms-panel="type-studio">
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.desc_type')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="type-studio">${t('artsmoker.model_settings.ms_show_all')}</button>
+                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.desc_type')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="type-studio">${t('artsmoker.ui.model_settings.ms_show_all')}</button>
                             </div>
                             <div class="space-y-4">
                                 <details class="ms-collapsible">
-                                    <summary class="text-sm font-semibold text-cyan-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('artsmoker.model_settings.type_llm_heading')}</summary>
-                                    <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('artsmoker.model_settings.type_llm_desc')}</p>
+                                    <summary class="text-sm font-semibold text-cyan-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('artsmoker.ui.model_settings.type_llm_heading')}</summary>
+                                    <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('artsmoker.ui.model_settings.type_llm_desc')}</p>
                                     <div class="space-y-3">
                                         ${['complex_llm', 'fast_llm'].map(name => {
                                             const cat = (reg.categories || {})[name];
@@ -161,8 +161,8 @@
                                     </div>
                                 </details>
                                 <details class="ms-collapsible">
-                                    <summary class="text-sm font-semibold text-amber-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('artsmoker.model_settings.post_processing')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.post_processing || {}).length})</span></summary>
-                                    <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('artsmoker.model_settings.type_pp_desc')}</p>
+                                    <summary class="text-sm font-semibold text-amber-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('artsmoker.ui.model_settings.post_processing')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.post_processing || {}).length})</span></summary>
+                                    <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('artsmoker.ui.model_settings.type_pp_desc')}</p>
                                     <div class="space-y-3">
                                         ${Object.entries(reg.post_processing || {}).map(([key, m]) => this._renderPostProcess(key, m))}
                                     </div>
@@ -173,12 +173,12 @@
                         <!-- Tab: Shared AI -->
                         <div class="ms-tab-panel hidden" data-ms-panel="shared-ai">
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.desc_shared')}</p>
-                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="shared-ai">${t('artsmoker.model_settings.ms_show_all')}</button>
+                                <p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.desc_shared')}</p>
+                                <button class="ms-toggle-sections btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" data-panel="shared-ai">${t('artsmoker.ui.model_settings.ms_show_all')}</button>
                             </div>
                             <div class="space-y-4">
                                 <details class="ms-collapsible">
-                                    <summary class="text-sm font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('artsmoker.model_settings.llm_categories')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.categories || {}).length - (reg.categories?.custom_llms ? 1 : 0)})</span></summary>
+                                    <summary class="text-sm font-semibold text-brand-accent uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('artsmoker.ui.model_settings.llm_categories')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(reg.categories || {}).length - (reg.categories?.custom_llms ? 1 : 0)})</span></summary>
                                     <div class="space-y-3 mt-2">
                                         ${Object.entries(reg.categories || {}).filter(([name]) => name !== 'custom_llms').map(([name, cat]) => this._renderCategory(name, cat))}
                                     </div>
@@ -189,47 +189,47 @@
 
                         <!-- Tab: Prompt Templates -->
                         <div class="ms-tab-panel hidden" data-ms-panel="prompt-templates">
-                            <p class="text-xs text-red-400 mb-2">${t('artsmoker.model_settings.templates_desc')}</p>
+                            <p class="text-xs text-red-400 mb-2">${t('artsmoker.ui.model_settings.templates_desc')}</p>
                             <div class="flex items-center gap-2 mb-3 p-2 rounded-lg bg-brand-bg/40 border border-brand-border/50">
-                                <span class="text-[10px] text-brand-text-muted flex-shrink-0">${t('artsmoker.model_settings.templates_refinement_model')}:</span>
+                                <span class="text-[10px] text-brand-text-muted flex-shrink-0">${t('artsmoker.ui.model_settings.templates_refinement_model')}:</span>
                                 <select id="ms-tmpl-model" class="input text-xs font-mono flex-1"></select>
-                                <input type="text" id="ms-tmpl-instructions" class="input text-xs flex-1" placeholder="${t('artsmoker.model_settings.templates_instructions_placeholder')}">
-                                <button id="ms-tmpl-toggle-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" title="${t('artsmoker.model_settings.ms_show_hide_editors')}">${t('artsmoker.model_settings.ms_view_all')}</button>
-                                <button id="ms-tmpl-reset-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-red-500 hover:text-red-400 whitespace-nowrap" title="${t('artsmoker.model_settings.ms_reset_all_templates')}">${t('artsmoker.model_settings.templates_reset_all') || 'Reset All'}</button>
+                                <input type="text" id="ms-tmpl-instructions" class="input text-xs flex-1" placeholder="${t('artsmoker.ui.model_settings.templates_instructions_placeholder')}">
+                                <button id="ms-tmpl-toggle-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-brand-accent whitespace-nowrap" title="${t('artsmoker.ui.model_settings.ms_show_hide_editors')}">${t('artsmoker.ui.model_settings.ms_view_all')}</button>
+                                <button id="ms-tmpl-reset-all" class="btn btn-sm text-[10px] px-3 border border-brand-border text-brand-text-muted hover:border-red-500 hover:text-red-400 whitespace-nowrap" title="${t('artsmoker.ui.model_settings.ms_reset_all_templates')}">${t('artsmoker.ui.model_settings.templates_reset_all') || 'Reset All'}</button>
                             </div>
                             <div id="ms-templates-list" class="space-y-3">
-                                <p class="text-xs text-brand-text-muted text-center py-4">${t('artsmoker.model_settings.ms_loading_templates')}</p>
+                                <p class="text-xs text-brand-text-muted text-center py-4">${t('artsmoker.ui.model_settings.ms_loading_templates')}</p>
                             </div>
                         </div>
 
                         <!-- Tab: Custom Models -->
                         <div class="ms-tab-panel hidden" data-ms-panel="custom-models">
                             <div class="flex items-center justify-between mb-3">
-                                <p class="text-xs text-brand-text-muted">${t('artsmoker.custom_models.subtitle')}</p>
+                                <p class="text-xs text-brand-text-muted">${t('artsmoker.ui.custom_models.subtitle')}</p>
                                 <div class="flex gap-2">
-                                    <button id="ms-cm-hf-token" class="btn btn-sm text-xs flex items-center gap-1 border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 rounded-lg px-3 py-1.5" title="${t('artsmoker.model_settings.ms_manage_hf')}">
+                                    <button id="ms-cm-hf-token" class="btn btn-sm text-xs flex items-center gap-1 border border-amber-500/30 text-amber-300 hover:bg-amber-500/10 rounded-lg px-3 py-1.5" title="${t('artsmoker.ui.model_settings.ms_manage_hf')}">
                                         🔑 HF Token
                                     </button>
-                                    <button id="ms-cm-add" class="btn btn-sm text-xs flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5" title="${t('artsmoker.custom_models.add_model_advanced_hint')}">
-                                        + ${t('artsmoker.custom_models.add_model')} <span class="text-[8px] opacity-50">(${t('artsmoker.custom_models.advanced')})</span>
+                                    <button id="ms-cm-add" class="btn btn-sm text-xs flex items-center gap-1 bg-emerald-500/15 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/25 rounded-lg px-3 py-1.5" title="${t('artsmoker.ui.custom_models.add_model_advanced_hint')}">
+                                        + ${t('artsmoker.ui.custom_models.add_model')} <span class="text-[8px] opacity-50">(${t('artsmoker.ui.custom_models.advanced')})</span>
                                     </button>
                                     <button id="ms-cm-refresh" class="btn btn-secondary btn-sm text-xs flex items-center gap-1">
-                                        🔄 ${t('artsmoker.custom_models.refresh_status') || 'Refresh Status'}
+                                        🔄 ${t('artsmoker.ui.custom_models.refresh_status') || 'Refresh Status'}
                                     </button>
                                 </div>
                             </div>
                             <div id="ms-custom-models-content">
-                                <p class="text-xs text-brand-text-muted">${t('artsmoker.custom_models.loading_catalog')}</p>
+                                <p class="text-xs text-brand-text-muted">${t('artsmoker.ui.custom_models.loading_catalog')}</p>
                             </div>
                         </div>
 
                         <!-- Tab: Registry JSON -->
                         <div class="ms-tab-panel hidden" data-ms-panel="registry-json">
-                            <p class="text-xs text-brand-text-muted mb-2">${t('artsmoker.model_settings.json_desc')}</p>
+                            <p class="text-xs text-brand-text-muted mb-2">${t('artsmoker.ui.model_settings.json_desc')}</p>
                             <textarea id="ms-json-editor" class="w-full h-[50vh] font-mono text-xs p-3 rounded-lg bg-brand-bg border border-brand-border text-brand-text resize-none" spellcheck="false">${JSON.stringify(reg, null, 2)}</textarea>
                             <div class="flex items-center gap-2 mt-2">
-                                <button id="ms-json-save" class="btn btn-primary btn-sm text-xs">${t('artsmoker.model_settings.save_json')}</button>
-                                <button id="ms-json-reset" class="btn btn-secondary btn-sm text-xs">${t('artsmoker.model_settings.reset_json')}</button>
+                                <button id="ms-json-save" class="btn btn-primary btn-sm text-xs">${t('artsmoker.ui.model_settings.save_json')}</button>
+                                <button id="ms-json-reset" class="btn btn-secondary btn-sm text-xs">${t('artsmoker.ui.model_settings.reset_json')}</button>
                                 <span id="ms-json-status" class="text-[10px] text-brand-text-muted"></span>
                             </div>
                         </div>
@@ -270,26 +270,26 @@
         _renderImageModels(reg) {
             const models = reg.image_models || {};
             if (Object.keys(models).length === 0) {
-                return html`<p class="text-sm text-brand-text-muted py-4 text-center">${t('artsmoker.model_settings.no_models')}</p>`;
+                return html`<p class="text-sm text-brand-text-muted py-4 text-center">${t('artsmoker.ui.model_settings.no_models')}</p>`;
             }
 
             // Per-purpose short tag shown on each model card (its specific role).
             const PURPOSE_TAG = {
-                'text_to_image': t('artsmoker.model_settings.generation'),
-                'image_edit': t('artsmoker.model_settings.image_edit'),
-                'inpainting': t('artsmoker.model_settings.inpainting'),
-                'outpainting': t('artsmoker.model_settings.outpainting'),
-                'erase': t('artsmoker.model_settings.erase_label'),
-                'search_replace': t('artsmoker.model_settings.search_replace'),
-                'search_recolor': t('artsmoker.model_settings.search_recolor'),
-                'control_sketch': t('artsmoker.model_settings.control_sketch'),
-                'control_structure': t('artsmoker.model_settings.control_structure'),
-                'style_guide': t('artsmoker.model_settings.style_guide'),
-                'style_transfer': t('artsmoker.model_settings.style_transfer'),
-                'remove_background': t('artsmoker.model_settings.remove_bg'),
-                'upscale_creative': t('artsmoker.model_settings.upscale_creative'),
-                'upscale_conservative': t('artsmoker.model_settings.upscale_conservative'),
-                'upscale_fast': t('artsmoker.model_settings.upscale_fast'),
+                'text_to_image': t('artsmoker.ui.model_settings.generation'),
+                'image_edit': t('artsmoker.ui.model_settings.image_edit'),
+                'inpainting': t('artsmoker.ui.model_settings.inpainting'),
+                'outpainting': t('artsmoker.ui.model_settings.outpainting'),
+                'erase': t('artsmoker.ui.model_settings.erase_label'),
+                'search_replace': t('artsmoker.ui.model_settings.search_replace'),
+                'search_recolor': t('artsmoker.ui.model_settings.search_recolor'),
+                'control_sketch': t('artsmoker.ui.model_settings.control_sketch'),
+                'control_structure': t('artsmoker.ui.model_settings.control_structure'),
+                'style_guide': t('artsmoker.ui.model_settings.style_guide'),
+                'style_transfer': t('artsmoker.ui.model_settings.style_transfer'),
+                'remove_background': t('artsmoker.ui.model_settings.remove_bg'),
+                'upscale_creative': t('artsmoker.ui.model_settings.upscale_creative'),
+                'upscale_conservative': t('artsmoker.ui.model_settings.upscale_conservative'),
+                'upscale_fast': t('artsmoker.ui.model_settings.upscale_fast'),
             };
 
             // Consolidate the many fine-grained purposes into a few top-level
@@ -298,15 +298,15 @@
             // Mapping is purpose→section; an UNKNOWN purpose falls back to its own
             // section (keyed by the raw purpose) so nothing is ever hidden.
             const SECTIONS = [
-                { id: 'generation', label: t('artsmoker.model_settings.section_generation'),
+                { id: 'generation', label: t('artsmoker.ui.model_settings.section_generation'),
                   purposes: ['text_to_image'] },
-                { id: 'editing', label: t('artsmoker.model_settings.section_editing'),
+                { id: 'editing', label: t('artsmoker.ui.model_settings.section_editing'),
                   purposes: ['image_edit', 'inpainting', 'outpainting', 'erase', 'search_replace', 'search_recolor'] },
-                { id: 'upscaling', label: t('artsmoker.model_settings.section_upscaling'),
+                { id: 'upscaling', label: t('artsmoker.ui.model_settings.section_upscaling'),
                   purposes: ['upscale_creative', 'upscale_conservative', 'upscale_fast'] },
-                { id: 'control_style', label: t('artsmoker.model_settings.section_control_style'),
+                { id: 'control_style', label: t('artsmoker.ui.model_settings.section_control_style'),
                   purposes: ['control_sketch', 'control_structure', 'style_guide', 'style_transfer'] },
-                { id: 'background', label: t('artsmoker.model_settings.section_background'),
+                { id: 'background', label: t('artsmoker.ui.model_settings.section_background'),
                   purposes: ['remove_background'] },
             ];
             // purpose → section index (built from the map above).
@@ -365,8 +365,8 @@
 
         _renderSingleModel(key, m, purposeTag = '') {
             const regions = (m.available_regions || [m.region]).join(', ');
-            const quality = (m.quality_options || []).map(q => q.label).join(' / ') || t('artsmoker.model_settings.no_tiers');
-            const price = m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : t('artsmoker.common.unknown');
+            const quality = (m.quality_options || []).map(q => q.label).join(' / ') || t('artsmoker.ui.model_settings.no_tiers');
+            const price = m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : t('artsmoker.ui.common.unknown');
             const strictColor = m.moderation_strictness === 'very_strict' ? 'text-red-400' : m.moderation_strictness === 'strict' ? 'text-amber-400' : 'text-emerald-400';
             const sourceBadge = this._sourceBadge(m);
 
@@ -377,19 +377,19 @@
             // it can't inpaint/outpaint/erase. Derived from cfg.capabilities, so
             // nothing is hard-coded: new capability flags appear automatically.
             const _editModeLabels = {
-                image_edit: t('artsmoker.model_settings.image_edit'),
-                inpainting: t('artsmoker.model_settings.inpainting'),
-                outpainting: t('artsmoker.model_settings.outpainting'),
-                erase: t('artsmoker.model_settings.erase_label'),
-                search_replace: t('artsmoker.model_settings.search_replace'),
-                search_recolor: t('artsmoker.model_settings.search_recolor'),
-                reference_guided: t('artsmoker.model_settings.reference_guided'),
+                image_edit: t('artsmoker.ui.model_settings.image_edit'),
+                inpainting: t('artsmoker.ui.model_settings.inpainting'),
+                outpainting: t('artsmoker.ui.model_settings.outpainting'),
+                erase: t('artsmoker.ui.model_settings.erase_label'),
+                search_replace: t('artsmoker.ui.model_settings.search_replace'),
+                search_recolor: t('artsmoker.ui.model_settings.search_recolor'),
+                reference_guided: t('artsmoker.ui.model_settings.reference_guided'),
             };
             const coveredModes = m.capabilities && typeof m.capabilities === 'object'
                 ? Object.keys(_editModeLabels).filter(p => m.capabilities[p] === true)
                 : [];
             const capabilitiesHtml = coveredModes.length
-                ? html`<div class="text-[10px] text-brand-text-muted mb-2">${t('artsmoker.model_settings.also_covers')}: <span class="text-brand-text/70">${coveredModes.map(p => _editModeLabels[p]).join(' · ')}</span></div>`
+                ? html`<div class="text-[10px] text-brand-text-muted mb-2">${t('artsmoker.ui.model_settings.also_covers')}: <span class="text-brand-text/70">${coveredModes.map(p => _editModeLabels[p]).join(' · ')}</span></div>`
                 : '';
 
             return html`
@@ -408,49 +408,49 @@
                             <span class="${strictColor} text-[10px]">${m.moderation_strictness || ''}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted mb-2">
-                            <span>${t('artsmoker.model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${m.model_id || ''}</span></span>
-                            <span>${t('artsmoker.model_settings.field_format')}: <span class="text-brand-text/70">${m.format_family || ''}</span></span>
-                            <span>${t('artsmoker.model_settings.field_regions')}: <span class="text-brand-text/70">${regions || t('artsmoker.common.none').toLowerCase()}</span></span>
-                            <span>${t('artsmoker.model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${m.prompt_limit || '?'} chars</span></span>
-                            <span>${t('artsmoker.model_settings.field_quality')}: <span class="text-brand-text/70">${quality}</span></span>
-                            <span>${t('artsmoker.model_settings.field_price')}: <span class="text-emerald-400/70">${price}</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${m.model_id || ''}</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_format')}: <span class="text-brand-text/70">${m.format_family || ''}</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_regions')}: <span class="text-brand-text/70">${regions || t('artsmoker.ui.common.none').toLowerCase()}</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${m.prompt_limit || '?'} chars</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_quality')}: <span class="text-brand-text/70">${quality}</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_price')}: <span class="text-emerald-400/70">${price}</span></span>
                         </div>
                         ${capabilitiesHtml}
                         <details class="group">
                             <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
-                                <span class="group-open:hidden">${t('artsmoker.model_settings.edit_link')}</span>
-                                <span class="hidden group-open:inline">${t('artsmoker.model_settings.close_editor')}</span>
+                                <span class="group-open:hidden">${t('artsmoker.ui.model_settings.edit_link')}</span>
+                                <span class="hidden group-open:inline">${t('artsmoker.ui.model_settings.close_editor')}</span>
                             </summary>
                             <div class="mt-2 space-y-2 p-2 rounded bg-brand-bg/60 border border-brand-border/50">
                                 <div class="grid grid-cols-2 gap-2">
                                     <div>
-                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.field_model_id')}</label>
+                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.field_model_id')}</label>
                                         <input type="text" class="ms-edit-field input text-xs font-mono w-full" data-key="${key}" data-field="model_id" value="${m.model_id || ''}" />
                                     </div>
                                     <div>
-                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.field_label')}</label>
+                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.field_label')}</label>
                                         <input type="text" class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="label" value="${m.label || ''}" />
                                     </div>
                                     <div>
-                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.field_prompt_limit')}</label>
+                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.field_prompt_limit')}</label>
                                         <input type="number" class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="prompt_limit" value="${m.prompt_limit || 900}" />
                                     </div>
                                     <div>
-                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.field_base_price')}</label>
+                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.field_base_price')}</label>
                                         <input type="number" step="0.01" class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="base_price_usd" value="${m.base_price_usd || ''}" />
                                     </div>
                                     <div>
-                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.field_moderation')}</label>
+                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.field_moderation')}</label>
                                         <select class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="moderation_strictness">
                                             ${['moderate', 'strict', 'very_strict'].map(s => html`<option value="${s}" ${s === m.moderation_strictness ? 'selected' : ''}>${s}</option>`)}
                                         </select>
                                     </div>
                                     <div>
-                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.field_default_region')}</label>
+                                        <label class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.field_default_region')}</label>
                                         <input type="text" class="ms-edit-field input text-xs w-full" data-key="${key}" data-field="region" value="${m.region || ''}" />
                                     </div>
                                 </div>
-                                <button class="ms-edit-save btn btn-primary btn-sm text-xs" data-key="${key}">${t('artsmoker.model_settings.save_changes')}</button>
+                                <button class="ms-edit-save btn btn-primary btn-sm text-xs" data-key="${key}">${t('artsmoker.ui.model_settings.save_changes')}</button>
                             </div>
                         </details>
                     </div>
@@ -460,7 +460,7 @@
         _renderChatModels(reg) {
             const models = reg.chat_models || {};
             if (Object.keys(models).length === 0) {
-                return html`<p class="text-sm text-brand-text-muted py-4 text-center">${t('artsmoker.model_settings.no_chat_models')}</p>`;
+                return html`<p class="text-sm text-brand-text-muted py-4 text-center">${t('artsmoker.ui.model_settings.no_chat_models')}</p>`;
             }
 
             // Group by provider
@@ -483,8 +483,8 @@
                         <div class="space-y-1.5 mt-2">
                             ${entries.sort((a, b) => (a[1].label || '').localeCompare(b[1].label || '')).map(([key, m]) => {
                                 const regions = (m.available_regions || []).length;
-                                const vision = m.has_vision ? html`<span class="text-[9px] px-1 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20">${t('artsmoker.model_settings.vision_badge')}</span>` : '';
-                                const streaming = m.streaming_supported ? '' : html`<span class="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">${t('artsmoker.model_settings.no_stream')}</span>`;
+                                const vision = m.has_vision ? html`<span class="text-[9px] px-1 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20">${t('artsmoker.ui.model_settings.vision_badge')}</span>` : '';
+                                const streaming = m.streaming_supported ? '' : html`<span class="text-[9px] px-1 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.model_settings.no_stream')}</span>`;
                                 const ctx = (m.max_context_tokens || 128000) >= 1000000
                                     ? `${Math.round((m.max_context_tokens || 128000) / 1000000)}M`
                                     : `${Math.round((m.max_context_tokens || 128000) / 1000)}K`;
@@ -499,12 +499,12 @@
                                             <div class="flex items-center gap-2">
                                                 <span class="text-xs font-medium truncate">${m.label || key}</span>
                                                 ${vision}${streaming}
-                                                <span class="text-[9px] text-brand-text-muted">${ctx} ${t('artsmoker.model_settings.context_label')}</span>
+                                                <span class="text-[9px] text-brand-text-muted">${ctx} ${t('artsmoker.ui.model_settings.context_label')}</span>
                                             </div>
                                             <div class="text-[10px] text-brand-text-muted font-mono truncate mt-0.5">${m.model_id || ''}</div>
                                         </div>
                                         <div class="flex-shrink-0 text-right">
-                                            <span class="text-[10px] text-brand-accent">${regions} ${t('artsmoker.common.region').toLowerCase()}${regions !== 1 ? 's' : ''}</span>
+                                            <span class="text-[10px] text-brand-accent">${regions} ${t('artsmoker.ui.common.region').toLowerCase()}${regions !== 1 ? 's' : ''}</span>
                                             <div class="flex flex-wrap gap-0.5 mt-0.5 justify-end max-w-[200px]">
                                                 ${(m.available_regions || []).map(r => html`<span class="text-[8px] px-1 py-0 rounded bg-brand-bg text-brand-text-muted/60">${r}</span>`)}
                                             </div>
@@ -519,7 +519,7 @@
         _renderVideoModels(reg) {
             const models = reg.video_models || {};
             if (Object.keys(models).length === 0) {
-                return html`<p class="text-sm text-brand-text-muted py-4 text-center">${t('artsmoker.model_settings.no_video_models')}</p>`;
+                return html`<p class="text-sm text-brand-text-muted py-4 text-center">${t('artsmoker.ui.model_settings.no_video_models')}</p>`;
             }
             return html`${Object.entries(models).map(([key, m]) => {
                 const enabled = m.enabled !== false;
@@ -544,10 +544,10 @@
                             </div>
                         </div>
                         <div class="grid grid-cols-2 gap-x-4 gap-y-1 text-[10px] text-brand-text-muted mb-2">
-                            <span>${t('artsmoker.model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${m.model_id || ''}</span></span>
-                            <span>${t('artsmoker.model_settings.field_format')}: <span class="text-brand-text/70">${m.format_family || ''}</span></span>
-                            <span>${t('artsmoker.model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${m.prompt_limit || '?'} chars</span></span>
-                            <span>${t('artsmoker.model_settings.field_default_region')}: <span class="text-brand-text/70">${m.region || ''}</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_model_id')}: <span class="font-mono text-brand-text/70">${m.model_id || ''}</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_format')}: <span class="text-brand-text/70">${m.format_family || ''}</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_prompt_limit_short')}: <span class="text-brand-text/70">${m.prompt_limit || '?'} chars</span></span>
+                            <span>${t('artsmoker.ui.model_settings.field_default_region')}: <span class="text-brand-text/70">${m.region || ''}</span></span>
                         </div>
                         <div class="flex flex-wrap gap-1 mb-1">
                             ${regions.map(r => html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${r}</span>`)}
@@ -609,15 +609,15 @@
                     <p class="text-[10px] text-brand-text-muted/50 mb-2">${cat.description || ''}</p>
                     <div class="flex gap-2">
                         <div class="flex-1 relative ms-searchable-select">
-                            <input type="text" class="ms-cat-search input text-xs w-full" data-cat="${name}" placeholder="${t('artsmoker.custom_models.search_models')}" value="${currentLabel}" autocomplete="off" />
+                            <input type="text" class="ms-cat-search input text-xs w-full" data-cat="${name}" placeholder="${t('artsmoker.ui.custom_models.search_models')}" value="${currentLabel}" autocomplete="off" />
                             <select class="ms-cat-model hidden" data-cat="${name}">
                                 ${raw(fallbackOpt)}
                                 ${raw(optionsHtml)}
                             </select>
                             <div class="ms-cat-dropdown hidden absolute left-0 right-0 top-full mt-1 z-50 bg-brand-surface border border-brand-border rounded-lg shadow-xl max-h-60 overflow-y-auto"></div>
                         </div>
-                        <input type="text" class="ms-cat-region input text-xs w-28" value="${cat.region || ''}" data-cat="${name}" placeholder="${t('artsmoker.common.region')}" />
-                        <button class="ms-cat-save btn btn-primary btn-sm text-xs" data-cat="${name}">${t('artsmoker.common.save')}</button>
+                        <input type="text" class="ms-cat-region input text-xs w-28" value="${cat.region || ''}" data-cat="${name}" placeholder="${t('artsmoker.ui.common.region')}" />
+                        <button class="ms-cat-save btn btn-primary btn-sm text-xs" data-cat="${name}">${t('artsmoker.ui.common.save')}</button>
                     </div>
                 </div>
             `;
@@ -631,8 +631,8 @@
             const models = customLLMs.models;
             return html`
                 <details class="ms-collapsible">
-                    <summary class="text-sm font-semibold text-purple-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('artsmoker.model_settings.custom_llms')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(models).length})</span></summary>
-                    <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('artsmoker.model_settings.custom_llms_desc')}</p>
+                    <summary class="text-sm font-semibold text-purple-400 uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${t('artsmoker.ui.model_settings.custom_llms')} <span class="text-[10px] font-normal text-brand-text-muted">(${Object.keys(models).length})</span></summary>
+                    <p class="text-[10px] text-brand-text-muted mb-2 mt-2">${t('artsmoker.ui.model_settings.custom_llms_desc')}</p>
                     <div class="space-y-2">
                         ${Object.entries(models).map(([key, m]) => {
                             const source = m.model_source || 'custom';
@@ -640,8 +640,8 @@
                                 ? raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>')
                                 : raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>');
                             const enabledBadge = m.enabled
-                                ? html`<span class="text-[9px] text-emerald-400">${t('artsmoker.model_settings.ready')}</span>`
-                                : html`<span class="text-[9px] text-amber-400">${t('artsmoker.model_settings.needs_throughput')}</span>`;
+                                ? html`<span class="text-[9px] text-emerald-400">${t('artsmoker.ui.model_settings.ready')}</span>`
+                                : html`<span class="text-[9px] text-amber-400">${t('artsmoker.ui.model_settings.needs_throughput')}</span>`;
                             return html`
                                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-60'}">
                                     <div class="flex items-center gap-2 mb-1">
@@ -650,8 +650,8 @@
                                         ${enabledBadge}
                                     </div>
                                     <div class="grid grid-cols-2 gap-x-4 text-[10px] text-brand-text-muted">
-                                        <span>${t('artsmoker.model_settings.field_model_id')}: <span class="font-mono text-brand-text/70 break-all">${(m.model_id || '').slice(-40)}</span></span>
-                                        <span>${t('artsmoker.common.region')}: <span class="text-brand-text/70">${m.region || ''}</span></span>
+                                        <span>${t('artsmoker.ui.model_settings.field_model_id')}: <span class="font-mono text-brand-text/70 break-all">${(m.model_id || '').slice(-40)}</span></span>
+                                        <span>${t('artsmoker.ui.common.region')}: <span class="text-brand-text/70">${m.region || ''}</span></span>
                                         ${m.architecture ? html`<span>Architecture: <span class="text-brand-text/70">${m.architecture}</span></span>` : ''}
                                         ${m.customization_type ? html`<span>Type: <span class="text-brand-text/70">${m.customization_type}</span></span>` : ''}
                                     </div>
@@ -717,7 +717,7 @@
                             ${raw(modelOptions)}
                         </select>
                         <input type="text" class="ms-pp-field input text-xs w-28" value="${m.region || ''}" data-key="${key}" data-field="region" />
-                        <button class="ms-pp-save btn btn-primary btn-sm text-xs" data-key="${key}">${t('artsmoker.common.save')}</button>
+                        <button class="ms-pp-save btn btn-primary btn-sm text-xs" data-key="${key}">${t('artsmoker.ui.common.save')}</button>
                     </div>
                 </div>
             `;
@@ -817,37 +817,37 @@
             // Reset ALL templates to defaults
             modal.querySelector('#ms-tmpl-reset-all')?.addEventListener('click', async () => {
                 if (!await window.showConfirm?.(
-                    t('artsmoker.model_settings.templates_reset_all_confirm') || 'Reset ALL prompt templates to their built-in defaults?',
-                    { title: t('artsmoker.model_settings.templates_reset_all') || 'Reset All Templates',
-                      detail: t('artsmoker.model_settings.templates_reset_all_detail') || 'This discards every edit you have made to every prompt template and restores the shipped defaults. This cannot be undone.',
-                      confirmLabel: t('artsmoker.model_settings.templates_reset_all') || 'Reset All' })) return;
+                    t('artsmoker.ui.model_settings.templates_reset_all_confirm') || 'Reset ALL prompt templates to their built-in defaults?',
+                    { title: t('artsmoker.ui.model_settings.templates_reset_all') || 'Reset All Templates',
+                      detail: t('artsmoker.ui.model_settings.templates_reset_all_detail') || 'This discards every edit you have made to every prompt template and restores the shipped defaults. This cannot be undone.',
+                      confirmLabel: t('artsmoker.ui.model_settings.templates_reset_all') || 'Reset All' })) return;
                 try {
                     const resp = await fetch('/api/admin/templates/reset-all', { method: 'POST' });
                     if (resp.ok) {
-                        window.showToast?.(t('artsmoker.model_settings.templates_reset_all_done') || 'All templates reset to defaults', 'success');
+                        window.showToast?.(t('artsmoker.ui.model_settings.templates_reset_all_done') || 'All templates reset to defaults', 'success');
                         this._templatesLoaded = false;
                         this._loadTemplates(modal);
                     } else {
-                        window.showToast?.(t('artsmoker.model_settings.templates_save_failed') || 'Reset failed', 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.templates_save_failed') || 'Reset failed', 'error');
                     }
                 } catch (e) {
-                    window.showToast?.((t('artsmoker.model_settings.templates_save_failed') || 'Reset failed') + ': ' + e.message, 'error');
+                    window.showToast?.((t('artsmoker.ui.model_settings.templates_save_failed') || 'Reset failed') + ': ' + e.message, 'error');
                 }
             });
 
             // Refresh All
             modal.querySelector('#ms-refresh-all')?.addEventListener('click', async () => {
                 if (this._refreshing) return;
-                if (!await window.showConfirm(t('artsmoker.model_settings.sync_confirm'), {
-                    title: t('artsmoker.model_settings.sync_title'),
-                    detail: t('artsmoker.model_settings.sync_detail_full'),
-                    confirmLabel: t('artsmoker.model_settings.sync_now'),
+                if (!await window.showConfirm(t('artsmoker.ui.model_settings.sync_confirm'), {
+                    title: t('artsmoker.ui.model_settings.sync_title'),
+                    detail: t('artsmoker.ui.model_settings.sync_detail_full'),
+                    confirmLabel: t('artsmoker.ui.model_settings.sync_now'),
                 })) return;
                 this._refreshing = true;
                 const btn = modal.querySelector('#ms-refresh-all');
                 btn.disabled = true;
                 // nosemgrep
-                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.model_settings.syncing')}`;
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.ui.model_settings.syncing')}`;
 
                 // Show progress overlay (dismissible — sync continues in background)
                 const overlay = this._showSyncProgress();
@@ -855,9 +855,9 @@
                 try {
                     const result = await API.admin.refreshAll();
                     // nosemgrep -- {count: …} is a t() params object, not a template string
-                    const customMsg = result.total_custom > 0 ? `\n${t('artsmoker.model_settings.sync_custom_count', {count: result.total_custom})}` : '';
+                    const customMsg = result.total_custom > 0 ? `\n${t('artsmoker.ui.model_settings.sync_custom_count', {count: result.total_custom})}` : '';
                     // nosemgrep -- {count: …} is a t() params object, not a template string
-                    const disabledMsg = result.disabled?.length ? `\n${t('artsmoker.model_settings.sync_disabled_count', {count: result.disabled.length})}` : '';
+                    const disabledMsg = result.disabled?.length ? `\n${t('artsmoker.ui.model_settings.sync_disabled_count', {count: result.disabled.length})}` : '';
 
                     this._registry = await API.admin.getModels();
                     const imgCount = Object.keys(this._registry.image_models || {}).length;
@@ -870,18 +870,18 @@
                     this._renderModal();
 
                     await window.showConfirm(
-                        t('artsmoker.model_settings.sync_scanned', {count: result.regions_scanned}), {
-                        title: t('artsmoker.model_settings.sync_complete'),
-                        detail: `${t('artsmoker.model_settings.sync_new')}: ${result.total_new}\n${t('artsmoker.model_settings.sync_updated')}: ${result.total_updated}${customMsg}${disabledMsg}\n\n${t('artsmoker.model_settings.sync_totals')}:\n  ${t('artsmoker.model_settings.sync_image')}: ${imgCount}\n  ${t('artsmoker.model_settings.sync_video')}: ${vidCount}\n  ${t('artsmoker.model_settings.sync_chat')}: ${chatModels}\n  ${t('artsmoker.model_settings.sync_errors')}: ${result.errors || 0}`,
-                        confirmLabel: t('artsmoker.common.ok'),
+                        t('artsmoker.ui.model_settings.sync_scanned', {count: result.regions_scanned}), {
+                        title: t('artsmoker.ui.model_settings.sync_complete'),
+                        detail: `${t('artsmoker.ui.model_settings.sync_new')}: ${result.total_new}\n${t('artsmoker.ui.model_settings.sync_updated')}: ${result.total_updated}${customMsg}${disabledMsg}\n\n${t('artsmoker.ui.model_settings.sync_totals')}:\n  ${t('artsmoker.ui.model_settings.sync_image')}: ${imgCount}\n  ${t('artsmoker.ui.model_settings.sync_video')}: ${vidCount}\n  ${t('artsmoker.ui.model_settings.sync_chat')}: ${chatModels}\n  ${t('artsmoker.ui.model_settings.sync_errors')}: ${result.errors || 0}`,
+                        confirmLabel: t('artsmoker.ui.common.ok'),
                         cancelLabel: '',
                     });
                 } catch (err) {
                     overlay?.remove();
-                    await window.showConfirm(t('artsmoker.model_settings.sync_failed_msg'), {
-                        title: t('artsmoker.model_settings.sync_failed'),
-                        detail: err.message || t('artsmoker.common.unknown'),
-                        confirmLabel: t('artsmoker.common.ok'),
+                    await window.showConfirm(t('artsmoker.ui.model_settings.sync_failed_msg'), {
+                        title: t('artsmoker.ui.model_settings.sync_failed'),
+                        detail: err.message || t('artsmoker.ui.common.unknown'),
+                        confirmLabel: t('artsmoker.ui.common.ok'),
                         cancelLabel: '',
                         danger: true,
                     });
@@ -899,9 +899,9 @@
                     container?.classList.toggle('opacity-50', !enabled);
                     try {
                         await API.admin.updateImageModel(key, { enabled });
-                        window.showToast?.(`${key} ${enabled ? t('artsmoker.common.enabled') : t('artsmoker.common.disabled')}`, 'success');
+                        window.showToast?.(`${key} ${enabled ? t('artsmoker.ui.common.enabled') : t('artsmoker.ui.common.disabled')}`, 'success');
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                         cb.checked = !enabled; // Revert
                         container?.classList.toggle('opacity-50', enabled);
                     }
@@ -925,9 +925,9 @@
                             body: JSON.stringify(this._registry),
                         });
                         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                        window.showToast?.(`${key} ${enabled ? t('artsmoker.common.enabled') : t('artsmoker.common.disabled')}`, 'success');
+                        window.showToast?.(`${key} ${enabled ? t('artsmoker.ui.common.enabled') : t('artsmoker.ui.common.disabled')}`, 'success');
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                         cb.checked = !enabled;
                         cb.closest('.rounded-lg')?.classList.toggle('opacity-50', enabled);
                     }
@@ -947,9 +947,9 @@
                             headers: { 'Content-Type': 'application/json' },
                         });
                         if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
-                        window.showToast?.(`${key} ${enabled ? t('artsmoker.common.enabled') : t('artsmoker.common.disabled')}`, 'success');
+                        window.showToast?.(`${key} ${enabled ? t('artsmoker.ui.common.enabled') : t('artsmoker.ui.common.disabled')}`, 'success');
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                         cb.checked = !enabled;
                         container?.classList.toggle('opacity-50', enabled);
                     }
@@ -972,9 +972,9 @@
                     btn.disabled = true;
                     try {
                         await API.admin.updateImageModel(key, data);
-                        window.showToast?.(t('artsmoker.model_settings.ms_updated').replace('{{name}}', key), 'success');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_updated').replace('{{name}}', key), 'success');
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                     }
                     btn.disabled = false;
                 });
@@ -1013,7 +1013,7 @@
                             }
                         }
                     });
-                    if (!hasResults) out = html`<div class="px-3 py-2 text-xs text-brand-text-muted">${t('artsmoker.custom_models.no_search_results')}</div>`;
+                    if (!hasResults) out = html`<div class="px-3 py-2 text-xs text-brand-text-muted">${t('artsmoker.ui.custom_models.no_search_results')}</div>`;
                     // nosemgrep
                     dropdown.innerHTML = out;
 
@@ -1065,9 +1065,9 @@
                     btn.disabled = true;
                     try {
                         await API.admin.updateCategory(cat, { current: modelId, region });
-                        window.showToast?.(t('artsmoker.model_settings.ms_updated').replace('{{name}}', cat), 'success');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_updated').replace('{{name}}', cat), 'success');
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                     }
                     btn.disabled = false;
                 });
@@ -1082,7 +1082,7 @@
                     try {
                         await API.admin.updatePostProcess(key, { enabled });
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                         cb.checked = !enabled;
                     }
                 });
@@ -1100,9 +1100,9 @@
                     btn.disabled = true;
                     try {
                         await API.admin.updatePostProcess(key, data);
-                        window.showToast?.(t('artsmoker.model_settings.ms_updated').replace('{{name}}', key), 'success');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_updated').replace('{{name}}', key), 'success');
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + (err.message || ''), 'error');
                     }
                     btn.disabled = false;
                 });
@@ -1117,7 +1117,7 @@
                     const parsed = JSON.parse(jsonEditor.value);
                     // Validate it has required top-level keys
                     if (!parsed.categories || !parsed.image_models) {
-                        throw new Error(t('artsmoker.model_settings.missing_keys'));
+                        throw new Error(t('artsmoker.ui.model_settings.missing_keys'));
                     }
                     const resp = await fetch('/api/admin/models', {
                         method: 'PUT',
@@ -1125,13 +1125,13 @@
                         body: jsonEditor.value,
                     });
                     if (!resp.ok) {
-                        jsonStatus.textContent = t('artsmoker.model_settings.json_save_not_impl');
+                        jsonStatus.textContent = t('artsmoker.ui.model_settings.json_save_not_impl');
                         jsonStatus.className = 'text-[10px] text-amber-400';
                         return;
                     }
-                    jsonStatus.textContent = t('artsmoker.model_settings.saved_successfully');
+                    jsonStatus.textContent = t('artsmoker.ui.model_settings.saved_successfully');
                     jsonStatus.className = 'text-[10px] text-emerald-400';
-                    window.showToast?.(t('artsmoker.model_settings.json_saved'), 'success');
+                    window.showToast?.(t('artsmoker.ui.model_settings.json_saved'), 'success');
                 } catch (err) {
                     jsonStatus.textContent = err.message;
                     jsonStatus.className = 'text-[10px] text-red-400';
@@ -1140,7 +1140,7 @@
 
             modal.querySelector('#ms-json-reset')?.addEventListener('click', () => {
                 jsonEditor.value = JSON.stringify(this._registry, null, 2);
-                jsonStatus.textContent = t('artsmoker.model_settings.reset_to_loaded');
+                jsonStatus.textContent = t('artsmoker.ui.model_settings.reset_to_loaded');
                 jsonStatus.className = 'text-[10px] text-brand-text-muted';
             });
         },
@@ -1167,7 +1167,7 @@
                             html`<option value="${m.model_id}" data-region="${m.region}">${m.label} (${m.provider})</option>`
                         ).join('');
                     // nosemgrep
-                    } catch { modelSel.innerHTML = html`<option value="">${t('artsmoker.model_settings.ms_no_models')}</option>`; }
+                    } catch { modelSel.innerHTML = html`<option value="">${t('artsmoker.ui.model_settings.ms_no_models')}</option>`; }
                 }
 
                 this._renderTemplates(modal);
@@ -1208,7 +1208,7 @@
                     { name: 'reference_edit_instruction', friendlyLabel: 'Match-the-Reference — shapes your instruction for the reference edit model' },
                     { name: 'inpaint_removal_transform', friendlyLabel: 'Inpaint Removal — turns a "remove X" request into a fill description' },
                 ]},
-                { key: 'style_library', label: t('artsmoker.nav.style_library'), color: 'text-purple-400', templates: [
+                { key: 'style_library', label: t('artsmoker.ui.nav.style_library'), color: 'text-purple-400', templates: [
                     { name: 'style_analysis_full', friendlyLabel: 'Style Analysis — how reference images are analyzed for visual attributes' },
                     { name: 'style_hints_generation', friendlyLabel: 'Style Hints — how analyzed style is distilled into generation directives' },
                     { name: 'style_cohesion_check', friendlyLabel: 'Cohesion Check — quick check if references are unified or diverse' },
@@ -1251,7 +1251,7 @@
                         <summary class="text-sm font-semibold ${group.color} uppercase tracking-wider cursor-pointer hover:opacity-80 select-none">${group.label} <span class="text-[10px] font-normal text-brand-text-muted">(${groupTemplates.length})</span></summary>
                         <div class="mt-2">
                             <div class="flex justify-end mb-1">
-                                <button class="ms-tmpl-group-toggle text-[9px] text-brand-text-muted hover:text-brand-accent cursor-pointer" data-group="${group.key}">${t('artsmoker.model_settings.ms_expand_editors')}</button>
+                                <button class="ms-tmpl-group-toggle text-[9px] text-brand-text-muted hover:text-brand-accent cursor-pointer" data-group="${group.key}">${t('artsmoker.ui.model_settings.ms_expand_editors')}</button>
                             </div>
                             <div class="space-y-2">
                                 ${groupTemplates.map(gt => {
@@ -1274,15 +1274,15 @@
         },
 
         _renderSingleTemplate(name, tmpl, friendlyLabel) {
-            const modified = tmpl.modified ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">${t('artsmoker.model_settings.templates_modified')}</span>` : '';
+            const modified = tmpl.modified ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 ml-2">${t('artsmoker.ui.model_settings.templates_modified')}</span>` : '';
             const vars = (tmpl.variables || []).map(v => html`<code class="text-[9px] text-brand-accent bg-brand-accent/10 px-1 rounded">${v}</code>`).join(' ');
             // The registry's authoritative label + description + used_by (no longer masked).
             const title = friendlyLabel || tmpl.label || name;
             const desc = tmpl.description ? html`<p class="text-[10px] text-brand-text-muted/70 mb-1">${tmpl.description}</p>` : '';
-            const usedBy = tmpl.used_by ? html`<p class="text-[9px] text-brand-text-muted/50 mb-2">${t('artsmoker.model_settings.templates_used_by') || 'Used by'}: ${tmpl.used_by}</p>` : '';
+            const usedBy = tmpl.used_by ? html`<p class="text-[9px] text-brand-text-muted/50 mb-2">${t('artsmoker.ui.model_settings.templates_used_by') || 'Used by'}: ${tmpl.used_by}</p>` : '';
             const hasSystem = typeof tmpl.system_prompt === 'string';
             const systemEditor = hasSystem ? html`
-                            <label class="block text-[10px] text-brand-text-muted mt-1">${t('artsmoker.model_settings.templates_system_prompt') || 'System prompt (steers the LLM)'}</label>
+                            <label class="block text-[10px] text-brand-text-muted mt-1">${t('artsmoker.ui.model_settings.templates_system_prompt') || 'System prompt (steers the LLM)'}</label>
                             <textarea class="ms-tmpl-system input w-full h-28 font-mono text-xs resize-y" data-tmpl="${name}" spellcheck="false">${tmpl.system_prompt || ''}</textarea>` : '';
             return html`
                 <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border" data-tmpl="${name}">
@@ -1295,27 +1295,27 @@
                     </div>
                     ${desc}
                     ${usedBy}
-                    <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('artsmoker.model_settings.templates_variables')}: ${raw(vars || 'none')}</p>
+                    <p class="text-[10px] text-brand-text-muted/60 mb-2">${t('artsmoker.ui.model_settings.templates_variables')}: ${raw(vars || 'none')}</p>
                     <details class="group">
                         <summary class="text-[10px] text-brand-accent cursor-pointer hover:text-brand-accent-hover">
-                            <span class="group-open:hidden">${t('artsmoker.model_settings.templates_edit')}</span>
-                            <span class="hidden group-open:inline">${t('artsmoker.model_settings.templates_close_editor')}</span>
+                            <span class="group-open:hidden">${t('artsmoker.ui.model_settings.templates_edit')}</span>
+                            <span class="hidden group-open:inline">${t('artsmoker.ui.model_settings.templates_close_editor')}</span>
                         </summary>
                         <div class="mt-2 space-y-2">
-                            <label class="block text-[10px] text-brand-text-muted ${hasSystem ? '' : 'hidden'}">${t('artsmoker.model_settings.templates_prompt_body') || 'Prompt body'}</label>
+                            <label class="block text-[10px] text-brand-text-muted ${hasSystem ? '' : 'hidden'}">${t('artsmoker.ui.model_settings.templates_prompt_body') || 'Prompt body'}</label>
                             <textarea class="ms-tmpl-text input w-full h-48 font-mono text-xs resize-y" data-tmpl="${name}" spellcheck="false">${tmpl.text || ''}</textarea>
                             ${systemEditor}
                             <div class="flex gap-2 flex-wrap">
-                                <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${name}">${t('artsmoker.model_settings.templates_save')}</button>
-                                <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${name}">${t('artsmoker.model_settings.templates_enhance')}</button>
-                                <button class="ms-tmpl-reset btn btn-sm text-xs border border-brand-border text-brand-text-muted hover:border-amber-500 hover:text-amber-400" data-tmpl="${name}">${t('artsmoker.model_settings.templates_reset')}</button>
+                                <button class="ms-tmpl-save btn btn-primary btn-sm text-xs" data-tmpl="${name}">${t('artsmoker.ui.model_settings.templates_save')}</button>
+                                <button class="ms-tmpl-enhance btn btn-sm text-xs bg-purple-600 hover:bg-purple-500 text-white" data-tmpl="${name}">${t('artsmoker.ui.model_settings.templates_enhance')}</button>
+                                <button class="ms-tmpl-reset btn btn-sm text-xs border border-brand-border text-brand-text-muted hover:border-amber-500 hover:text-amber-400" data-tmpl="${name}">${t('artsmoker.ui.model_settings.templates_reset')}</button>
                             </div>
                             <div class="ms-tmpl-suggestion hidden mt-2 p-2 rounded-lg bg-purple-950/20 border border-purple-500/20" data-tmpl="${name}">
                                 <div class="flex items-center justify-between mb-1">
-                                    <span class="text-[10px] text-purple-400 font-medium">${t('artsmoker.model_settings.templates_ai_suggestion')}</span>
+                                    <span class="text-[10px] text-purple-400 font-medium">${t('artsmoker.ui.model_settings.templates_ai_suggestion')}</span>
                                     <div class="flex gap-1">
-                                        <button class="ms-tmpl-accept text-[10px] px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-500" data-tmpl="${name}">${t('artsmoker.model_settings.templates_accept')}</button>
-                                        <button class="ms-tmpl-dismiss text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent" data-tmpl="${name}">${t('artsmoker.model_settings.templates_dismiss')}</button>
+                                        <button class="ms-tmpl-accept text-[10px] px-2 py-0.5 rounded bg-purple-600 text-white hover:bg-purple-500" data-tmpl="${name}">${t('artsmoker.ui.model_settings.templates_accept')}</button>
+                                        <button class="ms-tmpl-dismiss text-[10px] px-2 py-0.5 rounded bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent" data-tmpl="${name}">${t('artsmoker.ui.model_settings.templates_dismiss')}</button>
                                     </div>
                                 </div>
                                 <div class="ms-tmpl-suggestion-warning hidden text-[10px] text-amber-400 mb-1"></div>
@@ -1359,7 +1359,7 @@
                             body: JSON.stringify({ text: textarea.value, force, system_prompt: systemVal }),
                         });
                         if (resp.ok) {
-                            window.showToast?.(t('artsmoker.model_settings.templates_saved'), 'success');
+                            window.showToast?.(t('artsmoker.ui.model_settings.templates_saved'), 'success');
                             this._templatesLoaded = false;
                             this._loadTemplates(modal);
                             return true;
@@ -1379,14 +1379,14 @@
                             if (missing?.length || (typeof message === 'string' && message.includes('missing'))) {
                                 const varList = missing?.join(', ') || message;
                                 const doFix = await window.showConfirm?.(
-                                    t('artsmoker.model_settings.ms_missing_vars_msg'), {
-                                    title: t('artsmoker.model_settings.ms_missing_vars_title'),
-                                    detail: t('artsmoker.model_settings.ms_missing_vars_detail').replace('{{vars}}', varList),
-                                    confirmLabel: t('artsmoker.model_settings.ms_fix_save'),
+                                    t('artsmoker.ui.model_settings.ms_missing_vars_msg'), {
+                                    title: t('artsmoker.ui.model_settings.ms_missing_vars_title'),
+                                    detail: t('artsmoker.ui.model_settings.ms_missing_vars_detail').replace('{{vars}}', varList),
+                                    confirmLabel: t('artsmoker.ui.model_settings.ms_fix_save'),
                                 });
                                 if (doFix) {
                                     // Call API with fix_variables=true
-                                    btn.textContent = t('artsmoker.model_settings.ms_fixing');
+                                    btn.textContent = t('artsmoker.ui.model_settings.ms_fixing');
                                     const fixResp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}`, {
                                         method: 'PATCH',
                                         headers: { 'Content-Type': 'application/json' },
@@ -1394,20 +1394,20 @@
                                     });
                                     if (fixResp.ok) {
                                         const fixResult = await fixResp.json();
-                                        window.showToast?.(t('artsmoker.model_settings.ms_template_fixed').replace('{{count}}', fixResult.fixed_variables?.length || 0), 'success');
+                                        window.showToast?.(t('artsmoker.ui.model_settings.ms_template_fixed').replace('{{count}}', fixResult.fixed_variables?.length || 0), 'success');
                                         this._templatesLoaded = false;
                                         this._loadTemplates(modal);
                                     } else {
                                         const fixErr = await fixResp.json();
-                                        window.showToast?.(t('artsmoker.model_settings.templates_save_failed') + ': ' + (fixErr.detail || ''), 'error');
+                                        window.showToast?.(t('artsmoker.ui.model_settings.templates_save_failed') + ': ' + (fixErr.detail || ''), 'error');
                                     }
                                 }
                             } else {
-                                window.showToast?.(t('artsmoker.model_settings.templates_save_failed') + ': ' + message, 'error');
+                                window.showToast?.(t('artsmoker.ui.model_settings.templates_save_failed') + ': ' + message, 'error');
                             }
                         }
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.templates_save_failed') + ': ' + err.message, 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.templates_save_failed') + ': ' + err.message, 'error');
                     }
                     btn.disabled = false;
                 });
@@ -1422,11 +1422,11 @@
                     const region = modelSel?.selectedOptions[0]?.dataset.region || '';
                     const instructions = modal.querySelector('#ms-tmpl-instructions')?.value || '';
 
-                    if (!modelId) { window.showToast?.(t('artsmoker.model_settings.templates_no_model'), 'warning'); return; }
+                    if (!modelId) { window.showToast?.(t('artsmoker.ui.model_settings.templates_no_model'), 'warning'); return; }
 
                     btn.disabled = true;
                     const origText = btn.textContent;
-                    btn.textContent = t('artsmoker.model_settings.templates_enhancing');
+                    btn.textContent = t('artsmoker.ui.model_settings.templates_enhancing');
 
                     try {
                         const resp = await fetch(`/api/admin/templates/${encodeURIComponent(name)}/enhance`, {
@@ -1455,7 +1455,7 @@
                             suggBox.classList.remove('hidden');
                         }
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.templates_enhance_failed') + ': ' + err.message, 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.templates_enhance_failed') + ': ' + err.message, 'error');
                     }
                     btn.disabled = false;
                     btn.textContent = origText;
@@ -1472,7 +1472,7 @@
                     if (textarea && suggText) {
                         textarea.value = suggText;
                         suggBox?.classList.add('hidden');
-                        window.showToast?.(t('artsmoker.model_settings.templates_accepted_hint'), 'info');
+                        window.showToast?.(t('artsmoker.ui.model_settings.templates_accepted_hint'), 'info');
                     }
                 });
             });
@@ -1489,14 +1489,14 @@
             container.querySelectorAll('.ms-tmpl-reset').forEach(btn => {
                 btn.addEventListener('click', async () => {
                     const name = btn.dataset.tmpl;
-                    if (!await window.showConfirm?.(t('artsmoker.model_settings.templates_reset_confirm'), { title: t('artsmoker.model_settings.templates_reset_title'), confirmLabel: t('artsmoker.image_studio.reset'), danger: true })) return;
+                    if (!await window.showConfirm?.(t('artsmoker.ui.model_settings.templates_reset_confirm'), { title: t('artsmoker.ui.model_settings.templates_reset_title'), confirmLabel: t('artsmoker.ui.image_studio.reset'), danger: true })) return;
                     try {
                         await fetch(`/api/admin/templates/${encodeURIComponent(name)}/reset`, { method: 'POST' });
-                        window.showToast?.(t('artsmoker.model_settings.templates_reset_done'), 'success');
+                        window.showToast?.(t('artsmoker.ui.model_settings.templates_reset_done'), 'success');
                         this._templatesLoaded = false;
                         this._loadTemplates(modal);
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.ms_reset_failed') + ': ' + err.message, 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_reset_failed') + ': ' + err.message, 'error');
                     }
                 });
             });
@@ -1530,12 +1530,12 @@
             overlay.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
                     <div class="flex items-center justify-between">
-                        <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.model_settings.sync_progress_title')}</h3>
-                        <button class="sync-dismiss text-brand-text-muted hover:text-brand-text text-lg leading-none" title="${t('artsmoker.model_settings.sync_dismiss')}">&times;</button>
+                        <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.ui.model_settings.sync_progress_title')}</h3>
+                        <button class="sync-dismiss text-brand-text-muted hover:text-brand-text text-lg leading-none" title="${t('artsmoker.ui.model_settings.sync_dismiss')}">&times;</button>
                     </div>
-                    <p class="text-[10px] text-brand-text-muted">${t('artsmoker.model_settings.sync_progress_hint')}</p>
+                    <p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.model_settings.sync_progress_hint')}</p>
                     <div class="bg-black/20 rounded-lg p-3 space-y-2">
-                        <p class="sync-msg text-xs text-brand-accent font-medium">${t('artsmoker.model_settings.syncing')}...</p>
+                        <p class="sync-msg text-xs text-brand-accent font-medium">${t('artsmoker.ui.model_settings.syncing')}...</p>
                         <div class="sync-counts text-[10px] text-brand-text-muted flex gap-4"></div>
                         <div class="sync-log text-[10px] text-brand-text-muted/50 max-h-40 overflow-y-auto font-mono space-y-0.5"></div>
                     </div>
@@ -1565,9 +1565,9 @@
                         const countsEl = overlay.querySelector('.sync-counts');
                         if (countsEl && d.models) {
                             const parts = [];
-                            if (d.models.image) parts.push(`🖼 ${d.models.image} ${t('artsmoker.model_settings.sync_image').toLowerCase()}`);
-                            if (d.models.chat) parts.push(`💬 ${d.models.chat} ${t('artsmoker.model_settings.sync_chat').toLowerCase()}`);
-                            if (d.models.video) parts.push(`🎬 ${d.models.video} ${t('artsmoker.model_settings.sync_video').toLowerCase()}`);
+                            if (d.models.image) parts.push(`🖼 ${d.models.image} ${t('artsmoker.ui.model_settings.sync_image').toLowerCase()}`);
+                            if (d.models.chat) parts.push(`💬 ${d.models.chat} ${t('artsmoker.ui.model_settings.sync_chat').toLowerCase()}`);
+                            if (d.models.video) parts.push(`🎬 ${d.models.video} ${t('artsmoker.ui.model_settings.sync_video').toLowerCase()}`);
                             if (parts.length) countsEl.textContent = parts.join('  ·  ');
                         }
                         const logEl = overlay.querySelector('.sync-log');
@@ -1632,18 +1632,18 @@
                     });
                     textureHtml = html`
                         <div>
-                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('artsmoker.custom_models.tex_backend_title')}</label>
+                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('artsmoker.ui.custom_models.tex_backend_title')}</label>
                             <div class="space-y-2 deploy-texbackend-group">${cards}</div>
                             <div class="deploy-tex-attest mt-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/20 hidden">
                                 <p class="deploy-tex-attest-warn text-[10px] text-amber-400 mb-1.5"></p>
                                 <ul class="deploy-tex-attest-terms text-[9px] text-brand-text-muted list-disc ml-4 mb-2 space-y-0.5"></ul>
                                 <div class="deploy-tex-attest-deps mb-2 hidden">
-                                    <p class="text-[9px] font-semibold text-brand-text-muted uppercase tracking-wider mb-1">${t('artsmoker.custom_models.tex_attest_deps')}</p>
+                                    <p class="text-[9px] font-semibold text-brand-text-muted uppercase tracking-wider mb-1">${t('artsmoker.ui.custom_models.tex_attest_deps')}</p>
                                     <div class="deploy-tex-attest-deps-rows space-y-1"></div>
                                 </div>
                                 <label class="flex items-start gap-2 cursor-pointer">
                                     <input type="checkbox" class="deploy-tex-attest-check mt-0.5" />
-                                    <span class="text-[10px] text-brand-text"><span class="deploy-tex-attest-labeltext">${t('artsmoker.custom_models.tex_attest_label')}</span> <a class="deploy-tex-attest-link text-brand-accent underline" target="_blank" rel="noopener">${t('artsmoker.custom_models.tex_attest_readlicense')}</a></span>
+                                    <span class="text-[10px] text-brand-text"><span class="deploy-tex-attest-labeltext">${t('artsmoker.ui.custom_models.tex_attest_label')}</span> <a class="deploy-tex-attest-link text-brand-accent underline" target="_blank" rel="noopener">${t('artsmoker.ui.custom_models.tex_attest_readlicense')}</a></span>
                                 </label>
                             </div>
                         </div>`;
@@ -1656,8 +1656,8 @@
 
                 if (allOptions.length === 0) {
                     instanceHtml = html`<div class="text-xs text-red-400 py-3 space-y-2">
-                        <p class="font-medium">${t('artsmoker.custom_models.no_instances')}</p>
-                        <p class="text-brand-text-muted">${t('artsmoker.custom_models.no_instances_hint')}</p>
+                        <p class="font-medium">${t('artsmoker.ui.custom_models.no_instances')}</p>
+                        <p class="text-brand-text-muted">${t('artsmoker.ui.custom_models.no_instances_hint')}</p>
                     </div>`;
                 } else {
                     instanceHtml = html`${allOptions.map(opt => {
@@ -1676,8 +1676,8 @@
                 // Quota section — shown dynamically when a needs-quota instance is selected
                 quotaHtml = html`
                     <div class="mt-3 p-3 rounded-lg bg-amber-500/5 border border-amber-500/20 hidden" id="deploy-quota-section">
-                        <p class="text-[10px] text-amber-400 font-medium mb-1">${t('artsmoker.custom_models.quota_needed_title')}</p>
-                        <p class="text-[9px] text-brand-text-muted mb-2">${t('artsmoker.custom_models.quota_needed_desc').replace('{{region}}', deployRegion || 'unknown')}</p>
+                        <p class="text-[10px] text-amber-400 font-medium mb-1">${t('artsmoker.ui.custom_models.quota_needed_title')}</p>
+                        <p class="text-[9px] text-brand-text-muted mb-2">${t('artsmoker.ui.custom_models.quota_needed_desc').replace('{{region}}', deployRegion || 'unknown')}</p>
                         <div id="deploy-quota-row" class="flex items-center justify-between py-1.5"></div>
                     </div>`;
 
@@ -1686,46 +1686,46 @@
                 // nosemgrep
                 backdrop.innerHTML = html`
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-5 max-h-[90vh] overflow-y-auto">
-                        <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.custom_models.deploy_config_title')}</h3>
+                        <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.ui.custom_models.deploy_config_title')}</h3>
 
                         ${textureHtml}
 
                         <div class="deploy-gated-access hidden p-2.5 rounded-lg border" data-state="loading">
                             <div class="flex items-center justify-between gap-2 mb-1.5">
-                                <p class="text-[10px] font-semibold uppercase tracking-wider deploy-gated-title">${t('artsmoker.custom_models.gated_title')}</p>
-                                <button type="button" class="deploy-gated-recheck text-[9px] px-2 py-0.5 rounded border border-brand-border/40 text-brand-text-muted hover:bg-white/5 hidden">${t('artsmoker.custom_models.gated_recheck')}</button>
+                                <p class="text-[10px] font-semibold uppercase tracking-wider deploy-gated-title">${t('artsmoker.ui.custom_models.gated_title')}</p>
+                                <button type="button" class="deploy-gated-recheck text-[9px] px-2 py-0.5 rounded border border-brand-border/40 text-brand-text-muted hover:bg-white/5 hidden">${t('artsmoker.ui.custom_models.gated_recheck')}</button>
                             </div>
                             <div class="deploy-gated-rows space-y-1.5"></div>
                             <p class="deploy-gated-hint text-[9px] text-brand-text-muted/80 mt-1.5"></p>
                         </div>
 
                         <div>
-                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('artsmoker.custom_models.instance')}</label>
+                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('artsmoker.ui.custom_models.instance')}</label>
                             ${allOptions.length > 0 ? html`<select class="deploy-instance input w-full text-xs">${instanceHtml}</select>` : instanceHtml}
                             <p class="deploy-instance-info text-[10px] text-brand-text-muted mt-1"></p>
                             ${allOptions.length > 0 ? html`
                             <div class="mt-2 flex items-start gap-1.5 p-2 rounded-lg bg-emerald-500/5 border border-emerald-500/15">
                                 <svg class="w-3 h-3 text-emerald-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                <p class="text-[9px] text-brand-text-muted/90 leading-relaxed">${t('artsmoker.custom_models.instance_validated_note')}</p>
+                                <p class="text-[9px] text-brand-text-muted/90 leading-relaxed">${t('artsmoker.ui.custom_models.instance_validated_note')}</p>
                             </div>` : ''}
                             ${quotaHtml}
                         </div>
 
                         <div>
-                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('artsmoker.custom_models.deploy_type_title')}</label>
+                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1.5">${t('artsmoker.ui.custom_models.deploy_type_title')}</label>
                             <div class="space-y-2">
                                 <label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-emerald-500/30 has-[:checked]:border-emerald-500/50 has-[:checked]:bg-emerald-500/5">
                                     <input type="radio" name="deploy-type" value="async" checked class="mt-0.5" />
                                     <div>
-                                        <span class="text-xs font-medium text-brand-text">${t('artsmoker.custom_models.ondemand_title')}</span>
-                                        <p class="text-[10px] text-brand-text-muted">${t('artsmoker.custom_models.ondemand_desc')}</p>
+                                        <span class="text-xs font-medium text-brand-text">${t('artsmoker.ui.custom_models.ondemand_title')}</span>
+                                        <p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.custom_models.ondemand_desc')}</p>
                                     </div>
                                 </label>
                                 <label class="flex items-start gap-2 cursor-pointer p-2.5 rounded-lg border border-brand-border hover:border-amber-500/30 has-[:checked]:border-amber-500/50 has-[:checked]:bg-amber-500/5">
                                     <input type="radio" name="deploy-type" value="realtime" class="mt-0.5" />
                                     <div>
-                                        <span class="text-xs font-medium text-brand-text">${t('artsmoker.custom_models.alwayson_title')}</span>
-                                        <p class="text-[10px] text-brand-text-muted deploy-always-on-cost">${t('artsmoker.custom_models.alwayson_desc')}</p>
+                                        <span class="text-xs font-medium text-brand-text">${t('artsmoker.ui.custom_models.alwayson_title')}</span>
+                                        <p class="text-[10px] text-brand-text-muted deploy-always-on-cost">${t('artsmoker.ui.custom_models.alwayson_desc')}</p>
                                     </div>
                                 </label>
                             </div>
@@ -1733,7 +1733,7 @@
 
                         <div class="flex gap-2 justify-end pt-2">
                             <button class="deploy-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
-                            <button class="deploy-confirm btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium" ${allOptions.length === 0 ? 'disabled' : ''}>${t('artsmoker.custom_models.deploy')}</button>
+                            <button class="deploy-confirm btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium" ${allOptions.length === 0 ? 'disabled' : ''}>${t('artsmoker.ui.custom_models.deploy')}</button>
                         </div>
                     </div>`;
 
@@ -1763,7 +1763,7 @@
                         infoEl.textContent = `Est. ~$${cost.toFixed(2)}/hr when running`;
                     }
                     if (alwaysOnCost && cost > 0) {
-                        alwaysOnCost.textContent = t('artsmoker.custom_models.alwayson_cost').replace('{{cost}}', cost.toFixed(2));
+                        alwaysOnCost.textContent = t('artsmoker.ui.custom_models.alwayson_cost').replace('{{cost}}', cost.toFixed(2));
                     }
 
                     // Show/hide quota section based on selected instance
@@ -1776,11 +1776,11 @@
                                 quotaRow.innerHTML = html`
                                     <div>
                                         <span class="text-[11px] text-brand-text">${inst}</span>
-                                        <span class="text-[9px] text-brand-text-muted/60 ml-1">${qVal > 0 ? t('artsmoker.custom_models.quota_all_in_use').replace('{{used}}', qVal).replace('{{quota}}', qVal) : t('artsmoker.custom_models.quota_none')}</span>
+                                        <span class="text-[9px] text-brand-text-muted/60 ml-1">${qVal > 0 ? t('artsmoker.ui.custom_models.quota_all_in_use').replace('{{used}}', qVal).replace('{{quota}}', qVal) : t('artsmoker.ui.custom_models.quota_none')}</span>
                                     </div>
                                     <button class="quota-request-btn text-[10px] px-2 py-0.5 rounded bg-brand-accent/20 text-brand-accent hover:bg-brand-accent/30"
                                         data-instance="${inst}" data-code="${qCode}" data-desired="${qVal + 1}">
-                                        ${t('artsmoker.custom_models.quota_request_btn')}
+                                        ${t('artsmoker.ui.custom_models.quota_request_btn')}
                                     </button>`;
                             }
                         } else {
@@ -1840,8 +1840,8 @@
                         // use within non-commercial terms" wording — just a read-and-agree.
                         const labelEl = attestBox.querySelector('.deploy-tex-attest-labeltext');
                         if (labelEl) labelEl.textContent = lic.commercial
-                            ? t('artsmoker.custom_models.tex_attest_label_commercial')
-                            : t('artsmoker.custom_models.tex_attest_label');
+                            ? t('artsmoker.ui.custom_models.tex_attest_label_commercial')
+                            : t('artsmoker.ui.custom_models.tex_attest_label');
                         // nosemgrep
                         if (warnEl) warnEl.innerHTML = (lic.warnings || []).map(w => html`${w}`).join('<br>');
                         // nosemgrep
@@ -1858,8 +1858,8 @@
                                 // nosemgrep
                                 depsRows.innerHTML = deps.map(d => {
                                     const comm = d.commercial
-                                        ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.custom_models.license_commercial_ok')}</span>`
-                                        : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('artsmoker.custom_models.license_commercial_no')}</span>`;
+                                        ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.custom_models.license_commercial_ok')}</span>`
+                                        : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('artsmoker.ui.custom_models.license_commercial_no')}</span>`;
                                     const gated = d.gated
                                         ? raw('<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated · accept on HF</span>')
                                         : '';
@@ -1917,7 +1917,7 @@
                     gatedBox.classList.remove('hidden');
                     gatedBox.className = 'deploy-gated-access p-2.5 rounded-lg border border-brand-border/40 bg-white/5';
                     // nosemgrep
-                    gatedRows.innerHTML = html`<p class="text-[10px] text-brand-text-muted">${t('artsmoker.custom_models.gated_checking')}</p>`;
+                    gatedRows.innerHTML = html`<p class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.custom_models.gated_checking')}</p>`;
                     gatedHint.textContent = '';
                     if (gatedRecheck) gatedRecheck.classList.add('hidden');
                     let data;
@@ -1928,7 +1928,7 @@
                     } catch (e) {
                         // Don't hard-block on a probe failure — show a soft warning.
                         // nosemgrep
-                        gatedRows.innerHTML = html`<p class="text-[10px] text-amber-400">${t('artsmoker.custom_models.gated_check_failed')}</p>`;
+                        gatedRows.innerHTML = html`<p class="text-[10px] text-amber-400">${t('artsmoker.ui.custom_models.gated_check_failed')}</p>`;
                         if (gatedRecheck) gatedRecheck.classList.remove('hidden');
                         if (deployBtn) { deployBtn.dataset.gatedBlocked = '0'; updateDeployGate(); }
                         return;
@@ -1948,10 +1948,10 @@
                         const link = html`<a href="${r.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline">${r.name}</a>`;
                         const action = ok ? '' :
                             html`<div class="text-[9px] text-amber-300/90 mt-0.5">${r.action}
-                                <a href="${r.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline ml-1">${t('artsmoker.custom_models.gated_open_hf')} ↗</a></div>`;
+                                <a href="${r.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline ml-1">${t('artsmoker.ui.custom_models.gated_open_hf')} ↗</a></div>`;
                         return html`<div class="text-[10px] leading-relaxed">
                             <div class="flex items-center gap-1.5">${icon} ${link}
-                                ${r.gated ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.custom_models.gated_badge')}</span>` : ''}
+                                ${r.gated ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.custom_models.gated_badge')}</span>` : ''}
                             </div>${action}
                         </div>`;
                     }).join('');
@@ -1959,14 +1959,14 @@
 
                     if (data.all_clear) {
                         gatedBox.className = 'deploy-gated-access p-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5';
-                        gatedHint.textContent = t('artsmoker.custom_models.gated_all_clear');
+                        gatedHint.textContent = t('artsmoker.ui.custom_models.gated_all_clear');
                         if (deployBtn) { deployBtn.dataset.gatedBlocked = '0'; }
                     } else {
                         gatedBox.className = 'deploy-gated-access p-2.5 rounded-lg border border-amber-500/30 bg-amber-500/5';
                         // nosemgrep
                         gatedHint.innerHTML = raw(data.needs_token
-                            ? t('artsmoker.custom_models.gated_needs_token')
-                            : t('artsmoker.custom_models.gated_blocked_hint'));
+                            ? t('artsmoker.ui.custom_models.gated_needs_token')
+                            : t('artsmoker.ui.custom_models.gated_blocked_hint'));
                         // Block deploy ONLY when a gated/required repo is inaccessible.
                         if (deployBtn) { deployBtn.dataset.gatedBlocked = '1'; }
                     }
@@ -2000,7 +2000,7 @@
                     const code = btn.dataset.code;
                     const desired = parseInt(btn.dataset.desired) || 1;
                     btn.disabled = true;
-                    btn.textContent = t('artsmoker.custom_models.quota_requesting');
+                    btn.textContent = t('artsmoker.ui.custom_models.quota_requesting');
                     try {
                         const resp = await fetch('/api/custom-models/quota-request', {
                             method: 'POST',
@@ -2010,22 +2010,22 @@
                         const data = await resp.json();
                         if (resp.ok) {
                             const msg = data.status === 'already_pending'
-                                ? t('artsmoker.custom_models.quota_already_pending')
+                                ? t('artsmoker.ui.custom_models.quota_already_pending')
                                 : data.status === 'already_sufficient'
-                                ? t('artsmoker.custom_models.quota_already_sufficient')
-                                : t('artsmoker.custom_models.quota_submitted');
+                                ? t('artsmoker.ui.custom_models.quota_already_sufficient')
+                                : t('artsmoker.ui.custom_models.quota_submitted');
                             // nosemgrep
                             btn.outerHTML = html`<span class="text-[10px] text-emerald-400">${msg}</span>`;
                             window.showToast?.(data.message, 'success');
                         } else {
-                            btn.textContent = t('artsmoker.custom_models.quota_request_btn');
+                            btn.textContent = t('artsmoker.ui.custom_models.quota_request_btn');
                             btn.disabled = false;
-                            window.showToast?.(data.detail || t('artsmoker.custom_models.quota_failed'), 'error');
+                            window.showToast?.(data.detail || t('artsmoker.ui.custom_models.quota_failed'), 'error');
                         }
                     } catch (err) {
-                        btn.textContent = t('artsmoker.custom_models.quota_request_btn');
+                        btn.textContent = t('artsmoker.ui.custom_models.quota_request_btn');
                         btn.disabled = false;
-                        window.showToast?.(t('artsmoker.custom_models.quota_failed'), 'error');
+                        window.showToast?.(t('artsmoker.ui.custom_models.quota_failed'), 'error');
                     }
                 });
 
@@ -2048,12 +2048,12 @@
                 const deps = la.dependencies || [];
                 const depsHtml = deps.length
                     ? html`<div class="p-3 rounded-lg bg-brand-bg/60 border border-brand-border/50">
-                        <p class="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('artsmoker.custom_models.tex_attest_deps')}</p>
+                        <p class="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('artsmoker.ui.custom_models.tex_attest_deps')}</p>
                         <div class="space-y-2">
                             ${deps.map(d => {
                                 const comm = d.commercial
-                                    ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.custom_models.license_commercial_ok')}</span>`
-                                    : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('artsmoker.custom_models.license_commercial_no')}</span>`;
+                                    ? html`<span class="text-[8px] px-1 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.ui.custom_models.license_commercial_ok')}</span>`
+                                    : html`<span class="text-[8px] px-1 py-0.5 rounded bg-red-500/10 text-red-400 border border-red-500/20">${t('artsmoker.ui.custom_models.license_commercial_no')}</span>`;
                                 const gated = d.gated
                                     ? raw('<span class="text-[8px] px-1 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">gated &middot; accept on HF</span>')
                                     : '';
@@ -2082,29 +2082,29 @@
                 // nosemgrep
                 backdrop.innerHTML = html`
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
-                        <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.custom_models.license_title')}</h3>
+                        <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.ui.custom_models.license_title')}</h3>
                         <div class="text-xs text-brand-text-muted space-y-3">
                             <div class="flex items-center gap-2">
                                 <span class="font-medium text-brand-text">${modelLabel}</span>
                                 <span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 border border-brand-border/30">${la.license_name}</span>
                             </div>
                             <div class="p-3 rounded-lg bg-brand-bg/60 border border-brand-border/50">
-                                <p class="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('artsmoker.custom_models.license_key_terms')}</p>
+                                <p class="text-[10px] font-semibold text-brand-text-muted uppercase tracking-wider mb-2">${t('artsmoker.ui.custom_models.license_key_terms')}</p>
                                 <ul class="space-y-1.5 text-xs">${termsHtml}</ul>
                             </div>
                             ${depsHtml}
                             ${warningsHtml}
                             <a href="${la.license_url}" target="_blank" rel="noopener" class="inline-flex items-center gap-1 text-brand-accent hover:underline text-xs">
-                                ${t('artsmoker.custom_models.license_read_full')} &#8599;
+                                ${t('artsmoker.ui.custom_models.license_read_full')} &#8599;
                             </a>
                         </div>
                         <label class="license-agree-label flex items-start gap-2.5 cursor-pointer p-3 rounded-lg border border-brand-border hover:border-brand-accent/30 transition-colors">
                             <input type="checkbox" class="license-agree-checkbox mt-0.5 accent-brand-accent" />
-                            <span class="text-xs text-brand-text">${t('artsmoker.custom_models.license_agree_checkbox')}</span>
+                            <span class="text-xs text-brand-text">${t('artsmoker.ui.custom_models.license_agree_checkbox')}</span>
                         </label>
                         <div class="flex gap-2 justify-end pt-1">
-                            <button class="license-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('artsmoker.prompt_designer.cancel')}</button>
-                            <button class="license-continue btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium opacity-40 cursor-not-allowed" disabled>${t('artsmoker.custom_models.license_continue')}</button>
+                            <button class="license-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('artsmoker.ui.prompt_designer.cancel')}</button>
+                            <button class="license-continue btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium opacity-40 cursor-not-allowed" disabled>${t('artsmoker.ui.custom_models.license_continue')}</button>
                         </div>
                     </div>`;
 
@@ -2147,17 +2147,17 @@
                 // nosemgrep
                 backdrop.innerHTML = html`
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
-                        <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.custom_models.hf_title')}</h3>
+                        <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.ui.custom_models.hf_title')}</h3>
                         <div class="text-xs text-brand-text-muted space-y-2">
-                            <p>${t('artsmoker.custom_models.hf_desc')}</p>
+                            <p>${t('artsmoker.ui.custom_models.hf_desc')}</p>
                             <ol class="list-decimal ml-4 space-y-1.5">
-                                <li>${t('artsmoker.custom_models.hf_step1')} ${licenseLink}</li>
-                                <li>${t('artsmoker.custom_models.hf_step2')}</li>
-                                <li>${t('artsmoker.custom_models.hf_step3')}</li>
+                                <li>${t('artsmoker.ui.custom_models.hf_step1')} ${licenseLink}</li>
+                                <li>${t('artsmoker.ui.custom_models.hf_step2')}</li>
+                                <li>${t('artsmoker.ui.custom_models.hf_step3')}</li>
                             </ol>
-                            <p class="text-[10px] text-amber-400/80 mt-2">${t('artsmoker.custom_models.hf_warning')}</p>
+                            <p class="text-[10px] text-amber-400/80 mt-2">${t('artsmoker.ui.custom_models.hf_warning')}</p>
                         </div>
-                        <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="${t('artsmoker.custom_models.hf_placeholder')}" autocomplete="off" />
+                        <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="${t('artsmoker.ui.custom_models.hf_placeholder')}" autocomplete="off" />
                         <div class="flex gap-2 justify-end">
                             <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">Cancel</button>
                             <button class="hf-submit btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">Continue</button>
@@ -2202,7 +2202,7 @@
 
                 if (models.length === 0) {
                     // nosemgrep
-                    container.innerHTML = html`<p class="text-xs text-brand-text-muted">${t('artsmoker.custom_models.no_models')}</p>`;
+                    container.innerHTML = html`<p class="text-xs text-brand-text-muted">${t('artsmoker.ui.custom_models.no_models')}</p>`;
                     return;
                 }
 
@@ -2225,12 +2225,12 @@
                 };
                 const studioOrder = ['image', 'video', 'other'];
                 const categoryLabels = {
-                    image_generation: t('artsmoker.custom_models.cat_image_generation'),
-                    '3d_generation': t('artsmoker.custom_models.cat_3d_generation'),
-                    post_processing: t('artsmoker.custom_models.cat_post_processing'),
-                    utility: t('artsmoker.custom_models.cat_utility'),
-                    video_generation: t('artsmoker.custom_models.cat_video_generation'),
-                    other: t('artsmoker.custom_models.other'),
+                    image_generation: t('artsmoker.ui.custom_models.cat_image_generation'),
+                    '3d_generation': t('artsmoker.ui.custom_models.cat_3d_generation'),
+                    post_processing: t('artsmoker.ui.custom_models.cat_post_processing'),
+                    utility: t('artsmoker.ui.custom_models.cat_utility'),
+                    video_generation: t('artsmoker.ui.custom_models.cat_video_generation'),
+                    other: t('artsmoker.ui.custom_models.other'),
                 };
                 const categoryOrder = ['image_generation', '3d_generation', 'post_processing', 'utility', 'video_generation', 'other'];
                 const _studioColors = ['text-brand-accent', 'text-cyan-400', 'text-amber-400'];
@@ -2242,7 +2242,7 @@
                 container.querySelectorAll('details[data-cm-cat][open]').forEach(d => openSections.add(d.dataset.cmCat));
 
                 let out = '<div class="space-y-4">';
-                out += html`<p class="text-xs text-brand-text-muted">${t('artsmoker.custom_models.description_line')}</p>`;
+                out += html`<p class="text-xs text-brand-text-muted">${t('artsmoker.ui.custom_models.description_line')}</p>`;
 
                 // S3-bucket config — IN-PLACE setter at the top of Custom Models.
                 // A deployment bucket is REQUIRED to deploy any custom model (the
@@ -2260,24 +2260,24 @@
                     out += html`<div id="ms-s3-card" class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border flex items-center gap-2.5">
                         <svg class="w-4 h-4 text-emerald-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                         <div class="flex-1 min-w-0">
-                            <p class="text-[10px] uppercase tracking-wider text-brand-text-muted">${t('artsmoker.custom_models.s3_bucket_label')}${_bktLocked ? ` · ${t('artsmoker.custom_models.s3_locked')}` : ''}</p>
+                            <p class="text-[10px] uppercase tracking-wider text-brand-text-muted">${t('artsmoker.ui.custom_models.s3_bucket_label')}${_bktLocked ? ` · ${t('artsmoker.ui.custom_models.s3_locked')}` : ''}</p>
                             <p class="text-sm font-mono truncate">${_bkt}</p>
-                            ${_bktLocked ? html`<p class="text-[10px] text-brand-text-muted/70 mt-0.5">${t('artsmoker.custom_models.s3_locked_hint').replace('{{reasons}}', _bktLockReasons)}</p>` : ''}
+                            ${_bktLocked ? html`<p class="text-[10px] text-brand-text-muted/70 mt-0.5">${t('artsmoker.ui.custom_models.s3_locked_hint').replace('{{reasons}}', _bktLockReasons)}</p>` : ''}
                         </div>
-                        ${_bktLocked ? '' : html`<button id="ms-s3-edit" class="btn btn-secondary btn-sm text-xs whitespace-nowrap">${t('artsmoker.custom_models.s3_change')}</button>`}
+                        ${_bktLocked ? '' : html`<button id="ms-s3-edit" class="btn btn-secondary btn-sm text-xs whitespace-nowrap">${t('artsmoker.ui.custom_models.s3_change')}</button>`}
                     </div>`;
                 } else {
                     out += html`<div class="p-3 rounded-lg bg-amber-950/40 border border-amber-500/40">
                         <div class="flex items-start gap-2.5 mb-2">
                             <svg class="w-4 h-4 text-amber-400 mt-0.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
                             <div class="flex-1 min-w-0">
-                                <p class="text-xs font-semibold text-amber-300">${t('artsmoker.custom_models.bucket_required_title')}</p>
-                                <p class="text-[11px] text-brand-text-muted mt-0.5 leading-relaxed">${t('artsmoker.custom_models.bucket_required_desc')}</p>
+                                <p class="text-xs font-semibold text-amber-300">${t('artsmoker.ui.custom_models.bucket_required_title')}</p>
+                                <p class="text-[11px] text-brand-text-muted mt-0.5 leading-relaxed">${t('artsmoker.ui.custom_models.bucket_required_desc')}</p>
                             </div>
                         </div>
                         <div id="ms-s3-editor" class="flex gap-2">
-                            <input type="text" id="ms-s3-input" class="input flex-1 text-xs font-mono" placeholder="${t('artsmoker.custom_models.s3_bucket_placeholder')}" />
-                            <button id="ms-s3-save" class="btn btn-primary btn-sm text-xs whitespace-nowrap">${t('artsmoker.custom_models.s3_save')}</button>
+                            <input type="text" id="ms-s3-input" class="input flex-1 text-xs font-mono" placeholder="${t('artsmoker.ui.custom_models.s3_bucket_placeholder')}" />
+                            <button id="ms-s3-save" class="btn btn-primary btn-sm text-xs whitespace-nowrap">${t('artsmoker.ui.custom_models.s3_save')}</button>
                         </div>
                         <p id="ms-s3-msg" class="text-[10px] mt-1.5 hidden"></p>
                     </div>`;
@@ -2334,8 +2334,8 @@
                         const edits = catModels.filter(m => (m.model_purpose || '') === 'image_edit');
                         if (edits.length) {
                             _subGrouped = [
-                                { label: t('artsmoker.custom_models.subgroup_generation'), models: gens },
-                                { label: t('artsmoker.custom_models.subgroup_editing'), models: edits },
+                                { label: t('artsmoker.ui.custom_models.subgroup_generation'), models: gens },
+                                { label: t('artsmoker.ui.custom_models.subgroup_editing'), models: edits },
                             ].filter(g => g.models.length);
                             _renderModels = [];  // render via sub-groups below
                         }
@@ -2348,7 +2348,7 @@
                     const _noBucket = !this._deploymentBucket;
                     const _deployBtn = (m, label, extraTitle = '') => {
                         if (_noBucket) {
-                            return html`<button class="btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-border/30 text-brand-text-muted/50 cursor-not-allowed" disabled title="${t('artsmoker.custom_models.bucket_required_title')}">${label}</button>`;
+                            return html`<button class="btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-border/30 text-brand-text-muted/50 cursor-not-allowed" disabled title="${t('artsmoker.ui.custom_models.bucket_required_title')}">${label}</button>`;
                         }
                         return html`<button class="ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent hover:bg-brand-accent-hover text-white" data-model="${m.key}" data-auth="${m.requires_hf_auth ? '1' : '0'}" data-license="${m.hf_license_url || ''}" title="${extraTitle}">${label}</button>`;
                     };
@@ -2362,16 +2362,16 @@
                         const deploying = !scalingUp && !isInService && (m.deployment_status === 'Creating' || m.deployment_status === 'Updating' || m.deploy_stage === 'preparing' || m.deploy_stage === 'downloading' || m.deploy_stage === 'uploading' || m.deploy_stage === 'deploying' || (m.deploy_progress && m.deploy_stage !== 'failed'));
                         const failed = m.deployment_status === 'Failed' || m.deploy_stage === 'failed';
                         const deployed = active || idle;
-                        const cacheHint = m.has_cache ? t('artsmoker.custom_models.cached_faster') : t('artsmoker.custom_models.cold_start_activation');
+                        const cacheHint = m.has_cache ? t('artsmoker.ui.custom_models.cached_faster') : t('artsmoker.ui.custom_models.cold_start_activation');
                         const statusColor = active ? 'text-emerald-400' : idle ? 'text-blue-400' : warmingUp ? 'text-cyan-400' : (deploying || scalingUp) ? 'text-amber-400' : failed ? 'text-red-400' : 'text-brand-text-muted/50';
                         // On failure, surface the REAL reason (e.g. InsufficientInstanceCapacity)
                         // and note that we auto-clean it so the user can redeploy.
                         const failReason = (m.failure_reason || '').trim();
                         const failText = failReason
-                            ? `${t('artsmoker.custom_models.failed')}: ${failReason.split('.')[0]} — ${t('artsmoker.custom_models.failed_autocleanup')}`
-                            : `${t('artsmoker.custom_models.failed')} — ${t('artsmoker.custom_models.failed_autocleanup')}`;
-                        const statusText = active ? t('artsmoker.custom_models.active') : idle ? `Inactive — activates on next request (${cacheHint})` : warmingUp ? (m.warmup_detail || t('artsmoker.custom_models.warming_up')) : scalingUp ? 'Starting instance...' : deploying ? (m.deploy_progress || t('artsmoker.custom_models.deploying')) : failed ? failText : t('artsmoker.custom_models.not_deployed');
-                        const authBadge = m.requires_hf_auth ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.custom_models.hf_auth')}</span>` : '';
+                            ? `${t('artsmoker.ui.custom_models.failed')}: ${failReason.split('.')[0]} — ${t('artsmoker.ui.custom_models.failed_autocleanup')}`
+                            : `${t('artsmoker.ui.custom_models.failed')} — ${t('artsmoker.ui.custom_models.failed_autocleanup')}`;
+                        const statusText = active ? t('artsmoker.ui.custom_models.active') : idle ? `Inactive — activates on next request (${cacheHint})` : warmingUp ? (m.warmup_detail || t('artsmoker.ui.custom_models.warming_up')) : scalingUp ? 'Starting instance...' : deploying ? (m.deploy_progress || t('artsmoker.ui.custom_models.deploying')) : failed ? failText : t('artsmoker.ui.custom_models.not_deployed');
+                        const authBadge = m.requires_hf_auth ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.ui.custom_models.hf_auth')}</span>` : '';
                         const licenseBadge = html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-white/5 text-brand-text-muted border border-brand-border/30">${m.license?.split(' ')[0] || '?'}</span>`;
                         const userBadge = m.user_added ? raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/10 text-cyan-400 border border-cyan-500/20">User</span>') : '';
                         const statusDot = active ? 'bg-emerald-400' : idle ? 'bg-blue-400' : warmingUp ? 'bg-cyan-400 animate-pulse' : (deploying || scalingUp) ? 'bg-amber-400 animate-pulse' : failed ? 'bg-red-400' : 'bg-brand-text-muted/30';
@@ -2396,13 +2396,13 @@
                                     <div class="flex items-center gap-2 flex-shrink-0">
                                         ${failed
                                             ? html`<span class="text-[10px] text-red-400 max-w-[260px] text-right" title="${failReason}">${failText}</span>
-                                               ${_deployBtn(m, t('artsmoker.custom_models.deploy'))}`
+                                               ${_deployBtn(m, t('artsmoker.ui.custom_models.deploy'))}`
                                             : !deployed && !deploying && !warmingUp && !scalingUp
-                                            ? html`<span class="text-[10px] text-brand-text-muted/50">${t('artsmoker.custom_models.not_deployed')}</span>
-                                               ${_deployBtn(m, t('artsmoker.custom_models.deploy'))}`
+                                            ? html`<span class="text-[10px] text-brand-text-muted/50">${t('artsmoker.ui.custom_models.not_deployed')}</span>
+                                               ${_deployBtn(m, t('artsmoker.ui.custom_models.deploy'))}`
                                             : (deploying || warmingUp || scalingUp)
-                                            ? html`<span class="text-[10px] text-amber-400">${m.deploy_progress || t('artsmoker.custom_models.deploying')}</span>`
-                                            : _deployBtn(m, t('artsmoker.custom_models.deploy_another'), t('artsmoker.custom_models.deploy_another_hint'))
+                                            ? html`<span class="text-[10px] text-amber-400">${m.deploy_progress || t('artsmoker.ui.custom_models.deploying')}</span>`
+                                            : _deployBtn(m, t('artsmoker.ui.custom_models.deploy_another'), t('artsmoker.ui.custom_models.deploy_another_hint'))
                                         }
                                     </div>
                                 </div>
@@ -2415,16 +2415,16 @@
                                         const iWarm = inst.status === 'InService' && inst.warming_up;
                                         const iDot = iActive ? 'bg-emerald-400' : iIdle ? 'bg-blue-400' : iWarm ? 'bg-cyan-400 animate-pulse' : 'bg-brand-text-muted/30';
                                         const iColor = iActive ? 'text-emerald-400' : iIdle ? 'text-blue-400' : iWarm ? 'text-cyan-400' : 'text-brand-text-muted/50';
-                                        const iStatusTxt = iActive ? t('artsmoker.custom_models.active') : iIdle ? t('artsmoker.custom_models.instance_inactive') : iWarm ? t('artsmoker.custom_models.warming_up') : inst.status;
+                                        const iStatusTxt = iActive ? t('artsmoker.ui.custom_models.active') : iIdle ? t('artsmoker.ui.custom_models.instance_inactive') : iWarm ? t('artsmoker.ui.custom_models.warming_up') : inst.status;
                                         return html`
                                         <div class="flex items-center gap-2 p-2 rounded bg-black/10 border border-brand-border/20">
                                             <div class="w-1.5 h-1.5 rounded-full ${iDot} flex-shrink-0"></div>
                                             <span class="text-[11px] text-cyan-300/80 truncate flex-1 min-w-0" title="${inst.label}">${inst.label}</span>
                                             <span class="text-[10px] ${iColor} flex-shrink-0 w-[200px] text-right">${iStatusTxt}</span>
-                                            <button class="ms-cm-teardown btn text-[10px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10 flex-shrink-0 w-[60px] text-center" data-model="${inst.deployed_key}">${t('artsmoker.custom_models.remove')}</button>
+                                            <button class="ms-cm-teardown btn text-[10px] px-2 py-0.5 rounded border border-red-500/20 text-red-400/70 hover:bg-red-500/10 flex-shrink-0 w-[60px] text-center" data-model="${inst.deployed_key}">${t('artsmoker.ui.custom_models.remove')}</button>
                                             ${iIdle ? (_noBucket
-                                                ? html`<button class="btn text-[10px] px-2.5 py-0.5 rounded border border-brand-border/30 text-brand-text-muted/40 cursor-not-allowed flex-shrink-0 w-[110px] text-center" disabled title="${t('artsmoker.custom_models.bucket_required_title')}">${t('artsmoker.custom_models.redeploy')}</button>`
-                                                : html`<button class="ms-cm-redeploy btn text-[10px] px-2.5 py-0.5 rounded border border-brand-accent/30 text-brand-accent/80 hover:bg-brand-accent/10 hover:text-brand-accent flex-shrink-0 w-[110px] text-center" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('artsmoker.custom_models.redeploy')}</button>`) : raw('<span class="w-[110px] flex-shrink-0"></span>')}
+                                                ? html`<button class="btn text-[10px] px-2.5 py-0.5 rounded border border-brand-border/30 text-brand-text-muted/40 cursor-not-allowed flex-shrink-0 w-[110px] text-center" disabled title="${t('artsmoker.ui.custom_models.bucket_required_title')}">${t('artsmoker.ui.custom_models.redeploy')}</button>`
+                                                : html`<button class="ms-cm-redeploy btn text-[10px] px-2.5 py-0.5 rounded border border-brand-accent/30 text-brand-accent/80 hover:bg-brand-accent/10 hover:text-brand-accent flex-shrink-0 w-[110px] text-center" data-model="${inst.deployed_key}" data-auth="${m.requires_hf_auth ? '1' : '0'}">${t('artsmoker.ui.custom_models.redeploy')}</button>`) : raw('<span class="w-[110px] flex-shrink-0"></span>')}
                                         </div>`;
                                     })}
                                 </div>` : ''}
@@ -2495,8 +2495,8 @@
                     const input = container.querySelector('#ms-s3-input');
                     const saveBtn = container.querySelector('#ms-s3-save');
                     const name = (input?.value || '').trim();
-                    if (!name) { _s3msg(t('artsmoker.custom_models.s3_required'), false); return; }
-                    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = t('artsmoker.custom_models.s3_saving'); }
+                    if (!name) { _s3msg(t('artsmoker.ui.custom_models.s3_required'), false); return; }
+                    if (saveBtn) { saveBtn.disabled = true; saveBtn.textContent = t('artsmoker.ui.custom_models.s3_saving'); }
                     try {
                         const resp = await fetch('/api/custom-models/s3-bucket', {
                             method: 'POST',
@@ -2507,15 +2507,15 @@
                             const err = await resp.json().catch(() => ({}));
                             throw new Error(err.detail || `HTTP ${resp.status}`);
                         }
-                        _s3msg(t('artsmoker.custom_models.s3_saved'), true);
-                        window.showToast?.(t('artsmoker.custom_models.s3_saved'), 'success');
+                        _s3msg(t('artsmoker.ui.custom_models.s3_saved'), true);
+                        window.showToast?.(t('artsmoker.ui.custom_models.s3_saved'), 'success');
                         // Reload the tab so deploy buttons re-enable + card shows the bucket.
                         this._customModelsLoaded = false;
                         this._loadCustomModels(modal, true);
                     } catch (e) {
                         _s3msg(e.message || 'Save failed', false);
                     } finally {
-                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = t('artsmoker.custom_models.s3_save'); }
+                        if (saveBtn) { saveBtn.disabled = false; saveBtn.textContent = t('artsmoker.ui.custom_models.s3_save'); }
                     }
                 };
                 container.querySelector('#ms-s3-save')?.addEventListener('click', _saveS3);
@@ -2528,10 +2528,10 @@
                     if (!card) return;
                     // nosemgrep
                     card.outerHTML = html`<div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border">
-                        <p class="text-[10px] uppercase tracking-wider text-brand-text-muted mb-1.5">${t('artsmoker.custom_models.s3_bucket_label')}</p>
+                        <p class="text-[10px] uppercase tracking-wider text-brand-text-muted mb-1.5">${t('artsmoker.ui.custom_models.s3_bucket_label')}</p>
                         <div class="flex gap-2">
-                            <input type="text" id="ms-s3-input" class="input flex-1 text-xs font-mono" value="${_bkt}" placeholder="${t('artsmoker.custom_models.s3_bucket_placeholder')}" />
-                            <button id="ms-s3-save" class="btn btn-primary btn-sm text-xs whitespace-nowrap">${t('artsmoker.custom_models.s3_save')}</button>
+                            <input type="text" id="ms-s3-input" class="input flex-1 text-xs font-mono" value="${_bkt}" placeholder="${t('artsmoker.ui.custom_models.s3_bucket_placeholder')}" />
+                            <button id="ms-s3-save" class="btn btn-primary btn-sm text-xs whitespace-nowrap">${t('artsmoker.ui.custom_models.s3_save')}</button>
                         </div>
                         <p id="ms-s3-msg" class="text-[10px] mt-1.5 hidden"></p>
                     </div>`;
@@ -2547,12 +2547,12 @@
                     btn.addEventListener('click', () => {
                         // Disable immediately to prevent double-click
                         btn.disabled = true;
-                        btn.textContent = t('artsmoker.custom_models.starting');
+                        btn.textContent = t('artsmoker.ui.custom_models.starting');
                         btn.className = 'btn btn-sm text-[10px] px-3 py-1 rounded bg-amber-500/20 border border-amber-500/30 text-amber-400 cursor-wait';
                         // Update the status text next to it
                         const statusEl = btn.closest('.flex')?.querySelector('.text-brand-text-muted\\/50, .text-\\[10px\\]');
-                        if (statusEl && statusEl.textContent.trim() === t('artsmoker.custom_models.not_deployed')) {
-                            statusEl.textContent = t('artsmoker.custom_models.preparing_deploy');
+                        if (statusEl && statusEl.textContent.trim() === t('artsmoker.ui.custom_models.not_deployed')) {
+                            statusEl.textContent = t('artsmoker.ui.custom_models.preparing_deploy');
                             statusEl.className = 'text-[10px] font-medium text-amber-400';
                         }
                         this._deployCustomModel(btn.dataset.model, btn.dataset.auth === '1', modal, false, btn.dataset.license);
@@ -2576,8 +2576,8 @@
             // Helper to reset all deploy buttons for this model if user cancels at any step
             const _resetDeployBtn = () => {
                 modal?.querySelectorAll(`.ms-cm-deploy[data-model="${modelKey}"]`).forEach(btn => {
-                    const isDeployAnother = btn.title === t('artsmoker.custom_models.deploy_another_hint');
-                    btn.textContent = isDeployAnother ? t('artsmoker.custom_models.deploy_another') : t('artsmoker.custom_models.deploy');
+                    const isDeployAnother = btn.title === t('artsmoker.ui.custom_models.deploy_another_hint');
+                    btn.textContent = isDeployAnother ? t('artsmoker.ui.custom_models.deploy_another') : t('artsmoker.ui.custom_models.deploy');
                     btn.disabled = false;
                     btn.className = 'ms-cm-deploy btn btn-sm text-[10px] px-3 py-1 rounded bg-brand-accent/20 border border-brand-accent/30 text-brand-accent hover:bg-brand-accent/30';
                     // Reset any "Preparing deployment..." status text nearby
@@ -2585,7 +2585,7 @@
                     if (row) {
                         row.querySelectorAll('.text-amber-400').forEach(el => {
                             if (el !== btn && el.textContent.includes('Preparing') || el.textContent.includes('Starting')) {
-                                el.textContent = t('artsmoker.custom_models.not_deployed');
+                                el.textContent = t('artsmoker.ui.custom_models.not_deployed');
                                 el.className = 'text-[10px] text-brand-text-muted/50';
                             }
                         });
@@ -2687,17 +2687,17 @@
 
                 if (resp.ok) {
                     const result = await resp.json();
-                    window.showToast?.(result.message || t('artsmoker.custom_models.deploy_started'), 'success');
+                    window.showToast?.(result.message || t('artsmoker.ui.custom_models.deploy_started'), 'success');
                     // Immediately update UI to show deploying state (before catalog refresh)
                     modal?.querySelectorAll(`.ms-cm-deploy[data-model="${modelKey}"]`).forEach(btn => {
-                        btn.textContent = t('artsmoker.custom_models.deploying');
+                        btn.textContent = t('artsmoker.ui.custom_models.deploying');
                         btn.disabled = true;
                         btn.className = 'btn btn-sm text-[10px] px-3 py-1 rounded bg-amber-500/20 border border-amber-500/30 text-amber-400 cursor-wait';
                         const row = btn.closest('.flex');
                         if (row) {
                             row.querySelectorAll('.text-brand-text-muted\\/50').forEach(el => {
-                                if (el.textContent.includes(t('artsmoker.custom_models.not_deployed')) || el.textContent.includes('Preparing')) {
-                                    el.textContent = t('artsmoker.custom_models.deploying');
+                                if (el.textContent.includes(t('artsmoker.ui.custom_models.not_deployed')) || el.textContent.includes('Preparing')) {
+                                    el.textContent = t('artsmoker.ui.custom_models.deploying');
                                     el.className = 'text-[10px] font-medium text-amber-400 animate-pulse';
                                 }
                             });
@@ -2729,7 +2729,7 @@
                 }
             } catch (err) {
                 window.hideLoading?.();
-                window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + err.message, 'error');
+                window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + err.message, 'error');
             }
         },
 
@@ -2741,19 +2741,19 @@
             backdrop.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-6 space-y-4">
                     <h3 class="text-sm font-semibold text-brand-text flex items-center gap-2">
-                        <span>+</span> ${t('artsmoker.custom_models.add_model_title') || 'Add Custom Model'}
+                        <span>+</span> ${t('artsmoker.ui.custom_models.add_model_title') || 'Add Custom Model'}
                     </h3>
-                    <p class="text-xs text-brand-text-muted">${t('artsmoker.custom_models.add_model_desc') || 'Enter a HuggingFace model URL or repo ID. The system will auto-detect the model type, library, and requirements.'}</p>
+                    <p class="text-xs text-brand-text-muted">${t('artsmoker.ui.custom_models.add_model_desc') || 'Enter a HuggingFace model URL or repo ID. The system will auto-detect the model type, library, and requirements.'}</p>
                     <input type="text" class="cm-repo-input input w-full text-xs" placeholder="e.g. runwayml/stable-diffusion-v1-5 or https://huggingface.co/..." autocomplete="off" />
                     <div class="cm-token-row hidden space-y-2">
-                        <p class="text-[10px] text-amber-400">${t('artsmoker.custom_models.add_model_gated') || 'This repo may be gated. Provide a token if needed (used once, not stored):'}</p>
-                        <input type="password" class="cm-token-input input w-full text-xs font-mono" placeholder="${t('artsmoker.custom_models.hf_placeholder')}" autocomplete="off" />
+                        <p class="text-[10px] text-amber-400">${t('artsmoker.ui.custom_models.add_model_gated') || 'This repo may be gated. Provide a token if needed (used once, not stored):'}</p>
+                        <input type="password" class="cm-token-input input w-full text-xs font-mono" placeholder="${t('artsmoker.ui.custom_models.hf_placeholder')}" autocomplete="off" />
                     </div>
                     <div class="cm-result hidden"></div>
                     <div class="flex gap-2 justify-end">
-                        <button class="cm-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('artsmoker.prompt_designer.cancel')}</button>
-                        <button class="cm-detect btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('artsmoker.custom_models.detect') || 'Detect Model'}</button>
-                        <button class="cm-add hidden btn btn-sm text-xs px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium">${t('artsmoker.custom_models.add_to_catalog') || 'Add to Catalog'}</button>
+                        <button class="cm-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('artsmoker.ui.prompt_designer.cancel')}</button>
+                        <button class="cm-detect btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('artsmoker.ui.custom_models.detect') || 'Detect Model'}</button>
+                        <button class="cm-add hidden btn btn-sm text-xs px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium">${t('artsmoker.ui.custom_models.add_to_catalog') || 'Add to Catalog'}</button>
                     </div>
                 </div>`;
 
@@ -2767,7 +2767,7 @@
                 if (!repoUrl) return;
 
                 const detectBtn = backdrop.querySelector('.cm-detect');
-                detectBtn.textContent = t('artsmoker.custom_models.detecting');
+                detectBtn.textContent = t('artsmoker.ui.custom_models.detecting');
                 detectBtn.disabled = true;
 
                 try {
@@ -2819,7 +2819,7 @@
                     backdrop.querySelector('.cm-result').innerHTML = html`<p class="text-xs text-red-400">${err.message}</p>`;
                     backdrop.querySelector('.cm-result').classList.remove('hidden');
                 } finally {
-                    detectBtn.textContent = t('artsmoker.custom_models.detect') || 'Detect Model';
+                    detectBtn.textContent = t('artsmoker.ui.custom_models.detect') || 'Detect Model';
                     detectBtn.disabled = false;
                 }
             });
@@ -2837,7 +2837,7 @@
                         body: JSON.stringify({ key, entry: detectedEntry }),
                     });
                     if (resp.ok) {
-                        window.showToast?.(t('artsmoker.custom_models.model_added').replace('{{name}}', detectedEntry.label), 'success');
+                        window.showToast?.(t('artsmoker.ui.custom_models.model_added').replace('{{name}}', detectedEntry.label), 'success');
                         backdrop.remove();
                         this._customModelsLoaded = false;
                         this._loadCustomModels(modal);
@@ -2846,7 +2846,7 @@
                         window.showToast?.(err.detail || 'Failed to add model', 'error');
                     }
                 } catch (err) {
-                    window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + err.message, 'error');
+                    window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + err.message, 'error');
                 }
             });
 
@@ -2885,14 +2885,14 @@
                         }
 
                         if (status.stage === 'complete') {
-                            window.showToast?.(status.progress || t('artsmoker.custom_models.deploy_complete'), 'success');
+                            window.showToast?.(status.progress || t('artsmoker.ui.custom_models.deploy_complete'), 'success');
                             this._customModelsLoaded = false;
                             this._loadCustomModels(modal);
                             this._activePolls.delete(modelKey);
                             return;
                         }
                         if (status.stage === 'failed') {
-                            window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + status.error, 'error');
+                            window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + status.error, 'error');
                             this._customModelsLoaded = false;
                             this._loadCustomModels(modal);
                             this._activePolls.delete(modelKey);
@@ -2912,17 +2912,17 @@
         },
 
         async _teardownCustomModel(modelKey, modal) {
-            if (!await window.showConfirm(t('artsmoker.custom_models.remove_confirm'), { title: t('artsmoker.custom_models.remove_title'), confirmLabel: t('artsmoker.custom_models.remove'), danger: true })) return;
+            if (!await window.showConfirm(t('artsmoker.ui.custom_models.remove_confirm'), { title: t('artsmoker.ui.custom_models.remove_title'), confirmLabel: t('artsmoker.ui.custom_models.remove'), danger: true })) return;
 
             try {
                 const resp = await fetch(`/api/custom-models/teardown/${modelKey}`, { method: 'DELETE' });
                 if (resp.ok) {
-                    window.showToast?.(t('artsmoker.custom_models.remove_done'), 'success');
+                    window.showToast?.(t('artsmoker.ui.custom_models.remove_done'), 'success');
                     this._customModelsLoaded = false;
                     this._loadCustomModels(modal);
                 }
             } catch (err) {
-                window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + err.message, 'error');
+                window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + err.message, 'error');
             }
         },
 
@@ -2942,19 +2942,19 @@
             // nosemgrep
             backdrop.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-md w-full p-6 space-y-4">
-                    <h3 class="text-sm font-semibold text-brand-text">🔑 ${t('artsmoker.custom_models.hf_title')}</h3>
+                    <h3 class="text-sm font-semibold text-brand-text">🔑 ${t('artsmoker.ui.custom_models.hf_title')}</h3>
                     <div class="text-xs text-brand-text-muted space-y-2">
-                        <p>${t('artsmoker.custom_models.hf_status')} ${stored
-                            ? html`<span class="text-emerald-400 font-medium">${t('artsmoker.model_settings.ms_token_stored')}</span> ${t('artsmoker.custom_models.hf_encrypted')}`
-                            : html`<span class="text-amber-400 font-medium">${t('artsmoker.model_settings.ms_no_token')}</span>`
+                        <p>${t('artsmoker.ui.custom_models.hf_status')} ${stored
+                            ? html`<span class="text-emerald-400 font-medium">${t('artsmoker.ui.model_settings.ms_token_stored')}</span> ${t('artsmoker.ui.custom_models.hf_encrypted')}`
+                            : html`<span class="text-amber-400 font-medium">${t('artsmoker.ui.model_settings.ms_no_token')}</span>`
                         }</p>
-                        <p>${t('artsmoker.custom_models.hf_desc')}</p>
+                        <p>${t('artsmoker.ui.custom_models.hf_desc')}</p>
                     </div>
-                    <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="${stored ? t('artsmoker.custom_models.hf_placeholder_update') : t('artsmoker.custom_models.hf_placeholder_store')}" autocomplete="off" />
+                    <input type="password" class="hf-token-input input w-full text-xs font-mono" placeholder="${stored ? t('artsmoker.ui.custom_models.hf_placeholder_update') : t('artsmoker.ui.custom_models.hf_placeholder_store')}" autocomplete="off" />
                     <div class="flex gap-2 justify-end">
-                        ${stored ? html`<button class="hf-delete btn btn-sm text-xs px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10">${t('artsmoker.model_settings.ms_delete_token')}</button>` : ''}
-                        <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('artsmoker.model_settings.ms_close')}</button>
-                        <button class="hf-save btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('artsmoker.model_settings.ms_save_token')}</button>
+                        ${stored ? html`<button class="hf-delete btn btn-sm text-xs px-4 py-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10">${t('artsmoker.ui.model_settings.ms_delete_token')}</button>` : ''}
+                        <button class="hf-cancel btn btn-sm text-xs px-4 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('artsmoker.ui.model_settings.ms_close')}</button>
+                        <button class="hf-save btn btn-sm text-xs px-4 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('artsmoker.ui.model_settings.ms_save_token')}</button>
                     </div>
                 </div>`;
 
@@ -2964,7 +2964,7 @@
 
             backdrop.querySelector('.hf-save').addEventListener('click', async () => {
                 const token = backdrop.querySelector('.hf-token-input').value.trim();
-                if (!token) { window.showToast?.(t('artsmoker.custom_models.enter_token'), 'error'); return; }
+                if (!token) { window.showToast?.(t('artsmoker.ui.custom_models.enter_token'), 'error'); return; }
                 try {
                     const resp = await fetch('/api/custom-models/hf-token', {
                         method: 'POST',
@@ -2972,27 +2972,27 @@
                         body: JSON.stringify({ hf_token: token }),
                     });
                     if (resp.ok) {
-                        window.showToast?.(t('artsmoker.custom_models.token_saved'), 'success');
+                        window.showToast?.(t('artsmoker.ui.custom_models.token_saved'), 'success');
                         cleanup();
                     } else {
                         const err = await resp.json();
                         window.showToast?.(err.detail || 'Failed to save token', 'error');
                     }
                 } catch (err) {
-                    window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + err.message, 'error');
+                    window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + err.message, 'error');
                 }
             });
 
             const deleteBtn = backdrop.querySelector('.hf-delete');
             if (deleteBtn) {
                 deleteBtn.addEventListener('click', async () => {
-                    if (!await window.showConfirm(t('artsmoker.custom_models.delete_token_confirm'), { title: t('artsmoker.custom_models.delete_token_title'), confirmLabel: t('artsmoker.custom_models.remove'), danger: true })) return;
+                    if (!await window.showConfirm(t('artsmoker.ui.custom_models.delete_token_confirm'), { title: t('artsmoker.ui.custom_models.delete_token_title'), confirmLabel: t('artsmoker.ui.custom_models.remove'), danger: true })) return;
                     try {
                         await fetch('/api/custom-models/hf-token', { method: 'DELETE' });
-                        window.showToast?.(t('artsmoker.custom_models.token_deleted'), 'success');
+                        window.showToast?.(t('artsmoker.ui.custom_models.token_deleted'), 'success');
                         cleanup();
                     } catch (err) {
-                        window.showToast?.(t('artsmoker.model_settings.ms_failed') + ': ' + err.message, 'error');
+                        window.showToast?.(t('artsmoker.ui.model_settings.ms_failed') + ': ' + err.message, 'error');
                     }
                 });
             }

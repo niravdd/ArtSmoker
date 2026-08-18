@@ -61,7 +61,7 @@
                 this._updateUI();
             } catch (err) {
                 if (typeof window.showToast === 'function') {
-                    window.showToast(t('artsmoker.misc.voice_mic_denied'), 'error');
+                    window.showToast(t('artsmoker.ui.misc.voice_mic_denied'), 'error');
                 }
                 console.error('VoiceInput: mic error', err);
             }
@@ -94,7 +94,7 @@
             this.container.innerHTML = html`
                 <div class="voice-input-wrap inline-flex items-center gap-2">
                     <button type="button" class="voice-btn btn btn-secondary btn-sm rounded-full w-9 h-9 !p-0 relative"
-                            title="${t('artsmoker.misc.voice_record')}">
+                            title="${t('artsmoker.ui.misc.voice_record')}">
                         <svg class="voice-icon-mic w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                                 d="M19 11a7 7 0 01-14 0m7 7v4m-4 0h8m-4-16a3 3 0 00-3 3v4a3 3 0 006 0V6a3 3 0 00-3-3z"/>
@@ -178,11 +178,11 @@
                 const text = typeof result === 'string' ? result : (result.text || result.transcript || '');
                 // Check if the response is a setup placeholder (Nova Sonic not configured)
                 if (text && text.startsWith('[Audio received')) {
-                    window.showToast?.(t('artsmoker.misc.voice_unavailable'), 'info', 8000);
+                    window.showToast?.(t('artsmoker.ui.misc.voice_unavailable'), 'info', 8000);
                 } else if (this._transcriptCb && text) {
                     this._transcriptCb(text);
                 } else if (!text) {
-                    window.showToast?.(t('artsmoker.misc.voice_no_speech'), 'warning');
+                    window.showToast?.(t('artsmoker.ui.misc.voice_no_speech'), 'warning');
                 }
             } catch (err) {
                 console.error('Transcription error:', err);
