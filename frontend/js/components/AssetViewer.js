@@ -2882,6 +2882,15 @@
                     console.warn('[3D] source prepare/analysis failed, attempt', attempt + 1, e);
                 }
             }
+            // The cutout now exists server-side (the SAME canonical file the Export &
+            // Cutouts tab renders). Refresh that tab's cached status + grid so it
+            // reflects the new cutout in this session — previously the export status
+            // was cached at first view (no cutout) and never re-fetched, so the PNG
+            // cutout stayed blank until the dialog was closed and reopened.
+            if (this._sourceCutoutReady?.[version]) {
+                this._exportStatus = null;
+                this._renderExportPanel?.();
+            }
             // Self-contained review dialog — stays open through every Extend/Fill,
             // shows progress in place, resolves only on "Use this image" / "Cancel".
             const result = await this._showSourceReview(version, analysis || { analyzed: false });
