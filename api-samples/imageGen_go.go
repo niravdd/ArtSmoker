@@ -43,6 +43,7 @@ import (
 
 // ── Configuration ───────────────────────────────────────────────────────────
 
+// nosemgrep -- documented default for the local sample; overridden by ARTSMOKER_URL below
 var baseURL = "http://localhost:8000"
 
 func init() {
@@ -541,7 +542,7 @@ func downloadImages(result *GenerationResult, outputDir string) []string {
 	}
 
 	printStep(6, "Downloading generated images...")
-	if err := os.MkdirAll(outputDir, 0755); err != nil {
+	if err := os.MkdirAll(outputDir, 0o750); err != nil {
 		fmt.Printf("  %sFailed to create output dir: %s%s\n", colorRed, err, colorReset)
 		return nil
 	}

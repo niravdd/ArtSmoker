@@ -1729,6 +1729,7 @@ async def edit_image(body: ImageEditRequest):
             extra_params=extra if extra else None,
         )
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("EDIT-FAIL [%s]: model=%s source=%s error=%s",
                      edit_trace_id, body.model, body.source_image_id, exc)
         # A model ValidationException is a bad-input problem (400), not a gateway

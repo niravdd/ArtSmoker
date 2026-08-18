@@ -37,6 +37,7 @@ async def transcribe_audio_endpoint(file: UploadFile):
     try:
         text = transcribe_audio(audio_bytes, content_type)
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.exception("Transcription failed for file '%s'.", file.filename)
         raise HTTPException(
             status_code=502,

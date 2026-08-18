@@ -640,6 +640,7 @@ async def request_quota_increase(body: QuotaRequestBody):
             "region": region,
         }
     except Exception as e:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("Quota request failed for %s: %s", body.instance_type, e)
         raise HTTPException(502, detail=f"Failed to submit quota request: {e}")
 

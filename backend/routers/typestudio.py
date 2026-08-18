@@ -233,6 +233,7 @@ def _parse_layout_response(response_text: str, expect_multiple: bool = False) ->
     try:
         data = json.loads(cleaned)
     except json.JSONDecodeError as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("Failed to parse Claude layout response: %s\nResponse: %s", exc, response_text[:500])
         raise HTTPException(502, detail=f"AI returned invalid layout JSON: {exc}") from exc
 
@@ -242,6 +243,7 @@ def _parse_layout_response(response_text: str, expect_multiple: bool = False) ->
         else:
             return [LayoutSpec(**data)]
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("Layout spec validation failed: %s\nData: %s", exc, data)
         raise HTTPException(502, detail=f"Invalid layout spec from AI: {exc}") from exc
 

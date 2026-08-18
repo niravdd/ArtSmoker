@@ -1,0 +1,15 @@
+# grype vulnerability-ignore config (auto-detected in the repo root).
+#
+# basicsr 1.4.2 — GHSA-86w8-vhw6-q9qq (BasicSR command injection). Accepted risk:
+#   * No upstream fix exists (the package is effectively unmaintained; 1.4.2 is the
+#     latest release and the advisory has no patched version).
+#   * basicsr is a CONTAINER-ONLY dependency of the SageMaker inference image — it is
+#     never installed or imported by the FastAPI app the operator runs.
+#   * In the container we import only the RRDBNet architecture class from basicsr;
+#     the vulnerable command-injection path (its CLI/training utilities) is never
+#     invoked. Inputs are our own model weights, not attacker-controlled.
+ignore:
+  - vulnerability: GHSA-86w8-vhw6-q9qq
+  - package:
+      name: basicsr
+      version: 1.4.2

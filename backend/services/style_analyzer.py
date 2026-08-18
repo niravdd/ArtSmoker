@@ -219,6 +219,7 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
             temperature=0.3,
         )
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("Phase 2 LLM call failed for '%s': %s", style_id, exc)
         raise
 
@@ -234,6 +235,7 @@ def analyze_style(style_id: str, user_hints: str = "") -> AnalyzedStyle:
 
         data = json.loads(cleaned)
     except (json.JSONDecodeError, ValueError) as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error(
             "Failed to parse style analysis JSON from Claude response: %s",
             raw_response[:500],

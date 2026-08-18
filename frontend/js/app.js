@@ -98,7 +98,7 @@
             try {
                 await routeDef.component.init();
             } catch (err) {
-                console.error(`Error initializing ${route}:`, err);
+                console.error('Error initializing route:', route, err);
             }
         }
 
@@ -602,6 +602,7 @@
     fetch('/api/ping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        // nosemgrep -- serialized HTTP request body; key ordering is irrelevant (not used as an object/map key)
         body: JSON.stringify({
             os: navigator.platform || navigator.userAgentData?.platform || '',
             browser: navigator.userAgent?.split(/[()]/)[1] || '',

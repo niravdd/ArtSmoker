@@ -854,7 +854,9 @@
 
                 try {
                     const result = await API.admin.refreshAll();
+                    // nosemgrep -- {count: …} is a t() params object, not a template string
                     const customMsg = result.total_custom > 0 ? `\n${t('artsmoker.model_settings.sync_custom_count', {count: result.total_custom})}` : '';
+                    // nosemgrep -- {count: …} is a t() params object, not a template string
                     const disabledMsg = result.disabled?.length ? `\n${t('artsmoker.model_settings.sync_disabled_count', {count: result.disabled.length})}` : '';
 
                     this._registry = await API.admin.getModels();

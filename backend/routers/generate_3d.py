@@ -804,6 +804,7 @@ async def generate_3d(body: ThreeDGenerateRequest):
     try:
         response = sm_runtime.invoke_endpoint_async(**invoke_kwargs)
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("3D generation async invoke failed: %s", exc)
         raise HTTPException(502, detail=f"Failed to submit 3D generation job: {exc}")
 

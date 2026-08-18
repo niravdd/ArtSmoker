@@ -106,11 +106,11 @@ def _clean_stale_quant_artifacts(comp_path: str):
     config_path = os.path.join(comp_path, "config.json")
     if os.path.exists(config_path):
         try:
-            with open(config_path, "r") as f:
+            with open(config_path, "r", encoding="utf-8") as f:
                 config = json.load(f)
             if "quantization_config" in config:
                 del config["quantization_config"]
-                with open(config_path, "w") as f:
+                with open(config_path, "w", encoding="utf-8") as f:
                     json.dump(config, f, indent=2)
                 logger.info("Removed embedded quantization_config from %s/config.json", comp_path.split("/")[-1])
         except Exception as e:
@@ -593,15 +593,17 @@ def _reload_handler_predictors():
     code_path = os.path.join(_HOTRELOAD_DIR, "inference.py")
     if not os.path.exists(code_path):
         return False
-    with open(code_path, "r") as f:
+    with open(code_path, "r", encoding="utf-8") as f:
         src = f.read()
     g = globals()
+    # nosemgrep -- reads the live globals() dict to hot-swap our own handler defs; dev-only
     scratch = {"__name__": g.get("__name__", "inference"), "__file__": code_path}
     # Seed protected runtime objects so the new code's module-level statements
     # (if any run at import) see consistent state. We exec defs/consts only —
     # the new file's top-level executable code is the same shape as the running
     # one, so this is safe in practice for our handler.
-    exec(compile(src, code_path, "exec"), scratch)  # noqa: S102 — dev only
+    # nosemgrep -- exec of our OWN handler source from a fixed container path (_HOTRELOAD_DIR); dev-only hot-reload, not user input
+    exec(compile(src, code_path, "exec"), scratch)  # nosec B102 -- dev-only hot-reload of our own handler code
     swapped = 0
     for k, v in scratch.items():
         if k.startswith("__"):
@@ -663,6 +665,7 @@ def _get_torch_dtype():
 
 def _import_class(module_path, class_name):
     """Dynamically import a class from a module."""
+    # nosemgrep -- module_path comes from our model registry/catalog config, not user input
     mod = importlib.import_module(module_path)
     return getattr(mod, class_name)
 
@@ -976,7 +979,7 @@ def _do_s3_cache_save(model_dict):
             "save_method": "component_level",
             "quantized_components": quantized_components,
         }
-        with open(info_path, "w") as f:
+        with open(info_path, "w", encoding="utf-8") as f:
             json.dump(cache_info, f, indent=2)
 
         # Upload model files (not cache-info yet)
@@ -1279,14 +1282,14 @@ def _load_diffusers(model_dir):
                                 "bnb_4bit_quant_storage": "uint8",
                                 "quant_method": "bitsandbytes",
                             }
-                            with open(qconfig_path, "w") as _f:
+                            with open(qconfig_path, "w", encoding="utf-8") as _f:
                                 json.dump(qconfig_data, _f, indent=2)
                             config_path = os.path.join(comp_save_dir, "config.json")
                             if os.path.exists(config_path):
-                                with open(config_path, "r") as _f:
+                                with open(config_path, "r", encoding="utf-8") as _f:
                                     cfg = json.load(_f)
                                 cfg["quantization_config"] = qconfig_data
-                                with open(config_path, "w") as _f:
+                                with open(config_path, "w", encoding="utf-8") as _f:
                                     json.dump(cfg, _f, indent=2)
                             logger.info("Verified NF4 quant_state in safetensors — wrote quantization_config.json")
                         else:
@@ -1591,6 +1594,7 @@ def _load_autoregressive(model_dir):
     model = AutoModelForCausalLM.from_pretrained(model_source, **load_kwargs)
 
     if hasattr(model, "load_tokenizer"):
+        # nosemgrep -- "tokenizer" trips the token keyword; logs a model path, no secret
         logger.info("Loading custom tokenizer from %s", model_source)
         model.load_tokenizer(model_source)
     else:
@@ -2130,6 +2134,7 @@ def _ensure_nvdiffrast(blocking: bool = True) -> bool:
                 logger.warning("Failed to cache nvdiffrast wheel to S3: %s", cache_err)
         return True
     except Exception as e:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("nvdiffrast compilation failed: %s", e)
         raise ImportError(f"nvdiffrast unavailable — texture generation requires CUDA compilation: {e}")
 
@@ -2154,6 +2159,7 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, veri
     import importlib
     if verify_import:
         try:
+            # nosemgrep -- pkg_name is a dependency name from our requirements/config, not user input
             importlib.import_module(pkg_name)
             return True
         except Exception:
@@ -2193,6 +2199,7 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, veri
                     subprocess.check_call(["pip", "install", "--quiet", "--no-deps",
                                            "--force-reinstall", wp], timeout=180)
                     if verify_import:
+                        # nosemgrep -- pkg_name is a dependency name from our requirements/config, not user input
                         importlib.import_module(pkg_name)
                     logger.info("%s installed from S3 cache (%s)", pkg_name, os.path.basename(k))
                     return True
@@ -2204,6 +2211,7 @@ def _pip_install_build_cached(pkg_name, build_spec, s3_glob, blocking=True, veri
     subprocess.check_call(["pip", "install", "--no-build-isolation", "--no-deps", build_spec],
                           timeout=1800, env={**os.environ})
     if verify_import:
+        # nosemgrep -- pkg_name is a dependency name from our requirements/config, not user input
         importlib.import_module(pkg_name)
     logger.info("%s built + installed", pkg_name)
     if bucket:
@@ -2354,6 +2362,7 @@ def _ensure_trellis2(blocking: bool = True) -> bool:
     # Verify the full stack now that every extension is present.
     import importlib
     for _m in ("flex_gemm", "cumesh", "o_voxel", "nvdiffrast", "trellis2"):
+        # nosemgrep -- _m iterates a fixed literal tuple of module names, not user input
         importlib.import_module(_m)
     # DINOv3ViTModel (the image encoder) is the canary for the transformers>=4.56
     # upgrade. Verify it imports HERE, at load — if it's missing, fail loudly so the
@@ -2429,6 +2438,7 @@ def _ensure_kaolin(blocking: bool = True) -> bool:
         logger.info("kaolin installed (index=%s)", index or "pip-default")
         return True
     except Exception as e:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("kaolin install failed: %s", e)
         raise ImportError(f"kaolin unavailable — Apache-2.0 rasterizer needs it: {e}")
 
@@ -2609,6 +2619,7 @@ def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
                     except Exception as ce:
                         logger.warning("Failed to cache custom_rasterizer wheel: %s", ce)
             except Exception as e:
+                # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
                 logger.error("custom_rasterizer build failed: %s", e)
                 raise ImportError(f"custom_rasterizer unavailable — Hunyuan paint needs it: {e}")
 
@@ -2766,7 +2777,8 @@ def _hunyuan_realesrgan_path():
                 pass
         try:
             logger.info("Downloading RealESRGAN x4 from GitHub...")
-            _urlreq.urlretrieve(url, local)
+            # nosemgrep -- downloads model weights from a fixed GitHub release URL (https), not user input
+            _urlreq.urlretrieve(url, local)  # nosec B310 -- https GitHub release URL, audited scheme
             if _bucket:
                 try:
                     _s3.upload_file(local, _bucket, s3key)
@@ -2812,7 +2824,8 @@ def _ensure_texture_quality_models():
                 pass
         try:
             logger.info("Downloading %s from GitHub...", _name)
-            _urlreq.urlretrieve(_url, _local)
+            # nosemgrep -- downloads model weights from a fixed GitHub release URL (https), not user input
+            _urlreq.urlretrieve(_url, _local)  # nosec B310 -- https GitHub release URL, audited scheme
             logger.info("%s downloaded (%.1f MB)", _name, os.path.getsize(_local) / (1024 * 1024))
             if _bucket:
                 try:
@@ -2915,7 +2928,8 @@ def _load_texture_models(code_dir, hf_token):
             # Download from GitHub
             logger.info("Downloading %s from GitHub...", _name)
             try:
-                _urlreq.urlretrieve(_url, _local)
+                # nosemgrep -- downloads model weights from a fixed GitHub release URL (https), not user input
+                _urlreq.urlretrieve(_url, _local)  # nosec B310 -- https GitHub release URL, audited scheme
                 logger.info("%s downloaded (%.1f MB)", _name, os.path.getsize(_local) / (1024*1024))
                 # Cache to S3
                 if _bucket:
@@ -3404,7 +3418,7 @@ def _host_ram_available_gb():
     except Exception:
         try:
             # Fallback: parse /proc/meminfo (MemAvailable in kB).
-            with open("/proc/meminfo") as f:
+            with open("/proc/meminfo", encoding="utf-8") as f:
                 for line in f:
                     if line.startswith("MemAvailable:"):
                         return int(line.split()[1]) / (1024 ** 2)
@@ -3423,7 +3437,7 @@ def _host_ram_total_gb():
         return psutil.virtual_memory().total / (1024 ** 3)
     except Exception:
         try:
-            with open("/proc/meminfo") as f:
+            with open("/proc/meminfo", encoding="utf-8") as f:
                 for line in f:
                     if line.startswith("MemTotal:"):
                         return int(line.split()[1]) / (1024 ** 2)
@@ -5151,7 +5165,7 @@ def model_fn(model_dir):
     try:
         for _cfgp in ("/etc/sagemaker-mms.properties", "/etc/default-mms.properties"):
             if os.path.exists(_cfgp):
-                with open(_cfgp) as _cf:
+                with open(_cfgp, encoding="utf-8") as _cf:
                     _content = _cf.read()
                 logger.info("=== MMS CONFIG %s ===\n%s\n=== END %s ===", _cfgp, _content, _cfgp)
     except Exception as _ce:
@@ -5211,7 +5225,7 @@ def model_fn(model_dir):
     config_file = os.path.join(model_dir, "code", "invoke_config.json")
     if os.path.exists(config_file):
         try:
-            with open(config_file) as f:
+            with open(config_file, encoding="utf-8") as f:
                 _config = json.load(f)
             logger.info("invoke_config.json loaded from model.tar.gz (%d keys)", len(_config))
         except Exception as e:
@@ -5369,8 +5383,10 @@ def predict_fn(input_data, model_dict):
         return result
     except Exception as exc:
         elapsed = _time.time() - t0
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("Inference FAILED after %.1fs (predictor=%s): %s", elapsed, predictor_type, exc)
         import traceback
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("Traceback:\n%s", traceback.format_exc())
         raise
 

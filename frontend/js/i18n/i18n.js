@@ -148,7 +148,7 @@
             const nested = await resp.json();
             return _flatten(nested);
         } catch (err) {
-            console.warn(`Failed to load language file ${code}.json:`, err);
+            console.warn('Failed to load language file:', code + '.json', err);
             return {};
         }
     }

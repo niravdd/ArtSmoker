@@ -558,8 +558,7 @@ def _delete_asset_version_locked(asset_id: str, version: int):
     try:
         store.save_generation_metadata(asset_id, meta)
     except Exception as e:
-        raise HTTPException(500, detail=f"Metadata update failed ({e}). Files were not removed; "
-                                        f"the asset may show a stale current version — retry.")
+        raise HTTPException(500, detail=f"Metadata update failed ({e}). Files were not removed; the asset may show a stale current version — retry.")  # nosec B608 -- error-message f-string, not SQL (this app has no database)
     _meta_cache.pop(asset_id, None)
 
     # ── Physical files LAST (metadata no longer references any of them) ─────
@@ -910,6 +909,7 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
             try:
                 nobg_bytes = remove_background(src_path.read_bytes(), method=method)
             except Exception as exc:
+                # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
                 logger.exception("Background removal failed for %s v%d (%s)", asset_id, version, method)
                 raise HTTPException(502, detail=f"Background removal failed: {exc}")
 

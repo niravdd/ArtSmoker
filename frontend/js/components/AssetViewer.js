@@ -792,6 +792,7 @@
                 // Default variant first.
                 variants3d.sort((a, b) =>
                     (b.variant_id === defaultId ? 1 : 0) - (a.variant_id === defaultId ? 1 : 0));
+                // nosemgrep -- { count: … } is a t() params object, not a template string
                 const header = multi
                     ? `<div class="text-[11px] text-brand-text-muted mb-2">${t('artsmoker.asset_viewer.meta_3d_variant_count', { count: variants3d.length })}</div>`
                     : '';
@@ -1829,6 +1830,7 @@
                 try {
                     const resp = await fetch('/api/generate/suggest-edit-prompt', {
                         method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        // nosemgrep -- serialized HTTP request body; key ordering is irrelevant (not used as an object/map key)
                         body: JSON.stringify({
                             asset_id: this._item?.id,
                             version: this._currentVersion || undefined,
@@ -1934,6 +1936,7 @@
                     const result = await fetch('/api/generate/edit', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
+                        // nosemgrep -- serialized HTTP request body; key ordering is irrelevant (not used as an object/map key)
                         body: JSON.stringify(payload),
                     }).then(r => {
                         if (!r.ok) throw new Error(`${r.status}: ${r.statusText}`);
@@ -2847,7 +2850,7 @@
                     // "Reviewing…" rather than "Removing background…".
                     (this._sourceCutoutReady = this._sourceCutoutReady || {})[version] = true;
                 } catch (e) {
-                    console.warn('[3D] source prepare/analysis failed (attempt ' + (attempt + 1) + ')', e);
+                    console.warn('[3D] source prepare/analysis failed, attempt', attempt + 1, e);
                 }
             }
             // Self-contained review dialog — stays open through every Extend/Fill,
@@ -3074,6 +3077,7 @@
                     [useBtn, extendBtn, fillBtn].forEach(b => { if (b) b.disabled = on; });
                 };
                 const readDirs = () => {
+                    // nosemgrep -- $ is a local backdrop.querySelector shim (not jQuery); dd is a fixed left/right/up/down set, never user data
                     const g = (dd) => { const n = parseInt($(`#av-sr-${dd}`)?.value || '0', 10); return Number.isFinite(n) ? Math.max(0, Math.min(2000, n)) : 0; };
                     return { left: g('left'), right: g('right'), up: g('up'), down: g('down') };
                 };
@@ -3103,6 +3107,7 @@
                 // Seed the extend prompt/dirs from the (initial) analysis suggestion.
                 const seedFromAnalysis = (a) => {
                     const sg = (a && a.suggest_outpaint) || {};
+                    // nosemgrep -- $ is a local backdrop.querySelector shim (not jQuery); dd is a fixed left/right/up/down set, never user data
                     ['left', 'right', 'up', 'down'].forEach(dd => { const el = $(`#av-sr-${dd}`); if (el) el.value = sg[dd] || 0; });
                     const p = $('#av-sr-prompt'); if (p && a && a.outpaint_prompt) p.value = a.outpaint_prompt;
                 };
@@ -3180,6 +3185,7 @@
                 // Live measurement redraw as the user tweaks amounts. Snap any
                 // negative entry back to 0 — extension can't be negative.
                 ['left', 'right', 'up', 'down'].forEach(dd => {
+                    // nosemgrep -- $ is a local backdrop.querySelector shim (not jQuery); dd is a fixed left/right/up/down set, never user data
                     $(`#av-sr-${dd}`)?.addEventListener('input', (e) => {
                         if (e.target && parseInt(e.target.value, 10) < 0) e.target.value = '0';
                         this._redrawMeasurement?.();

@@ -80,7 +80,8 @@ def pulse(
                 headers={"Content-Type": "application/json"},
                 method="POST",
             )
-            urllib.request.urlopen(req, timeout=5)
+            # nosemgrep -- posts telemetry to the configured PulseBoard ingest endpoint (https), not user input
+            urllib.request.urlopen(req, timeout=5)  # nosec B310 -- https ingest URL, audited scheme
         except Exception:
             pass  # Never crash the host app for telemetry
 

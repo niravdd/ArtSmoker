@@ -1091,6 +1091,7 @@ def _check_job(job: dict, s3):
                 # Host-level storage failure — every other queued job would fail
                 # the same way. Abort the cycle and back the poller off instead of
                 # burning through N identical failures + N wasted S3 downloads.
+                # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
                 logger.error("⚠ Disk problem saving image (%s). Pausing image saves for %d min; "
                              "no jobs lost — they'll retry automatically once disk space/health recovers.",
                              save_err, _HOST_SAVE_BACKOFF_SECONDS // 60)

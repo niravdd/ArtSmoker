@@ -184,6 +184,7 @@ async def refine_prompt_endpoint(body: PromptRefineRequest):
     try:
         refined = refine_prompt(prompt_to_refine, style_profile, body.asset_type, image_model=body.image_model)
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.exception("Prompt refinement failed.")
         raise HTTPException(
             status_code=502,
@@ -299,6 +300,7 @@ async def decompose_prompt(body: DecomposeRequest):
 
         return result
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.exception("Prompt decomposition failed")
         raise HTTPException(502, detail=f"Decomposition failed: {exc}")
 
@@ -356,6 +358,7 @@ async def recompose_prompt(body: RecomposeRequest):
             "chars": len(main_prompt),
         }
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.exception("Prompt recomposition failed")
         raise HTTPException(502, detail=f"Recomposition failed: {exc}")
 

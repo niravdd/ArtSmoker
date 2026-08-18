@@ -145,6 +145,7 @@ def validate_aws_credentials() -> dict:
         identity = sts.get_caller_identity()
         result["credentials"] = True
         result["identity"] = identity.get("Arn", "unknown")
+        # nosemgrep -- logs the operator's own AWS caller identity (ARN), not any credential value
         logger.info("AWS credentials valid: %s", result["identity"])
     except Exception as exc:
         msg = f"AWS credentials not configured or invalid: {exc}"
@@ -804,6 +805,7 @@ def invoke_image_model(
         image_data = _get_nested(result, family["response_image_path"])
     except (KeyError, IndexError, TypeError):
         error_msg = result.get("error", result.get("message", str(result)))
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("%s returned no image: %s", label, error_msg)
         raise RuntimeError(f"{label} generation failed: {error_msg}")
 

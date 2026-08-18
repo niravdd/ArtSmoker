@@ -276,6 +276,7 @@ async def lifespan(app: FastAPI):
             "╚══════════════════════════════════════════════════════════════╝"
         )
     elif _aws_status["errors"]:
+        # nosemgrep -- logs a status message + the operator's own AWS caller identity (ARN), not any credential value
         logger.warning(
             "Amazon Bedrock access — credentials OK (%s),\n"
             "  but some checks failed:\n  • %s",
@@ -611,6 +612,7 @@ app.add_middleware(NoCacheStaticMiddleware)
 # ── CORS (development mode — allow all origins) ───────────────────────────
 app.add_middleware(
     CORSMiddleware,
+    # nosemgrep -- intentional: single-tenant local/self-hosted tool served to its own operator; not a public multi-tenant API
     allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],

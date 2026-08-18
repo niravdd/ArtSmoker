@@ -129,6 +129,7 @@ def invoke_custom_model(
         return result
 
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("Custom model invocation failed (%s): %s", model_key, exc)
         raise RuntimeError(f"Custom model '{model_config.get('label', model_key)}' failed: {exc}")
 

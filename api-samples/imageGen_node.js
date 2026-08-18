@@ -452,6 +452,7 @@ async function downloadImages(result, outputDir = 'output') {
     }
 
     printStep(6, 'Downloading generated images...');
+    // nosemgrep -- outputDir is a fixed local config constant, not user-controlled
     if (!existsSync(outputDir)) {
         mkdirSync(outputDir, { recursive: true });
     }
@@ -483,8 +484,12 @@ async function downloadImages(result, outputDir = 'output') {
                 if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
 
                 const buffer = Buffer.from(await resp.arrayBuffer());
-                const filename = `opt${optIdx + 1}_var${varIdx + 1}_${assetId}.png`;
+                // Sanitize the server-provided asset id so it can't traverse outside outputDir
+                const safeAssetId = String(assetId).replace(/[^a-zA-Z0-9_-]/g, '_');
+                const filename = `opt${optIdx + 1}_var${varIdx + 1}_${safeAssetId}.png`;
+                // nosemgrep -- filename is sanitized (alnum/_/- only) and joined under the fixed outputDir
                 const filepath = join(outputDir, filename);
+                // nosemgrep -- writing a downloaded image to the sanitized path under outputDir
                 writeFileSync(filepath, buffer);
                 const sizeKb = (buffer.length / 1024).toFixed(1);
                 downloaded.push(filepath);

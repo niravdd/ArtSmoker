@@ -145,6 +145,7 @@ async def generate_video(req: VideoGenerateRequest):
     except ValueError as exc:
         raise HTTPException(400, detail=str(exc))
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("Video generation failed: %s", exc)
         raise HTTPException(502, detail=f"Bedrock async invoke failed: {exc}")
 
@@ -187,6 +188,7 @@ async def get_video_status(job_id: str):
     try:
         status = get_job_status(job["invocation_arn"], job["region"])
     except Exception as exc:
+        # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("Failed to poll job %s: %s", job_id, exc)
         raise HTTPException(502, detail=f"Failed to poll job status: {exc}")
 

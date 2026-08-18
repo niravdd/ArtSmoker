@@ -134,11 +134,8 @@ async def update_style(style_id: str, body: StyleProfileUpdate):
 
     merged = profile.model_dump()
     for key, value in update_data.items():
-        if isinstance(value, dict):
-            # For nested models like analyzed_style, merge at top level
-            merged[key] = value
-        else:
-            merged[key] = value
+        # Top-level replace for every field (incl. nested models like analyzed_style)
+        merged[key] = value
 
     updated_profile = StyleProfile(**merged)
     store.save_style_profile(style_id, updated_profile.model_dump(mode="json"))

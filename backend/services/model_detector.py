@@ -252,7 +252,7 @@ def _detect_diffusers_class(repo_id, token=None) -> str:
     try:
         from huggingface_hub import hf_hub_download
         path = hf_hub_download(repo_id, "model_index.json", token=token)
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             index = json.load(f)
         class_name = index.get("_class_name", "")
         if class_name:
@@ -279,7 +279,7 @@ def _detect_transformers_class(repo_id, pipeline_tag, token=None) -> tuple[str, 
     try:
         from huggingface_hub import hf_hub_download
         path = hf_hub_download(repo_id, "config.json", token=token)
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             config = json.load(f)
         architectures = config.get("architectures", [])
         if architectures:

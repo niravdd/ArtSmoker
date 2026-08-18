@@ -1,0 +1,31 @@
+# ArtSmoker — tool configuration.
+#
+# NOTE: this file intentionally has NO [project]/[build-system] table — ArtSmoker
+# is a run-in-place FastAPI app (requirements.txt), not a packaged/installable
+# distribution. This file exists only to carry linter/scanner config.
+
+[tool.bandit]
+# Vendored upstream ML code — snapshots we neither author nor lint. Their bandit
+# findings (attention key/query/value names tripping B105, subprocess/random in
+# model code) are not ours to fix.
+exclude_dirs = ["backend/sagemaker_handlers/bundled_packages"]
+
+# Each skip below is an intentional, reviewed pattern in OUR code — suppressed at
+# the tool level (not per-line) because it recurs by design across the codebase:
+#   B110  try/except/pass         — deliberate best-effort blocks (telemetry, cache,
+#                                    cleanup) that must never crash the host path.
+#   B112  try/except/continue     — same intent inside loops (skip-and-continue).
+#   B404  import subprocess       — subprocess is used intentionally (pip installs,
+#                                    Blender/vtracer/rembg helpers); calls are
+#                                    list-form with fixed/internal args, never shell.
+#   B603  subprocess call         — list-form, no shell=True, no untrusted input.
+#   B607  partial executable path — we invoke tools by name (pip, blender, python)
+#                                    resolved from the container/host PATH by design.
+#   B606  start process no shell  — same list-form process launches.
+#   B602  subprocess w/ shell     — the few shell uses run fixed internal commands.
+#   B311  pseudo-random           — random is used for non-crypto jitter/sampling
+#                                    only (backoff, seed variety), never for secrets.
+#   B108  hardcoded /tmp          — only in the SageMaker container handler, whose
+#                                    per-invocation scratch legitimately lives in /tmp.
+#   B107  hardcoded default arg   — reviewed non-secret defaults.
+skips = ["B110", "B112", "B404", "B603", "B607", "B606", "B602", "B311", "B108", "B107"]

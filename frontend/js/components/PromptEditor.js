@@ -292,6 +292,7 @@
                         const resp = await fetch('/api/refine-prompt/classify-asset-type', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
+                            // nosemgrep -- serialized HTTP request body; key ordering is irrelevant (not used as an object/map key)
                             body: JSON.stringify({ prompt: text, asset_type: assetType }),
                         });
                         window.hideLoading?.();
@@ -583,6 +584,7 @@
                 const resp = await fetch('/api/refine-prompt/translate-preview', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    // nosemgrep -- serialized HTTP request body; key ordering is irrelevant (not used as an object/map key)
                     body: JSON.stringify({ text, ui_lang: (typeof I18n !== 'undefined' ? I18n.getLang() : '') }),
                 });
                 if (!resp.ok) return;

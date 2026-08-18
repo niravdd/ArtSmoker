@@ -103,6 +103,7 @@ def _derive_token(region: str) -> str | None:
                 # Older/newer signature without a region kwarg.
                 token = provide_token()
         except Exception as exc:
+            # nosemgrep -- logs the region + error only; no token value is interpolated
             logger.warning("Could not derive a Bedrock token for %s: %s", region, exc)
             return None
         if token:
@@ -202,6 +203,7 @@ def _mantle_call(region: str, fn):
         except Exception as exc2:
             # Fresh token still denied → real permission/Marketplace gap, not staleness.
             if _is_auth_error(exc2):
+                # nosemgrep -- logs the region + error only; no token value is interpolated
                 logger.warning("Mantle access denied for %s even with a fresh token: %s",
                                m_region, str(exc2)[:200])
                 raise _permission_denied_error(m_region, exc2) from exc2
@@ -392,6 +394,7 @@ def invoke_messages(
             return _post(fresh)
         except Exception as exc2:
             if _is_auth_error(exc2):
+                # nosemgrep -- logs the region + error only; no token value is interpolated
                 logger.warning("Mantle Messages access denied for %s even with a fresh token: %s",
                                m_region, str(exc2)[:200])
                 raise _permission_denied_error(m_region, exc2) from exc2

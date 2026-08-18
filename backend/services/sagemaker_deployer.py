@@ -326,7 +326,8 @@ def _validate_requirements(model_key: str, requirements: list[str]):
 
         try:
             url = f"https://pypi.org/pypi/{pkg_name}/json"
-            resp = urllib.request.urlopen(url, timeout=5)
+            # nosemgrep -- queries the fixed https pypi.org host; pkg_name is parsed from our own requirements, not user input
+            resp = urllib.request.urlopen(url, timeout=5)  # nosec B310 -- https pypi.org URL, audited scheme
             data = json.loads(resp.read().decode())
             latest = data.get("info", {}).get("version", "?")
             # Check if package is yanked
@@ -504,7 +505,8 @@ def _download_github_release(url: str, dest_dir: Path, progress_callback=None):
     if progress_callback:
         progress_callback(f"Downloading {filename}...")
 
-    urllib.request.urlretrieve(url, str(dest_path))
+    # nosemgrep -- downloads a GitHub release URL from our own model catalog config, not user input
+    urllib.request.urlretrieve(url, str(dest_path))  # nosec B310 -- https GitHub release URL, audited scheme
 
 
 def upload_to_s3(local_dir: Path, model_key: str,
@@ -2721,7 +2723,7 @@ def _get_dlc_account(region: str) -> str:
 
 
 # Single shared HuggingFace token for all gated models
-_HF_TOKEN_SECRET_NAME = "artsmoker/hf-token"
+_HF_TOKEN_SECRET_NAME = "artsmoker/hf-token"  # nosec B105 -- this is the Secrets Manager entry NAME, not a secret value
 
 
 def store_hf_token(hf_token: str) -> str:
@@ -2750,6 +2752,7 @@ def store_hf_token(hf_token: str) -> str:
         Description="Shared HuggingFace token for ArtSmoker gated models (read-only, auto-managed)",
         SecretString=hf_token,
     )
+    # nosemgrep -- logs the Secrets Manager entry NAME, not the token value
     logger.info("Stored shared HF token in Secrets Manager: %s", _HF_TOKEN_SECRET_NAME)
     return resp["ARN"]
 
@@ -2794,6 +2797,7 @@ def delete_hf_token():
         logger.info("Deleted shared HF token from Secrets Manager")
         return True
     except Exception as e:
+        # nosemgrep -- logs the exception only; no token value is interpolated
         logger.debug("No HF token to delete: %s", e)
         return False
 
