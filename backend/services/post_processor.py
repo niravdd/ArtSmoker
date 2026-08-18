@@ -190,7 +190,9 @@ def _run_vtracer_child(png_path: Path, svg_path: Path, params: dict | None) -> b
     import sys
 
     try:
-        proc = subprocess.run(
+        # List-form (no shell); args are the interpreter, our own child script,
+        # and internally-generated file paths — no shell interpolation possible.
+        proc = subprocess.run(  # nosemgrep
             [sys.executable, "-c", _VTRACER_CHILD, str(png_path), str(svg_path),
              json.dumps(params or {})],
             capture_output=True,

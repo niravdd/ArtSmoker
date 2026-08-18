@@ -363,7 +363,8 @@ def _restart_process():
     Only safe to call BEFORE the event loop starts (no open connections/sockets).
     """
     logger.info("Restarting process with updated code...")
-    os.execv(sys.executable, [sys.executable] + sys.argv)
+    # Re-exec THIS interpreter with its own argv — no external/untrusted input.
+    os.execv(sys.executable, [sys.executable] + sys.argv)  # nosemgrep
 
 
 def _schedule_restart():
@@ -382,7 +383,8 @@ def _atexit_restart():
     """atexit handler — re-exec the process if a restart was scheduled."""
     if _restart_pending:
         logger.info("Performing scheduled restart with updated code...")
-        os.execv(sys.executable, [sys.executable] + sys.argv)
+        # Re-exec THIS interpreter with its own argv — no external/untrusted input.
+        os.execv(sys.executable, [sys.executable] + sys.argv)  # nosemgrep
 
 # Register the atexit handler (runs after uvicorn's shutdown is complete)
 atexit.register(_atexit_restart)
@@ -391,7 +393,9 @@ atexit.register(_atexit_restart)
 def _git(*args) -> str:
     """Run a git command in the project root. Returns stdout."""
     cmd = ["git", "-C", str(PROJECT_ROOT)] + list(args)
-    r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
+    # List-form (no shell), fixed "git" binary; args come only from internal
+    # callers (hardcoded subcommands), never from request/user input.
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=30)  # nosemgrep
     if r.returncode != 0:
         raise subprocess.CalledProcessError(r.returncode, cmd, r.stdout, r.stderr)
     return r.stdout

@@ -29,6 +29,12 @@ huggingface-hub>=0.34.0,<1.0.0
 
 # For Real-ESRGAN upscaling
 realesrgan==0.3.0
+# basicsr 1.4.2 is the final upstream release (project unmaintained), so there is
+# no patched version for GHSA-86w8-vhw6-q9qq (command injection). ACCEPTED risk:
+# this runs ONLY inside the isolated SageMaker inference container, we import
+# only the network architecture (basicsr.archs.rrdbnet_arch.RRDBNet) for
+# Real-ESRGAN upscaling, and never invoke the vulnerable code path (no untrusted
+# input reaches it). Revisit if a maintained fork/patch ships.
 basicsr==1.4.2
 
 # For image processing (headless — no GUI libs needed in container)

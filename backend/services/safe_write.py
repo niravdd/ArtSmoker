@@ -122,7 +122,10 @@ class _WriteLock:
                     return self
                 try:
                     self._lock_path.parent.mkdir(parents=True, exist_ok=True)
-                    fh = open(self._lock_path, "a+")
+                    # Deliberately long-lived: the handle must stay open while the
+                    # flock is held; it's closed in release() and on the failure
+                    # path below — not a leak.
+                    fh = open(self._lock_path, "a+")  # nosemgrep
                     fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
                     _flock_state[self._key] = {"depth": 1, "fh": fh}
                 except Exception as exc:

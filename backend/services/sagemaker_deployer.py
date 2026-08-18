@@ -621,7 +621,10 @@ def deploy_endpoint(model_key: str, endpoint_type: str = "async",
         # SageMaker model name = endpoint_name + "-model", max 63 chars.
         # Endpoint name: artsmoker-{model_key}-{short_id} (no instance type — user never sees it)
         import hashlib, time as _t
-        short_id = hashlib.md5(f"{model_key}{instance}{_t.time()}".encode()).hexdigest()[:4]
+        # Non-security use: a short uniqueness suffix for the endpoint name, not a
+        # digest of anything sensitive. usedforsecurity=False documents that (and
+        # clears bandit B324).
+        short_id = hashlib.md5(f"{model_key}{instance}{_t.time()}".encode(), usedforsecurity=False).hexdigest()[:4]
         base = f"artsmoker-{model_key.replace('_', '-')}"
         max_base = 57 - len(short_id) - 1  # 1 for the hyphen before short_id
         if len(base) > max_base:

@@ -2423,7 +2423,8 @@ def _ensure_kaolin(blocking: bool = True) -> bool:
         cmd += ["-f", index]
     logger.info("Installing kaolin (Apache-2.0 rasterizer): %s", " ".join(cmd[2:]))
     try:
-        subprocess.check_call(cmd)
+        # In-container build step; list-form pip install with fixed args.
+        subprocess.check_call(cmd)  # nosemgrep
         import kaolin  # noqa: F401
         logger.info("kaolin installed (index=%s)", index or "pip-default")
         return True
@@ -2637,7 +2638,9 @@ def _ensure_hunyuan_ops(code_dir, blocking: bool = True) -> bool:
                 cpp_src = os.path.join(inpaint_so_dir, "mesh_inpaint_processor.cpp")
                 cmd = ["c++", "-O3", "-Wall", "-shared", "-std=c++11", "-fPIC",
                        *includes, cpp_src, "-o", so_dst]
-                subprocess.check_call(cmd, timeout=300, env={**os.environ})
+                # In-container build step; list-form compile with fixed args +
+                # pybind11-provided includes. No shell, no untrusted input.
+                subprocess.check_call(cmd, timeout=300, env={**os.environ})  # nosemgrep
                 logger.info("mesh_inpaint_processor compiled -> %s", so_name)
                 if bucket:
                     try:

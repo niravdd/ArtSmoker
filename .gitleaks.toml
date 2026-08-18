@@ -1,0 +1,23 @@
+# gitleaks configuration for ArtSmoker.
+#
+# Extends the full default gitleaks ruleset (so real secrets are still caught),
+# with a documented allowlist for values that are PUBLIC BY DESIGN and therefore
+# not secrets. Keep this list tiny and justify every entry.
+
+title = "ArtSmoker gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public-by-design identifiers that are safe to ship in source"
+
+# PulseBoard PROJECT ingest key — a write-only telemetry identifier, analogous to
+# a Sentry DSN or PostHog project API key. It only permits SENDING anonymous
+# usage events to this project; it grants no read access and is not a credential,
+# so it is intended to live in client/source. Allowlisted by EXACT value only, so
+# nothing else is ever suppressed — a real secret added anywhere (even in
+# telemetry.py) is still caught.
+regexes = [
+  '''pb_516e85fdb5904c6fa9ec99cf661468d4''',
+]

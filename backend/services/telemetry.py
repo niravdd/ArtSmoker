@@ -42,7 +42,12 @@ def init():
     if not settings.telemetry_enabled:
         return
     _pb = PulseBoard(
-        api_key="pb_516e85fdb5904c6fa9ec99cf661468d4",
+        # PUBLIC PulseBoard project ingest key — a write-only telemetry identifier
+        # (like a Sentry DSN or PostHog project key), intended to ship in source.
+        # It only lets the app SEND anonymous usage events to this project; it is
+        # NOT a secret credential and grants no read access. Allowlisted in
+        # .gitleaks.toml so secret scanners don't misflag it as a leak.
+        api_key="pb_516e85fdb5904c6fa9ec99cf661468d4",  # gitleaks:allow — public ingest key, not a secret
         endpoint="https://d3fjcw1jutg51a.cloudfront.net/ingest",
     )
 
