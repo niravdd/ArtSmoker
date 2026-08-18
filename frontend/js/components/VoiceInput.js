@@ -61,7 +61,7 @@
                 this._updateUI();
             } catch (err) {
                 if (typeof window.showToast === 'function') {
-                    window.showToast(t('misc.voice_mic_denied'), 'error');
+                    window.showToast(t('artsmoker.misc.voice_mic_denied'), 'error');
                 }
                 console.error('VoiceInput: mic error', err);
             }
@@ -178,11 +178,11 @@
                 const text = typeof result === 'string' ? result : (result.text || result.transcript || '');
                 // Check if the response is a setup placeholder (Nova Sonic not configured)
                 if (text && text.startsWith('[Audio received')) {
-                    window.showToast?.(t('misc.voice_unavailable'), 'info', 8000);
+                    window.showToast?.(t('artsmoker.misc.voice_unavailable'), 'info', 8000);
                 } else if (this._transcriptCb && text) {
                     this._transcriptCb(text);
                 } else if (!text) {
-                    window.showToast?.(t('misc.voice_no_speech'), 'warning');
+                    window.showToast?.(t('artsmoker.misc.voice_no_speech'), 'warning');
                 }
             } catch (err) {
                 console.error('Transcription error:', err);

@@ -100,39 +100,39 @@
                 <div class="modal-content bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-5xl w-full max-h-[92vh] flex flex-col overflow-hidden">
                     <!-- Header -->
                     <div class="flex items-center justify-between px-6 py-4 border-b border-brand-border">
-                        <h2 class="text-lg font-semibold truncate flex-1">${item.png_filename || t('asset_viewer.generated_asset')}</h2>
+                        <h2 class="text-lg font-semibold truncate flex-1">${item.png_filename || t('artsmoker.asset_viewer.generated_asset')}</h2>
                         <div class="flex items-center gap-2 ml-4">
-                            <button class="btn-reload btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="${t('asset_viewer.reload_studio_title')}">
+                            <button class="btn-reload btn btn-sm bg-indigo-600 hover:bg-indigo-500 text-white" title="${t('artsmoker.asset_viewer.reload_studio_title')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                 </svg>
-                                ${t('asset_viewer.to_studio')}
+                                ${t('artsmoker.asset_viewer.to_studio')}
                             </button>
-                            <button class="btn-add-text btn btn-sm bg-emerald-600 hover:bg-emerald-500 text-white" title="${t('asset_viewer.add_text_title')}">
+                            <button class="btn-add-text btn btn-sm bg-emerald-600 hover:bg-emerald-500 text-white" title="${t('artsmoker.asset_viewer.add_text_title')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/>
                                 </svg>
-                                ${t('asset_viewer.add_text')}
+                                ${t('artsmoker.asset_viewer.add_text')}
                             </button>
-                            <button class="btn-reload-type hidden btn btn-sm bg-purple-600 hover:bg-purple-500 text-white" title="${t('asset_viewer.edit_type_title')}">
+                            <button class="btn-reload-type hidden btn btn-sm bg-purple-600 hover:bg-purple-500 text-white" title="${t('artsmoker.asset_viewer.edit_type_title')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h8m-8 6h16"/>
                                 </svg>
-                                ${t('asset_viewer.edit_type')}
+                                ${t('artsmoker.asset_viewer.edit_type')}
                             </button>
                             <div class="flex items-center gap-1 ml-2">
-                                <button class="btn-prev p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="${t('asset_viewer.previous')}">
+                                <button class="btn-prev p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="${t('artsmoker.asset_viewer.previous')}">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
                                     </svg>
                                 </button>
-                                <button class="btn-next p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="${t('asset_viewer.next')}">
+                                <button class="btn-next p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors disabled:opacity-30" title="${t('artsmoker.asset_viewer.next')}">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
                                     </svg>
                                 </button>
                             </div>
-                            <button class="btn-close p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors" title="${t('asset_viewer.close_title')}">
+                            <button class="btn-close p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors" title="${t('artsmoker.asset_viewer.close_title')}">
                                 <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                                 </svg>
@@ -142,21 +142,21 @@
 
                     <!-- Tabs -->
                     <div class="tab-bar px-6 pt-3">
-                        <button class="tab active" data-tab="png">${t('asset_viewer.png_tab')} <span id="av-tab-version-badge" class="text-[9px] opacity-60"></span></button>
-                        <button class="tab" data-tab="edit">${t('asset_viewer.edit_tab')}</button>
-                        <button class="tab" data-tab="svg">${t('asset_viewer.export_tab')} <span id="av-tab-svg-version" class="text-[9px] opacity-60"></span></button>
-                        <button class="tab" data-tab="meta">${t('asset_viewer.metadata_tab')} <span id="av-tab-meta-version" class="text-[9px] opacity-60"></span></button>
-                        <button class="tab" data-tab="3d">${t('asset_viewer.three_d_tab')}</button>
+                        <button class="tab active" data-tab="png">${t('artsmoker.asset_viewer.png_tab')} <span id="av-tab-version-badge" class="text-[9px] opacity-60"></span></button>
+                        <button class="tab" data-tab="edit">${t('artsmoker.asset_viewer.edit_tab')}</button>
+                        <button class="tab" data-tab="svg">${t('artsmoker.asset_viewer.export_tab')} <span id="av-tab-svg-version" class="text-[9px] opacity-60"></span></button>
+                        <button class="tab" data-tab="meta">${t('artsmoker.asset_viewer.metadata_tab')} <span id="av-tab-meta-version" class="text-[9px] opacity-60"></span></button>
+                        <button class="tab" data-tab="3d">${t('artsmoker.asset_viewer.three_d_tab')}</button>
                     </div>
 
                     <!-- Version bar (shared across all tabs, populated when metadata loads) -->
                     <div id="av-version-bar" class="hidden px-6 py-2 bg-brand-bg/40 border-b border-brand-border">
                         <div class="flex items-center gap-2">
-                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('asset_viewer.version_label')}</span>
+                            <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('artsmoker.asset_viewer.version_label')}</span>
                             <div id="av-version-buttons" class="flex gap-1 flex-wrap"></div>
-                            <button id="av-version-delete" class="ml-auto flex-shrink-0 px-2 py-1 rounded text-[10px] text-red-400/80 border border-red-500/20 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer" title="${t('asset_viewer.version_delete_title')}">
+                            <button id="av-version-delete" class="ml-auto flex-shrink-0 px-2 py-1 rounded text-[10px] text-red-400/80 border border-red-500/20 hover:bg-red-500/10 hover:text-red-400 transition-all cursor-pointer" title="${t('artsmoker.asset_viewer.version_delete_title')}">
                                 <svg class="w-3 h-3 inline -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
-                                <span id="av-version-delete-label">${t('asset_viewer.version_delete_btn')}</span>
+                                <span id="av-version-delete-label">${t('artsmoker.asset_viewer.version_delete_btn')}</span>
                             </button>
                         </div>
                         <div id="av-version-detail" class="text-[10px] text-brand-text-muted mt-1 hidden"></div>
@@ -168,7 +168,7 @@
                         <div class="tab-panel" data-panel="png">
                             <div class="relative">
                                 <div id="av-zoom-container" class="preview-checkerboard rounded-lg overflow-hidden" style="position:relative; height: 65vh; min-height: 300px;">
-                                    <img id="av-zoom-img" src="${pngUrl}" alt="${t('asset_viewer.alt_generated_png')}" loading="lazy"
+                                    <img id="av-zoom-img" src="${pngUrl}" alt="${t('artsmoker.asset_viewer.alt_generated_png')}" loading="lazy"
                                          style="transform-origin: 0 0; transition: transform 0.1s ease-out; max-width: none;" />
                                     <!-- Version-switch loading overlay: shown while the newly
                                          selected version's PNG downloads. Without it the PREVIOUS
@@ -177,7 +177,7 @@
                                     <div id="av-zoom-loading" class="hidden absolute inset-0 z-10 flex items-center justify-center bg-brand-bg/60 backdrop-blur-[2px]">
                                         <div class="flex flex-col items-center gap-2">
                                             <div class="loading-spinner w-8 h-8 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                            <span class="text-xs text-brand-text-muted">${t('asset_viewer.version_loading')}</span>
+                                            <span class="text-xs text-brand-text-muted">${t('artsmoker.asset_viewer.version_loading')}</span>
                                         </div>
                                     </div>
                                     <!-- Measurement overlay: tracks the image's zoom/pan/fit transform,
@@ -190,19 +190,19 @@
                                 <div id="av-image-info" class="flex items-center gap-3 mt-2 text-[10px] text-brand-text-muted"></div>
                                 <!-- Zoom controls — floating overlay at top-right -->
                                 <div class="absolute top-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm rounded-lg px-2 py-1">
-                                    <button id="av-zoom-out" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="${t('asset_viewer.zoom_out_title')}">
+                                    <button id="av-zoom-out" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="${t('artsmoker.asset_viewer.zoom_out_title')}">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"/></svg>
                                     </button>
                                     <span id="av-zoom-level" class="text-[10px] text-white/70 font-mono w-10 text-center">100%</span>
-                                    <button id="av-zoom-in" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="${t('asset_viewer.zoom_in_title')}">
+                                    <button id="av-zoom-in" class="p-1 rounded hover:bg-white/20 text-white/80 hover:text-white" title="${t('artsmoker.asset_viewer.zoom_in_title')}">
                                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v6m3-3H7"/></svg>
                                     </button>
-                                    <button id="av-zoom-fit" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="${t('asset_viewer.zoom_fit_title')}">${t('asset_viewer.zoom_fit')}</button>
-                                    <button id="av-zoom-actual" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="${t('asset_viewer.zoom_actual_title')}">${t('asset_viewer.zoom_1to1')}</button>
+                                    <button id="av-zoom-fit" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="${t('artsmoker.asset_viewer.zoom_fit_title')}">${t('artsmoker.asset_viewer.zoom_fit')}</button>
+                                    <button id="av-zoom-actual" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white" title="${t('artsmoker.asset_viewer.zoom_actual_title')}">${t('artsmoker.asset_viewer.zoom_1to1')}</button>
                                     <span class="w-px h-4 bg-white/20 mx-0.5"></span>
-                                    <button id="av-zoom-measure-btn" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white flex items-center gap-1" title="${t('asset_viewer.measure_title')}">
+                                    <button id="av-zoom-measure-btn" class="px-1.5 py-0.5 rounded text-[10px] text-white/80 hover:bg-white/20 hover:text-white flex items-center gap-1" title="${t('artsmoker.asset_viewer.measure_title')}">
                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7h16M4 7v10M4 7L2 9m18-2v10m0-10l2 2M7 7v3m5-3v5m5-5v3"/></svg>
-                                        ${t('asset_viewer.measure')}
+                                        ${t('artsmoker.asset_viewer.measure')}
                                     </button>
                                 </div>
                             </div>
@@ -213,11 +213,11 @@
                             <div class="space-y-3">
                                 <!-- Edit mode selector -->
                                 <div class="flex gap-2">
-                                    <button class="av-edit-mode btn btn-sm btn-secondary active" data-mode="inpaint">${t('asset_viewer.inpaint')}</button>
-                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="erase">${t('asset_viewer.erase')}</button>
-                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="outpaint">${t('asset_viewer.outpaint')}</button>
-                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_replace">${t('asset_viewer.replace')}</button>
-                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_recolor">${t('asset_viewer.recolor')}</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary active" data-mode="inpaint">${t('artsmoker.asset_viewer.inpaint')}</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="erase">${t('artsmoker.asset_viewer.erase')}</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="outpaint">${t('artsmoker.asset_viewer.outpaint')}</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_replace">${t('artsmoker.asset_viewer.replace')}</button>
+                                    <button class="av-edit-mode btn btn-sm btn-secondary" data-mode="search_recolor">${t('artsmoker.asset_viewer.recolor')}</button>
                                 </div>
 
                                 <!-- Inpaint/Erase: Canvas + Mask -->
@@ -225,12 +225,12 @@
                                     <!-- Mask-paint controls (hidden for mask-free editors like Qwen) -->
                                     <div id="av-mask-controls">
                                         <div class="flex items-center gap-3 mb-2">
-                                            <label class="text-xs text-brand-text-muted">${t('asset_viewer.brush_size')}:</label>
+                                            <label class="text-xs text-brand-text-muted">${t('artsmoker.asset_viewer.brush_size')}:</label>
                                             <input id="av-brush-size" type="range" min="5" max="80" value="20" class="w-24" />
                                             <span id="av-brush-size-label" class="text-xs text-brand-text-muted font-mono w-8">20px</span>
-                                            <button id="av-mask-clear" class="btn btn-sm btn-secondary text-xs">${t('asset_viewer.clear_mask')}</button>
+                                            <button id="av-mask-clear" class="btn btn-sm btn-secondary text-xs">${t('artsmoker.asset_viewer.clear_mask')}</button>
                                         </div>
-                                        <p class="text-[10px] text-brand-text-dim mb-1">${t('asset_viewer.mask_hint_full')}</p>
+                                        <p class="text-[10px] text-brand-text-dim mb-1">${t('artsmoker.asset_viewer.mask_hint_full')}</p>
                                     </div>
                                     <!-- Source image canvas — ALWAYS shown; it's the image the edit works on -->
                                     <div class="relative rounded-lg overflow-hidden border border-brand-border" style="display: inline-block;">
@@ -240,52 +240,52 @@
 
                                 <!-- Outpaint: live preview (shared renderer) + direction controls -->
                                 <div id="av-outpaint-section" class="hidden space-y-2">
-                                    <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.outpaint_hint_full')}</p>
+                                    <p class="text-[10px] text-brand-text-dim">${t('artsmoker.asset_viewer.outpaint_hint_full')}</p>
                                     <!-- Preview box: HTML <img> (object-contain) + measurement overlay,
                                          same structure as the 3D source-review dialog so the shared
                                          _wireMeasurement renderer draws rulers + extension bands here. -->
                                     <div class="relative w-full bg-brand-bg rounded-lg overflow-hidden border border-brand-border" style="height: 380px;">
-                                        <img id="av-out-img" class="w-full h-full object-contain" alt="${t('asset_viewer.alt_extend_preview')}" crossorigin="anonymous" />
+                                        <img id="av-out-img" class="w-full h-full object-contain" alt="${t('artsmoker.asset_viewer.alt_extend_preview')}" crossorigin="anonymous" />
                                         <canvas id="av-out-measure" class="absolute inset-0 w-full h-full pointer-events-none"></canvas>
                                     </div>
                                     <div id="av-out-stats" class="text-[10px] text-brand-text-muted flex flex-wrap items-center gap-x-4 gap-y-1 px-1"></div>
                                     <div class="grid grid-cols-4 gap-2 max-w-xs">
-                                        <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_left')}</label><input id="av-out-left" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
-                                        <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_right')}</label><input id="av-out-right" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
-                                        <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_up')}</label><input id="av-out-up" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
-                                        <div><label class="text-[10px] text-brand-text-muted">${t('asset_viewer.outpaint_down')}</label><input id="av-out-down" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">${t('artsmoker.asset_viewer.outpaint_left')}</label><input id="av-out-left" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">${t('artsmoker.asset_viewer.outpaint_right')}</label><input id="av-out-right" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">${t('artsmoker.asset_viewer.outpaint_up')}</label><input id="av-out-up" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
+                                        <div><label class="text-[10px] text-brand-text-muted">${t('artsmoker.asset_viewer.outpaint_down')}</label><input id="av-out-down" type="number" value="0" min="0" max="2000" class="input text-xs w-full" /></div>
                                     </div>
                                 </div>
 
                                 <!-- Search prompt (Replace/Recolor modes) -->
                                 <div id="av-search-section" class="hidden">
-                                    <label class="text-xs text-brand-text-muted mb-1 block" id="av-search-label">${t('asset_viewer.find_object')}</label>
-                                    <input id="av-search-prompt" type="text" class="input text-sm w-full" placeholder="${t('asset_viewer.find_placeholder')}" />
+                                    <label class="text-xs text-brand-text-muted mb-1 block" id="av-search-label">${t('artsmoker.asset_viewer.find_object')}</label>
+                                    <input id="av-search-prompt" type="text" class="input text-sm w-full" placeholder="${t('artsmoker.asset_viewer.find_placeholder')}" />
                                 </div>
 
                                 <!-- Prompt + Model + Generate -->
                                 <div>
                                     <div class="flex items-center justify-between mb-1">
-                                        <label class="text-xs text-brand-text-muted" id="av-prompt-label">${t('asset_viewer.edit_prompt')}</label>
-                                        <button id="av-suggest-prompt" type="button" class="text-[10px] text-violet-300 hover:text-violet-200 flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-violet-500/10 transition-colors" title="${t('asset_viewer.suggest_prompt_title')}">
+                                        <label class="text-xs text-brand-text-muted" id="av-prompt-label">${t('artsmoker.asset_viewer.edit_prompt')}</label>
+                                        <button id="av-suggest-prompt" type="button" class="text-[10px] text-violet-300 hover:text-violet-200 flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-violet-500/10 transition-colors" title="${t('artsmoker.asset_viewer.suggest_prompt_title')}">
                                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
-                                            <span>${t('asset_viewer.suggest_prompt')}</span>
+                                            <span>${t('artsmoker.asset_viewer.suggest_prompt')}</span>
                                         </button>
                                     </div>
-                                    <textarea id="av-edit-prompt" class="input text-sm w-full h-16" placeholder="${t('asset_viewer.edit_prompt_placeholder')}"></textarea>
+                                    <textarea id="av-edit-prompt" class="input text-sm w-full h-16" placeholder="${t('artsmoker.asset_viewer.edit_prompt_placeholder')}"></textarea>
                                     <p id="av-suggest-reasoning" class="text-[10px] text-violet-300/70 mt-1 hidden"></p>
                                 </div>
                                 <div class="flex items-end gap-2">
                                     <div class="flex-1">
-                                        <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.edit_model')}</label>
+                                        <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('artsmoker.asset_viewer.edit_model')}</label>
                                         <select id="av-edit-model" class="input text-xs"></select>
                                     </div>
                                     <button id="av-edit-generate" class="btn btn-primary btn-sm">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-                                        ${t('asset_viewer.apply_edit')}
+                                        ${t('artsmoker.asset_viewer.apply_edit')}
                                     </button>
                                 </div>
-                                <p class="text-[10px] text-brand-text-dim mt-1">${t('asset_viewer.edit_hint_full')}</p>
+                                <p class="text-[10px] text-brand-text-dim mt-1">${t('artsmoker.asset_viewer.edit_hint_full')}</p>
                                 <div id="av-edit-status" class="text-xs text-brand-text-muted hidden"></div>
                             </div>
                         </div>
@@ -294,21 +294,21 @@
                         <div class="tab-panel hidden" data-panel="svg">
                             <div class="space-y-3">
                                 <div class="flex items-start justify-between gap-3 flex-wrap">
-                                    <p class="text-[11px] text-brand-text-muted max-w-md">${t('asset_viewer.export_intro')}</p>
+                                    <p class="text-[11px] text-brand-text-muted max-w-md">${t('artsmoker.asset_viewer.export_intro')}</p>
                                     <!-- Background-removal method + generate control.
                                          whitespace-nowrap on the label and button keeps
                                          each from wrapping mid-text; the row itself never
                                          wraps (flex-nowrap) — the intro paragraph shrinks
                                          instead. -->
                                     <div class="flex items-center gap-2 flex-shrink-0 flex-nowrap">
-                                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">${t('asset_viewer.export_bg_method')}</label>
+                                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider whitespace-nowrap">${t('artsmoker.asset_viewer.export_bg_method')}</label>
                                         <select id="av-export-method" class="input text-xs py-1">
-                                            <option value="local">${t('asset_viewer.export_method_local')}</option>
-                                            <option value="bedrock">${t('asset_viewer.export_method_bedrock')}</option>
+                                            <option value="local">${t('artsmoker.asset_viewer.export_method_local')}</option>
+                                            <option value="bedrock">${t('artsmoker.asset_viewer.export_method_bedrock')}</option>
                                         </select>
                                         <button id="av-export-generate" class="btn btn-primary btn-sm whitespace-nowrap flex-shrink-0">
                                             <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"/></svg>
-                                            ${t('asset_viewer.export_generate_cutouts')}
+                                            ${t('artsmoker.asset_viewer.export_generate_cutouts')}
                                         </button>
                                     </div>
                                 </div>
@@ -324,7 +324,7 @@
                             <div id="asset-meta-content" class="space-y-4 text-sm">
                                 <div class="flex items-center gap-2 text-brand-text-muted py-8 justify-center">
                                     <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                    ${t('asset_viewer.loading_metadata')}
+                                    ${t('artsmoker.asset_viewer.loading_metadata')}
                                 </div>
                             </div>
                         </div>
@@ -338,7 +338,7 @@
                             <div id="av-3d-content" class="space-y-4 text-sm">
                                 <div class="flex items-center gap-2 text-brand-text-muted py-8 justify-center">
                                     <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                    ${t('asset_viewer.loading_metadata')}
+                                    ${t('artsmoker.asset_viewer.loading_metadata')}
                                 </div>
                             </div>
                         </div>
@@ -353,13 +353,13 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
-                            ${t('asset_viewer.download_png')}
+                            ${t('artsmoker.asset_viewer.download_png')}
                         </a>
                         <a id="av-download-svg" href="${svgUrl}" download="${item.svg_filename || 'asset.svg'}" class="btn btn-secondary btn-sm btn-dl-svg">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
-                            ${t('asset_viewer.download_svg')}
+                            ${t('artsmoker.asset_viewer.download_svg')}
                         </a>
                     </div>
                 </div>
@@ -391,9 +391,9 @@
             } catch {}
             // nosemgrep
             infoBar.innerHTML = [
-                meta.imported ? html`<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>` : '',
-                modelLabel ? html`<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${modelLabel}${versionModelLabel ? html` <span class="opacity-60">· ${t('asset_viewer.version_original')}</span>` : ''}</span>` : '',
-                versionModelLabel ? html`<span class="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">${versionModelLabel} <span class="opacity-60">· ${t('asset_viewer.version_this_edit')}</span></span>` : '',
+                meta.imported ? html`<span class="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.gallery.imported_badge')}</span>` : '',
+                modelLabel ? html`<span class="px-1.5 py-0.5 rounded bg-brand-accent/10 text-brand-accent border border-brand-accent/20">${modelLabel}${versionModelLabel ? html` <span class="opacity-60">· ${t('artsmoker.asset_viewer.version_original')}</span>` : ''}</span>` : '',
+                versionModelLabel ? html`<span class="px-1.5 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">${versionModelLabel} <span class="opacity-60">· ${t('artsmoker.asset_viewer.version_this_edit')}</span></span>` : '',
                 styleName ? html`<span class="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${styleName}</span>` : '',
                 typeLabel !== 'N/A' ? html`<span class="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${typeLabel}</span>` : '',
                 meta.width && meta.height ? html`<span>${meta.width}×${meta.height}</span>` : '',
@@ -534,14 +534,14 @@
             if (v.size_bytes || v.vertices || v.faces)
                 g += wide('asset_viewer.meta_3d_file', `<span class="text-xs">${v.size_bytes ? this._formatBytes(v.size_bytes) : ''}${v.vertices ? ` / ${v.vertices.toLocaleString()} vertices` : ''}${v.faces ? ` / ${v.faces.toLocaleString()} faces` : ''}</span>`);
             if (pl.license_name)
-                g += wide('asset_viewer.meta_3d_license', `<span class="text-xs">${this._esc(pl.license_name)}${pl.commercial === true ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('asset_viewer.meta_3d_commercial')}</span>` : ''}${pl.license_accepted_at ? ` <span class="text-brand-text-muted">— ${window.formatTimestamp(pl.license_accepted_at)}</span>` : ''}</span>`);
+                g += wide('asset_viewer.meta_3d_license', `<span class="text-xs">${this._esc(pl.license_name)}${pl.commercial === true ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.asset_viewer.meta_3d_commercial')}</span>` : ''}${pl.license_accepted_at ? ` <span class="text-brand-text-muted">— ${window.formatTimestamp(pl.license_accepted_at)}</span>` : ''}</span>`);
             g += `</div>`;
             if (!multi) return g;
             // Multi-variant: wrap in a titled sub-card, default badged.
-            const title = this._esc(pl.geometry_model || v.model_key || t('asset_viewer.meta_3d_variant'))
+            const title = this._esc(pl.geometry_model || v.model_key || t('artsmoker.asset_viewer.meta_3d_variant'))
                 + (pl.texture_label ? ` · ${this._esc(pl.texture_label)}` : '');
             const badge = isDefault
-                ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-brand-accent/15 text-brand-accent border border-brand-accent/25">${t('asset_viewer.meta_3d_default')}</span>` : '';
+                ? ` <span class="px-1.5 py-0.5 rounded text-[9px] bg-brand-accent/15 text-brand-accent border border-brand-accent/25">${t('artsmoker.asset_viewer.meta_3d_default')}</span>` : '';
             return `<div class="border border-brand-border rounded-lg p-3 mb-2">
                 <div class="text-xs font-medium text-brand-text mb-2">${title}${badge}</div>${g}</div>`;
         },
@@ -555,7 +555,7 @@
 
             // Helper: copy button snippet
             const escAttr = (s) => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            const copyBtn = (text) => `<button class="av-copy-btn ml-2 px-1.5 py-0.5 rounded text-[9px] text-brand-text-muted hover:text-brand-accent hover:bg-brand-accent/10 border border-transparent hover:border-brand-accent/20 transition-colors" data-copy="${escAttr(text)}" title="${t('asset_viewer.meta_copy')}">${t('asset_viewer.meta_copy')}</button>`;
+            const copyBtn = (text) => `<button class="av-copy-btn ml-2 px-1.5 py-0.5 rounded text-[9px] text-brand-text-muted hover:text-brand-accent hover:bg-brand-accent/10 border border-transparent hover:border-brand-accent/20 transition-colors" data-copy="${escAttr(text)}" title="${t('artsmoker.asset_viewer.meta_copy')}">${t('artsmoker.asset_viewer.meta_copy')}</button>`;
 
             // Helper: collapsible section
             const section = (id, label, content, defaultOpen = false, extraClass = '') => {
@@ -634,14 +634,14 @@
 
             // 1. USER PROMPT (original language + EN twin if translated)
             if (meta.original_language_prompt) {
-                promptLineage += promptBlock(t('asset_viewer.meta_user_prompt'), meta.original_language_prompt, { badge: langBadge });
-                promptLineage += promptBlock(t('asset_viewer.meta_user_prompt'), meta.original_prompt || meta.prompt, { badge: enBadge });
+                promptLineage += promptBlock(t('artsmoker.asset_viewer.meta_user_prompt'), meta.original_language_prompt, { badge: langBadge });
+                promptLineage += promptBlock(t('artsmoker.asset_viewer.meta_user_prompt'), meta.original_prompt || meta.prompt, { badge: enBadge });
             } else if (meta.original_prompt) {
-                promptLineage += promptBlock(t('asset_viewer.meta_user_prompt'), meta.original_prompt);
+                promptLineage += promptBlock(t('artsmoker.asset_viewer.meta_user_prompt'), meta.original_prompt);
             }
             if (meta.moderation_original) {
-                promptLineage += promptBlock(t('asset_viewer.meta_moderation_rewrite'), meta.moderation_original,
-                    { tone: 'amber', note: t('asset_viewer.meta_moderation_note') });
+                promptLineage += promptBlock(t('artsmoker.asset_viewer.meta_moderation_rewrite'), meta.moderation_original,
+                    { tone: 'amber', note: t('artsmoker.asset_viewer.meta_moderation_note') });
             }
 
             // 2. PROMPT DESIGNER (optional) — decomposed fields + concatenated
@@ -650,17 +650,17 @@
                 if (meta.decomposed_data && Object.keys(meta.decomposed_data).length > 0) {
                     promptLineage += `
                         <div class="av-prompt-block">
-                            <div class="text-[11px] font-medium ${LABEL_TONE.amber} mb-0.5">${t('asset_viewer.meta_decomposition')}</div>
+                            <div class="text-[11px] font-medium ${LABEL_TONE.amber} mb-0.5">${t('artsmoker.asset_viewer.meta_decomposition')}</div>
                             <div class="p-2 rounded-lg border ${TONE.amber} text-[11px] leading-snug max-h-28 overflow-y-auto space-y-1">
                                 ${this._renderDecomposed(meta.decomposed_data)}
                             </div>
                         </div>`;
                 }
                 if (meta.recomposed_prompt) {
-                    promptLineage += promptBlock(t('asset_viewer.meta_recomposed'), meta.recomposed_prompt,
-                        { tone: 'indigo', note: t('asset_viewer.meta_recomposed_note') });
+                    promptLineage += promptBlock(t('artsmoker.asset_viewer.meta_recomposed'), meta.recomposed_prompt,
+                        { tone: 'indigo', note: t('artsmoker.asset_viewer.meta_recomposed_note') });
                 } else if ('recomposed_prompt' in meta) {
-                    promptLineage += promptBlock(t('asset_viewer.meta_recomposed'), t('asset_viewer.meta_designer_unused'),
+                    promptLineage += promptBlock(t('artsmoker.asset_viewer.meta_recomposed'), t('artsmoker.asset_viewer.meta_designer_unused'),
                         { tone: 'muted', italic: true, copy: false });
                 }
             }
@@ -671,25 +671,25 @@
                 const refined = meta.enhanced_prompt || meta.prompt || '';
                 if (refined) {
                     const posMagic = meta.positive_magic ? this._esc(meta.positive_magic) : '';
-                    const negTxt = meta.negative_prompt ? this._esc(meta.negative_prompt) : t('asset_viewer.meta_none');
+                    const negTxt = meta.negative_prompt ? this._esc(meta.negative_prompt) : t('artsmoker.asset_viewer.meta_none');
                     // Copy button carries ONLY the refined prompt (via data-copy).
                     // The positive/negative add-ons render in a SEPARATE element
                     // OUTSIDE the copyable <p>, so "copy" never grabs them.
                     promptLineage += `
                         <div class="av-prompt-block">
                             <div class="flex items-center gap-2 mb-0.5">
-                                <span class="text-[11px] font-medium ${LABEL_TONE.neutral}">${t('asset_viewer.meta_refined_prompt')}</span>
+                                <span class="text-[11px] font-medium ${LABEL_TONE.neutral}">${t('artsmoker.asset_viewer.meta_refined_prompt')}</span>
                                 ${copyBtn(refined)}
                             </div>
                             <p class="p-2 rounded-t-lg border border-b-0 ${TONE.neutral} whitespace-pre-wrap text-[11px] leading-snug max-h-32 overflow-y-auto">${this._esc(refined)}</p>
                             <div class="p-2 rounded-b-lg border ${TONE.neutral} text-[9px] text-brand-text-muted/80 space-y-0.5">
-                                <div>${t('asset_viewer.meta_positive_add')}: ${posMagic || t('asset_viewer.meta_none')}</div>
-                                <div>${t('asset_viewer.meta_negative_add')}: ${negTxt}</div>
+                                <div>${t('artsmoker.asset_viewer.meta_positive_add')}: ${posMagic || t('artsmoker.asset_viewer.meta_none')}</div>
+                                <div>${t('artsmoker.asset_viewer.meta_negative_add')}: ${negTxt}</div>
                             </div>
                         </div>`;
                 }
             } else if (isTypeStudio && meta.prompt) {
-                promptLineage += promptBlock(t('asset_viewer.meta_text_content'), meta.prompt);
+                promptLineage += promptBlock(t('artsmoker.asset_viewer.meta_text_content'), meta.prompt);
             }
 
             // 4. EDITED VERSION — what was sent to the EDITOR to act upon.
@@ -704,20 +704,20 @@
             const optDisplay = `${(meta.option_index ?? 0) + 1} / ${(meta.variant_index ?? 0) + 1}`;
             const optTotal = (meta.num_options && meta.num_variations) ? ` of ${meta.num_options} × ${meta.num_variations}` : '';
             const allModelsChip = meta.all_models
-                ? `<span class="px-1.5 py-0.5 rounded text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${t('asset_viewer.meta_all_models')}</span>` : '';
+                ? `<span class="px-1.5 py-0.5 rounded text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${t('artsmoker.asset_viewer.meta_all_models')}</span>` : '';
             let genDetails = `<div class="space-y-3">`;
-            genDetails += fact(t('asset_viewer.meta_model'), modelLabel ? this._esc(modelLabel) : '');
-            genDetails += fact(t('asset_viewer.meta_type'), this._esc(typeLabel));
-            genDetails += fact(t('asset_viewer.meta_style'), styleName ? this._esc(styleName) : '');
-            genDetails += fact(t('asset_viewer.meta_dimensions'), `${meta.width || '?'} × ${meta.height || '?'}`);
-            genDetails += fact(t('asset_viewer.meta_quality'), meta.quality ? this._esc(meta.quality) : '');
-            genDetails += fact(t('asset_viewer.meta_region'), meta.region ? this._esc(meta.region) : '');
-            genDetails += fact(t('asset_viewer.meta_seed'), meta.seed != null ? String(meta.seed) : '', { mono: true });
-            genDetails += fact(t('asset_viewer.meta_cost'), meta.estimated_image_cost_usd != null ? `~$${meta.estimated_image_cost_usd.toFixed(4)}` : '');
-            genDetails += fact(t('asset_viewer.meta_options_variations'), `${optDisplay}${optTotal}`);
-            genDetails += fact(t('asset_viewer.meta_created'), createdAt);
-            genDetails += fact(t('asset_viewer.meta_batch'), this._esc(meta.batch_id || meta.id), { mono: true });
-            if (allModelsChip) genDetails += fact(t('asset_viewer.meta_all_models'), allModelsChip);
+            genDetails += fact(t('artsmoker.asset_viewer.meta_model'), modelLabel ? this._esc(modelLabel) : '');
+            genDetails += fact(t('artsmoker.asset_viewer.meta_type'), this._esc(typeLabel));
+            genDetails += fact(t('artsmoker.asset_viewer.meta_style'), styleName ? this._esc(styleName) : '');
+            genDetails += fact(t('artsmoker.asset_viewer.meta_dimensions'), `${meta.width || '?'} × ${meta.height || '?'}`);
+            genDetails += fact(t('artsmoker.asset_viewer.meta_quality'), meta.quality ? this._esc(meta.quality) : '');
+            genDetails += fact(t('artsmoker.asset_viewer.meta_region'), meta.region ? this._esc(meta.region) : '');
+            genDetails += fact(t('artsmoker.asset_viewer.meta_seed'), meta.seed != null ? String(meta.seed) : '', { mono: true });
+            genDetails += fact(t('artsmoker.asset_viewer.meta_cost'), meta.estimated_image_cost_usd != null ? `~$${meta.estimated_image_cost_usd.toFixed(4)}` : '');
+            genDetails += fact(t('artsmoker.asset_viewer.meta_options_variations'), `${optDisplay}${optTotal}`);
+            genDetails += fact(t('artsmoker.asset_viewer.meta_created'), createdAt);
+            genDetails += fact(t('artsmoker.asset_viewer.meta_batch'), this._esc(meta.batch_id || meta.id), { mono: true });
+            if (allModelsChip) genDetails += fact(t('artsmoker.asset_viewer.meta_all_models'), allModelsChip);
             genDetails += `</div>`;
 
             // ── Section 4: Post-Processing ─────────────────────────────────
@@ -728,19 +728,19 @@
                 if (meta.remove_background) {
                     ppContent += `<div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        <span class="text-sm">${t('asset_viewer.meta_bg_removed')}</span>
+                        <span class="text-sm">${t('artsmoker.asset_viewer.meta_bg_removed')}</span>
                     </div>`;
                 }
                 if (meta.generate_svg) {
                     ppContent += `<div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        <span class="text-sm">${t('asset_viewer.meta_svg_generated')}</span>
+                        <span class="text-sm">${t('artsmoker.asset_viewer.meta_svg_generated')}</span>
                     </div>`;
                 }
                 if (meta.upscale || meta.upscaled) {
                     ppContent += `<div class="flex items-center gap-2">
                         <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
-                        <span class="text-sm">${t('asset_viewer.meta_upscaled')}</span>
+                        <span class="text-sm">${t('artsmoker.asset_viewer.meta_upscaled')}</span>
                     </div>`;
                 }
                 ppContent += '</div>';
@@ -750,7 +750,7 @@
                 if (meta.cost_history && meta.cost_history.length > 0) {
                     const _histTotal = meta.cost_history.reduce((s, c) => s + (c.cost_usd || c.cost || 0), 0);
                     ppContent += `<div class="mt-3 border-t border-brand-border/30 pt-2">
-                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('asset_viewer.meta_cost_breakdown')}</label>
+                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('artsmoker.asset_viewer.meta_cost_breakdown')}</label>
                         <div class="space-y-1">
                             ${meta.cost_history.map(c => `
                                 <div class="flex justify-between text-xs text-brand-text-muted">
@@ -759,7 +759,7 @@
                                 </div>
                             `).join('')}
                             <div class="flex justify-between text-xs text-brand-text font-medium border-t border-brand-border/30 pt-1 mt-1">
-                                <span>${t('asset_viewer.meta_cost_total')}</span>
+                                <span>${t('artsmoker.asset_viewer.meta_cost_total')}</span>
                                 <span class="font-mono">$${_histTotal.toFixed(4)}</span>
                             </div>
                         </div>
@@ -793,7 +793,7 @@
                 variants3d.sort((a, b) =>
                     (b.variant_id === defaultId ? 1 : 0) - (a.variant_id === defaultId ? 1 : 0));
                 const header = multi
-                    ? `<div class="text-[11px] text-brand-text-muted mb-2">${t('asset_viewer.meta_3d_variant_count', { count: variants3d.length })}</div>`
+                    ? `<div class="text-[11px] text-brand-text-muted mb-2">${t('artsmoker.asset_viewer.meta_3d_variant_count', { count: variants3d.length })}</div>`
                     : '';
                 threeDContent = header + variants3d
                     .map(v => this._render3DVariantMeta(v, v.variant_id === defaultId, multi, copyBtn))
@@ -809,7 +809,7 @@
                 if (meta.style_snapshot.generation_hints) {
                     styleContent += `
                         <div>
-                            <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('asset_viewer.meta_style_hints')}</label>
+                            <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('artsmoker.asset_viewer.meta_style_hints')}</label>
                             <p class="p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-xs text-brand-text-muted">${this._esc(meta.style_snapshot.generation_hints)}</p>
                         </div>`;
                 }
@@ -819,8 +819,8 @@
             let ipContent = '';
             if (meta.ip_owned || meta.ip_licensed) {
                 ipContent = `<div class="p-2 rounded-lg bg-brand-accent/10 border border-brand-accent/20 text-xs">
-                    <span class="font-medium">${t('asset_viewer.meta_ip_declaration')}</span>
-                    ${meta.ip_owned ? ' ' + t('asset_viewer.meta_ip_owner') : ''}${meta.ip_licensed ? ' ' + t('asset_viewer.meta_ip_licensed') : ''}
+                    <span class="font-medium">${t('artsmoker.asset_viewer.meta_ip_declaration')}</span>
+                    ${meta.ip_owned ? ' ' + t('artsmoker.asset_viewer.meta_ip_owner') : ''}${meta.ip_licensed ? ' ' + t('artsmoker.asset_viewer.meta_ip_licensed') : ''}
                 </div>`;
             }
 
@@ -841,7 +841,7 @@
                         const model = this._esc(vr.model_label || vr.image_model || '');
                         return `<div class="p-2 rounded border-l-2 ${isSel ? 'border-emerald-400 bg-emerald-400/5' : 'border-brand-border bg-brand-bg/40'}">
                             <div class="flex items-center justify-between text-[10px]">
-                                <span class="font-semibold text-brand-text">v${vr.version} · ${this._esc(kind)}${isSel ? ` <span class="text-emerald-400/80">(${t('asset_viewer.meta_current_version')})</span>` : ''}</span>
+                                <span class="font-semibold text-brand-text">v${vr.version} · ${this._esc(kind)}${isSel ? ` <span class="text-emerald-400/80">(${t('artsmoker.asset_viewer.meta_current_version')})</span>` : ''}</span>
                                 <span class="text-brand-text-muted">${when}</span>
                             </div>
                             ${model ? `<p class="text-[10px] text-brand-text-muted mt-0.5">${model}</p>` : ''}
@@ -864,10 +864,10 @@
             const fullPath = dir ? `${dir}/${pngFile}` : pngFile;
             let fileInfoContent = `<div class="space-y-3">`;
             if (totalVers > 1) {
-                fileInfoContent += fact(t('asset_viewer.meta_version'),
-                    `${curVer} / ${totalVers}${isCurrent ? ` <span class="text-emerald-400/80 text-[10px]">(${t('asset_viewer.meta_current_version')})</span>` : ''}`);
+                fileInfoContent += fact(t('artsmoker.asset_viewer.meta_version'),
+                    `${curVer} / ${totalVers}${isCurrent ? ` <span class="text-emerald-400/80 text-[10px]">(${t('artsmoker.asset_viewer.meta_current_version')})</span>` : ''}`);
             }
-            fileInfoContent += fact(t('asset_viewer.meta_full_path'),
+            fileInfoContent += fact(t('artsmoker.asset_viewer.meta_full_path'),
                 `${this._esc(fullPath)}${copyBtn(fullPath)}`, { mono: true, wrap: true });
             if (meta.svg_filename) {
                 const svgFile = isCurrent ? (meta.svg_filename) : `asset_v${curVer}.svg`;
@@ -889,14 +889,14 @@
             let typeStudioContent = '';
             if (isTypeStudio) {
                 typeStudioContent = `
-                    ${meta.source_image_id ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('asset_viewer.meta_source_image')}</span> ${this._esc(meta.source_image_id)}</p>` : '<p class="text-sm mb-1 text-brand-text-muted">' + t('asset_viewer.meta_standalone_text') + '</p>'}
-                    ${meta.style_note ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('asset_viewer.meta_style_note')}</span> ${this._esc(meta.style_note)}</p>` : ''}
+                    ${meta.source_image_id ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('artsmoker.asset_viewer.meta_source_image')}</span> ${this._esc(meta.source_image_id)}</p>` : '<p class="text-sm mb-1 text-brand-text-muted">' + t('artsmoker.asset_viewer.meta_standalone_text') + '</p>'}
+                    ${meta.style_note ? `<p class="text-sm mb-1"><span class="text-brand-text-muted">${t('artsmoker.asset_viewer.meta_style_note')}</span> ${this._esc(meta.style_note)}</p>` : ''}
                     ${meta.lines ? `
                     <div class="mt-2 space-y-1">
                         ${meta.lines.map((l, i) => `
                             <div class="text-sm p-2 rounded bg-brand-bg/40">
-                                <span class="text-brand-text-muted">${t('asset_viewer.meta_line', {num: i+1})}</span> "${this._esc(l.text)}"
-                                <span class="text-brand-text-muted/60 text-xs ml-2">${this._esc(l.font || t('common.default'))} / ${this._esc(l.position || 'center')}</span>
+                                <span class="text-brand-text-muted">${t('artsmoker.asset_viewer.meta_line', {num: i+1})}</span> "${this._esc(l.text)}"
+                                <span class="text-brand-text-muted/60 text-xs ml-2">${this._esc(l.font || t('artsmoker.common.default'))} / ${this._esc(l.position || 'center')}</span>
                             </div>
                         `).join('')}
                     </div>` : ''}`;
@@ -912,28 +912,28 @@
             // baseline across the two columns.
             const railHeader = (label) => `<div class="text-xs font-semibold uppercase tracking-wider text-brand-text-muted py-2 mb-1 border-b border-brand-border/50">${label}</div>`;
             const promptsCol = promptLineage
-                ? section('prompts', t('asset_viewer.meta_prompt_lineage'), promptLineage, true)
+                ? section('prompts', t('artsmoker.asset_viewer.meta_prompt_lineage'), promptLineage, true)
                 : '';
             // Left facts rail: generation details (incl. 3D for THIS version) +
             // post-processing + version history + file/version. Everything
             // valuable for the selected version, one consistent column.
             const factsRail = `
                 <div class="space-y-5">
-                    <div>${railHeader(t('asset_viewer.meta_generation_details'))}${genDetails}</div>
-                    ${threeDContent ? `<div>${railHeader(t('asset_viewer.meta_three_d_section'))}${threeDContent}</div>` : ''}
-                    ${postProcessing ? `<div>${railHeader(t('asset_viewer.meta_post_processing'))}${postProcessing}</div>` : ''}
-                    ${editHistoryContent ? `<div>${railHeader(t('asset_viewer.meta_version_history'))}${editHistoryContent}</div>` : ''}
-                    ${styleContent ? `<div>${railHeader(t('asset_viewer.meta_style_section'))}${styleContent}</div>` : ''}
-                    ${ipContent ? `<div>${railHeader(t('asset_viewer.meta_ip_declaration'))}${ipContent}</div>` : ''}
-                    <div>${railHeader(t('asset_viewer.meta_file_info'))}${fileInfoContent}</div>
+                    <div>${railHeader(t('artsmoker.asset_viewer.meta_generation_details'))}${genDetails}</div>
+                    ${threeDContent ? `<div>${railHeader(t('artsmoker.asset_viewer.meta_three_d_section'))}${threeDContent}</div>` : ''}
+                    ${postProcessing ? `<div>${railHeader(t('artsmoker.asset_viewer.meta_post_processing'))}${postProcessing}</div>` : ''}
+                    ${editHistoryContent ? `<div>${railHeader(t('artsmoker.asset_viewer.meta_version_history'))}${editHistoryContent}</div>` : ''}
+                    ${styleContent ? `<div>${railHeader(t('artsmoker.asset_viewer.meta_style_section'))}${styleContent}</div>` : ''}
+                    ${ipContent ? `<div>${railHeader(t('artsmoker.asset_viewer.meta_ip_declaration'))}${ipContent}</div>` : ''}
+                    <div>${railHeader(t('artsmoker.asset_viewer.meta_file_info'))}${fileInfoContent}</div>
                 </div>`;
             // nosemgrep
             container.innerHTML = html`
                 <div class="grid grid-cols-1 md:grid-cols-[minmax(0,240px)_minmax(0,1fr)] gap-6">
                     <aside class="av-facts-rail">${raw(factsRail)}</aside>
                     <div class="av-prompts-col min-w-0 space-y-4">
-                        ${promptsCol ? raw(promptsCol) : html`<p class="text-sm text-brand-text-muted italic">${t('asset_viewer.meta_no_prompts')}</p>`}
-                        ${isTypeStudio && typeStudioContent ? raw(section('typestudio', t('asset_viewer.meta_type_studio_details'), typeStudioContent, true)) : ''}
+                        ${promptsCol ? raw(promptsCol) : html`<p class="text-sm text-brand-text-muted italic">${t('artsmoker.asset_viewer.meta_no_prompts')}</p>`}
+                        ${isTypeStudio && typeStudioContent ? raw(section('typestudio', t('artsmoker.asset_viewer.meta_type_studio_details'), typeStudioContent, true)) : ''}
                     </div>
                 </div>
             `;
@@ -958,7 +958,7 @@
                     const text = btn.dataset.copy;
                     navigator.clipboard.writeText(text).then(() => {
                         const orig = btn.textContent;
-                        btn.textContent = t('asset_viewer.meta_copied');
+                        btn.textContent = t('artsmoker.asset_viewer.meta_copied');
                         btn.classList.add('text-emerald-400');
                         setTimeout(() => {
                             btn.textContent = orig;
@@ -1000,14 +1000,14 @@
                 ? html`<img src="${url}?t=${Date.now()}" alt="" class="max-w-full max-h-[34vh] object-contain rounded" loading="lazy" />`
                 : html`<div class="flex flex-col items-center gap-1 text-brand-text-dim text-[11px] py-10">
                         <svg class="w-6 h-6 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                        <span>${t('asset_viewer.export_not_generated')}</span>
+                        <span>${t('artsmoker.asset_viewer.export_not_generated')}</span>
                    </div>`;
             const dl = exists
                 ? html`<a href="${url}" download="${filename}" class="btn btn-secondary btn-sm w-full justify-center">
                         <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/></svg>
-                        ${isSvg ? t('asset_viewer.export_dl_svg') : t('asset_viewer.export_dl_png')}
+                        ${isSvg ? t('artsmoker.asset_viewer.export_dl_svg') : t('artsmoker.asset_viewer.export_dl_png')}
                    </a>`
-                : html`<button class="btn btn-secondary btn-sm w-full justify-center opacity-40 cursor-not-allowed" disabled>${isSvg ? t('asset_viewer.export_dl_svg') : t('asset_viewer.export_dl_png')}</button>`;
+                : html`<button class="btn btn-secondary btn-sm w-full justify-center opacity-40 cursor-not-allowed" disabled>${isSvg ? t('artsmoker.asset_viewer.export_dl_svg') : t('artsmoker.asset_viewer.export_dl_png')}</button>`;
             return html`
                 <div class="border border-brand-border rounded-lg overflow-hidden flex flex-col">
                     <div class="px-3 py-2 border-b border-brand-border">
@@ -1074,8 +1074,8 @@
             if (genBtnLabel) {
                 const span = genBtnLabel.childNodes[genBtnLabel.childNodes.length - 1];
                 const label = (pngExists && svgExists)
-                    ? t('asset_viewer.export_regenerate_cutouts')
-                    : t('asset_viewer.export_generate_cutouts');
+                    ? t('artsmoker.asset_viewer.export_regenerate_cutouts')
+                    : t('artsmoker.asset_viewer.export_generate_cutouts');
                 if (span && span.nodeType === Node.TEXT_NODE) span.textContent = ' ' + label;
             }
         },
@@ -1085,8 +1085,8 @@
             const hint = this._overlay?.querySelector('#av-export-method-hint');
             if (!sel || !hint) return;
             hint.textContent = sel.value === 'bedrock'
-                ? t('asset_viewer.export_method_bedrock_hint')
-                : t('asset_viewer.export_method_local_hint');
+                ? t('artsmoker.asset_viewer.export_method_bedrock_hint')
+                : t('artsmoker.asset_viewer.export_method_local_hint');
         },
 
         /** Trigger on-demand generation of the bg-removed cutout PNG + SVG. */
@@ -1110,9 +1110,9 @@
             if (pngExists && svgExists) {
                 // Both already exist — don't silently overwrite; ask first.
                 const ok = await window.showConfirm?.(
-                    t('asset_viewer.export_regen_confirm'),
-                    { title: t('asset_viewer.export_regen_title'),
-                      confirmLabel: t('asset_viewer.export_regen_yes'), danger: true });
+                    t('artsmoker.asset_viewer.export_regen_confirm'),
+                    { title: t('artsmoker.asset_viewer.export_regen_title'),
+                      confirmLabel: t('artsmoker.asset_viewer.export_regen_yes'), danger: true });
                 if (!ok) return;   // keep the existing cutouts untouched
                 force = true;
             }
@@ -1122,7 +1122,7 @@
             btn.disabled = true;
             if (statusEl) {
                 statusEl.classList.remove('hidden', 'text-red-400');
-                statusEl.textContent = t('asset_viewer.export_working');
+                statusEl.textContent = t('artsmoker.asset_viewer.export_working');
             }
             try {
                 const res = await API.gallery.createExportVariants(this._item.id, { method, version, force });
@@ -1131,14 +1131,14 @@
                 if (statusEl) {
                     const cost = res.cost_incurred_usd || 0;
                     statusEl.textContent = cost > 0
-                        ? t('asset_viewer.export_done_cost', { cost: cost.toFixed(2) })
-                        : t('asset_viewer.export_done_free');
+                        ? t('artsmoker.asset_viewer.export_done_cost', { cost: cost.toFixed(2) })
+                        : t('artsmoker.asset_viewer.export_done_free');
                 }
             } catch (err) {
                 console.error('Export variants failed:', err);
                 if (statusEl) {
                     statusEl.classList.add('text-red-400');
-                    statusEl.textContent = t('asset_viewer.export_error');
+                    statusEl.textContent = t('artsmoker.asset_viewer.export_error');
                 }
             } finally {
                 btn.disabled = false;
@@ -1166,7 +1166,7 @@
                 // Same term + pill styling as the multi-version bar uses for v1
                 // ("Original") — a single/un-versioned asset IS its original.
                 // nosemgrep
-                btns.innerHTML = html`<span class="px-2 py-1 rounded text-[10px] bg-brand-accent text-white">${t('asset_viewer.version_original')}</span>`;
+                btns.innerHTML = html`<span class="px-2 py-1 rounded text-[10px] bg-brand-accent text-white">${t('artsmoker.asset_viewer.version_original')}</span>`;
                 if (detail) detail.classList.add('hidden');
                 return;
             }
@@ -1179,7 +1179,7 @@
                         : 'bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent hover:text-brand-text'}"
                     data-version="${v.version}" data-asset="${meta.id}"
                     title="${v.type}${v.timestamp ? ' — ' + window.formatTimestamp(v.timestamp) : ''}">
-                    ${v.version === 1 ? t('asset_viewer.version_original') : 'v' + v.version}
+                    ${v.version === 1 ? t('artsmoker.asset_viewer.version_original') : 'v' + v.version}
                     ${v.type !== 'original' ? html`<span class="opacity-50 ml-0.5">${v.type}</span>` : ''}
                 </button>
             `).join('');
@@ -1190,7 +1190,7 @@
                     const version = parseInt(btn.dataset.version, 10);
                     const assetId = btn.dataset.asset;
                     const v = versions.find(vv => vv.version === version);
-                    const vLabel = version === 1 ? t('asset_viewer.version_original') : `v${version}`;
+                    const vLabel = version === 1 ? t('artsmoker.asset_viewer.version_original') : `v${version}`;
 
                     // Keep _currentVersion in sync FIRST so the Edit tab + 3D tab
                     // resolve against the chosen version (used below and by Edit).
@@ -1218,7 +1218,7 @@
                         img.addEventListener('load', settle, { once: true });
                         img.addEventListener('error', () => {
                             settle();
-                            window.showToast?.(t('asset_viewer.version_load_failed'), 'error');
+                            window.showToast?.(t('artsmoker.asset_viewer.version_load_failed'), 'error');
                         }, { once: true });
                         img.src = version === currentVersion
                             ? `/api/gallery/${assetId}/png?t=${Date.now()}`
@@ -1326,7 +1326,7 @@
                     if (detail && v) {
                         // nosemgrep
                         detail.innerHTML = html`
-                            <strong>${v.type === 'original' ? t('asset_viewer.version_original') : v.type}</strong>
+                            <strong>${v.type === 'original' ? t('artsmoker.asset_viewer.version_original') : v.type}</strong>
                             ${v.model_label || v.image_model || ''}
                             ${v.original_language_prompts?.prompt ? html` — <span class="text-[9px] text-brand-accent">(${v.original_language || '?'})</span> "${v.original_language_prompts.prompt}"` : ''}
                             ${v.prompt ? html` — ${v.original_language_prompts?.prompt ? html`<span class="text-[9px] text-emerald-400/70">(en)</span> ` : ''}"${v.prompt}"` : ''}
@@ -1356,12 +1356,12 @@
                 const viewedV = this._currentVersion || meta.current_version || (live.length || 1);
                 const isLast = live.length <= 1;
                 const q = isLast
-                    ? t('asset_viewer.version_delete_last_confirm')
-                    : t('asset_viewer.version_delete_confirm', { version: viewedV });
+                    ? t('artsmoker.asset_viewer.version_delete_last_confirm')
+                    : t('artsmoker.asset_viewer.version_delete_confirm', { version: viewedV });
                 const ok = await window.showConfirm(q, {
-                    title: t('asset_viewer.version_delete_title'),
-                    detail: t('asset_viewer.version_delete_detail'),
-                    confirmLabel: t('asset_viewer.version_delete_btn'),
+                    title: t('artsmoker.asset_viewer.version_delete_title'),
+                    detail: t('artsmoker.asset_viewer.version_delete_detail'),
+                    confirmLabel: t('artsmoker.asset_viewer.version_delete_btn'),
                     danger: true,
                 });
                 if (!ok) return;
@@ -1375,13 +1375,13 @@
                     if (d.file_errors && d.file_errors.length) {
                         // Metadata is consistent; some files remained (orphans, not
                         // corruption) — tell the user honestly.
-                        window.showToast?.(t('asset_viewer.version_delete_partial',
+                        window.showToast?.(t('artsmoker.asset_viewer.version_delete_partial',
                             { count: d.file_errors.length }), 'warning');
                     }
                     if (window.Gallery?.refresh) window.Gallery.refresh();
                     if (d.asset_deleted) {
                         // Whole asset gone — go to a neighbour or close.
-                        window.showToast?.(t('asset_viewer.version_delete_asset_gone'), 'success');
+                        window.showToast?.(t('artsmoker.asset_viewer.version_delete_asset_gone'), 'success');
                         const list = this._list, idx = this._listIndex;
                         if (list && list.length > 1 && idx >= 0) {
                             list.splice(idx, 1);
@@ -1393,7 +1393,7 @@
                         }
                         return;
                     }
-                    window.showToast?.(t('asset_viewer.version_deleted',
+                    window.showToast?.(t('artsmoker.asset_viewer.version_deleted',
                         { version: viewedV, current: d.current_version }), 'success');
                     // Reopen the SAME asset fresh — metadata, version bar, image,
                     // edit canvas, export panel all re-resolve to the new current.
@@ -1402,7 +1402,7 @@
                     this.close();
                     this.open(item, list, idx);
                 } catch (err) {
-                    window.showToast?.(t('asset_viewer.version_delete_failed') + ': ' + err.message, 'error');
+                    window.showToast?.(t('artsmoker.asset_viewer.version_delete_failed') + ': ' + err.message, 'error');
                 } finally {
                     delBtn.disabled = false;
                 }
@@ -1514,7 +1514,7 @@
             this._overlay.querySelector('.btn-reload')?.addEventListener('click', async () => {
                 const meta = this._meta;
                 if (!meta) {
-                    window.showToast?.(t('asset_viewer.metadata_not_loaded'), 'warning');
+                    window.showToast?.(t('artsmoker.asset_viewer.metadata_not_loaded'), 'warning');
                     return;
                 }
                 const batchId = meta.batch_id || meta.id;
@@ -1543,7 +1543,7 @@
             this._overlay.querySelector('.btn-reload-type')?.addEventListener('click', async () => {
                 const meta = this._meta;
                 if (!meta) {
-                    window.showToast?.(t('asset_viewer.metadata_not_loaded'), 'warning');
+                    window.showToast?.(t('artsmoker.asset_viewer.metadata_not_loaded'), 'warning');
                     return;
                 }
                 this.close();
@@ -1589,9 +1589,9 @@
                 btn.classList.toggle('cursor-not-allowed', blocked);
                 if (statusEl) {
                     if (blocked) {
-                        statusEl.textContent = t('asset_viewer.mask_required_hint');
+                        statusEl.textContent = t('artsmoker.asset_viewer.mask_required_hint');
                         statusEl.classList.remove('hidden');
-                    } else if (statusEl.textContent === t('asset_viewer.mask_required_hint')) {
+                    } else if (statusEl.textContent === t('artsmoker.asset_viewer.mask_required_hint')) {
                         statusEl.textContent = '';
                     }
                 }
@@ -1749,46 +1749,46 @@
                     // Update labels, placeholders, and hints for each mode
                     if (searchLabel) {
                         searchLabel.textContent = editMode === 'search_recolor'
-                            ? t('asset_viewer.search_recolor_label')
-                            : t('asset_viewer.search_replace_label');
+                            ? t('artsmoker.asset_viewer.search_recolor_label')
+                            : t('artsmoker.asset_viewer.search_replace_label');
                     }
                     if (promptLabel) {
                         const labels = {
-                            'inpaint': t('asset_viewer.edit_prompt_inpaint'),
-                            'erase': t('asset_viewer.edit_prompt_erase_full'),
-                            'outpaint': t('asset_viewer.edit_prompt_outpaint_full'),
-                            'search_replace': t('asset_viewer.edit_prompt_replace'),
-                            'search_recolor': t('asset_viewer.edit_prompt_recolor'),
+                            'inpaint': t('artsmoker.asset_viewer.edit_prompt_inpaint'),
+                            'erase': t('artsmoker.asset_viewer.edit_prompt_erase_full'),
+                            'outpaint': t('artsmoker.asset_viewer.edit_prompt_outpaint_full'),
+                            'search_replace': t('artsmoker.asset_viewer.edit_prompt_replace'),
+                            'search_recolor': t('artsmoker.asset_viewer.edit_prompt_recolor'),
                         };
-                        promptLabel.textContent = labels[editMode] || t('asset_viewer.edit_prompt_default');
+                        promptLabel.textContent = labels[editMode] || t('artsmoker.asset_viewer.edit_prompt_default');
                     }
                     // Update placeholder per mode
                     const promptInput = this._overlay?.querySelector('#av-edit-prompt');
                     if (promptInput) {
                         const placeholders = {
-                            'inpaint': t('asset_viewer.edit_prompt_placeholder_inpaint'),
-                            'erase': t('asset_viewer.edit_prompt_placeholder_erase'),
-                            'outpaint': t('asset_viewer.edit_prompt_placeholder_outpaint'),
-                            'search_replace': t('asset_viewer.edit_prompt_placeholder_replace'),
-                            'search_recolor': t('asset_viewer.edit_prompt_placeholder_recolor'),
+                            'inpaint': t('artsmoker.asset_viewer.edit_prompt_placeholder_inpaint'),
+                            'erase': t('artsmoker.asset_viewer.edit_prompt_placeholder_erase'),
+                            'outpaint': t('artsmoker.asset_viewer.edit_prompt_placeholder_outpaint'),
+                            'search_replace': t('artsmoker.asset_viewer.edit_prompt_placeholder_replace'),
+                            'search_recolor': t('artsmoker.asset_viewer.edit_prompt_placeholder_recolor'),
                         };
-                        promptInput.placeholder = placeholders[editMode] || t('asset_viewer.edit_prompt_placeholder');
+                        promptInput.placeholder = placeholders[editMode] || t('artsmoker.asset_viewer.edit_prompt_placeholder');
                     }
                     // Update mode-specific hint
                     const maskHint = this._overlay?.querySelector('#av-mask-section p');
                     const editHint = this._overlay?.querySelector('#av-edit-status')?.previousElementSibling;
                     const hints = {
-                        'inpaint': t('asset_viewer.edit_mode_hint_inpaint'),
-                        'erase': t('asset_viewer.edit_mode_hint_erase'),
-                        'outpaint': t('asset_viewer.edit_mode_hint_outpaint'),
-                        'search_replace': t('asset_viewer.edit_mode_hint_replace'),
-                        'search_recolor': t('asset_viewer.edit_mode_hint_recolor'),
+                        'inpaint': t('artsmoker.asset_viewer.edit_mode_hint_inpaint'),
+                        'erase': t('artsmoker.asset_viewer.edit_mode_hint_erase'),
+                        'outpaint': t('artsmoker.asset_viewer.edit_mode_hint_outpaint'),
+                        'search_replace': t('artsmoker.asset_viewer.edit_mode_hint_replace'),
+                        'search_recolor': t('artsmoker.asset_viewer.edit_mode_hint_recolor'),
                     };
                     if (maskHint && paintModes && !maskFree) {
-                        maskHint.textContent = hints[editMode] || t('asset_viewer.mask_hint_full');
+                        maskHint.textContent = hints[editMode] || t('artsmoker.asset_viewer.mask_hint_full');
                     }
                     if (editHint) {
-                        editHint.textContent = hints[editMode] || t('asset_viewer.edit_hint_full');
+                        editHint.textContent = hints[editMode] || t('artsmoker.asset_viewer.edit_hint_full');
                     }
 
                     // Mode changed — re-evaluate whether Apply needs a mask.
@@ -1824,7 +1824,7 @@
                 const label = sbtn?.querySelector('span');
                 const origLabel = label?.textContent;
                 if (sbtn) sbtn.disabled = true;
-                if (label) label.textContent = t('asset_viewer.suggest_prompt_working');
+                if (label) label.textContent = t('artsmoker.asset_viewer.suggest_prompt_working');
                 if (reasonEl) reasonEl.classList.add('hidden');
                 try {
                     const resp = await fetch('/api/generate/suggest-edit-prompt', {
@@ -1858,7 +1858,7 @@
                     // Show the LLM's one-line reasoning under the box.
                     if (reasonEl && d.reasoning) { reasonEl.textContent = d.reasoning; reasonEl.classList.remove('hidden'); }
                 } catch (e) {
-                    window.showToast?.(t('asset_viewer.suggest_prompt_failed'), 'error');
+                    window.showToast?.(t('artsmoker.asset_viewer.suggest_prompt_failed'), 'error');
                 } finally {
                     if (sbtn) sbtn.disabled = false;
                     if (label) label.textContent = origLabel;
@@ -1873,14 +1873,14 @@
                 const prompt = this._overlay.querySelector('#av-edit-prompt')?.value || '';
 
                 if (!model) {
-                    window.showToast?.(t('asset_viewer.select_edit_model'), 'warning');
+                    window.showToast?.(t('artsmoker.asset_viewer.select_edit_model'), 'warning');
                     return;
                 }
 
                 btn.disabled = true;
                 // nosemgrep
-                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('asset_viewer.applying')}`;
-                if (statusEl) { statusEl.textContent = t('asset_viewer.processing'); statusEl.classList.remove('hidden'); }
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.asset_viewer.applying')}`;
+                if (statusEl) { statusEl.textContent = t('artsmoker.asset_viewer.processing'); statusEl.classList.remove('hidden'); }
 
                 try {
                     // Extract mask from canvas (only for mask-based modes with a
@@ -1895,11 +1895,11 @@
                             // but if it's ever reached, block in BOTH the toast AND
                             // the persistent status line (a toast alone was missed
                             // and read as "job submitted").
-                            window.showToast?.(t('asset_viewer.no_mask_full'), 'warning');
-                            if (statusEl) { statusEl.textContent = t('asset_viewer.no_mask_full'); statusEl.classList.remove('hidden'); }
+                            window.showToast?.(t('artsmoker.asset_viewer.no_mask_full'), 'warning');
+                            if (statusEl) { statusEl.textContent = t('artsmoker.asset_viewer.no_mask_full'); statusEl.classList.remove('hidden'); }
                             btn.disabled = false;
                             // nosemgrep
-                            btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('asset_viewer.apply_edit')}`;
+                            btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('artsmoker.asset_viewer.apply_edit')}`;
                             return;
                         }
                         maskB64 = maskResult.data;
@@ -1947,19 +1947,19 @@
                         // Match the 3D async UI: surface the job id + submit time so
                         // the user can correlate with the async-jobs strip / logs.
                         const jobInfo = result.async_job_id
-                            ? ' ' + t('asset_viewer.edit_async_job_info', {
+                            ? ' ' + t('artsmoker.asset_viewer.edit_async_job_info', {
                                   id: result.async_job_id,
                                   time: new Date().toLocaleTimeString(),
                               })
                             : '';
-                        if (statusEl) { statusEl.textContent = t('asset_viewer.edit_async_queued') + jobInfo; }
-                        window.showToast?.(t('asset_viewer.edit_async_queued') + jobInfo, 'info');
+                        if (statusEl) { statusEl.textContent = t('artsmoker.asset_viewer.edit_async_queued') + jobInfo; }
+                        window.showToast?.(t('artsmoker.asset_viewer.edit_async_queued') + jobInfo, 'info');
                         if (window.Gallery?.refresh) window.Gallery.refresh();
                         return;  // finally{} re-enables the button
                     }
 
-                    if (statusEl) { statusEl.textContent = t('asset_viewer.edit_saved', {id: result.id}); }
-                    window.showToast?.(t('asset_viewer.edit_success', {model: result.model_label}), 'success');
+                    if (statusEl) { statusEl.textContent = t('artsmoker.asset_viewer.edit_saved', {id: result.id}); }
+                    window.showToast?.(t('artsmoker.asset_viewer.edit_success', {model: result.model_label}), 'success');
 
                     // Reload the viewer with cache-busted URLs
                     const cacheBust = `?t=${Date.now()}`;
@@ -1974,12 +1974,12 @@
                     this.close();
                     setTimeout(() => this.open(newItem), 300);
                 } catch (err) {
-                    if (statusEl) { statusEl.textContent = t('asset_viewer.error_prefix', {message: err.message}); }
-                    window.showToast?.(t('asset_viewer.edit_failed') + ': ' + err.message, 'error');
+                    if (statusEl) { statusEl.textContent = t('artsmoker.asset_viewer.error_prefix', {message: err.message}); }
+                    window.showToast?.(t('artsmoker.asset_viewer.edit_failed') + ': ' + err.message, 'error');
                 } finally {
                     btn.disabled = false;
                     // nosemgrep
-                    btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('asset_viewer.apply_edit')}`;
+                    btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('artsmoker.asset_viewer.apply_edit')}`;
                 }
             });
         },
@@ -2049,7 +2049,7 @@
                 if (sel.options.length === 0) {
                     const opt = document.createElement('option');
                     opt.value = '';
-                    opt.textContent = t('asset_viewer.no_models_for_type');
+                    opt.textContent = t('artsmoker.asset_viewer.no_models_for_type');
                     sel.appendChild(opt);
                 }
 
@@ -2375,7 +2375,7 @@
             const meta = this._meta;
             if (!meta) {
                 // nosemgrep
-                container.innerHTML = html`<p class="text-brand-text-muted text-center py-8">${t('asset_viewer.loading_metadata')}</p>`;
+                container.innerHTML = html`<p class="text-brand-text-muted text-center py-8">${t('artsmoker.asset_viewer.loading_metadata')}</p>`;
                 return;
             }
 
@@ -2385,7 +2385,7 @@
                 // nosemgrep
                 container.innerHTML = html`
                     <div class="text-center py-8">
-                        <p class="text-brand-text-muted">${t('asset_viewer.three_d_unsupported')}</p>
+                        <p class="text-brand-text-muted">${t('artsmoker.asset_viewer.three_d_unsupported')}</p>
                     </div>`;
                 return;
             }
@@ -2431,8 +2431,8 @@
                     // nosemgrep
                     container.innerHTML = html`
                         <div class="text-center py-8 space-y-3">
-                            <p class="text-brand-text-muted">${t('asset_viewer.three_d_not_deployed')}</p>
-                            <button class="btn btn-sm btn-secondary av-3d-open-settings">${t('asset_viewer.three_d_open_settings')}</button>
+                            <p class="text-brand-text-muted">${t('artsmoker.asset_viewer.three_d_not_deployed')}</p>
+                            <button class="btn btn-sm btn-secondary av-3d-open-settings">${t('artsmoker.asset_viewer.three_d_open_settings')}</button>
                         </div>`;
                     container.querySelector('.av-3d-open-settings')?.addEventListener('click', () => {
                         this.close();
@@ -2454,7 +2454,7 @@
                 this._render3DForm(container, instances);
             } catch (err) {
                 // nosemgrep
-                container.innerHTML = html`<p class="text-red-400 text-center py-8">${t('asset_viewer.three_d_failed')}: ${err.message}</p>`;
+                container.innerHTML = html`<p class="text-red-400 text-center py-8">${t('artsmoker.asset_viewer.three_d_failed')}: ${err.message}</p>`;
             }
         },
 
@@ -2465,18 +2465,18 @@
             const showChooser = Array.isArray(instances) && instances.length > 1;
             const chooserHtml = showChooser ? html`
                     <div>
-                        <label class="text-xs text-brand-text-muted mb-1 block">${t('asset_viewer.three_d_model')}</label>
+                        <label class="text-xs text-brand-text-muted mb-1 block">${t('artsmoker.asset_viewer.three_d_model')}</label>
                         <select id="av-3d-model" class="input text-sm w-full max-w-xs">
                             ${instances.map((inst, i) => {
                                 const ptype = inst.pipeline_type === 'trellis2_full'
-                                    ? t('asset_viewer.three_d_pipe_trellis2_full')
-                                    : t('asset_viewer.three_d_pipe_triposg');
+                                    ? t('artsmoker.asset_viewer.three_d_pipe_trellis2_full')
+                                    : t('artsmoker.asset_viewer.three_d_pipe_triposg');
                                 const inst_t = inst.instance_type ? ' · ' + inst.instance_type.replace('ml.', '') : '';
-                                const warming = inst.model_ready ? '' : ' · ' + t('asset_viewer.three_d_model_warming');
+                                const warming = inst.model_ready ? '' : ' · ' + t('artsmoker.asset_viewer.three_d_model_warming');
                                 return html`<option value="${inst.model_key}" ${i === 0 ? 'selected' : ''}>${ptype}${inst_t}${warming}</option>`;
                             })}
                         </select>
-                        <p class="text-[9px] text-brand-text-dim mt-1 max-w-xs">${t('asset_viewer.three_d_model_hint')}</p>
+                        <p class="text-[9px] text-brand-text-dim mt-1 max-w-xs">${t('artsmoker.asset_viewer.three_d_model_hint')}</p>
                     </div>
             ` : '';
 
@@ -2494,14 +2494,14 @@
                 || this._meta?.three_d_versions?.some(v => v.version === ver));
             const saveAsHtml = hasExisting3D ? html`
                     <div class="flex-1 min-w-[16rem] rounded-lg border border-brand-border bg-brand-bg/40 p-3">
-                        <label class="text-xs text-brand-text-muted mb-2 block">${t('asset_viewer.three_d_saveas_title')}</label>
+                        <label class="text-xs text-brand-text-muted mb-2 block">${t('artsmoker.asset_viewer.three_d_saveas_title')}</label>
                         <label class="flex items-start gap-2 mb-1.5 cursor-pointer">
                             <input type="radio" name="av-3d-saveas" value="default" checked class="mt-0.5" />
-                            <span class="text-[11px]"><span class="font-medium">${t('asset_viewer.three_d_saveas_replace')}</span><br><span class="text-brand-text-dim">${t('asset_viewer.three_d_saveas_replace_hint')}</span></span>
+                            <span class="text-[11px]"><span class="font-medium">${t('artsmoker.asset_viewer.three_d_saveas_replace')}</span><br><span class="text-brand-text-dim">${t('artsmoker.asset_viewer.three_d_saveas_replace_hint')}</span></span>
                         </label>
                         <label class="flex items-start gap-2 cursor-pointer">
                             <input type="radio" name="av-3d-saveas" value="variant" class="mt-0.5" />
-                            <span class="text-[11px]"><span class="font-medium">${t('asset_viewer.three_d_saveas_variant')}</span><br><span class="text-brand-text-dim">${t('asset_viewer.three_d_saveas_variant_hint')}</span></span>
+                            <span class="text-[11px]"><span class="font-medium">${t('artsmoker.asset_viewer.three_d_saveas_variant')}</span><br><span class="text-brand-text-dim">${t('artsmoker.asset_viewer.three_d_saveas_variant_hint')}</span></span>
                         </label>
                     </div>
             ` : '';
@@ -2514,19 +2514,19 @@
             const isSubject = (this._meta?.asset_type === 'character' || this._meta?.asset_type === 'game_asset');
             const previewPanelHtml = html`
                 <div class="w-full lg:w-64 lg:flex-shrink-0 space-y-2">
-                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_preview_title')}</p>
+                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('artsmoker.asset_viewer.three_d_preview_title')}</p>
                     <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-border flex items-center justify-center" style="height: 220px;">
                         <img id="av-3d-preview-img" src="${previewUrl}" class="w-full h-full object-contain" alt="3D source" />
                     </div>
-                    <p class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_preview_note')}</p>
+                    <p class="text-[9px] text-brand-text-dim">${t('artsmoker.asset_viewer.three_d_preview_note')}</p>
                     <!-- Background-removal method for the 3D cutout. Local (free,
                          on-device) is the default; Bedrock (paid, softer edge) is
                          offered explicitly. Threaded into every prepare-source call. -->
                     <div class="flex items-center gap-2">
-                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('asset_viewer.three_d_bg_method')}</label>
+                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('artsmoker.asset_viewer.three_d_bg_method')}</label>
                         <select id="av-3d-bg-method" class="input text-[10px] py-0.5 flex-1">
-                            <option value="local">${t('asset_viewer.export_method_local')}</option>
-                            <option value="bedrock">${t('asset_viewer.export_method_bedrock')}</option>
+                            <option value="local">${t('artsmoker.asset_viewer.export_method_local')}</option>
+                            <option value="bedrock">${t('artsmoker.asset_viewer.export_method_bedrock')}</option>
                         </select>
                     </div>
                     <p id="av-3d-bg-method-hint" class="text-[9px] text-brand-text-dim"></p>
@@ -2535,9 +2535,9 @@
                          placement) — the sole instance; not duplicated in the button row. -->
                     <button id="av-3d-review" class="btn btn-sm bg-cyan-600 hover:bg-cyan-500 text-white w-full flex items-center justify-center gap-1.5">
                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"/></svg>
-                        <span>${t('asset_viewer.three_d_improve_btn')}</span>
+                        <span>${t('artsmoker.asset_viewer.three_d_improve_btn')}</span>
                     </button>
-                    <p id="av-3d-review-status" class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_review_hint')}</p>` : ''}
+                    <p id="av-3d-review-status" class="text-[9px] text-brand-text-dim">${t('artsmoker.asset_viewer.three_d_review_hint')}</p>` : ''}
                 </div>`;
 
             // nosemgrep
@@ -2545,7 +2545,7 @@
                 <div class="flex flex-col lg:flex-row gap-5">
                   <!-- LEFT: controls -->
                   <div class="flex-1 min-w-0 space-y-4">
-                    <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_version_note')}</p>
+                    <p class="text-[10px] text-brand-text-dim">${t('artsmoker.asset_viewer.three_d_version_note')}</p>
                     ${chooserHtml}
                     <!-- License + save-as choice sit SIDE-BY-SIDE (wrap on narrow
                          widths) to keep the form compact instead of stacking tall. -->
@@ -2556,58 +2556,58 @@
 
                     <!-- Quality preset (real specs: face/vertex detail, not bogus seconds) -->
                     <div>
-                        <label class="text-xs text-brand-text-muted mb-1 block">${t('asset_viewer.three_d_quality')}</label>
+                        <label class="text-xs text-brand-text-muted mb-1 block">${t('artsmoker.asset_viewer.three_d_quality')}</label>
                         <select id="av-3d-quality" class="input text-sm w-full max-w-xs">
-                            <option value="fast">${t('asset_viewer.three_d_quality_fast')}</option>
-                            <option value="standard">${t('asset_viewer.three_d_quality_standard')}</option>
-                            <option value="high" selected>${t('asset_viewer.three_d_quality_high')}</option>
+                            <option value="fast">${t('artsmoker.asset_viewer.three_d_quality_fast')}</option>
+                            <option value="standard">${t('artsmoker.asset_viewer.three_d_quality_standard')}</option>
+                            <option value="high" selected>${t('artsmoker.asset_viewer.three_d_quality_high')}</option>
                         </select>
                         <p id="av-3d-estimate" class="text-[10px] text-brand-text-dim mt-1.5"></p>
                     </div>
 
                     <!-- Advanced (collapsible) -->
                     <details class="border border-brand-border rounded-lg">
-                        <summary class="px-3 py-2 text-xs text-brand-text-muted cursor-pointer hover:text-brand-text">${t('asset_viewer.three_d_advanced')}</summary>
+                        <summary class="px-3 py-2 text-xs text-brand-text-muted cursor-pointer hover:text-brand-text">${t('artsmoker.asset_viewer.three_d_advanced')}</summary>
                         <!-- Two-column grid: pairs the fields so the panel is ~half
                              the height (uses the previously-empty right side). -->
                         <div class="px-3 pb-3 pt-2 grid grid-cols-2 gap-x-4 gap-y-3">
                             <div>
-                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_steps')}</label>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('artsmoker.asset_viewer.three_d_steps')}</label>
                                 <div class="flex items-center gap-2">
                                     <input id="av-3d-steps" type="range" min="20" max="100" value="50" class="flex-1 min-w-0" />
                                     <span id="av-3d-steps-label" class="text-[10px] text-brand-text-muted w-6 text-right">50</span>
                                 </div>
                             </div>
                             <div>
-                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_guidance')}</label>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('artsmoker.asset_viewer.three_d_guidance')}</label>
                                 <div class="flex items-center gap-2">
                                     <input id="av-3d-guidance" type="range" min="1" max="20" step="0.5" value="7.5" class="flex-1 min-w-0" />
                                     <span id="av-3d-guidance-label" class="text-[10px] text-brand-text-muted w-6 text-right">7.5</span>
                                 </div>
                             </div>
                             <div>
-                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_faces')}</label>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('artsmoker.asset_viewer.three_d_faces')}</label>
                                 <select id="av-3d-faces" class="input text-xs w-full">
-                                    <option value="0">${t('asset_viewer.three_d_faces_unlimited')}</option>
+                                    <option value="0">${t('artsmoker.asset_viewer.three_d_faces_unlimited')}</option>
                                     <option value="50000">50,000</option>
                                     <option value="100000" selected>100,000</option>
                                     <option value="200000">200,000</option>
                                     <option value="300000">300,000</option>
                                 </select>
-                                <p class="text-[9px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_faces_hint')}</p>
+                                <p class="text-[9px] text-brand-text-dim mt-1">${t('artsmoker.asset_viewer.three_d_faces_hint')}</p>
                             </div>
                             <div>
-                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_depth')}</label>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('artsmoker.asset_viewer.three_d_depth')}</label>
                                 <select id="av-3d-depth" class="input text-xs w-full">
-                                    <option value="128">${t('asset_viewer.three_d_depth_low')}</option>
-                                    <option value="256" selected>${t('asset_viewer.three_d_depth_medium')}</option>
-                                    <option value="512">${t('asset_viewer.three_d_depth_high')}</option>
+                                    <option value="128">${t('artsmoker.asset_viewer.three_d_depth_low')}</option>
+                                    <option value="256" selected>${t('artsmoker.asset_viewer.three_d_depth_medium')}</option>
+                                    <option value="512">${t('artsmoker.asset_viewer.three_d_depth_high')}</option>
                                 </select>
                             </div>
                             <div class="col-span-2">
-                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('asset_viewer.three_d_seed')}</label>
-                                <input id="av-3d-seed" type="number" class="input text-xs w-full max-w-xs" placeholder="${t('asset_viewer.three_d_seed_placeholder')}" />
-                                <p class="text-[9px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_seed_hint')}</p>
+                                <label class="text-[10px] text-brand-text-muted mb-0.5 block">${t('artsmoker.asset_viewer.three_d_seed')}</label>
+                                <input id="av-3d-seed" type="number" class="input text-xs w-full max-w-xs" placeholder="${t('artsmoker.asset_viewer.three_d_seed_placeholder')}" />
+                                <p class="text-[9px] text-brand-text-dim mt-1">${t('artsmoker.asset_viewer.three_d_seed_hint')}</p>
                             </div>
                         </div>
                     </details>
@@ -2620,10 +2620,10 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/>
                             </svg>
-                            <span>${t('asset_viewer.three_d_generate')}</span>
+                            <span>${t('artsmoker.asset_viewer.three_d_generate')}</span>
                         </button>
                     </div>
-                    <p class="text-[10px] text-brand-text-dim">${t('asset_viewer.three_d_async_note')}</p>
+                    <p class="text-[10px] text-brand-text-dim">${t('artsmoker.asset_viewer.three_d_async_note')}</p>
                   </div>
                   <!-- RIGHT: exact pipeline-input preview (bg-removed). -->
                   ${previewPanelHtml}
@@ -2669,8 +2669,8 @@
                 const inst = _selectedInstance();
                 const facesVal = facesSelect ? parseInt(facesSelect.value || '0') : 0;
                 const facesTxt = facesVal === 0
-                    ? t('asset_viewer.three_d_est_fullmesh')
-                    : `~${facesVal.toLocaleString()} ${t('asset_viewer.three_d_est_faces')}`;
+                    ? t('artsmoker.asset_viewer.three_d_est_fullmesh')
+                    : `~${facesVal.toLocaleString()} ${t('artsmoker.asset_viewer.three_d_est_faces')}`;
                 let tail = '';
                 if (inst) {
                     // Scale runtime (and thus cost) with the chosen quality — steps
@@ -2714,25 +2714,25 @@
                 const inst = _selectedInstance();
                 if (!inst || !inst.license_name) { licenseEl.classList.add('hidden'); return; }
                 const commercialBadge = inst.commercial === true
-                    ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('asset_viewer.three_d_lic_commercial')}</span>`
+                    ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.asset_viewer.three_d_lic_commercial')}</span>`
                     : (inst.commercial === false
-                        ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('asset_viewer.three_d_lic_noncommercial')}</span>`
+                        ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">${t('artsmoker.asset_viewer.three_d_lic_noncommercial')}</span>`
                         : '');
                 const acceptedLine = inst.license_accepted
-                    ? html`<p class="text-emerald-400/90">✓ ${t('asset_viewer.three_d_lic_accepted')}${inst.license_accepted_at ? ' · ' + window.formatTimestamp(inst.license_accepted_at) : ''}</p>`
-                    : html`<p class="text-amber-400/90">⚠ ${t('asset_viewer.three_d_lic_not_recorded')}</p>`;
+                    ? html`<p class="text-emerald-400/90">✓ ${t('artsmoker.asset_viewer.three_d_lic_accepted')}${inst.license_accepted_at ? ' · ' + window.formatTimestamp(inst.license_accepted_at) : ''}</p>`
+                    : html`<p class="text-amber-400/90">⚠ ${t('artsmoker.asset_viewer.three_d_lic_not_recorded')}</p>`;
                 const link = inst.license_url
-                    ? html` <a href="${inst.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline">${t('asset_viewer.three_d_lic_view')}</a>`
+                    ? html` <a href="${inst.license_url}" target="_blank" rel="noopener" class="text-brand-accent underline">${t('artsmoker.asset_viewer.three_d_lic_view')}</a>`
                     : '';
                 // nosemgrep
                 licenseEl.innerHTML = html`
                     <div class="flex items-center gap-2 flex-wrap">
-                        <span class="text-brand-text-muted">${t('asset_viewer.three_d_lic_label')}</span>
+                        <span class="text-brand-text-muted">${t('artsmoker.asset_viewer.three_d_lic_label')}</span>
                         <span class="text-brand-text font-medium">${inst.license_name}</span>
                         ${commercialBadge}
                     </div>
                     ${acceptedLine}
-                    <p class="text-brand-text-dim">${t('asset_viewer.three_d_lic_note')}${link}</p>`;
+                    <p class="text-brand-text-dim">${t('artsmoker.asset_viewer.three_d_lic_note')}${link}</p>`;
                 licenseEl.classList.remove('hidden');
             };
 
@@ -2769,8 +2769,8 @@
             const hint = scope?.querySelector?.('#av-3d-bg-method-hint');
             if (!sel || !hint) return;
             hint.textContent = sel.value === 'bedrock'
-                ? t('asset_viewer.export_method_bedrock_hint')
-                : t('asset_viewer.export_method_local_hint');
+                ? t('artsmoker.asset_viewer.export_method_bedrock_hint')
+                : t('artsmoker.asset_viewer.export_method_local_hint');
         },
 
         /** The 3D cutout background-removal method the user selected (default local). */
@@ -2784,8 +2784,8 @@
             if (!el) return;
             const done = this._sourceApprovedVersion === (this._currentVersion || 1);
             el.textContent = done
-                ? '✓ ' + t('asset_viewer.three_d_review_done')
-                : t('asset_viewer.three_d_review_hint');
+                ? '✓ ' + t('artsmoker.asset_viewer.three_d_review_done')
+                : t('artsmoker.asset_viewer.three_d_review_hint');
             el.classList.toggle('text-emerald-400', done);
             el.classList.toggle('text-brand-text-dim', !done);
         },
@@ -2823,8 +2823,8 @@
                 const needsBgRemoval = !this._sourceCutoutReady?.[version] && !alreadyBgFree;
                 // nosemgrep
                 reviewBtn.innerHTML = html`<span class="spinner-sm"></span> ${needsBgRemoval
-                    ? t('asset_viewer.three_d_src_removing_bg')
-                    : t('asset_viewer.three_d_src_reviewing')}`;
+                    ? t('artsmoker.asset_viewer.three_d_src_removing_bg')
+                    : t('artsmoker.asset_viewer.three_d_src_reviewing')}`;
             }
             // Start each improve session from the CLEAN cutout: drop any stale or
             // uncommitted prepared source (__source) from a prior session. With
@@ -2869,10 +2869,10 @@
                             this._currentVersion = c.version;
                             this._sourceApprovedVersion = c.version;
                             if (window.Gallery?.refresh) window.Gallery.refresh();
-                            window.showToast?.(t('asset_viewer.three_d_src_committed', { version: c.version }), 'success');
+                            window.showToast?.(t('artsmoker.asset_viewer.three_d_src_committed', { version: c.version }), 'success');
                         }
                     } catch (e) {
-                        window.showToast?.(t('asset_viewer.three_d_src_commit_failed') + (e.message ? ': ' + e.message : ''), 'error');
+                        window.showToast?.(t('artsmoker.asset_viewer.three_d_src_commit_failed') + (e.message ? ': ' + e.message : ''), 'error');
                     }
                 }
             }
@@ -2887,7 +2887,7 @@
 
             btn.disabled = true;
             // nosemgrep
-            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('asset_viewer.three_d_generating')}`;
+            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.asset_viewer.three_d_generating')}`;
 
             // S3 bucket preflight — 3D generation runs on a custom (self-hosted)
             // endpoint that needs the deployment bucket for its async input/output.
@@ -2899,12 +2899,12 @@
                 if (!st.ok) {
                     this._reset3DGenerateBtn(btn);
                     const go = await window.showConfirm?.(
-                        st.message || t('custom_models.bucket_required_desc'),
+                        st.message || t('artsmoker.custom_models.bucket_required_desc'),
                         {
-                            title: t('custom_models.bucket_required_title'),
-                            detail: t('custom_models.s3_set_in_settings'),
-                            confirmLabel: t('custom_models.open_model_settings'),
-                            cancelLabel: t('common.cancel'),
+                            title: t('artsmoker.custom_models.bucket_required_title'),
+                            detail: t('artsmoker.custom_models.s3_set_in_settings'),
+                            confirmLabel: t('artsmoker.custom_models.open_model_settings'),
+                            cancelLabel: t('artsmoker.common.cancel'),
                         },
                     );
                     if (go) window.ModelSettings?.open?.('custom-models');
@@ -2944,7 +2944,7 @@
 
             try {
                 const result = await API.threeD.generate(payload);
-                window.showToast?.(t('asset_viewer.three_d_pending'), 'info');
+                window.showToast?.(t('artsmoker.asset_viewer.three_d_pending'), 'info');
                 // Parallel-jobs model: the new job joins the in-progress strip
                 // (poller picks it up); the main content re-renders to the current
                 // state (existing model or a fresh form) so another job can be
@@ -2952,7 +2952,7 @@
                 this._start3DJobsPolling(true);
                 this._update3DContent();
             } catch (err) {
-                window.showToast?.(t('asset_viewer.three_d_failed') + ': ' + err.message, 'error');
+                window.showToast?.(t('artsmoker.asset_viewer.three_d_failed') + ': ' + err.message, 'error');
                 this._reset3DGenerateBtn(btn);
             }
         },
@@ -2962,7 +2962,7 @@
             if (!btn) return;
             btn.disabled = false;
             // nosemgrep
-            btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> <span>${t('asset_viewer.three_d_generate')}</span>`;
+            btn.innerHTML = html`<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg> <span>${t('artsmoker.asset_viewer.three_d_generate')}</span>`;
         },
 
         /**
@@ -2991,9 +2991,9 @@
                 backdrop.innerHTML = html`
                     <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-2xl w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto relative">
                         <div>
-                            <h3 class="text-sm font-semibold text-brand-text">${t('asset_viewer.three_d_src_pv_confirm_title')}</h3>
+                            <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.asset_viewer.three_d_src_pv_confirm_title')}</h3>
                             <p id="av-sr-verdict" class="text-xs mt-1"></p>
-                            <p class="text-[11px] text-brand-text-dim mt-1">${t('asset_viewer.three_d_src_pv_confirm_sub')} ${t('asset_viewer.three_d_src_pv_confirm_sub2')}</p>
+                            <p class="text-[11px] text-brand-text-dim mt-1">${t('artsmoker.asset_viewer.three_d_src_pv_confirm_sub')} ${t('artsmoker.asset_viewer.three_d_src_pv_confirm_sub2')}</p>
                         </div>
                         <div class="preview-checkerboard rounded-lg overflow-hidden border border-brand-accent/40 flex items-center justify-center relative" style="height: 360px;">
                             <img id="av-sr-img" src="${srcUrlFor()}" class="w-full h-full object-contain" alt="3D source" crossorigin="anonymous" />
@@ -3005,40 +3005,40 @@
                         <!-- Fill / Replace panel (mask brush) — hidden until Fill is chosen. -->
                         <div id="av-sr-fill-panel" class="rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 space-y-2 hidden">
                             <div class="flex items-center justify-between">
-                                <p class="text-[11px] text-amber-400">${t('asset_viewer.three_d_src_pv_fix_hint')}</p>
+                                <p class="text-[11px] text-amber-400">${t('artsmoker.asset_viewer.three_d_src_pv_fix_hint')}</p>
                                 <div class="flex items-center gap-2">
-                                    <label class="text-[9px] text-brand-text-muted">${t('asset_viewer.brush_size')}</label>
+                                    <label class="text-[9px] text-brand-text-muted">${t('artsmoker.asset_viewer.brush_size')}</label>
                                     <input id="av-sr-brush" type="range" min="8" max="80" value="28" class="w-20" />
-                                    <button class="av-sr-mask-clear text-[10px] text-brand-text-muted hover:text-brand-text underline">${t('asset_viewer.clear_mask')}</button>
+                                    <button class="av-sr-mask-clear text-[10px] text-brand-text-muted hover:text-brand-text underline">${t('artsmoker.asset_viewer.clear_mask')}</button>
                                 </div>
                             </div>
-                            <textarea id="av-sr-fill-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_fix_ph')}"></textarea>
+                            <textarea id="av-sr-fill-prompt" rows="2" class="input text-xs w-full" placeholder="${t('artsmoker.asset_viewer.three_d_src_fix_ph')}"></textarea>
                         </div>
 
                         <!-- Extend panel (directions) — hidden until Extend is chosen. -->
                         <details id="av-sr-extend-panel" class="border border-brand-border rounded-lg hidden">
-                            <summary class="px-3 py-2 text-[11px] text-brand-text-muted cursor-pointer">${t('asset_viewer.three_d_src_pv_adjust')}</summary>
+                            <summary class="px-3 py-2 text-[11px] text-brand-text-muted cursor-pointer">${t('artsmoker.asset_viewer.three_d_src_pv_adjust')}</summary>
                             <div class="px-3 pb-3 pt-1 space-y-2">
                                 <div>
-                                    <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_src_prompt_label')}</label>
-                                    <textarea id="av-sr-prompt" rows="2" class="input text-xs w-full" placeholder="${t('asset_viewer.three_d_src_prompt_ph')}"></textarea>
+                                    <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${t('artsmoker.asset_viewer.three_d_src_prompt_label')}</label>
+                                    <textarea id="av-sr-prompt" rows="2" class="input text-xs w-full" placeholder="${t('artsmoker.asset_viewer.three_d_src_prompt_ph')}"></textarea>
                                 </div>
                                 <div class="grid grid-cols-4 gap-2">
                                     ${['left','right','up','down'].map(dd => html`
-                                        <div><label class="text-[9px] text-brand-text-muted">${t('asset_viewer.outpaint_' + dd)}</label>
+                                        <div><label class="text-[9px] text-brand-text-muted">${t('artsmoker.asset_viewer.outpaint_' + dd)}</label>
                                         <input id="av-sr-${dd}" type="number" min="0" max="2000" value="0" class="input text-xs w-full" /></div>`)}
                                 </div>
-                                <p class="text-[9px] text-brand-text-dim">${t('asset_viewer.three_d_src_pv_extend_note')}</p>
+                                <p class="text-[9px] text-brand-text-dim">${t('artsmoker.asset_viewer.three_d_src_pv_extend_note')}</p>
                             </div>
                         </details>
 
                         <!-- Actions: Use this image · Extend · Fill/Replace -->
                         <div class="grid grid-cols-3 gap-2">
-                            <button class="av-sr-use btn btn-sm bg-brand-accent hover:bg-brand-accent-hover text-white rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_approve')}</button>
-                            <button class="av-sr-extend btn btn-sm btn-secondary rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_extend_it')}</button>
-                            <button class="av-sr-fill btn btn-sm btn-secondary rounded-lg py-3 text-xs font-medium leading-tight">${t('asset_viewer.three_d_src_pv_fill')}</button>
+                            <button class="av-sr-use btn btn-sm bg-brand-accent hover:bg-brand-accent-hover text-white rounded-lg py-3 text-xs font-medium leading-tight">${t('artsmoker.asset_viewer.three_d_src_pv_approve')}</button>
+                            <button class="av-sr-extend btn btn-sm btn-secondary rounded-lg py-3 text-xs font-medium leading-tight">${t('artsmoker.asset_viewer.three_d_src_pv_extend_it')}</button>
+                            <button class="av-sr-fill btn btn-sm btn-secondary rounded-lg py-3 text-xs font-medium leading-tight">${t('artsmoker.asset_viewer.three_d_src_pv_fill')}</button>
                         </div>
-                        <button class="av-sr-cancel text-[11px] text-brand-text-muted hover:text-red-400 w-full text-center">${t('asset_viewer.three_d_src_pv_cancel')}</button>
+                        <button class="av-sr-cancel text-[11px] text-brand-text-muted hover:text-red-400 w-full text-center">${t('artsmoker.asset_viewer.three_d_src_pv_cancel')}</button>
 
                         <!-- In-progress overlay — keeps the dialog OPEN with clear feedback
                              while an Extend/Fill runs (no close, no gallery jump). -->
@@ -3084,11 +3084,11 @@
                     const defect = (analyzed && a.complete === false) ? (a.defect === 'artifact' ? 'artifact' : 'cropped') : 'none';
                     const el = $('#av-sr-verdict');
                     // nosemgrep
-                    if (!analyzed) el.innerHTML = html`<span class="text-brand-text-muted">${t('asset_viewer.three_d_src_pv_unchecked')}</span>`;
+                    if (!analyzed) el.innerHTML = html`<span class="text-brand-text-muted">${t('artsmoker.asset_viewer.three_d_src_pv_unchecked')}</span>`;
                     // nosemgrep
-                    else if (defect === 'none') el.innerHTML = html`<span class="text-emerald-400">✓ ${t('asset_viewer.three_d_src_pv_good')}</span>`;
+                    else if (defect === 'none') el.innerHTML = html`<span class="text-emerald-400">✓ ${t('artsmoker.asset_viewer.three_d_src_pv_good')}</span>`;
                     // nosemgrep
-                    else el.innerHTML = html`<span class="text-amber-400">⚠ ${a.reason || t('asset_viewer.three_d_src_still')}</span>`;
+                    else el.innerHTML = html`<span class="text-amber-400">⚠ ${a.reason || t('artsmoker.asset_viewer.three_d_src_still')}</span>`;
                     return { analyzed, defect };
                 };
 
@@ -3155,7 +3155,7 @@
                         renderVerdict(lastAnalysis);
                         seedFromAnalysis(lastAnalysis);
                     } catch (e) {
-                        window.showToast?.(t('asset_viewer.three_d_src_failed') + (e.message ? ': ' + e.message : ''), 'error');
+                        window.showToast?.(t('artsmoker.asset_viewer.three_d_src_failed') + (e.message ? ': ' + e.message : ''), 'error');
                     } finally {
                         setBusy(false);
                     }
@@ -3175,7 +3175,7 @@
                         return;
                     }
                     runOp({ op: 'extend', ...dirs, prompt: $('#av-sr-prompt')?.value || '' },
-                        t('asset_viewer.three_d_src_completing'));
+                        t('artsmoker.asset_viewer.three_d_src_completing'));
                 });
                 // Live measurement redraw as the user tweaks amounts. Snap any
                 // negative entry back to 0 — extension can't be negative.
@@ -3191,9 +3191,9 @@
                     if (working) return;
                     if (!fillMode) { enableFillMode(); return; }
                     const m = this._extractMask(maskCanvas);
-                    if (m.isEmpty) { window.showToast?.(t('asset_viewer.three_d_src_nomask'), 'warning'); return; }
+                    if (m.isEmpty) { window.showToast?.(t('artsmoker.asset_viewer.three_d_src_nomask'), 'warning'); return; }
                     runOp({ op: 'inpaint', mask: m.data, prompt: $('#av-sr-fill-prompt')?.value || '' },
-                        t('asset_viewer.three_d_src_fixing'));
+                        t('artsmoker.asset_viewer.three_d_src_fixing'));
                 });
 
                 useBtn.addEventListener('click', () => { if (!working) done(true); });
@@ -3312,24 +3312,24 @@
                     const marginChip = (edge, val) => {
                         const cropped = val <= 1;
                         const cls = cropped ? 'text-amber-400' : 'text-brand-text';
-                        const tag = cropped ? ` ${t('asset_viewer.three_d_measure_cropped')}` : '';
-                        return `<span class="${cls}">${t('asset_viewer.outpaint_' + edge)} ${val}px${tag}</span>`;
+                        const tag = cropped ? ` ${t('artsmoker.asset_viewer.three_d_measure_cropped')}` : '';
+                        return `<span class="${cls}">${t('artsmoker.asset_viewer.outpaint_' + edge)} ${val}px${tag}</span>`;
                     };
-                    let statsHtml = `<span><span class="text-brand-text">${t('asset_viewer.three_d_measure_size')}</span> ${W}×${H}px</span>`;
+                    let statsHtml = `<span><span class="text-brand-text">${t('artsmoker.asset_viewer.three_d_measure_size')}</span> ${W}×${H}px</span>`;
                     if (bbox) {
-                        statsHtml += `<span><span class="text-brand-text">${t('asset_viewer.three_d_measure_fill')}</span> ${pct}</span>`;
-                        statsHtml += `<span class="flex items-center gap-2"><span class="text-brand-text">${t('asset_viewer.three_d_measure_margins')}:</span> `
+                        statsHtml += `<span><span class="text-brand-text">${t('artsmoker.asset_viewer.three_d_measure_fill')}</span> ${pct}</span>`;
+                        statsHtml += `<span class="flex items-center gap-2"><span class="text-brand-text">${t('artsmoker.asset_viewer.three_d_measure_margins')}:</span> `
                             + ['up', 'down', 'left', 'right'].map(e => marginChip(e, bbox[{ up: 'top', down: 'bottom', left: 'left', right: 'right' }[e]])).join(' · ')
                             + `</span>`;
                         statsHtml += `<span id="av-sr-newsize" class="text-brand-accent"></span>`;
                         // nosemgrep
                         statsEl.innerHTML = html`<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${raw(statsHtml)}</div>`
-                            + html`<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_hint')}</div>`;
+                            + html`<div class="w-full text-brand-text-dim mt-0.5">${t('artsmoker.asset_viewer.three_d_measure_hint')}</div>`;
                     } else {
                         // nosemgrep
                         statsEl.innerHTML = html`<div class="flex flex-wrap items-center gap-x-4 gap-y-1">${raw(statsHtml)}`
                             + html`<span id="av-sr-newsize" class="text-brand-accent"></span></div>`
-                            + html`<div class="w-full text-brand-text-dim mt-0.5">${t('asset_viewer.three_d_measure_nobg')}</div>`;
+                            + html`<div class="w-full text-brand-text-dim mt-0.5">${t('artsmoker.asset_viewer.three_d_measure_nobg')}</div>`;
                     }
                 }
                 // Draw only when the overlay is actually shown — it stays hidden on
@@ -3511,7 +3511,7 @@
             const newSizeEl = statsEl?.querySelector('#av-sr-newsize') || backdrop.querySelector('#av-sr-newsize');
             if (newSizeEl) {
                 newSizeEl.textContent = (d.left || d.right || d.top || d.down)
-                    ? `${t('asset_viewer.three_d_measure_newsize')} ${fW}×${fH}px`
+                    ? `${t('artsmoker.asset_viewer.three_d_measure_newsize')} ${fW}×${fH}px`
                     : '';
             }
         },
@@ -3523,10 +3523,10 @@
                 <div class="text-center py-8 space-y-4">
                     <div class="loading-spinner w-6 h-6 border-2 border-brand-accent/20 border-t-brand-accent rounded-full mx-auto"></div>
                     <div>
-                        <p class="text-brand-text">${t('asset_viewer.three_d_pending_title')}</p>
-                        <p class="text-[10px] text-brand-text-muted mt-1">${t('asset_viewer.three_d_pending_subtitle')}</p>
+                        <p class="text-brand-text">${t('artsmoker.asset_viewer.three_d_pending_title')}</p>
+                        <p class="text-[10px] text-brand-text-muted mt-1">${t('artsmoker.asset_viewer.three_d_pending_subtitle')}</p>
                     </div>
-                    <p class="text-[9px] text-brand-text-dim font-mono">${t('asset_viewer.three_d_job_id')}: ${jobId}</p>
+                    <p class="text-[9px] text-brand-text-dim font-mono">${t('artsmoker.asset_viewer.three_d_job_id')}: ${jobId}</p>
                 </div>`;
         },
 
@@ -3579,7 +3579,7 @@
                 <div class="rounded-lg border border-brand-accent/30 bg-brand-accent/5 px-3 py-2">
                     <div class="flex items-center gap-2 mb-1.5">
                         <div class="loading-spinner w-3.5 h-3.5 border-2 border-brand-accent/30 border-t-brand-accent rounded-full"></div>
-                        <span class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('asset_viewer.three_d_jobs_running')} (${jobs.length})</span>
+                        <span class="text-[10px] text-brand-text-muted uppercase tracking-wider">${t('artsmoker.asset_viewer.three_d_jobs_running')} (${jobs.length})</span>
                     </div>
                     <div class="space-y-1">
                         ${jobs.map(j => html`
@@ -3599,24 +3599,24 @@
             // Build the "models & tools used" rows from the persisted pipeline
             // block (gallery metadata). Only render rows we actually have.
             const _toolRows = [];
-            if (pl.geometry_model) _toolRows.push([t('asset_viewer.three_d_geometry_model'), pl.geometry_model]);
-            if (pl.texture_label || pl.texture_backend) _toolRows.push([t('asset_viewer.three_d_texture_model'), pl.texture_label || pl.texture_backend]);
-            _toolRows.push([t('asset_viewer.three_d_output_type'),
-                pl.has_pbr ? t('asset_viewer.three_d_pbr_textured') : t('asset_viewer.three_d_albedo_textured')]);
-            if (pl.instance_type) _toolRows.push([t('asset_viewer.three_d_instance'), pl.instance_type.replace('ml.', '')]);
-            if (prm.octree_depth) _toolRows.push([t('asset_viewer.three_d_mesh_detail'), `octree ${prm.octree_depth}`]);
-            if (prm.steps) _toolRows.push([t('asset_viewer.three_d_diffusion_steps'), String(prm.steps)]);
-            if (prm.seed !== undefined && prm.seed !== null) _toolRows.push([t('asset_viewer.three_d_seed'), String(prm.seed)]);
+            if (pl.geometry_model) _toolRows.push([t('artsmoker.asset_viewer.three_d_geometry_model'), pl.geometry_model]);
+            if (pl.texture_label || pl.texture_backend) _toolRows.push([t('artsmoker.asset_viewer.three_d_texture_model'), pl.texture_label || pl.texture_backend]);
+            _toolRows.push([t('artsmoker.asset_viewer.three_d_output_type'),
+                pl.has_pbr ? t('artsmoker.asset_viewer.three_d_pbr_textured') : t('artsmoker.asset_viewer.three_d_albedo_textured')]);
+            if (pl.instance_type) _toolRows.push([t('artsmoker.asset_viewer.three_d_instance'), pl.instance_type.replace('ml.', '')]);
+            if (prm.octree_depth) _toolRows.push([t('artsmoker.asset_viewer.three_d_mesh_detail'), `octree ${prm.octree_depth}`]);
+            if (prm.steps) _toolRows.push([t('artsmoker.asset_viewer.three_d_diffusion_steps'), String(prm.steps)]);
+            if (prm.seed !== undefined && prm.seed !== null) _toolRows.push([t('artsmoker.asset_viewer.three_d_seed'), String(prm.seed)]);
             // License provenance (persisted from the deploy-time acceptance).
             if (pl.license_name) {
-                const commTxt = pl.commercial === true ? ` (${t('asset_viewer.three_d_lic_commercial')})`
-                    : (pl.commercial === false ? ` (${t('asset_viewer.three_d_lic_noncommercial')})` : '');
-                _toolRows.push([t('asset_viewer.three_d_lic_label'), pl.license_name + commTxt]);
+                const commTxt = pl.commercial === true ? ` (${t('artsmoker.asset_viewer.three_d_lic_commercial')})`
+                    : (pl.commercial === false ? ` (${t('artsmoker.asset_viewer.three_d_lic_noncommercial')})` : '');
+                _toolRows.push([t('artsmoker.asset_viewer.three_d_lic_label'), pl.license_name + commTxt]);
             }
-            if (pl.license_accepted_at) _toolRows.push([t('asset_viewer.three_d_lic_accepted_col'), window.formatTimestamp(pl.license_accepted_at)]);
+            if (pl.license_accepted_at) _toolRows.push([t('artsmoker.asset_viewer.three_d_lic_accepted_col'), window.formatTimestamp(pl.license_accepted_at)]);
             const toolsHtml = _toolRows.length ? html`
                 <div class="rounded-lg border border-brand-border/40 bg-white/[0.02] px-4 py-3">
-                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-2">${t('asset_viewer.three_d_pipeline_title')}</p>
+                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-2">${t('artsmoker.asset_viewer.three_d_pipeline_title')}</p>
                     <div class="grid grid-cols-2 gap-x-6 gap-y-1.5">
                         ${_toolRows.map(([k, v]) => html`
                             <div class="flex items-center justify-between gap-2 text-[11px]">
@@ -3628,7 +3628,7 @@
             // Parallel jobs: Regenerate is ALWAYS available — firing another job
             // adds it to the in-progress strip rather than blocking the view.
             const regenBtnClass = 'btn btn-sm btn-secondary';
-            const regenBtnLabel = html`<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('asset_viewer.three_d_regenerate')}`;
+            const regenBtnLabel = html`<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('artsmoker.asset_viewer.three_d_regenerate')}`;
             // Untextured-fallback notice: the texture bake failed and the pipeline
             // shipped a usable but plain (untextured) mesh instead. We DON'T fail the
             // job (the user still gets geometry, no wasted time/cost) — we clearly
@@ -3638,7 +3638,7 @@
             const untexturedNotice = _untextured ? html`
                 <div class="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 flex items-start gap-2">
                     <svg class="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
-                    <p class="text-[11px] text-amber-300/90">${t('asset_viewer.three_d_untextured_notice')}</p>
+                    <p class="text-[11px] text-amber-300/90">${t('artsmoker.asset_viewer.three_d_untextured_notice')}</p>
                 </div>` : '';
             // nosemgrep
             container.innerHTML = html`
@@ -3665,31 +3665,31 @@
                         ></model-viewer>
                         <!-- Viewer controls overlay -->
                         <div class="absolute bottom-2 right-2 flex gap-1">
-                            <button id="av-3d-zoom-in" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="${t('asset_viewer.zoom_in')}">+</button>
-                            <button id="av-3d-zoom-out" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="${t('asset_viewer.zoom_out')}">−</button>
-                            <button id="av-3d-reset" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white" title="${t('asset_viewer.reset_view')}">
+                            <button id="av-3d-zoom-in" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="${t('artsmoker.asset_viewer.zoom_in')}">+</button>
+                            <button id="av-3d-zoom-out" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white text-sm" title="${t('artsmoker.asset_viewer.zoom_out')}">−</button>
+                            <button id="av-3d-reset" class="w-7 h-7 rounded bg-black/50 hover:bg-black/70 flex items-center justify-center text-white" title="${t('artsmoker.asset_viewer.reset_view')}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
                             </button>
-                            <button id="av-3d-autorotate" class="w-7 h-7 rounded bg-brand-accent/60 hover:bg-brand-accent/80 flex items-center justify-center text-white" title="${t('asset_viewer.toggle_autorotate')}">
+                            <button id="av-3d-autorotate" class="w-7 h-7 rounded bg-brand-accent/60 hover:bg-brand-accent/80 flex items-center justify-center text-white" title="${t('artsmoker.asset_viewer.toggle_autorotate')}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                             </button>
                         </div>
                     </div>
                     <div class="grid grid-cols-4 gap-3 text-center">
                         <div>
-                            <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_file_size')}</p>
+                            <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.asset_viewer.three_d_file_size')}</p>
                             <p class="font-medium">${fileSize}</p>
                         </div>
                         <div>
-                            <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_vertices')}</p>
+                            <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.asset_viewer.three_d_vertices')}</p>
                             <p class="font-medium">${data.vertices ? data.vertices.toLocaleString() : '—'}</p>
                         </div>
                         <div>
-                            <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_faces_count')}</p>
+                            <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.asset_viewer.three_d_faces_count')}</p>
                             <p class="font-medium">${data.faces ? data.faces.toLocaleString() : '—'}</p>
                         </div>
                         <div>
-                            <p class="text-[10px] text-brand-text-muted uppercase">${t('asset_viewer.three_d_created')}</p>
+                            <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.asset_viewer.three_d_created')}</p>
                             <p class="font-medium text-[11px]">${data.created_at ? window.formatTimestamp(data.created_at) : '—'}</p>
                         </div>
                     </div>
@@ -3699,13 +3699,13 @@
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                             </svg>
-                            ${t('asset_viewer.three_d_download')}
+                            ${t('artsmoker.asset_viewer.three_d_download')}
                         </a>
                         <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5">
                             ${regenBtnLabel}
                         </button>
                     </div>
-                    <p class="text-[9px] text-brand-text-muted text-center">${t('asset_viewer.three_d_viewer_hint')}</p>
+                    <p class="text-[9px] text-brand-text-muted text-center">${t('artsmoker.asset_viewer.three_d_viewer_hint')}</p>
                 </div>`;
 
             // Viewer controls
@@ -3746,7 +3746,7 @@
                 try {
                     const availability = await API.threeD.check();
                     if (!availability || !availability.available) {
-                        window.showToast?.(t('asset_viewer.three_d_not_deployed'), 'warning');
+                        window.showToast?.(t('artsmoker.asset_viewer.three_d_not_deployed'), 'warning');
                         return;
                     }
                     // Fetch deployed instances so Regenerate offers the SAME pipeline
@@ -3762,7 +3762,7 @@
                     } catch {}
                     this._render3DForm(container, instances);
                 } catch (err) {
-                    window.showToast?.(t('asset_viewer.three_d_not_deployed'), 'warning');
+                    window.showToast?.(t('artsmoker.asset_viewer.three_d_not_deployed'), 'warning');
                 }
             });
 
@@ -3815,22 +3815,22 @@
             // the row stays short. "Set default" is a small inline button shown
             // only while previewing a non-default variant.
             const subtitle = (v) => [
-                v.faces ? v.faces.toLocaleString() + ' ' + t('asset_viewer.three_d_est_faces') : '',
+                v.faces ? v.faces.toLocaleString() + ' ' + t('artsmoker.asset_viewer.three_d_est_faces') : '',
                 v.pipeline?.has_pbr ? 'PBR' : '',
             ].filter(Boolean).join(' · ');
             // nosemgrep
             bar.innerHTML = html`
                 <div class="flex items-center gap-2 flex-wrap">
-                    <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('asset_viewer.three_d_variants_title')}</span>
+                    <span class="text-[10px] text-brand-text-muted uppercase tracking-wider flex-shrink-0">${t('artsmoker.asset_viewer.three_d_variants_title')}</span>
                     ${variants.map((v) => {
                         const isDefault = v.variant_id === defaultId;
                         const sub = subtitle(v);
                         return html`<button class="av-3d-variant-btn px-2 py-1 rounded text-[10px] transition-all cursor-pointer ${isDefault ? 'bg-brand-accent text-white' : 'bg-brand-bg border border-brand-border text-brand-text-muted hover:border-brand-accent hover:text-brand-text'}"
                                 data-variant="${v.variant_id}" title="${label(v)}${sub ? ' — ' + sub : ''}">
-                            ${label(v)}${isDefault ? html`<span class="opacity-60 ml-1">(${t('asset_viewer.three_d_variant_default')})</span>` : ''}
+                            ${label(v)}${isDefault ? html`<span class="opacity-60 ml-1">(${t('artsmoker.asset_viewer.three_d_variant_default')})</span>` : ''}
                         </button>`;
                     })}
-                    <button id="av-3d-set-default" class="hidden px-2 py-1 rounded text-[10px] border border-brand-accent/50 text-brand-accent hover:bg-brand-accent/10 transition-colors cursor-pointer">${t('asset_viewer.three_d_variant_set_default')}</button>
+                    <button id="av-3d-set-default" class="hidden px-2 py-1 rounded text-[10px] border border-brand-accent/50 text-brand-accent hover:bg-brand-accent/10 transition-colors cursor-pointer">${t('artsmoker.asset_viewer.three_d_variant_set_default')}</button>
                 </div>`;
             bar.classList.remove('hidden');
 
@@ -3895,13 +3895,13 @@
             setDefaultBtn?.addEventListener('click', async () => {
                 try {
                     await API.threeD.setDefaultVariant(assetId, ver, previewId);
-                    window.showToast?.(t('asset_viewer.three_d_variant_set_default_ok'), 'success');
+                    window.showToast?.(t('artsmoker.asset_viewer.three_d_variant_set_default_ok'), 'success');
                     // Refresh metadata so the gallery/thumbnail reflect the new default.
                     try { this._meta = await API.gallery.get(assetId); } catch {}
                     window.Gallery?.refresh?.();
                     this._update3DContent();
                 } catch {
-                    window.showToast?.(t('asset_viewer.three_d_failed'), 'error');
+                    window.showToast?.(t('artsmoker.asset_viewer.three_d_failed'), 'error');
                 }
             });
             refreshButtons();
@@ -3974,32 +3974,32 @@
             // The instruction actually sent to the editor (post-transform if any).
             const sent = v.edit_prompt_sent || v.enhanced_prompt || v.prompt || '';
             if (sent) {
-                const neg = v.negative_prompt ? this._esc(v.negative_prompt) : t('asset_viewer.meta_none');
+                const neg = v.negative_prompt ? this._esc(v.negative_prompt) : t('artsmoker.asset_viewer.meta_none');
                 // Copy carries ONLY `sent`; the negative renders in a separate
                 // element outside the copyable <p>.
                 html += `
                     <div class="av-prompt-block">
                         <div class="flex items-center gap-2 mb-0.5">
-                            <span class="text-[11px] font-medium ${LABEL_TONE.indigo}">${t('asset_viewer.meta_sent_to_editor')}</span>
+                            <span class="text-[11px] font-medium ${LABEL_TONE.indigo}">${t('artsmoker.asset_viewer.meta_sent_to_editor')}</span>
                             <span class="px-1.5 py-0.5 rounded text-[9px] bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">${this._esc(editLabel)}</span>
                             ${this._copyBtnFor ? this._copyBtnFor(sent) : ''}
                         </div>
                         <p class="p-2 rounded-t-lg border border-b-0 ${TONE.indigo} whitespace-pre-wrap text-[11px] leading-snug max-h-32 overflow-y-auto">${this._esc(sent)}</p>
-                        <div class="p-2 rounded-b-lg border ${TONE.indigo} text-[9px] text-brand-text-muted/80">${t('asset_viewer.meta_negative_add')}: ${neg}</div>
+                        <div class="p-2 rounded-b-lg border ${TONE.indigo} text-[9px] text-brand-text-muted/80">${t('artsmoker.asset_viewer.meta_negative_add')}: ${neg}</div>
                     </div>`;
             }
             if (v.prompt && v.edit_prompt_sent && v.prompt !== v.edit_prompt_sent) {
-                html += promptBlock(t('asset_viewer.meta_your_instruction'), v.prompt, { tone: 'muted', muted: true });
+                html += promptBlock(t('artsmoker.asset_viewer.meta_your_instruction'), v.prompt, { tone: 'muted', muted: true });
             }
 
             // Mask (natural-language and/or the drawn mask thumbnail).
             if (v.mask_prompt) {
-                html += promptBlock(t('asset_viewer.meta_mask_area'), v.mask_prompt, { tone: 'amber' });
+                html += promptBlock(t('artsmoker.asset_viewer.meta_mask_area'), v.mask_prompt, { tone: 'amber' });
             }
             if (v.mask_file && meta?.id) {
                 html += `
                     <div class="av-prompt-block">
-                        <div class="text-[11px] font-medium ${LABEL_TONE.amber} mb-0.5">${t('asset_viewer.meta_mask_drawn')}</div>
+                        <div class="text-[11px] font-medium ${LABEL_TONE.amber} mb-0.5">${t('artsmoker.asset_viewer.meta_mask_drawn')}</div>
                         <img src="/api/gallery/${encodeURIComponent(meta.id)}/mask/${encodeURIComponent(v.mask_file)}"
                              class="max-h-32 rounded-lg border border-brand-border/40 bg-[repeating-conic-gradient(#0000_0deg_90deg,#ffffff10_90deg_180deg)]" alt="mask" />
                     </div>`;
@@ -4012,10 +4012,10 @@
                     .map(([e, px]) => `${e} +${px}px`).join(', ') : '';
                 const dims = (sd?.width && rd?.width)
                     ? `${sd.width}×${sd.height} → ${rd.width}×${rd.height}` : '';
-                const body = [dims, edges].filter(Boolean).join('  ·  ') || t('asset_viewer.meta_none');
+                const body = [dims, edges].filter(Boolean).join('  ·  ') || t('artsmoker.asset_viewer.meta_none');
                 html += `
                     <div class="av-prompt-block">
-                        <div class="text-[11px] font-medium ${LABEL_TONE.neutral} mb-0.5">${t('asset_viewer.meta_canvas_change')}</div>
+                        <div class="text-[11px] font-medium ${LABEL_TONE.neutral} mb-0.5">${t('artsmoker.asset_viewer.meta_canvas_change')}</div>
                         <p class="p-2 rounded-lg border ${TONE.neutral} text-[11px] font-mono">${this._esc(body)}</p>
                     </div>`;
             }
@@ -4024,7 +4024,7 @@
 
         _copyBtnFor(text) {
             const escAttr = (s) => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            return `<button class="av-copy-btn ml-2 px-1.5 py-0.5 rounded text-[9px] text-brand-text-muted hover:text-brand-accent hover:bg-brand-accent/10 border border-transparent hover:border-brand-accent/20 transition-colors" data-copy="${escAttr(text)}" title="${t('asset_viewer.meta_copy')}">${t('asset_viewer.meta_copy')}</button>`;
+            return `<button class="av-copy-btn ml-2 px-1.5 py-0.5 rounded text-[9px] text-brand-text-muted hover:text-brand-accent hover:bg-brand-accent/10 border border-transparent hover:border-brand-accent/20 transition-colors" data-copy="${escAttr(text)}" title="${t('artsmoker.asset_viewer.meta_copy')}">${t('artsmoker.asset_viewer.meta_copy')}</button>`;
         },
 
         _renderDecomposed(data) {
@@ -4069,8 +4069,8 @@
                     // Show the source tag (user-stated vs inferred) when present.
                     const src = (fieldVal && typeof fieldVal === 'object' && fieldVal.source) ? fieldVal.source : '';
                     const srcTag = src === 'user'
-                        ? ` <span class="text-emerald-400/60 text-[9px]">(${t('asset_viewer.meta_src_user')})</span>`
-                        : (src === 'inferred' ? ` <span class="text-brand-text-muted/40 text-[9px]">(${t('asset_viewer.meta_src_inferred')})</span>` : '');
+                        ? ` <span class="text-emerald-400/60 text-[9px]">(${t('artsmoker.asset_viewer.meta_src_user')})</span>`
+                        : (src === 'inferred' ? ` <span class="text-brand-text-muted/40 text-[9px]">(${t('artsmoker.asset_viewer.meta_src_inferred')})</span>` : '');
                     lines.push(`<div><span class="text-brand-text-muted/60">${this._esc(humanize(fieldKey))}:</span> ${this._esc(txt)}${srcTag}</div>`);
                 }
                 if (lines.length) {

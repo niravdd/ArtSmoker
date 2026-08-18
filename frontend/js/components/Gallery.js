@@ -25,21 +25,21 @@
                     <!-- Header -->
                     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                         <div>
-                            <h1 class="text-2xl font-bold">${t('gallery.title')}</h1>
-                            <p class="text-sm text-brand-text-muted mt-1">${t('gallery.subtitle')}</p>
+                            <h1 class="text-2xl font-bold">${t('artsmoker.gallery.title')}</h1>
+                            <p class="text-sm text-brand-text-muted mt-1">${t('artsmoker.gallery.subtitle')}</p>
                         </div>
                         <div class="flex items-center gap-2">
                             <button id="gal-import-btn" class="btn btn-sm bg-cyan-600 hover:bg-cyan-500 text-white">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"/>
                                 </svg>
-                                ${t('gallery.import_image')}
+                                ${t('artsmoker.gallery.import_image')}
                             </button>
                             <a href="#image-studio" class="btn btn-primary btn-sm">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
                                 </svg>
-                                ${t('gallery.generate_new')}
+                                ${t('artsmoker.gallery.generate_new')}
                             </a>
                         </div>
                     </div>
@@ -47,17 +47,17 @@
                     <!-- Selection bar (hidden until items are selected) -->
                     <div id="gal-selection-bar" class="hidden card-static p-3 bg-red-950/30 border-red-500/30 flex items-center justify-between gap-4">
                         <div class="flex items-center gap-3">
-                            <button id="gal-select-all" class="btn btn-secondary btn-sm text-xs">${t('gallery.select_all')}</button>
-                            <button id="gal-deselect-all" class="btn btn-secondary btn-sm text-xs">${t('gallery.deselect_all')}</button>
+                            <button id="gal-select-all" class="btn btn-secondary btn-sm text-xs">${t('artsmoker.gallery.select_all')}</button>
+                            <button id="gal-deselect-all" class="btn btn-secondary btn-sm text-xs">${t('artsmoker.gallery.deselect_all')}</button>
                             <span id="gal-selected-count" class="text-sm text-red-300 font-medium"></span>
                         </div>
                         <div class="flex items-center gap-3">
-                            <span class="text-[10px] text-red-400/70">${t('gallery.delete_warning')}</span>
+                            <span class="text-[10px] text-red-400/70">${t('artsmoker.gallery.delete_warning')}</span>
                             <button id="gal-delete-btn" class="btn btn-sm bg-red-600 hover:bg-red-500 text-white">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                 </svg>
-                                ${t('gallery.delete_selected')}
+                                ${t('artsmoker.gallery.delete_selected')}
                             </button>
                         </div>
                     </div>
@@ -69,42 +69,42 @@
                             <svg class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-brand-text-muted/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
                             </svg>
-                            <input type="text" id="gal-search" class="input w-full pl-10" placeholder="${t('gallery.search_placeholder')}">
+                            <input type="text" id="gal-search" class="input w-full pl-10" placeholder="${t('artsmoker.gallery.search_placeholder')}">
                         </div>
                         <!-- Filters -->
                         <div class="flex flex-wrap items-center gap-3">
                             <div class="flex-1 min-w-[120px]">
-                                <label class="block text-xs text-brand-text-muted mb-1">${t('gallery.filter_media')}</label>
+                                <label class="block text-xs text-brand-text-muted mb-1">${t('artsmoker.gallery.filter_media')}</label>
                                 <select id="gal-filter-media" class="input">
-                                    <option value="">${t('gallery.filter_all_media')}</option>
-                                    <option value="image">${t('gallery.filter_images')}</option>
-                                    <option value="3d">${t('gallery.filter_3d')}</option>
-                                    <option value="video">${t('gallery.filter_videos')}</option>
+                                    <option value="">${t('artsmoker.gallery.filter_all_media')}</option>
+                                    <option value="image">${t('artsmoker.gallery.filter_images')}</option>
+                                    <option value="3d">${t('artsmoker.gallery.filter_3d')}</option>
+                                    <option value="video">${t('artsmoker.gallery.filter_videos')}</option>
                                 </select>
                             </div>
                             <div class="flex-1 min-w-[160px]">
-                                <label class="block text-xs text-brand-text-muted mb-1">${t('gallery.filter_style')}</label>
+                                <label class="block text-xs text-brand-text-muted mb-1">${t('artsmoker.gallery.filter_style')}</label>
                                 <select id="gal-filter-style" class="input">
-                                    <option value="">${t('gallery.filter_all_styles')}</option>
+                                    <option value="">${t('artsmoker.gallery.filter_all_styles')}</option>
                                 </select>
                             </div>
                             <div class="flex-1 min-w-[160px]">
-                                <label class="block text-xs text-brand-text-muted mb-1">${t('gallery.filter_type')}</label>
+                                <label class="block text-xs text-brand-text-muted mb-1">${t('artsmoker.gallery.filter_type')}</label>
                                 <select id="gal-filter-type" class="input">
-                                    <option value="">${t('gallery.filter_all_types')}</option>
-                                    <option value="game_asset">${t('gallery.filter_game_asset')}</option>
-                                    <option value="marketing_banner">${t('gallery.filter_marketing_banner')}</option>
-                                    <option value="icon">${t('gallery.filter_icon')}</option>
-                                    <option value="character">${t('gallery.filter_character')}</option>
-                                    <option value="environment">${t('gallery.filter_environment')}</option>
-                                    <option value="video">${t('gallery.filter_video')}</option>
+                                    <option value="">${t('artsmoker.gallery.filter_all_types')}</option>
+                                    <option value="game_asset">${t('artsmoker.gallery.filter_game_asset')}</option>
+                                    <option value="marketing_banner">${t('artsmoker.gallery.filter_marketing_banner')}</option>
+                                    <option value="icon">${t('artsmoker.gallery.filter_icon')}</option>
+                                    <option value="character">${t('artsmoker.gallery.filter_character')}</option>
+                                    <option value="environment">${t('artsmoker.gallery.filter_environment')}</option>
+                                    <option value="video">${t('artsmoker.gallery.filter_video')}</option>
                                 </select>
                             </div>
                             <div class="flex-1 min-w-[160px]">
-                                <label class="block text-xs text-brand-text-muted mb-1">${t('gallery.sort')}</label>
+                                <label class="block text-xs text-brand-text-muted mb-1">${t('artsmoker.gallery.sort')}</label>
                                 <select id="gal-sort" class="input">
-                                    <option value="newest">${t('gallery.sort_newest')}</option>
-                                    <option value="oldest">${t('gallery.sort_oldest')}</option>
+                                    <option value="newest">${t('artsmoker.gallery.sort_newest')}</option>
+                                    <option value="oldest">${t('artsmoker.gallery.sort_oldest')}</option>
                                 </select>
                             </div>
                             <div class="flex items-end">
@@ -112,7 +112,7 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z"/>
                                     </svg>
-                                    ${t('common.apply')}
+                                    ${t('artsmoker.common.apply')}
                                 </button>
                             </div>
                         </div>
@@ -128,7 +128,7 @@
 
                     <!-- Load More -->
                     <div id="gal-load-more" class="hidden text-center py-4">
-                        <button id="btn-load-more" class="btn btn-secondary btn-sm">${t('gallery.load_more')}</button>
+                        <button id="btn-load-more" class="btn btn-secondary btn-sm">${t('artsmoker.gallery.load_more')}</button>
                     </div>
                     <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-6">ArtSmoker</p>
                 </div>
@@ -183,12 +183,12 @@
             // Asset types offered — reuse the gallery filter labels. Character/game
             // asset enable 3D (noted in the hint below).
             const TYPES = [
-                ['character', t('gallery.filter_character')],
-                ['game_asset', t('gallery.filter_game_asset')],
-                ['environment', t('gallery.filter_environment')],
-                ['icon', t('gallery.filter_icon')],
-                ['marketing_banner', t('gallery.filter_marketing_banner')],
-                ['photorealistic', t('gallery.filter_photorealistic')],
+                ['character', t('artsmoker.gallery.filter_character')],
+                ['game_asset', t('artsmoker.gallery.filter_game_asset')],
+                ['environment', t('artsmoker.gallery.filter_environment')],
+                ['icon', t('artsmoker.gallery.filter_icon')],
+                ['marketing_banner', t('artsmoker.gallery.filter_marketing_banner')],
+                ['photorealistic', t('artsmoker.gallery.filter_photorealistic')],
             ];
             const backdrop = document.createElement('div');
             backdrop.className = 'fixed inset-0 z-[130] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
@@ -196,38 +196,38 @@
             backdrop.innerHTML = html`
                 <div class="bg-brand-surface rounded-xl border border-brand-border shadow-2xl max-w-lg w-full p-5 space-y-4 max-h-[92vh] overflow-y-auto">
                     <div>
-                        <h3 class="text-sm font-semibold text-brand-text">${t('gallery.import_title')}</h3>
-                        <p class="text-[11px] text-brand-text-dim mt-1">${t('gallery.import_subtitle')}</p>
+                        <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.gallery.import_title')}</h3>
+                        <p class="text-[11px] text-brand-text-dim mt-1">${t('artsmoker.gallery.import_subtitle')}</p>
                     </div>
                     <!-- Drop zone (click to browse or drag-drop) -->
                     <div id="gi-drop" class="rounded-lg border-2 border-dashed border-brand-border hover:border-brand-accent/60 cursor-pointer transition-colors flex items-center justify-center text-center p-4" style="min-height: 200px;">
                         <img id="gi-preview" class="hidden max-h-64 w-auto rounded-lg object-contain" alt="preview" />
-                        <p id="gi-drop-text" class="text-xs text-brand-text-muted px-6">${t('gallery.import_drop')}</p>
+                        <p id="gi-drop-text" class="text-xs text-brand-text-muted px-6">${t('artsmoker.gallery.import_drop')}</p>
                     </div>
                     <input id="gi-file" type="file" accept="image/*" class="hidden" />
                     <div>
-                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('gallery.import_asset_type')}</label>
+                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('artsmoker.gallery.import_asset_type')}</label>
                         <select id="gi-type" class="input text-sm w-full">
-                            <option value="">${t('gallery.import_asset_type_ph')}</option>
+                            <option value="">${t('artsmoker.gallery.import_asset_type_ph')}</option>
                             ${TYPES.map(([v, l]) => html`<option value="${v}">${l}</option>`)}
                         </select>
-                        <p class="text-[9px] text-brand-text-dim mt-1">${t('gallery.import_asset_type_hint')}</p>
+                        <p class="text-[9px] text-brand-text-dim mt-1">${t('artsmoker.gallery.import_asset_type_hint')}</p>
                     </div>
                     <div>
-                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('gallery.import_title_label')}</label>
-                        <input id="gi-title" type="text" class="input text-sm w-full" placeholder="${t('gallery.import_title_ph')}" />
+                        <label class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-1 block">${t('artsmoker.gallery.import_title_label')}</label>
+                        <input id="gi-title" type="text" class="input text-sm w-full" placeholder="${t('artsmoker.gallery.import_title_ph')}" />
                     </div>
                     <div class="flex flex-wrap gap-4">
                         <label class="flex items-center gap-2 cursor-pointer text-[11px] text-brand-text">
-                            <input id="gi-ip-owned" type="checkbox" class="accent-brand-accent" /> ${t('gallery.import_ip_owned')}
+                            <input id="gi-ip-owned" type="checkbox" class="accent-brand-accent" /> ${t('artsmoker.gallery.import_ip_owned')}
                         </label>
                         <label class="flex items-center gap-2 cursor-pointer text-[11px] text-brand-text">
-                            <input id="gi-ip-licensed" type="checkbox" class="accent-brand-accent" /> ${t('gallery.import_ip_licensed')}
+                            <input id="gi-ip-licensed" type="checkbox" class="accent-brand-accent" /> ${t('artsmoker.gallery.import_ip_licensed')}
                         </label>
                     </div>
                     <div class="flex items-center gap-2">
-                        <button id="gi-submit" class="btn btn-primary btn-sm flex-1" disabled>${t('gallery.import_submit')}</button>
-                        <button id="gi-cancel" class="btn btn-secondary btn-sm">${t('prompt_designer.cancel')}</button>
+                        <button id="gi-submit" class="btn btn-primary btn-sm flex-1" disabled>${t('artsmoker.gallery.import_submit')}</button>
+                        <button id="gi-cancel" class="btn btn-secondary btn-sm">${t('artsmoker.prompt_designer.cancel')}</button>
                     </div>
                 </div>`;
 
@@ -239,7 +239,7 @@
 
             const refreshSubmit = () => { submitBtn.disabled = !(chosenFile && typeSel.value); };
             const setFile = (f) => {
-                if (!f || !f.type.startsWith('image/')) { window.showToast?.(t('gallery.import_pick_file'), 'warning'); return; }
+                if (!f || !f.type.startsWith('image/')) { window.showToast?.(t('artsmoker.gallery.import_pick_file'), 'warning'); return; }
                 chosenFile = f;
                 const url = URL.createObjectURL(f);
                 preview.src = url; preview.classList.remove('hidden'); dropText.classList.add('hidden');
@@ -262,11 +262,11 @@
             backdrop.addEventListener('click', (e) => { if (e.target === backdrop) close(); });
 
             submitBtn.addEventListener('click', async () => {
-                if (!chosenFile) { window.showToast?.(t('gallery.import_pick_file'), 'warning'); return; }
-                if (!typeSel.value) { window.showToast?.(t('gallery.import_pick_type'), 'warning'); return; }
+                if (!chosenFile) { window.showToast?.(t('artsmoker.gallery.import_pick_file'), 'warning'); return; }
+                if (!typeSel.value) { window.showToast?.(t('artsmoker.gallery.import_pick_type'), 'warning'); return; }
                 submitBtn.disabled = true;
                 // nosemgrep
-                submitBtn.innerHTML = html`<span class="spinner-sm"></span> ${t('gallery.import_importing')}`;
+                submitBtn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.gallery.import_importing')}`;
                 try {
                     const item = await API.gallery.import(chosenFile, {
                         assetType: typeSel.value,
@@ -274,7 +274,7 @@
                         ipOwned: $('#gi-ip-owned').checked,
                         ipLicensed: $('#gi-ip-licensed').checked,
                     });
-                    window.showToast?.(t('gallery.import_success'), 'success');
+                    window.showToast?.(t('artsmoker.gallery.import_success'), 'success');
                     close();
                     await this.refresh();
                     // Open the freshly imported asset so the user can act on it immediately.
@@ -282,9 +282,9 @@
                     fresh._media = 'image';
                     window.AssetViewer?.open?.(fresh, this._items || [fresh], 0);
                 } catch (err) {
-                    window.showToast?.(t('gallery.import_failed') + ': ' + (err.message || ''), 'error');
+                    window.showToast?.(t('artsmoker.gallery.import_failed') + ': ' + (err.message || ''), 'error');
                     submitBtn.disabled = false;
-                    submitBtn.textContent = t('gallery.import_submit');
+                    submitBtn.textContent = t('artsmoker.gallery.import_submit');
                 }
             });
 
@@ -426,7 +426,7 @@
                 console.error('Gallery load error:', err);
                 if (grid && this._items.length === 0) {
                     // nosemgrep
-                    grid.innerHTML = html`<div class="col-span-full text-center py-8 text-red-400">${t('gallery.load_error')}</div>`;
+                    grid.innerHTML = html`<div class="col-span-full text-center py-8 text-red-400">${t('artsmoker.gallery.load_error')}</div>`;
                 }
             } finally {
                 this._loading = false;
@@ -442,7 +442,7 @@
             const count = document.getElementById('gal-selected-count');
             const n = this._selected.size;
             if (bar) bar.classList.toggle('hidden', n === 0);
-            if (count) count.textContent = t('gallery.selected', { count: n, plural: n !== 1 ? 's' : '' });
+            if (count) count.textContent = t('artsmoker.gallery.selected', { count: n, plural: n !== 1 ? 's' : '' });
 
             // Sync checkboxes
             document.querySelectorAll('.gal-select-cb').forEach(cb => {
@@ -459,9 +459,9 @@
             const ids = Array.from(this._selected);
             if (ids.length === 0) return;
 
-            if (!await window.showConfirm(t('gallery.delete_confirm', { count: ids.length, plural: ids.length !== 1 ? 's' : '' }), { title: t('gallery.delete_title'), detail: t('gallery.delete_detail'), confirmLabel: t('gallery.confirm_label'), danger: true })) return;
+            if (!await window.showConfirm(t('artsmoker.gallery.delete_confirm', { count: ids.length, plural: ids.length !== 1 ? 's' : '' }), { title: t('artsmoker.gallery.delete_title'), detail: t('artsmoker.gallery.delete_detail'), confirmLabel: t('artsmoker.gallery.confirm_label'), danger: true })) return;
 
-            window.showLoading?.(t('gallery.deleting', { count: ids.length, plural: ids.length !== 1 ? 's' : '' }));
+            window.showLoading?.(t('artsmoker.gallery.deleting', { count: ids.length, plural: ids.length !== 1 ? 's' : '' }));
             try {
                 // Separate image and video IDs
                 const imageIds = [];
@@ -488,7 +488,7 @@
 
                 window.hideLoading?.();
                 this._selected.clear();
-                window.showToast?.(t('gallery.deleted', { count: deletedCount, plural: deletedCount !== 1 ? 's' : '' }), 'success');
+                window.showToast?.(t('artsmoker.gallery.deleted', { count: deletedCount, plural: deletedCount !== 1 ? 's' : '' }), 'success');
                 this._loading = false;  // Ensure reload is not blocked
                 await this._loadItems(true);
             } catch (err) {
@@ -526,9 +526,9 @@
             if (countEl) {
                 countEl.classList.remove('hidden');
                 const displayItems = this._filteredItems !== null ? this._filteredItems : this._items;
-                const countText = t('gallery.asset_count', { count: this._items.length, plural: this._items.length !== 1 ? 's' : '' });
-                const searchNote = this._filteredItems !== null ? t('gallery.matching', { count: displayItems.length }) : '';
-                const moreNote = this._hasMore ? t('gallery.more_available') : '';
+                const countText = t('artsmoker.gallery.asset_count', { count: this._items.length, plural: this._items.length !== 1 ? 's' : '' });
+                const searchNote = this._filteredItems !== null ? t('artsmoker.gallery.matching', { count: displayItems.length }) : '';
+                const moreNote = this._hasMore ? t('artsmoker.gallery.more_available') : '';
                 countEl.textContent = `${countText}${searchNote}${moreNote}`;
             }
         },
@@ -550,7 +550,7 @@
                 // nosemgrep
                 grid.innerHTML = html`
                     <div class="col-span-full text-center py-12 text-brand-text-muted">
-                        <p class="text-sm">${t('gallery.no_results')}</p>
+                        <p class="text-sm">${t('artsmoker.gallery.no_results')}</p>
                     </div>
                 `;
                 return;
@@ -564,13 +564,13 @@
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                                 d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                         </svg>
-                        <h3 class="text-lg font-semibold text-brand-text mb-1">${t('gallery.no_assets')}</h3>
-                        <p class="text-brand-text-muted text-sm mb-4">${t('gallery.no_assets_desc')}</p>
+                        <h3 class="text-lg font-semibold text-brand-text mb-1">${t('artsmoker.gallery.no_assets')}</h3>
+                        <p class="text-brand-text-muted text-sm mb-4">${t('artsmoker.gallery.no_assets_desc')}</p>
                         <a href="#image-studio" class="btn btn-primary btn-sm">
                             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                             </svg>
-                            ${t('gallery.go_to_studio')}
+                            ${t('artsmoker.gallery.go_to_studio')}
                         </a>
                     </div>
                 `;
@@ -644,14 +644,14 @@
                             : item.async_status === 'moderation_blocked'
                             ? html`<div class="w-full h-full flex flex-col items-center justify-center text-amber-400/70 gap-2 px-2 text-center">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
-                                <span class="text-[10px]">${t('gallery.status_censored')}</span>
+                                <span class="text-[10px]">${t('artsmoker.gallery.status_censored')}</span>
                                </div>`
                             : item.async_status === 'failed'
                             ? html`<div class="w-full h-full flex flex-col items-center justify-center text-red-400/60 gap-2">
                                 <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.962-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/></svg>
-                                <span class="text-[10px]">${t('gallery.status_failed')}</span>
+                                <span class="text-[10px]">${t('artsmoker.gallery.status_failed')}</span>
                                </div>`
-                            : html`<img src="${thumbUrl}" alt="${isVideo ? t('gallery.alt_video_thumb') : t('gallery.alt_asset')}"
+                            : html`<img src="${thumbUrl}" alt="${isVideo ? t('artsmoker.gallery.alt_video_thumb') : t('artsmoker.gallery.alt_asset')}"
                                  class="w-full ${isVideo ? 'h-full object-cover' : 'h-auto object-contain'} block"
                                  loading="lazy" />`
                         }
@@ -667,18 +667,18 @@
                             <input type="checkbox" class="gal-select-cb w-4 h-4 rounded border-brand-border bg-brand-bg/80 text-red-500 focus:ring-red-500 cursor-pointer"
                                 data-id="${item.id}" ${isSelected ? 'checked' : ''} />
                         </label>
-                        ${isVideo ? html`<span class="absolute top-2 right-2 bg-brand-accent/80 text-white text-[9px] px-1.5 py-0.5 rounded font-medium">${t('gallery.video_badge')}</span>` : ''}
-                        ${item.has_3d ? html`<span class="absolute bottom-2 right-2 z-10 flex items-center gap-1 bg-violet-600/85 text-white text-[9px] px-1.5 py-0.5 rounded font-semibold shadow" title="${t('gallery.has_3d_tooltip')}">
+                        ${isVideo ? html`<span class="absolute top-2 right-2 bg-brand-accent/80 text-white text-[9px] px-1.5 py-0.5 rounded font-medium">${t('artsmoker.gallery.video_badge')}</span>` : ''}
+                        ${item.has_3d ? html`<span class="absolute bottom-2 right-2 z-10 flex items-center gap-1 bg-violet-600/85 text-white text-[9px] px-1.5 py-0.5 rounded font-semibold shadow" title="${t('artsmoker.gallery.has_3d_tooltip')}">
                             <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"/></svg>
-                            ${t('gallery.has_3d_badge')}
+                            ${t('artsmoker.gallery.has_3d_badge')}
                         </span>` : ''}
                     </div>
                     <div class="p-4 space-y-2">
-                        <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${truncPrompt || html`<em class="text-brand-text-muted">${t('gallery.no_prompt')}</em>`}</p>
+                        <p class="text-sm text-brand-text line-clamp-2 group-hover:text-brand-accent transition-colors">${truncPrompt || html`<em class="text-brand-text-muted">${t('artsmoker.gallery.no_prompt')}</em>`}</p>
                         ${createdAt ? html`<div class="text-[10px] text-brand-text-muted/80 leading-tight">${createdAt}</div>` : ''}
                         <div class="flex items-center flex-wrap gap-2 text-xs text-brand-text-muted">
                             ${item.image_model === 'imported'
-                                ? html`<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('gallery.imported_badge')}</span>`
+                                ? html`<span class="px-1.5 py-0.5 rounded text-[10px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">${t('artsmoker.gallery.imported_badge')}</span>`
                                 : (item.model_label ? html`<span class="badge badge-indigo">${item.model_label}</span>` : '')}
                             ${styleName ? html`<span class="badge badge-indigo">${styleName}</span>` : ''}
                             ${item.asset_type && item.asset_type !== 'video' ? html`<span class="badge badge-indigo">${item.asset_type}</span>` : ''}

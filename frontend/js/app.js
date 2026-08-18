@@ -51,7 +51,7 @@
         const routeDef = ROUTES[route];
         if (!routeDef || !routeDef.component) {
             // nosemgrep
-            app.innerHTML = html`<p class="text-center py-12 text-brand-text-muted">${t('onboarding.page_not_found')}</p>`;
+            app.innerHTML = html`<p class="text-center py-12 text-brand-text-muted">${t('artsmoker.onboarding.page_not_found')}</p>`;
             currentRoute = null;
             return;
         }
@@ -212,7 +212,7 @@
         toast.innerHTML = html`
             ${raw(iconMap[type] || iconMap.info)}
             <p class="text-sm text-brand-text flex-1">${message}</p>
-            <button class="toast-close p-0.5 rounded hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors flex-shrink-0" title="${typeof t !== 'undefined' ? t('common.dismiss') : 'Dismiss'}">
+            <button class="toast-close p-0.5 rounded hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors flex-shrink-0" title="${typeof t !== 'undefined' ? t('artsmoker.common.dismiss') : 'Dismiss'}">
                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
@@ -435,7 +435,7 @@
                     <p class="text-sm font-semibold text-brand-text">${n.title || 'Notice'}</p>
                     <p class="text-xs text-brand-text-muted mt-0.5 leading-relaxed">${n.message || ''}</p>
                 </div>
-                <button class="toast-close p-0.5 rounded hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors flex-shrink-0" title="${typeof t !== 'undefined' ? t('common.dismiss') : 'Dismiss'}">
+                <button class="toast-close p-0.5 rounded hover:bg-white/5 text-brand-text-muted hover:text-brand-text transition-colors flex-shrink-0" title="${typeof t !== 'undefined' ? t('artsmoker.common.dismiss') : 'Dismiss'}">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                     </svg>
@@ -485,8 +485,8 @@
                 <div class="text-center">
                     <div class="text-3xl mb-2 sync-timer" style="display:inline-block;animation:spin 2s linear infinite">⏳</div>
                     <style>@keyframes spin{0%{transform:rotate(0deg)}100%{transform:rotate(360deg)}}</style>
-                    <h3 class="text-sm font-semibold text-brand-text">${t('onboarding.setup_title')}</h3>
-                    <p class="text-xs text-brand-text-muted mt-1">${t('onboarding.setup_desc')}</p>
+                    <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.onboarding.setup_title')}</h3>
+                    <p class="text-xs text-brand-text-muted mt-1">${t('artsmoker.onboarding.setup_desc')}</p>
                 </div>
                 <div class="bg-black/20 rounded-lg p-3 space-y-2">
                     <p class="sync-msg text-xs text-brand-accent font-medium">${message}</p>
@@ -522,8 +522,8 @@
                         if (d.models.chat) parts.push(`💬 ${d.models.chat} chat`);
                         if (d.models.video) parts.push(`🎬 ${d.models.video} video`);
                         const regionMatch = d.message?.match(/(\d+)\/(\d+)/);
-                        const regionInfo = regionMatch ? t('onboarding.across_regions').replace('{{done}}', regionMatch[1]).replace('{{total}}', regionMatch[2]) : t('onboarding.in_bedrock');
-                        if (parts.length) countsEl.textContent = t('onboarding.models_discovered').replace('{{region}}', regionInfo).replace('{{parts}}', parts.join('  ·  '));
+                        const regionInfo = regionMatch ? t('artsmoker.onboarding.across_regions').replace('{{done}}', regionMatch[1]).replace('{{total}}', regionMatch[2]) : t('artsmoker.onboarding.in_bedrock');
+                        if (parts.length) countsEl.textContent = t('artsmoker.onboarding.models_discovered').replace('{{region}}', regionInfo).replace('{{parts}}', parts.join('  ·  '));
                     }
                     // Prepend to log (newest on top), mark previous as done
                     const logEl = _syncModal?.querySelector('.sync-log');
@@ -553,12 +553,12 @@
             // nosemgrep
             inner.innerHTML = html`
                 <div class="text-3xl mb-2">⚠</div>
-                <h3 class="text-sm font-semibold text-amber-400">${t('onboarding.discovery_failed')}</h3>
-                <p class="text-xs text-brand-text-muted">${t('onboarding.discovery_failed_desc')} <strong>${t('onboarding.sync_from_aws')}</strong> ${t('onboarding.before_using')}</p>
-                <p class="text-[10px] text-brand-text-muted/50 mt-1">${errorMsg || t('onboarding.unknown_error')}</p>
+                <h3 class="text-sm font-semibold text-amber-400">${t('artsmoker.onboarding.discovery_failed')}</h3>
+                <p class="text-xs text-brand-text-muted">${t('artsmoker.onboarding.discovery_failed_desc')} <strong>${t('artsmoker.onboarding.sync_from_aws')}</strong> ${t('artsmoker.onboarding.before_using')}</p>
+                <p class="text-[10px] text-brand-text-muted/50 mt-1">${errorMsg || t('artsmoker.onboarding.unknown_error')}</p>
                 <div class="flex gap-2 justify-center mt-4">
-                    <button class="sync-open-settings btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('onboarding.open_model_settings')}</button>
-                    <button class="sync-dismiss btn btn-sm text-xs px-5 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('common.dismiss')}</button>
+                    <button class="sync-open-settings btn btn-sm text-xs px-5 py-2 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('artsmoker.onboarding.open_model_settings')}</button>
+                    <button class="sync-dismiss btn btn-sm text-xs px-5 py-2 rounded-lg border border-brand-border hover:bg-white/5 text-brand-text-muted">${t('artsmoker.common.dismiss')}</button>
                 </div>`;
             inner.querySelector('.sync-open-settings').addEventListener('click', () => {
                 _syncModal.remove();
@@ -575,9 +575,9 @@
             // nosemgrep
             inner.innerHTML = html`
                 <div class="text-3xl mb-2">✓</div>
-                <h3 class="text-sm font-semibold text-brand-text">${t('onboarding.ready_title')}</h3>
-                <p class="text-xs text-brand-text-muted">${t('onboarding.ready_desc')}</p>
-                <button class="btn btn-sm text-xs px-6 py-2 mt-3 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('common.ok')}</button>`;
+                <h3 class="text-sm font-semibold text-brand-text">${t('artsmoker.onboarding.ready_title')}</h3>
+                <p class="text-xs text-brand-text-muted">${t('artsmoker.onboarding.ready_desc')}</p>
+                <button class="btn btn-sm text-xs px-6 py-2 mt-3 rounded-lg bg-brand-accent hover:bg-brand-accent-hover text-white font-medium">${t('artsmoker.common.ok')}</button>`;
         }
         inner.querySelector('button').addEventListener('click', () => {
             _syncModal.remove();
@@ -716,7 +716,7 @@
                     waitingForRestart = false;
                     if (restartBanner) {
                         // nosemgrep
-                        restartBanner.innerHTML = html`<span class="mr-2">⚠</span> ${t('onboarding.server_timeout')} <button onclick="location.reload()" class="underline ml-2 font-semibold">${t('onboarding.refresh')}</button>`;
+                        restartBanner.innerHTML = html`<span class="mr-2">⚠</span> ${t('artsmoker.onboarding.server_timeout')} <button onclick="location.reload()" class="underline ml-2 font-semibold">${t('artsmoker.onboarding.refresh')}</button>`;
                         restartBanner.className = restartBanner.className.replace('bg-amber-600', 'bg-red-600');
                     }
                 }

@@ -51,8 +51,8 @@
             return html`
                 <div id="generator-view" class="view-enter">
                     <div class="mb-6">
-                        <h1 class="text-2xl font-bold">${t('image_studio.title')}</h1>
-                        <p class="text-brand-text-muted text-sm mt-1">${t('image_studio.subtitle')}</p>
+                        <h1 class="text-2xl font-bold">${t('artsmoker.image_studio.title')}</h1>
+                        <p class="text-brand-text-muted text-sm mt-1">${t('artsmoker.image_studio.subtitle')}</p>
                     </div>
 
                     <div class="flex flex-col lg:flex-row gap-6">
@@ -64,20 +64,20 @@
                                     <svg class="w-5 h-5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/>
                                     </svg>
-                                    ${t('common.settings')}
+                                    ${t('artsmoker.common.settings')}
                                 </h2>
 
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.style')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.image_studio.style')}</label>
                                     <div class="select-expand-wrap">
                                         <select id="gen-style" class="input">
-                                            <option value="">${t('image_studio.style_none')}</option>
+                                            <option value="">${t('artsmoker.image_studio.style_none')}</option>
                                         </select>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.asset_type')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.image_studio.asset_type')}</label>
                                     <div class="select-expand-wrap">
                                         <select id="gen-asset-type" class="input">
                                             ${ASSET_TYPES.map(at => html`<option value="${at.value}">${t(at.labelKey)}</option>`)}
@@ -86,10 +86,10 @@
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.model')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.image_studio.model')}</label>
                                     <div id="gen-model-multi" class="relative">
                                         <button id="gen-model-btn" type="button" class="input text-left flex items-center justify-between w-full cursor-pointer">
-                                            <span id="gen-model-label" class="truncate text-sm">${t('image_studio.select_models')}</span>
+                                            <span id="gen-model-label" class="truncate text-sm">${t('artsmoker.image_studio.select_models')}</span>
                                             <svg class="w-4 h-4 text-brand-text-muted flex-shrink-0 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
                                         </button>
                                         <div id="gen-model-dropdown" class="hidden absolute z-50 mt-1 min-w-full w-max max-h-60 overflow-y-auto rounded-lg border border-brand-border shadow-xl" style="background: var(--bg, #0f172a)"></div>
@@ -100,15 +100,15 @@
                                     <div id="gen-all-models-opts" class="hidden mt-2 p-2 rounded-lg bg-brand-bg/50 space-y-1.5">
                                         <label class="flex items-center gap-2 text-xs text-brand-text-muted cursor-pointer">
                                             <input type="checkbox" id="gen-model-optimized" class="rounded" checked />
-                                            ${t('image_studio.model_optimized_prompts')}
+                                            ${t('artsmoker.image_studio.model_optimized_prompts')}
                                         </label>
-                                        <p class="text-[10px] text-brand-text-dim">${t('image_studio.model_optimized_desc')}</p>
+                                        <p class="text-[10px] text-brand-text-dim">${t('artsmoker.image_studio.model_optimized_desc')}</p>
                                         <p id="gen-all-models-info" class="text-[10px] text-emerald-400/70"></p>
                                     </div>
                                 </div>
 
                                 <div>
-                                    <label class="block text-sm font-medium mb-1.5">${t('image_studio.dimensions')}</label>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.image_studio.dimensions')}</label>
                                     <div class="select-expand-wrap">
                                         <select id="gen-size" class="input">
                                             ${SIZE_PRESETS.map((s, i) => html`<option value="${i}" ${i === 2 ? 'selected' : ''}>${s.label}</option>`)}
@@ -119,20 +119,20 @@
                                 <!-- Advanced: Quality + Region (collapsible) -->
                                 <details id="gen-advanced-section" class="group">
                                     <summary class="text-xs font-medium text-brand-text-muted cursor-pointer hover:text-brand-text transition-colors select-none">
-                                        <span class="group-open:hidden">\u25B8 ${t('image_studio.advanced_expand')}</span>
-                                        <span class="hidden group-open:inline">\u25BE ${t('image_studio.advanced_collapse')}</span>
+                                        <span class="group-open:hidden">\u25B8 ${t('artsmoker.image_studio.advanced_expand')}</span>
+                                        <span class="hidden group-open:inline">\u25BE ${t('artsmoker.image_studio.advanced_collapse')}</span>
                                     </summary>
                                     <div class="mt-2 space-y-3 p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border/50">
                                         <div>
-                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">${t('image_studio.quality')}</label>
+                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">${t('artsmoker.image_studio.quality')}</label>
                                             <select id="gen-quality" class="input text-xs">
-                                                <option value="">${t('common.default')}</option>
+                                                <option value="">${t('artsmoker.common.default')}</option>
                                             </select>
                                         </div>
                                         <div>
-                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">${t('image_studio.region')}</label>
+                                            <label class="block text-[10px] text-brand-text-muted uppercase tracking-wider mb-1">${t('artsmoker.image_studio.region')}</label>
                                             <select id="gen-region" class="input text-xs">
-                                                <option value="">${t('image_studio.region_auto')}</option>
+                                                <option value="">${t('artsmoker.image_studio.region_auto')}</option>
                                             </select>
                                         </div>
                                     </div>
@@ -144,18 +144,18 @@
                                 <!-- Two-level counts -->
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label class="block text-sm font-medium mb-1.5">${t('image_studio.num_options')}</label>
+                                        <label class="block text-sm font-medium mb-1.5">${t('artsmoker.image_studio.num_options')}</label>
                                         <select id="gen-num-options" class="input">
                                             ${COUNT_OPTIONS.map(n => html`<option value="${n}" ${n === 5 ? 'selected' : ''}>${n}</option>`)}
                                         </select>
-                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${t('image_studio.different_designs')}</p>
+                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${t('artsmoker.image_studio.different_designs')}</p>
                                     </div>
                                     <div>
-                                        <label class="block text-sm font-medium mb-1.5">${t('image_studio.num_variations')}</label>
+                                        <label class="block text-sm font-medium mb-1.5">${t('artsmoker.image_studio.num_variations')}</label>
                                         <select id="gen-num-variations" class="input">
                                             ${COUNT_OPTIONS.map(n => html`<option value="${n}" ${n === 5 ? 'selected' : ''}>${n}</option>`)}
                                         </select>
-                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${t('image_studio.per_option')}</p>
+                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${t('artsmoker.image_studio.per_option')}</p>
                                     </div>
                                 </div>
 
@@ -167,20 +167,20 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
                                     </svg>
-                                    ${t('image_studio.ip_declaration')}
+                                    ${t('artsmoker.image_studio.ip_declaration')}
                                 </h2>
                                 <div class="space-y-2">
                                     <label class="flex items-start gap-2 cursor-pointer">
                                         <input type="checkbox" id="gen-ip-own" class="mt-0.5 rounded border-brand-border bg-brand-bg text-brand-accent focus:ring-brand-accent">
-                                        <span class="text-xs text-brand-text/80">${t('image_studio.ip_own')}</span>
+                                        <span class="text-xs text-brand-text/80">${t('artsmoker.image_studio.ip_own')}</span>
                                     </label>
                                     <label class="flex items-start gap-2 cursor-pointer">
                                         <input type="checkbox" id="gen-ip-license" class="mt-0.5 rounded border-brand-border bg-brand-bg text-brand-accent focus:ring-brand-accent">
-                                        <span class="text-xs text-brand-text/80">${t('image_studio.ip_license')}</span>
+                                        <span class="text-xs text-brand-text/80">${t('artsmoker.image_studio.ip_license')}</span>
                                     </label>
                                 </div>
                                 <div id="gen-ip-model-note" class="hidden p-2 rounded-lg bg-amber-950/20 border border-amber-500/20 text-[10px] text-amber-300/80"></div>
-                                <p class="text-[10px] text-brand-text-muted/50">${t('image_studio.ip_help')}</p>
+                                <p class="text-[10px] text-brand-text-muted/50">${t('artsmoker.image_studio.ip_help')}</p>
 
                                 <!-- Prompt Pre-Check (within IP section) -->
                                 <div class="flex items-center justify-between pt-2 border-t border-brand-border/30">
@@ -188,11 +188,11 @@
                                         <svg class="w-3.5 h-3.5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                                         </svg>
-                                        <label class="text-xs font-medium">${t('image_studio.pre_check_label')}</label>
+                                        <label class="text-xs font-medium">${t('artsmoker.image_studio.pre_check_label')}</label>
                                     </div>
                                     <label class="toggle"><input type="checkbox" id="gen-precheck" checked><span class="toggle-slider"></span></label>
                                 </div>
-                                <p class="text-[10px] text-brand-text-muted/50 -mt-1">${t('image_studio.pre_check_help')}</p>
+                                <p class="text-[10px] text-brand-text-muted/50 -mt-1">${t('artsmoker.image_studio.pre_check_help')}</p>
                             </div>
 
                             <!-- Model Settings -->
@@ -201,7 +201,7 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
                                 </svg>
-                                ${t('image_studio.model_settings')}
+                                ${t('artsmoker.image_studio.model_settings')}
                             </button>
 
                             <!-- Processing Options -->
@@ -210,19 +210,19 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343"/>
                                     </svg>
-                                    <span id="gen-processing-label">${t('image_studio.post_processing')}</span>
+                                    <span id="gen-processing-label">${t('artsmoker.image_studio.post_processing')}</span>
                                 </h2>
                                 <div class="space-y-3">
                                     <div class="flex items-center justify-between">
-                                        <label class="text-sm">${t('image_studio.remove_bg')}</label>
+                                        <label class="text-sm">${t('artsmoker.image_studio.remove_bg')}</label>
                                         <label class="toggle"><input type="checkbox" id="gen-remove-bg"><span class="toggle-slider"></span></label>
                                     </div>
                                     <div class="flex items-center justify-between">
-                                        <label class="text-sm">${t('image_studio.convert_svg')}</label>
+                                        <label class="text-sm">${t('artsmoker.image_studio.convert_svg')}</label>
                                         <label class="toggle"><input type="checkbox" id="gen-svg" checked><span class="toggle-slider"></span></label>
                                     </div>
                                     <div class="flex items-center justify-between">
-                                        <label class="text-sm">${t('image_studio.upscale')}</label>
+                                        <label class="text-sm">${t('artsmoker.image_studio.upscale')}</label>
                                         <label class="toggle"><input type="checkbox" id="gen-upscale"><span class="toggle-slider"></span></label>
                                     </div>
                                 </div>
@@ -230,12 +230,12 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
                                     </svg>
-                                    ${t('image_studio.pp_apply')}
+                                    ${t('artsmoker.image_studio.pp_apply')}
                                 </button>
-                                <p id="pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">${t('image_studio.pp_hint')}</p>
+                                <p id="pp-hint" class="text-[10px] text-brand-text-muted/50 hidden">${t('artsmoker.image_studio.pp_hint')}</p>
                             </div>
 
-                            <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-4">${t('app.version_prefix')}</p>
+                            <p class="artsmoker-version text-[9px] text-brand-text-dim/30 text-center mt-4">${t('artsmoker.app.version_prefix')}</p>
                         </aside>
 
                         <!-- Center: Prompt + Results -->
@@ -248,13 +248,13 @@
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                         </svg>
-                                        ${t('image_studio.tab_text_inspiration')}
+                                        ${t('artsmoker.image_studio.tab_text_inspiration')}
                                     </button>
                                     <button id="tab-reference" data-tab="reference" class="is-tab flex-1 flex items-center justify-center gap-2 px-3 py-2 text-sm font-semibold rounded-lg transition-all bg-cyan-500/15 text-cyan-300/80 hover:bg-cyan-500/25 hover:text-cyan-200">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                         </svg>
-                                        ${t('image_studio.reference_tab')}
+                                        ${t('artsmoker.image_studio.reference_tab')}
                                     </button>
                                 </div>
                                 <div id="prompt-editor-container"></div>
@@ -267,54 +267,54 @@
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                     </svg>
-                                    ${t('image_studio.generate')}
+                                    ${t('artsmoker.image_studio.generate')}
                                 </button>
                                 <button id="btn-reset" class="btn btn-lg text-base bg-amber-600 hover:bg-amber-500 text-white">
                                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
                                     </svg>
-                                    ${t('image_studio.reset')}
+                                    ${t('artsmoker.image_studio.reset')}
                                 </button>
                             </div>
 
                             <!-- Pending Jobs (async custom models) -->
                             <button id="btn-pending-jobs" class="w-full text-left p-2 rounded-lg bg-cyan-700/10 border border-cyan-600/20 hover:border-cyan-500/40 hover:bg-cyan-700/20 transition-colors flex items-center gap-2 text-xs text-cyan-400 mt-2 hidden">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                                <span id="pending-jobs-label">${t('custom_models.pending_jobs')}</span>
+                                <span id="pending-jobs-label">${t('artsmoker.custom_models.pending_jobs')}</span>
                             </button>
 
                             <!-- Prompt info (original + AI-improved + negative) -->
                             <div id="gen-prompt-info" class="hidden card-static p-4 space-y-3">
                                 <div id="gen-original-prompt-section">
-                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">${t('image_studio.original_prompt_label')}</p>
+                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">${t('artsmoker.image_studio.original_prompt_label')}</p>
                                     <p id="gen-original-prompt-text" class="text-sm text-brand-text/80 leading-relaxed"></p>
                                 </div>
                                 <div id="gen-used-prompt-section">
-                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">${t('image_studio.enhanced_prompt_label')}</p>
+                                    <p class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold mb-1">${t('artsmoker.image_studio.enhanced_prompt_label')}</p>
                                     <p id="gen-used-prompt-text" class="text-sm text-brand-text/60 leading-relaxed"></p>
                                 </div>
                                 <div id="gen-negative-prompt-section" class="hidden">
-                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1">${t('image_studio.negative_prompt_exclusions')}</p>
+                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-1">${t('artsmoker.image_studio.negative_prompt_exclusions')}</p>
                                     <p id="gen-negative-prompt-text" class="text-sm text-amber-300/60 leading-relaxed italic"></p>
                                 </div>
                                 <div id="gen-cost-breakdown" class="hidden p-3 rounded-lg bg-emerald-950/20 border border-emerald-500/20">
                                     <div class="flex items-center justify-between mb-1">
-                                        <span class="text-[10px] text-emerald-400/80 uppercase tracking-wider font-semibold">${t('image_studio.est_cost')}</span>
+                                        <span class="text-[10px] text-emerald-400/80 uppercase tracking-wider font-semibold">${t('artsmoker.image_studio.est_cost')}</span>
                                         <span id="gen-cost-total" class="text-sm font-bold text-emerald-400">$0.00</span>
                                     </div>
                                     <div id="gen-cost-details" class="text-[10px] text-emerald-300/60 space-y-0.5"></div>
                                 </div>
                                 <div id="gen-rewrite-disclaimer" class="hidden p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
-                                    <p class="text-[10px] text-amber-300/80"><strong>${t('image_studio.rewritten_prompt_note')}</strong> ${t('image_studio.rewrite_disclaimer_text')}</p>
+                                    <p class="text-[10px] text-amber-300/80"><strong>${t('artsmoker.image_studio.rewritten_prompt_note')}</strong> ${t('artsmoker.image_studio.rewrite_disclaimer_text')}</p>
                                 </div>
                             </div>
 
                             <!-- Concept prompt display -->
                             <div id="gen-concept-prompt" class="hidden card-static p-3 space-y-2">
-                                <p id="gen-concept-prompt-label" class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold">${t('image_studio.generated_prompt')}</p>
+                                <p id="gen-concept-prompt-label" class="text-[10px] text-brand-text-muted uppercase tracking-wider font-semibold">${t('artsmoker.image_studio.generated_prompt')}</p>
                                 <p id="gen-concept-prompt-text" class="text-xs text-brand-text/70 leading-relaxed"></p>
                                 <div id="gen-concept-negative" class="hidden">
-                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-0.5">${t('image_studio.negative_prompt_label')}</p>
+                                    <p class="text-[10px] text-amber-400/80 uppercase tracking-wider font-semibold mb-0.5">${t('artsmoker.image_studio.negative_prompt_label')}</p>
                                     <p id="gen-concept-negative-text" class="text-xs text-amber-300/60 italic leading-relaxed"></p>
                                 </div>
                             </div>
@@ -323,7 +323,7 @@
                             <div id="gen-options-section" class="hidden">
                                 <div class="flex items-center justify-between mb-2">
                                     <h3 id="gen-options-header" class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
-                                        ${t('image_studio.options_header')}
+                                        ${t('artsmoker.image_studio.options_header')}
                                     </h3>
                                     <span id="gen-options-count" class="text-xs text-brand-text-muted"></span>
                                 </div>
@@ -334,7 +334,7 @@
                             <div id="gen-variations-section" class="hidden">
                                 <div class="flex items-center justify-between mb-2">
                                     <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
-                                        ${t('image_studio.variations_header')}
+                                        ${t('artsmoker.image_studio.variations_header')}
                                     </h3>
                                     <span id="gen-variations-count" class="text-xs text-brand-text-muted"></span>
                                 </div>
@@ -348,11 +348,11 @@
                                         <svg class="w-16 h-16 mx-auto text-brand-text-muted/20 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                                         </svg>
-                                        <p class="text-brand-text-muted/40 text-sm">${t('image_studio.placeholder_text')}</p>
+                                        <p class="text-brand-text-muted/40 text-sm">${t('artsmoker.image_studio.placeholder_text')}</p>
                                     </div>
                                     <div id="gen-loading" class="hidden absolute inset-0 bg-brand-bg/60 flex flex-col items-center justify-center gap-4 px-8">
                                         <div class="loading-spinner w-10 h-10 border-4 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                        <p id="gen-loading-text" class="text-sm text-brand-text-muted font-medium">${t('image_studio.generating')}</p>
+                                        <p id="gen-loading-text" class="text-sm text-brand-text-muted font-medium">${t('artsmoker.image_studio.generating')}</p>
                                         <p id="gen-loading-sub" class="text-xs text-brand-text-muted/60"></p>
                                         <div class="w-full max-w-xs mt-2">
                                             <div class="h-1.5 bg-brand-border rounded-full overflow-hidden">
@@ -361,7 +361,7 @@
                                             <p id="gen-loading-elapsed" class="text-[10px] text-brand-text-muted/40 text-center mt-1.5"></p>
                                         </div>
                                     </div>
-                                    <img id="gen-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="${t('image_studio.title')}" />
+                                    <img id="gen-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="${t('artsmoker.image_studio.title')}" />
                                 </div>
 
                                 <!-- Download bar -->
@@ -518,7 +518,7 @@
                     if (realModels.length) {
                         this._selectedModels = [realModels[0].value];
                         this._syncModelCheckboxes();
-                        window.showToast?.(t('image_studio.selected_model_required').replace('{{model}}', realModels[0].label), 'info');
+                        window.showToast?.(t('artsmoker.image_studio.selected_model_required').replace('{{model}}', realModels[0].label), 'info');
                     }
                 }
             });
@@ -533,7 +533,7 @@
                             if (realModels.length) {
                                 this._selectedModels = [realModels[0].value];
                                 this._syncModelCheckboxes();
-                                window.showToast?.(t('image_studio.selected_model_required').replace('{{model}}', realModels[0].label), 'info');
+                                window.showToast?.(t('artsmoker.image_studio.selected_model_required').replace('{{model}}', realModels[0].label), 'info');
                             }
                         }
                     }
@@ -643,7 +643,7 @@
             const previewImg = document.getElementById('gen-result-img');
             if (previewImg) previewImg.style.cursor = 'pointer';
             document.getElementById('btn-reset')?.addEventListener('click', async () => {
-                if (this._result && !await window.showConfirm(t('image_studio.reset_confirm'), { title: t('image_studio.reset'), detail: t('image_studio.reset_detail'), confirmLabel: t('image_studio.reset'), danger: true })) return;
+                if (this._result && !await window.showConfirm(t('artsmoker.image_studio.reset_confirm'), { title: t('artsmoker.image_studio.reset'), detail: t('artsmoker.image_studio.reset_detail'), confirmLabel: t('artsmoker.image_studio.reset'), danger: true })) return;
                 // Clear all state before rebuilding the view
                 this._result = null;
                 this._selectedOption = 0;
@@ -711,7 +711,7 @@
             // nosemgrep
             sep.innerHTML = html`<label class="flex items-center gap-2 text-xs cursor-pointer py-1 hover:bg-brand-bg/60 rounded px-1">
                 <input type="checkbox" id="gen-model-all" class="rounded border-brand-border" />
-                <span class="text-brand-text-muted">\u2500\u2500 ${t('image_studio.all_models') || 'All Available Models'}</span>
+                <span class="text-brand-text-muted">\u2500\u2500 ${t('artsmoker.image_studio.all_models') || 'All Available Models'}</span>
             </label>`;
             dropdown.appendChild(sep);
 
@@ -730,7 +730,7 @@
             const qualSel = document.getElementById('gen-quality');
             if (!qualSel || modelKey === 'all_models') {
                 // nosemgrep
-                if (qualSel) { qualSel.innerHTML = html`<option value="">${t('image_studio.quality_default')}</option>`; }
+                if (qualSel) { qualSel.innerHTML = html`<option value="">${t('artsmoker.image_studio.quality_default')}</option>`; }
                 return;
             }
             const modelData = MODELS.find(m => m.value === modelKey);
@@ -741,13 +741,13 @@
             if (options.length === 0) {
                 const opt = document.createElement('option');
                 opt.value = '';
-                opt.textContent = t('image_studio.quality_default_no_tiers');
+                opt.textContent = t('artsmoker.image_studio.quality_default_no_tiers');
                 qualSel.appendChild(opt);
             } else {
                 options.forEach(q => {
                     const opt = document.createElement('option');
                     opt.value = q.value;
-                    opt.textContent = q.value === defaultQ ? `${q.label} (${t('common.default')})` : q.label;
+                    opt.textContent = q.value === defaultQ ? `${q.label} (${t('artsmoker.common.default')})` : q.label;
                     if (q.value === defaultQ) opt.selected = true;
                     qualSel.appendChild(opt);
                 });
@@ -802,7 +802,7 @@
                 const numVars = parseInt(document.getElementById('gen-num-variations')?.value || '5', 10);
                 const total = numOpts * numVars;
                 const est = (price * total).toFixed(2);
-                costEl.textContent = t('image_studio.est_cost_line').replace('{{est}}', est).replace('{{total}}', total).replace('{{price}}', price.toFixed(2));
+                costEl.textContent = t('artsmoker.image_studio.est_cost_line').replace('{{est}}', est).replace('{{total}}', total).replace('{{price}}', price.toFixed(2));
             } else if (costEl) {
                 costEl.textContent = '';
             }
@@ -857,8 +857,8 @@
                 const auto = document.createElement('option');
                 auto.value = '';
                 auto.textContent = cheapest.price_usd != null
-                    ? `${t('image_studio.region_auto')} \u2014 ${cheapest.region} ($${cheapest.price_usd.toFixed(2)}/img)`
-                    : `${t('image_studio.region_auto')} \u2014 ${cheapest.region}`;
+                    ? `${t('artsmoker.image_studio.region_auto')} \u2014 ${cheapest.region} ($${cheapest.price_usd.toFixed(2)}/img)`
+                    : `${t('artsmoker.image_studio.region_auto')} \u2014 ${cheapest.region}`;
                 regionSel.appendChild(auto);
                 regions.forEach(rp => {
                     const opt = document.createElement('option');
@@ -880,7 +880,7 @@
             if (!regionSel) return;
             const current = regionSel.value;
             // nosemgrep
-            regionSel.innerHTML = html`<option value="">${t('image_studio.region_all')}</option>`;
+            regionSel.innerHTML = html`<option value="">${t('artsmoker.image_studio.region_all')}</option>`;
             (regions || []).forEach(r => {
                 const opt = document.createElement('option');
                 opt.value = r;
@@ -931,7 +931,7 @@
                 // Get the user's raw prompt (always required)
                 userPrompt = this._promptEditor ? this._promptEditor.getUserText().trim() : '';
                 if (!userPrompt) {
-                    window.showToast?.(t('image_studio.enter_prompt'), 'warning');
+                    window.showToast?.(t('artsmoker.image_studio.enter_prompt'), 'warning');
                     return;
                 }
                 // If a composed prompt exists, use it directly (skip re-refinement in backend)
@@ -963,9 +963,9 @@
                 const shouldContinue = await window.showConfirm(
                     `${modelNames} ${unsupportedModels.length === 1 ? 'does' : 'do'} not support ${size.label}. The closest supported size will be used for ${unsupportedModels.length === 1 ? 'this model' : 'these models'}.`,
                     {
-                        title: t('image_studio.dim_unsupported_title'),
-                        confirmLabel: t('image_studio.continue_anyway'),
-                        cancelLabel: t('image_studio.change_dimensions'),
+                        title: t('artsmoker.image_studio.dim_unsupported_title'),
+                        confirmLabel: t('artsmoker.image_studio.continue_anyway'),
+                        cancelLabel: t('artsmoker.image_studio.change_dimensions'),
                     }
                 );
                 if (!shouldContinue) return;
@@ -987,7 +987,7 @@
             // still fall back to a T2I model, so a selection is only strictly
             // required outside reference mode).
             if (!this._selectedModels.length && !isReference) {
-                window.showToast?.(t('image_studio.select_at_least_one_model') || 'Select at least one model', 'error');
+                window.showToast?.(t('artsmoker.image_studio.select_at_least_one_model') || 'Select at least one model', 'error');
                 return;
             }
 
@@ -1047,13 +1047,13 @@
                 if (btn) {
                     btn.disabled = false;
                     // nosemgrep
-                    btn.innerHTML = html`<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('image_studio.generate')}`;
+                    btn.innerHTML = html`<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('artsmoker.image_studio.generate')}`;
                 }
             };
             if (btn) {
                 btn.disabled = true;
                 // nosemgrep
-                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('image_studio.checking')}`;
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.image_studio.checking')}`;
             }
 
             // ── Asset Type Classification (LLM-powered) — only if not already confirmed ─────
@@ -1072,10 +1072,10 @@
                             const shouldSwitch = await window.showConfirm(
                                 assetCheck.reason,
                                 {
-                                    title: t('image_studio.asset_type_wrong_title'),
-                                    detail: t('image_studio.asset_type_wrong_detail').replace('{{cur}}', curLabel).replace('{{sug}}', sugLabel),
-                                    confirmLabel: t('image_studio.switch_to').replace('{{sug}}', sugLabel),
-                                    cancelLabel: t('image_studio.keep').replace('{{cur}}', curLabel),
+                                    title: t('artsmoker.image_studio.asset_type_wrong_title'),
+                                    detail: t('artsmoker.image_studio.asset_type_wrong_detail').replace('{{cur}}', curLabel).replace('{{sug}}', sugLabel),
+                                    confirmLabel: t('artsmoker.image_studio.switch_to').replace('{{sug}}', sugLabel),
+                                    cancelLabel: t('artsmoker.image_studio.keep').replace('{{cur}}', curLabel),
                                 }
                             );
                             if (shouldSwitch) {
@@ -1106,12 +1106,12 @@
                         if (!st.ok) {
                             _resetBtn();
                             const go = await window.showConfirm?.(
-                                st.message || t('custom_models.bucket_required_desc'),
+                                st.message || t('artsmoker.custom_models.bucket_required_desc'),
                                 {
-                                    title: t('custom_models.bucket_required_title'),
-                                    detail: t('custom_models.s3_set_in_settings'),
-                                    confirmLabel: t('custom_models.open_model_settings'),
-                                    cancelLabel: t('common.cancel'),
+                                    title: t('artsmoker.custom_models.bucket_required_title'),
+                                    detail: t('artsmoker.custom_models.s3_set_in_settings'),
+                                    confirmLabel: t('artsmoker.custom_models.open_model_settings'),
+                                    cancelLabel: t('artsmoker.common.cancel'),
                                 },
                             );
                             if (go) window.ModelSettings?.open?.('custom-models');
@@ -1126,7 +1126,7 @@
             this._skipPreCheck = false; // Reset flag after reading
             if (preCheckOn) {
                 try {
-                    window.showLoading?.(t('image_studio.pre_checking'));
+                    window.showLoading?.(t('artsmoker.image_studio.pre_checking'));
                     const screen = await API.preScreen({
                         prompt: prompt,
                         image_model: payload.image_model,
@@ -1153,7 +1153,7 @@
             const selectedModelInfo = MODELS.find(m => m.value === payload.image_model);
             if (selectedModelInfo?.model_source === 'custom_hosted') {
                 const sub = document.getElementById('gen-loading-sub');
-                if (sub) sub.textContent = t('custom_models.cold_start_warning');
+                if (sub) sub.textContent = t('artsmoker.custom_models.cold_start_warning');
             }
             // Unlock upscale toggle for new generation
             const upscaleToggle = document.getElementById('gen-upscale');
@@ -1195,12 +1195,12 @@
                     // Track moderation blocks
                     if (evt.type === 'moderation_blocked') {
                         moderationBlocked = true;
-                        this._moderationErrors.push(evt.error || t('image_studio.moderation_blocked'));
+                        this._moderationErrors.push(evt.error || t('artsmoker.image_studio.moderation_blocked'));
                     }
                     // Track prompt refusals (Claude declined to refine)
                     if (evt.type === 'prompt_refused') {
                         promptRefused = true;
-                        refusalReason = evt.reason || evt.message || t('image_studio.prompt_declined');
+                        refusalReason = evt.reason || evt.message || t('artsmoker.image_studio.prompt_declined');
                     }
                     if (evt.type === 'image_error' && evt.error) {
                         const errLower = (evt.error || '').toLowerCase();
@@ -1231,23 +1231,23 @@
                     const totalModels = (result.options || []).length;
 
                     if (blocked.length > 0 || failed.length > 0) {
-                        const parts = [t('image_studio.models_generated').replace('{{succeeded}}', succeeded).replace('{{total}}', totalModels)];
+                        const parts = [t('artsmoker.image_studio.models_generated').replace('{{succeeded}}', succeeded).replace('{{total}}', totalModels)];
                         if (blocked.length > 0) {
-                            const names = blocked.map(o => o.model_label || t('common.unknown')).join(', ');
-                            parts.push(t('image_studio.models_blocked').replace('{{count}}', blocked.length).replace('{{names}}', names));
+                            const names = blocked.map(o => o.model_label || t('artsmoker.common.unknown')).join(', ');
+                            parts.push(t('artsmoker.image_studio.models_blocked').replace('{{count}}', blocked.length).replace('{{names}}', names));
                         }
-                        if (failed.length > 0) parts.push(t('image_studio.models_failed').replace('{{count}}', failed.length));
+                        if (failed.length > 0) parts.push(t('artsmoker.image_studio.models_failed').replace('{{count}}', failed.length));
                         window.showToast?.(parts.join('. ') + '.', succeeded > 0 ? 'warning' : 'error', 8000);
                     } else {
-                        window.showToast?.(t('image_studio.all_models_success').replace('{{count}}', totalModels), 'success');
+                        window.showToast?.(t('artsmoker.image_studio.all_models_success').replace('{{count}}', totalModels), 'success');
                     }
                 }
                 // Single-model moderation block
                 else if (moderationBlocked || (totalGenerated === 0 && this._moderationErrors.length > 0)) {
                     this._result = null;
-                    this._showModerationDialog(prompt, this._moderationErrors[0] || t('image_studio.moderation_blocked'), payload);
+                    this._showModerationDialog(prompt, this._moderationErrors[0] || t('artsmoker.image_studio.moderation_blocked'), payload);
                 } else if (totalGenerated === 0) {
-                    window.showToast?.(t('image_studio.all_failed'), 'error');
+                    window.showToast?.(t('artsmoker.image_studio.all_failed'), 'error');
                 } else {
                     // Render results (full or partial)
                     this._result = result;
@@ -1259,11 +1259,11 @@
                     const costStr = result.total_cost_usd ? ` (Cost: $${result.total_cost_usd.toFixed(4)})` : '';
                     if (blocked > 0) {
                         window.showToast?.(
-                            t('image_studio.images_partial').replace('{{generated}}', totalGenerated).replace('{{total}}', totalGenerated + blocked).replace('{{blocked}}', blocked) + costStr,
+                            t('artsmoker.image_studio.images_partial').replace('{{generated}}', totalGenerated).replace('{{total}}', totalGenerated + blocked).replace('{{blocked}}', blocked) + costStr,
                             'warning', 10000
                         );
                     } else {
-                        window.showToast?.(t('image_studio.images_generated').replace('{{count}}', totalGenerated).replace('{{options}}', (result.options || []).length) + costStr, 'success');
+                        window.showToast?.(t('artsmoker.image_studio.images_generated').replace('{{count}}', totalGenerated).replace('{{options}}', (result.options || []).length) + costStr, 'success');
                     }
 
                     // Show cost breakdown in prompt info section
@@ -1275,9 +1275,9 @@
                 console.error('Generation error:', err);
                 // If we had any moderation errors during the stream, show the dialog
                 if (this._moderationErrors.length > 0 || moderationBlocked) {
-                    this._showModerationDialog(prompt, this._moderationErrors[0] || t('image_studio.generation_failed'), payload);
+                    this._showModerationDialog(prompt, this._moderationErrors[0] || t('artsmoker.image_studio.generation_failed'), payload);
                 } else {
-                    window.showToast?.(err.message || t('image_studio.generation_failed'), 'error');
+                    window.showToast?.(err.message || t('artsmoker.image_studio.generation_failed'), 'error');
                 }
             } finally {
                 this._setGenerating(false);
@@ -1286,7 +1286,7 @@
 
         async _handlePostProcess() {
             if (!this._result) {
-                window.showToast?.(t('image_studio.generate_first'), 'warning');
+                window.showToast?.(t('artsmoker.image_studio.generate_first'), 'warning');
                 return;
             }
 
@@ -1298,7 +1298,7 @@
                 }
             }
             if (assetIds.length === 0) {
-                window.showToast?.(t('image_studio.no_images_process'), 'warning');
+                window.showToast?.(t('artsmoker.image_studio.no_images_process'), 'warning');
                 return;
             }
 
@@ -1307,14 +1307,14 @@
             const upscale = document.getElementById('gen-upscale').checked;
 
             if (!removeBg && !genSvg && !upscale) {
-                window.showToast?.(t('image_studio.enable_pp_option'), 'warning');
+                window.showToast?.(t('artsmoker.image_studio.enable_pp_option'), 'warning');
                 return;
             }
 
             const btn = document.getElementById('btn-apply-postprocess');
             const origHTML = btn.innerHTML;
             // nosemgrep
-            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('image_studio.processing_btn')}`;
+            btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.image_studio.processing_btn')}`;
             btn.disabled = true;
 
             try {
@@ -1325,7 +1325,7 @@
                     upscale: upscale,
                 });
                 const count = (result.processed || []).length;
-                window.showToast?.(t('image_studio.pp_applied').replace('{{count}}', count).replace('{{plural}}', count !== 1 ? 's' : ''), 'success');
+                window.showToast?.(t('artsmoker.image_studio.pp_applied').replace('{{count}}', count).replace('{{plural}}', count !== 1 ? 's' : ''), 'success');
 
                 // Refresh the preview to show updated images (cache-bust)
                 const img = document.getElementById('gen-result-img');
@@ -1360,7 +1360,7 @@
                         <svg class="w-6 h-6 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                         </svg>
-                        <h2 class="text-lg font-semibold text-amber-300">${t('image_studio.content_moderation_issue')}</h2>
+                        <h2 class="text-lg font-semibold text-amber-300">${t('artsmoker.image_studio.content_moderation_issue')}</h2>
                         <button class="mod-close ml-auto p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1370,8 +1370,8 @@
                     <div class="flex-1 overflow-auto p-6" id="mod-content">
                         <div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
                             <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                            <p>${t('image_studio.testing_alternative')}</p>
-                            <p class="text-[10px] text-brand-text-muted/50">${t('image_studio.alternative_hint')}</p>
+                            <p>${t('artsmoker.image_studio.testing_alternative')}</p>
+                            <p class="text-[10px] text-brand-text-muted/50">${t('artsmoker.image_studio.alternative_hint')}</p>
                         </div>
                     </div>
                 </div>
@@ -1416,30 +1416,30 @@
                                     <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                     </svg>
-                                    <span class="text-sm font-semibold text-emerald-300">${t('image_studio.prompt_works_with').replace('{{model}}', workingModelLabel)}</span>
+                                    <span class="text-sm font-semibold text-emerald-300">${t('artsmoker.image_studio.prompt_works_with').replace('{{model}}', workingModelLabel)}</span>
                                 </div>
                                 <p class="text-sm text-brand-text/90 leading-relaxed">${analysis.explanation}</p>
                             </div>
 
                             ${hasIpClaim ? html`
                             <div class="p-3 rounded-lg bg-brand-accent/10 border border-brand-accent/20 text-xs text-brand-text/80">
-                                <strong>${t('image_studio.ip_declaration_noted')}</strong>
-                                ${ipOwned ? ' ' + t('image_studio.ip_own_noted') : ''}${ipLicensed ? ' ' + t('image_studio.ip_license_noted') : ''}
-                                <br>${t('image_studio.ip_moderation_note').replace('{{model}}', originalModelLabel)}
+                                <strong>${t('artsmoker.image_studio.ip_declaration_noted')}</strong>
+                                ${ipOwned ? ' ' + t('artsmoker.image_studio.ip_own_noted') : ''}${ipLicensed ? ' ' + t('artsmoker.image_studio.ip_license_noted') : ''}
+                                <br>${t('artsmoker.image_studio.ip_moderation_note').replace('{{model}}', originalModelLabel)}
                             </div>` : ''}
 
-                            <p class="text-xs text-brand-text-muted">${!hasIpClaim ? t('image_studio.prompt_preserved_game') : t('image_studio.prompt_preserved')}</p>
+                            <p class="text-xs text-brand-text-muted">${!hasIpClaim ? t('artsmoker.image_studio.prompt_preserved_game') : t('artsmoker.image_studio.prompt_preserved')}</p>
 
                             ${!hasIpClaim ? html`
                             <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border space-y-2">
-                                <p class="text-[10px] text-brand-text-muted font-medium">${t('image_studio.ip_reference_hint')}</p>
+                                <p class="text-[10px] text-brand-text-muted font-medium">${t('artsmoker.image_studio.ip_reference_hint')}</p>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" id="mod-ip-own" class="rounded border-brand-border bg-brand-bg text-brand-accent">
-                                    <span class="text-xs text-brand-text/80">${t('image_studio.ip_own')}</span>
+                                    <span class="text-xs text-brand-text/80">${t('artsmoker.image_studio.ip_own')}</span>
                                 </label>
                                 <label class="flex items-center gap-2 cursor-pointer">
                                     <input type="checkbox" id="mod-ip-license" class="rounded border-brand-border bg-brand-bg text-brand-accent">
-                                    <span class="text-xs text-brand-text/80">${t('image_studio.ip_license')}</span>
+                                    <span class="text-xs text-brand-text/80">${t('artsmoker.image_studio.ip_license')}</span>
                                 </label>
                             </div>` : ''}
 
@@ -1448,15 +1448,15 @@
                                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                     </svg>
-                                    ${t('image_studio.generate_with').replace('{{model}}', workingModelLabel)}
+                                    ${t('artsmoker.image_studio.generate_with').replace('{{model}}', workingModelLabel)}
                                 </button>
                                 <button id="mod-rewrite-instead" class="btn btn-secondary btn-sm">
-                                    ${t('image_studio.rewrite_for').replace('{{model}}', originalModelLabel)}
+                                    ${t('artsmoker.image_studio.rewrite_for').replace('{{model}}', originalModelLabel)}
                                 </button>
                             </div>
 
                             <details class="text-xs">
-                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('image_studio.view_model_tests').replace('{{count}}', (analysis.attempts || []).length)}</summary>
+                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('artsmoker.image_studio.view_model_tests').replace('{{count}}', (analysis.attempts || []).length)}</summary>
                                 <div class="mt-2 space-y-1">
                                     ${(analysis.attempts || []).map(a => html`
                                         <div class="p-1.5 rounded bg-brand-bg/40 text-[10px] flex items-center gap-2">
@@ -1494,8 +1494,8 @@
                             // nosemgrep
                             content.innerHTML = html`<div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
                                 <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                                <p>${t('image_studio.attempting_rewrite').replace('{{model}}', originalModelLabel)}</p>
-                                <p class="text-[10px] text-brand-text-muted/50">${t('image_studio.canary_hint')}</p>
+                                <p>${t('artsmoker.image_studio.attempting_rewrite').replace('{{model}}', originalModelLabel)}</p>
+                                <p class="text-[10px] text-brand-text-muted/50">${t('artsmoker.image_studio.canary_hint')}</p>
                             </div>`;
                         }
                         try {
@@ -1509,24 +1509,24 @@
                             });
                             if (rewriteResult.rewritten_prompt) {
                                 const verifiedBadge = rewriteResult.verified
-                                    ? html`<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">${t('image_studio.passed_canary')}</span>`
-                                    : html`<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">${t('image_studio.not_verified')}</span>`;
+                                    ? html`<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">${t('artsmoker.image_studio.passed_canary')}</span>`
+                                    : html`<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">${t('artsmoker.image_studio.not_verified')}</span>`;
                                 const content = document.getElementById('mod-content');
                                 if (content) {
                                     // nosemgrep
                                     content.innerHTML = html`<div class="space-y-4">
                                         <div>
                                             <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                                ${t('image_studio.rewritten_for').replace('{{model}}', originalModelLabel)} ${verifiedBadge}
+                                                ${t('artsmoker.image_studio.rewritten_for').replace('{{model}}', originalModelLabel)} ${verifiedBadge}
                                             </h3>
                                             <textarea id="mod-inline-rewrite" class="input w-full min-h-[100px] text-sm">${rewriteResult.rewritten_prompt}</textarea>
                                         </div>
                                         <div class="p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
-                                            <p class="text-[10px] text-amber-300/80"><strong>${t('image_studio.best_effort_rewrite')}</strong> ${t('image_studio.rewrite_disclaimer').replace('{{model}}', originalModelLabel)}</p>
+                                            <p class="text-[10px] text-amber-300/80"><strong>${t('artsmoker.image_studio.best_effort_rewrite')}</strong> ${t('artsmoker.image_studio.rewrite_disclaimer').replace('{{model}}', originalModelLabel)}</p>
                                         </div>
                                         <div class="flex gap-3 pt-2">
-                                            <button id="mod-accept-inline-rewrite" class="btn btn-primary flex-1">${t('image_studio.use_rewrite_review')}</button>
-                                            <button class="mod-close-btn btn btn-secondary">${t('common.cancel')}</button>
+                                            <button id="mod-accept-inline-rewrite" class="btn btn-primary flex-1">${t('artsmoker.image_studio.use_rewrite_review')}</button>
+                                            <button class="mod-close-btn btn btn-secondary">${t('artsmoker.common.cancel')}</button>
                                         </div>
                                     </div>`;
                                     content.querySelector('#mod-accept-inline-rewrite')?.addEventListener('click', () => {
@@ -1545,31 +1545,31 @@
                                 }
                             } else {
                                 dialog.remove();
-                                window.showToast?.(t('image_studio.could_not_rewrite').replace('{{model}}', originalModelLabel), 'warning');
+                                window.showToast?.(t('artsmoker.image_studio.could_not_rewrite').replace('{{model}}', originalModelLabel), 'warning');
                             }
                         } catch (err) {
                             dialog.remove();
-                            window.showToast?.(t('image_studio.rewrite_failed') + ': ' + (err.message || ''), 'error');
+                            window.showToast?.(t('artsmoker.image_studio.rewrite_failed') + ': ' + (err.message || ''), 'error');
                         }
                     });
 
                 } else {
                     // ── Rewrite dialog — all models rejected, need to modify the prompt ──
                     const verifiedBadge = verified
-                        ? html`<span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">${t('image_studio.verified_passed')}</span>`
-                        : html`<span class="inline-flex items-center gap-1 text-xs font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">${t('image_studio.not_verified_may_reject')}</span>`;
+                        ? html`<span class="inline-flex items-center gap-1 text-xs font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">${t('artsmoker.image_studio.verified_passed')}</span>`
+                        : html`<span class="inline-flex items-center gap-1 text-xs font-medium text-red-400 bg-red-400/10 px-2 py-0.5 rounded-full">${t('artsmoker.image_studio.not_verified_may_reject')}</span>`;
 
                     // nosemgrep
                     content.innerHTML = html`
                         <div class="space-y-5">
                             <div>
-                                <p class="text-sm text-brand-text/90 leading-relaxed">${analysis.explanation || t('image_studio.all_models_rejected')}</p>
-                                <p class="text-xs text-brand-text-muted mt-1">${t('image_studio.attempts_tested').replace('{{count}}', (analysis.attempts || []).length)}</p>
+                                <p class="text-sm text-brand-text/90 leading-relaxed">${analysis.explanation || t('artsmoker.image_studio.all_models_rejected')}</p>
+                                <p class="text-xs text-brand-text-muted mt-1">${t('artsmoker.image_studio.attempts_tested').replace('{{count}}', (analysis.attempts || []).length)}</p>
                         </div>
 
                         ${(analysis.issues || []).length > 0 ? html`
                         <div>
-                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">${t('image_studio.issues_detected')}</h3>
+                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">${t('artsmoker.image_studio.issues_detected')}</h3>
                             <ul class="space-y-1.5">
                                 ${analysis.issues.map(issue => html`
                                     <li class="flex items-start gap-2 text-sm text-brand-text-muted">
@@ -1584,15 +1584,15 @@
 
                         <div>
                             <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                ${t('image_studio.recommended_rewrite')} ${verifiedBadge}
+                                ${t('artsmoker.image_studio.recommended_rewrite')} ${verifiedBadge}
                             </h3>
                             <textarea id="mod-rewritten-prompt" class="input w-full min-h-[120px] text-sm">${analysis.rewritten_prompt || ''}</textarea>
-                            <p class="text-[10px] text-brand-text-muted mt-1">${verified ? t('image_studio.rewrite_verified_note') : t('image_studio.rewrite_not_verified_note')} ${t('image_studio.review_edit_note')}</p>
+                            <p class="text-[10px] text-brand-text-muted mt-1">${verified ? t('artsmoker.image_studio.rewrite_verified_note') : t('artsmoker.image_studio.rewrite_not_verified_note')} ${t('artsmoker.image_studio.review_edit_note')}</p>
                         </div>
 
                         <div>
                             <details class="text-xs">
-                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('image_studio.view_original_prompt')}</summary>
+                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('artsmoker.image_studio.view_original_prompt')}</summary>
                                 <p class="mt-2 p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${originalPrompt}</p>
                             </details>
                         </div>
@@ -1600,12 +1600,12 @@
                         ${(analysis.attempts || []).length > 1 ? html`
                         <div>
                             <details class="text-xs">
-                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('image_studio.view_rewrite_attempts').replace('{{count}}', analysis.attempts.length)}</summary>
+                                <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('artsmoker.image_studio.view_rewrite_attempts').replace('{{count}}', analysis.attempts.length)}</summary>
                                 <div class="mt-2 space-y-2">
                                     ${(analysis.attempts || []).map((a, i) => html`
                                         <div class="p-2 rounded-lg bg-brand-bg/40 border border-brand-border">
                                             <div class="flex items-center gap-2 mb-1">
-                                                <span class="text-[10px] font-bold">${t('image_studio.attempt_label').replace('{{num}}', a.attempt)}</span>
+                                                <span class="text-[10px] font-bold">${t('artsmoker.image_studio.attempt_label').replace('{{num}}', a.attempt)}</span>
                                                 <span class="text-[10px] ${a.status === 'passed' ? 'text-emerald-400' : 'text-red-400'}">${a.status}</span>
                                             </div>
                                             <p class="text-[10px] text-brand-text-muted whitespace-pre-wrap">${(a.prompt || '').substring(0, 200)}${(a.prompt || '').length > 200 ? '...' : ''}</p>
@@ -1620,10 +1620,10 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
-                                ${t('image_studio.review_rewritten_prompt')}
+                                ${t('artsmoker.image_studio.review_rewritten_prompt')}
                             </button>
                             <button id="mod-dismiss" class="btn btn-secondary">
-                                ${t('image_studio.edit_manually')}
+                                ${t('artsmoker.image_studio.edit_manually')}
                             </button>
                         </div>
                     </div>
@@ -1660,9 +1660,9 @@
                     // nosemgrep
                     content.innerHTML = html`
                         <div class="text-center py-8">
-                            <p class="text-red-400 mb-2">${t('image_studio.analyze_failed')}</p>
-                            <p class="text-sm text-brand-text-muted">${t('image_studio.analyze_failed_hint')}</p>
-                            <button class="mod-close-btn btn btn-secondary btn-sm mt-4">${t('common.close')}</button>
+                            <p class="text-red-400 mb-2">${t('artsmoker.image_studio.analyze_failed')}</p>
+                            <p class="text-sm text-brand-text-muted">${t('artsmoker.image_studio.analyze_failed_hint')}</p>
+                            <button class="mod-close-btn btn btn-secondary btn-sm mt-4">${t('artsmoker.common.close')}</button>
                         </div>
                     `;
                     content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
@@ -1683,7 +1683,7 @@
                         <svg class="w-6 h-6 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
                         </svg>
-                        <h2 class="text-lg font-semibold text-red-300">${t('image_studio.prompt_cannot_be_processed')}</h2>
+                        <h2 class="text-lg font-semibold text-red-300">${t('artsmoker.image_studio.prompt_cannot_be_processed')}</h2>
                         <button class="mod-close ml-auto p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1691,19 +1691,19 @@
                         </button>
                     </div>
                     <div class="flex-1 overflow-auto p-6 space-y-4">
-                        <p class="text-sm text-brand-text/90 leading-relaxed">${t('image_studio.prompt_declined_reason')}</p>
+                        <p class="text-sm text-brand-text/90 leading-relaxed">${t('artsmoker.image_studio.prompt_declined_reason')}</p>
                         <ul class="space-y-1 text-sm text-brand-text-muted">
-                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> ${t('image_studio.decline_likeness')}</li>
-                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> ${t('image_studio.decline_misinfo')}</li>
-                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> ${t('image_studio.decline_harmful')}</li>
+                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> ${t('artsmoker.image_studio.decline_likeness')}</li>
+                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> ${t('artsmoker.image_studio.decline_misinfo')}</li>
+                            <li class="flex items-start gap-2"><span class="text-red-400 mt-0.5">•</span> ${t('artsmoker.image_studio.decline_harmful')}</li>
                         </ul>
                         <div class="p-3 rounded-lg bg-brand-bg/60 text-xs text-brand-text-muted">
-                            <p class="font-medium mb-1">${t('image_studio.ai_response')}</p>
+                            <p class="font-medium mb-1">${t('artsmoker.image_studio.ai_response')}</p>
                             <p class="whitespace-pre-wrap">${reason.substring(0, 500)}</p>
                         </div>
-                        <p class="text-xs text-brand-text-muted">${t('image_studio.decline_note')}</p>
+                        <p class="text-xs text-brand-text-muted">${t('artsmoker.image_studio.decline_note')}</p>
                         <div class="flex gap-3 pt-2">
-                            <button class="mod-close-btn btn btn-secondary flex-1">${t('image_studio.edit_prompt_btn')}</button>
+                            <button class="mod-close-btn btn btn-secondary flex-1">${t('artsmoker.image_studio.edit_prompt_btn')}</button>
                         </div>
                     </div>
                 </div>
@@ -1736,7 +1736,7 @@
                         <svg class="w-6 h-6 text-brand-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
                         </svg>
-                        <h2 class="text-lg font-semibold">${t('image_studio.pre_check_title')}</h2>
+                        <h2 class="text-lg font-semibold">${t('artsmoker.image_studio.pre_check_title')}</h2>
                         <button class="mod-close ml-auto p-2 rounded-lg hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
@@ -1748,7 +1748,7 @@
 
                         ${issues.length > 0 ? html`
                         <div>
-                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">${t('image_studio.potential_issues')}</h3>
+                            <h3 class="text-xs font-semibold text-amber-400 uppercase tracking-wider mb-2">${t('artsmoker.image_studio.potential_issues')}</h3>
                             <ul class="space-y-1">
                                 ${issues.map(i => html`<li class="flex items-start gap-2 text-sm text-brand-text-muted">
                                     <span class="text-amber-400 mt-0.5">•</span> ${i}
@@ -1758,8 +1758,8 @@
 
                         ${suggested ? html`
                         <div class="p-4 rounded-lg bg-emerald-950/30 border border-emerald-500/20">
-                            <p class="text-sm text-emerald-300 font-medium mb-1">${t('image_studio.recommended_switch').replace('{{model}}', suggestedLabel)}</p>
-                            <p class="text-xs text-brand-text-muted">${t('image_studio.prompt_works_as_is')}</p>
+                            <p class="text-sm text-emerald-300 font-medium mb-1">${t('artsmoker.image_studio.recommended_switch').replace('{{model}}', suggestedLabel)}</p>
+                            <p class="text-xs text-brand-text-muted">${t('artsmoker.image_studio.prompt_works_as_is')}</p>
                         </div>` : ''}
 
                         <div class="flex flex-wrap gap-3 pt-2">
@@ -1768,19 +1768,19 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                                 </svg>
-                                ${t('image_studio.generate_with').replace('{{model}}', suggestedLabel)}
+                                ${t('artsmoker.image_studio.generate_with').replace('{{model}}', suggestedLabel)}
                             </button>` : ''}
                             <button id="precheck-rewrite" class="btn bg-amber-600 hover:bg-amber-500 text-white">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                 </svg>
-                                ${t('image_studio.rewrite_for').replace('{{model}}', currentLabel)}
+                                ${t('artsmoker.image_studio.rewrite_for').replace('{{model}}', currentLabel)}
                             </button>
                             <button id="precheck-proceed" class="btn btn-secondary">
-                                ${t('image_studio.try_anyway').replace('{{model}}', currentLabel)}
+                                ${t('artsmoker.image_studio.try_anyway').replace('{{model}}', currentLabel)}
                             </button>
                             <button id="precheck-cancel" class="btn btn-secondary btn-sm">
-                                ${t('common.cancel')}
+                                ${t('artsmoker.common.cancel')}
                             </button>
                         </div>
                     </div>
@@ -1815,8 +1815,8 @@
                     // nosemgrep
                     content.innerHTML = html`<div class="flex flex-col items-center justify-center py-8 gap-3 text-brand-text-muted">
                         <div class="loading-spinner w-5 h-5 border-2 border-brand-accent/20 border-t-brand-accent rounded-full"></div>
-                        <p>${t('image_studio.attempting_rewrite').replace('{{model}}', currentLabel)}</p>
-                        <p class="text-[10px] text-brand-text-muted/50">${t('image_studio.canary_hint')}</p>
+                        <p>${t('artsmoker.image_studio.attempting_rewrite').replace('{{model}}', currentLabel)}</p>
+                        <p class="text-[10px] text-brand-text-muted/50">${t('artsmoker.image_studio.canary_hint')}</p>
                     </div>`;
                 }
                 try {
@@ -1830,23 +1830,23 @@
                     });
                     if (rewriteResult.rewritten_prompt) {
                         const verifiedBadge = rewriteResult.verified
-                            ? html`<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">${t('image_studio.passed_canary')}</span>`
-                            : html`<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">${t('image_studio.not_verified')}</span>`;
+                            ? html`<span class="text-[10px] font-medium text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded-full">${t('artsmoker.image_studio.passed_canary')}</span>`
+                            : html`<span class="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full">${t('artsmoker.image_studio.not_verified')}</span>`;
 
                         if (content) {
                             // nosemgrep
                             content.innerHTML = html`<div class="space-y-4">
                                 <div>
                                     <h3 class="text-xs font-semibold text-emerald-400 uppercase tracking-wider mb-2 flex items-center gap-2">
-                                        ${t('image_studio.rewritten_prompt')} ${verifiedBadge}
+                                        ${t('artsmoker.image_studio.rewritten_prompt')} ${verifiedBadge}
                                     </h3>
                                     <textarea id="precheck-rewritten-text" class="input w-full min-h-[100px] text-sm">${rewriteResult.rewritten_prompt}</textarea>
                                 </div>
                                 <div class="p-3 rounded-lg bg-amber-950/20 border border-amber-500/20">
-                                    <p class="text-[10px] text-amber-300/80"><strong>${t('image_studio.best_effort_rewrite')}</strong> ${t('image_studio.rewrite_not_guaranteed').replace('{{model}}', currentLabel)}</p>
+                                    <p class="text-[10px] text-amber-300/80"><strong>${t('artsmoker.image_studio.best_effort_rewrite')}</strong> ${t('artsmoker.image_studio.rewrite_not_guaranteed').replace('{{model}}', currentLabel)}</p>
                                 </div>
                                 <details class="text-xs">
-                                    <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('image_studio.view_original_prompt')}</summary>
+                                    <summary class="text-brand-text-muted cursor-pointer hover:text-brand-text">${t('artsmoker.image_studio.view_original_prompt')}</summary>
                                     <p class="mt-2 p-3 rounded-lg bg-brand-bg/60 whitespace-pre-wrap text-brand-text-muted">${originalPrompt}</p>
                                 </details>
                                 <div class="flex gap-3 pt-2">
@@ -1854,9 +1854,9 @@
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4"/>
                                         </svg>
-                                        ${t('image_studio.use_rewrite_review')}
+                                        ${t('artsmoker.image_studio.use_rewrite_review')}
                                     </button>
-                                    <button class="mod-close-btn btn btn-secondary">${t('common.cancel')}</button>
+                                    <button class="mod-close-btn btn btn-secondary">${t('artsmoker.common.cancel')}</button>
                                 </div>
                             </div>`;
 
@@ -1874,18 +1874,18 @@
                         }
                     } else {
                         if (content) {
-                            const explanation = rewriteResult.explanation || t('image_studio.rewrite_unavailable');
+                            const explanation = rewriteResult.explanation || t('artsmoker.image_studio.rewrite_unavailable');
                             // nosemgrep
                             content.innerHTML = html`<div class="p-4 text-center space-y-3">
                                 <p class="text-sm text-red-300">${explanation}</p>
-                                <p class="text-xs text-brand-text-muted">${t('image_studio.retry_hint')}</p>
-                                <button class="mod-close-btn btn btn-secondary">${t('common.close')}</button>
+                                <p class="text-xs text-brand-text-muted">${t('artsmoker.image_studio.retry_hint')}</p>
+                                <button class="mod-close-btn btn btn-secondary">${t('artsmoker.common.close')}</button>
                             </div>`;
                             content.querySelector('.mod-close-btn')?.addEventListener('click', () => dialog.remove());
                         }
                     }
                 } catch (err) {
-                    window.showToast?.(t('image_studio.rewrite_failed') + ': ' + (err.message || ''), 'error');
+                    window.showToast?.(t('artsmoker.image_studio.rewrite_failed') + ': ' + (err.message || ''), 'error');
                     dialog.remove();
                 }
             });
@@ -1906,7 +1906,7 @@
             if (on) {
                 btn.disabled = true;
                 // nosemgrep
-                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('image_studio.generating')}`;
+                btn.innerHTML = html`<span class="spinner-sm"></span> ${t('artsmoker.image_studio.generating')}`;
                 loadingEl?.classList.remove('hidden');
                 placeholder?.classList.add('hidden');
                 document.getElementById('gen-result-img')?.classList.add('hidden');
@@ -1925,7 +1925,7 @@
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
                     </svg>
-                    ${t('image_studio.generate')}`;
+                    ${t('artsmoker.image_studio.generate')}`;
                 loadingEl?.classList.add('hidden');
                 this._stopProgress();
             }
@@ -1940,8 +1940,8 @@
             const bar = document.getElementById('gen-progress-bar');
             const startTime = Date.now();
 
-            if (text) text.textContent = t('image_studio.starting');
-            if (sub) sub.textContent = t('image_studio.images_queued').replace('{{count}}', total).replace('{{plural}}', total > 1 ? 's' : '');
+            if (text) text.textContent = t('artsmoker.image_studio.starting');
+            if (sub) sub.textContent = t('artsmoker.image_studio.images_queued').replace('{{count}}', total).replace('{{plural}}', total > 1 ? 's' : '');
             if (bar) bar.style.width = '2%';
 
             // Elapsed timer
@@ -1949,7 +1949,7 @@
                 const secs = Math.floor((Date.now() - startTime) / 1000);
                 const min = Math.floor(secs / 60);
                 const sec = secs % 60;
-                if (elapsedEl) elapsedEl.textContent = min > 0 ? t('image_studio.elapsed_min').replace('{{min}}', min).replace('{{sec}}', sec) : t('image_studio.elapsed_sec').replace('{{sec}}', sec);
+                if (elapsedEl) elapsedEl.textContent = min > 0 ? t('artsmoker.image_studio.elapsed_min').replace('{{min}}', min).replace('{{sec}}', sec) : t('artsmoker.image_studio.elapsed_sec').replace('{{sec}}', sec);
             }, 1000);
 
             this._progressTimer = { tick };
@@ -1969,20 +1969,20 @@
 
             switch (evt.type) {
                 case 'started':
-                    if (text) text.textContent = t('image_studio.starting_generation');
+                    if (text) text.textContent = t('artsmoker.image_studio.starting_generation');
                     if (bar) bar.style.width = '5%';
                     break;
 
                 case 'stage':
                     if (text) text.textContent = evt.message || evt.stage;
                     if (evt.stage === 'prompts') {
-                        if (sub) sub.textContent = t('image_studio.creating_concepts');
+                        if (sub) sub.textContent = t('artsmoker.image_studio.creating_concepts');
                         if (bar) bar.style.width = '10%';
                     } else if (evt.stage === 'generating') {
-                        if (sub) sub.textContent = t('image_studio.concepts_ready').replace('{{count}}', evt.prompts_done || '').replace('{{plural}}', (evt.prompts_done || 0) > 1 ? 's' : '');
+                        if (sub) sub.textContent = t('artsmoker.image_studio.concepts_ready').replace('{{count}}', evt.prompts_done || '').replace('{{plural}}', (evt.prompts_done || 0) > 1 ? 's' : '');
                         if (bar) bar.style.width = '20%';
                     } else if (evt.stage === 'finalizing') {
-                        if (sub) sub.textContent = t('image_studio.saving_assets');
+                        if (sub) sub.textContent = t('artsmoker.image_studio.saving_assets');
                         if (bar) bar.style.width = '95%';
                     }
                     break;
@@ -1992,14 +1992,14 @@
                     // the preferred model or switching to the registry-configured
                     // backup. Surface it so the wait doesn't look like a hang.
                     if (evt.state === 'retrying') {
-                        if (text) text.textContent = t('image_studio.llm_retrying')
+                        if (text) text.textContent = t('artsmoker.image_studio.llm_retrying')
                             .replace('{{model}}', evt.model || 'AI model')
                             .replace('{{seconds}}', Math.round(evt.retry_in_seconds || 0))
                             .replace('{{attempt}}', evt.attempt || 1)
                             .replace('{{max}}', evt.max_attempts || 1);
                         if (sub) sub.textContent = evt.message || '';
                     } else if (evt.state === 'switching') {
-                        if (text) text.textContent = t('image_studio.llm_switching')
+                        if (text) text.textContent = t('artsmoker.image_studio.llm_switching')
                             .replace('{{model}}', evt.fallback_model || 'backup AI model');
                         if (sub) sub.textContent = evt.message || '';
                     }
@@ -2010,8 +2010,8 @@
                     const done = evt.completed || 0;
                     const tot = evt.total || total;
                     const pct = 20 + Math.round((done / tot) * 70);
-                    if (text) text.textContent = t('image_studio.generating_images').replace('{{done}}', done).replace('{{total}}', tot);
-                    if (sub) sub.textContent = t('image_studio.option_variation_complete').replace('{{opt}}', (evt.option || 0) + 1).replace('{{var}}', (evt.variation || 0) + 1);
+                    if (text) text.textContent = t('artsmoker.image_studio.generating_images').replace('{{done}}', done).replace('{{total}}', tot);
+                    if (sub) sub.textContent = t('artsmoker.image_studio.option_variation_complete').replace('{{opt}}', (evt.option || 0) + 1).replace('{{var}}', (evt.variation || 0) + 1);
                     if (bar) bar.style.width = Math.min(pct, 92) + '%';
                     break;
                 }
@@ -2020,8 +2020,8 @@
                     const done = evt.completed || 0;
                     const tot = evt.total || total;
                     const pct = 20 + Math.round((done / tot) * 70);
-                    if (text) text.textContent = t('custom_models.async_submitted').replace('{{model}}', evt.model_label);
-                    if (sub) sub.textContent = t('custom_models.async_submitted_hint');
+                    if (text) text.textContent = t('artsmoker.custom_models.async_submitted').replace('{{model}}', evt.model_label);
+                    if (sub) sub.textContent = t('artsmoker.custom_models.async_submitted_hint');
                     if (bar) bar.style.width = Math.min(pct, 92) + '%';
                     // Show the pending jobs button immediately with count
                     const pendBtn = document.getElementById('btn-pending-jobs');
@@ -2030,7 +2030,7 @@
                         pendBtn.classList.remove('hidden');
                         if (pendLabel) {
                             const remaining = tot - done;
-                            pendLabel.textContent = t('custom_models.pending_jobs_count').replace('{{count}}', remaining);
+                            pendLabel.textContent = t('artsmoker.custom_models.pending_jobs_count').replace('{{count}}', remaining);
                         }
                     }
                     this._startAsyncPolling();
@@ -2042,45 +2042,45 @@
                 case 'image_error': {
                     const done = evt.completed || 0;
                     const tot = evt.total || total;
-                    if (sub) sub.textContent = t('image_studio.option_variation_failed').replace('{{opt}}', (evt.option || 0) + 1).replace('{{var}}', (evt.variation || 0) + 1);
+                    if (sub) sub.textContent = t('artsmoker.image_studio.option_variation_failed').replace('{{opt}}', (evt.option || 0) + 1).replace('{{var}}', (evt.variation || 0) + 1);
                     break;
                 }
 
                 case 'throttled': {
-                    if (text) text.textContent = t('image_studio.api_throttled');
-                    if (sub) sub.textContent = t('image_studio.option_variation_waiting').replace('{{opt}}', (evt.option || 0) + 1).replace('{{var}}', (evt.variation || 0) + 1).replace('{{delay}}', evt.delay || '?');
+                    if (text) text.textContent = t('artsmoker.image_studio.api_throttled');
+                    if (sub) sub.textContent = t('artsmoker.image_studio.option_variation_waiting').replace('{{opt}}', (evt.option || 0) + 1).replace('{{var}}', (evt.variation || 0) + 1).replace('{{delay}}', evt.delay || '?');
                     break;
                 }
 
                 case 'retry': {
-                    if (text) text.textContent = t('image_studio.retrying').replace('{{attempt}}', evt.attempt || '?').replace('{{max}}', evt.max_retries || '?');
-                    if (sub) sub.textContent = `${t('image_studio.option')} ${(evt.option || 0) + 1}, ${t('image_studio.variation')} ${(evt.variation || 0) + 1}`;
+                    if (text) text.textContent = t('artsmoker.image_studio.retrying').replace('{{attempt}}', evt.attempt || '?').replace('{{max}}', evt.max_retries || '?');
+                    if (sub) sub.textContent = `${t('artsmoker.image_studio.option')} ${(evt.option || 0) + 1}, ${t('artsmoker.image_studio.variation')} ${(evt.variation || 0) + 1}`;
                     break;
                 }
 
                 case 'canary':
-                    if (text) text.textContent = evt.message || t('image_studio.testing_prompt');
-                    if (sub) sub.textContent = t('image_studio.verifying_moderation');
+                    if (text) text.textContent = evt.message || t('artsmoker.image_studio.testing_prompt');
+                    if (sub) sub.textContent = t('artsmoker.image_studio.verifying_moderation');
                     if (bar) bar.style.width = '15%';
                     break;
 
                 case 'moderation_blocked':
-                    if (text) text.textContent = t('image_studio.moderation_blocked');
-                    if (sub) sub.textContent = evt.message || t('image_studio.moderation_stopping');
+                    if (text) text.textContent = t('artsmoker.image_studio.moderation_blocked');
+                    if (sub) sub.textContent = evt.message || t('artsmoker.image_studio.moderation_stopping');
                     if (bar) bar.style.width = '100%';
                     // Track for the dialog
                     this._moderationErrors.push(evt.error || 'Content moderation blocked');
                     break;
 
                 case 'prompt_refused':
-                    if (text) text.textContent = t('image_studio.prompt_cannot_process');
-                    if (sub) sub.textContent = evt.message || t('image_studio.prompt_declined');
+                    if (text) text.textContent = t('artsmoker.image_studio.prompt_cannot_process');
+                    if (sub) sub.textContent = evt.message || t('artsmoker.image_studio.prompt_declined');
                     if (bar) bar.style.width = '100%';
                     break;
 
                 case 'complete':
                     if (bar) bar.style.width = '100%';
-                    if (text) text.textContent = t('image_studio.done');
+                    if (text) text.textContent = t('artsmoker.image_studio.done');
                     break;
             }
         },
@@ -2092,7 +2092,7 @@
 
             // Switch to "Post-Processing" mode now that results exist
             const labelEl = document.getElementById('gen-processing-label');
-            if (labelEl) labelEl.textContent = t('image_studio.post_processing');
+            if (labelEl) labelEl.textContent = t('artsmoker.image_studio.post_processing');
             document.getElementById('btn-apply-postprocess')?.classList.remove('hidden');
             document.getElementById('pp-hint')?.classList.remove('hidden');
 
@@ -2136,14 +2136,14 @@
             const header = document.getElementById('gen-options-header');
             if (header) {
                 header.textContent = isAllModels
-                    ? t('image_studio.models_header')
-                    : t('image_studio.options_header');
+                    ? t('artsmoker.image_studio.models_header')
+                    : t('artsmoker.image_studio.options_header');
             }
             if (countEl) {
                 const totalImages = options.reduce((s, o) => s + (o.variants?.length || 0), 0);
                 countEl.textContent = isAllModels
                     ? `${totalImages} images across ${new Set(options.map(o => o.image_model)).size} models`
-                    : `${options.length} ${t('image_studio.num_options').toLowerCase()}`;
+                    : `${options.length} ${t('artsmoker.image_studio.num_options').toLowerCase()}`;
             }
 
             // Grouped layout: when All Models with multiple options per model
@@ -2190,7 +2190,7 @@
                 grid.className = `grid gap-3 grid-cols-${cols}`;
                 // nosemgrep
                 grid.innerHTML = options.map((opt, i) => {
-                    const modelPart = opt.model_label || `${t('image_studio.option')} ${i + 1}`;
+                    const modelPart = opt.model_label || `${t('artsmoker.image_studio.option')} ${i + 1}`;
                     const cardLabel = `o${i + 1} · ${modelPart}`;
                     return this._renderOptionCard(opt, i, cardLabel);
                 }).join('');
@@ -2221,7 +2221,7 @@
                             ? html`<img src="${thumbSrc}" alt="${label}" class="w-full h-full object-cover" loading="lazy" />`
                             : isAsync
                             ? html`<div class="async-placeholder w-full h-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Generating...</span></div>`
-                            : html`<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
+                            : html`<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('artsmoker.image_studio.no_image')}</div>`
                         }
                     </div>
                     <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
@@ -2231,7 +2231,7 @@
                     ${opt.status === 'moderation_blocked' || opt.status === 'error' || opt.status === 'failed' ? html`
                     <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
                         <span class="px-2 py-1 rounded text-xs font-semibold ${opt.status === 'moderation_blocked' ? 'bg-amber-500/80 text-amber-950' : 'bg-red-500/80 text-white'}">
-                            ${opt.status === 'moderation_blocked' ? t('image_studio.blocked_moderation') : t('image_studio.failed')}
+                            ${opt.status === 'moderation_blocked' ? t('artsmoker.image_studio.blocked_moderation') : t('artsmoker.image_studio.failed')}
                         </span>
                     </div>` : ''}
                     <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
@@ -2278,17 +2278,17 @@
                 usedText.textContent = option.enhanced_prompt || result.enhanced_prompt || result.refined_prompt || result.prompt || '';
             }
             if (usedLabel) {
-                const modelPart = option.model_label || `${t('image_studio.option')} ${index + 1}`;
-                usedLabel.textContent = `${t('image_studio.prompt_sent_to_model')} \u2014 o${index + 1} · ${modelPart}`;
+                const modelPart = option.model_label || `${t('artsmoker.image_studio.option')} ${index + 1}`;
+                usedLabel.textContent = `${t('artsmoker.image_studio.prompt_sent_to_model')} \u2014 o${index + 1} · ${modelPart}`;
             }
             const negText = document.getElementById('gen-negative-prompt-text');
             const negLabel = document.querySelector('#gen-negative-prompt-section > p:first-child');
             if (negText) {
-                negText.textContent = option.negative_prompt || t('image_studio.negative_prompt_none');
+                negText.textContent = option.negative_prompt || t('artsmoker.image_studio.negative_prompt_none');
             }
             if (negLabel) {
-                const modelPart = option.model_label || `${t('image_studio.option')} ${index + 1}`;
-                negLabel.textContent = `${t('image_studio.negative_prompt_exclusions')} \u2014 o${index + 1} · ${modelPart}`;
+                const modelPart = option.model_label || `${t('artsmoker.image_studio.option')} ${index + 1}`;
+                negLabel.textContent = `${t('artsmoker.image_studio.negative_prompt_exclusions')} \u2014 o${index + 1} · ${modelPart}`;
             }
 
             // Render variations for this option
@@ -2311,7 +2311,7 @@
             }
 
             section.classList.remove('hidden');
-            if (countEl) countEl.textContent = `${variants.length} ${t('image_studio.num_variations').toLowerCase()}`;
+            if (countEl) countEl.textContent = `${variants.length} ${t('artsmoker.image_studio.num_variations').toLowerCase()}`;
 
             grid.className = `grid gap-3 grid-cols-${Math.min(variants.length, 5)}`;
 
@@ -2329,8 +2329,8 @@
                     ${isAsync
                         ? html`<div class="async-placeholder w-full h-full flex flex-col items-center justify-center bg-brand-bg text-cyan-400/50 text-[10px] gap-1"><svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Generating</div>`
                         : v.png_path
-                        ? html`<img src="${v.png_path}" alt="${t('image_studio.variation')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
-                        : html`<div class="w-full h-full flex items-center justify-center bg-brand-bg text-brand-text-muted/30 text-xs">${t('image_studio.no_image')}</div>`
+                        ? html`<img src="${v.png_path}" alt="${t('artsmoker.image_studio.variation')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
+                        : html`<div class="w-full h-full flex items-center justify-center bg-brand-bg text-brand-text-muted/30 text-xs">${t('artsmoker.image_studio.no_image')}</div>`
                     }
                     <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
                     <span class="absolute bottom-1 right-1 text-[10px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">
@@ -2386,8 +2386,8 @@
                     placeholder.innerHTML = html`
                         <div class="flex flex-col items-center justify-center gap-3 py-12 text-cyan-400/60">
                             <div class="w-10 h-10 border-2 border-cyan-400/30 border-t-cyan-400 rounded-full animate-spin"></div>
-                            <span class="text-sm font-medium">${t('image_studio.generating_with').replace('{{model}}', variant.model_label || t('image_studio.custom_model_fallback'))}</span>
-                            <span class="text-[10px] text-brand-text-muted/50">${t('image_studio.image_when_ready')}</span>
+                            <span class="text-sm font-medium">${t('artsmoker.image_studio.generating_with').replace('{{model}}', variant.model_label || t('artsmoker.image_studio.custom_model_fallback'))}</span>
+                            <span class="text-[10px] text-brand-text-muted/50">${t('artsmoker.image_studio.image_when_ready')}</span>
                         </div>`;
                 }
             } else if (variant.png_path) {
@@ -2427,7 +2427,7 @@
         // ── Load batch from Gallery ──────────────────────────────────
 
         async loadBatch(batchId) {
-            window.showLoading?.(t('image_studio.loading_batch'));
+            window.showLoading?.(t('artsmoker.image_studio.loading_batch'));
 
             // Navigate to image-studio and wait for the view to be fully ready.
             // Setting the hash triggers navigate() via hashchange, but navigate()
@@ -2536,7 +2536,7 @@
                     // If images were already upscaled, lock the toggle
                     if (result.upscale) {
                         upscale.disabled = true;
-                        upscale.closest('label')?.setAttribute('title', t('image_studio.already_upscaled'));
+                        upscale.closest('label')?.setAttribute('title', t('artsmoker.image_studio.already_upscaled'));
                     }
                 }
 
@@ -2558,12 +2558,12 @@
                 const deletedCount = result.batch_deleted_count || 0;
                 if (deletedCount > 0 && originalTotal > 0) {
                     window.showToast?.(
-                        t('image_studio.batch_loaded_partial').replace('{{surviving}}', surviving).replace('{{total}}', originalTotal).replace('{{deleted}}', deletedCount),
+                        t('artsmoker.image_studio.batch_loaded_partial').replace('{{surviving}}', surviving).replace('{{total}}', originalTotal).replace('{{deleted}}', deletedCount),
                         'info', 6000
                     );
                 } else {
                     window.showToast?.(
-                        t('image_studio.batch_loaded').replace('{{options}}', result.num_options).replace('{{variations}}', result.num_variations),
+                        t('artsmoker.image_studio.batch_loaded').replace('{{options}}', result.num_options).replace('{{variations}}', result.num_variations),
                         'success'
                     );
                 }
@@ -2650,14 +2650,14 @@
             const label = document.getElementById('gen-model-label');
             if (label) {
                 if (this._selectedModels.length === 0) {
-                    label.textContent = t('image_studio.select_models') || 'Select models...';
+                    label.textContent = t('artsmoker.image_studio.select_models') || 'Select models...';
                 } else if (this._selectedModels.length === 1) {
                     const m = MODELS.find(m => m.value === this._selectedModels[0]);
                     label.textContent = m?.label || this._selectedModels[0];
                 } else if (this._selectedModels.length === realModels.length) {
-                    label.textContent = `${t('image_studio.all_models') || 'All'} (${realModels.length} ${t('image_studio.models_count') || 'models'})`;
+                    label.textContent = `${t('artsmoker.image_studio.all_models') || 'All'} (${realModels.length} ${t('artsmoker.image_studio.models_count') || 'models'})`;
                 } else {
-                    label.textContent = `${this._selectedModels.length} ${t('image_studio.models_selected') || 'models selected'}`;
+                    label.textContent = `${this._selectedModels.length} ${t('artsmoker.image_studio.models_selected') || 'models selected'}`;
                 }
             }
 
@@ -2823,8 +2823,8 @@
                 const modelLabel = modelData?.label || model;
                 // nosemgrep
                 note.innerHTML = html`
-                    ${raw(t('image_studio.ip_strict_model_warning').replace('{{model}}', '<strong>' + escapeHtml(modelLabel) + '</strong>'))}
-                    <button id="gen-ip-switch-model" class="underline text-amber-200 hover:text-amber-100 ml-1">${t('image_studio.ip_switch_now')}</button>
+                    ${raw(t('artsmoker.image_studio.ip_strict_model_warning').replace('{{model}}', '<strong>' + escapeHtml(modelLabel) + '</strong>'))}
+                    <button id="gen-ip-switch-model" class="underline text-amber-200 hover:text-amber-100 ml-1">${t('artsmoker.image_studio.ip_switch_now')}</button>
                 `;
                 note.classList.remove('hidden');
 
@@ -2834,7 +2834,7 @@
                         this._selectedModels = ['sd35_large'];
                         this._syncModelCheckboxes();
                         this._updateIpModelNote();
-                        window.showToast?.(t('image_studio.switched_to'), 'success');
+                        window.showToast?.(t('artsmoker.image_studio.switched_to'), 'success');
                     });
                 }, 0);
             } else {
@@ -2852,14 +2852,14 @@
             totalEl.textContent = `$${totalCost.toFixed(4)}`;
 
             const labels = {
-                'llm': t('image_studio.cost_llm'),
-                'image_generation': t('image_studio.cost_image_generation'),
-                'image_inpainting': t('image_studio.cost_image_inpainting'),
-                'image_outpainting': t('image_studio.cost_image_outpainting'),
-                'image_erase': t('image_studio.cost_image_erase'),
-                'image_remove_background': t('image_studio.cost_image_remove_bg'),
-                'image_upscale_creative': t('image_studio.cost_image_upscale'),
-                'image_search_replace': t('image_studio.cost_image_search_replace'),
+                'llm': t('artsmoker.image_studio.cost_llm'),
+                'image_generation': t('artsmoker.image_studio.cost_image_generation'),
+                'image_inpainting': t('artsmoker.image_studio.cost_image_inpainting'),
+                'image_outpainting': t('artsmoker.image_studio.cost_image_outpainting'),
+                'image_erase': t('artsmoker.image_studio.cost_image_erase'),
+                'image_remove_background': t('artsmoker.image_studio.cost_image_remove_bg'),
+                'image_upscale_creative': t('artsmoker.image_studio.cost_image_upscale'),
+                'image_search_replace': t('artsmoker.image_studio.cost_image_search_replace'),
             };
 
             // nosemgrep
@@ -2935,14 +2935,14 @@
                 if (btn) {
                     btn.classList.toggle('hidden', jobs.length === 0);
                     if (label) label.textContent = count > 0
-                        ? t('custom_models.pending_jobs_count').replace('{{count}}', count)
-                        : t('custom_models.completed_jobs_total').replace('{{count}}', jobs.length);
+                        ? t('artsmoker.custom_models.pending_jobs_count').replace('{{count}}', count)
+                        : t('artsmoker.custom_models.completed_jobs_total').replace('{{count}}', jobs.length);
                 }
 
                 // Toast + live update for newly completed jobs
                 let newlyCompleted = 0;
                 jobs.filter(j => j.status === 'complete' && !this._notifiedJobIds.has(j.job_id)).forEach(j => {
-                    window.showToast?.(t('custom_models.async_ready_toast').replace('{{model}}', j.model_label), 'success');
+                    window.showToast?.(t('artsmoker.custom_models.async_ready_toast').replace('{{model}}', j.model_label), 'success');
                     this._notifiedJobIds.add(j.job_id);
                     newlyCompleted++;
 
@@ -3018,7 +3018,7 @@
             backdrop.className = 'fixed inset-0 z-[80] bg-black/70 backdrop-blur-sm flex items-center justify-center p-4';
 
             const jobsHtml = jobs.length === 0
-                ? html`<p class="text-xs text-brand-text-muted py-4 text-center">${t('custom_models.async_no_jobs')}</p>`
+                ? html`<p class="text-xs text-brand-text-muted py-4 text-center">${t('artsmoker.custom_models.async_no_jobs')}</p>`
                 : jobs.map(j => {
                     const isActive = j.status === 'generating' || j.status === 'pending';
                     const statusColor = j.status === 'complete' ? 'text-emerald-400' : j.status === 'failed' ? 'text-red-400' : 'text-cyan-400';
@@ -3079,17 +3079,17 @@
                     <div class="flex items-center justify-between px-5 py-3 border-b border-brand-border">
                         <h3 class="text-sm font-semibold text-brand-text flex items-center gap-2">
                             <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                            ${t('custom_models.pending_jobs')}
+                            ${t('artsmoker.custom_models.pending_jobs')}
                         </h3>
                         <div class="flex gap-2">
-                            ${jobs.some(j => j.status === 'complete' || j.status === 'failed') ? html`<button class="pj-clear text-[10px] text-brand-text-muted hover:text-red-400">${t('custom_models.async_clear_completed')}</button>` : ''}
+                            ${jobs.some(j => j.status === 'complete' || j.status === 'failed') ? html`<button class="pj-clear text-[10px] text-brand-text-muted hover:text-red-400">${t('artsmoker.custom_models.async_clear_completed')}</button>` : ''}
                             <button class="pj-close p-1 rounded hover:bg-white/5 text-brand-text-muted hover:text-brand-text">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             </button>
                         </div>
                     </div>
                     <div class="px-4 py-2 text-[10px] text-brand-text-muted/70 border-b border-brand-border bg-brand-bg/30">
-                        ${t('custom_models.async_footer')}
+                        ${t('artsmoker.custom_models.async_footer')}
                     </div>
                     <div class="flex-1 overflow-auto p-4 space-y-2">
                         ${jobsHtml}
