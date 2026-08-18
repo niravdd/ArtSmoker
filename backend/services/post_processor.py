@@ -382,6 +382,7 @@ def convert_to_svg(png_bytes: bytes, output_path: Path) -> Path:
     # Write PNG to a temp file for CLI tools
     with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as tmp:
         tmp.write(png_bytes)
+        tmp.flush()  # ensure bytes hit disk before the CLI tools below read the path
         tmp_png_path = Path(tmp.name)
 
     try:

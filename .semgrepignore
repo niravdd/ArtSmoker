@@ -1,0 +1,6 @@
+# Paths excluded from semgrep (Probe) scanning.
+#
+# Vendored third-party code — snapshots of upstream packages bundled into the
+# SageMaker handler's model.tar.gz. We do not edit or lint vendored deps; their
+# findings are the upstream projects' to own, not ours.
+backend/sagemaker_handlers/bundled_packages/

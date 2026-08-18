@@ -996,7 +996,7 @@
                             const options = Array.from(el.querySelectorAll('option'))
                                 .filter(o => !lower || o.textContent.toLowerCase().includes(lower) || groupLabel.toLowerCase().includes(lower));
                             if (options.length > 0) {
-                                out += html`<div class="px-3 py-1 text-[9px] text-brand-text-muted/50 uppercase tracking-wider font-semibold bg-black/20 sticky top-0">${wrapper.parentElement.closest('[data-category]') ? '' : ''}${groupLabel}</div>`;
+                                out += html`<div class="px-3 py-1 text-[9px] text-brand-text-muted/50 uppercase tracking-wider font-semibold bg-black/20 sticky top-0">${groupLabel}</div>`;
                                 options.forEach(o => {
                                     const selected = o.selected ? 'bg-brand-accent/10 text-brand-accent' : 'hover:bg-white/5';
                                     out += html`<div class="ms-dd-item px-3 py-1.5 text-xs cursor-pointer ${selected}" data-value="${o.value}" data-region="${o.dataset.region || ''}">${o.textContent}</div>`;

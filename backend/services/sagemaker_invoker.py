@@ -381,10 +381,10 @@ def invoke_instruction_edit_sync(model_key: str, prompt: str, image_bytes: bytes
             try:
                 body = s3.get_object(Bucket=out_bucket, Key=out_key)["Body"].read()
             except s3.exceptions.NoSuchKey:
-                time.sleep(10)
+                time.sleep(10)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate async-output S3 poll interval
                 continue
             except Exception:
-                time.sleep(10)
+                time.sleep(10)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate async-output S3 poll interval
                 continue
             result = json.loads(body)
             image_b64 = result.get("image", "")

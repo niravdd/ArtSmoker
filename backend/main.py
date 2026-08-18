@@ -680,7 +680,9 @@ async def sync_progress_stream():
     import time
     from starlette.responses import StreamingResponse
 
-    def generate():
+    # SSE generator closure — must be an inner function: it captures _server_state
+    # and is handed to StreamingResponse. (Reviewed: not a useless-inner-function.)
+    def generate():  # nosemgrep
         import json
         last_log_len = 0
         try:
@@ -692,7 +694,7 @@ async def sync_progress_stream():
             # sync to start before concluding there's nothing in progress.
             waited = 0.0
             while not _server_state.get("sync_in_progress") and waited < 10.0:
-                time.sleep(0.25)
+                time.sleep(0.25)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate SSE grace-poll interval
                 waited += 0.25
             while _server_state.get("sync_in_progress"):
                 sync_log = _server_state.get("sync_log", [])
@@ -710,7 +712,7 @@ async def sync_progress_stream():
                             counts = {}
                         yield f"data: {json.dumps({'message': entry, 'models': counts, 'regions_scanned': last_log_len})}\n\n"
                     last_log_len = len(sync_log)
-                time.sleep(1)
+                time.sleep(1)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate SSE poll interval
             # Final event
             try:
                 from backend.services.model_registry import get_registry

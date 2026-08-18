@@ -2434,7 +2434,7 @@ async def post_process_assets(body: PostProcessRequest):
                     logger.info("Skipping upscale for %s — already upscaled", asset_id)
                 else:
                     if idx > 0:
-                        time.sleep(1)  # Throttle between upscale calls
+                        time.sleep(1)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate throttle between upscale calls
                     try:
                         prompt = meta.get("enhanced_prompt", meta.get("prompt", ""))
                         current_bytes = upscale_image(current_bytes, prompt)

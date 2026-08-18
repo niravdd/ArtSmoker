@@ -262,7 +262,7 @@ def _periodic_check_loop():
                 pass
 
             # Give frontend 2 seconds to see the "restarting" status
-            time.sleep(2)
+            time.sleep(2)  # nosemgrep: python.lang.best-practice.sleep.arbitrary-sleep -- deliberate pre-restart delay
 
             # Trigger graceful shutdown → atexit handler will re-exec
             _schedule_restart()
