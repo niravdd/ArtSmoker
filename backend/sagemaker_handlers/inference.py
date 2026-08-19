@@ -332,7 +332,7 @@ def _load_from_hf(comp_name, comp_subfolder, CompClass, load_kwargs, hf_token, p
         return
     try:
         pre_loaded[comp_name] = CompClass.from_pretrained(
-            hf_repo, subfolder=comp_subfolder, **load_kwargs,
+            hf_repo, subfolder=comp_subfolder, revision=_hf_revision(), **load_kwargs,
         )
         logger.info("Loaded %s from HuggingFace (fallback)", comp_name)
     except Exception as hf_err:
@@ -1249,7 +1249,7 @@ def _load_diffusers(model_dir):
                     _load_from_hf(comp_name, comp_subfolder, CompClass, load_kwargs, hf_token, pre_loaded)
             else:
                 pre_loaded[comp_name] = CompClass.from_pretrained(
-                    model_source, subfolder=comp_subfolder, **load_kwargs,
+                    model_source, subfolder=comp_subfolder, revision=_hf_revision(), **load_kwargs,
                 )
 
             logger.info("Loaded %s with %s quantization (from_cache=%s)", comp_name, comp_quant, _loaded_from_cache)
@@ -1336,6 +1336,7 @@ def _load_diffusers(model_dir):
                     device_map=device_map,
                     torch_dtype=_get_torch_dtype(),
                     token=hf_token,
+                    revision=_hf_revision(),
                 )
                 num_devices = len(set(str(v) for v in pre_loaded["transformer"].hf_device_map.values()))
                 logger.info("Transformer distributed across %d devices (device_map=%s)", num_devices, device_map)
@@ -1351,7 +1352,7 @@ def _load_diffusers(model_dir):
         kwargs.update(pre_loaded)
 
     try:
-        pipe = PipelineClass.from_pretrained(model_source, **kwargs)
+        pipe = PipelineClass.from_pretrained(model_source, revision=_hf_revision(), **kwargs)
     except Exception as load_err:
         # If loading from cache failed, fall back to HuggingFace repo (not same broken path).
         # This handles corrupt/incomplete caches gracefully.
@@ -1367,7 +1368,7 @@ def _load_diffusers(model_dir):
             fallback_kwargs["token"] = hf_token
         if pre_loaded:
             fallback_kwargs.update(pre_loaded)
-        pipe = PipelineClass.from_pretrained(fallback_source, **fallback_kwargs)
+        pipe = PipelineClass.from_pretrained(fallback_source, revision=_hf_revision(), **fallback_kwargs)
 
     # GPU placement strategy:
     # - All NF4 quantized (fresh or cached) → pipe.to("cuda") = fast path (30-60s/image)
@@ -1510,7 +1511,7 @@ def _load_transformers(model_dir):
             kwargs["trust_remote_code"] = True
         if hf_token:
             kwargs["token"] = hf_token
-        model = ModelClass.from_pretrained(model_source, **kwargs)
+        model = ModelClass.from_pretrained(model_source, revision=_hf_revision(), **kwargs)
         model.to("cuda").eval()
 
         result = {"library": "transformers", "predictor": "model", "model": model}
@@ -1521,7 +1522,7 @@ def _load_transformers(model_dir):
             proc_kwargs = {}
             if hf_token:
                 proc_kwargs["token"] = hf_token
-            processor = ProcessorClass.from_pretrained(model_source, **proc_kwargs)
+            processor = ProcessorClass.from_pretrained(model_source, revision=_hf_revision(), **proc_kwargs)
             result["processor"] = processor
 
         return result
