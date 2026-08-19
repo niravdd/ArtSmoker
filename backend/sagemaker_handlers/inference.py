@@ -1074,6 +1074,14 @@ def _hf_revision():
     return _get_env("ARTSMOKER_HF_REVISION") or None
 
 
+def _rev_kwargs(rev):
+    """{'revision': rev} when a pin is configured, else {} — so unpinned downloads
+    stay byte-identical. Used for backend-dependency loaders (MVAdapter/TRELLIS.2)
+    whose from_pretrained signatures we can't verify locally; only forwards the
+    kwarg when an operator actually pins a revision in the registry."""
+    return {"revision": rev} if rev else {}
+
+
 def _load_diffusers(model_dir):
     """Load any diffusers pipeline with memory optimizations from env vars.
 
@@ -2879,21 +2887,34 @@ def _load_texture_models(code_dir, hf_token):
     from diffusers import AutoencoderKL
     from mvadapter.pipelines.pipeline_mvadapter_i2mv_sdxl import MVAdapterI2MVSDXLPipeline
 
+    # Backend-dependency repos are registry-driven like everything else: read from
+    # invoke_config.secondary_sources (single source of truth), with the known-good
+    # public repos as fallbacks. Operators can override/pin (revision) per deployment.
+    _ss = _config.get("secondary_sources", {})
+    _vae_src = _ss.get("mvadapter_vae", {})
+    _base_src = _ss.get("mvadapter_base", {})
+    _adapter_src = _ss.get("mvadapter_adapter", {})
+    _vae_repo = _vae_src.get("repo_id") or "madebyollin/sdxl-vae-fp16-fix"
+    _base_repo = _base_src.get("repo_id") or "stabilityai/stable-diffusion-xl-base-1.0"
+    _adapter_repo = _adapter_src.get("repo_id") or "huanngzh/mv-adapter"
+
     # Use the standard SDXL VAE in fp32 for the decode to avoid fp16 color drift.
     # The fp16-fix VAE only guarantees no-NaN, not color fidelity — and color
     # bias compounds when 6 views are blended into one texture atlas.
     _vae = AutoencoderKL.from_pretrained(
-        "madebyollin/sdxl-vae-fp16-fix", torch_dtype=torch.float16
+        _vae_repo, torch_dtype=torch.float16, **_rev_kwargs(_vae_src.get("revision"))
     )
     mv_pipe = MVAdapterI2MVSDXLPipeline.from_pretrained(
-        "stabilityai/stable-diffusion-xl-base-1.0",
+        _base_repo,
         vae=_vae,
         torch_dtype=torch.float16,
+        **_rev_kwargs(_base_src.get("revision")),
     )
     mv_pipe.init_custom_adapter(num_views=6)
     mv_pipe.load_custom_adapter(
-        "huanngzh/mv-adapter",
+        _adapter_repo,
         weight_name="mvadapter_i2mv_sdxl.safetensors",
+        **_rev_kwargs(_adapter_src.get("revision")),
     )
     mv_pipe.to(device="cuda", dtype=torch.float16)
     # cond_encoder is not a registered pipeline component — cast explicitly
@@ -4065,10 +4086,12 @@ def _trellis2_runtime_setup(model_dict):
     if _rembg_choice != "rmbg":
         try:
             from trellis2.pipelines.rembg import BiRefNet as _T2BiRefNet
+            # Registry-driven (single source of truth) with the MIT repo as fallback.
+            _birefnet_repo = _config.get("secondary_sources", {}).get("birefnet", {}).get("repo_id") or "ZhengPeng7/BiRefNet"
             if not getattr(_T2BiRefNet, "_artsmoker_patched", False):
                 _orig_init = _T2BiRefNet.__init__
-                def _mit_init(self, model_name="ZhengPeng7/BiRefNet", *a, **kw):
-                    return _orig_init(self, model_name="ZhengPeng7/BiRefNet", *a, **kw)
+                def _mit_init(self, model_name=_birefnet_repo, *a, **kw):
+                    return _orig_init(self, model_name=_birefnet_repo, *a, **kw)
                 _T2BiRefNet.__init__ = _mit_init
                 _T2BiRefNet._artsmoker_patched = True
                 logger.info("TRELLIS.2 rembg forced to MIT BiRefNet (gated RMBG-2.0 download avoided)")
@@ -4095,10 +4118,13 @@ def _load_trellis2_texture_pipe(model_dict):
     _trellis2_runtime_setup(model_dict)
     from trellis2.pipelines import Trellis2TexturingPipeline
     t0 = _t.time()
+    # Registry-driven repo (single source of truth) with the constant as fallback.
+    _t2_src = _config.get("secondary_sources", {}).get("trellis2", {})
+    _t2_repo = _t2_src.get("repo_id") or _TRELLIS2_HF_REPO
     logger.info("Loading TRELLIS.2 texturing pipeline (%s / %s)...",
-                _TRELLIS2_HF_REPO, _TRELLIS2_TEX_CONFIG)
+                _t2_repo, _TRELLIS2_TEX_CONFIG)
     pipe = Trellis2TexturingPipeline.from_pretrained(
-        _TRELLIS2_HF_REPO, config_file=_TRELLIS2_TEX_CONFIG
+        _t2_repo, config_file=_TRELLIS2_TEX_CONFIG, **_rev_kwargs(_t2_src.get("revision"))
     )
     # We feed RGBA → TRELLIS.2's rembg never runs; drop the handle so it can't
     # page onto GPU. (Belt-and-suspenders with the MIT patch above.)
@@ -4213,10 +4239,13 @@ def _load_trellis2_full_pipe(model_dict):
     _trellis2_runtime_setup(model_dict)
     from trellis2.pipelines import Trellis2ImageTo3DPipeline
     t0 = _t.time()
+    # Registry-driven repo (single source of truth) with the constant as fallback.
+    _t2_src = _config.get("secondary_sources", {}).get("trellis2", {})
+    _t2_repo = _t2_src.get("repo_id") or _TRELLIS2_HF_REPO
     logger.info("Loading TRELLIS.2 FULL image→3D pipeline (%s / %s)...",
-                _TRELLIS2_HF_REPO, _TRELLIS2_FULL_CONFIG)
+                _t2_repo, _TRELLIS2_FULL_CONFIG)
     pipe = Trellis2ImageTo3DPipeline.from_pretrained(
-        _TRELLIS2_HF_REPO, config_file=_TRELLIS2_FULL_CONFIG
+        _t2_repo, config_file=_TRELLIS2_FULL_CONFIG, **_rev_kwargs(_t2_src.get("revision"))
     )
     try:
         pipe.rembg_model = None  # we pre-cut to RGBA; rembg never runs
