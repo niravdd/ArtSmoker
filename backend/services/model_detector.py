@@ -251,8 +251,7 @@ def _detect_diffusers_class(repo_id, token=None) -> str:
     """Detect the diffusers pipeline class from model_index.json."""
     try:
         from huggingface_hub import hf_hub_download
-        # nosec B615 -- inspects a user-supplied repo to auto-detect its type at deploy time; pinning a revision would defeat detection (we read the repo's default metadata)
-        path = hf_hub_download(repo_id, "model_index.json", token=token)
+        path = hf_hub_download(repo_id, "model_index.json", token=token)  # nosec B615 -- inspects a user-supplied repo to detect its type; pinning a revision would defeat detection
         with open(path, encoding="utf-8") as f:
             index = json.load(f)
         class_name = index.get("_class_name", "")
@@ -279,8 +278,7 @@ def _detect_transformers_class(repo_id, pipeline_tag, token=None) -> tuple[str, 
     # Try reading config.json for model_type
     try:
         from huggingface_hub import hf_hub_download
-        # nosec B615 -- inspects a user-supplied repo to auto-detect its type at deploy time; pinning a revision would defeat detection (we read the repo's default metadata)
-        path = hf_hub_download(repo_id, "config.json", token=token)
+        path = hf_hub_download(repo_id, "config.json", token=token)  # nosec B615 -- inspects a user-supplied repo to detect its type; pinning a revision would defeat detection
         with open(path, encoding="utf-8") as f:
             config = json.load(f)
         architectures = config.get("architectures", [])
