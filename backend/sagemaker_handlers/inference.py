@@ -1062,6 +1062,18 @@ def _resolve_model_source(model_dir):
     return model_dir
 
 
+def _hf_revision():
+    """Optional HuggingFace revision (commit SHA / tag) to pin model downloads to.
+
+    Sourced from deploy config (ARTSMOKER_HF_REVISION, written from the model
+    registry entry's `source.revision`) — so the pin lives beside the repo ID in
+    the registry, our single source of truth. None → HF default branch (unpinned,
+    the current behavior). Passing this into from_pretrained/snapshot_download makes
+    the download reproducible when an operator pins a revision in the registry.
+    """
+    return _get_env("ARTSMOKER_HF_REVISION") or None
+
+
 def _load_diffusers(model_dir):
     """Load any diffusers pipeline with memory optimizations from env vars.
 
@@ -1591,7 +1603,7 @@ def _load_autoregressive(model_dir):
         load_kwargs["device_map"] = "cpu"
         logger.info("CPU-first load: block offload with sliding window (%d blocks)", block_swap_blocks)
 
-    model = AutoModelForCausalLM.from_pretrained(model_source, **load_kwargs)
+    model = AutoModelForCausalLM.from_pretrained(model_source, revision=_hf_revision(), **load_kwargs)
 
     if hasattr(model, "load_tokenizer"):
         # nosemgrep -- "tokenizer" trips the token keyword; logs a model path, no secret
@@ -1601,7 +1613,7 @@ def _load_autoregressive(model_dir):
         logger.info("No custom tokenizer loader — using standard tokenizer")
         from transformers import AutoTokenizer
         tokenizer = AutoTokenizer.from_pretrained(
-            model_source, trust_remote_code=trust_remote, token=hf_token
+            model_source, trust_remote_code=trust_remote, token=hf_token, revision=_hf_revision()
         )
         model._tokenizer = tokenizer
 
@@ -1716,10 +1728,13 @@ def _load_trellis2_image_to_3d(model_dir):
             bg_repo = secondary_sources.get("rmbg", {}).get("repo_id") or "briaai/RMBG-1.4"
         else:
             bg_repo = secondary_sources.get("birefnet", {}).get("repo_id") or "ZhengPeng7/BiRefNet"
+        # Optional revision pin for the bg-removal repo (registry-driven via
+        # secondary_sources[...].revision); None → HF default branch.
+        bg_rev = secondary_sources.get("rmbg" if bg_choice == "rmbg" else "birefnet", {}).get("revision")
         logger.info("Downloading background-removal model (%s) from %s...", bg_choice, bg_repo)
         from transformers import AutoModelForImageSegmentation
         rmbg_model = AutoModelForImageSegmentation.from_pretrained(
-            bg_repo, trust_remote_code=True, token=hf_token,
+            bg_repo, trust_remote_code=True, token=hf_token, revision=bg_rev,
         )
         rmbg_model.to("cuda").eval()
         try:
@@ -1781,7 +1796,7 @@ def _load_image_to_3d(model_dir):
     t0 = _time.time()
     logger.info("Downloading image-to-3D model weights from %s ...", hf_repo)
     from huggingface_hub import snapshot_download
-    local_path = snapshot_download(repo_id=hf_repo, token=hf_token)
+    local_path = snapshot_download(repo_id=hf_repo, token=hf_token, revision=_hf_revision())
     dl_time = _time.time() - t0
     logger.info("Model weights downloaded in %.0fs to %s", dl_time, local_path)
 
@@ -1813,10 +1828,13 @@ def _load_image_to_3d(model_dir):
         else:
             bg_repo = secondary_sources.get("birefnet", {}).get("repo_id") or "ZhengPeng7/BiRefNet"
 
+        # Optional revision pin for the bg-removal repo (registry-driven via
+        # secondary_sources[...].revision); None → HF default branch.
+        bg_rev = secondary_sources.get("rmbg" if bg_choice == "rmbg" else "birefnet", {}).get("revision")
         logger.info("Downloading background-removal model (%s) from %s...", bg_choice, bg_repo)
         from transformers import AutoModelForImageSegmentation
         rmbg_model = AutoModelForImageSegmentation.from_pretrained(
-            bg_repo, trust_remote_code=True, token=hf_token,
+            bg_repo, trust_remote_code=True, token=hf_token, revision=bg_rev,
         )
         rmbg_model.to("cuda").eval()
         # Tag the model so the mask helper knows which convention to use.
@@ -3524,7 +3542,7 @@ def _reload_triposg(model_dict):
             hf_repo = _get_env("ARTSMOKER_HF_REPO")
             hf_token = model_dict.get("hf_token") or _get_env("HUGGING_FACE_HUB_TOKEN") or None
             if hf_repo:
-                local_path = snapshot_download(repo_id=hf_repo, token=hf_token)
+                local_path = snapshot_download(repo_id=hf_repo, token=hf_token, revision=_hf_revision())
                 model_dict["triposg_local_path"] = local_path
                 logger.info("Re-derived TripoSG snapshot path from HF repo %s", hf_repo)
         except Exception as _e:

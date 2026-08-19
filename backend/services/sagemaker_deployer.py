@@ -2824,6 +2824,11 @@ def _get_model_environment(model_key: str, model: dict,
         "PREDICTOR_TYPE": invoke.get("predictor_type", "text_to_image"),
         # Our own env var — NOT HF_MODEL_ID (which the DLC container intercepts)
         "ARTSMOKER_HF_REPO": source.get("repo_id", ""),
+        # Optional revision pin (commit SHA / tag) for the model repo — lives in the
+        # registry entry's `source.revision` (single source of truth, like repo_id).
+        # Empty → HF default branch (unpinned, current behavior). Secondary-model
+        # revisions ride along in secondary_sources within INVOKE_CONFIG.
+        "ARTSMOKER_HF_REVISION": source.get("revision", ""),
         "SAGEMAKER_PROGRAM": "inference.py",
         "SAGEMAKER_SUBMIT_DIRECTORY": "/opt/ml/model/code",
         # Invoke config as JSON for the container handler. SageMaker silently truncates
