@@ -21,6 +21,7 @@ gpu_optimiser.md
 # Generated assets (user data, not tracked)
 data/generated/
 data/chat/
+data/video/
 
 # Cross-process write-lock files (runtime only)
 data/.locks/

@@ -284,6 +284,16 @@ def promote_to_base():
     base = json.loads(_REGISTRY_PATH.read_text())
     merged = dict(_registry)
 
+    # User-only sections (video_settings, license_acceptances, _warm_mode, …) must
+    # NEVER live in the git-tracked base — they're per-user runtime state that
+    # belongs only in model_registry.user.json. Actively strip any that leaked in
+    # previously: the per-section loop below `continue`s on these, which SKIPS
+    # updating them but would otherwise PRESERVE stale copies already in `base`
+    # (that's how a configured S3 bucket got committed here, then reset to '' by a
+    # later Sync, shadowing the real value on merge). Remove them at the source.
+    for _uonly in _USER_ONLY_SECTIONS:
+        base.pop(_uonly, None)
+
     MODEL_SECTIONS = {"image_models", "video_models", "chat_models", "post_processing",
                       "utility_models", "categories"}
 

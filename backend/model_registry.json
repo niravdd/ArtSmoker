@@ -1920,13 +1920,6 @@
       "optimal_prompt_words": 60
     }
   },
-  "video_settings": {
-    "s3_bucket": "",
-    "s3_prefix": "artsmoker/video/",
-    "store_local": true,
-    "s3_validated": false,
-    "s3_bucket_arn": ""
-  },
   "chat_models": {
     "nemotron_nano_12b_v2": {
       "label": "NVIDIA Nemotron Nano 12B v2 VL BF16",
