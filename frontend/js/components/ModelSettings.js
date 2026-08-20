@@ -408,12 +408,16 @@
                 ? html`<div class="text-[10px] text-brand-text-muted mb-2">${t('artsmoker.ui.model_settings.also_covers')}: <span class="text-brand-text/70">${coveredModes.map(p => _editModeLabels[p]).join(' · ')}</span></div>`
                 : '';
 
+            // Default absent `enabled` to ON — matches backend .get("enabled", True)
+            // and the chat/video rows. (Discovered models are enabled by default and
+            // no longer carry an explicit enabled:true in user.json.)
+            const enabled = m.enabled !== false;
             return html`
-                    <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-50'}" data-image-model="${key}">
+                    <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${enabled ? '' : 'opacity-50'}" data-image-model="${key}">
                         <div class="flex items-center justify-between mb-2">
                             <div class="flex items-center gap-2">
                                 <label class="toggle toggle-sm">
-                                    <input type="checkbox" class="ms-img-toggle" data-key="${key}" ${m.enabled ? 'checked' : ''} />
+                                    <input type="checkbox" class="ms-img-toggle" data-key="${key}" ${enabled ? 'checked' : ''} />
                                     <span class="toggle-slider"></span>
                                 </label>
                                 <span class="text-sm font-medium">${m.label || key}</span>
