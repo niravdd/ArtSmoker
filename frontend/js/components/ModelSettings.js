@@ -2314,9 +2314,12 @@
                     });
 
                     sortedCats.forEach((cat, cIdx) => {
-                        // Sort newest models first within each category
+                        // Sort alphabetically by label (case-insensitive) within each
+                        // category — mirrors the Image Studio dropdown ordering. Key is
+                        // the stable tiebreak when two models share a label.
                         const catModels = categories[cat].sort((a, b) =>
-                            (b.last_updated || '').localeCompare(a.last_updated || '') || b.label.localeCompare(a.label)
+                            (a.label || '').localeCompare(b.label || '', undefined, { sensitivity: 'base' })
+                            || (a.key || '').localeCompare(b.key || '')
                         );
                         const catOpen = openSections.has(cat);
                         const catColor = _catColors[cIdx % _catColors.length];
