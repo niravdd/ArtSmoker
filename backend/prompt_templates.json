@@ -166,10 +166,12 @@
     "used_by": "Image Studio — prompt pre-check toggle",
     "variables": [
       "{prompt_for_screen}",
-      "{model_label}"
+      "{model_label}",
+      "{model_strictness}",
+      "{model_options}"
     ],
     "model": "fast LLM (Sonnet)",
-    "text": "You are a content moderation analyst for AI image generation models.\n\nAnalyze this prompt for the model \"{model_label}\":\n\"{prompt_for_screen}\"\n\nModel strictness levels:\n- Nova Canvas: VERY strict — blocks weapons, combat, fighting, copyrighted IP, aggressive poses\n- Titan Image v2: Strict — similar to Nova Canvas\n- Stable Diffusion 3.5 Large: Moderate — allows stylized weapons, fantasy combat, action poses\n- Stable Image Ultra: Moderate — similar to SD 3.5 Large\n\nWill this prompt likely be BLOCKED by {model_label}?\n\nRespond with ONLY a JSON object (no markdown):\n{{\n  \"likely_safe\": true/false,\n  \"issues\": [\"specific concern 1\", \"specific concern 2\"],\n  \"explanation\": \"Brief explanation for the user\",\n  \"suggested_model\": \"alternative model name if current is too strict, or null\"\n}}"
+    "text": "You are a content moderation analyst for AI image generation models.\n\nTarget model: \"{model_label}\" — moderation strictness: {model_strictness}\nPrompt to analyze:\n\"{prompt_for_screen}\"\n\nWhat each strictness level tends to block:\n- very_strict: weapons, combat, fighting, aggressive poses, copyrighted characters/IP, most mature themes\n- strict: explicit violence/gore, real weapons, copyrighted IP; allows mild stylization\n- moderate: allows stylized weapons, fantasy combat, action poses; blocks explicit/gore/illegal content\n- permissive: allows most artistic/creative content (self-hosted models have no managed moderation); blocks only clearly illegal content\n\nJudge ONLY against {model_label}'s strictness level ({model_strictness}). Will this prompt likely be BLOCKED?\n\nIf it would be blocked, a more permissive available model may be suggested:\n{model_options}\n\nRespond with ONLY a JSON object (no markdown):\n{{\n  \"likely_safe\": true/false,\n  \"issues\": [\"specific concern 1\", \"specific concern 2\"],\n  \"explanation\": \"Brief explanation for the user\",\n  \"suggested_model\": \"label of a more permissive available model from the list, or null\"\n}}"
   },
   "moderation_rewrite": {
     "label": "Content Moderation Rewrite",

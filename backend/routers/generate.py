@@ -2124,9 +2124,23 @@ async def pre_screen_prompt(body: PreScreenRequest):
     from backend.services.bedrock_client import invoke_llm
     import re as _re
 
-    from backend.services.model_registry import get_enabled_model_labels
+    from backend.services.model_registry import get_enabled_model_labels, get_enabled_image_models
     model_labels = get_enabled_model_labels()
     model_label = model_labels.get(body.image_model, body.image_model)
+
+    # Moderation behaviour is REGISTRY-DRIVEN per the target model — never hardcoded
+    # to any specific model (e.g. Nova Canvas). Use the selected model's configured
+    # moderation_strictness, and offer the enabled text-to-image models (label:
+    # strictness) as permissive-fallback options. Self-hosted / unset → "permissive"
+    # (no managed content moderation), so those rarely block.
+    _enabled = get_enabled_image_models()
+    model_strictness = (_enabled.get(body.image_model, {}).get("moderation_strictness")
+                        or "permissive")
+    model_options = "\n".join(
+        f"- {cfg.get('label', k)}: {cfg.get('moderation_strictness') or 'permissive'}"
+        for k, cfg in _enabled.items()
+        if cfg.get('model_purpose', 'text_to_image') == 'text_to_image'
+    ) or "(none)"
 
     # Translate non-English prompt for consistent moderation
     prompt_for_screen = body.prompt
@@ -2141,6 +2155,8 @@ async def pre_screen_prompt(body: PreScreenRequest):
     screen_prompt = get_template('moderation_prescreen').format(
         prompt_for_screen=prompt_for_screen,
         model_label=model_label,
+        model_strictness=model_strictness,
+        model_options=model_options,
     )
 
     try:
