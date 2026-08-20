@@ -1212,7 +1212,11 @@
     "ms_token_stored": "Token stored",
     "ms_no_token": "No token stored",
     "ms_delete_token": "Delete Token",
-    "ms_save_token": "Save Token"
+    "ms_save_token": "Save Token",
+    "lifecycle_legacy": "Legacy",
+    "lifecycle_legacy_hint": "Deprecated by the provider and scheduled for end-of-life. May stop working — migrate to an Active model.",
+    "lifecycle_unavailable": "Unavailable",
+    "lifecycle_unavailable_hint": "This Legacy model is no longer accessible for your account (inactive) and has been removed from the pickers."
   },
   "prompt_editor": {
     "placeholder": "Describe what you want to generate...",

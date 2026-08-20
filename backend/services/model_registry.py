@@ -265,7 +265,7 @@ def registry_transaction():
         _save_nolock()        # persist the rebased + mutated result
 
 # Fields per model that are user-specific and should NOT be promoted to the base file
-_USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready"}
+_USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready", "lifecycle_unavailable"}
 # Top-level sections that are user-specific
 _USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances", "three_d_defaults", "_warm_mode"}
 
@@ -971,9 +971,34 @@ def get_image_model(key: str) -> dict:
     return _registry.get("image_models", {}).get(key, {})
 
 
+def _lifecycle_usable(cfg: dict) -> bool:
+    """Whether a model is usable RIGHT NOW from a lifecycle standpoint.
+
+    LEGACY status alone does NOT exclude a model — a Legacy model still works for
+    an account that has been actively using it (AWS: existing active users retain
+    access; only new/inactive accounts lose it). So we exclude ONLY when:
+      • past end_of_life_time  — AWS drops it in all regions; requests always fail, OR
+      • lifecycle_unavailable  — a real call to it returned the Legacy access-denied
+        error for THIS account (per-user fact, recorded in user.json).
+    Everything else (incl. Legacy-but-working) stays pickable.
+    """
+    if cfg.get("lifecycle_unavailable"):
+        return False
+    eol = cfg.get("end_of_life_time")
+    if eol:
+        try:
+            from datetime import datetime, timezone
+            if datetime.fromisoformat(str(eol).replace("Z", "+00:00")) <= datetime.now(timezone.utc):
+                return False
+        except Exception:
+            pass  # unparseable date → don't exclude on a bad value
+    return True
+
+
 def get_enabled_image_models() -> dict:
-    """Get all enabled image models."""
-    return {k: v for k, v in _registry.get("image_models", {}).items() if v.get("enabled", True)}
+    """Enabled + lifecycle-usable image models (what the pickers should show)."""
+    return {k: v for k, v in _registry.get("image_models", {}).items()
+            if v.get("enabled", True) and _lifecycle_usable(v)}
 
 
 _STRICTNESS_ORDER = {"moderate": 0, "strict": 1, "very_strict": 2}
@@ -1107,8 +1132,34 @@ def get_video_model(key: str) -> dict:
 
 
 def get_enabled_video_models() -> dict:
-    """Get all enabled video models."""
-    return {k: v for k, v in _registry.get("video_models", {}).items() if v.get("enabled", True)}
+    """Enabled + lifecycle-usable video models (Nova Reel etc. go Legacy too)."""
+    return {k: v for k, v in _registry.get("video_models", {}).items()
+            if v.get("enabled", True) and _lifecycle_usable(v)}
+
+
+def is_legacy_unavailable_error(exc) -> bool:
+    """True if an invocation error is Bedrock's LEGACY access-gate — the model is
+    marked Legacy and this account lost access (inactive). Distinct from a content
+    moderation block. Observed: ResourceNotFoundException, message like "...marked by
+    provider as Legacy and you have not been actively using the model...". Keyed on
+    the 'Legacy' wording so a genuine not-found isn't misclassified."""
+    low = str(exc).lower()
+    return "legacy" in low and (
+        "marked" in low or "no longer" in low or "actively using" in low)
+
+
+def mark_lifecycle_unavailable(section: str, key: str, reason: str = "legacy_access_denied") -> None:
+    """Record (PER-USER, in user.json) that `section.key` returned the Legacy
+    access-denied error for THIS account, so it drops from the pickers. `section` is
+    'image_models' | 'video_models' | 'chat_models'. No-op if the model is unknown.
+    This is intentionally user-only (grandfathering is account-specific)."""
+    entry = _registry.get(section, {}).get(key)
+    if entry is None:
+        return
+    val = {"reason": reason, "detected_at": datetime.now(timezone.utc).isoformat()}
+    entry["lifecycle_unavailable"] = val               # live cache (immediate effect)
+    _save_user_pref(section, key, "lifecycle_unavailable", val)  # persist to user.json
+    logger.info("Marked %s.%s lifecycle_unavailable (%s) — dropped from pickers", section, key, reason)
 
 
 def get_video_model_keys_sorted() -> list[str]:

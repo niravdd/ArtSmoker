@@ -403,8 +403,9 @@ async def list_chat_models():
             active_cat_ids.add(mid)
 
     # 1. chat_models (discovered text LLMs — the comprehensive source)
+    from backend.services.model_registry import _lifecycle_usable
     for key, cfg in registry.get("chat_models", {}).items():
-        if not cfg.get("enabled", True):
+        if not cfg.get("enabled", True) or not _lifecycle_usable(cfg):
             continue
         mid = cfg.get("model_id", "")
         label = cfg.get("label", key)

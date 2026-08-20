@@ -673,6 +673,25 @@ def _model_family_key(model_id: str) -> str:
     return key
 
 
+def _lifecycle_fields(m: dict) -> dict:
+    """Extract the AWS-objective lifecycle facts from a Bedrock model summary's
+    `modelLifecycle` (ListFoundationModels/GetFoundationModel). These are the same
+    for every account → they belong in the git-tracked base registry. Refreshed on
+    each Sync (a model moves ACTIVE → LEGACY → EOL over time). Per-account access
+    (`lifecycle_unavailable`) is separate and lives in user.json."""
+    lc = m.get("modelLifecycle", {}) or {}
+    def _iso(v):
+        try:
+            return v.isoformat() if hasattr(v, "isoformat") else (str(v) if v else "")
+        except Exception:
+            return ""
+    return {
+        "lifecycle_status": lc.get("status", "ACTIVE"),
+        "legacy_time": _iso(lc.get("legacyTime")),
+        "end_of_life_time": _iso(lc.get("endOfLifeTime")),
+    }
+
+
 def _deduplicate_models(models: list[dict]) -> list[dict]:
     """Keep only the latest version per model family per provider.
 
@@ -687,8 +706,8 @@ def _deduplicate_models(models: list[dict]) -> list[dict]:
             families[key] = m
         else:
             # Keep newest: ACTIVE > LEGACY, then by name (newer versions sort higher)
-            new_lifecycle = m.get('lifecycle', 'ACTIVE')
-            old_lifecycle = existing.get('lifecycle', 'ACTIVE')
+            new_lifecycle = m.get('lifecycle_status', 'ACTIVE')
+            old_lifecycle = existing.get('lifecycle_status', 'ACTIVE')
             if (new_lifecycle == 'ACTIVE' and old_lifecycle == 'LEGACY') or \
                (new_lifecycle == old_lifecycle and m.get('label', '') > existing.get('label', '')):
                 families[key] = m
@@ -857,7 +876,7 @@ async def auto_register_image_models(region: str):
 
             # Keep the NEWEST model version in the family.
             # Compare by lifecycle (ACTIVE > LEGACY) then by model name/id.
-            existing_lifecycle = existing.get("lifecycle", "ACTIVE")
+            existing_lifecycle = existing.get("lifecycle_status", "ACTIVE")
             new_lifecycle = m.get("modelLifecycle", {}).get("status", "ACTIVE")
             new_name = m.get("modelName", "")
             existing_name = existing.get("label", "")
@@ -870,7 +889,7 @@ async def auto_register_image_models(region: str):
                 existing["model_id"] = effective_id
                 existing["model_arn"] = m.get("modelArn", "")
                 existing["label"] = new_name
-                existing["lifecycle"] = new_lifecycle
+                existing.update(_lifecycle_fields(m))
                 existing["inference_types"] = inference_types
                 # Keep the existing key — renaming causes conflicts between
                 # base and user registry files on reload.
@@ -900,7 +919,7 @@ async def auto_register_image_models(region: str):
             "max_context_tokens": 128000,  # Default — admin can override per model
             "customizations_supported": m.get("customizationsSupported", []),
             "inference_types": inference_types,
-            "lifecycle": m.get("modelLifecycle", {}).get("status", "ACTIVE"),
+            **_lifecycle_fields(m),
             "endpoints": ["bedrock-runtime"],
             "apis": apis,
             "invoke_endpoint": invoke_endpoint,
@@ -950,8 +969,7 @@ async def auto_register_image_models(region: str):
                         backfill["output_modalities"] = output
                     if not existing_cfg.get("model_arn"):
                         backfill["model_arn"] = m.get("modelArn", "")
-                    if not existing_cfg.get("model_lifecycle"):
-                        backfill["model_lifecycle"] = m.get("modelLifecycle", {}).get("status", "")
+                    backfill.update(_lifecycle_fields(m))  # refresh lifecycle every Sync
                     if "streaming_supported" not in existing_cfg:
                         backfill["streaming_supported"] = m.get("responseStreamingSupported", False)
                     if not existing_cfg.get("customizations_supported"):
@@ -1003,7 +1021,7 @@ async def auto_register_image_models(region: str):
                 "input_modalities": inp,
                 "output_modalities": output,
                 "model_arn": m.get("modelArn", ""),
-                "model_lifecycle": m.get("modelLifecycle", {}).get("status", ""),
+                **_lifecycle_fields(m),
                 "streaming_supported": m.get("responseStreamingSupported", False),
                 "customizations_supported": m.get("customizationsSupported", []),
                 "optimal_prompt_words": video_opw,
@@ -1036,8 +1054,7 @@ async def auto_register_image_models(region: str):
                     backfill["output_modalities"] = output
                 if not existing_cfg.get("model_arn"):
                     backfill["model_arn"] = m.get("modelArn", "")
-                if not existing_cfg.get("model_lifecycle"):
-                    backfill["model_lifecycle"] = m.get("modelLifecycle", {}).get("status", "")
+                backfill.update(_lifecycle_fields(m))  # refresh lifecycle every Sync
                 if "streaming_supported" not in existing_cfg:
                     backfill["streaming_supported"] = m.get("responseStreamingSupported", False)
                 if not existing_cfg.get("customizations_supported"):
@@ -1138,7 +1155,7 @@ async def auto_register_image_models(region: str):
             "input_modalities": inp,
             "output_modalities": output,
             "model_arn": m.get("modelArn", ""),
-            "model_lifecycle": m.get("modelLifecycle", {}).get("status", ""),
+            **_lifecycle_fields(m),
             "streaming_supported": m.get("responseStreamingSupported", False),
             "customizations_supported": m.get("customizationsSupported", []),
             "extra_body": {},
@@ -1656,7 +1673,7 @@ def _reconcile_mantle_models(registry: dict) -> int:
                 "max_context_tokens": 128000,
                 "customizations_supported": [],
                 "inference_types": [],
-                "lifecycle": "ACTIVE",
+                "lifecycle_status": "ACTIVE",
                 "endpoints": ["bedrock-mantle"],
                 "apis": apis,
                 "invoke_endpoint": inv_ep,
@@ -1733,7 +1750,7 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
                 continue
             if cfg.get("provider", "").lower() not in ("anthropic", ""):
                 continue
-            lifecycle = (cfg.get("lifecycle") or "ACTIVE").upper()
+            lifecycle = (cfg.get("lifecycle_status") or "ACTIVE").upper()
             prefer_profile = 1 if cfg.get("model_id", "").startswith("us.") else 0
             active = 1 if lifecycle == "ACTIVE" else 0
             cands.append(((active, prefer_profile) + _claude_version_tuple(mid), k, cfg))
@@ -1844,7 +1861,7 @@ def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
         mid = (cfg.get("model_id", "") or "").lower()
         if "claude" not in mid:
             continue
-        if (cfg.get("lifecycle") or "ACTIVE").upper() != "ACTIVE":
+        if (cfg.get("lifecycle_status") or "ACTIVE").upper() != "ACTIVE":
             continue
         m = _re.search(r'claude-([a-z]+)-', mid)  # the tier token, e.g. 'fable'
         tier = m.group(1) if m else None

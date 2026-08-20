@@ -784,12 +784,23 @@ def invoke_image_model(
     logger.info("Invoking %s (%s) in %s: prompt=%d chars, seed=%s",
                 label, model_id, region, len(prompt), seed)
 
-    response = client.invoke_model(
-        modelId=model_id,
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps(body),
-    )
+    try:
+        response = client.invoke_model(
+            modelId=model_id,
+            contentType="application/json",
+            accept="application/json",
+            body=json.dumps(body),
+        )
+    except Exception as _inv_exc:
+        # Reactive lifecycle gate: if the model is LEGACY and this account lost
+        # access (inactive), Bedrock denies the call. Record it per-user so the
+        # model drops from the pickers going forward — never proactively, only on
+        # a real confirmed failure (a Legacy model still in active use keeps working).
+        from backend.services.model_registry import is_legacy_unavailable_error, mark_lifecycle_unavailable
+        if is_legacy_unavailable_error(_inv_exc):
+            mark_lifecycle_unavailable("image_models", model_key)
+            logger.warning("Image model %s is Legacy and no longer accessible for this account — excluded from pickers", model_key)
+        raise
     result = json.loads(response["body"].read())
 
     # Track image model cost

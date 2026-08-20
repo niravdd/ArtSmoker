@@ -267,6 +267,22 @@
             return '';
         },
 
+        // Lifecycle badge — the ONLY place a Legacy/EOL/unavailable model is surfaced
+        // (they're excluded from the pickers). Data is AWS-objective (lifecycle_status /
+        // end_of_life_time from the base registry) plus the per-account
+        // lifecycle_unavailable flag from user.json.
+        _lifecycleBadge(m) {
+            if (!m) return '';
+            const eol = String(m.end_of_life_time || '').slice(0, 10);
+            if (m.lifecycle_unavailable) {
+                return html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-red-500/15 text-red-400 border border-red-500/20 font-medium" title="${t('artsmoker.ui.model_settings.lifecycle_unavailable_hint')}">${t('artsmoker.ui.model_settings.lifecycle_unavailable')}${eol ? ' · EOL ' + eol : ''}</span>`;
+            }
+            if ((m.lifecycle_status || 'ACTIVE') === 'LEGACY') {
+                return html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 border border-amber-500/20 font-medium" title="${t('artsmoker.ui.model_settings.lifecycle_legacy_hint')}">${t('artsmoker.ui.model_settings.lifecycle_legacy')}${eol ? ' · EOL ' + eol : ''}</span>`;
+            }
+            return '';
+        },
+
         _renderImageModels(reg) {
             const models = reg.image_models || {};
             if (Object.keys(models).length === 0) {
@@ -404,6 +420,7 @@
                                 ${purposeTag ? html`<span class="text-[9px] px-1.5 py-0.5 rounded bg-brand-accent/15 text-brand-accent/90 uppercase tracking-wide">${purposeTag}</span>` : ''}
                                 <span class="text-[10px] text-brand-text-muted">${m.provider || ''}</span>
                                 ${sourceBadge}
+                                ${this._lifecycleBadge(m)}
                             </div>
                             <span class="${strictColor} text-[10px]">${m.moderation_strictness || ''}</span>
                         </div>
@@ -499,6 +516,7 @@
                                             <div class="flex items-center gap-2">
                                                 <span class="text-xs font-medium truncate">${m.label || key}</span>
                                                 ${vision}${streaming}
+                                                ${this._lifecycleBadge(m)}
                                                 <span class="text-[9px] text-brand-text-muted">${ctx} ${t('artsmoker.ui.model_settings.context_label')}</span>
                                             </div>
                                             <div class="text-[10px] text-brand-text-muted font-mono truncate mt-0.5">${m.model_id || ''}</div>
@@ -537,6 +555,7 @@
                                 <span class="text-sm font-medium">${m.label || key}</span>
                                 <span class="text-[10px] text-brand-text-muted">${m.provider || ''}</span>
                                 ${sourceBadge}
+                                ${this._lifecycleBadge(m)}
                             </div>
                             <div class="flex items-center gap-1.5">
                                 ${price ? html`<span class="badge badge-indigo">${price}</span>` : ''}

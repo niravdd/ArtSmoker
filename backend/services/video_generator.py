@@ -111,13 +111,23 @@ def start_video_generation(
     logger.info("Starting async video generation: %s (%s) in %s, job=%s",
                 label, model_id, region, job_id)
 
-    response = client.start_async_invoke(
-        modelId=model_id,
-        modelInput=body,
-        outputDataConfig={
-            "s3OutputDataConfig": {"s3Uri": s3_output_uri}
-        },
-    )
+    try:
+        response = client.start_async_invoke(
+            modelId=model_id,
+            modelInput=body,
+            outputDataConfig={
+                "s3OutputDataConfig": {"s3Uri": s3_output_uri}
+            },
+        )
+    except Exception as _inv_exc:
+        # Reactive lifecycle gate (same as images): a Legacy video model this account
+        # can no longer access → record per-user so it drops from the picker. Only on
+        # a real confirmed failure — a Legacy model still in active use keeps working.
+        from backend.services.model_registry import is_legacy_unavailable_error, mark_lifecycle_unavailable
+        if is_legacy_unavailable_error(_inv_exc):
+            mark_lifecycle_unavailable("video_models", model_key)
+            logger.warning("Video model %s is Legacy and no longer accessible for this account — excluded from pickers", model_key)
+        raise
 
     invocation_arn = response["invocationArn"]
     logger.info("Async invoke started: arn=%s", invocation_arn)
