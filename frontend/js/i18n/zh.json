@@ -958,7 +958,11 @@
     "ms_token_stored": "令牌已保存",
     "ms_no_token": "未保存令牌",
     "ms_delete_token": "删除令牌",
-    "ms_save_token": "保存令牌"
+    "ms_save_token": "保存令牌",
+    "lifecycle_legacy": "旧版",
+    "lifecycle_legacy_hint": "已被提供商弃用并计划停止支持。可能会停止工作 — 请迁移到活跃模型。",
+    "lifecycle_unavailable": "不可用",
+    "lifecycle_unavailable_hint": "此旧版模型因您的账户（不活跃）已无法访问，并已从选择列表中移除。"
   },
   "nav": {
     "chat_studio": "对话工作室",

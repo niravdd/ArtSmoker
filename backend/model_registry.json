@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-08-17T05:47:48.941735+00:00",
+  "last_updated": "2026-08-20T05:42:45.746524+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -63,7 +63,10 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "optimal_prompt_words": 120,
-      "prompt_guidance": "Responds well to rich, natural-language descriptions (~60-120 words). Excels at material texture, lighting, atmosphere, and compositional precision \u2014 let quality emerge from specific, vivid description rather than fixed quality-token prefixes. Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt."
+      "prompt_guidance": "Responds well to rich, natural-language descriptions (~60-120 words). Excels at material texture, lighting, atmosphere, and compositional precision \u2014 let quality emerge from specific, vivid description rather than fixed quality-token prefixes. Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt.",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_ultra": {
       "label": "Stable Image Ultra",
@@ -91,7 +94,10 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "optimal_prompt_words": 120,
-      "prompt_guidance": "Responds well to rich, natural-language descriptions (~60-120 words). Excels at material texture, lighting, atmosphere, and compositional precision \u2014 let quality emerge from specific, vivid description rather than fixed quality-token prefixes. Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt."
+      "prompt_guidance": "Responds well to rich, natural-language descriptions (~60-120 words). Excels at material texture, lighting, atmosphere, and compositional precision \u2014 let quality emerge from specific, vivid description rather than fixed quality-token prefixes. Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt.",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_core_v1": {
       "label": "Stable Image Core 1.0",
@@ -119,7 +125,10 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "optimal_prompt_words": 100,
-      "prompt_guidance": "Responds well to rich, natural-language descriptions (~60-120 words). Excels at material texture, lighting, atmosphere, and compositional precision \u2014 let quality emerge from specific, vivid description rather than fixed quality-token prefixes. Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt."
+      "prompt_guidance": "Responds well to rich, natural-language descriptions (~60-120 words). Excels at material texture, lighting, atmosphere, and compositional precision \u2014 let quality emerge from specific, vivid description rather than fixed quality-token prefixes. Negative prompts are effective: put exclusions in the NEGATIVE line, not in the main prompt.",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_creative_upscale_v1": {
       "label": "Stable Image Creative Upscale",
@@ -151,7 +160,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_remove_background_v1": {
       "label": "Stable Image Remove Background",
@@ -183,7 +195,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_control_sketch_v1": {
       "label": "Stable Image Control Sketch",
@@ -215,7 +230,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_conservative_upscale_v1": {
       "label": "Stable Image Conservative Upscale",
@@ -247,7 +265,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_search_recolor_v1": {
       "label": "Stable Image Search and Recolor",
@@ -279,7 +300,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_fast_upscale_v1": {
       "label": "Stable Image Fast Upscale",
@@ -311,7 +335,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_erase_object_v1": {
       "label": "Stable Image Erase Object",
@@ -343,7 +370,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_control_structure_v1": {
       "label": "Stable Image Control Structure",
@@ -375,7 +405,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_outpaint_v1": {
       "label": "Stable Image Outpaint",
@@ -407,7 +440,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_inpaint_v1": {
       "label": "Stable Image Inpaint",
@@ -439,7 +475,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_style_guide_v1": {
       "label": "Stable Image Style Guide",
@@ -471,7 +510,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_style_transfer_v1": {
       "label": "Stable Image Style Transfer",
@@ -503,7 +545,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "stable_image_search_replace_v1": {
       "label": "Stable Image Search and Replace",
@@ -535,7 +580,10 @@
       "model_lifecycle": "ACTIVE",
       "streaming_supported": false,
       "customizations_supported": [],
-      "model_source": "foundation"
+      "model_source": "foundation",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "nova_canvas_v1": {
       "label": "Nova Canvas",
@@ -571,7 +619,10 @@
       ],
       "extra_body": {},
       "optimal_prompt_words": 55,
-      "prompt_guidance": "Write a descriptive image CAPTION, not a command (~40-60 words). Order: subject \u2192 environment \u2192 pose \u2192 lighting \u2192 camera \u2192 style. Front-load the most important elements; place least-important details near the end (long prompts drop trailing detail). NEVER use 'no'/'not'/'without' \u2014 route exclusions to the NEGATIVE line."
+      "prompt_guidance": "Write a descriptive image CAPTION, not a command (~40-60 words). Order: subject \u2192 environment \u2192 pose \u2192 lighting \u2192 camera \u2192 style. Front-load the most important elements; place least-important details near the end (long prompts drop trailing detail). NEVER use 'no'/'not'/'without' \u2014 route exclusions to the NEGATIVE line.",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-03-30T08:00:00+00:00",
+      "end_of_life_time": "2026-09-30T08:00:00+00:00"
     }
   },
   "post_processing": {
@@ -1856,7 +1907,10 @@
       "customizations_supported": [],
       "model_source": "foundation",
       "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
-      "optimal_prompt_words": 50
+      "optimal_prompt_words": 50,
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-03-30T08:00:00+00:00",
+      "end_of_life_time": "2026-09-30T08:00:00+00:00"
     },
     "nova_reel_v1_1": {
       "label": "Nova Reel v1.1",
@@ -1887,7 +1941,10 @@
       "customizations_supported": [],
       "model_source": "foundation",
       "prompt_guidance": "Nova Reel generates video from descriptive captions \u2014 describe a scene that already exists, not a command.\nStructure: subject + action, environment, lighting, style, then camera motion at START or END of prompt.\nNEVER use negation (no/not/without) \u2014 the model generates what you negate.\nSupports 20+ camera movements: dolly in/out, pan left/right, tilt up/down, arc shot, zoom in/out, track left/right, aerial shot, following shot, whip pan, pedestal up/down, slow motion, time-lapse, hyperlapse.\nUse specific adjectives (serene, ornate, weathered) not generic ones (beautiful, amazing).\nQuality markers help: 4k, cinematic, photorealistic, shallow depth of field.\nSingle shot: 512 chars max. Keep concise and vivid.",
-      "optimal_prompt_words": 50
+      "optimal_prompt_words": 50,
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-03-30T08:00:00+00:00",
+      "end_of_life_time": "2026-09-30T08:00:00+00:00"
     },
     "ray_v2_0": {
       "label": "Ray v2.0",
@@ -1917,7 +1974,10 @@
       "streaming_supported": false,
       "customizations_supported": [],
       "prompt_guidance": "Ray v2.0 excels at natural language understanding \u2014 describe what you want to see with rich detail.\nHandles physics, human expressions, object interactions, and creative/whimsical concepts with high realism.\nWrite in flowing natural language, like a screenplay direction \u2014 include subject, action, mood, lighting, camera.\nCamera movements from natural descriptions (no fixed keywords needed): 'slow dolly forward', 'orbit left', 'tracking shot'.\nSupports up to 5000 characters \u2014 use the space for vivid scene-setting and emotional tone.\nStronger with creative concepts than rigid technical specifications.\nDurations: 5s or 9s. Aspect ratios: 1:1, 16:9, 9:16, 4:3, 3:4, 21:9, 9:21.",
-      "optimal_prompt_words": 60
+      "optimal_prompt_words": 60,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     }
   },
   "chat_models": {
@@ -1956,7 +2016,10 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_sonnet_4_20250514_v1": {
       "label": "Claude Sonnet 4",
@@ -1997,7 +2060,10 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-04-14T08:00:00+00:00",
+      "end_of_life_time": "2026-10-14T08:00:00+00:00"
     },
     "claude_haiku_4_5_20251001_v1": {
       "label": "Claude Haiku 4.5",
@@ -2041,7 +2107,10 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "qwen3_235b_a22b_2507_v1": {
       "label": "Qwen3 235B A22B 2507",
@@ -2118,7 +2187,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.0006,
-      "output_price_per_1k": 0.00192
+      "output_price_per_1k": 0.00192,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gpt_oss_120b_1": {
       "label": "gpt-oss-120b",
@@ -2161,7 +2233,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.00036
+      "output_price_per_1k": 0.00036,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "qwen3_next_80b_a3b": {
       "label": "Qwen3 Next 80B A3B",
@@ -2198,7 +2273,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 8.4e-05,
-      "output_price_per_1k": 0.00072
+      "output_price_per_1k": 0.00072,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_fable_5": {
       "label": "Claude Fable 5",
@@ -2242,7 +2320,10 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "v3_2": {
       "label": "DeepSeek V3.2",
@@ -2281,7 +2362,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00037,
-      "output_price_per_1k": 0.00111
+      "output_price_per_1k": 0.00111,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "nemotron_nano_3_30b": {
       "label": "Nemotron Nano 3 30B",
@@ -2320,7 +2404,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 3e-05,
-      "output_price_per_1k": 0.00015
+      "output_price_per_1k": 0.00015,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_sonnet_4_6": {
       "label": "Claude Sonnet 4.6",
@@ -2365,7 +2452,10 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "supports_temperature": true
+      "supports_temperature": true,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "minimax_m2": {
       "label": "MiniMax M2",
@@ -2404,7 +2494,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00018,
-      "output_price_per_1k": 0.00072
+      "output_price_per_1k": 0.00072,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "glm_4_7_flash": {
       "label": "GLM 4.7 Flash",
@@ -2445,7 +2538,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 4e-05,
-      "output_price_per_1k": 0.00024
+      "output_price_per_1k": 0.00024,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "voxtral_mini_3b_2507": {
       "label": "Voxtral Mini 3B 2507",
@@ -2482,7 +2578,10 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "nova_2_lite_v1": {
       "label": "Nova 2 Lite",
@@ -2525,7 +2624,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 3.6e-05,
-      "output_price_per_1k": 0.000144
+      "output_price_per_1k": 0.000144,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "minimax_m2_5": {
       "label": "MiniMax M2.5",
@@ -2566,7 +2668,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.0006,
-      "output_price_per_1k": 0.00192
+      "output_price_per_1k": 0.00192,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gemma_3_12b_it": {
       "label": "Gemma 3 12B IT",
@@ -2605,7 +2710,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 6e-05,
-      "output_price_per_1k": 0.00017
+      "output_price_per_1k": 0.00017,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "kimi_k2_thinking": {
       "label": "Kimi K2 Thinking",
@@ -2640,7 +2748,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00036,
-      "output_price_per_1k": 0.00152
+      "output_price_per_1k": 0.00152,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "mistral_large_3_675b_instruct": {
       "label": "Mistral Large 3",
@@ -2677,7 +2788,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.0003,
-      "output_price_per_1k": 0.00091
+      "output_price_per_1k": 0.00091,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "pegasus_1_2_v1": {
       "label": "Pegasus v1.2",
@@ -2720,7 +2834,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "devstral_2_123b": {
       "label": "Devstral 2 123B",
@@ -2761,7 +2878,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00024,
-      "output_price_per_1k": 0.0012
+      "output_price_per_1k": 0.0012,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "minimax_m2_1": {
       "label": "MiniMax M2.1",
@@ -2802,7 +2922,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00035083,
-      "output_price_per_1k": 0.00101621
+      "output_price_per_1k": 0.00101621,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "nemotron_super_3_120b": {
       "label": "NVIDIA Nemotron 3 Super 120B A12B",
@@ -2843,7 +2966,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.00039
+      "output_price_per_1k": 0.00039,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "qwen3_32b_v1": {
       "label": "Qwen3 32B (dense)",
@@ -2884,7 +3010,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.000365
+      "output_price_per_1k": 0.000365,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "ministral_3_14b_instruct": {
       "label": "Ministral 14B 3.0",
@@ -2921,7 +3050,10 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_opus_4_6_v1": {
       "label": "Claude Opus 4.6",
@@ -2965,7 +3097,10 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "nemotron_nano_9b_v2": {
       "label": "NVIDIA Nemotron Nano 9B v2",
@@ -3002,7 +3137,10 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "ministral_3_8b_instruct": {
       "label": "Ministral 3 8B",
@@ -3039,7 +3177,10 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "voxtral_small_24b_2507": {
       "label": "Voxtral Small 24B 2507",
@@ -3076,7 +3217,10 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "glm_5": {
       "label": "GLM 5",
@@ -3115,7 +3259,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.0006,
-      "output_price_per_1k": 0.00192
+      "output_price_per_1k": 0.00192,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gpt_oss_20b_1": {
       "label": "gpt-oss-20b",
@@ -3158,7 +3305,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 4e-05,
-      "output_price_per_1k": 0.00018
+      "output_price_per_1k": 0.00018,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gemma_3_4b_it": {
       "label": "Gemma 3 4B IT",
@@ -3197,7 +3347,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 3e-05,
-      "output_price_per_1k": 5e-05
+      "output_price_per_1k": 5e-05,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_opus_4_8": {
       "label": "Claude Opus 4.8",
@@ -3241,7 +3394,10 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_opus_4_7": {
       "label": "Claude Opus 4.7",
@@ -3285,7 +3441,10 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gpt_oss_safeguard_120b": {
       "label": "GPT OSS Safeguard 120B",
@@ -3326,7 +3485,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.00036
+      "output_price_per_1k": 0.00036,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gemma_3_27b_it": {
       "label": "Gemma 3 27B PT",
@@ -3365,7 +3527,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00014,
-      "output_price_per_1k": 0.00023
+      "output_price_per_1k": 0.00023,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_sonnet_4_5_20250929_v1": {
       "label": "Claude Sonnet 4.5",
@@ -3410,7 +3575,10 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "supports_temperature": true
+      "supports_temperature": true,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "qwen3_vl_235b_a22b": {
       "label": "Qwen3 VL 235B A22B",
@@ -3447,7 +3615,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00032,
-      "output_price_per_1k": 0.00161
+      "output_price_per_1k": 0.00161,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "glm_4_7": {
       "label": "GLM 4.7",
@@ -3486,7 +3657,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00036,
-      "output_price_per_1k": 0.00132
+      "output_price_per_1k": 0.00132,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "qwen3_coder_480b_a35b_v1": {
       "label": "Qwen3 Coder 480B A35B Instruct",
@@ -3558,7 +3732,10 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "v3_v1": {
       "label": "DeepSeek-V3.1",
@@ -3628,7 +3805,10 @@
         "chat_completions"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_opus_4_5_20251101_v1": {
       "label": "Claude Opus 4.5",
@@ -3672,7 +3852,10 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "qwen3_coder_30b_a3b_v1": {
       "label": "Qwen3-Coder-30B-A3B-Instruct",
@@ -3711,7 +3894,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 9e-05,
-      "output_price_per_1k": 0.000365
+      "output_price_per_1k": 0.000365,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gpt_oss_safeguard_20b": {
       "label": "GPT OSS Safeguard 20B",
@@ -3752,7 +3938,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 4e-05,
-      "output_price_per_1k": 0.00012
+      "output_price_per_1k": 0.00012,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "rerank_v1": {
       "label": "Rerank 1.0",
@@ -3824,7 +4013,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00048,
-      "output_price_per_1k": 0.00192
+      "output_price_per_1k": 0.00192,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "nova_lite_v1": {
       "label": "Nova Lite",
@@ -3868,7 +4060,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 3.6e-05,
-      "output_price_per_1k": 0.000144
+      "output_price_per_1k": 0.000144,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "nova_micro_v1": {
       "label": "Nova Micro",
@@ -3909,7 +4104,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 2.1e-05,
-      "output_price_per_1k": 8.4e-05
+      "output_price_per_1k": 8.4e-05,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_3_haiku_20240307_v1": {
       "label": "Claude 3 Haiku",
@@ -3950,7 +4148,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00025,
-      "output_price_per_1k": 0
+      "output_price_per_1k": 0,
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-03-10T08:00:00+00:00",
+      "end_of_life_time": "2026-09-10T08:00:00+00:00"
     },
     "claude_3_5_sonnet_20240620_v1": {
       "label": "Claude 3.5 Sonnet v2",
@@ -4047,7 +4248,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_3_7_sonnet_20250219_v1": {
       "label": "Claude 3.7 Sonnet",
@@ -4109,7 +4313,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "llama3_70b_instruct_v1": {
       "label": "Llama 3 70B Instruct",
@@ -4140,7 +4347,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "mistral_7b_instruct_v0": {
       "label": "Mistral 7B Instruct",
@@ -4177,7 +4387,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00018,
-      "output_price_per_1k": 0.00024
+      "output_price_per_1k": 0.00024,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "mixtral_8x7b_instruct_v0": {
       "label": "Mixtral 8x7B Instruct",
@@ -4214,7 +4427,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00054,
-      "output_price_per_1k": 0.00084
+      "output_price_per_1k": 0.00084,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "mistral_large_2402_v1": {
       "label": "Mistral Large (24.02)",
@@ -4251,7 +4467,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.0048,
-      "output_price_per_1k": 0.0144
+      "output_price_per_1k": 0.0144,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "qwen3_coder_next": {
       "label": "Qwen3 Coder Next",
@@ -4284,7 +4503,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00026,
-      "output_price_per_1k": 0.00062
+      "output_price_per_1k": 0.00062,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "pixtral_large_2502_v1": {
       "label": "Pixtral Large (25.02)",
@@ -4317,7 +4539,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "palmyra_x5_v1": {
       "label": "Palmyra X5",
@@ -4347,7 +4572,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "palmyra_x4_v1": {
       "label": "Palmyra X4",
@@ -4377,7 +4605,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "palmyra_vision_7b": {
       "label": "Writer Palmyra Vision 7B",
@@ -4410,7 +4641,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 7.5e-05,
-      "output_price_per_1k": 0.0003
+      "output_price_per_1k": 0.0003,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_opus_4_1_20250805_v1": {
       "label": "Claude Opus 4.1",
@@ -4440,7 +4674,10 @@
         "invoke"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-07-08T08:00:00+00:00",
+      "end_of_life_time": "2027-01-08T08:00:00+00:00"
     },
     "nova_2_pro_preview_20251202_v1": {
       "label": "Nova 2 Pro Preview",
@@ -4472,7 +4709,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.0004,
-      "output_price_per_1k": 0.0016
+      "output_price_per_1k": 0.0016,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "nova_premier_v1": {
       "label": "Nova Premier",
@@ -4501,7 +4741,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00125,
-      "output_price_per_1k": 0.00625
+      "output_price_per_1k": 0.00625,
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-03-13T07:00:00+00:00",
+      "end_of_life_time": "2026-09-14T07:00:00+00:00"
     },
     "jamba_1_5_large_v1": {
       "label": "Jamba 1.5 Large",
@@ -4528,7 +4771,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-05-26T08:00:00+00:00",
+      "end_of_life_time": "2026-11-26T08:00:00+00:00"
     },
     "jamba_1_5_mini_v1": {
       "label": "Jamba 1.5 Mini",
@@ -4555,7 +4801,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "LEGACY",
+      "legacy_time": "2026-05-26T08:00:00+00:00",
+      "end_of_life_time": "2026-11-26T08:00:00+00:00"
     },
     "command_r_v1": {
       "label": "Command R",
@@ -4642,7 +4891,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00135,
-      "output_price_per_1k": 0.0054
+      "output_price_per_1k": 0.0054,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "llama3_1_8b_instruct_v1": {
       "label": "Llama 3.1 8B Instruct",
@@ -4671,7 +4923,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "llama3_1_70b_instruct_v1": {
       "label": "Llama 3.1 70B Instruct",
@@ -4700,7 +4955,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "llama3_3_70b_instruct_v1": {
       "label": "Llama 3.3 70B Instruct",
@@ -4729,7 +4987,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "llama4_scout_17b_instruct_v1": {
       "label": "Llama 4 Scout 17B Instruct",
@@ -4759,7 +5020,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "llama4_maverick_17b_instruct_v1": {
       "label": "Llama 4 Maverick 17B Instruct",
@@ -4789,7 +5053,10 @@
         "converse"
       ],
       "invoke_endpoint": "bedrock-runtime",
-      "invoke_api": "converse"
+      "invoke_api": "converse",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "mistral_small_2402_v1": {
       "label": "Mistral Small (24.02)",
@@ -4818,7 +5085,10 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.0005,
-      "output_price_per_1k": 0.0015
+      "output_price_per_1k": 0.0015,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "mistral_large_2407_v1": {
       "label": "Mistral Large (24.07)",
@@ -4892,7 +5162,10 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "supports_temperature": false
+      "supports_temperature": false,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "claude_opus_5": {
       "label": "Claude Opus 5",
@@ -4937,7 +5210,10 @@
       ],
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
-      "supports_temperature": false
+      "supports_temperature": false,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gpt_5_6_terra": {
       "label": "GPT-5.6 Terra",
@@ -4983,7 +5259,10 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "responses",
       "input_price_per_1k": 0.00132,
-      "output_price_per_1k": 0.00792
+      "output_price_per_1k": 0.00792,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gpt_5_6_luna": {
       "label": "GPT-5.6 Luna",
@@ -5029,7 +5308,10 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "responses",
       "input_price_per_1k": 0.000132,
-      "output_price_per_1k": 0.000792
+      "output_price_per_1k": 0.000792,
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gpt_5_6_sol": {
       "label": "GPT-5.6 Sol",
@@ -5072,7 +5354,10 @@
         "responses"
       ],
       "invoke_endpoint": "bedrock-mantle",
-      "invoke_api": "responses"
+      "invoke_api": "responses",
+      "lifecycle_status": "ACTIVE",
+      "legacy_time": "",
+      "end_of_life_time": ""
     },
     "gemma_4_26b_a4b": {
       "label": "google.gemma-4-26b-a4b",
@@ -5422,6 +5707,33 @@
       "invoke_api": "chat_completions",
       "input_price_per_1k": 7e-05,
       "output_price_per_1k": 0.0002
+    },
+    "grok_4_6": {
+      "label": "xai.grok-4.6",
+      "model_id": "xai.grok-4.6",
+      "region": "us-west-2",
+      "available_regions": [
+        "us-west-2"
+      ],
+      "provider": "xAI",
+      "model_source": "foundation",
+      "model_arn": "",
+      "has_vision": false,
+      "streaming_supported": true,
+      "max_context_tokens": 128000,
+      "customizations_supported": [],
+      "inference_types": [],
+      "lifecycle_status": "ACTIVE",
+      "endpoints": [
+        "bedrock-mantle"
+      ],
+      "apis": [
+        "chat_completions"
+      ],
+      "invoke_endpoint": "bedrock-mantle",
+      "invoke_api": "chat_completions",
+      "input_price_per_1k": 0.00132,
+      "output_price_per_1k": 0.00792
     }
   },
   "custom_model_catalog": {

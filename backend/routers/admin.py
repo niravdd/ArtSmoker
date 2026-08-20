@@ -889,10 +889,12 @@ async def auto_register_image_models(region: str):
                 existing["model_id"] = effective_id
                 existing["model_arn"] = m.get("modelArn", "")
                 existing["label"] = new_name
-                existing.update(_lifecycle_fields(m))
                 existing["inference_types"] = inference_types
                 # Keep the existing key — renaming causes conflicts between
                 # base and user registry files on reload.
+            # Lifecycle for pre-existing entries is refreshed authoritatively by
+            # _backfill_chat_lifecycle() after discovery — the per-family dedup here
+            # (inference-profile ids, context suffixes) can't reliably self-match.
             return
 
         has_vision = "IMAGE" in inp
@@ -1715,6 +1717,60 @@ def _stamp_all_chat_model_routing(registry: dict) -> int:
     return stamped
 
 
+def _backfill_chat_lifecycle(registry: dict) -> int:
+    """Refresh lifecycle (status / EOL / legacy times) for EVERY chat model from AWS.
+
+    _register_chat_model keeps ONE representative per model family and stores
+    inference-profile ids (``us.<id>``) plus context-window suffixes (``:200k``),
+    so its in-loop match can't reliably refresh pre-existing entries — only freshly
+    created ones pick up lifecycle. This pass fetches the authoritative
+    ``modelLifecycle`` once (it's account/region-independent) and applies it to each
+    chat entry by a normalized model id that tolerates the geo prefix and context
+    suffix. Mirrors the per-region backfill image/video models already get in
+    discovery. Idempotent. Returns the number of entries updated.
+    """
+    cm = registry.get("chat_models", {})
+    if not cm:
+        return 0
+    try:
+        bedrock = boto3.Session().client("bedrock", region_name="us-east-1", config=_DISCOVERY_CONFIG)
+        summaries = bedrock.list_foundation_models().get("modelSummaries", [])
+    except Exception as exc:
+        logger.warning("Chat lifecycle backfill skipped (listing failed): %s", exc)
+        return 0
+    lc_map = {m.get("modelId", ""): _lifecycle_fields(m) for m in summaries if m.get("modelId")}
+
+    def _canonical(mid: str) -> str:
+        for pre in ("us.", "eu.", "apac.", "global."):
+            if mid.startswith(pre):
+                return mid[len(pre):]
+        return mid
+
+    updated = 0
+    for cfg in cm.values():
+        if not isinstance(cfg, dict):
+            continue
+        norm = _canonical(cfg.get("model_id", ""))
+        fields = lc_map.get(norm)
+        if fields is None:
+            # Stored id may carry a context suffix (…-v1:0:200k) beyond the
+            # canonical listing id (…-v1:0) — match on that boundary.
+            for cid, f in lc_map.items():
+                if cid and norm.startswith(cid + ":"):
+                    fields = f
+                    break
+        if not fields:
+            continue
+        if (cfg.get("lifecycle_status") != fields["lifecycle_status"]
+                or (cfg.get("end_of_life_time") or "") != fields["end_of_life_time"]
+                or (cfg.get("legacy_time") or "") != fields["legacy_time"]):
+            cfg.update(fields)
+            updated += 1
+    if updated:
+        logger.info("Chat lifecycle backfill: refreshed %d chat model(s)", updated)
+    return updated
+
+
 def _auto_roll_llm_categories(registry: dict, progress=None) -> list:
     """Smartly roll fast_llm/complex_llm to the newest available Claude on Sync.
 
@@ -2076,6 +2132,16 @@ def _run_refresh_all_regions():
             _stamp_all_chat_model_routing(registry)
         except Exception as exc:
             logger.warning("Routing backfill skipped: %s", exc)
+
+        # Step 4c-bis: Backfill lifecycle (status/EOL) on EVERY chat model. The
+        # per-family dedup in _register_chat_model can't reliably self-match
+        # pre-existing entries (inference-profile ids + context suffixes), so
+        # only newly-created chat models got lifecycle; this makes it authoritative
+        # for all (parity with image/video, which backfill per-region in discovery).
+        try:
+            _backfill_chat_lifecycle(registry)
+        except Exception as exc:
+            logger.warning("Chat lifecycle backfill skipped: %s", exc)
 
         # Step 4d: Prune — disable models not found in any region this scan.
         disabled = []

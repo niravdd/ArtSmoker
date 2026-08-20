@@ -392,11 +392,20 @@ def promote_to_base():
             if model_data.get("model_source") == "custom_hosted":
                 user_section[model_key] = model_data
                 continue
-            # Foundation models: write only override fields
+            # Foundation models: write only genuine DEVIATIONS/state, never defaults.
+            # `enabled` defaults to True everywhere it's read (.get("enabled", True)),
+            # so recording enabled=True is redundant noise — a newly-discovered model
+            # is enabled by default and needs NO user.json entry. Only a user DISABLE
+            # (enabled=False) is a real preference worth recording. deployment /
+            # model_ready / lifecycle_unavailable are genuine per-account state (no
+            # "default true" to skip) — write them whenever present.
             user_fields = {}
             for field in _USER_ONLY_FIELDS:
-                if field in model_data:
-                    user_fields[field] = model_data[field]
+                if field not in model_data:
+                    continue
+                if field == "enabled" and model_data[field]:
+                    continue  # default-enabled → not a preference, don't persist
+                user_fields[field] = model_data[field]
             if user_fields and model_key in base_section:
                 user_section[model_key] = user_fields
         if user_section:

@@ -958,7 +958,11 @@
     "ms_token_stored": "Jeton enregistré",
     "ms_no_token": "Aucun jeton enregistré",
     "ms_delete_token": "Supprimer le jeton",
-    "ms_save_token": "Enregistrer le jeton"
+    "ms_save_token": "Enregistrer le jeton",
+    "lifecycle_legacy": "Obsolète",
+    "lifecycle_legacy_hint": "Dépréciée par le fournisseur et programmée pour la fin de vie. Peut cesser de fonctionner — migrez vers un modèle actif.",
+    "lifecycle_unavailable": "Indisponible",
+    "lifecycle_unavailable_hint": "Ce modèle obsolète n'est plus accessible pour votre compte (inactif) et a été retiré des sélecteurs."
   },
   "nav": {
     "chat_studio": "Studio de Chat",

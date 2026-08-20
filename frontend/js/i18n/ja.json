@@ -958,7 +958,11 @@
     "ms_token_stored": "トークン保存済み",
     "ms_no_token": "トークン未保存",
     "ms_delete_token": "トークンを削除",
-    "ms_save_token": "トークンを保存"
+    "ms_save_token": "トークンを保存",
+    "lifecycle_legacy": "レガシー",
+    "lifecycle_legacy_hint": "プロバイダーにより非推奨とされ、提供終了が予定されています。動作しなくなる可能性があります — アクティブなモデルに移行してください。",
+    "lifecycle_unavailable": "利用不可",
+    "lifecycle_unavailable_hint": "このレガシーモデルは、お使いのアカウントでは（非アクティブのため）アクセスできなくなり、選択肢から削除されました。"
   },
   "nav": {
     "chat_studio": "チャットスタジオ",
