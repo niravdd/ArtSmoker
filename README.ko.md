@@ -102,7 +102,7 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 - ⚙️ **Model Registry** — 스튜디오별로 정리된 관리 UI(Image, Video, Chat, Type, Shared), Bedrock 검색, 커스텀 모델 지원
 - 📝 **Prompt Templates** — 28개의 편집 가능한 LLM 지시 프롬프트, AI 보조 개선, 자동 수정이 포함된 변수 검증
 - 📦 **에셋 버전 관리** — 버전 기록(v1, v2…)과 버전 탐색을 지원하는 제자리 편집, 그리고 버전별 삭제: 하나의 버전만 제거(다른 버전은 번호 유지)하며, 뷰어는 이전 버전으로 전환 — 마지막 버전을 삭제하면 에셋 전체가 제거됩니다
-- 💰 **비용 추적** — 요청, 세션, 에셋별 추정 AWS 지출 — PulseBoard 텔레메트리에 전송
+- 💰 **비용 추적** — 요청, 세션, 에셋별 추정 AWS 지출로, 지역별 실시간 AWS 가격에서 계산. 자체 호스팅 모델은 (오해를 부르는 이미지당 가격이 아니라) GPU 인스턴스의 시간당 실행 요금 + 일반적인 생성 시간을 표시
 - 🌐 **9개 언어 i18n** — 완전한 UI 번역(EN, JA, ZH, KO, HI, RU, FR, ES, DE), 비영어 프롬프트 자동 감지(영어 UI는 감지를 완전히 건너뜀), 이중 언어 미리보기
 - 🔍 **커스텀 모델 지원** — 파인튜닝, 임포트, 배포된 커스텀 Bedrock 모델을 자동으로 검색
 - 🔧 **셀프 호스팅 모델 — 원클릭 배포** — 사전 테스트된 오픈소스 모델(Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2 등)의 큐레이션 카탈로그를 탐색하고, GPU 인스턴스를 선택한 후 Deploy를 클릭합니다. ArtSmoker가 추론 핸들러 패키징, 양자화 구성, 올바른 CUDA 툴킷 선택, 오토 스케일링 설정, CloudWatch 알람 등록, 비동기 작업 추적 연결까지 모든 것을 처리합니다. 카탈로그의 모든 모델은 콜드 스타트부터 생성, 갤러리 전달까지 엔드투엔드로 검증되었으므로 — GPU 드라이버, 메모리 오버플로, 컨테이너 호환성을 디버깅할 필요가 없습니다. 최고 품질을 위한 BF16 + FlashInfer, 비용 효율을 위한 NF4, 멀티 GPU 자동 감지를 지원하고, 유휴 시 제로로 오토 스케일링($0 유휴 비용)되며, 동일 모델이 재구성 없이 다른 인스턴스 유형에서 실행됩니다
@@ -1387,7 +1387,6 @@ ArtSmoker/
 │   │   ├── prompt_templates.py   # Editable LLM directive prompts (load/save/validate)
 │   │   ├── video_generator.py   # Video: async Bedrock invoke, S3 download, ffmpeg thumbnails
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
-│   │   ├── telemetry.py         # PulseBoard SDK wrapper: tracks server events
 │   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)

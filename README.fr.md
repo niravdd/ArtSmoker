@@ -102,7 +102,7 @@ Pour les équipes qui veulent que chaque asset généré corresponde à un style
 - ⚙️ **Model Registry** — Interface d'administration organisée par studio (Image, Video, Chat, Type, Shared), découverte Bedrock, support des modèles personnalisés
 - 📝 **Prompt Templates** — 28 prompts directifs LLM éditables, amélioration assistée par l'IA, validation de variables avec correction automatique
 - 📦 **Versionnage des assets** — Édition sur place avec historique des versions (v1, v2…), navigation entre versions et suppression par version : ne supprimez qu'une seule version (les autres gardent leurs numéros), la visionneuse bascule sur la version précédente — supprimer la dernière version retire tout l'asset
-- 💰 **Suivi des coûts** — Dépenses AWS estimées par requête, par session, par asset — envoyées à la télémétrie PulseBoard
+- 💰 **Suivi des coûts** — Dépenses AWS estimées par requête, par session, par asset, calculées à partir des tarifs AWS en direct par région ; les modèles auto-hébergés affichent le tarif horaire de fonctionnement de l'instance GPU + le temps de génération typique (et non un prix par image trompeur)
 - 🌐 **i18n en 9 langues** — Traduction complète de l'UI (EN, JA, ZH, KO, HI, RU, FR, ES, DE), détection automatique des prompts non anglais (l'UI anglaise saute entièrement la détection), aperçu bilingue
 - 🔍 **Support des modèles personnalisés** — Découverte automatique des modèles Bedrock fine-tunés, importés et déployés
 - 🔧 **Modèles auto-hébergés — Déploiement en 1 clic** — Parcourez un catalogue organisé de modèles open source pré-testés (Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2, et plus), choisissez une instance GPU, et cliquez sur Deploy. ArtSmoker gère tout : empaquetage du gestionnaire d'inférence, configuration de la quantification, sélection du bon toolkit CUDA, mise en place de l'auto-scaling, enregistrement des alarmes CloudWatch, et câblage du suivi asynchrone des tâches. Chaque modèle du catalogue est validé de bout en bout — du démarrage à froid à la génération jusqu'à la livraison en galerie — pour que vous n'ayez pas à déboguer les pilotes GPU, les dépassements de mémoire ou la compatibilité des conteneurs. Supporte BF16 + FlashInfer pour la meilleure qualité, NF4 pour l'efficacité des coûts, détection automatique multi-GPU, mise à l'échelle automatique à zéro (0$ en veille), et le même modèle fonctionne sur différents types d'instances sans reconfiguration
@@ -1387,7 +1387,6 @@ ArtSmoker/
 │   │   ├── prompt_templates.py   # Editable LLM directive prompts (load/save/validate)
 │   │   ├── video_generator.py   # Video: async Bedrock invoke, S3 download, ffmpeg thumbnails
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
-│   │   ├── telemetry.py         # PulseBoard SDK wrapper: tracks server events
 │   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)

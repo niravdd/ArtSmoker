@@ -102,7 +102,7 @@ For teams that want every generated asset to match an existing art style — upl
 - ⚙️ **Model Registry** — Admin UI organized by studio (Image, Video, Chat, Type, Shared), Bedrock discovery, custom model support
 - 📝 **Prompt Templates** — 28 editable LLM directive prompts, AI-assisted refinement, variable validation with auto-fix
 - 📦 **Asset Versioning** — Edit-in-place with version history (v1, v2, ...), version navigation, and per-version delete: remove just one version (others keep their numbers), with the viewer switching to the previous version — deleting the last version removes the whole asset
-- 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset — sent to PulseBoard telemetry
+- 💰 **Cost Tracking** — Estimated AWS spend per request, per session, per asset, computed from live per-region AWS pricing; self-hosted models show the GPU instance's hourly running rate + typical generation time (not a misleading per-image price)
 - 🌐 **9-Language i18n** — Full UI translation (EN, JA, ZH, KO, HI, RU, FR, ES, DE), auto-detect non-English prompts (English UI skips detection entirely), bilingual preview
 - 🔍 **Custom Model Support** — Discover fine-tuned, imported, and deployed custom Bedrock models automatically
 - 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2, and more), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
@@ -1387,7 +1387,6 @@ ArtSmoker/
 │   │   ├── prompt_templates.py   # Editable LLM directive prompts (load/save/validate)
 │   │   ├── video_generator.py   # Video: async Bedrock invoke, S3 download, ffmpeg thumbnails
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
-│   │   ├── telemetry.py         # PulseBoard SDK wrapper: tracks server events
 │   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)

@@ -102,7 +102,7 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 - ⚙️ **Model Registry** — UI de administración organizada por estudio (Image, Video, Chat, Type, Shared), descubrimiento de Bedrock, soporte de modelos personalizados
 - 📝 **Prompt Templates** — 28 prompts de directivas LLM editables, refinamiento asistido por IA, validación de variables con corrección automática
 - 📦 **Versionado de recursos** — Edición in situ con historial de versiones (v1, v2, ...), navegación entre versiones y borrado por versión: elimine solo una versión (las demás conservan sus números), con el visor cambiando a la versión anterior — borrar la última versión elimina todo el recurso
-- 💰 **Seguimiento de costos** — Gasto estimado de AWS por solicitud, por sesión, por recurso — enviado a la telemetría de PulseBoard
+- 💰 **Seguimiento de costos** — Gasto estimado de AWS por solicitud, por sesión, por recurso, calculado a partir de precios de AWS en vivo por región; los modelos autoalojados muestran la tarifa horaria de ejecución de la instancia GPU + el tiempo típico de generación (no un engañoso precio por imagen)
 - 🌐 **i18n en 9 idiomas** — Traducción completa de la UI (EN, JA, ZH, KO, HI, RU, FR, ES, DE), detección automática de prompts no ingleses (la UI en inglés omite la detección por completo), vista previa bilingüe
 - 🔍 **Soporte de modelos personalizados** — Descubra automáticamente modelos Bedrock personalizados afinados, importados y desplegados
 - 🔧 **Modelos autoalojados — Despliegue en 1 clic** — Explore un catálogo curado de modelos de código abierto preprobados (Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2 y más), elija una instancia de GPU y haga clic en Deploy. ArtSmoker gestiona todo: el empaquetado del manejador de inferencia, la configuración de la cuantización, la selección del toolkit de CUDA correcto, la configuración del escalado automático, el registro de alarmas de CloudWatch y la conexión del seguimiento asíncrono de trabajos. Cada modelo del catálogo se ha validado de extremo a extremo — desde el arranque en frío pasando por la generación hasta la entrega a la galería — para que no tenga que depurar controladores de GPU, desbordamientos de memoria ni compatibilidad de contenedores. Soporta BF16 + FlashInfer para la mejor calidad, NF4 para eficiencia de costos, detección automática multi-GPU, escala a cero automáticamente ($0 en reposo) y el mismo modelo funciona en distintos tipos de instancia sin reconfiguración
@@ -1387,7 +1387,6 @@ ArtSmoker/
 │   │   ├── prompt_templates.py   # Editable LLM directive prompts (load/save/validate)
 │   │   ├── video_generator.py   # Video: async Bedrock invoke, S3 download, ffmpeg thumbnails
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
-│   │   ├── telemetry.py         # PulseBoard SDK wrapper: tracks server events
 │   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)

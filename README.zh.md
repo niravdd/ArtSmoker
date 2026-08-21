@@ -102,7 +102,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 - ⚙️ **Model Registry** —— 按工作室（Image、Video、Chat、Type、Shared）组织的管理 UI、Bedrock 发现、自定义模型支持
 - 📝 **Prompt Templates** —— 28 个可编辑的 LLM 指令提示词、AI 辅助优化、带自动修复的变量验证
 - 📦 **资产版本管理** —— 就地编辑并保留版本历史（v1、v2……）、版本导航，以及按版本删除：只删除某一个版本（其他版本编号保持不变），查看器会切换到上一个版本 —— 删除最后一个版本将移除整个资产
-- 💰 **成本追踪** —— 每请求、每会话、每资产的预估 AWS 支出 —— 发送至 PulseBoard 遥测
+- 💰 **成本追踪** —— 每请求、每会话、每资产的预估 AWS 支出，基于分区域实时 AWS 定价计算；自托管模型显示 GPU 实例的每小时运行费率 + 典型生成时长（而非易误导的每张图片价格）
 - 🌐 **9 语言 i18n** —— 完整 UI 翻译（EN、JA、ZH、KO、HI、RU、FR、ES、DE），自动检测非英语提示词（英语 UI 完全跳过检测），双语预览
 - 🔍 **自定义模型支持** —— 自动发现微调、导入和已部署的自定义 Bedrock 模型
 - 🔧 **自托管模型 —— 一键部署** —— 浏览精选的预测试开源模型目录（Qwen-Image、Qwen-Image-Edit、HunyuanImage 3.0、FLUX.2、FLUX.1、TripoSG、TRELLIS.2 等），选择 GPU 实例，点击 Deploy。ArtSmoker 处理一切：打包推理处理器、配置量化、选择正确的 CUDA 工具包、设置自动缩放、注册 CloudWatch 告警，以及连接异步任务跟踪。目录中每个模型从冷启动到生成再到画廊交付都经过端到端验证 —— 因此您无需调试 GPU 驱动、内存溢出或容器兼容性问题。支持 BF16 + FlashInfer 获得最佳质量，NF4 实现成本效率，多 GPU 自动检测，空闲时自动缩容至零（$0），同一模型无需重新配置即可在不同实例类型上运行
@@ -1387,7 +1387,6 @@ ArtSmoker/
 │   │   ├── prompt_templates.py   # 可编辑的 LLM 指令提示词（加载/保存/验证）
 │   │   ├── video_generator.py   # 视频：异步 Bedrock 调用、S3 下载、ffmpeg 缩略图
 │   │   ├── cost_tracker.py      # 请求范围的成本累加器
-│   │   ├── telemetry.py         # PulseBoard SDK 封装：跟踪服务器事件
 │   │   ├── custom_models.py    # 自托管模型目录（可扩展）
 │   │   ├── async_jobs.py       # 异步生成任务队列（Pending Jobs 面板）
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker 端点管理（HF 模型直接从 HF 拉取）

@@ -103,7 +103,7 @@ Für Teams, die möchten, dass jedes generierte Asset zu einem vorhandenen Kunst
 - ⚙️ **Model Registry** — Admin-UI nach Studio organisiert (Image, Video, Chat, Type, Shared), Bedrock-Erkennung, Unterstützung benutzerdefinierter Modelle
 - 📝 **Prompt Templates** — 28 bearbeitbare LLM-Direktiv-Prompts, KI-gestützte Verfeinerung, Variablenvalidierung mit automatischer Korrektur
 - 📦 **Asset-Versionierung** — In-Place-Bearbeitung mit Versionsverlauf (v1, v2, ...) und Versionsnavigation
-- 💰 **Kostenverfolgung** — Geschätzte AWS-Ausgaben pro Anfrage, pro Sitzung, pro Asset — an die PulseBoard-Telemetrie gesendet
+- 💰 **Kostenverfolgung** — Geschätzte AWS-Ausgaben pro Anfrage, pro Sitzung, pro Asset, berechnet aus aktuellen regionalen AWS-Preisen; selbstgehostete Modelle zeigen den stündlichen Betriebstarif der GPU-Instanz + die typische Generierungszeit (statt eines irreführenden Preises pro Bild)
 - 🌐 **i18n in 9 Sprachen** — Vollständige UI-Übersetzung (EN, JA, ZH, KO, HI, RU, FR, ES, DE), automatische Erkennung nicht-englischer Prompts, zweisprachige Vorschau
 - 🔍 **Unterstützung benutzerdefinierter Modelle** — Automatische Erkennung von fein abgestimmten, importierten und deployten benutzerdefinierten Bedrock-Modellen
 - 🔧 **Selbst gehostete Modelle — 1-Klick-Deployment** — Durchstöbern Sie einen kuratierten Katalog vorab getesteter Open-Source-Modelle (HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG und mehr), wählen Sie eine GPU-Instanz und klicken Sie auf Deploy. ArtSmoker übernimmt alles: Packaging des Inferenz-Handlers, Konfiguration der Quantisierung, Auswahl des richtigen CUDA-Toolkits, Einrichtung des Auto-Scalings, Registrierung von CloudWatch-Alarmen und Verdrahtung des asynchronen Job-Trackings. Jedes Modell im Katalog wurde durchgängig validiert — vom Kaltstart über die Generierung bis zur Auslieferung in die Galerie — sodass Sie keine GPU-Treiber, Speicherüberläufe oder Container-Kompatibilität debuggen müssen. Unterstützt BF16 + FlashInfer für beste Qualität, NF4 für Kosteneffizienz, automatische Multi-GPU-Erkennung, skaliert automatisch auf null ($0 im Leerlauf), und dasselbe Modell läuft ohne Neukonfiguration auf verschiedenen Instanztypen
@@ -1389,7 +1389,6 @@ ArtSmoker/
 │   │   ├── prompt_templates.py   # Bearbeitbare LLM-Direktiv-Prompts (laden/speichern/validieren)
 │   │   ├── video_generator.py   # Video: asynchroner Bedrock-Aufruf, S3-Download, ffmpeg-Vorschaubilder
 │   │   ├── cost_tracker.py      # Request-bezogener Kostensammler
-│   │   ├── telemetry.py         # PulseBoard-SDK-Wrapper: verfolgt Serverereignisse
 │   │   ├── custom_models.py    # Katalog selbst gehosteter Modelle (erweiterbar)
 │   │   ├── async_jobs.py       # Warteschlange für asynchrone Generierungs-Jobs (Pending-Jobs-Panel)
 │   │   ├── sagemaker_deployer.py # Amazon-SageMaker-Endpoint-Verwaltung (direkter HF-Pull für HF-Modelle)
