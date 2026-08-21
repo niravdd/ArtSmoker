@@ -821,7 +821,32 @@
 
         _updateRegionForModel(modelKey) {
             const regionSel = document.getElementById('gen-region');
-            if (!regionSel || modelKey === 'all_models') return;
+            if (!regionSel) return;
+
+            // Multi-model / all-models: no single per-region price to show, but the
+            // dropdown must still list "All Regions" + the UNION of the selected models'
+            // regions — otherwise it renders EMPTY and a saved region can't be restored.
+            if (modelKey === 'all_models') {
+                const current = regionSel.value;
+                const union = [...new Set(
+                    this._selectedModels
+                        .map(k => MODELS.find(m => m.value === k)).filter(Boolean)
+                        .flatMap(m => (m.available_regions && m.available_regions.length)
+                            ? m.available_regions : [m.region]).filter(Boolean)
+                )].sort();
+                regionSel.innerHTML = '';
+                const auto = document.createElement('option');
+                auto.value = '';
+                auto.textContent = t('artsmoker.ui.image_studio.region_all');
+                regionSel.appendChild(auto);
+                union.forEach(r => {
+                    const opt = document.createElement('option');
+                    opt.value = r; opt.textContent = r;
+                    regionSel.appendChild(opt);
+                });
+                if (current && [...regionSel.options].some(o => o.value === current)) regionSel.value = current;
+                return;
+            }
 
             const modelData = MODELS.find(m => m.value === modelKey);
             const regionPricing = modelData?.region_pricing || [];
