@@ -1230,10 +1230,18 @@ def _calculate_compute_cost(model_key: str, duration_seconds: float) -> float:
     # Prorate: cost = (duration_seconds / 3600) * hourly_rate
     generation_cost = (duration_seconds / 3600.0) * hourly_rate
 
-    # Add amortized cooldown cost: the instance stays up for 10 min (600s)
-    # after the last job. This cost is shared across all jobs in the batch.
-    # Estimate: assume ~5 jobs per batch (conservative)
-    _COOLDOWN_SECONDS = 600
+    # Add amortized cooldown cost: the instance stays warm after the last job before
+    # scaling to zero, and that idle time is billed. The scale-in cooldown is
+    # LATENCY-DERIVED (matches the deploy config: max(600, typical_latency×2)) — a
+    # fixed 600s understated slow models (e.g. Qwen ~1200s latency → ~2400s cooldown).
+    # Shared across the jobs in flight (+1), since a batch amortizes one warm tail.
+    _typ_lat = 0
+    for section in ("image_models", "video_models"):
+        _inv = registry.get(section, {}).get(model_key, {}).get("invoke", {}) or {}
+        if _inv.get("typical_latency_seconds"):
+            _typ_lat = int(_inv["typical_latency_seconds"])
+            break
+    _COOLDOWN_SECONDS = max(600, _typ_lat * 2)
     _ESTIMATED_BATCH_SIZE = max(1, get_pending_count() + 1)
     cooldown_share = (_COOLDOWN_SECONDS / _ESTIMATED_BATCH_SIZE / 3600.0) * hourly_rate
 

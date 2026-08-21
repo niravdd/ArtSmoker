@@ -1737,8 +1737,18 @@ def _track_3d_completion(job: dict) -> None:
         except Exception:
             pass
         dur = max(0.0, min(dur, 1800.0))
-        compute_cost = round((dur / 3600.0) * rate, 6) if rate else 0.0
-        label = f"3D {model_key} ({dur:.0f}s @ ${rate:.2f}/hr)"
+        # Amortized cooldown share — the endpoint stays warm after the last job before
+        # scaling to zero, and that idle time is billed. Parity with async_jobs
+        # (_calculate_compute_cost): attribute a share to this job. 3D's scale-in
+        # cooldown is latency-derived (max(600, typical×2)); 3D jobs run ~sequentially,
+        # so amortize across in-flight 3D jobs (+1) rather than assuming a big batch.
+        _lat = int((cfg.get("invoke", {}) or {}).get("typical_latency_seconds", 0) or 0)
+        _cooldown_s = max(600, _lat * 2)
+        _inflight = sum(1 for j in _3d_jobs.values()
+                        if j.get("status") in ("submitted", "processing", "in_progress", "generating")) or 1
+        cooldown_share = (_cooldown_s / _inflight / 3600.0) * rate if rate else 0.0
+        compute_cost = round((dur / 3600.0) * rate + cooldown_share, 6) if rate else 0.0
+        label = f"3D {model_key} ({dur:.0f}s + {_cooldown_s // _inflight}s cooldown @ ${rate:.2f}/hr)"
 
         from backend.services.cost_tracker import add_background_cost
         if compute_cost > 0:
