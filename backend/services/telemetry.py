@@ -122,6 +122,22 @@ def track_voice_transcription():
     _track("image_studio.voice_input")
 
 
+def track_aux_llm_cost(operation: str = "", cost_usd: float = 0, studio: str = "image_studio"):
+    """Cost for a STANDALONE auxiliary LLM operation that runs as its own request —
+    prompt classify/decompose/recompose, reference analysis, moderation pre-check,
+    edit-prompt suggestion, template enhance, chat compact — i.e. NOT folded into a
+    generation request's cost event. Emits an action event plus a `.cost` event so
+    PulseBoard's aggregate total_cost includes this spend (previously unreported).
+
+    Pass the request-scoped get_total_cost() as cost_usd; the endpoint MUST call
+    reset_costs() at entry so the figure isn't contaminated by a prior request that
+    ran on the same worker thread (costs are ContextVar/thread-scoped)."""
+    op = (operation or "aux").replace(" ", "_").replace("-", "_").lower()
+    _track(f"{studio}.aux.{op}", cost_usd=0)
+    if cost_usd and cost_usd > 0:
+        _track(f"{studio}.aux.cost", cost_usd=cost_usd, operation=op)
+
+
 # ── Video Studio Events ─────────────────────────────────────────────
 
 def track_video_generation(model: str = "", duration_seconds: int = 0,

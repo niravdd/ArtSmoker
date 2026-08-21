@@ -1443,7 +1443,11 @@ async def analyze_reference(body: AnalyzeReferenceRequest):
             raise HTTPException(400, detail="Invalid base64 image data.")
 
     result = analyze_reference_images(imgs, prompt, asset_type=body.asset_type)
-    result["cost_usd"] = round(get_total_cost(), 6)
+    _cost = round(get_total_cost(), 6)
+    result["cost_usd"] = _cost
+    # Report to PulseBoard — this standalone vision-LLM call was previously untracked.
+    from backend.services.telemetry import track_aux_llm_cost
+    track_aux_llm_cost("analyze_reference", _cost)
     return result
 
 
@@ -2042,8 +2046,11 @@ async def suggest_edit_prompt(body: SuggestEditPromptRequest):
     from backend.services.prompt_templates import get_template, get_system_prompt
     from backend.services.prompt_engineer import supports_negative_prompt  # cheap registry probe
     from backend.routers.generate_3d import _fit_image_for_vision
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
     import re as _re
 
+    reset_costs()  # scope LLM cost to THIS request
     mode = _EDIT_MODE_ALIASES.get(body.mode, body.mode)
     if mode not in _EDIT_MODE_INTENT:
         raise HTTPException(400, detail=f"Unknown edit mode '{body.mode}'.")
@@ -2100,6 +2107,9 @@ async def suggest_edit_prompt(body: SuggestEditPromptRequest):
     except Exception as exc:
         logger.warning("Edit-prompt suggestion failed for %s (%s): %s", body.asset_id, mode, exc)
         raise HTTPException(502, detail="Prompt suggestion is unavailable right now. Please try again.")
+    finally:
+        # Runs on both success and failure — report the LLM cost either way.
+        track_aux_llm_cost("suggest_edit_prompt", get_total_cost())
 
     def _clamp(v):
         try: return max(0, min(1024, int(v)))
@@ -2130,8 +2140,11 @@ async def pre_screen_prompt(body: PreScreenRequest):
     suited for a more permissive model).
     """
     from backend.services.bedrock_client import invoke_llm
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
     import re as _re
 
+    reset_costs()  # scope LLM cost (translation + pre-screen) to THIS request
     from backend.services.model_registry import get_enabled_model_labels, get_enabled_image_models
     model_labels = get_enabled_model_labels()
     model_label = model_labels.get(body.image_model, body.image_model)
@@ -2193,6 +2206,8 @@ async def pre_screen_prompt(body: PreScreenRequest):
     except Exception as exc:
         logger.warning("Pre-screen failed: %s", exc)
         return {"likely_safe": True, "issues": [], "explanation": "Pre-screening unavailable", "suggested_model": None}
+    finally:
+        track_aux_llm_cost("pre_screen", get_total_cost())
 
 
 # ── Moderation analysis ───────────────────────────────────────────────────
@@ -2215,6 +2230,20 @@ _ALTERNATIVE_MODELS = [
 
 @router.post("/analyze-moderation")
 async def analyze_moderation(body: ModerationRequest):
+    """Wrapper: scope + report the FULL cost of moderation analysis (image-gen
+    fallback attempts + rewrite LLM calls) to telemetry, then delegate. This
+    standalone endpoint's spend was previously unreported. The finally covers every
+    return path AND failures — no missed cost."""
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
+    reset_costs()
+    try:
+        return await _analyze_moderation_impl(body)
+    finally:
+        track_aux_llm_cost("analyze_moderation", get_total_cost())
+
+
+async def _analyze_moderation_impl(body: ModerationRequest):
     """Smart moderation handling for game artists.
 
     Strategy (in order):

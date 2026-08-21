@@ -643,28 +643,35 @@ async def suggest(request: TypeStudioRequest):
     Same pipeline as /preview steps 1-3, but skips rendering and saving.
     Useful for the frontend to preview the layout before committing.
     """
-    # 1. Load source image if provided
-    image_bytes: bytes | None = None
-    canvas_width = settings.default_image_width
-    canvas_height = settings.default_image_height
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
+    reset_costs()  # scope the layout-LLM cost to THIS request
+    try:
+        # 1. Load source image if provided
+        image_bytes: bytes | None = None
+        canvas_width = settings.default_image_width
+        canvas_height = settings.default_image_height
 
-    if request.source_image_id:
-        source_image, image_bytes = _load_source_image(request.source_image_id)
-        canvas_width, canvas_height = source_image.size
+        if request.source_image_id:
+            source_image, image_bytes = _load_source_image(request.source_image_id)
+            canvas_width, canvas_height = source_image.size
 
-    # 2. Load style guide if provided
-    style_guide: str | None = None
-    if request.style_id:
-        style_guide = _load_style_guide(request.style_id)
+        # 2. Load style guide if provided
+        style_guide: str | None = None
+        if request.style_id:
+            style_guide = _load_style_guide(request.style_id)
 
-    # 3. Get layouts from Claude (no rendering)
-    layouts = _get_layouts_from_llm(
-        request, canvas_width, canvas_height, style_guide, image_bytes,
-    )
+        # 3. Get layouts from Claude (no rendering)
+        layouts = _get_layouts_from_llm(
+            request, canvas_width, canvas_height, style_guide, image_bytes,
+        )
 
-    return {
-        "layouts": [l.model_dump() for l in layouts],
-        "num_options": len(layouts),
-        "canvas_width": canvas_width,
-        "canvas_height": canvas_height,
-    }
+        return {
+            "layouts": [l.model_dump() for l in layouts],
+            "num_options": len(layouts),
+            "canvas_width": canvas_width,
+            "canvas_height": canvas_height,
+        }
+    finally:
+        # Layout suggestion is a standalone LLM call — report its cost (was untracked).
+        track_aux_llm_cost("type_suggest", get_total_cost(), studio="type_studio")

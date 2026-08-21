@@ -650,6 +650,9 @@ async def compact_context(body: CompactRequest):
     replaced by a single summary message, freeing context window space.
     """
     from backend.services.bedrock_client import invoke_llm
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
+    reset_costs()  # scope LLM cost to THIS request
 
     session = _load_session(body.session_id)
     if not session:
@@ -679,6 +682,8 @@ async def compact_context(body: CompactRequest):
         )
     except Exception as exc:
         raise HTTPException(502, detail=f"Summarization failed: {exc}")
+    finally:
+        track_aux_llm_cost("chat_compact", get_total_cost(), studio="chat_studio")
 
     # Replace old messages with summary.
     # Use role "user" to avoid consecutive assistant messages (Converse API
@@ -747,6 +752,9 @@ async def generate_title(body: TitleRequest):
     Returns a 3-8 word title summarizing the conversation topic.
     """
     from backend.services.bedrock_client import invoke_llm
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
+    reset_costs()  # scope LLM cost to THIS request
 
     try:
         prompt = get_template('chat_title_generate').format(
@@ -771,6 +779,8 @@ async def generate_title(body: TitleRequest):
     except Exception as exc:
         logger.debug("Title generation failed: %s", exc)
         raise HTTPException(502, detail="Title generation failed")
+    finally:
+        track_aux_llm_cost("chat_title", get_total_cost(), studio="chat_studio")
 
 
 # ── Telemetry ─────────────────────────────────────────────────────────────

@@ -24,8 +24,11 @@ async def classify_asset_type(body: PromptRefineRequest):
     """
     from backend.services.bedrock_client import invoke_llm
     from backend.services.prompt_templates import get_template, get_system_prompt
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
     import json as _json, re as _re
 
+    reset_costs()  # scope LLM cost to THIS request (worker threads are reused)
     try:
         prompt_text = get_template('asset_type_classify').format(user_prompt=body.prompt)
         raw = invoke_llm(
@@ -58,6 +61,9 @@ async def classify_asset_type(body: PromptRefineRequest):
     except Exception as exc:
         logger.warning("Asset type classification failed: %s", exc)
         return {"current": str(body.asset_type), "suggested": str(body.asset_type), "mismatch": False}
+    finally:
+        # Report the LLM cost even if post-call parsing failed — no missed spend.
+        track_aux_llm_cost("classify_asset_type", get_total_cost())
 
 
 def _detect_asset_type_mismatch(prompt: str, asset_type) -> dict | None:
@@ -234,8 +240,11 @@ async def decompose_prompt(body: DecomposeRequest):
     from backend.services.prompt_templates import get_template, get_system_prompt
     from backend.services.prompt_engineer import _build_style_section, _asset_type_context
     from backend.models.generation_request import AssetType
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
     import json as _json, re as _re
 
+    reset_costs()  # scope LLM cost (translation + decomposition) to THIS request
     # Translate non-English prompts to English for consistent decomposition
     prompt_for_decompose = body.prompt
     original_language = "en"
@@ -303,6 +312,9 @@ async def decompose_prompt(body: DecomposeRequest):
         # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.exception("Prompt decomposition failed")
         raise HTTPException(502, detail=f"Decomposition failed: {exc}")
+    finally:
+        # Report LLM cost (translation + decomposition) even on failure — no missed spend.
+        track_aux_llm_cost("prompt_decompose", get_total_cost())
 
 
 class RecomposeRequest(_BaseModel):
@@ -316,8 +328,11 @@ async def recompose_prompt(body: RecomposeRequest):
     from backend.services.bedrock_client import invoke_llm
     from backend.services.prompt_templates import get_template, get_system_prompt
     from backend.services.prompt_engineer import get_prompt_limit, get_optimal_length, get_model_guidance, _get_model_label, _build_style_section, _DEFAULT_MODEL_INSTRUCTIONS
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
     import json as _json, re as _re
 
+    reset_costs()  # scope LLM cost to THIS request
     max_chars = get_prompt_limit(body.image_model)
     optimal_length = get_optimal_length(body.image_model)
     model_name = _get_model_label(body.image_model)
@@ -361,6 +376,8 @@ async def recompose_prompt(body: RecomposeRequest):
         # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.exception("Prompt recomposition failed")
         raise HTTPException(502, detail=f"Recomposition failed: {exc}")
+    finally:
+        track_aux_llm_cost("prompt_recompose", get_total_cost())
 
 
 class TranslatePreviewRequest(_BaseModel):

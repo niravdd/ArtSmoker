@@ -226,6 +226,9 @@ async def update_template_endpoint(name: str, body: TemplateUpdate):
     insert them in the right places. Otherwise returns 400 with details.
     """
     from backend.services.prompt_templates import update_template, validate_template, get_all_templates
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
+    reset_costs()  # scope any auto-fix LLM cost to THIS request
 
     # Check if template exists
     templates = get_all_templates()
@@ -269,6 +272,8 @@ async def update_template_endpoint(name: str, body: TemplateUpdate):
             raise
         except Exception as exc:
             raise HTTPException(502, detail=f"Auto-fix failed: {exc}. Please add manually: {', '.join(missing)}")
+        finally:
+            track_aux_llm_cost("template_fix_variables", get_total_cost(), studio="model_settings")
 
     elif missing:
         raise HTTPException(400, detail={
@@ -320,7 +325,8 @@ async def enhance_template(name: str, body: TemplateEnhanceRequest):
     """
     from backend.services.prompt_templates import get_all_templates
     from backend.services.bedrock_client import invoke_llm
-    from backend.services.cost_tracker import reset_costs
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
     reset_costs()
 
     templates = get_all_templates()
@@ -371,6 +377,8 @@ async def enhance_template(name: str, body: TemplateEnhanceRequest):
         }
     except Exception as exc:
         raise HTTPException(502, detail=f"Enhancement failed: {exc}")
+    finally:
+        track_aux_llm_cost("template_enhance", get_total_cost(), studio="model_settings")
 
 
 @router.get("/models/image-options")
