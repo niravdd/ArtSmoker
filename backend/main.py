@@ -651,6 +651,14 @@ async def _unhandled_exception_handler(request, exc):
     import traceback
     tb = traceback.format_exc()
     logger.error("Unhandled %s at %s %s:\n%s", type(exc).__name__, request.method, request.url.path, tb)
+    # Report to PulseBoard so server-side failures are visible over time (the
+    # track_error event existed but was never wired — this closes that gap).
+    try:
+        from backend.services.telemetry import track_error
+        track_error(error_type=type(exc).__name__,
+                    message=f"{request.method} {request.url.path}: {exc}")
+    except Exception:
+        pass
     from starlette.responses import JSONResponse
     return JSONResponse(status_code=500, content={"detail": "Internal Server Error"})
 

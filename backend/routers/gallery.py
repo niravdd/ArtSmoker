@@ -956,6 +956,19 @@ async def create_export_variants(asset_id: str, body: ExportVariantsRequest):
         "Export variants for %s v%d: method=%s bg_free=%s reuse=%s cost=$%.4f",
         asset_id, version, method, bg_free, reuse, cost_usd,
     )
+    # Telemetry: the cutout/SVG export is billable Bedrock work when a background is
+    # actually removed — track it (parity with the Image Studio post-process path,
+    # which was tracked; this entry point previously wasn't, hiding the cost).
+    if not reuse:
+        try:
+            from backend.services.telemetry import track_post_process
+            track_post_process(
+                action="cutout_export",
+                model=("bedrock" if method == BG_METHOD_BEDROCK else "local"),
+                cost_usd=round(cost_usd, 6), num_assets=1,
+            )
+        except Exception:
+            pass
     status = _export_status(asset_id, meta, version, current_version)
     status["reused"] = reuse
     status["cost_incurred_usd"] = 0.0 if reuse else round(cost_usd, 6)
