@@ -1,0 +1,240 @@
+{
+  "id": "e5536550-06aa-4781-ba9a-f0ca0a026c0c_o1_v0",
+  "batch_id": "e5536550-06aa-4781-ba9a-f0ca0a026c0c",
+  "option_index": 1,
+  "variant_index": 0,
+  "num_options": 2,
+  "num_variations": 2,
+  "all_models": true,
+  "original_prompt": "Weathered desert nomad female warrior, wrapped in sun-bleached cloth and bone charms, cracked leather armour, quiet menace in her eyes",
+  "moderation_original": null,
+  "prompt": "A weathered desert nomad female warrior stands in a neutral frontal pose, arms relaxed at sides, sun-darkened skin with sharp angular features and cold calculating eyes staring directly forward. Layered sun-bleached ivory linen wraps over cracked worn leather armour, stress fractures across the breastplate and pauldrons. Bone charms \u2014 carved animal teeth and knuckles strung on sinew \u2014 tied into her wrappings and wind-frayed hair. Cracked dry lips, dust settled in skin creases, scarred calloused hands. Vast arid desert behind her, cracked earth, distant rocky mesa silhouettes, sparse blowing sand at ground level.",
+  "enhanced_prompt": "Full body weathered desert nomad female warrior, sun-darkened skin, sharp angular features, deep-set watchful eyes locked forward with barely perceptible tension. Dusty tan linen layers draped over cracked leather armour, dried stitching, fractured pauldrons. Bone charms strung on sinew woven through frayed hair and belt pouches, scarred hands at sides. Bleak overcast dusk, cool grey-blue sky, cracked salt flats, hazy dune ridges, faint sand drifting at her feet. Muted diffuse light, isolating mood. Detailed concept-art illustration, textured grit. Complete figure head-to-toe, uncropped, generous margins.",
+  "negative_prompt": "",
+  "style_id": null,
+  "style_snapshot": null,
+  "asset_type": "character",
+  "image_model": "hunyuan_image_3_0_bf16_83c0",
+  "model_label": "HunyuanImage 3.0 (BF16) \u2014 HQ (22Jul 09:46)",
+  "quality": "",
+  "region": "us-west-2",
+  "width": 1080,
+  "height": 1920,
+  "seed": 1956173399,
+  "remove_background": false,
+  "generate_svg": true,
+  "upscale": false,
+  "ip_owned": false,
+  "ip_licensed": false,
+  "png_path": "/api/gallery/e5536550-06aa-4781-ba9a-f0ca0a026c0c_o1_v0/png",
+  "created_at": "2026-07-22T06:34:42.186692",
+  "async_status": "complete",
+  "async_job_id": "8c13bd7b",
+  "recomposed_prompt": "A full body weathered desert nomad female warrior stands in a neutral frontal pose, arms relaxed at sides, sun-darkened skin with sharp angular features and cold calculating eyes staring directly into the camera. Layered sun-bleached ivory linen wraps over cracked worn leather armour with stress fractures across the breastplate and pauldrons. Bone charms \u2014 carved animal teeth and knuckles strung on sinew \u2014 tied into her wrappings and wind-frayed hair. Cracked dry lips, dust settled in skin creases, scarred calloused hands. Vast arid desert behind her, cracked earth, distant rocky mesa silhouettes, sparse blowing sand at ground level. Late afternoon golden hour, strong directional sunlight from upper right casting warm amber-orange across her face and armour, deep shadows left side, faint rim light outlining her silhouette against a pale hazy amber sky. 85mm lens equivalent, f/2.8, full body head-to-toe framing, subject sharp, background softly blurred. Highly detailed fantasy character concept art in the style of Greg Rutkowski and Aleksi Briclot, painterly realism, textured brushwork emphasizing material wear and grit, cinematic quality, 8k resolution.",
+  "decomposed_data": {
+    "subject": {
+      "description": "A full body weathered desert nomad female warrior, young or middle-aged, with sun-darkened skin, sharp angular features, and deep-set eyes radiating quiet menace",
+      "clothing": {
+        "value": "Layered sun-bleached linen and cotton wraps in faded ivory and dusty tan, draped loosely over cracked, worn leather armour with dried stitching and stress fractures across the breastplate and pauldrons",
+        "source": "user"
+      },
+      "accessories": {
+        "value": "Bone charms tied into her wrappings and hair \u2014 small carved animal bones, teeth, and knuckles strung on sinew cord; a weathered leather belt with pouches",
+        "source": "user"
+      },
+      "expression_pose": "Neutral standing pose, arms relaxed at sides, full body visible head to toe, shoulder to shoulder; expression is cold and watchful with a barely perceptible tension \u2014 quiet menace behind steady, calculating eyes, looking straight into the camera",
+      "details": {
+        "value": "Cracked dry lips, sun-bleached eyebrows, fine dust settled in the creases of her skin and armour; scarred knuckles and calloused hands; wind-worn cloth edges fraying slightly",
+        "source": "inferred"
+      }
+    },
+    "scene": {
+      "setting": {
+        "value": "Open desert environment \u2014 vast arid wasteland with cracked earth and distant dune ridges",
+        "source": "inferred"
+      },
+      "background": {
+        "value": "Wide open desert horizon with hazy amber sky, distant rocky mesa silhouettes, sparse blowing dust at ground level",
+        "source": "inferred"
+      },
+      "props": {
+        "value": "Minimal \u2014 scattered bone fragments and small stones at her feet, wind-blown sand drifting across the ground",
+        "source": "inferred"
+      },
+      "time_of_day": {
+        "value": "Late afternoon golden hour \u2014 harsh desert sun low on the horizon casting long warm shadows and bleaching the sky to a pale amber-orange",
+        "source": "inferred"
+      }
+    },
+    "composition": {
+      "camera_angle": {
+        "value": "Eye-level, straight-on frontal view, 85mm lens equivalent \u2014 slight distance to capture full figure without distortion",
+        "source": "inferred"
+      },
+      "framing": {
+        "value": "Full body head-to-toe shot, figure occupying approximately 65% of frame height, clear empty margin on all four sides, nothing cropped",
+        "source": "inferred"
+      },
+      "depth_of_field": {
+        "value": "Moderate depth of field, f/2.8 \u2014 subject in sharp focus, background softly blurred to keep attention on the warrior",
+        "source": "inferred"
+      }
+    },
+    "lighting": {
+      "key_light": {
+        "value": "Strong directional late-afternoon sunlight from the upper right, casting warm golden-orange light across her face and armour, deepening shadows on the left side",
+        "source": "inferred"
+      },
+      "fill_rim": {
+        "value": "Soft ambient desert-reflected fill light from below and left in muted warm ochre; faint rim light outlining her silhouette against the hazy sky",
+        "source": "inferred"
+      },
+      "mood": {
+        "value": "Harsh, sun-scorched, and isolating \u2014 the light feels unforgiving and ancient, reinforcing her solitary menace",
+        "source": "inferred"
+      }
+    },
+    "style": {
+      "art_style": {
+        "value": "Highly detailed fantasy character illustration in the style of Greg Rutkowski and Aleksi Briclot \u2014 painterly realism with cinematic quality, textured brushwork emphasizing material wear and grit",
+        "source": "inferred"
+      },
+      "quality": {
+        "value": "8k resolution, highly detailed, professional concept art quality, sharp material textures on leather and cloth, cinematic composition",
+        "source": "inferred"
+      },
+      "color_palette": [
+        {
+          "name": "Sun-bleached Ivory",
+          "hex": "#E8DFC8",
+          "usage": "Faded cloth wrappings",
+          "source": "user"
+        },
+        {
+          "name": "Cracked Leather Brown",
+          "hex": "#7A5230",
+          "usage": "Worn leather armour",
+          "source": "user"
+        },
+        {
+          "name": "Desert Sand",
+          "hex": "#C2A46E",
+          "usage": "Ground, skin tones, dust",
+          "source": "inferred"
+        },
+        {
+          "name": "Bone White",
+          "hex": "#D9CDB4",
+          "usage": "Bone charms and accessories",
+          "source": "user"
+        },
+        {
+          "name": "Amber Horizon",
+          "hex": "#D4813A",
+          "usage": "Sky and key lighting",
+          "source": "inferred"
+        },
+        {
+          "name": "Deep Shadow Brown",
+          "hex": "#3B2314",
+          "usage": "Armour cracks, deep shadows",
+          "source": "inferred"
+        }
+      ]
+    },
+    "_meta": {
+      "original_prompt": null,
+      "english_prompt": "Weathered desert nomad female warrior, wrapped in sun-bleached cloth and bone charms, cracked leather armour, quiet menace in her eyes",
+      "original_language": "en",
+      "was_translated": false
+    }
+  },
+  "async_completed_at": "2026-07-22T06:37:58.731366+00:00",
+  "png_filename": "asset.png",
+  "svg_path": "/api/gallery/e5536550-06aa-4781-ba9a-f0ca0a026c0c_o1_v0/svg",
+  "image_size_bytes": 1735300,
+  "three_d": {
+    "v1": {
+      "default_variant": "trellis2__2e8c",
+      "variants": [
+        {
+          "variant_id": "trellis2__2e8c",
+          "version": 1,
+          "glb_filename": "asset_3d_v1__trellis2__2e8c.glb",
+          "glb_url": "/api/gallery/e5536550-06aa-4781-ba9a-f0ca0a026c0c_o1_v0/3d/1?variant=trellis2__2e8c",
+          "size_bytes": 43645840,
+          "vertices": 955953,
+          "faces": 986284,
+          "params": {
+            "steps": 80,
+            "guidance_scale": 12.0,
+            "seed": null,
+            "faces": 0,
+            "octree_depth": 9,
+            "texture_backend": null
+          },
+          "pipeline": {
+            "geometry_model": "TRELLIS.2 (full pipeline)",
+            "texture_backend": "trellis2_full",
+            "texture_label": "TRELLIS.2 (integrated SLAT PBR)",
+            "instance_type": "ml.g5.2xlarge",
+            "textured": true,
+            "has_pbr": true,
+            "rasterizer": "",
+            "pipeline_type": "trellis2_full",
+            "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
+            "license_accepted_at": "2026-06-25T23:38:47.332916+00:00",
+            "commercial": true,
+            "attributions": [
+              "Built with DINOv3"
+            ]
+          },
+          "instance_label": "TRELLIS.2 Full (25Jun 23:38)",
+          "model_key": "trellis2_image_to_3d_2e8c",
+          "job_id": "4d1c74c2",
+          "created_at": "2026-07-22T06:58:38.358838+00:00"
+        }
+      ]
+    }
+  },
+  "three_d_versions": [
+    {
+      "variant_id": "trellis2__2e8c",
+      "version": 1,
+      "glb_filename": "asset_3d_v1__trellis2__2e8c.glb",
+      "glb_url": "/api/gallery/e5536550-06aa-4781-ba9a-f0ca0a026c0c_o1_v0/3d/1?variant=trellis2__2e8c",
+      "size_bytes": 43645840,
+      "vertices": 955953,
+      "faces": 986284,
+      "params": {
+        "steps": 80,
+        "guidance_scale": 12.0,
+        "seed": null,
+        "faces": 0,
+        "octree_depth": 9,
+        "texture_backend": null
+      },
+      "pipeline": {
+        "geometry_model": "TRELLIS.2 (full pipeline)",
+        "texture_backend": "trellis2_full",
+        "texture_label": "TRELLIS.2 (integrated SLAT PBR)",
+        "instance_type": "ml.g5.2xlarge",
+        "textured": true,
+        "has_pbr": true,
+        "rasterizer": "",
+        "pipeline_type": "trellis2_full",
+        "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
+        "license_accepted_at": "2026-06-25T23:38:47.332916+00:00",
+        "commercial": true,
+        "attributions": [
+          "Built with DINOv3"
+        ]
+      },
+      "instance_label": "TRELLIS.2 Full (25Jun 23:38)",
+      "model_key": "trellis2_image_to_3d_2e8c",
+      "job_id": "4d1c74c2",
+      "created_at": "2026-07-22T06:58:38.358838+00:00"
+    }
+  ],
+  "has_3d": true
+}
