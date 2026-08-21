@@ -1,0 +1,568 @@
+{
+  "id": "69782305-13e5-4cfb-a74e-e091c8f22d66_o18_v0",
+  "batch_id": "69782305-13e5-4cfb-a74e-e091c8f22d66",
+  "option_index": 18,
+  "variant_index": 0,
+  "num_options": 3,
+  "num_variations": 2,
+  "all_models": true,
+  "original_prompt": "A young soldier equipped with weapons",
+  "moderation_original": null,
+  "prompt": "A young athletic male soldier in his early twenties, deep navy and dark charcoal tactical combat uniform with padded chest rig, stenciled unit markings, aged gold buckles, helmet with emissive cyan HUD strip, gripping assault rifle at low-ready in heroic forward-leaning stance. Rusted underwater military corridor, corroded bulkheads, barnacle-encrusted beams, emissive cyan and orange wall strips, volumetric fog. Burnt orange key light from upper-left, ocean teal fill from below, crimson warning light bounce. Low-angle upward perspective, sharp focus on face and torso. Unreal Engine 5, AAA photorealistic PBR, subsurface scattering, edge wear, weld seams, rivets, 4K texture detail.",
+  "enhanced_prompt": "A young athletic male soldier in his early twenties, determined expression, full-body heroic stance filling 65% of frame. He wears a deep navy and dark charcoal tactical combat uniform with padded chest rig, stenciled unit markings, aged gold buckles with corrosion, and a helmet with emissive cyan HUD strip. He grips an assault rifle at low-ready, holstered sidearm on thigh, combat knife on chest rig, tactical gloves. He leans forward aggressively, jaw clenched, eyes locked ahead through a flooded submarine torpedo bay. Rusted torpedo racks line both sides, barnacle-encrusted loading rails, water pooling on corroded grating underfoot. Burnt orange key light blazes from an open blast door upper-left, ocean teal bioluminescent glow rises from the flooded deck below, crimson emergency strobes pulse along the ceiling. Volumetric fog drifts through the corridor. Low-angle 30\u00b0 upward tilt, subtle chromatic aberration at edges, sharp focus on face and torso with soft bokeh on background. Unreal Engine 5 AAA photorealistic PBR, weld seams, rivets, edge wear, paint chipping, subsurface scattering on padded surfaces, 4K texture detail.",
+  "negative_prompt": "cel-shading, outlines, cartoon, anime, flat shading, 2d, sketch, watercolor, low resolution, blurry, deformed hands, extra fingers, extra limbs, disfigured face, text, watermark, logo, signature, cropped frame, oversaturated, chibi, stylized proportions, soft focus everywhere, plastic skin, doll-like, uncanny valley smooth skin",
+  "style_id": "deep-water-station",
+  "style_snapshot": {
+    "name": "Deep Water Station",
+    "description": "",
+    "generation_hints": "Use a free-camera perspective-correct 3D viewpoint with a low-angle heroic upward tilt between 15\u201340\u00b0 for exterior subjects, shifting to eye-level or slightly elevated (0\u201320\u00b0) for interiors, with natural depth of field and subtle lens distortion or chromatic aberration applied. Render in high-fidelity real-time PBR style consistent with Unreal Engine 5 \u2014 no outlines, no cel-shading, fully photorealistic edge treatment with natural anti-aliasing, physically-based metallic/roughness material pipeline, emissive lighting strips in cyan, red, and orange, and subsurface scattering on fabric or padded surfaces. Adhere strictly to this color palette: deep navy #0A1E3D, ocean teal #2D7A6E, sky blue #3BA8E0, aged gold #C4A832, warm sand #D6CDB8, burnt orange #D4943A, rust brown #8B4A2B, crimson red #C42020, and dark charcoal #2A2D30. Light from a dominant directional source casting sharp volumetric shadows with secondary ambient fill, suggesting deep underwater or industrial interior environments. Deliver AAA-quality detail with 2K\u20134K PBR texture sets including albedo, normal, metallic, roughness, AO, and emissive maps; surface micro-detail must include rivets, weld seams, bolt patterns, stenciled markings, edge wear, paint chipping, and barnacle or corrosion growth where appropriate.",
+    "analyzed_style": {
+      "perspective": "Free-camera 3D perspective with varied angles \u2014 predominantly low-angle heroic shots (15-40\u00b0 upward tilt) for underwater exteriors, eye-level to slightly elevated (0-20\u00b0) for interior spaces, and one high isometric overview (~45\u00b0 top-down) for the asset layout sheet. No fixed orthographic or dimetric projection; fully perspective-correct with depth of field in many shots.",
+      "palette": [
+        "#C4A832",
+        "#D6CDB8",
+        "#0A1E3D",
+        "#3BA8E0",
+        "#2D7A6E",
+        "#8B4A2B",
+        "#C42020",
+        "#2A2D30",
+        "#D4943A"
+      ],
+      "rendering": "High-fidelity real-time PBR 3D rendering, likely Unreal Engine 4/5. Full physically-based material pipeline with metallic/roughness workflows. No outlines or cel-shading. Photorealistic edge treatment with natural anti-aliasing. Chromatic aberration and lens distortion post-processing applied to underwater exterior shots. Emissive materials used for lighting strips (cyan, red, orange). Subsurface scattering hints on padded/fabric elements.",
+      "line_weight": "",
+      "mood": "",
+      "scale": "",
+      "background": "transparent",
+      "materials": "",
+      "detail_level": "AAA-quality high-detail assets. Dense polygon counts with smooth curvature on cylindrical pressure vessels, complex mechanical assemblies, and fabric simulation on seat cushions. Texture resolution appears 2K-4K per asset with full PBR map sets (albedo, normal, metallic, roughness, AO, emissive). Micro-detail includes: rivets, weld seams, bolt patterns, stenciled text/numbering, barnacle growth on underwater surfaces, scratches, paint chipping, and edge wear. Modular kit-piece construction visible in the overview image with standardized connection points."
+    }
+  },
+  "asset_type": "character",
+  "image_model": "hunyuan_image_3_0_instruct_bf16_182c",
+  "model_label": "HunyuanImage 3.0 Instruct (BF16) \u2014 HQ (24Apr 21:38)",
+  "quality": "",
+  "region": "us-west-2",
+  "width": 1024,
+  "height": 1024,
+  "seed": 1673265090,
+  "remove_background": false,
+  "generate_svg": true,
+  "upscale": false,
+  "ip_owned": false,
+  "ip_licensed": false,
+  "png_path": "/api/gallery/69782305-13e5-4cfb-a74e-e091c8f22d66_o18_v0/png",
+  "created_at": "2026-04-29T06:25:32.470656",
+  "async_status": "complete",
+  "async_job_id": "2f3cf69b",
+  "recomposed_prompt": "A young male soldier in his early twenties, athletic and determined, wearing deep navy and dark charcoal tactical combat uniform with padded chest rig, stenciled unit markings, aged gold buckles, and a helmet with emissive cyan HUD strip, holding an assault rifle at low-ready in a heroic forward-leaning stance inside a rusted underwater military corridor with corroded bulkheads, barnacle-encrusted beams, emissive cyan and orange wall strips, warm burnt orange key light from upper-left, ocean teal fill from below, crimson warning light bounce, volumetric fog, low-angle upward perspective, sharp focus on face and torso, AAA photorealistic PBR rendering, Unreal Engine 5 quality, high detail.",
+  "decomposed_data": {
+    "subject": {
+      "description": {
+        "value": "A young male soldier, late teens to early twenties, athletic build, determined expression, full-body heroic stance filling 65% of frame.",
+        "source": "user"
+      },
+      "clothing": {
+        "value": "Tactical combat uniform in deep navy and dark charcoal with PBR-rendered fabric subsurface scattering, padded chest rig with stenciled unit markings, worn sand-colored knee pads, and aged gold buckle hardware with edge wear and paint chipping.",
+        "source": "inferred"
+      },
+      "accessories": {
+        "value": "Primary assault rifle with metallic PBR finish, holstered sidearm on thigh, combat knife on chest rig, tactical gloves, and a helmet with emissive cyan HUD strip accent.",
+        "source": "user"
+      },
+      "expression_pose": {
+        "value": "Confident, forward-leaning heroic stance with rifle held at low-ready, jaw set, eyes sharp and focused slightly off-camera.",
+        "source": "inferred"
+      },
+      "details": {
+        "value": "Visible weld seams and rivet detail on armor plates, corrosion growth on metal buckles, stenciled markings on pauldrons, and subsurface scattering on padded vest surfaces.",
+        "source": "inferred"
+      }
+    },
+    "scene": {
+      "setting": {
+        "value": "Industrial underwater or deep-sea military interior environment with rusted bulkheads, corroded pipes, and barnacle-encrusted structural beams.",
+        "source": "inferred"
+      },
+      "background": {
+        "value": "Dark charcoal and deep navy industrial corridor with emissive cyan and orange lighting strips lining the walls, volumetric fog, and distant amber glow through a hatch opening.",
+        "source": "inferred"
+      },
+      "props": {
+        "value": "Scattered ammunition crates with stenciled markings, rusted metal grating underfoot, and hanging cables with emissive red warning lights.",
+        "source": "inferred"
+      },
+      "time_of_day": {
+        "value": "Timeless interior \u2014 artificial lighting suggesting a tense, high-stakes mission atmosphere with deep shadow contrast.",
+        "source": "inferred"
+      }
+    },
+    "composition": {
+      "camera_angle": {
+        "value": "Low-angle heroic upward tilt at approximately 25\u00b0, free-camera perspective-correct 3D viewpoint with subtle lens distortion and chromatic aberration at frame edges.",
+        "source": "inferred"
+      },
+      "framing": {
+        "value": "Full-body to 3/4-body crop, subject centered with slight left offset, character occupying 65% of vertical frame height.",
+        "source": "inferred"
+      },
+      "depth_of_field": {
+        "value": "Natural depth of field with sharp focus on the soldier's face and upper torso, soft bokeh falloff on background corridor elements.",
+        "source": "inferred"
+      }
+    },
+    "lighting": {
+      "key_light": {
+        "value": "Dominant directional key light from upper-front-left casting sharp volumetric shadows across the face and armor, warm burnt orange tone suggesting industrial flare.",
+        "source": "inferred"
+      },
+      "fill_rim": {
+        "value": "Secondary ambient fill in ocean teal from below-right, emissive cyan rim light tracing the helmet and shoulder armor edges, crimson red accent bounce from background warning lights.",
+        "source": "inferred"
+      },
+      "mood": {
+        "value": "Tense, cinematic, high-contrast industrial atmosphere with deep underwater undertones \u2014 dramatic and heroic.",
+        "source": "inferred"
+      }
+    },
+    "style": {
+      "art_style": {
+        "value": "High-fidelity real-time PBR rendering consistent with Unreal Engine 5 \u2014 fully photorealistic, no outlines, no cel-shading, natural anti-aliasing, physically-based metallic/roughness pipeline with emissive material channels.",
+        "source": "inferred"
+      },
+      "quality": {
+        "value": "AAA-quality 2K\u20134K PBR texture sets including albedo, normal, metallic, roughness, AO, and emissive maps; micro-detail includes rivets, weld seams, bolt patterns, stenciled markings, edge wear, paint chipping, and barnacle or corrosion growth.",
+        "source": "inferred"
+      },
+      "color_palette": [
+        {
+          "name": "Deep Navy",
+          "hex": "#0A1E3D",
+          "usage": "Base uniform color, background shadows",
+          "source": "inferred"
+        },
+        {
+          "name": "Ocean Teal",
+          "hex": "#2D7A6E",
+          "usage": "Secondary fill light, armor accent panels",
+          "source": "inferred"
+        },
+        {
+          "name": "Sky Blue",
+          "hex": "#3BA8E0",
+          "usage": "Emissive HUD strip on helmet, ambient atmosphere",
+          "source": "inferred"
+        },
+        {
+          "name": "Aged Gold",
+          "hex": "#C4A832",
+          "usage": "Buckle hardware, insignia, stenciled markings",
+          "source": "inferred"
+        },
+        {
+          "name": "Warm Sand",
+          "hex": "#D6CDB8",
+          "usage": "Knee pads, worn fabric highlights",
+          "source": "inferred"
+        },
+        {
+          "name": "Burnt Orange",
+          "hex": "#D4943A",
+          "usage": "Key light tone, background hatch glow",
+          "source": "inferred"
+        },
+        {
+          "name": "Rust Brown",
+          "hex": "#8B4A2B",
+          "usage": "Corrosion on metal surfaces, barnacle growth",
+          "source": "inferred"
+        },
+        {
+          "name": "Crimson Red",
+          "hex": "#C42020",
+          "usage": "Emissive warning lights, background accent bounce",
+          "source": "inferred"
+        },
+        {
+          "name": "Dark Charcoal",
+          "hex": "#2A2D30",
+          "usage": "Armor plates, rifle body, deep shadow areas",
+          "source": "inferred"
+        }
+      ]
+    },
+    "_meta": {
+      "original_prompt": null,
+      "english_prompt": "A young soldier equipped with weapons",
+      "original_language": "en",
+      "was_translated": false
+    }
+  },
+  "async_completed_at": "2026-04-29T06:50:48.537803+00:00",
+  "png_filename": "asset.png",
+  "svg_path": "/api/gallery/69782305-13e5-4cfb-a74e-e091c8f22d66_o18_v0/svg",
+  "image_size_bytes": 1841530,
+  "three_d_versions": [
+    {
+      "variant_id": "trellis2__afe4",
+      "version": 1,
+      "glb_filename": "asset_3d_v1__trellis2__afe4.glb",
+      "glb_url": "/api/gallery/69782305-13e5-4cfb-a74e-e091c8f22d66_o18_v0/3d/1?variant=trellis2__afe4",
+      "size_bytes": 19006732,
+      "vertices": 363126,
+      "faces": 490794,
+      "params": {
+        "steps": 80,
+        "guidance_scale": 12.0,
+        "seed": null,
+        "faces": 0,
+        "octree_depth": 9,
+        "texture_backend": null
+      },
+      "pipeline": {
+        "geometry_model": "TRELLIS.2 (full pipeline)",
+        "texture_backend": "trellis2_full",
+        "texture_label": "TRELLIS.2 (integrated SLAT PBR)",
+        "instance_type": "ml.g5.2xlarge",
+        "has_pbr": true,
+        "rasterizer": "",
+        "pipeline_type": "trellis2_full",
+        "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
+        "license_accepted_at": "2026-06-25T04:16:23.377004+00:00",
+        "commercial": true,
+        "attributions": [
+          "Built with DINOv3"
+        ]
+      },
+      "instance_label": "TRELLIS.2 Full (25Jun 04:16)",
+      "model_key": "trellis2_image_to_3d_afe4",
+      "job_id": "518adf61",
+      "created_at": "2026-06-25T07:43:25.948350+00:00"
+    },
+    {
+      "variant_id": "triposg-trellis2__c720",
+      "version": 4,
+      "glb_filename": "asset_3d_v4__triposg-trellis2__c720.glb",
+      "glb_url": "/api/gallery/69782305-13e5-4cfb-a74e-e091c8f22d66_o18_v0/3d/4?variant=triposg-trellis2__c720",
+      "size_bytes": 70889056,
+      "vertices": 499392,
+      "faces": 1000000,
+      "params": {
+        "steps": 80,
+        "guidance_scale": 12.0,
+        "seed": null,
+        "faces": 0,
+        "octree_depth": 9,
+        "texture_backend": null
+      },
+      "pipeline": {
+        "geometry_model": "TripoSG",
+        "texture_backend": "trellis2",
+        "texture_label": "TRELLIS.2 (SLAT PBR texturing)",
+        "instance_type": "ml.g6e.2xlarge",
+        "has_pbr": true,
+        "rasterizer": "kaolin",
+        "pipeline_type": "triposg",
+        "license_name": "",
+        "license_accepted_at": "2026-06-25T23:40:56.231549+00:00",
+        "commercial": null,
+        "attributions": [
+          "Built with DINOv3"
+        ]
+      },
+      "instance_label": "TripoSG (25Jun 23:41)",
+      "model_key": "triposg_c720",
+      "job_id": "b0fb7657",
+      "created_at": "2026-06-29T04:20:32.480323+00:00"
+    }
+  ],
+  "has_3d": true,
+  "original_image_model": "hunyuan_image_3_0_instruct_bf16_182c",
+  "versions": [
+    {
+      "version": 1,
+      "type": "original",
+      "prompt": "A young athletic male soldier in his early twenties, deep navy and dark charcoal tactical combat uniform with padded chest rig, stenciled unit markings, aged gold buckles, helmet with emissive cyan HUD strip, gripping assault rifle at low-ready in heroic forward-leaning stance. Rusted underwater military corridor, corroded bulkheads, barnacle-encrusted beams, emissive cyan and orange wall strips, volumetric fog. Burnt orange key light from upper-left, ocean teal fill from below, crimson warning light bounce. Low-angle upward perspective, sharp focus on face and torso. Unreal Engine 5, AAA photorealistic PBR, subsurface scattering, edge wear, weld seams, rivets, 4K texture detail.",
+      "enhanced_prompt": "A young athletic male soldier in his early twenties, determined expression, full-body heroic stance filling 65% of frame. He wears a deep navy and dark charcoal tactical combat uniform with padded chest rig, stenciled unit markings, aged gold buckles with corrosion, and a helmet with emissive cyan HUD strip. He grips an assault rifle at low-ready, holstered sidearm on thigh, combat knife on chest rig, tactical gloves. He leans forward aggressively, jaw clenched, eyes locked ahead through a flooded submarine torpedo bay. Rusted torpedo racks line both sides, barnacle-encrusted loading rails, water pooling on corroded grating underfoot. Burnt orange key light blazes from an open blast door upper-left, ocean teal bioluminescent glow rises from the flooded deck below, crimson emergency strobes pulse along the ceiling. Volumetric fog drifts through the corridor. Low-angle 30\u00b0 upward tilt, subtle chromatic aberration at edges, sharp focus on face and torso with soft bokeh on background. Unreal Engine 5 AAA photorealistic PBR, weld seams, rivets, edge wear, paint chipping, subsurface scattering on padded surfaces, 4K texture detail.",
+      "negative_prompt": "cel-shading, outlines, cartoon, anime, flat shading, 2d, sketch, watercolor, low resolution, blurry, deformed hands, extra fingers, extra limbs, disfigured face, text, watermark, logo, signature, cropped frame, oversaturated, chibi, stylized proportions, soft focus everywhere, plastic skin, doll-like, uncanny valley smooth skin",
+      "image_model": "hunyuan_image_3_0_instruct_bf16_182c",
+      "model_label": "HunyuanImage 3.0 Instruct (BF16) \u2014 HQ (24Apr 21:38)",
+      "timestamp": "2026-04-29T06:25:32.470656"
+    },
+    {
+      "version": 2,
+      "type": "inpainting",
+      "prompt": "Extend the image to build full legs with proper associated shoes for the soldier.",
+      "negative_prompt": "",
+      "mask_prompt": null,
+      "original_language": "en",
+      "original_language_prompts": null,
+      "image_model": "stable_image_inpaint_v1",
+      "model_label": "Stable Image Inpaint",
+      "region": "us-east-1",
+      "seed": null,
+      "extra_params": {},
+      "timestamp": "2026-06-25T05:43:22.593047",
+      "source_review": {
+        "complete": false,
+        "missing": [
+          "feet"
+        ],
+        "crop_edges": [
+          "bottom"
+        ],
+        "reason": "The soldier's feet are cut off at the bottom edge of the frame.",
+        "reviewed_at": "2026-06-29T03:57:28.877501+00:00"
+      }
+    },
+    {
+      "version": 3,
+      "type": "outpainting",
+      "prompt": "the soldier's lower legs and feet in worn navy tactical boots standing in shallow glowing water",
+      "negative_prompt": "",
+      "mask_prompt": null,
+      "original_language": "en",
+      "original_language_prompts": null,
+      "image_model": "stable_outpaint_v1",
+      "model_label": "Stable Image Outpaint",
+      "region": "us-east-1",
+      "seed": null,
+      "extra_params": {
+        "down": 200
+      },
+      "edit_context": {
+        "trigger": "3d_source_completion",
+        "from_version": 2,
+        "detected": {
+          "missing": [
+            "feet"
+          ],
+          "crop_edges": [
+            "bottom"
+          ],
+          "reason": "The soldier's feet are cut off at the bottom edge of the frame."
+        },
+        "directions": {
+          "left": 0,
+          "right": 0,
+          "up": 0,
+          "down": 200
+        },
+        "prompt": "the soldier's lower legs and feet in worn navy tactical boots standing in shallow glowing water"
+      },
+      "timestamp": "2026-06-29T03:56:03.146242",
+      "source_review": {
+        "complete": true,
+        "missing": [],
+        "crop_edges": [],
+        "reason": "The soldier is fully visible from head to boots within the frame.",
+        "reviewed_at": "2026-06-29T03:56:08.084844+00:00"
+      }
+    },
+    {
+      "version": 4,
+      "type": "outpainting",
+      "prompt": "the soldier's lower legs and combat boots in matching dark navy tactical gear with armored knee pads, standing in shallow water on a metal grated floor",
+      "negative_prompt": "",
+      "mask_prompt": null,
+      "original_language": "en",
+      "original_language_prompts": null,
+      "image_model": "stable_outpaint_v1",
+      "model_label": "Stable Image Outpaint",
+      "region": "us-east-1",
+      "seed": null,
+      "extra_params": {
+        "down": 200
+      },
+      "edit_context": {
+        "trigger": "3d_source_completion",
+        "from_version": 2,
+        "detected": {
+          "missing": [
+            "feet"
+          ],
+          "crop_edges": [
+            "bottom"
+          ],
+          "reason": "The soldier's feet are cut off at the bottom edge of the frame."
+        },
+        "directions": {
+          "left": 0,
+          "right": 0,
+          "up": 0,
+          "down": 200
+        },
+        "prompt": "the soldier's lower legs and combat boots in matching dark navy tactical gear with armored knee pads, standing in shallow water on a metal grated floor"
+      },
+      "timestamp": "2026-06-29T03:57:58.920654",
+      "source_review": {
+        "complete": true,
+        "missing": [],
+        "crop_edges": [],
+        "reason": "The soldier is fully visible from head to feet within the frame.",
+        "reviewed_at": "2026-06-29T03:58:06.379960+00:00"
+      }
+    }
+  ],
+  "current_version": 4,
+  "last_edited_at": "2026-06-29T03:57:58.920663",
+  "last_edit_type": "outpainting",
+  "last_edit_model": "stable_outpaint_v1",
+  "last_edit_prompt": "the soldier's lower legs and combat boots in matching dark navy tactical gear with armored knee pads, standing in shallow water on a metal grated floor",
+  "three_d": {
+    "v1": {
+      "default_variant": "trellis2__afe4",
+      "variants": [
+        {
+          "variant_id": "triposg-trellis2__e65c",
+          "version": 1,
+          "glb_filename": "asset_3d_v1__triposg-trellis2__e65c.glb",
+          "glb_url": "/api/gallery/69782305-13e5-4cfb-a74e-e091c8f22d66_o18_v0/3d/1?variant=triposg-trellis2__e65c",
+          "size_bytes": 73629976,
+          "vertices": 500259,
+          "faces": 1000000,
+          "params": {
+            "steps": 80,
+            "guidance_scale": 12.0,
+            "seed": null,
+            "faces": 0,
+            "octree_depth": 9,
+            "texture_backend": null
+          },
+          "pipeline": {
+            "geometry_model": "TripoSG",
+            "texture_backend": "trellis2",
+            "texture_label": "TRELLIS.2 (SLAT PBR texturing)",
+            "instance_type": "ml.g6e.2xlarge",
+            "has_pbr": true,
+            "rasterizer": "kaolin",
+            "pipeline_type": "triposg",
+            "license_name": "",
+            "license_accepted_at": "2026-06-25T04:17:49.929281+00:00",
+            "commercial": null,
+            "attributions": [
+              "Built with DINOv3"
+            ]
+          },
+          "instance_label": "TripoSG (25Jun 04:18)",
+          "model_key": "triposg_e65c",
+          "job_id": "3a4d523f",
+          "created_at": "2026-06-25T06:13:56.789032+00:00"
+        },
+        {
+          "variant_id": "trellis2__afe4",
+          "version": 1,
+          "glb_filename": "asset_3d_v1__trellis2__afe4.glb",
+          "glb_url": "/api/gallery/69782305-13e5-4cfb-a74e-e091c8f22d66_o18_v0/3d/1?variant=trellis2__afe4",
+          "size_bytes": 19006732,
+          "vertices": 363126,
+          "faces": 490794,
+          "params": {
+            "steps": 80,
+            "guidance_scale": 12.0,
+            "seed": null,
+            "faces": 0,
+            "octree_depth": 9,
+            "texture_backend": null
+          },
+          "pipeline": {
+            "geometry_model": "TRELLIS.2 (full pipeline)",
+            "texture_backend": "trellis2_full",
+            "texture_label": "TRELLIS.2 (integrated SLAT PBR)",
+            "instance_type": "ml.g5.2xlarge",
+            "has_pbr": true,
+            "rasterizer": "",
+            "pipeline_type": "trellis2_full",
+            "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
+            "license_accepted_at": "2026-06-25T04:16:23.377004+00:00",
+            "commercial": true,
+            "attributions": [
+              "Built with DINOv3"
+            ]
+          },
+          "instance_label": "TRELLIS.2 Full (25Jun 04:16)",
+          "model_key": "trellis2_image_to_3d_afe4",
+          "job_id": "518adf61",
+          "created_at": "2026-06-25T07:43:25.948350+00:00"
+        }
+      ]
+    },
+    "v4": {
+      "default_variant": "triposg-trellis2__c720",
+      "variants": [
+        {
+          "variant_id": "trellis2__2e8c",
+          "version": 4,
+          "glb_filename": "asset_3d_v4__trellis2__2e8c.glb",
+          "glb_url": "/api/gallery/69782305-13e5-4cfb-a74e-e091c8f22d66_o18_v0/3d/4?variant=trellis2__2e8c",
+          "size_bytes": 35586932,
+          "vertices": 708536,
+          "faces": 949677,
+          "params": {
+            "steps": 80,
+            "guidance_scale": 12.0,
+            "seed": null,
+            "faces": 0,
+            "octree_depth": 9,
+            "texture_backend": null
+          },
+          "pipeline": {
+            "geometry_model": "TRELLIS.2 (full pipeline)",
+            "texture_backend": "trellis2_full",
+            "texture_label": "TRELLIS.2 (integrated SLAT PBR)",
+            "instance_type": "ml.g5.2xlarge",
+            "has_pbr": true,
+            "rasterizer": "",
+            "pipeline_type": "trellis2_full",
+            "license_name": "MIT (TRELLIS.2) + DINOv3 attribution + nvdiffrast (non-commercial bake)",
+            "license_accepted_at": "2026-06-25T23:38:47.332916+00:00",
+            "commercial": true,
+            "attributions": [
+              "Built with DINOv3"
+            ]
+          },
+          "instance_label": "TRELLIS.2 Full (25Jun 23:38)",
+          "model_key": "trellis2_image_to_3d_2e8c",
+          "job_id": "ecca1ae9",
+          "created_at": "2026-06-29T04:18:20.874840+00:00"
+        },
+        {
+          "variant_id": "triposg-trellis2__c720",
+          "version": 4,
+          "glb_filename": "asset_3d_v4__triposg-trellis2__c720.glb",
+          "glb_url": "/api/gallery/69782305-13e5-4cfb-a74e-e091c8f22d66_o18_v0/3d/4?variant=triposg-trellis2__c720",
+          "size_bytes": 70889056,
+          "vertices": 499392,
+          "faces": 1000000,
+          "params": {
+            "steps": 80,
+            "guidance_scale": 12.0,
+            "seed": null,
+            "faces": 0,
+            "octree_depth": 9,
+            "texture_backend": null
+          },
+          "pipeline": {
+            "geometry_model": "TripoSG",
+            "texture_backend": "trellis2",
+            "texture_label": "TRELLIS.2 (SLAT PBR texturing)",
+            "instance_type": "ml.g6e.2xlarge",
+            "has_pbr": true,
+            "rasterizer": "kaolin",
+            "pipeline_type": "triposg",
+            "license_name": "",
+            "license_accepted_at": "2026-06-25T23:40:56.231549+00:00",
+            "commercial": null,
+            "attributions": [
+              "Built with DINOv3"
+            ]
+          },
+          "instance_label": "TripoSG (25Jun 23:41)",
+          "model_key": "triposg_c720",
+          "job_id": "b0fb7657",
+          "created_at": "2026-06-29T04:20:32.480323+00:00"
+        }
+      ]
+    }
+  }
+}
