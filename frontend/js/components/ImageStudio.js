@@ -2525,16 +2525,17 @@
 
                 // Model selector is restored above (handles all_models + deleted endpoints)
 
-                // Restore dimension preset
+                // Restore dimension preset — match the active presets by WIDTH/HEIGHT.
+                // (Option labels use a Unicode "×" and vary per model, so matching the
+                // "W x H" string always failed and fell back to the default. And a size
+                // like 1080×1920 only exists in the model's supported_sizes.)
+                // _syncModelCheckboxes above already rebuilt _activeSizePresets for the
+                // restored model set, and the option value is the index into it.
                 const sizeSel = document.getElementById('gen-size');
                 if (sizeSel && result.width && result.height) {
-                    const sizeStr = `${result.width} x ${result.height}`;
-                    for (let i = 0; i < sizeSel.options.length; i++) {
-                        if (sizeSel.options[i].text === sizeStr) {
-                            sizeSel.value = i;
-                            break;
-                        }
-                    }
+                    const presets = this._activeSizePresets || SIZE_PRESETS;
+                    const idx = presets.findIndex(s => s.w === result.width && s.h === result.height);
+                    if (idx >= 0) sizeSel.value = String(idx);
                 }
 
                 // Restore toggle switches
@@ -2554,12 +2555,27 @@
                     }
                 }
 
-                // Restore options/variations counts
+                // Restore options/variations counts — use the ORIGINAL generation
+                // settings. (result.num_options is the surviving option-GROUP count,
+                // which for an all-models batch exceeds the 1–5 range and blanks the
+                // select; original_num_options is the true per-generation value.)
                 const optsSel = document.getElementById('gen-num-options');
-                if (optsSel && result.num_options) optsSel.value = result.num_options;
+                const nOpts = result.original_num_options || result.num_options;
+                if (optsSel && nOpts) optsSel.value = String(nOpts);
 
                 const varsSel = document.getElementById('gen-num-variations');
-                if (varsSel && result.num_variations) varsSel.value = result.num_variations;
+                const nVars = result.original_num_variations || result.num_variations;
+                if (varsSel && nVars) varsSel.value = String(nVars);
+
+                // Restore quality + region when the restored model set exposes them as
+                // options (single-model jobs). An all-models / auto batch legitimately
+                // keeps "All Regions" / "Default", so only set when the option exists.
+                const qualSel = document.getElementById('gen-quality');
+                if (qualSel && result.quality && [...qualSel.options].some(o => o.value === result.quality))
+                    qualSel.value = result.quality;
+                const regionSel = document.getElementById('gen-region');
+                if (regionSel && result.region && [...regionSel.options].some(o => o.value === result.region))
+                    regionSel.value = result.region;
 
                 // Render the results
                 this._renderResults(result);

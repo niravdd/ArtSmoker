@@ -367,6 +367,8 @@ async def get_batch(batch_id: str):
         "model_map": model_map,
         "width": first.get("width", 1024),
         "height": first.get("height", 1024),
+        "quality": first.get("quality", ""),
+        "region": first.get("region", ""),
         "remove_background": first.get("remove_background", False),
         "generate_svg": first.get("generate_svg", False),
         "upscale": first.get("upscale", False),
