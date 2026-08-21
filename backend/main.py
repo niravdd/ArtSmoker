@@ -315,7 +315,7 @@ async def lifespan(app: FastAPI):
                 _sync_progress("Discovering model availability in Amazon Bedrock in your AWS account...")
                 logger.info("Auto-Sync: %s", _server_state["sync_message"])
 
-                from backend.routers.admin import refresh_all_regions, _get_bedrock_regions, _fetch_image_pricing, _fetch_sagemaker_pricing
+                from backend.routers.admin import refresh_all_regions, _get_bedrock_regions, _fetch_image_pricing, _fetch_sagemaker_pricing, _refresh_gpu_instance_rates, _fetch_video_pricing, _record_infra_pricing
                 from backend.services.model_registry import get_registry, _save as _reg_save
                 _reg_save._silent = True
 
@@ -337,6 +337,16 @@ async def lifespan(app: FastAPI):
                     sm_pricing = _fetch_sagemaker_pricing(all_regions)
                     if sm_pricing:
                         registry["sagemaker_pricing"] = sm_pricing
+                        _reg_save()
+                    # Keep gpu_instances rates in lockstep with live pricing (no extra call).
+                    if _refresh_gpu_instance_rates(registry):
+                        _reg_save()
+                    # Per-region video pricing (Nova Reel); Luma/3rd-party keep base_price_per_second_usd.
+                    vid_pricing = _fetch_video_pricing(all_regions)
+                    if vid_pricing:
+                        registry["video_pricing"] = vid_pricing
+                        _reg_save()
+                    if _record_infra_pricing(registry):
                         _reg_save()
                     _sync_progress(f"Scanning {len(all_regions)} regions for available models...")
 

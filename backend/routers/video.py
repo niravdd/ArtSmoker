@@ -65,11 +65,15 @@ async def generate_video(req: VideoGenerateRequest):
     from backend.services.cost_tracker import reset_costs, get_total_cost
     reset_costs()
 
-    # Estimate video model cost: price_per_second × duration
+    # Estimate video model cost: price_per_second × duration — REGISTRY-sourced and
+    # region-aware (video_pricing[model|region] when Sync-recorded, else the model's
+    # base_price_per_second_usd). Uses the actual region the job will run in.
     dur = int(req.duration or 6)
     vid_cfg = get_video_model(req.model_key) if req.model_key else {}
-    price_per_sec = vid_cfg.get("base_price_per_second_usd", 0) or 0
-    estimated_video_cost = round(price_per_sec * dur, 4)
+    from backend.services.cost_tracker import resolve_video_price_per_sec
+    _vregion = req.region_override or (vid_cfg.get("region") if vid_cfg else "") or ""
+    price_per_sec = resolve_video_price_per_sec(vid_cfg, req.model_key or "", _vregion)
+    estimated_video_cost = round((price_per_sec or 0) * dur, 4)
 
     vs = get_video_settings()
     if not vs.get("s3_bucket"):

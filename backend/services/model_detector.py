@@ -20,6 +20,26 @@ import re
 logger = logging.getLogger(__name__)
 
 
+def _detected_pricing(recommended_instance: str, latency_seconds: float) -> dict:
+    """Pricing block for an auto-detected custom model — REGISTRY-sourced hourly rate
+    (custom_model_catalog.gpu_instances) with a DERIVED per-generation estimate
+    (hourly × typical latency). No hardcoded rates or arbitrary formulas. Empty/None
+    when the rate isn't in the registry (get_instance_hourly_rate resolves it live at
+    deploy/cost time)."""
+    hr = None
+    try:
+        from backend.services.model_registry import get_registry
+        gi = get_registry().get("custom_model_catalog", {}).get("gpu_instances", {})
+        hr = (gi.get(recommended_instance, {}) or {}).get("cost_per_hour_usd")
+    except Exception:
+        hr = None
+    est = round(hr * (latency_seconds or 0) / 3600, 3) if (hr and latency_seconds) else None
+    return {
+        "estimated_cost_per_image": est,
+        "instance_cost_per_hour": {recommended_instance: hr} if hr else {},
+    }
+
+
 def detect_from_hf_repo(repo_id: str, hf_token: str | None = None) -> dict:
     """Inspect a HuggingFace repo and return a pre-filled catalog entry.
 
@@ -103,23 +123,18 @@ def detect_from_hf_repo(repo_id: str, hf_token: str | None = None) -> dict:
     # Multi-GPU: g6e.12xlarge (4×48=192GB), g6e.48xlarge (8×48=384GB)
     if vram_gb > 192:
         recommended = "ml.g6e.48xlarge"
-        instance_costs = {"ml.g6e.48xlarge": 125.28}
         invoke_config["enable_model_cpu_offload"] = True
     elif vram_gb > 48:
         recommended = "ml.g6e.12xlarge"
-        instance_costs = {"ml.g6e.12xlarge": 31.32}
         invoke_config["enable_model_cpu_offload"] = True
     elif vram_gb > 24:
         recommended = "ml.g6e.xlarge"
-        instance_costs = {"ml.g6e.xlarge": 2.61}
         invoke_config["enable_model_cpu_offload"] = True
     elif vram_gb > 12:
         recommended = "ml.g5.2xlarge"
-        instance_costs = {"ml.g5.xlarge": 1.41, "ml.g5.2xlarge": 2.82}
         invoke_config["enable_model_cpu_offload"] = True
     else:
         recommended = "ml.g5.xlarge"
-        instance_costs = {"ml.g5.xlarge": 1.41}
 
     # Python requirements from registry templates (not hardcoded)
     try:
@@ -162,10 +177,9 @@ def detect_from_hf_repo(repo_id: str, hf_token: str | None = None) -> dict:
             "disk_gb": max(1, int(vram_gb * 1.5)),
         },
         "invoke": invoke_config,
-        "pricing": {
-            "estimated_cost_per_image": round(0.02 * (vram_gb / 12), 3),
-            "instance_cost_per_hour": instance_costs,
-        },
+        # Pricing is REGISTRY-sourced (gpu_instances live hourly rate), not hardcoded.
+        # estimated_cost_per_image is derived (hourly × typical latency), not a formula.
+        "pricing": _detected_pricing(recommended, invoke_config.get("typical_latency_seconds", 0)),
         "python_requirements": {
             "base": base_reqs,
             "model": model_reqs,

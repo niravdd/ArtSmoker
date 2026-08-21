@@ -385,9 +385,9 @@ def get_image_model_options(region: str | None = Query(default=None)):
     in that region. If omitted, returns all enabled models.
     """
     from backend.services.model_registry import get_enabled_image_models, get_registry
+    from backend.services.cost_tracker import resolve_image_price
     enabled = get_enabled_image_models()
     registry = get_registry()
-    pricing = registry.get("image_pricing", {})
 
     models = []
     for key, cfg in enabled.items():
@@ -422,42 +422,24 @@ def get_image_model_options(region: str | None = Query(default=None)):
             if region not in available_regions:
                 continue
 
-        # Build per-region pricing with quality breakdown
-        # Try matching pricing data by multiple name variants
+        # Build per-region pricing via the SHARED resolver (resolve_image_price) —
+        # the exact matching the cost path uses, so display and billing never
+        # diverge. No duplicate matching logic here.
         model_label = cfg.get("label", key)
-        name_variants = [model_label, model_label.replace("Amazon ", ""), model_label.replace("Stable ", ""), key]
         quality_opts = cfg.get("quality_options", [])
         default_q = cfg.get("default_quality", "")
 
         region_pricing = []
         for r in available_regions:
-            # Build quality-specific prices for this region
             quality_prices = {}
-            for name_variant in name_variants:
-                for q in (quality_opts or [{"value": ""}]):
-                    qv = q.get("value", "")
-                    # Try full key first: model|region|quality|1024
-                    for size in ["1024", "512", ""]:
-                        price_info = pricing.get(f"{name_variant}|{r}|{qv}|{size}", {})
-                        if price_info.get("price_usd") and price_info.get("is_t2i", True):
-                            if qv not in quality_prices:
-                                quality_prices[qv] = price_info["price_usd"]
-                            break
-                if quality_prices:
-                    break  # Found prices with this name variant
-
-            # Fallback: simple key
-            if not quality_prices:
-                for name_variant in name_variants:
-                    price_info = pricing.get(f"{name_variant}|{r}", {})
-                    if price_info.get("price_usd"):
-                        quality_prices[""] = price_info["price_usd"]
-                        break
-
-            # Default price = default quality tier, or first available, or base_price from registry
+            for q in (quality_opts or [{"value": ""}]):
+                qv = q.get("value", "")
+                p = resolve_image_price(cfg, key, r, qv)
+                if p is not None:
+                    quality_prices[qv] = p
             base_price = cfg.get("base_price_usd")
-            default_price = quality_prices.get(default_q) or quality_prices.get("") or next(iter(quality_prices.values()), None) or base_price
-
+            default_price = (quality_prices.get(default_q) or quality_prices.get("")
+                             or next(iter(quality_prices.values()), None) or base_price)
             region_pricing.append({
                 "region": r,
                 "price_usd": default_price,
@@ -784,60 +766,66 @@ async def auto_register_image_models(region: str):
         """Classify a Bedrock image model → (model_purpose, format_family, prompt_limit,
         base_price, optimal_prompt_words, prompt_guidance) from its id + provider.
 
+        base_price comes from the registry's provider_price_defaults (source of record
+        for models the AWS Pricing API can't price) via _provider_price_default — NOT
+        hardcoded here; None when absent → base_price_usd stays unset → 'unavailable'.
         prompt_guidance is model-specific steering seeded from official docs; empty
         string ("") for edit/utility services that take no descriptive prompt."""
         mid = model_id.lower()
-        has_image_input = "IMAGE" in input_modalities
+
+        def _pp(purpose):
+            return _provider_price_default("image", f"{provider}|{purpose}")
 
         # Stability AI services — classify by model ID keywords
         if provider == "Stability AI":
             if "inpaint" in mid:
-                return "inpainting", "stability_inpaint", 10000, 0.07, 0, ""
+                return "inpainting", "stability_inpaint", 10000, _pp("inpainting"), 0, ""
             if "outpaint" in mid:
-                return "outpainting", "stability_outpaint", 10000, 0.06, 0, ""
+                return "outpainting", "stability_outpaint", 10000, _pp("outpainting"), 0, ""
             if "erase" in mid:
-                return "erase", "stability_erase", 0, 0.07, 0, ""
+                return "erase", "stability_erase", 0, _pp("erase"), 0, ""
             if "search-replace" in mid or "search_replace" in mid:
-                return "search_replace", "stability_search_replace", 10000, 0.07, 0, ""
+                return "search_replace", "stability_search_replace", 10000, _pp("search_replace"), 0, ""
             if "search-recolor" in mid or "recolor" in mid:
-                return "search_recolor", "stability_search_recolor", 10000, 0.07, 0, ""
+                return "search_recolor", "stability_search_recolor", 10000, _pp("search_recolor"), 0, ""
             if "control-sketch" in mid:
-                return "control_sketch", "stability_control", 10000, 0.07, 0, ""
+                return "control_sketch", "stability_control", 10000, _pp("control_sketch"), 0, ""
             if "control-structure" in mid:
-                return "control_structure", "stability_control", 10000, 0.07, 0, ""
+                return "control_structure", "stability_control", 10000, _pp("control_structure"), 0, ""
             if "style-guide" in mid:
-                return "style_guide", "stability_control", 10000, 0.07, 0, ""
+                return "style_guide", "stability_control", 10000, _pp("style_guide"), 0, ""
             if "style-transfer" in mid:
-                return "style_transfer", "stability_style_transfer", 10000, 0.08, 0, ""
+                return "style_transfer", "stability_style_transfer", 10000, _pp("style_transfer"), 0, ""
             if "remove-background" in mid:
-                return "remove_background", "stability_remove_bg", 0, 0.07, 0, ""
+                return "remove_background", "stability_remove_bg", 0, _pp("remove_background"), 0, ""
             if "creative-upscale" in mid:
-                return "upscale_creative", "stability_upscale", 10000, 0.60, 0, ""
+                return "upscale_creative", "stability_upscale", 10000, _pp("upscale_creative"), 0, ""
             if "conservative-upscale" in mid:
-                return "upscale_conservative", "stability_upscale", 10000, 0.40, 0, ""
+                return "upscale_conservative", "stability_upscale", 10000, _pp("upscale_conservative"), 0, ""
             if "fast-upscale" in mid:
-                return "upscale_fast", "stability_upscale", 0, 0.03, 0, ""
+                return "upscale_fast", "stability_upscale", 0, _pp("upscale_fast"), 0, ""
             # Default: text-to-image (SD 3.5, Stable Image Ultra/Core)
             opw = 120 if "sd3" in mid or "3.5" in mid else 100
-            return "text_to_image", "stability_text_to_image", 2000, 0.08, opw, _STABILITY_T2I_GUIDANCE
+            return "text_to_image", "stability_text_to_image", 2000, _pp("text_to_image"), opw, _STABILITY_T2I_GUIDANCE
 
         # Amazon models (Nova Canvas, Titan Image)
         if provider == "Amazon":
             if "titan" in mid:
-                return "text_to_image", "amazon_text_to_image", 900, 0.06, 40, _AMAZON_DEFAULT_GUIDANCE
+                return "text_to_image", "amazon_text_to_image", 900, _pp("text_to_image"), 40, _AMAZON_DEFAULT_GUIDANCE
             # Nova Canvas — caption-style, drops trailing detail on long prompts
-            return "text_to_image", "amazon_text_to_image", 900, 0.06, 55, _NOVA_CANVAS_GUIDANCE
+            return "text_to_image", "amazon_text_to_image", 900, _pp("text_to_image"), 55, _NOVA_CANVAS_GUIDANCE
 
         return "text_to_image", None, 900, None, 80, ""
 
     def _classify_video_model(model_id: str, provider: str, input_modalities: list[str]):
-        """Determine format_family, pricing, and optimal_prompt_words for video models."""
+        """Determine format_family, pricing, and optimal_prompt_words for video models.
+        base_price comes from the registry (provider_price_defaults), not hardcoded."""
         mid = model_id.lower()
         has_image_input = "IMAGE" in input_modalities
         if "nova-reel" in mid:
-            return "text_to_video", "nova_reel", 512, 0.08, has_image_input, 50
+            return "text_to_video", "nova_reel", 512, _provider_price_default("video", "nova_reel"), has_image_input, 50
         if "ray" in mid or "luma" in mid:
-            return "text_to_video", "luma_ray", 5000, 1.50, has_image_input, 60
+            return "text_to_video", "luma_ray", 5000, _provider_price_default("video", "luma_ray"), has_image_input, 60
         return "text_to_video", None, 512, None, has_image_input, 50
 
     def _register_chat_model(m: dict, region: str, registry: dict, registered: list):
@@ -1369,6 +1357,124 @@ def _fetch_sagemaker_pricing(regions: list[str] | None = None) -> dict:
         return {}
 
 
+def _refresh_gpu_instance_rates(registry: dict) -> int:
+    """Overwrite the deploy-selection table `custom_model_catalog.gpu_instances[*]
+    .cost_per_hour_usd` with the LIVE per-region rates already fetched into
+    `sagemaker_pricing`, so the deploy UI and the cost math read the SAME source
+    (they previously drifted). Reference region: us-east-1, else us-west-2, else any
+    synced region for that instance. No new AWS call — reuses sagemaker_pricing.
+    Returns the count of instance rows updated."""
+    sm = registry.get("sagemaker_pricing", {}) or {}
+    gi = (registry.get("custom_model_catalog", {}) or {}).get("gpu_instances", {})
+    if not sm or not gi:
+        return 0
+    updated = 0
+    for inst, specs in gi.items():
+        if not isinstance(specs, dict):
+            continue
+        rate = (sm.get(f"{inst}|us-east-1") or sm.get(f"{inst}|us-west-2")
+                or next((v for k, v in sm.items() if k.startswith(inst + "|") and v), None))
+        if rate and specs.get("cost_per_hour_usd") != round(float(rate), 4):
+            specs["cost_per_hour_usd"] = round(float(rate), 4)
+            updated += 1
+    if updated:
+        logger.info("Refreshed %d gpu_instances hourly rate(s) from live sagemaker_pricing", updated)
+    return updated
+
+
+def _fetch_video_pricing(regions: list[str] | None = None) -> dict:
+    """Fetch per-region VIDEO pricing from the AWS Pricing API (AmazonBedrock,
+    'video'/'seconds' unit — e.g. Nova Reel priced per second). Mirrors the shape of
+    _fetch_image_pricing. Returns
+    { "<model>|<region>": {"model_name","region","price_per_second","usage_type"} }.
+    Only models AWS prices this way appear (Nova Reel); 3rd-party video models (Luma
+    Ray) aren't in the API and keep their registry base_price_per_second_usd — the
+    same fallback Stability uses on the image side. Empty on failure; us-east-1 only."""
+    try:
+        import json as _json
+        client = boto3.Session().client("pricing", region_name="us-east-1")
+        target = set(regions or [])
+        prices: dict = {}
+        nt, pages = None, 0
+        while pages < 40:  # bound the scan
+            pages += 1
+            kw = {"ServiceCode": "AmazonBedrock", "MaxResults": 100}
+            if nt:
+                kw["NextToken"] = nt
+            resp = client.get_products(**kw)
+            for p in resp.get("PriceList", []):
+                pd = _json.loads(p)
+                attrs = pd.get("product", {}).get("attributes", {})
+                model_name = attrs.get("model", "")
+                region = attrs.get("regionCode", "")
+                if not model_name or not region:
+                    continue
+                if target and region not in target:
+                    continue
+                for terms in pd.get("terms", {}).values():
+                    for term in terms.values():
+                        for dim in term.get("priceDimensions", {}).values():
+                            if dim.get("unit", "").lower() not in ("video", "second", "seconds"):
+                                continue
+                            price = float(dim.get("pricePerUnit", {}).get("USD", "0") or 0)
+                            if price <= 0:
+                                continue
+                            key = f"{model_name}|{region}"
+                            if key not in prices:  # first = representative rate
+                                prices[key] = {
+                                    "model_name": model_name, "region": region,
+                                    "price_per_second": price,
+                                    "usage_type": attrs.get("usagetype", "")[:80],
+                                }
+            nt = resp.get("NextToken")
+            if not nt:
+                break
+        logger.info("Fetched %d video pricing entries from AWS Pricing API", len(prices))
+        return prices
+    except Exception as exc:
+        logger.warning("Failed to fetch video pricing: %s", exc)
+        return {}
+
+
+def _record_infra_pricing(registry: dict) -> int:
+    """Record standard per-region S3 infra rates into `registry.infra_pricing` so
+    cost tracking is registry-SOURCED rather than relying on cost_tracker's built-in
+    fallback. Only fills regions NOT already present, so a manual
+    registry override is never clobbered. (S3 request/transfer pricing is effectively
+    static; a live fetch adds fragility for fractions-of-a-cent, so we seed the known
+    standard rates into the registry as the source of record.) Returns rows added."""
+    # Standard per-region S3 rates (request Tier1/Tier2 + data-transfer-out). This is
+    # the recording SEED; cost_tracker reads only the registry at compute time.
+    _S3_STANDARD_RATES = {
+        "us-east-1": {"s3_put_per_1k": 0.005, "s3_get_per_1k": 0.0004, "s3_transfer_out_per_gb": 0.09},
+        "us-west-2": {"s3_put_per_1k": 0.005, "s3_get_per_1k": 0.0004, "s3_transfer_out_per_gb": 0.09},
+        "ap-southeast-2": {"s3_put_per_1k": 0.0055, "s3_get_per_1k": 0.00044, "s3_transfer_out_per_gb": 0.114},
+        "eu-west-1": {"s3_put_per_1k": 0.0054, "s3_get_per_1k": 0.00043, "s3_transfer_out_per_gb": 0.09},
+    }
+    infra = registry.setdefault("infra_pricing", {})
+    added = 0
+    for region, rates in _S3_STANDARD_RATES.items():
+        if region not in infra:
+            infra[region] = dict(rates)
+            added += 1
+    if added:
+        logger.info("Recorded standard S3 infra pricing for %d region(s) into the registry", added)
+    return added
+
+
+def _provider_price_default(kind: str, key: str):
+    """Look up a published per-unit price from the registry's `provider_price_defaults`
+    (the source of record for models the AWS Pricing API can't price — Stability image
+    services, video). `kind` is 'image' or 'video'; `key` is 'Provider|purpose' (image)
+    or the family (video). Returns None when absent → base_price_usd stays unset →
+    'pricing unavailable'. Prices live in the registry, NOT hardcoded in code."""
+    try:
+        from backend.services.model_registry import get_registry
+        return (get_registry().get("provider_price_defaults", {}) or {}).get(kind, {}).get(key)
+    except Exception:
+        return None
+
+
 def _fetch_llm_pricing() -> dict:
     """Fetch per-model, per-region LLM TOKEN pricing from the AWS Pricing API.
 
@@ -1460,6 +1566,7 @@ def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
         cand_norms = {_norm(label), _norm(mid.split(".")[-1].split(":")[0].replace("-", " "))}
         regions = cm.get("available_regions") or ([cm.get("region")] if cm.get("region") else [])
         match = None
+        matched_byreg = None
         for pname, byreg in by_name.items():
             if not pname:
                 continue
@@ -1475,12 +1582,29 @@ def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
                     px = next((byreg[r] for r in regions if r in byreg), None) or next(iter(byreg.values()), None)
                     if px:
                         match = px
+                        matched_byreg = byreg
                         break
             if match:
                 break
         if match and (match.get("input_per_1k") or match.get("output_per_1k")):
+            # Collapsed default (a region the model is in, else any) — the fallback
+            # compute_llm_cost uses when no region is passed or a region isn't mapped.
             cm["input_price_per_1k"] = match.get("input_per_1k", 0)
             cm["output_price_per_1k"] = match.get("output_per_1k", 0)
+            # Retain the FULL per-region map ONLY when token prices actually VARY by
+            # region — most models price tokens uniformly across regions, so the
+            # collapsed default suffices and we avoid bloating the registry. When they
+            # differ, compute_llm_cost uses the actual call region's price.
+            per_region = {
+                r: {"input_per_1k": p.get("input_per_1k", 0), "output_per_1k": p.get("output_per_1k", 0)}
+                for r, p in (matched_byreg or {}).items()
+                if (p.get("input_per_1k") or p.get("output_per_1k"))
+            }
+            distinct = {(p["input_per_1k"], p["output_per_1k"]) for p in per_region.values()}
+            if len(distinct) > 1:
+                cm["token_pricing_by_region"] = per_region
+            else:
+                cm.pop("token_pricing_by_region", None)  # prices uniform → default only
             priced += 1
     return priced
 
@@ -2049,6 +2173,20 @@ def _run_refresh_all_regions():
         if sm_pricing:
             registry["sagemaker_pricing"] = sm_pricing
             logger.debug("Stored SageMaker pricing for %d instance-region combos", len(sm_pricing))
+        # Keep the deploy-selection gpu_instances table in lockstep with the live
+        # sagemaker_pricing (they previously drifted). No extra AWS call.
+        _refresh_gpu_instance_rates(registry)
+
+        # Step 2b-iii: Per-region VIDEO pricing (Nova Reel $/second). 3rd-party video
+        # models (Luma Ray) aren't in the API → they keep base_price_per_second_usd.
+        vid_pricing = _fetch_video_pricing(scan_regions)
+        if vid_pricing:
+            registry["video_pricing"] = vid_pricing
+            logger.debug("Stored video pricing for %d model-region combos", len(vid_pricing))
+
+        # Step 2b-iv: Record standard S3 infra pricing into the registry so S3 cost
+        # tracking is registry-sourced (fills only missing regions; keeps overrides).
+        _record_infra_pricing(registry)
 
         # Step 2c: Reset all available_regions before scanning — so stale regions
         # are pruned automatically. Each region scan in Step 3 re-adds itself.

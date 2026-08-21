@@ -310,7 +310,7 @@ def _build_variant(
             "image_model": effective_model.value if hasattr(effective_model, 'value') else str(effective_model),
             "model_label": model_label or "",
             "quality": body.quality or "",
-            "region": _get_model_region(effective_model),
+            "region": body.region or _get_model_region(effective_model),
             "width": body.width,
             "height": body.height,
             "seed": seed,
@@ -388,7 +388,7 @@ def _build_variant(
         "image_model": effective_model.value if hasattr(effective_model, 'value') else str(effective_model),
         "model_label": model_label or "",
         "quality": body.quality or "",
-        "region": _get_model_region(effective_model),
+        "region": body.region or _get_model_region(effective_model),
         "width": body.width,
         "height": body.height,
         "seed": seed,
@@ -1341,16 +1341,24 @@ async def estimate_generation_cost(body: GenerationRequest):
     n_vars = body.num_variations
     images_per_model = n_opts * n_vars
 
+    from backend.services.cost_tracker import resolve_image_price
     image_costs = {}
     for mk in model_keys:
         model = get_image_model(mk)
-        price = model.get("base_price_usd") or 0.08
-        subtotal = price * images_per_model
+        mk_str = mk.value if hasattr(mk, "value") else str(mk)
+        region = body.region or model.get("region", "")
+        # Registry-sourced, region + quality aware (same resolver as the cost path);
+        # registry base_price_usd as fallback; None → "pricing unavailable" (no guess).
+        price = resolve_image_price(model, mk_str, region, body.quality or "")
+        if price is None:
+            price = model.get("base_price_usd")
+        subtotal = round((price or 0) * images_per_model, 4)
         image_costs[mk] = {
             "label": model.get("label", mk),
-            "price_per_image": round(price, 4),
+            "price_per_image": round(price, 4) if price is not None else None,
             "count": images_per_model,
-            "subtotal": round(subtotal, 4),
+            "subtotal": subtotal,
+            "price_available": price is not None,
         }
 
     # LLM cost estimate: ~$0.005 per refinement call

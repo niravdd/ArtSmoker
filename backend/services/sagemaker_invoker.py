@@ -99,32 +99,43 @@ def invoke_custom_model(
     if not endpoint_name:
         raise ValueError(f"Model '{model_key}' has no Amazon SageMaker endpoint configured.")
 
-    # Track cost
-    from backend.services.cost_tracker import add_cost
-    estimated_cost = model_config.get("base_price_usd", 0)
-
     try:
         if endpoint_type == "async":
-            # Non-blocking: submit to SageMaker, register with async job tracker,
-            # return a sentinel immediately. The background poller handles the rest.
+            # Non-blocking: submit to SageMaker, register with the async job tracker,
+            # return a sentinel immediately. The background poller computes the actual
+            # instance-hour compute cost on completion (async_jobs._track_completion).
             result = _submit_async_job(endpoint_name, model_key, model_config, payload)
             return result
         else:
+            import time as _time
+            _t0 = _time.time()
             result = _invoke_realtime(endpoint_name, payload, region=_endpoint_region(model_config))
+            _elapsed = _time.time() - _t0
 
-        if estimated_cost > 0:
-            add_cost("custom_model", estimated_cost, f"{model_config.get('label', model_key)} × 1")
-
-        # Track invocation (estimated cost — actual goes on image_studio.cost)
+        # Cost = instance $/hr × actual invocation seconds — the real compute basis
+        # (same as the async path), NOT a per-image guess. Hourly rate is registry-
+        # sourced (get_instance_hourly_rate); 0.0 when pricing is unavailable, so we
+        # record 0 rather than fabricate. This block must NEVER fail the generation —
+        # a pricing hiccup is cosmetic, so it is fully guarded.
         try:
+            from backend.services.cost_tracker import add_cost
+            from backend.services.custom_models import get_instance_hourly_rate
+            _deploy = model_config.get("deployment", {})
+            _hourly = get_instance_hourly_rate(
+                _deploy.get("instance_type"), model_config.get("catalog_key"),
+                _deploy.get("region") or _endpoint_region(model_config))
+            compute_cost = round(_hourly * _elapsed / 3600, 6) if _hourly else 0.0
+            if compute_cost > 0:
+                add_cost("custom_model", compute_cost,
+                         f"{model_config.get('label', model_key)}: {_elapsed:.0f}s × ${_hourly}/hr")
             from backend.services.telemetry import track_custom_model_invoke
             track_custom_model_invoke(
-                model=model_key, cost_usd=estimated_cost,
+                model=model_key, cost_usd=compute_cost, latency_ms=_elapsed * 1000.0,
                 predictor_type=model_config.get("invoke", {}).get("predictor_type", ""),
-                cost_is_estimate=True,
+                cost_is_estimate=(_hourly == 0.0),
             )
         except Exception:
-            pass
+            logger.debug("custom_model cost tracking skipped (non-fatal)", exc_info=True)
 
         return result
 

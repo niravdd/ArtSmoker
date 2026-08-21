@@ -50,9 +50,15 @@ def get_instance_hourly_rate(instance_type: str, catalog_key: str = None,
          (better than a stale seed when the exact region wasn't scanned).
       3. Catalog `pricing.instance_cost_per_hour` seed — the static fallback that
          ships in the registry (region-agnostic; may lag AWS price changes).
-    Returns 0.0 if nothing resolves — callers treat 0 as "unknown" and report cost
-    0 rather than guessing. Single source of truth: updating the registry (via Sync
-    or manually) updates every cost computation (3D, async 2D, keep-warm) at once.
+      4. On-demand AWS Pricing API query — ONLY when the registry has no rate at
+         all (a genuine gap). The result is cached into the in-memory
+         `sagemaker_pricing` so the same computation never re-queries online within
+         a session; a subsequent AWS Sync persists it durably. (Normal operation is
+         registry-served — no network — per the "record during Sync" rule.)
+    Returns 0.0 only if the registry AND an on-demand query both yield nothing —
+    callers surface a "pricing unavailable" state rather than guessing a number.
+    Single source of truth: updating the registry (via Sync or the on-demand cache)
+    updates every cost computation (3D, async 2D, keep-warm) at once.
     """
     if not instance_type:
         return 0.0
@@ -82,6 +88,36 @@ def get_instance_hourly_rate(instance_type: str, catalog_key: str = None,
                 .get("instance_cost_per_hour", {}) or {}).get(instance_type)
         if rate:
             return float(rate)
+
+    # 4: on-demand AWS Pricing API fallback for a registry gap (cached in-memory).
+    rate = _fetch_instance_rate_ondemand(instance_type, region, reg)
+    if rate:
+        return rate
+    return 0.0
+
+
+def _fetch_instance_rate_ondemand(instance_type: str, region: str | None, reg: dict) -> float:
+    """On-demand AWS Pricing API lookup for a single instance when the registry has
+    no rate (a gap the Sync hasn't captured yet). Registry stays the primary source;
+    this only fires as a fallback. The fetched rates are cached into the in-memory
+    `sagemaker_pricing` dict so the same cost computation never re-queries online in
+    this session — a later AWS Sync records them durably. Returns 0.0 if the online
+    lookup also fails, so the caller can report "pricing unavailable" (never a guess).
+    """
+    try:
+        from backend.routers.admin import _fetch_sagemaker_pricing
+        fetched = _fetch_sagemaker_pricing([region] if region else None)
+        if fetched:
+            sm = reg.setdefault("sagemaker_pricing", {})
+            sm.update(fetched)  # session cache; durable persistence happens on Sync
+            if region and fetched.get(f"{instance_type}|{region}"):
+                return float(fetched[f"{instance_type}|{region}"])
+            for k, v in fetched.items():
+                if k.startswith(instance_type + "|") and v:
+                    return float(v)
+    except Exception as exc:
+        logger.warning("On-demand SageMaker price fetch failed for %s|%s: %s",
+                       instance_type, region, exc)
     return 0.0
 
 

@@ -138,7 +138,7 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
 
             latency_ms = round((time.time() - start) * 1000)
             # Real cost from captured usage (was hardcoded to 0 tokens → $0).
-            cost = compute_llm_cost(model_id, in_tok, out_tok)
+            cost = compute_llm_cost(model_id, in_tok, out_tok, region=region)
             try:
                 if cost > 0:
                     from backend.services.cost_tracker import add_cost
@@ -245,7 +245,7 @@ async def chat_stream(req: ChatMessageRequest):
                     in_tok = usage.get("inputTokens", 0)
                     out_tok = usage.get("outputTokens", 0)
                     latency_ms = round((time.time() - start_time) * 1000)
-                    cost = compute_llm_cost(model_id, in_tok, out_tok)
+                    cost = compute_llm_cost(model_id, in_tok, out_tok, region=region)
                     add_cost("chat_llm", cost, f"{model_id}: {in_tok} in, {out_tok} out")
 
                     yield sse({
@@ -363,33 +363,18 @@ async def list_chat_models():
     Includes per-model pricing (cost per 1K input/output tokens).
     """
     from backend.services.model_registry import get_registry
-    from backend.services.cost_tracker import LLM_PRICING
     registry = get_registry()
 
     def _get_pricing(model_id: str, chat_model_entry: dict | None = None) -> dict:
-        """Get pricing per 1K tokens for a model.
-
-        Tries: 1) chat_model registry entry pricing, 2) hardcoded LLM_PRICING, 3) empty.
+        """Per-1K-token pricing for a model — REGISTRY ONLY (the chat_models entry's
+        input_price_per_1k/output_price_per_1k, populated by the Sync). Returns {}
+        when unpriced (the UI shows no price / 'unavailable') — no hardcoded fallback.
         """
-        # Try chat_models registry entry first (populated by discovery)
         if chat_model_entry:
             in_p = chat_model_entry.get("input_price_per_1k", 0)
             out_p = chat_model_entry.get("output_price_per_1k", 0)
             if in_p or out_p:
                 return {"input_per_1k": round(in_p, 4), "output_per_1k": round(out_p, 4)}
-
-        # Fall back to hardcoded pricing
-        pricing = LLM_PRICING.get(model_id)
-        if not pricing:
-            for key, p in LLM_PRICING.items():
-                if key in model_id or model_id in key:
-                    pricing = p
-                    break
-        if pricing:
-            return {
-                "input_per_1k": round(pricing["input_per_mtok"] / 1000, 4),
-                "output_per_1k": round(pricing["output_per_mtok"] / 1000, 4),
-            }
         return {}
 
     models = []

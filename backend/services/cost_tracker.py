@@ -24,39 +24,22 @@ from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
 
-# Infrastructure pricing defaults per region — overridden by registry "infra_pricing" section.
-# Prices vary by region (US standard shown). Registry can override per-region.
-_INFRA_PRICING_DEFAULTS = {
-    "us-east-1": {"s3_put_per_1k": 0.005, "s3_get_per_1k": 0.0004, "s3_transfer_out_per_gb": 0.09},
-    "us-west-2": {"s3_put_per_1k": 0.005, "s3_get_per_1k": 0.0004, "s3_transfer_out_per_gb": 0.09},
-    "ap-southeast-2": {"s3_put_per_1k": 0.0055, "s3_get_per_1k": 0.00044, "s3_transfer_out_per_gb": 0.114},
-    "eu-west-1": {"s3_put_per_1k": 0.0054, "s3_get_per_1k": 0.00043, "s3_transfer_out_per_gb": 0.09},
-}
-_INFRA_FALLBACK = {"s3_put_per_1k": 0.005, "s3_get_per_1k": 0.0004, "s3_transfer_out_per_gb": 0.09}
-
-
 def _get_infra_pricing(region: str | None = None) -> dict:
-    """Get infrastructure pricing for a region. Registry overrides take precedence."""
+    """S3/infra rates — REGISTRY ONLY (`infra_pricing`, recorded by the Sync via
+    admin._record_infra_pricing). No hardcoded code fallback: if the registry has no
+    rates yet (fresh install, pre-Sync), returns {} and S3 cost is reported as 0
+    until a Sync records them. Exact region first, else any recorded region (S3 rates
+    are near-uniform), else empty."""
     try:
         from backend.services.model_registry import get_registry
-        reg_pricing = get_registry().get("infra_pricing", {})
+        reg_pricing = get_registry().get("infra_pricing", {}) or {}
         if region and region in reg_pricing:
-            return {**_INFRA_FALLBACK, **reg_pricing[region]}
+            return reg_pricing[region]
         if reg_pricing:
-            return {**_INFRA_FALLBACK, **reg_pricing}
+            return next(iter(reg_pricing.values()))
     except Exception:
         pass
-    if region:
-        return _INFRA_PRICING_DEFAULTS.get(region, _INFRA_FALLBACK)
-    return _INFRA_FALLBACK
-
-# LLM pricing per million tokens (from Bedrock pricing page, March 2026)
-# These are defaults — should be moved to the registry for dynamic updates
-LLM_PRICING = {
-    "us.anthropic.claude-sonnet-4-6": {"input_per_mtok": 3.00, "output_per_mtok": 15.00},
-    "us.anthropic.claude-opus-4-6-v1": {"input_per_mtok": 5.00, "output_per_mtok": 25.00},
-    "anthropic.claude-3-5-sonnet-20241022-v2:0": {"input_per_mtok": 3.00, "output_per_mtok": 15.00},
-}
+    return {}
 
 
 @dataclass
@@ -149,18 +132,19 @@ def get_cost_breakdown() -> dict:
 
 
 def _compute_s3_cost(operation: str, size_bytes: int, region: str | None) -> float:
-    """Compute S3 cost for one operation + data transfer."""
+    """Compute S3 cost for one operation + data transfer. Returns 0.0 when infra
+    pricing isn't recorded in the registry yet (pre-Sync) — no hardcoded fallback."""
     pricing = _get_infra_pricing(region)
-    op = operation.lower()
-    if op in ("put", "post", "copy", "list"):
-        req_cost = pricing["s3_put_per_1k"] / 1000
-    elif op in ("get", "select", "head"):
-        req_cost = pricing["s3_get_per_1k"] / 1000
-    elif op == "delete":
+    if not pricing:
         return 0.0
-    else:
-        req_cost = pricing["s3_put_per_1k"] / 1000
-    transfer_cost = (size_bytes / (1024 ** 3)) * pricing["s3_transfer_out_per_gb"] if size_bytes > 0 else 0.0
+    op = operation.lower()
+    if op == "delete":
+        return 0.0
+    if op in ("get", "select", "head"):
+        req_cost = pricing.get("s3_get_per_1k", 0) / 1000
+    else:  # put/post/copy/list + anything else
+        req_cost = pricing.get("s3_put_per_1k", 0) / 1000
+    transfer_cost = (size_bytes / (1024 ** 3)) * pricing.get("s3_transfer_out_per_gb", 0) if size_bytes > 0 else 0.0
     return req_cost + transfer_cost
 
 
@@ -209,21 +193,31 @@ def add_background_s3_cost(operation: str, size_bytes: int = 0, detail: str = ""
         add_background_cost("s3", cost, detail or f"S3 {operation} ({size_bytes}B)")
 
 
-def _registry_llm_price(model_id: str) -> dict | None:
+def _registry_llm_price(model_id: str, region: str | None = None) -> dict | None:
     """Look up per-token pricing for a model from the chat_models registry.
 
     Prices are stamped onto each chat_models entry by AWS Sync
     (_fetch_llm_pricing → _apply_llm_pricing) as input_price_per_1k /
-    output_price_per_1k — the LIVE, per-model source. Matches by exact model_id
-    first, then by the registry KEY, then a substring match (handles us./eu.
-    cross-region prefixes vs the base id). Returns {input_per_mtok, output_per_mtok}
-    or None if the registry has no price for this model."""
+    output_price_per_1k — the LIVE, per-model source. When token prices VARY by
+    region, the full per-region map is also stored as `token_pricing_by_region`;
+    if a `region` is passed we use that region's price, else the collapsed default.
+    Matches by exact model_id first, then by the registry KEY, then a substring
+    match (handles us./eu. cross-region prefixes vs the base id). Returns
+    {input_per_mtok, output_per_mtok} or None if the registry has no price."""
     try:
         from backend.services.model_registry import get_registry
         cms = (get_registry().get("chat_models", {}) or {})
         def _priced(cm):
-            in_p = cm.get("input_price_per_1k")
-            out_p = cm.get("output_price_per_1k")
+            # Region-specific price first (present only when prices vary by region),
+            # else the collapsed default input_price_per_1k / output_price_per_1k.
+            in_p = out_p = None
+            if region:
+                pr = (cm.get("token_pricing_by_region") or {}).get(region)
+                if pr:
+                    in_p, out_p = pr.get("input_per_1k"), pr.get("output_per_1k")
+            if in_p is None and out_p is None:
+                in_p = cm.get("input_price_per_1k")
+                out_p = cm.get("output_price_per_1k")
             if in_p or out_p:
                 # per-1k → per-mtok (×1000).
                 return {"input_per_mtok": (in_p or 0) * 1000, "output_per_mtok": (out_p or 0) * 1000}
@@ -246,37 +240,127 @@ def _registry_llm_price(model_id: str) -> dict | None:
     return None
 
 
+def resolve_image_price(cfg: dict, model_key: str, region: str,
+                        quality: str = "", size: str = "") -> float | None:
+    """Registry-sourced per-image price for a Bedrock image model at a given
+    region + quality — reads the Sync-recorded `image_pricing` section (keyed
+    `model_name|region|quality|size`, with a `model_name|region` simple fallback).
+    Mirrors the matching in admin.get_image_model_options so display and cost agree.
+
+    Returns None when the registry has no price for this model/region — the caller
+    then tries an on-demand fetch, then `base_price_usd`, and finally surfaces
+    "pricing unavailable". NEVER returns a hardcoded guess.
+    """
+    try:
+        from backend.services.model_registry import get_registry
+        pricing = get_registry().get("image_pricing", {}) or {}
+        if not pricing:
+            return None
+        label = cfg.get("label", "") or ""
+        variants = [label, label.replace("Amazon ", ""), label.replace("Stable ", ""), model_key]
+        sizes = ([size] if size else []) + [s for s in ("1024", "512", "") if s != size]
+        # 1) precise: model|region|quality|size (T2I rows only)
+        for v in variants:
+            if not v:
+                continue
+            for s in sizes:
+                pi = pricing.get(f"{v}|{region}|{quality}|{s}", {})
+                if pi.get("price_usd") and pi.get("is_t2i", True):
+                    return float(pi["price_usd"])
+        # 2) simple: model|region
+        for v in variants:
+            if not v:
+                continue
+            pi = pricing.get(f"{v}|{region}", {})
+            if pi.get("price_usd"):
+                return float(pi["price_usd"])
+    except Exception:
+        pass
+    return None
+
+
+# One full on-demand image-pricing scan per session is enough — the fetch populates
+# the whole `image_pricing` map, so this guards against re-scanning the AWS Pricing
+# API on every generation when a model is genuinely absent from it.
+_image_pricing_ondemand_done = False
+
+
+def ondemand_image_price(cfg: dict, model_key: str, region: str,
+                         quality: str = "", size: str = "") -> float | None:
+    """On-demand AWS Pricing API fallback when `image_pricing` has no entry for this
+    model (a registry gap). Fetches the full Bedrock image pricing ONCE per session,
+    caches it into the in-memory registry (a later Sync persists it durably), then
+    re-resolves. Returns None if the online lookup also fails → caller reports
+    "pricing unavailable" (never a guess). Registry stays the primary source."""
+    global _image_pricing_ondemand_done
+    if _image_pricing_ondemand_done:
+        return None
+    try:
+        from backend.routers.admin import _fetch_image_pricing
+        from backend.services.model_registry import get_registry
+        fetched = _fetch_image_pricing()
+        _image_pricing_ondemand_done = True  # set regardless — one attempt per session
+        if fetched:
+            get_registry().setdefault("image_pricing", {}).update(fetched)
+            return resolve_image_price(cfg, model_key, region, quality, size)
+    except Exception as exc:
+        _image_pricing_ondemand_done = True
+        logger.warning("On-demand image price fetch failed for %s|%s: %s", model_key, region, exc)
+    return None
+
+
+def resolve_video_price_per_sec(vid_cfg: dict, model_key: str, region: str = "") -> float | None:
+    """Registry-sourced per-SECOND video price for the given region — reads the
+    Sync-recorded `video_pricing[model|region]` section when present, else the
+    model's `base_price_per_second_usd`. Returns None if neither exists → caller
+    surfaces "pricing unavailable" (never a hardcoded guess).
+
+    Note: only Nova Reel is priced by the AWS Pricing API; 3rd-party video models
+    (e.g. Luma Ray) aren't, so they use the registry-recorded base_price_per_second_usd
+    — analogous to Stability on the image side.
+    """
+    try:
+        from backend.services.model_registry import get_registry
+        vp = get_registry().get("video_pricing", {}) or {}
+        if region and vp:
+            label = (vid_cfg or {}).get("label", "") or ""
+            for v in (label, model_key, (vid_cfg or {}).get("model_id", "")):
+                if not v:
+                    continue
+                pi = vp.get(f"{v}|{region}")
+                pps = pi.get("price_per_second") if isinstance(pi, dict) else pi
+                if pps:
+                    return float(pps)
+    except Exception:
+        pass
+    bp = (vid_cfg or {}).get("base_price_per_second_usd")
+    return float(bp) if bp else None
+
+
 def compute_llm_cost(model_id: str, input_tokens: int, output_tokens: int,
                      input_price_per_mtok: float | None = None,
-                     output_price_per_mtok: float | None = None) -> float:
+                     output_price_per_mtok: float | None = None,
+                     region: str | None = None) -> float:
     """Compute the cost of an LLM call from token usage.
 
     Pricing resolution order (most authoritative first):
       1. Explicit prices passed by the caller (e.g. a model config).
-      2. LIVE per-model prices synced from the AWS Pricing API onto the
-         chat_models registry (_registry_llm_price) — the correct source.
-      3. Hardcoded LLM_PRICING seed (a small, static fallback for offline/
-         pre-Sync use), then a final Sonnet-priced default.
+      2. LIVE per-model, per-REGION prices synced from the AWS Pricing API onto the
+         chat_models registry (_registry_llm_price, using `region` when prices vary
+         by region) — the ONLY source. If a model isn't priced there yet, cost is 0.0
+         ("pricing unavailable") — there is no hardcoded fallback.
     """
     if input_price_per_mtok is not None and output_price_per_mtok is not None:
         input_cost = (input_tokens / 1_000_000) * input_price_per_mtok
         output_cost = (output_tokens / 1_000_000) * output_price_per_mtok
         return round(input_cost + output_cost, 6)
 
-    # 2) Registry-first — live, per-model, Sync-maintained.
-    pricing = _registry_llm_price(model_id)
-
-    # 3) Static seed fallback (exact, then substring), then Sonnet default.
+    # 2) Registry-ONLY — live, per-model, region-aware, Sync-maintained. No hardcoded
+    # fallback: an unpriced model returns 0.0 (surfaced as "pricing unavailable")
+    # until a Sync records its per-token price.
+    pricing = _registry_llm_price(model_id, region)
     if not pricing:
-        pricing = LLM_PRICING.get(model_id)
-    if not pricing:
-        for key, p in LLM_PRICING.items():
-            if key in model_id or model_id in key:
-                pricing = p
-                break
-    if not pricing:
-        pricing = {"input_per_mtok": 3.00, "output_per_mtok": 15.00}
-
+        return 0.0
     input_cost = (input_tokens / 1_000_000) * pricing["input_per_mtok"]
     output_cost = (output_tokens / 1_000_000) * pricing["output_per_mtok"]
     return round(input_cost + output_cost, 6)

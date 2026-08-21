@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "last_updated": "2026-08-20T05:42:45.746524+00:00",
+  "last_updated": "2026-08-21T07:58:01.156388+00:00",
   "categories": {
     "fast_llm": {
       "label": "Fast LLM (Prompt Refinement)",
@@ -2148,7 +2148,61 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.000135,
-      "output_price_per_1k": 0.00053
+      "output_price_per_1k": 0.00053,
+      "token_pricing_by_region": {
+        "eu-central-1": {
+          "input_per_1k": 0.000145,
+          "output_per_1k": 0.00058
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00011,
+          "output_per_1k": 0.000455
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.000135,
+          "output_per_1k": 0.00053
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0001133,
+          "output_per_1k": 0.0004532
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.000132,
+          "output_per_1k": 0.000528
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00017,
+          "output_per_1k": 0.000685
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00011,
+          "output_per_1k": 0.00044
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00011,
+          "output_per_1k": 0.00044
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.000145,
+          "output_per_1k": 0.00058
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.000132,
+          "output_per_1k": 0.000528
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00011,
+          "output_per_1k": 0.00044
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00013,
+          "output_per_1k": 0.00052
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00011,
+          "output_per_1k": 0.00044
+        }
+      }
     },
     "kimi_k2_5": {
       "label": "Kimi K2.5",
@@ -2190,7 +2244,61 @@
       "output_price_per_1k": 0.00192,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-northeast-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000515,
+          "output_per_1k": 0.00165
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000775,
+          "output_per_1k": 0.00248
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        }
+      }
     },
     "gpt_oss_120b_1": {
       "label": "gpt-oss-120b",
@@ -2236,7 +2344,69 @@
       "output_price_per_1k": 0.00036,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000465
+        },
+        "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00035
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00035
+        },
+        "eu-north-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.725e-05,
+          "output_per_1k": 0.000309
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "us-east-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 8e-05,
+          "output_per_1k": 0.00031
+        }
+      }
     },
     "qwen3_next_80b_a3b": {
       "label": "Qwen3 Next 80B A3B",
@@ -2276,7 +2446,61 @@
       "output_price_per_1k": 0.00072,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-south-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00071
+        },
+        "us-east-1": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0006
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.21e-05,
+          "output_per_1k": 0.000618
+        },
+        "sa-east-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        },
+        "us-east-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0006
+        },
+        "eu-central-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00071
+        },
+        "us-west-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0006
+        },
+        "eu-south-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00071
+        },
+        "eu-north-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0001085,
+          "output_per_1k": 0.00093
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        }
+      }
     },
     "claude_fable_5": {
       "label": "Claude Fable 5",
@@ -2365,7 +2589,61 @@
       "output_price_per_1k": 0.00111,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "us-east-2": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.000925
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.000925
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0004805,
+          "output_per_1k": 0.00143375
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.000925
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00037,
+          "output_per_1k": 0.00111
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00032,
+          "output_per_1k": 0.000955
+        }
+      }
     },
     "nemotron_nano_3_30b": {
       "label": "Nemotron Nano 3 30B",
@@ -2407,7 +2685,69 @@
       "output_price_per_1k": 0.00015,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "us-gov-east-1": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "sa-east-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00015
+        },
+        "eu-west-2": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 0.00018
+        },
+        "eu-south-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00014
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "eu-north-1": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00015
+        },
+        "us-east-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        },
+        "us-east-2": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        },
+        "eu-west-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00014
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "ap-south-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00014
+        },
+        "us-west-2": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        },
+        "eu-central-1": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 3.09e-05,
+          "output_per_1k": 0.0001236
+        }
+      }
     },
     "claude_sonnet_4_6": {
       "label": "Claude Sonnet 4.6",
@@ -2497,7 +2837,61 @@
       "output_price_per_1k": 0.00072,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "us-east-2": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00017,
+          "output_per_1k": 0.00071
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00017,
+          "output_per_1k": 0.00071
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00023,
+          "output_per_1k": 0.00093
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0006
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0001545,
+          "output_per_1k": 0.000618
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00017,
+          "output_per_1k": 0.00071
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00072
+        }
+      }
     },
     "glm_4_7_flash": {
       "label": "GLM 4.7 Flash",
@@ -2541,7 +2935,61 @@
       "output_price_per_1k": 0.00024,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "us-east-1": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.0002
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.000205
+        },
+        "eu-west-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        },
+        "eu-central-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        },
+        "sa-east-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        },
+        "us-east-2": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.0002
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        },
+        "eu-north-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        },
+        "us-west-2": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.0002
+        },
+        "eu-west-2": {
+          "input_per_1k": 5.5e-05,
+          "output_per_1k": 0.00031
+        },
+        "ap-south-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        },
+        "eu-south-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00024
+        }
+      }
     },
     "voxtral_mini_3b_2507": {
       "label": "Voxtral Mini 3B 2507",
@@ -2627,7 +3075,105 @@
       "output_price_per_1k": 0.000144,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-southeast-4": {
+          "input_per_1k": 3.25e-05,
+          "output_per_1k": 0.00013
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0.000288
+        },
+        "us-east-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        },
+        "me-central-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 3.55e-05,
+          "output_per_1k": 0.000142
+        },
+        "eu-south-1": {
+          "input_per_1k": 9.6e-05,
+          "output_per_1k": 0.000384
+        },
+        "ca-central-1": {
+          "input_per_1k": 3.2e-05,
+          "output_per_1k": 0.000128
+        },
+        "eu-west-2": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.000336
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 4.05e-05,
+          "output_per_1k": 0.000162
+        },
+        "eu-north-1": {
+          "input_per_1k": 3.25e-05,
+          "output_per_1k": 0.00013
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "us-east-2": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        },
+        "ap-east-2": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "ap-south-1": {
+          "input_per_1k": 3.55e-05,
+          "output_per_1k": 0.000142
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0.000288
+        },
+        "il-central-1": {
+          "input_per_1k": 3.75e-05,
+          "output_per_1k": 0.00015
+        },
+        "eu-west-3": {
+          "input_per_1k": 4.4e-05,
+          "output_per_1k": 0.000176
+        },
+        "eu-central-1": {
+          "input_per_1k": 3.9e-05,
+          "output_per_1k": 0.000156
+        },
+        "eu-west-1": {
+          "input_per_1k": 3.45e-05,
+          "output_per_1k": 0.000138
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 3.15e-05,
+          "output_per_1k": 0.000126
+        },
+        "eu-south-2": {
+          "input_per_1k": 6.6e-05,
+          "output_per_1k": 0.000264
+        },
+        "us-west-1": {
+          "input_per_1k": 7.7e-05,
+          "output_per_1k": 0.000308
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "us-west-2": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        }
+      }
     },
     "minimax_m2_5": {
       "label": "MiniMax M2.5",
@@ -2671,7 +3217,61 @@
       "output_price_per_1k": 0.00192,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-northeast-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000515,
+          "output_per_1k": 0.00165
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000775,
+          "output_per_1k": 0.00248
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        }
+      }
     },
     "gemma_3_12b_it": {
       "label": "Gemma 3 12B IT",
@@ -2713,7 +3313,61 @@
       "output_price_per_1k": 0.00017,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00017
+        },
+        "sa-east-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00017
+        },
+        "eu-central-1": {
+          "input_per_1k": 5.4e-05,
+          "output_per_1k": 0.000174
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 4.635e-05,
+          "output_per_1k": 0.00014935
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 5.4e-05,
+          "output_per_1k": 0.000174
+        },
+        "us-east-2": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 0.00015
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00017
+        },
+        "eu-south-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00017
+        },
+        "eu-west-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.00022
+        },
+        "us-east-1": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 0.00015
+        },
+        "ap-south-1": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00017
+        },
+        "eu-north-1": {
+          "input_per_1k": 5.4e-05,
+          "output_per_1k": 0.000174
+        },
+        "us-west-2": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 0.00015
+        }
+      }
     },
     "kimi_k2_thinking": {
       "label": "Kimi K2 Thinking",
@@ -2751,7 +3405,61 @@
       "output_price_per_1k": 0.00152,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00125
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00125
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00152
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00125
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000309,
+          "output_per_1k": 0.0012875
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00147
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00152
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000465,
+          "output_per_1k": 0.0019375
+        }
+      }
     },
     "mistral_large_3_675b_instruct": {
       "label": "Mistral Large 3",
@@ -2791,7 +3499,61 @@
       "output_price_per_1k": 0.00091,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0002575,
+          "output_per_1k": 0.0007725
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0003875,
+          "output_per_1k": 0.0011625
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00075
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00091
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00088
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00075
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00091
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00075
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        }
+      }
     },
     "pegasus_1_2_v1": {
       "label": "Pegasus v1.2",
@@ -2881,7 +3643,61 @@
       "output_price_per_1k": 0.0012,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-south-1": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0002,
+          "output_per_1k": 0.001
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00155
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0002,
+          "output_per_1k": 0.001
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000205,
+          "output_per_1k": 0.00103
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0002,
+          "output_per_1k": 0.001
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00024,
+          "output_per_1k": 0.0012
+        }
+      }
     },
     "minimax_m2_1": {
       "label": "MiniMax M2.1",
@@ -2925,7 +3741,61 @@
       "output_price_per_1k": 0.00101621,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-southeast-3": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00087
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00034121,
+          "output_per_1k": 0.00098834
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00035083,
+          "output_per_1k": 0.00101621
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0002987,
+          "output_per_1k": 0.0008652
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00044999,
+          "output_per_1k": 0.00130343
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        }
+      }
     },
     "nemotron_super_3_120b": {
       "label": "NVIDIA Nemotron 3 Super 120B A12B",
@@ -2969,7 +3839,69 @@
       "output_price_per_1k": 0.00039,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "us-east-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.000325
+        },
+        "eu-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.000325
+        },
+        "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000505
+        },
+        "eu-north-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.000335
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.000325
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "eu-central-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        },
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00039
+        }
+      }
     },
     "qwen3_32b_v1": {
       "label": "Qwen3 32B (dense)",
@@ -3013,7 +3945,61 @@
       "output_price_per_1k": 0.000365,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00035
+        },
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000465
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 8e-05,
+          "output_per_1k": 0.00031
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000355
+        },
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000365
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000365
+        },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "us-east-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-north-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.725e-05,
+          "output_per_1k": 0.000309
+        }
+      }
     },
     "ministral_3_14b_instruct": {
       "label": "Ministral 14B 3.0",
@@ -3262,7 +4248,61 @@
       "output_price_per_1k": 0.00192,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-northeast-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000515,
+          "output_per_1k": 0.00165
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000775,
+          "output_per_1k": 0.00248
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.0016
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0006,
+          "output_per_1k": 0.00192
+        }
+      }
     },
     "gpt_oss_20b_1": {
       "label": "gpt-oss-20b",
@@ -3308,7 +4348,69 @@
       "output_price_per_1k": 0.00018,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-southeast-3": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.000155
+        },
+        "ap-south-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.000175
+        },
+        "eu-south-1": {
+          "input_per_1k": 4.5e-05,
+          "output_per_1k": 0.0002
+        },
+        "eu-west-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.000175
+        },
+        "us-east-2": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00015
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.00018
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.00018
+        },
+        "us-east-1": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00015
+        },
+        "sa-east-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00018
+        },
+        "eu-central-1": {
+          "input_per_1k": 4.5e-05,
+          "output_per_1k": 0.0002
+        },
+        "us-west-2": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00015
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 3.605e-05,
+          "output_per_1k": 0.0001545
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00018
+        },
+        "eu-west-2": {
+          "input_per_1k": 5e-05,
+          "output_per_1k": 0.00023
+        },
+        "eu-north-1": {
+          "input_per_1k": 3.5e-05,
+          "output_per_1k": 0.00015
+        }
+      }
     },
     "gemma_3_4b_it": {
       "label": "Gemma 3 4B IT",
@@ -3350,7 +4452,61 @@
       "output_price_per_1k": 5e-05,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 5e-05
+        },
+        "ap-south-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 5e-05
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 5e-05
+        },
+        "eu-south-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 5e-05
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 2.06e-05,
+          "output_per_1k": 4.12e-05
+        },
+        "us-east-2": {
+          "input_per_1k": 2e-05,
+          "output_per_1k": 4e-05
+        },
+        "eu-north-1": {
+          "input_per_1k": 2.4e-05,
+          "output_per_1k": 4.8e-05
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 2.4e-05,
+          "output_per_1k": 4.8e-05
+        },
+        "sa-east-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 5e-05
+        },
+        "eu-central-1": {
+          "input_per_1k": 2.4e-05,
+          "output_per_1k": 4.8e-05
+        },
+        "us-west-2": {
+          "input_per_1k": 2e-05,
+          "output_per_1k": 4e-05
+        },
+        "eu-west-2": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 6e-05
+        },
+        "us-east-1": {
+          "input_per_1k": 2e-05,
+          "output_per_1k": 4e-05
+        }
+      }
     },
     "claude_opus_4_8": {
       "label": "Claude Opus 4.8",
@@ -3488,7 +4644,69 @@
       "output_price_per_1k": 0.00036,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000465
+        },
+        "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00035
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00035
+        },
+        "eu-north-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "us-gov-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.725e-05,
+          "output_per_1k": 0.000309
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "us-east-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 8e-05,
+          "output_per_1k": 0.00031
+        }
+      }
     },
     "gemma_3_27b_it": {
       "label": "Gemma 3 27B PT",
@@ -3530,7 +4748,61 @@
       "output_price_per_1k": 0.00023,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "us-west-2": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00019
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00014,
+          "output_per_1k": 0.00022
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.000138,
+          "output_per_1k": 0.000228
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000138,
+          "output_per_1k": 0.000228
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00019
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00014,
+          "output_per_1k": 0.00023
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.0003
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00011845,
+          "output_per_1k": 0.0001957
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00012,
+          "output_per_1k": 0.00019
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.000138,
+          "output_per_1k": 0.000228
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00014,
+          "output_per_1k": 0.00022
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00014,
+          "output_per_1k": 0.00023
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00014,
+          "output_per_1k": 0.00022
+        }
+      }
     },
     "claude_sonnet_4_5_20250929_v1": {
       "label": "Claude Sonnet 4.5",
@@ -3618,7 +4890,61 @@
       "output_price_per_1k": 0.00161,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00156
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.000318,
+          "output_per_1k": 0.001596
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00156
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.000318,
+          "output_per_1k": 0.001596
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00032,
+          "output_per_1k": 0.00161
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00027295,
+          "output_per_1k": 0.0013699
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00032,
+          "output_per_1k": 0.00161
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000318,
+          "output_per_1k": 0.001596
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00041,
+          "output_per_1k": 0.00206
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00156
+        }
+      }
     },
     "glm_4_7": {
       "label": "GLM 4.7",
@@ -3660,7 +4986,61 @@
       "output_price_per_1k": 0.00132,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "us-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0011
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.001135
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0011
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0011
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000465,
+          "output_per_1k": 0.001705
+        }
+      }
     },
     "qwen3_coder_480b_a35b_v1": {
       "label": "Qwen3 Coder 480B A35B Instruct",
@@ -3695,7 +5075,61 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.00027,
-      "output_price_per_1k": 0.00109
+      "output_price_per_1k": 0.00109,
+      "token_pricing_by_region": {
+        "sa-east-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
+        },
+        "us-east-2": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00023175,
+          "output_per_1k": 0.000927
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.000265,
+          "output_per_1k": 0.00106
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00023,
+          "output_per_1k": 0.00093
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00109
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00035,
+          "output_per_1k": 0.001395
+        },
+        "us-west-2": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        },
+        "us-east-1": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        }
+      }
     },
     "magistral_small_2509": {
       "label": "Magistral Small 2509",
@@ -3897,7 +5331,61 @@
       "output_price_per_1k": 0.000365,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00035
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000465
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000355
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000365
+        },
+        "us-east-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-north-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000365
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 8e-05,
+          "output_per_1k": 0.00031
+        },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.725e-05,
+          "output_per_1k": 0.000309
+        }
+      }
     },
     "gpt_oss_safeguard_20b": {
       "label": "GPT OSS Safeguard 20B",
@@ -3941,7 +5429,61 @@
       "output_price_per_1k": 0.00012,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-north-1": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.00012
+        },
+        "eu-south-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00012
+        },
+        "eu-west-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00012
+        },
+        "eu-west-2": {
+          "input_per_1k": 6e-05,
+          "output_per_1k": 0.00015
+        },
+        "us-east-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.0001
+        },
+        "us-east-2": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.0001
+        },
+        "us-west-2": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.0001
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 3.605e-05,
+          "output_per_1k": 0.000103
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00012
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.00012
+        },
+        "ap-south-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00012
+        },
+        "sa-east-1": {
+          "input_per_1k": 4e-05,
+          "output_per_1k": 0.00012
+        },
+        "eu-central-1": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0.00012
+        }
+      }
     },
     "rerank_v1": {
       "label": "Rerank 1.0",
@@ -4016,7 +5558,105 @@
       "output_price_per_1k": 0.00192,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-3": {
+          "input_per_1k": 0.00059,
+          "output_per_1k": 0.00236
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.000475,
+          "output_per_1k": 0.0019
+        },
+        "il-central-1": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.002
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.00054,
+          "output_per_1k": 0.00216
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.000435,
+          "output_per_1k": 0.00174
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "us-west-1": {
+          "input_per_1k": 0.000515,
+          "output_per_1k": 0.00206
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00046,
+          "output_per_1k": 0.00184
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "me-central-1": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.00044,
+          "output_per_1k": 0.00176
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.000435,
+          "output_per_1k": 0.00174
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000565,
+          "output_per_1k": 0.00226
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00042,
+          "output_per_1k": 0.00168
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00042,
+          "output_per_1k": 0.00168
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00047,
+          "output_per_1k": 0.00188
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000525,
+          "output_per_1k": 0.0021
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00064,
+          "output_per_1k": 0.002605
+        }
+      }
     },
     "nova_lite_v1": {
       "label": "Nova Lite",
@@ -4063,7 +5703,105 @@
       "output_price_per_1k": 0.000144,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-southeast-4": {
+          "input_per_1k": 3.25e-05,
+          "output_per_1k": 0.00013
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0.000288
+        },
+        "us-east-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        },
+        "me-central-1": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 3.55e-05,
+          "output_per_1k": 0.000142
+        },
+        "eu-south-1": {
+          "input_per_1k": 9.6e-05,
+          "output_per_1k": 0.000384
+        },
+        "ca-central-1": {
+          "input_per_1k": 3.2e-05,
+          "output_per_1k": 0.000128
+        },
+        "eu-west-2": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.000336
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 4.05e-05,
+          "output_per_1k": 0.000162
+        },
+        "eu-north-1": {
+          "input_per_1k": 3.25e-05,
+          "output_per_1k": 0.00013
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "us-east-2": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        },
+        "ap-east-2": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "ap-south-1": {
+          "input_per_1k": 3.55e-05,
+          "output_per_1k": 0.000142
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 7.2e-05,
+          "output_per_1k": 0.000288
+        },
+        "il-central-1": {
+          "input_per_1k": 3.75e-05,
+          "output_per_1k": 0.00015
+        },
+        "eu-west-3": {
+          "input_per_1k": 4.4e-05,
+          "output_per_1k": 0.000176
+        },
+        "eu-central-1": {
+          "input_per_1k": 3.9e-05,
+          "output_per_1k": 0.000156
+        },
+        "eu-west-1": {
+          "input_per_1k": 3.45e-05,
+          "output_per_1k": 0.000138
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 3.15e-05,
+          "output_per_1k": 0.000126
+        },
+        "eu-south-2": {
+          "input_per_1k": 6.6e-05,
+          "output_per_1k": 0.000264
+        },
+        "us-west-1": {
+          "input_per_1k": 7.7e-05,
+          "output_per_1k": 0.000308
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 3.6e-05,
+          "output_per_1k": 0.000144
+        },
+        "us-west-2": {
+          "input_per_1k": 3e-05,
+          "output_per_1k": 0.00012
+        }
+      }
     },
     "nova_micro_v1": {
       "label": "Nova Micro",
@@ -4107,7 +5845,89 @@
       "output_price_per_1k": 8.4e-05,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "me-central-1": {
+          "input_per_1k": 1.75e-05,
+          "output_per_1k": 7e-05
+        },
+        "ap-south-1": {
+          "input_per_1k": 2.05e-05,
+          "output_per_1k": 8.2e-05
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 1.85e-05,
+          "output_per_1k": 7.4e-05
+        },
+        "eu-west-1": {
+          "input_per_1k": 2e-05,
+          "output_per_1k": 8e-05
+        },
+        "eu-south-2": {
+          "input_per_1k": 3.9e-05,
+          "output_per_1k": 0.000156
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 2.35e-05,
+          "output_per_1k": 9.4e-05
+        },
+        "eu-north-1": {
+          "input_per_1k": 1.9e-05,
+          "output_per_1k": 7.6e-05
+        },
+        "eu-central-1": {
+          "input_per_1k": 2.3e-05,
+          "output_per_1k": 9.2e-05
+        },
+        "il-central-1": {
+          "input_per_1k": 2.2e-05,
+          "output_per_1k": 8.8e-05
+        },
+        "us-east-2": {
+          "input_per_1k": 1.75e-05,
+          "output_per_1k": 7e-05
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 2.1e-05,
+          "output_per_1k": 8.4e-05
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 2.05e-05,
+          "output_per_1k": 8.2e-05
+        },
+        "us-west-2": {
+          "input_per_1k": 1.75e-05,
+          "output_per_1k": 7e-05
+        },
+        "us-east-1": {
+          "input_per_1k": 1.75e-05,
+          "output_per_1k": 7e-05
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 2.1e-05,
+          "output_per_1k": 8.4e-05
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 2.1e-05,
+          "output_per_1k": 8.4e-05
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 4.2e-05,
+          "output_per_1k": 0
+        },
+        "eu-south-1": {
+          "input_per_1k": 5.6e-05,
+          "output_per_1k": 0.000224
+        },
+        "eu-west-3": {
+          "input_per_1k": 2.6e-05,
+          "output_per_1k": 0.000104
+        },
+        "eu-west-2": {
+          "input_per_1k": 4.9e-05,
+          "output_per_1k": 0.000196
+        }
+      }
     },
     "claude_3_haiku_20240307_v1": {
       "label": "Claude 3 Haiku",
@@ -4390,7 +6210,45 @@
       "output_price_per_1k": 0.00024,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 0.00016,
+          "output_per_1k": 0.00022
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0002,
+          "output_per_1k": 0.00026
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0002,
+          "output_per_1k": 0.00026
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00034
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0002
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0002,
+          "output_per_1k": 0.00026
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.00017,
+          "output_per_1k": 0.00023
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00018,
+          "output_per_1k": 0.00024
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00015,
+          "output_per_1k": 0.0002
+        }
+      }
     },
     "mixtral_8x7b_instruct_v0": {
       "label": "Mixtral 8x7B Instruct",
@@ -4430,7 +6288,45 @@
       "output_price_per_1k": 0.00084,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-2": {
+          "input_per_1k": 0.00059,
+          "output_per_1k": 0.00091
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.00059,
+          "output_per_1k": 0.00091
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00059,
+          "output_per_1k": 0.00091
+        },
+        "ca-central-1": {
+          "input_per_1k": 0.00052,
+          "output_per_1k": 0.00081
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00045,
+          "output_per_1k": 0.0007
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00076,
+          "output_per_1k": 0.00118
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00045,
+          "output_per_1k": 0.0007
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00049,
+          "output_per_1k": 0.00076
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00054,
+          "output_per_1k": 0.00084
+        }
+      }
     },
     "mistral_large_2402_v1": {
       "label": "Mistral Large (24.02)",
@@ -4470,7 +6366,45 @@
       "output_price_per_1k": 0.0144,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ca-central-1": {
+          "input_per_1k": 0.0046,
+          "output_per_1k": 0.0138
+        },
+        "us-east-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.012
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0043,
+          "output_per_1k": 0.013
+        },
+        "us-west-2": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.012
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0067,
+          "output_per_1k": 0.0202
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0052,
+          "output_per_1k": 0.0156
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0052,
+          "output_per_1k": 0.0156
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0052,
+          "output_per_1k": 0.0156
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.0048,
+          "output_per_1k": 0.0144
+        }
+      }
     },
     "qwen3_coder_next": {
       "label": "Qwen3 Coder Next",
@@ -4506,7 +6440,61 @@
       "output_price_per_1k": 0.00062,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-central-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00039,
+          "output_per_1k": 0.00093
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.0006
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00062
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.0006
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.0006
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00072
+        }
+      }
     },
     "pixtral_large_2502_v1": {
       "label": "Pixtral Large (25.02)",
@@ -4644,7 +6632,61 @@
       "output_price_per_1k": 0.0003,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "ap-southeast-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.00031
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "eu-north-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "eu-central-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "eu-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000465
+        },
+        "us-east-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00036
+        }
+      }
     },
     "claude_opus_4_1_20250805_v1": {
       "label": "Claude Opus 4.1",
@@ -4712,7 +6754,105 @@
       "output_price_per_1k": 0.0016,
       "lifecycle_status": "ACTIVE",
       "legacy_time": "",
-      "end_of_life_time": ""
+      "end_of_life_time": "",
+      "token_pricing_by_region": {
+        "eu-west-3": {
+          "input_per_1k": 0.00059,
+          "output_per_1k": 0.00236
+        },
+        "ap-northeast-2": {
+          "input_per_1k": 0.000475,
+          "output_per_1k": 0.0019
+        },
+        "il-central-1": {
+          "input_per_1k": 0.0005,
+          "output_per_1k": 0.002
+        },
+        "ap-southeast-1": {
+          "input_per_1k": 0.00054,
+          "output_per_1k": 0.00216
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.000435,
+          "output_per_1k": 0.00174
+        },
+        "ap-east-2": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "ap-southeast-5": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "us-west-1": {
+          "input_per_1k": 0.000515,
+          "output_per_1k": 0.00206
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00046,
+          "output_per_1k": 0.00184
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "ap-southeast-7": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "me-central-1": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "eu-south-2": {
+          "input_per_1k": 0.00044,
+          "output_per_1k": 0.00176
+        },
+        "ap-southeast-4": {
+          "input_per_1k": 0.000435,
+          "output_per_1k": 0.00174
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000565,
+          "output_per_1k": 0.00226
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00042,
+          "output_per_1k": 0.00168
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00042,
+          "output_per_1k": 0.00168
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0004,
+          "output_per_1k": 0.0016
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 0.00048,
+          "output_per_1k": 0.00192
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00047,
+          "output_per_1k": 0.00188
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000525,
+          "output_per_1k": 0.0021
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00064,
+          "output_per_1k": 0.002605
+        }
+      }
     },
     "nova_premier_v1": {
       "label": "Nova Premier",
@@ -5117,7 +7257,45 @@
       "invoke_endpoint": "bedrock-runtime",
       "invoke_api": "converse",
       "input_price_per_1k": 0.004,
-      "output_price_per_1k": 0.012
+      "output_price_per_1k": 0.012,
+      "token_pricing_by_region": {
+        "ca-central-1": {
+          "input_per_1k": 0.0046,
+          "output_per_1k": 0.0138
+        },
+        "us-east-1": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.012
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.0043,
+          "output_per_1k": 0.013
+        },
+        "us-west-2": {
+          "input_per_1k": 0.004,
+          "output_per_1k": 0.012
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0067,
+          "output_per_1k": 0.0202
+        },
+        "eu-west-3": {
+          "input_per_1k": 0.0052,
+          "output_per_1k": 0.0156
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0052,
+          "output_per_1k": 0.0156
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0052,
+          "output_per_1k": 0.0156
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.0048,
+          "output_per_1k": 0.0144
+        }
+      }
     },
     "claude_sonnet_5": {
       "label": "Claude Sonnet 5",
@@ -5384,7 +7562,29 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 6.5e-05,
-      "output_price_per_1k": 0.0002
+      "output_price_per_1k": 0.0002,
+      "token_pricing_by_region": {
+        "us-west-2": {
+          "input_per_1k": 6.5e-05,
+          "output_per_1k": 0.0002
+        },
+        "us-east-1": {
+          "input_per_1k": 6.5e-05,
+          "output_per_1k": 0.0002
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 7.8e-05,
+          "output_per_1k": 0.00024
+        },
+        "us-east-2": {
+          "input_per_1k": 6.5e-05,
+          "output_per_1k": 0.0002
+        },
+        "eu-central-1": {
+          "input_per_1k": 7.8e-05,
+          "output_per_1k": 0.00024
+        }
+      }
     },
     "qwen3_coder_30b_a3b_instruct": {
       "label": "qwen.qwen3-coder-30b-a3b-instruct",
@@ -5411,7 +7611,61 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 7.5e-05,
-      "output_price_per_1k": 0.0003
+      "output_price_per_1k": 0.0003,
+      "token_pricing_by_region": {
+        "us-east-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-west-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.00035
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000115,
+          "output_per_1k": 0.000465
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "ap-south-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000355
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0001,
+          "output_per_1k": 0.000395
+        },
+        "sa-east-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000365
+        },
+        "us-east-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "eu-north-1": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 9e-05,
+          "output_per_1k": 0.000365
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 8e-05,
+          "output_per_1k": 0.00031
+        },
+        "us-west-2": {
+          "input_per_1k": 7.5e-05,
+          "output_per_1k": 0.0003
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.725e-05,
+          "output_per_1k": 0.000309
+        }
+      }
     },
     "grok_4_3": {
       "label": "xai.grok-4.3",
@@ -5438,7 +7692,61 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 0.00025,
-      "output_price_per_1k": 0.00075
+      "output_price_per_1k": 0.00075,
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0002575,
+          "output_per_1k": 0.0007725
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0003875,
+          "output_per_1k": 0.0011625
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00075
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00091
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00088
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00075
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00091
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00025,
+          "output_per_1k": 0.00075
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0009
+        }
+      }
     },
     "glm_4_6": {
       "label": "zai.glm-4.6",
@@ -5492,7 +7800,61 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "responses",
       "input_price_per_1k": 0.0003,
-      "output_price_per_1k": 0.0011
+      "output_price_per_1k": 0.0011,
+      "token_pricing_by_region": {
+        "us-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0011
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.001135
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0011
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.0011
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00132
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000465,
+          "output_per_1k": 0.001705
+        }
+      }
     },
     "qwen3_coder_480b_a35b_instruct": {
       "label": "qwen.qwen3-coder-480b-a35b-instruct",
@@ -5519,7 +7881,61 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 0.000225,
-      "output_price_per_1k": 0.0009
+      "output_price_per_1k": 0.0009,
+      "token_pricing_by_region": {
+        "sa-east-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
+        },
+        "us-east-2": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00023175,
+          "output_per_1k": 0.000927
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.000265,
+          "output_per_1k": 0.00106
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00023,
+          "output_per_1k": 0.00093
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00108
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00027,
+          "output_per_1k": 0.00109
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00035,
+          "output_per_1k": 0.001395
+        },
+        "us-west-2": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        },
+        "us-east-1": {
+          "input_per_1k": 0.000225,
+          "output_per_1k": 0.0009
+        }
+      }
     },
     "v3_1": {
       "label": "deepseek.v3.1",
@@ -5546,7 +7962,61 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 0.00029,
-      "output_price_per_1k": 0.00084
+      "output_price_per_1k": 0.00084,
+      "token_pricing_by_region": {
+        "ap-southeast-3": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00087
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00034121,
+          "output_per_1k": 0.00098834
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00035083,
+          "output_per_1k": 0.00101621
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00029,
+          "output_per_1k": 0.00084
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.0002987,
+          "output_per_1k": 0.0008652
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00044999,
+          "output_per_1k": 0.00130343
+        },
+        "eu-west-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.000348,
+          "output_per_1k": 0.001008
+        }
+      }
     },
     "gemma_4_e2b": {
       "label": "google.gemma-4-e2b",
@@ -5573,7 +8043,29 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 2e-05,
-      "output_price_per_1k": 4e-05
+      "output_price_per_1k": 4e-05,
+      "token_pricing_by_region": {
+        "us-east-1": {
+          "input_per_1k": 2e-05,
+          "output_per_1k": 4e-05
+        },
+        "us-east-2": {
+          "input_per_1k": 2e-05,
+          "output_per_1k": 4e-05
+        },
+        "us-west-2": {
+          "input_per_1k": 2e-05,
+          "output_per_1k": 4e-05
+        },
+        "us-gov-west-1": {
+          "input_per_1k": 2.4e-05,
+          "output_per_1k": 4.8e-05
+        },
+        "eu-central-1": {
+          "input_per_1k": 2.4e-05,
+          "output_per_1k": 4.8e-05
+        }
+      }
     },
     "claude_haiku_4_5": {
       "label": "anthropic.claude-haiku-4-5",
@@ -5625,7 +8117,61 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 0.0003,
-      "output_price_per_1k": 0.00125
+      "output_price_per_1k": 0.00125,
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "us-east-1": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00125
+        },
+        "us-east-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00125
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00152
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "us-west-2": {
+          "input_per_1k": 0.0003,
+          "output_per_1k": 0.00125
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.000309,
+          "output_per_1k": 0.0012875
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00147
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.0015
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00036,
+          "output_per_1k": 0.00152
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.000465,
+          "output_per_1k": 0.0019375
+        }
+      }
     },
     "qwen3_vl_235b_a22b_instruct": {
       "label": "qwen.qwen3-vl-235b-a22b-instruct",
@@ -5652,7 +8198,61 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 0.00026,
-      "output_price_per_1k": 0.00133
+      "output_price_per_1k": 0.00133,
+      "token_pricing_by_region": {
+        "eu-west-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00156
+        },
+        "eu-north-1": {
+          "input_per_1k": 0.000318,
+          "output_per_1k": 0.001596
+        },
+        "eu-south-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00156
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 0.000318,
+          "output_per_1k": 0.001596
+        },
+        "us-east-2": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "sa-east-1": {
+          "input_per_1k": 0.00032,
+          "output_per_1k": 0.00161
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 0.00027295,
+          "output_per_1k": 0.0013699
+        },
+        "us-east-1": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "us-west-2": {
+          "input_per_1k": 0.00026,
+          "output_per_1k": 0.00133
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 0.00032,
+          "output_per_1k": 0.00161
+        },
+        "eu-central-1": {
+          "input_per_1k": 0.000318,
+          "output_per_1k": 0.001596
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.00041,
+          "output_per_1k": 0.00206
+        },
+        "ap-south-1": {
+          "input_per_1k": 0.00031,
+          "output_per_1k": 0.00156
+        }
+      }
     },
     "qwen3_next_80b_a3b_instruct": {
       "label": "qwen.qwen3-next-80b-a3b-instruct",
@@ -5679,7 +8279,61 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 7e-05,
-      "output_price_per_1k": 0.0006
+      "output_price_per_1k": 0.0006,
+      "token_pricing_by_region": {
+        "ap-south-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00071
+        },
+        "us-east-1": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0006
+        },
+        "ap-southeast-2": {
+          "input_per_1k": 7.21e-05,
+          "output_per_1k": 0.000618
+        },
+        "sa-east-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        },
+        "us-east-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0006
+        },
+        "eu-central-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00071
+        },
+        "us-west-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0006
+        },
+        "eu-south-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00071
+        },
+        "eu-north-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        },
+        "ap-northeast-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        },
+        "eu-west-2": {
+          "input_per_1k": 0.0001085,
+          "output_per_1k": 0.00093
+        },
+        "ap-southeast-3": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00072
+        }
+      }
     },
     "gemma_4_31b": {
       "label": "google.gemma-4-31b",
@@ -5706,7 +8360,29 @@
       "invoke_endpoint": "bedrock-mantle",
       "invoke_api": "chat_completions",
       "input_price_per_1k": 7e-05,
-      "output_price_per_1k": 0.0002
+      "output_price_per_1k": 0.0002,
+      "token_pricing_by_region": {
+        "us-gov-west-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00024
+        },
+        "us-east-1": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0002
+        },
+        "us-east-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0002
+        },
+        "us-west-2": {
+          "input_per_1k": 7e-05,
+          "output_per_1k": 0.0002
+        },
+        "eu-central-1": {
+          "input_per_1k": 8.4e-05,
+          "output_per_1k": 0.00024
+        }
+      }
     },
     "grok_4_6": {
       "label": "xai.grok-4.6",
@@ -7785,7 +10461,7 @@
         "total_vram_gb": 24,
         "ram_gb": 16,
         "vcpus": 4,
-        "cost_per_hour_usd": 1.41,
+        "cost_per_hour_usd": 1.408,
         "compute_capability": 8.6,
         "bf16": true,
         "gpu_name": "NVIDIA A10G",
@@ -7798,7 +10474,7 @@
         "total_vram_gb": 24,
         "ram_gb": 32,
         "vcpus": 8,
-        "cost_per_hour_usd": 1.51,
+        "cost_per_hour_usd": 1.515,
         "compute_capability": 8.6,
         "bf16": true,
         "gpu_name": "NVIDIA A10G",
@@ -7824,7 +10500,7 @@
         "total_vram_gb": 24,
         "ram_gb": 256,
         "vcpus": 32,
-        "cost_per_hour_usd": 5.63,
+        "cost_per_hour_usd": 3.06,
         "compute_capability": 8.6,
         "bf16": true
       },
@@ -7846,7 +10522,7 @@
         "total_vram_gb": 24,
         "ram_gb": 256,
         "vcpus": 64,
-        "cost_per_hour_usd": 7.09,
+        "cost_per_hour_usd": 5.12,
         "compute_capability": 8.6,
         "bf16": true
       },
@@ -7857,7 +10533,7 @@
         "total_vram_gb": 96,
         "ram_gb": 384,
         "vcpus": 96,
-        "cost_per_hour_usd": 10.63,
+        "cost_per_hour_usd": 10.18,
         "compute_capability": 8.6,
         "bf16": true
       },
@@ -7868,7 +10544,7 @@
         "total_vram_gb": 192,
         "ram_gb": 768,
         "vcpus": 192,
-        "cost_per_hour_usd": 21.26,
+        "cost_per_hour_usd": 20.36,
         "compute_capability": 8.6,
         "bf16": true
       },
@@ -7879,7 +10555,7 @@
         "total_vram_gb": 24,
         "ram_gb": 16,
         "vcpus": 4,
-        "cost_per_hour_usd": 1.13,
+        "cost_per_hour_usd": 1.1267,
         "compute_capability": 8.9,
         "bf16": true,
         "gpu_name": "NVIDIA L4",
@@ -7892,7 +10568,7 @@
         "total_vram_gb": 24,
         "ram_gb": 32,
         "vcpus": 8,
-        "cost_per_hour_usd": 1.22,
+        "cost_per_hour_usd": 1.222,
         "compute_capability": 8.9,
         "bf16": true,
         "gpu_name": "NVIDIA L4",
@@ -7905,7 +10581,7 @@
         "total_vram_gb": 24,
         "ram_gb": 64,
         "vcpus": 16,
-        "cost_per_hour_usd": 1.69,
+        "cost_per_hour_usd": 1.654,
         "compute_capability": 8.9,
         "bf16": true,
         "gpu_name": "NVIDIA L4",
@@ -7918,7 +10594,7 @@
         "total_vram_gb": 48,
         "ram_gb": 32,
         "vcpus": 4,
-        "cost_per_hour_usd": 2.61,
+        "cost_per_hour_usd": 2.6054,
         "compute_capability": 8.9,
         "bf16": true
       },
@@ -7929,7 +10605,7 @@
         "total_vram_gb": 48,
         "ram_gb": 64,
         "vcpus": 8,
-        "cost_per_hour_usd": 2.8,
+        "cost_per_hour_usd": 2.8026,
         "compute_capability": 8.9,
         "bf16": true
       },
@@ -7940,7 +10616,7 @@
         "total_vram_gb": 48,
         "ram_gb": 128,
         "vcpus": 16,
-        "cost_per_hour_usd": 3.76,
+        "cost_per_hour_usd": 3.7553,
         "compute_capability": 8.9,
         "bf16": true,
         "gpu_name": "NVIDIA L40S",
@@ -7953,7 +10629,7 @@
         "total_vram_gb": 48,
         "ram_gb": 256,
         "vcpus": 32,
-        "cost_per_hour_usd": 5.66,
+        "cost_per_hour_usd": 5.6607,
         "compute_capability": 8.9,
         "bf16": true,
         "gpu_name": "NVIDIA L40S",
@@ -7966,7 +10642,7 @@
         "total_vram_gb": 192,
         "ram_gb": 384,
         "vcpus": 48,
-        "cost_per_hour_usd": 13.12,
+        "cost_per_hour_usd": 13.1158,
         "compute_capability": 8.9,
         "bf16": true,
         "gpu_name": "NVIDIA L40S",
@@ -7979,7 +10655,7 @@
         "total_vram_gb": 192,
         "ram_gb": 512,
         "vcpus": 64,
-        "cost_per_hour_usd": 41.76,
+        "cost_per_hour_usd": 9.4715,
         "compute_capability": 8.9,
         "bf16": true
       },
@@ -7990,7 +10666,7 @@
         "total_vram_gb": 192,
         "ram_gb": 768,
         "vcpus": 96,
-        "cost_per_hour_usd": 62.64,
+        "cost_per_hour_usd": 18.832,
         "compute_capability": 8.9,
         "bf16": true
       },
@@ -8001,7 +10677,7 @@
         "total_vram_gb": 384,
         "ram_gb": 1536,
         "vcpus": 192,
-        "cost_per_hour_usd": 125.28,
+        "cost_per_hour_usd": 37.664,
         "compute_capability": 8.9,
         "bf16": true
       },
@@ -8012,7 +10688,7 @@
         "total_vram_gb": 96,
         "ram_gb": 64,
         "vcpus": 8,
-        "cost_per_hour_usd": 4.2,
+        "cost_per_hour_usd": 4.2039,
         "compute_capability": 12.0,
         "bf16": true,
         "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
@@ -8025,7 +10701,7 @@
         "total_vram_gb": 96,
         "ram_gb": 128,
         "vcpus": 16,
-        "cost_per_hour_usd": 5.0,
+        "cost_per_hour_usd": 4.9977,
         "compute_capability": 12.0,
         "bf16": true,
         "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
@@ -8038,7 +10714,7 @@
         "total_vram_gb": 96,
         "ram_gb": 256,
         "vcpus": 32,
-        "cost_per_hour_usd": 6.59,
+        "cost_per_hour_usd": 6.5853,
         "compute_capability": 12.0,
         "bf16": true,
         "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
@@ -8051,7 +10727,7 @@
         "total_vram_gb": 192,
         "ram_gb": 512,
         "vcpus": 48,
-        "cost_per_hour_usd": 10.36,
+        "cost_per_hour_usd": 10.3576,
         "compute_capability": 12.0,
         "bf16": true,
         "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
@@ -8064,7 +10740,7 @@
         "total_vram_gb": 384,
         "ram_gb": 1024,
         "vcpus": 96,
-        "cost_per_hour_usd": 20.72,
+        "cost_per_hour_usd": 20.7152,
         "compute_capability": 12.0,
         "bf16": true,
         "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
@@ -8077,7 +10753,7 @@
         "total_vram_gb": 768,
         "ram_gb": 2048,
         "vcpus": 192,
-        "cost_per_hour_usd": 41.43,
+        "cost_per_hour_usd": 41.4304,
         "compute_capability": 12.0,
         "bf16": true,
         "gpu_name": "NVIDIA RTX PRO 6000 Blackwell",
@@ -8573,5 +11249,59 @@
   },
   "_txn_selftest": {
     "ping": 42
+  },
+  "video_pricing": {
+    "Nova Reel|ap-northeast-1": {
+      "model_name": "Nova Reel",
+      "region": "ap-northeast-1",
+      "price_per_second": 0.08,
+      "usage_type": "APN1-NovaReel-I2V-Medfps-HDRes"
+    }
+  },
+  "infra_pricing": {
+    "us-east-1": {
+      "s3_put_per_1k": 0.005,
+      "s3_get_per_1k": 0.0004,
+      "s3_transfer_out_per_gb": 0.09
+    },
+    "us-west-2": {
+      "s3_put_per_1k": 0.005,
+      "s3_get_per_1k": 0.0004,
+      "s3_transfer_out_per_gb": 0.09
+    },
+    "ap-southeast-2": {
+      "s3_put_per_1k": 0.0055,
+      "s3_get_per_1k": 0.00044,
+      "s3_transfer_out_per_gb": 0.114
+    },
+    "eu-west-1": {
+      "s3_put_per_1k": 0.0054,
+      "s3_get_per_1k": 0.00043,
+      "s3_transfer_out_per_gb": 0.09
+    }
+  },
+  "provider_price_defaults": {
+    "_description": "Published per-unit prices for models the AWS Pricing API does NOT return (Stability image services $/image; video $/second). Seeds base_price_usd on discovery; live image_pricing/video_pricing override at cost time. This is the registry source of record \u2014 edit here, not in code.",
+    "image": {
+      "Stability AI|inpainting": 0.07,
+      "Stability AI|outpainting": 0.06,
+      "Stability AI|erase": 0.07,
+      "Stability AI|search_replace": 0.07,
+      "Stability AI|search_recolor": 0.07,
+      "Stability AI|control_sketch": 0.07,
+      "Stability AI|control_structure": 0.07,
+      "Stability AI|style_guide": 0.07,
+      "Stability AI|style_transfer": 0.08,
+      "Stability AI|remove_background": 0.07,
+      "Stability AI|upscale_creative": 0.6,
+      "Stability AI|upscale_conservative": 0.4,
+      "Stability AI|upscale_fast": 0.03,
+      "Stability AI|text_to_image": 0.08,
+      "Amazon|text_to_image": 0.06
+    },
+    "video": {
+      "nova_reel": 0.08,
+      "luma_ray": 1.5
+    }
   }
 }

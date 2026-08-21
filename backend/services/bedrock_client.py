@@ -436,7 +436,7 @@ def _invoke_llm_mantle(
         out_tok = int(usage.get("output_tokens", 0) or 0)
         if in_tok or out_tok:
             from backend.services.cost_tracker import add_cost, compute_llm_cost
-            cost = compute_llm_cost(model_id, in_tok, out_tok)
+            cost = compute_llm_cost(model_id, in_tok, out_tok, region=region)
             if cost > 0:
                 add_cost("llm", cost, f"{model_id} (mantle): {in_tok} in, {out_tok} out")
     except Exception as e:
@@ -550,7 +550,7 @@ def invoke_llm(
         out_tok = usage.get("outputTokens", 0)
         if in_tok or out_tok:
             from backend.services.cost_tracker import add_cost, compute_llm_cost
-            llm_cost = compute_llm_cost(a_model_id, in_tok, out_tok)
+            llm_cost = compute_llm_cost(a_model_id, in_tok, out_tok, region=region)
             add_cost("llm", llm_cost, f"{cost_label}: {in_tok} in, {out_tok} out")
         return text
 
@@ -803,13 +803,27 @@ def invoke_image_model(
         raise
     result = json.loads(response["body"].read())
 
-    # Track image model cost
+    # Track image model cost — REGISTRY-sourced and REGION + quality aware.
+    # Resolution order (per the "registry-only, no hardcoded guesses" rule):
+    #   1. image_pricing[model|region|quality|size]  (Sync-recorded, the actual region used)
+    #   2. one-shot on-demand AWS Pricing API fetch for a registry gap (cached)
+    #   3. base_price_usd  (coarse registry fallback)
+    #   4. None → cost not booked; surfaced as "pricing unavailable" upstream
     purpose = model_config.get("model_purpose", "text_to_image")
-    image_cost = model_config.get("base_price_usd", 0) or 0
-    if image_cost > 0:
-        from backend.services.cost_tracker import add_cost
+    from backend.services.cost_tracker import add_cost, resolve_image_price, ondemand_image_price
+    _size = str(width) if width else ""
+    _q = quality or ""
+    image_cost = resolve_image_price(model_config, model_key, region, _q, _size)
+    if image_cost is None:
+        image_cost = ondemand_image_price(model_config, model_key, region, _q, _size)
+    if image_cost is None:
+        _bp = model_config.get("base_price_usd")
+        image_cost = float(_bp) if _bp else None
+    if image_cost and image_cost > 0:
         component = "image_generation" if purpose == "text_to_image" else f"image_{purpose}"
-        add_cost(component, image_cost, f"{label} × 1")
+        add_cost(component, image_cost, f"{label} × 1 ({region})")
+    else:
+        logger.warning("Image pricing unavailable for %s in %s — cost not recorded", model_key, region)
 
     # Extract image from response
     try:

@@ -668,20 +668,18 @@ def _track_warm_period_start(job: dict):
     ep = _resolve_endpoint_for_job(job) or f"artsmoker-{job['model_key'].replace('_', '-')}"
     if ep in _endpoint_warm_state:
         return  # already tracking
+    # Registry-sourced hourly rate via the single resolver (get_instance_hourly_rate:
+    # sagemaker_pricing → catalog seed → on-demand). No hardcoded fallback — 0.0 when
+    # unknown, so the keep-warm figure is honest rather than a fabricated rate.
+    hourly_rate = 0.0
     try:
-        from backend.services.custom_models import get_catalog_model
-        catalog = get_catalog_model(job["model_key"])
-        if catalog:
-            pricing = catalog.get("pricing", {})
-            instance_costs = pricing.get("instance_cost_per_hour", {})
-            recommended = catalog.get("requirements", {}).get("recommended_instance", "")
-            hourly_rate = instance_costs.get(recommended, 0)
-            if not hourly_rate and instance_costs:
-                hourly_rate = min(instance_costs.values())
-        else:
-            hourly_rate = 1.41  # g5.xlarge fallback
+        from backend.services.custom_models import get_catalog_model, get_instance_hourly_rate
+        catalog = get_catalog_model(job["model_key"]) or {}
+        recommended = catalog.get("requirements", {}).get("recommended_instance", "")
+        inst = job.get("instance_type") or recommended
+        hourly_rate = get_instance_hourly_rate(inst, job["model_key"], job.get("region")) or 0.0
     except Exception:
-        hourly_rate = 1.41
+        hourly_rate = 0.0
 
     _endpoint_warm_state[ep] = {
         "warm_start": datetime.now(timezone.utc),
