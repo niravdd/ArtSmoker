@@ -1216,7 +1216,10 @@
     "lifecycle_legacy": "Legacy",
     "lifecycle_legacy_hint": "Deprecated by the provider and scheduled for end-of-life. May stop working — migrate to an Active model.",
     "lifecycle_unavailable": "Unavailable",
-    "lifecycle_unavailable_hint": "This Legacy model is no longer accessible for your account (inactive) and has been removed from the pickers."
+    "lifecycle_unavailable_hint": "This Legacy model is no longer accessible for your account (inactive) and has been removed from the pickers.",
+    "cost_hourly": "~${{cost}}/hr while running",
+    "cost_per_gen_time": "~{{min}} min/generation",
+    "pricing_unavailable": "Pricing unavailable"
   },
   "prompt_editor": {
     "placeholder": "Describe what you want to generate...",

@@ -1216,7 +1216,10 @@
     "lifecycle_legacy": "Veraltet",
     "lifecycle_legacy_hint": "Vom Anbieter eingestellt und für das Lebensende vorgesehen. Funktioniert möglicherweise nicht mehr — wechseln Sie zu einem aktiven Modell.",
     "lifecycle_unavailable": "Nicht verfügbar",
-    "lifecycle_unavailable_hint": "Dieses veraltete Modell ist für Ihr Konto (inaktiv) nicht mehr zugänglich und wurde aus den Auswahllisten entfernt."
+    "lifecycle_unavailable_hint": "Dieses veraltete Modell ist für Ihr Konto (inaktiv) nicht mehr zugänglich und wurde aus den Auswahllisten entfernt.",
+    "cost_hourly": "~${{cost}}/Std. bei Betrieb",
+    "cost_per_gen_time": "~{{min}} Min./Generierung",
+    "pricing_unavailable": "Preis nicht verfügbar"
   },
   "prompt_editor": {
     "placeholder": "Beschreiben Sie, was Sie generieren möchten...",

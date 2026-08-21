@@ -626,7 +626,8 @@
             const prompt = item.original_prompt || item.prompt || '';
             const truncPrompt = prompt.length > 80 ? prompt.substring(0, 80) + '...' : prompt;
             const isSelected = this._selected.has(item.id);
-            const duration = item.duration_seconds ? `${Math.round(item.duration_seconds)}s` : '';
+            const _ds = item.duration_seconds || 0;  // multi-minute jobs read as "Nm Ms", not raw seconds
+            const duration = _ds ? (_ds >= 60 ? `${Math.floor(_ds / 60)}m ${Math.round(_ds % 60)}s` : `${Math.round(_ds)}s`) : '';
             // Status placeholders (Generating / blocked / failed) have no real image,
             // so they keep a fixed 4:3 box; real image thumbnails render at their
             // NATURAL aspect (masonry) so portrait subjects aren't center-cropped.

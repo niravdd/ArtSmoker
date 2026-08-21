@@ -386,6 +386,7 @@ def get_image_model_options(region: str | None = Query(default=None)):
     """
     from backend.services.model_registry import get_enabled_image_models, get_registry
     from backend.services.cost_tracker import resolve_image_price
+    from backend.services.custom_models import get_instance_hourly_rate
     enabled = get_enabled_image_models()
     registry = get_registry()
 
@@ -465,6 +466,15 @@ def get_image_model_options(region: str | None = Query(default=None)):
             "default_quality": cfg.get("default_quality"),
             "base_price_usd": cfg.get("base_price_usd"),
             "model_source": cfg.get("model_source", "foundation"),
+            # Custom-hosted models are hourly-billed: expose the live rate + typical
+            # latency so the studio shows a compute-time-based estimate, not per-image.
+            "custom_hourly_usd": (
+                get_instance_hourly_rate(
+                    (cfg.get("deployment", {}) or {}).get("instance_type"),
+                    cfg.get("catalog_key"),
+                    (cfg.get("deployment", {}) or {}).get("region"))
+                if cfg.get("model_source") == "custom_hosted" else None),
+            "typical_latency_seconds": (cfg.get("invoke", {}) or {}).get("typical_latency_seconds"),
             "supported_sizes": cfg.get("invoke", {}).get("supported_sizes"),
             "_last_updated": cfg.get("last_updated", cfg.get("invoke", {}).get("last_updated", "")),
         })

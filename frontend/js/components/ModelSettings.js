@@ -379,10 +379,73 @@
             return html`${mainHtml}${extraHtml}`;
         },
 
+        // Custom-hosted (SageMaker) models are billed per HOUR of instance uptime, so
+        // a per-image price is misleading (idle/spin-up bills on top of generation).
+        // Resolve the live hourly rate from the registry the component already loaded
+        // (sagemaker_pricing[instance|region] → gpu_instances seed) + typical latency.
+        _customHourly(m) {
+            const inst = m.deployment && m.deployment.instance_type;
+            const region = m.deployment && m.deployment.region;
+            let hourly = null;
+            if (inst) {
+                const sp = (this._registry && this._registry.sagemaker_pricing) || {};
+                hourly = sp[`${inst}|${region}`] || null;
+                if (!hourly) {
+                    const gi = (this._registry && this._registry.custom_model_catalog
+                                && this._registry.custom_model_catalog.gpu_instances) || {};
+                    hourly = (gi[inst] && gi[inst].cost_per_hour_usd) || null;
+                }
+            }
+            const lat = (m.invoke && m.invoke.typical_latency_seconds) || 0;
+            return { hourly, minutes: lat ? Math.max(1, Math.round(lat / 60)) : null };
+        },
+
+        _isCustomHosted(m) {
+            return m.model_source === 'custom_hosted' || String(m.model_id || '').startsWith('sagemaker:');
+        },
+
+        // Cost label: per-HOUR + typical time for custom models (no per-image $);
+        // per-image for Bedrock foundation models. "Pricing unavailable" when the
+        // registry has no rate (never a fabricated number).
+        _costLabel(m) {
+            if (this._isCustomHosted(m)) {
+                const d = this._customHourly(m);
+                if (d.hourly) {
+                    const hr = t('artsmoker.ui.model_settings.cost_hourly', { cost: d.hourly.toFixed(2) });
+                    return d.minutes ? `${hr} · ${t('artsmoker.ui.model_settings.cost_per_gen_time', { min: d.minutes })}` : hr;
+                }
+                return t('artsmoker.ui.model_settings.pricing_unavailable');
+            }
+            return m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : t('artsmoker.ui.common.unknown');
+        },
+
+        // Cost label for a CUSTOM-MODEL CATALOG entry (not yet deployed): per-hour of
+        // its recommended instance + typical time. Different data shape than a deployed
+        // model (recommended_instance + pricing.instance_cost_per_hour, or live
+        // gpu_instances), hence its own resolver.
+        _catalogCostLabel(m) {
+            const inst = m.requirements && m.requirements.recommended_instance;
+            const ich = (m.pricing && m.pricing.instance_cost_per_hour) || {};
+            let hourly = inst ? ich[inst] : null;
+            if (!hourly) { const vals = Object.values(ich); hourly = vals.length ? vals[0] : null; }
+            if (!hourly && inst) {
+                const gi = (this._registry && this._registry.custom_model_catalog
+                            && this._registry.custom_model_catalog.gpu_instances) || {};
+                hourly = (gi[inst] && gi[inst].cost_per_hour_usd) || null;
+            }
+            const lat = (m.invoke && m.invoke.typical_latency_seconds) || 0;
+            const min = lat ? Math.max(1, Math.round(lat / 60)) : null;
+            if (hourly) {
+                const hr = t('artsmoker.ui.model_settings.cost_hourly', { cost: hourly.toFixed(2) });
+                return min ? `${hr} · ${t('artsmoker.ui.model_settings.cost_per_gen_time', { min })}` : hr;
+            }
+            return t('artsmoker.ui.model_settings.pricing_unavailable');
+        },
+
         _renderSingleModel(key, m, purposeTag = '') {
             const regions = (m.available_regions || [m.region]).join(', ');
             const quality = (m.quality_options || []).map(q => q.label).join(' / ') || t('artsmoker.ui.model_settings.no_tiers');
-            const price = m.base_price_usd != null ? `$${m.base_price_usd.toFixed(2)}/img` : t('artsmoker.ui.common.unknown');
+            const price = this._costLabel(m);
             const strictColor = m.moderation_strictness === 'very_strict' ? 'text-red-400' : m.moderation_strictness === 'strict' ? 'text-amber-400' : 'text-emerald-400';
             const sourceBadge = this._sourceBadge(m);
 
@@ -546,7 +609,10 @@
             return html`${Object.entries(models).map(([key, m]) => {
                 const enabled = m.enabled !== false;
                 const regions = m.available_regions || [m.region].filter(Boolean);
-                const price = m.base_price_per_second_usd ? `$${m.base_price_per_second_usd}/sec` : '';
+                // Custom-hosted video → per-hour + time; Bedrock video → per-second.
+                const price = this._isCustomHosted(m)
+                    ? this._costLabel(m)
+                    : (m.base_price_per_second_usd ? `$${m.base_price_per_second_usd}/sec` : '');
                 const sourceBadge = this._sourceBadge(m);
                 return html`
                     <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${!enabled ? 'opacity-50' : ''}" data-video-key="${key}">
@@ -2420,7 +2486,7 @@
                                         <div class="flex gap-3 mt-1 text-[10px] text-brand-text-muted/60">
                                             <span>${m.provider}</span>
                                             <span>${m.requirements?.recommended_instance || '?'}</span>
-                                            <span>~$${m.pricing?.estimated_cost_per_image?.toFixed(2) || m.pricing?.estimated_cost_per_video?.toFixed(2) || '?'}/unit</span>
+                                            <span>${this._catalogCostLabel(m)}</span>
                                             <span>${m.requirements?.min_vram_gb || '?'}GB VRAM</span>
                                         </div>
                                     </div>

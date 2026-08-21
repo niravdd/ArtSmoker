@@ -945,7 +945,8 @@
             // nosemgrep
             container.innerHTML = jobs.map(j => {
                 const thumbUrl = API.video.thumbnailUrl(j.job_id || j.video_id);
-                const dur = j.duration_seconds ? `${Math.round(j.duration_seconds)}s` : '';
+                const _ds = j.duration_seconds || 0;  // minutes for multi-minute jobs
+                const dur = _ds ? (_ds >= 60 ? `${Math.floor(_ds / 60)}m ${Math.round(_ds % 60)}s` : `${Math.round(_ds)}s`) : '';
                 const model = j.model_label || j.model_key || '';
                 return html`
                     <div class="card cursor-pointer overflow-hidden group video-card" data-job-id="${j.job_id || j.video_id}">

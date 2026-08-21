@@ -962,7 +962,10 @@
     "lifecycle_legacy": "Heredado",
     "lifecycle_legacy_hint": "Obsoleto por el proveedor y programado para su fin de vida. Puede dejar de funcionar — migra a un modelo activo.",
     "lifecycle_unavailable": "No disponible",
-    "lifecycle_unavailable_hint": "Este modelo heredado ya no es accesible para tu cuenta (inactiva) y se ha eliminado de los selectores."
+    "lifecycle_unavailable_hint": "Este modelo heredado ya no es accesible para tu cuenta (inactiva) y se ha eliminado de los selectores.",
+    "cost_hourly": "~${{cost}}/h en ejecución",
+    "cost_per_gen_time": "~{{min}} min/generación",
+    "pricing_unavailable": "Precio no disponible"
   },
   "nav": {
     "chat_studio": "Estudio de Chat",

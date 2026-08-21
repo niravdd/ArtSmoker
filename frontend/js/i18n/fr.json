@@ -962,7 +962,10 @@
     "lifecycle_legacy": "Obsolète",
     "lifecycle_legacy_hint": "Dépréciée par le fournisseur et programmée pour la fin de vie. Peut cesser de fonctionner — migrez vers un modèle actif.",
     "lifecycle_unavailable": "Indisponible",
-    "lifecycle_unavailable_hint": "Ce modèle obsolète n'est plus accessible pour votre compte (inactif) et a été retiré des sélecteurs."
+    "lifecycle_unavailable_hint": "Ce modèle obsolète n'est plus accessible pour votre compte (inactif) et a été retiré des sélecteurs.",
+    "cost_hourly": "~{{cost}} $/h en fonctionnement",
+    "cost_per_gen_time": "~{{min}} min/génération",
+    "pricing_unavailable": "Tarif indisponible"
   },
   "nav": {
     "chat_studio": "Studio de Chat",

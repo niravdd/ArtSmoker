@@ -962,7 +962,10 @@
     "lifecycle_legacy": "レガシー",
     "lifecycle_legacy_hint": "プロバイダーにより非推奨とされ、提供終了が予定されています。動作しなくなる可能性があります — アクティブなモデルに移行してください。",
     "lifecycle_unavailable": "利用不可",
-    "lifecycle_unavailable_hint": "このレガシーモデルは、お使いのアカウントでは（非アクティブのため）アクセスできなくなり、選択肢から削除されました。"
+    "lifecycle_unavailable_hint": "このレガシーモデルは、お使いのアカウントでは（非アクティブのため）アクセスできなくなり、選択肢から削除されました。",
+    "cost_hourly": "~${{cost}}/時 稼働中",
+    "cost_per_gen_time": "~{{min}}分/生成",
+    "pricing_unavailable": "料金は利用できません"
   },
   "nav": {
     "chat_studio": "チャットスタジオ",

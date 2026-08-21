@@ -674,6 +674,9 @@
                         quality_options: m.quality_options || [],
                         default_quality: m.default_quality || '',
                         base_price_usd: m.base_price_usd || null,
+                        // Custom-hosted (hourly-billed): per-gen cost = hourly × latency/3600.
+                        custom_hourly_usd: m.custom_hourly_usd || null,
+                        typical_latency_seconds: m.typical_latency_seconds || null,
                         supported_sizes: m.supported_sizes || null,
                     }));
                     // Append the virtual "All Available Models" entry
@@ -761,6 +764,14 @@
          *  rather than showing a guessed/hardcoded figure). */
         _perImagePrice(modelData, region, quality) {
             if (!modelData) return null;
+            // Custom-hosted (SageMaker) models are hourly-billed: the real per-image
+            // figure is the compute cost of one generation = hourly × latency/3600
+            // (NOT the misleading per-image base_price_usd). Falls through to registry
+            // pricing when the rate/latency aren't available.
+            if (modelData.model_source === 'custom_hosted'
+                && modelData.custom_hourly_usd && modelData.typical_latency_seconds) {
+                return modelData.custom_hourly_usd * modelData.typical_latency_seconds / 3600;
+            }
             const regionPricing = modelData.region_pricing || [];
             const rp = regionPricing.find(r => r.region === region) || regionPricing[0] || {};
             if (rp.quality_prices && quality && rp.quality_prices[quality] != null) {
@@ -3043,7 +3054,10 @@
                     const isQueued = isActive && j.queue_position > 1;
                     if (j.status === 'complete') {
                         statusText = `Generated${j.compute_cost_usd ? ` (~$${j.compute_cost_usd.toFixed(4)})` : ''}`;
-                        if (j.duration_seconds) statusText += ` in ${Math.round(j.duration_seconds)}s`;
+                        if (j.duration_seconds) {
+                            const _d = j.duration_seconds;  // minutes for multi-minute custom jobs
+                            statusText += _d >= 60 ? ` in ${Math.floor(_d / 60)}m ${Math.round(_d % 60)}s` : ` in ${Math.round(_d)}s`;
+                        }
                     } else if (j.status === 'failed') {
                         statusText = 'Failed';
                     } else if (isQueued) {
