@@ -3703,51 +3703,101 @@
             return base.replace(new RegExp(`\\.${ext}$`, 'i'), `_${target}.${ext}`);
         },
 
-        /** Point the FBX + USD download links at the currently-selected target/variant.
-         *  (GLB is target-independent and handled separately.) */
-        _refreshExportLinks() {
+        /** Download an FBX/USD export: fetch (converting server-side on first use),
+         *  show preparing/success/failure toasts, then save the blob. Fetch-based so
+         *  a failure (Blender missing / conversion error → HTTP 503) surfaces a clear
+         *  message instead of the browser silently saving an error page. */
+        async _downloadExport(fmt) {
             const target = document.getElementById('av-3d-target')?.value || 'generic';
-            const fbx = document.getElementById('av-3d-download-fbx');
-            const usd = document.getElementById('av-3d-download-usd');
-            if (fbx) { fbx.href = this._exportUrl('fbx', target); fbx.setAttribute('download', this._exportDownloadName('fbx', target)); }
-            if (usd) { usd.href = this._exportUrl('usd', target); usd.setAttribute('download', this._exportDownloadName('usdz', target)); }
+            const btn = document.getElementById(fmt === 'usd' ? 'av-3d-download-usd' : 'av-3d-download-fbx');
+            if (btn) btn.disabled = true;
+            window.showToast?.(t('artsmoker.ui.asset_viewer.three_d_export_preparing'), 'info');
+            try {
+                const resp = await fetch(this._exportUrl(fmt, target));
+                if (!resp.ok) {
+                    let detail = '';
+                    try { detail = (await resp.json()).detail || ''; } catch { /* non-JSON */ }
+                    window.showToast?.((t('artsmoker.ui.asset_viewer.three_d_export_failed') || 'Export failed')
+                        + (detail ? `: ${detail}` : ''), 'error');
+                    return;
+                }
+                const blob = await resp.blob();
+                const name = this._exportDownloadName(fmt === 'usd' ? 'usdz' : 'fbx', target);
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = name;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 5000);
+                window.showToast?.((t('artsmoker.ui.asset_viewer.three_d_export_ready') || '{{fmt}} ready')
+                    .replace('{{fmt}}', fmt.toUpperCase()), 'success');
+            } catch (e) {
+                window.showToast?.((t('artsmoker.ui.asset_viewer.three_d_export_failed') || 'Export failed')
+                    + (e?.message ? `: ${e.message}` : ''), 'error');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
         },
 
-        _render3DComplete(container, data) {
-            const fileSize = data.file_size ? this._formatBytes(data.file_size) : '—';
-            const glbUrl = data.download_url || '#';
-            this._current3DVariant = null;   // set when the variant switcher loads (≥2 variants)
-            const pl = data.pipeline || {};
-            const prm = data.params || {};
-            // Build the "models & tools used" rows from the persisted pipeline
-            // block (gallery metadata). Only render rows we actually have.
-            const _toolRows = [];
-            if (pl.geometry_model) _toolRows.push([t('artsmoker.ui.asset_viewer.three_d_geometry_model'), pl.geometry_model]);
-            if (pl.texture_label || pl.texture_backend) _toolRows.push([t('artsmoker.ui.asset_viewer.three_d_texture_model'), pl.texture_label || pl.texture_backend]);
-            _toolRows.push([t('artsmoker.ui.asset_viewer.three_d_output_type'),
+        /** Build the "stats grid + Models & Tools Used" HTML for a 3D variant's data
+         *  ({file_size, vertices, faces, created_at, pipeline, params}). Reused for
+         *  the initial render AND re-rendered per variant on switch, so the panel
+         *  always reflects the SELECTED variant's actual pipeline (not the default). */
+        _render3DMetaHtml(d) {
+            d = d || {};
+            const fileSize = d.file_size ? this._formatBytes(d.file_size) : '—';
+            const pl = d.pipeline || {};
+            const prm = d.params || {};
+            const rows = [];
+            if (pl.geometry_model) rows.push([t('artsmoker.ui.asset_viewer.three_d_geometry_model'), pl.geometry_model]);
+            if (pl.texture_label || pl.texture_backend) rows.push([t('artsmoker.ui.asset_viewer.three_d_texture_model'), pl.texture_label || pl.texture_backend]);
+            rows.push([t('artsmoker.ui.asset_viewer.three_d_output_type'),
                 pl.has_pbr ? t('artsmoker.ui.asset_viewer.three_d_pbr_textured') : t('artsmoker.ui.asset_viewer.three_d_albedo_textured')]);
-            if (pl.instance_type) _toolRows.push([t('artsmoker.ui.asset_viewer.three_d_instance'), pl.instance_type.replace('ml.', '')]);
-            if (prm.octree_depth) _toolRows.push([t('artsmoker.ui.asset_viewer.three_d_mesh_detail'), `octree ${prm.octree_depth}`]);
-            if (prm.steps) _toolRows.push([t('artsmoker.ui.asset_viewer.three_d_diffusion_steps'), String(prm.steps)]);
-            if (prm.seed !== undefined && prm.seed !== null) _toolRows.push([t('artsmoker.ui.asset_viewer.three_d_seed'), String(prm.seed)]);
-            // License provenance (persisted from the deploy-time acceptance).
+            if (pl.instance_type) rows.push([t('artsmoker.ui.asset_viewer.three_d_instance'), pl.instance_type.replace('ml.', '')]);
+            if (prm.octree_depth) rows.push([t('artsmoker.ui.asset_viewer.three_d_mesh_detail'), `octree ${prm.octree_depth}`]);
+            if (prm.steps) rows.push([t('artsmoker.ui.asset_viewer.three_d_diffusion_steps'), String(prm.steps)]);
+            if (prm.seed !== undefined && prm.seed !== null) rows.push([t('artsmoker.ui.asset_viewer.three_d_seed'), String(prm.seed)]);
             if (pl.license_name) {
                 const commTxt = pl.commercial === true ? ` (${t('artsmoker.ui.asset_viewer.three_d_lic_commercial')})`
                     : (pl.commercial === false ? ` (${t('artsmoker.ui.asset_viewer.three_d_lic_noncommercial')})` : '');
-                _toolRows.push([t('artsmoker.ui.asset_viewer.three_d_lic_label'), pl.license_name + commTxt]);
+                rows.push([t('artsmoker.ui.asset_viewer.three_d_lic_label'), pl.license_name + commTxt]);
             }
-            if (pl.license_accepted_at) _toolRows.push([t('artsmoker.ui.asset_viewer.three_d_lic_accepted_col'), window.formatTimestamp(pl.license_accepted_at)]);
-            const toolsHtml = _toolRows.length ? html`
+            if (pl.license_accepted_at) rows.push([t('artsmoker.ui.asset_viewer.three_d_lic_accepted_col'), window.formatTimestamp(pl.license_accepted_at)]);
+            const toolsHtml = rows.length ? html`
                 <div class="rounded-lg border border-brand-border/40 bg-white/[0.02] px-4 py-3">
                     <p class="text-[10px] text-brand-text-muted uppercase tracking-wider mb-2">${t('artsmoker.ui.asset_viewer.three_d_pipeline_title')}</p>
                     <div class="grid grid-cols-2 gap-x-6 gap-y-1.5">
-                        ${_toolRows.map(([k, v]) => html`
+                        ${rows.map(([k, v]) => html`
                             <div class="flex items-center justify-between gap-2 text-[11px]">
                                 <span class="text-brand-text-muted">${k}</span>
                                 <span class="font-medium text-right truncate" title="${String(v)}">${String(v)}</span>
                             </div>`)}
                     </div>
                 </div>` : '';
+            return html`
+                <div class="grid grid-cols-4 gap-3 text-center">
+                    <div>
+                        <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.ui.asset_viewer.three_d_file_size')}</p>
+                        <p class="font-medium">${fileSize}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.ui.asset_viewer.three_d_vertices')}</p>
+                        <p class="font-medium">${d.vertices ? d.vertices.toLocaleString() : '—'}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.ui.asset_viewer.three_d_faces_count')}</p>
+                        <p class="font-medium">${d.faces ? d.faces.toLocaleString() : '—'}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.ui.asset_viewer.three_d_created')}</p>
+                        <p class="font-medium text-[11px]">${d.created_at ? window.formatTimestamp(d.created_at) : '—'}</p>
+                    </div>
+                </div>
+                ${toolsHtml}`;
+        },
+
+        _render3DComplete(container, data) {
+            const glbUrl = data.download_url || '#';
+            this._current3DVariant = null;   // set when the variant switcher loads (≥2 variants)
             // Parallel jobs: Regenerate is ALWAYS available — firing another job
             // adds it to the in-progress strip rather than blocking the view.
             const regenBtnClass = 'btn btn-sm btn-secondary';
@@ -3798,26 +3848,13 @@
                             </button>
                         </div>
                     </div>
-                    <div class="grid grid-cols-4 gap-3 text-center">
-                        <div>
-                            <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.ui.asset_viewer.three_d_file_size')}</p>
-                            <p class="font-medium">${fileSize}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.ui.asset_viewer.three_d_vertices')}</p>
-                            <p class="font-medium">${data.vertices ? data.vertices.toLocaleString() : '—'}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.ui.asset_viewer.three_d_faces_count')}</p>
-                            <p class="font-medium">${data.faces ? data.faces.toLocaleString() : '—'}</p>
-                        </div>
-                        <div>
-                            <p class="text-[10px] text-brand-text-muted uppercase">${t('artsmoker.ui.asset_viewer.three_d_created')}</p>
-                            <p class="font-medium text-[11px]">${data.created_at ? window.formatTimestamp(data.created_at) : '—'}</p>
-                        </div>
-                    </div>
-                    ${toolsHtml}
+                    <!-- Stats + Models&Tools panel — re-rendered per variant on switch. -->
+                    <div id="av-3d-meta" class="space-y-3">${this._render3DMetaHtml(data)}</div>
                     <div class="flex flex-col items-center gap-2">
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-[10px] text-brand-text-muted whitespace-nowrap">${t('artsmoker.ui.asset_viewer.three_d_target_engine')}</label>
+                            <select id="av-3d-target" class="input text-[10px] py-0.5"></select>
+                        </div>
                         <div class="flex items-center justify-center gap-2 flex-wrap">
                             <a id="av-3d-download" href="${glbUrl}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -3825,25 +3862,21 @@
                                 </svg>
                                 ${t('artsmoker.ui.asset_viewer.three_d_download')}
                             </a>
-                            <a id="av-3d-download-fbx" download class="btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}">
+                            <button id="av-3d-download-fbx" class="btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                                 </svg>
                                 ${t('artsmoker.ui.asset_viewer.three_d_download_fbx')}
-                            </a>
-                            <a id="av-3d-download-usd" download class="btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}">
+                            </button>
+                            <button id="av-3d-download-usd" class="btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                                 </svg>
                                 ${t('artsmoker.ui.asset_viewer.three_d_download_usd')}
-                            </a>
+                            </button>
                             <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5">
                                 ${regenBtnLabel}
                             </button>
-                        </div>
-                        <div class="flex items-center gap-1.5">
-                            <label class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.asset_viewer.three_d_target_engine')}</label>
-                            <select id="av-3d-target" class="input text-[10px] py-0.5"></select>
                         </div>
                     </div>
                     <p class="text-[9px] text-brand-text-muted text-center">${t('artsmoker.ui.asset_viewer.three_d_viewer_hint')}</p>
@@ -3918,25 +3951,14 @@
                 const vrec = (this._meta?.versions || []).find(v => v.version === ver);
                 glbDl.setAttribute('download', this._versionDownloadName('glb', ver, vrec));
             }
-            // Engine-export target dropdown → drives the FBX + USD download links.
-            // Populate from the config-driven target list; refresh links on change.
+            // Engine-export: FBX/USD buttons fetch-download (converting server-side on
+            // first use, ONLY the requested format), with preparing/success/failure
+            // toasts. The target dropdown is populated from the config-driven list;
+            // the buttons read the selected target + variant live at click time.
+            container.querySelector('#av-3d-download-fbx')?.addEventListener('click', () => this._downloadExport('fbx'));
+            container.querySelector('#av-3d-download-usd')?.addEventListener('click', () => this._downloadExport('usd'));
             const targetSel = container.querySelector('#av-3d-target');
-            const wireExportBtns = () => {
-                this._refreshExportLinks();
-                // First export for a target converts server-side (headless Blender) and
-                // builds BOTH FBX + USD in one pass — reassure the user on click.
-                ['#av-3d-download-fbx', '#av-3d-download-usd'].forEach(sel => {
-                    const el = container.querySelector(sel);
-                    if (el && !el._wired) {
-                        el._wired = true;
-                        el.addEventListener('click', () => {
-                            window.showToast?.(t('artsmoker.ui.asset_viewer.three_d_export_preparing'), 'info');
-                        });
-                    }
-                });
-            };
             if (targetSel) {
-                targetSel.addEventListener('change', () => this._refreshExportLinks());
                 (async () => {
                     try {
                         const data = await API.admin.exportTargets();
@@ -3944,11 +3966,8 @@
                         targetSel.innerHTML = (data.targets || [])
                             .map(tt => html`<option value="${tt.key}">${tt.label}</option>`).join('');
                         targetSel.value = data.default || 'generic';
-                    } catch { /* leave empty → generic default in the URL */ }
-                    wireExportBtns();
+                    } catch { /* leave empty → generic default in the export URL */ }
                 })();
-            } else {
-                wireExportBtns();
             }
 
             // Variant switcher: show alternative 3D models for this 2D
@@ -4048,6 +4067,19 @@
                 }
                 return base.replace(/\.glb$/i, `_${vid}.glb`).replace(/[^\w.\-]+/g, '-');
             };
+            // Re-render the stats + "Models & Tools Used" panel for THIS variant, so
+            // switching variants shows that variant's real pipeline (not the default).
+            const refreshMetaPanel = (vid) => {
+                const metaEl = container.querySelector('#av-3d-meta');
+                const v = variants.find(x => x.variant_id === vid);
+                if (metaEl && v) {
+                    // nosemgrep
+                    metaEl.innerHTML = this._render3DMetaHtml({
+                        file_size: v.size_bytes, vertices: v.vertices, faces: v.faces,
+                        created_at: v.created_at, pipeline: v.pipeline, params: v.params,
+                    });
+                }
+            };
             const showVariant = (vid) => {
                 previewId = vid;
                 if (viewer) viewer.src = `${variantUrl(vid)}&t=${Date.now()}`;
@@ -4055,19 +4087,19 @@
                     dlLink.href = variantUrl(vid);
                     dlLink.setAttribute('download', glbName(vid));
                 }
-                // FBX/USD follow the selected variant (+ current target engine).
+                // FBX/USD read this at click time (+ the target dropdown).
                 this._current3DVariant = vid;
-                this._refreshExportLinks();
+                refreshMetaPanel(vid);
                 refreshButtons();
             };
-            // Initialize the download links to the default variant currently shown.
+            // Initialize the download link + meta panel to the default variant shown.
             if (dlLink && defaultId) {
                 dlLink.href = variantUrl(defaultId);
                 dlLink.setAttribute('download', glbName(defaultId));
             }
             if (defaultId) {
                 this._current3DVariant = defaultId;
-                this._refreshExportLinks();
+                refreshMetaPanel(defaultId);
             }
             bar.querySelectorAll('.av-3d-variant-btn').forEach((btn) => {
                 btn.addEventListener('click', () => showVariant(btn.dataset.variant));

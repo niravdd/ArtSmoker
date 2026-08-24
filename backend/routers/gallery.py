@@ -1062,10 +1062,11 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
     fmt ∈ {glb, fbx, usd}. GLB is served PRISTINE (glTF is Y-up by spec and importers
     convert on load — a re-oriented GLB would be malformed). FBX + USD are oriented
     for `target` (generic/unreal/unity/godot/maya/3dsmax) and converted LAZILY on
-    first request via ONE headless-Blender pass that produces BOTH (so the sibling
-    format is then instant), cached PER TARGET so switching targets never overwrites
-    a previously-built one. Fidelity note: geometry + UVs + base color + normal
-    survive; metallic/roughness re-hooks on engine import (a format limitation).
+    first request — ONLY the requested format is built (an explicit download is the
+    user's intent; we don't spawn formats they didn't ask for and clutter storage) —
+    cached PER TARGET so switching targets never overwrites a previously-built one.
+    Fidelity note: geometry + UVs + base color + normal survive; metallic/roughness
+    re-hooks on engine import (a format limitation).
     """
     from backend.services import mesh_export
     fmt = (fmt or "").lower()
@@ -1106,16 +1107,14 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
         from backend.services.safe_write import named_write_lock
 
         def _convert():
-            # Serialize per (asset, version, variant, target) across workers so two
-            # concurrent downloads don't both run Blender; second waiter finds cache.
-            with named_write_lock(f"export-{asset_id}-{version}-{variant or 'default'}-{target}"):
+            # Serialize per (asset, version, variant, target, fmt) across workers so
+            # two concurrent downloads don't both run Blender; second waiter finds cache.
+            with named_write_lock(f"export-{asset_id}-{version}-{variant or 'default'}-{target}-{fmt}"):
                 if out_path.exists() and out_path.stat().st_size > 0:
                     return
-                # One pass builds BOTH formats for this target.
-                mesh_export.convert_mesh(str(glb_path), {
-                    "fbx": asset_dir / f"{base}__{target}.fbx",
-                    "usd": asset_dir / f"{base}__{target}.usdz",
-                }, target)
+                # Build ONLY the requested format — don't spawn files the user didn't
+                # ask for. convert_mesh maps "usd" → the .usdz path we pass.
+                mesh_export.convert_mesh(str(glb_path), {fmt: out_path}, target)
 
         try:
             await asyncio.to_thread(_convert)   # Blender is blocking → off the event loop

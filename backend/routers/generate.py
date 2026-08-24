@@ -593,6 +593,11 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
                     body.negative_prompt = reference_analysis["negative_prompt"]
         # Route through the single-concept path (skips refinement, uses prompt as-is).
         body.pre_composed = True
+        logger.info(
+            "Reference-guided generation: mode=%s, %d reference image(s), %d variation(s)%s",
+            body.reference_mode, len(body.reference_images), body.num_variations,
+            (" (vision-analyzed)" if (reference_analysis and reference_analysis.get("analyzed")) else ""),
+        )
 
     # Use decomposed/recomposed data from frontend if provided (Prompt Designer flow).
     # Otherwise the backend will decompose independently (direct Generate flow).
@@ -1519,6 +1524,7 @@ async def generate_asset_stream(body: GenerationRequest):
             num_variations=body.num_variations,
             asset_type=body.asset_type.value if body.asset_type else "",
             quality=body.quality or "",
+            reference_mode=(body.reference_mode if body.reference_images else ""),
         )
 
     event_queue = queue.Queue()

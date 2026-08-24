@@ -81,13 +81,18 @@ def track_error(error_type: str = "", message: str = ""):
 
 def track_image_generation(model: str = "", num_options: int = 1,
                            num_variations: int = 1, asset_type: str = "",
-                           quality: str = "", duration_ms: float = 0):
-    """Image generation action. No cost — cost sent via track_image_cost."""
+                           quality: str = "", duration_ms: float = 0,
+                           reference_mode: str = ""):
+    """Image generation action. No cost — cost sent via track_image_cost.
+
+    reference_mode ("inspired" | "match") tags an Image-Inspiration (reference-guided)
+    job so PulseBoard can distinguish it; "" (default) = a normal text-to-image job.
+    """
     _track("image_studio.generate", model=model, cost_usd=0,
            num_options=num_options, num_variations=num_variations,
            num_images=num_options * num_variations,
            asset_type=asset_type, quality=quality,
-           duration_ms=duration_ms)
+           duration_ms=duration_ms, reference_mode=reference_mode)
 
 
 def track_image_cost(cost_usd: float = 0, model: str = "", breakdown: str = ""):
