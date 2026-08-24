@@ -58,8 +58,12 @@ def analyze_reference_images(
         )
         system = get_system_prompt("reference_intent_extraction")
         raw = invoke_llm(
+            # max_tokens must fit the FULL JSON (subject + preserve + intent +
+            # enhanced_prompt up to ~1500 chars + negative_prompt + notes). 700 was
+            # too small — verbose restyles like "caricature" truncated the JSON
+            # before its closing brace, so parsing silently yielded no prompt.
             prompt, system=system, complexity="complex",
-            images=vision_imgs, max_tokens=700, temperature=0.4,
+            images=vision_imgs, max_tokens=1500, temperature=0.4,
         )
         txt = (raw or "").strip()
         if "```" in txt:
