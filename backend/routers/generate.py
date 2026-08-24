@@ -227,6 +227,37 @@ def _generate_single_image(
     return final_bytes, svg_url
 
 
+def _persist_reference_inputs(asset_id: str, body: GenerationRequest) -> dict:
+    """For reference-guided ('Image Inspiration') jobs, save the reference image(s)
+    into the asset dir and return the metadata needed to fully restore the job on
+    Gallery reload. Returns {} for normal text-to-image jobs.
+
+    Images are copied PER-ASSET (self-contained) so a reload always finds them even
+    if sibling variants are later deleted.
+    """
+    if not body.reference_images:
+        return {}
+    import base64 as _b64
+    filenames = []
+    for i, r in enumerate(body.reference_images[:3], start=1):
+        try:
+            data = _b64.b64decode(r)
+        except Exception:
+            continue
+        fn = f"reference_{i}.png"
+        try:
+            store.save_generated_image(asset_id, fn, data)
+            filenames.append(fn)
+        except Exception as exc:
+            logger.warning("Could not persist reference image %s for %s: %s", i, asset_id, exc)
+    return {
+        "reference_guided": True,
+        "reference_mode": body.reference_mode or "inspired",
+        "reference_prompt": (body.reference_prompt or "").strip(),
+        "reference_images": filenames,
+    }
+
+
 def _build_variant(
     *,
     batch_id: str,
@@ -281,6 +312,7 @@ def _build_variant(
     if isinstance(gen_result, dict) and gen_result.get("async_submitted"):
         # Save FULL metadata now (identical to sync jobs) — image arrives later
         effective_model = model_override or body.image_model
+        _ref_meta = _persist_reference_inputs(asset_id, body)
         store.save_generation_metadata(asset_id, {
             "id": asset_id,
             "batch_id": batch_id,
@@ -323,6 +355,7 @@ def _build_variant(
             "created_at": datetime.utcnow().isoformat(),
             "async_status": "pending",
             "async_job_id": gen_result.get("job_id"),
+            **_ref_meta,
         })
 
         # Update the async job with the asset_id so the poller knows where to save
@@ -354,6 +387,7 @@ def _build_variant(
     svg_filename = f"{prompt_slug}_opt{option_index + 1}_var{variant_index + 1}.svg" if svg_url else None
 
     effective_model = model_override or body.image_model
+    _ref_meta = _persist_reference_inputs(asset_id, body)
     store.save_generation_metadata(asset_id, {
         "id": asset_id,
         "batch_id": batch_id,
@@ -405,6 +439,7 @@ def _build_variant(
         "created_at": datetime.utcnow().isoformat(),
         "estimated_image_cost_usd": _get_model_price(effective_model),
         "cost_history": [{"action": "generate", "model": effective_model.value if hasattr(effective_model, 'value') else str(effective_model), "cost_usd": _get_model_price(effective_model)}],
+        **_ref_meta,
     })
 
     result = VariantResult(
@@ -503,6 +538,11 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     reference_analysis = None
     if body.reference_images:
         import base64 as _b64
+        # Capture the user's Step-2 instruction NOW, before body.prompt is replaced
+        # by the shaped edit instruction ("match") or the vision-enhanced prompt
+        # ("inspired") — so a reloaded Image-Inspiration job restores what the user
+        # actually typed, not the derived prompt.
+        body.reference_prompt = body.prompt
         body.num_options = 1
         n_opts = 1  # reference-guided produces a single concept; variations vary the seed
         if body.reference_mode == "match":

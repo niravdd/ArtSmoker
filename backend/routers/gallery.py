@@ -369,6 +369,16 @@ async def get_batch(batch_id: str):
         "height": first.get("height", 1024),
         "quality": first.get("quality", ""),
         "region": first.get("region", ""),
+        # Reference-guided ("Image Inspiration") provenance — lets Image Studio
+        # reopen the batch in the Image Inspiration tab with the reference images,
+        # mode, and original instruction restored. Empty/false for normal jobs.
+        "reference_guided": first.get("reference_guided", False),
+        "reference_mode": first.get("reference_mode", "inspired"),
+        "reference_prompt": first.get("reference_prompt", ""),
+        "reference_image_urls": [
+            f"/api/gallery/{first['id']}/reference/{fn}"
+            for fn in (first.get("reference_images") or [])
+        ],
         "remove_background": first.get("remove_background", False),
         "generate_svg": first.get("generate_svg", False),
         "upscale": first.get("upscale", False),
@@ -673,6 +683,24 @@ async def get_asset_mask(asset_id: str, mask_file: str):
     path = store.get_generated_file_path(asset_id, safe)
     if path is None:
         raise HTTPException(404, detail="Mask not found.")
+    return FileResponse(path, media_type="image/png", filename=safe)
+
+
+@router.get("/{asset_id}/reference/{ref_file}")
+async def get_asset_reference(asset_id: str, ref_file: str):
+    """Serve a persisted reference image for an 'Image Inspiration' job (used to
+    restore the Reference Studio on reload).
+
+    Restricted to the reference naming convention (reference_N.png) so this can
+    only serve reference files, never arbitrary paths (no traversal)."""
+    import os as _os
+    import re as _re
+    safe = _os.path.basename(ref_file)
+    if not _re.fullmatch(r"reference_\d+\.png", safe):
+        raise HTTPException(400, detail="Not a reference file.")
+    path = store.get_generated_file_path(asset_id, safe)
+    if path is None:
+        raise HTTPException(404, detail="Reference image not found.")
     return FileResponse(path, media_type="image/png", filename=safe)
 
 

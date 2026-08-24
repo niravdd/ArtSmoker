@@ -75,6 +75,10 @@ class GenerationRequest(BaseModel):
     # Empty reference_images → normal text-to-image (the existing flow).
     reference_images: list[str] | None = None
     reference_mode: str = "inspired"  # "match" | "inspired"
+    # Captured server-side (the user's raw Step-2 instruction) BEFORE body.prompt is
+    # replaced by the edit/enhanced prompt, so an Image-Inspiration job can restore
+    # the original instruction into the Reference Studio on Gallery reload.
+    reference_prompt: str = ""
 
     @field_validator("image_model")
     @classmethod

@@ -330,6 +330,7 @@
         }
 
         async _restoreDraft() {
+            if (this._batchLoaded) return;   // an explicit Gallery batch-load wins
             let draft;
             try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch { draft = null; }
             if (!draft) return;
@@ -337,6 +338,7 @@
             if (draft.mode) this._mode = draft.mode;
             if (Array.isArray(draft.images) && draft.images.length) {
                 for (const dataUrl of draft.images.slice(0, MAX_IMAGES)) {
+                    if (this._batchLoaded) return;   // batch-load raced in — stand down
                     try {
                         const { b64 } = await this._downscale(dataUrl);
                         this._images.push({ dataUrl, b64 });
@@ -348,6 +350,27 @@
             if (draft.prompt || (draft.images && draft.images.length)) {
                 window.showToast?.(_t('image_studio.reference_draft_restored'), 'info');
             }
+        }
+
+        /** Restore a previously-generated Image-Inspiration job (from the Gallery):
+         *  the original Step-2 instruction, the mode, and the persisted reference
+         *  image(s) served at /api/gallery/{id}/reference/N. Wins over any
+         *  localStorage draft-restore that may still be in flight (via _batchLoaded).
+         *  Called by ImageStudio.loadBatch after switching to the Image Inspiration tab. */
+        async loadFromMeta({ prompt = '', mode = 'inspired', imageUrls = [] } = {}) {
+            this._batchLoaded = true;
+            if (this._promptEl) this._promptEl.value = prompt || '';
+            this._mode = (mode === 'match') ? 'match' : 'inspired';
+            const imgs = [];
+            for (const url of (imageUrls || []).slice(0, MAX_IMAGES)) {
+                try {
+                    const { dataUrl, b64 } = await this._downscale(url);
+                    imgs.push({ dataUrl, b64 });
+                } catch { /* skip a missing/bad reference */ }
+            }
+            this._images = imgs;   // assign atomically at the end (no interleave)
+            this._renderThumbs();
+            this._reflectMode();
         }
 
         clearDraft() {

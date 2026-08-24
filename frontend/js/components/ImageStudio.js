@@ -2586,6 +2586,20 @@
                 if (regionSel && result.region && [...regionSel.options].some(o => o.value === result.region))
                     regionSel.value = result.region;
 
+                // Reference-guided ("Image Inspiration") batch → reopen in the Image
+                // Inspiration tab with the reference images, mode, and original
+                // instruction restored. A normal text batch stays on Text Inspiration.
+                if (result.reference_guided) {
+                    this._switchTab('reference');
+                    try {
+                        await this._referenceStudio?.loadFromMeta?.({
+                            prompt: result.reference_prompt || '',
+                            mode: result.reference_mode || 'inspired',
+                            imageUrls: result.reference_image_urls || [],
+                        });
+                    } catch (e) { /* non-fatal — the tab switch already happened */ }
+                }
+
                 // Render the results
                 this._renderResults(result);
 
