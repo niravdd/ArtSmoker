@@ -647,6 +647,10 @@
                 this._stopAsyncPolling();
                 this._notifiedJobIds = new Set();
                 window.PromptDesigner?.reset();
+                // Clear the Reference Studio too (images + prompt + persisted draft),
+                // then drop the instance so resetView rebuilds it empty.
+                this._referenceStudio?.clear?.();
+                this._referenceStudio = null;
                 window.resetView('image-studio');
             });
         },

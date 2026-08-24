@@ -376,6 +376,19 @@
         clearDraft() {
             try { localStorage.removeItem(DRAFT_KEY); } catch {}
         }
+
+        /** Full reset (Reset button): wipe images, prompt, mode, the persisted draft,
+         *  and the batch-load guard so a fresh session behaves normally. */
+        clear() {
+            this._images = [];
+            this._mode = 'inspired';
+            this._batchLoaded = false;
+            if (this._promptEl) this._promptEl.value = '';
+            this.clearDraft();
+            this._renderThumbs?.();
+            this._reflectMode?.();
+            this._promptWarn?.classList.add('hidden');
+        }
     }
 
     window.ReferenceStudio = ReferenceStudio;
