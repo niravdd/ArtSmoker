@@ -2097,6 +2097,43 @@
             }).catch(() => {});
         },
 
+        /**
+         * Populate the 3D "Improve the Source" → Extend edit-model selector.
+         * The backend's `edit_model` override for op=extend only takes an alternate
+         * (instruction-outpaint) path for general image-edit models that declare an
+         * outpainting capability (e.g. Qwen-Image-Edit); a plain Stability outpaint
+         * key resolves to the same default Bedrock model as "Auto". So we list only
+         * those instruction editors plus an Auto default, and hide the row entirely
+         * when none is deployed (no meaningful choice to make).
+         */
+        _load3DExtendModels(root) {
+            const sel = root?.querySelector('#av-sr-edit-model');
+            const row = root?.querySelector('#av-sr-edit-model-row');
+            if (!sel) return;
+            fetch(`/api/admin/models`).then(r => r.json()).then(data => {
+                const models = data.image_models || {};
+                sel.innerHTML = '';
+                // "Auto" (value="") → backend resolves the first enabled Bedrock
+                // outpainting model, i.e. today's default behaviour.
+                const auto = document.createElement('option');
+                auto.value = '';
+                auto.textContent = t('artsmoker.ui.asset_viewer.edit_model_auto');
+                sel.appendChild(auto);
+                for (const [key, cfg] of Object.entries(models)) {
+                    if (cfg.enabled && cfg.model_purpose === 'image_edit' && cfg.capabilities?.outpainting) {
+                        const opt = document.createElement('option');
+                        opt.value = key;
+                        const _p = cfg.base_price_usd;
+                        opt.textContent = (_p != null && _p > 0)
+                            ? `${cfg.label} ($${_p.toFixed(2)}/img)` : cfg.label;
+                        sel.appendChild(opt);
+                    }
+                }
+                // Only reveal the selector when there's a real alternative to Auto.
+                if (row) row.classList.toggle('hidden', sel.options.length <= 1);
+            }).catch(() => {});
+        },
+
         _extractMask(canvas) {
             // Create a mask image: white where user painted (red overlay), black elsewhere
             const w = canvas._imgW || canvas.width;
@@ -3064,6 +3101,11 @@
                                     <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${t('artsmoker.ui.asset_viewer.three_d_src_prompt_label')}</label>
                                     <textarea id="av-sr-prompt" rows="2" class="input text-xs w-full" placeholder="${t('artsmoker.ui.asset_viewer.three_d_src_prompt_ph')}"></textarea>
                                 </div>
+                                <!-- Optional edit-model override — shown only when an instruction editor is deployed. -->
+                                <div id="av-sr-edit-model-row" class="hidden">
+                                    <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${t('artsmoker.ui.asset_viewer.edit_model')}</label>
+                                    <select id="av-sr-edit-model" class="input text-xs w-full"></select>
+                                </div>
                                 <div class="grid grid-cols-4 gap-2">
                                     ${['left','right','up','down'].map(dd => html`
                                         <div><label class="text-[9px] text-brand-text-muted">${t('artsmoker.ui.asset_viewer.outpaint_' + dd)}</label>
@@ -3153,6 +3195,10 @@
                 let lastAnalysis = analysis;
                 const { defect: initialDefect } = renderVerdict(analysis);
                 seedFromAnalysis(analysis);
+                // Populate the (optional) Extend edit-model selector. Instruction
+                // editors like Qwen-Image-Edit run an alternate outpaint recipe; the
+                // row stays hidden when none is deployed (default Bedrock outpaint).
+                this._load3DExtendModels(backdrop);
                 // Wire measurement (hidden until Extend). Draw once image decodes.
                 this._wireMeasurement(backdrop, srcUrlFor(), readDirs, { img: '#av-sr-img', measure: '#av-sr-measure', stats: '#av-sr-stats' });
 
@@ -3217,7 +3263,7 @@
                         this._redrawMeasurement?.();
                         return;
                     }
-                    runOp({ op: 'extend', ...dirs, prompt: $('#av-sr-prompt')?.value || '' },
+                    runOp({ op: 'extend', ...dirs, prompt: $('#av-sr-prompt')?.value || '', edit_model: $('#av-sr-edit-model')?.value || '' },
                         t('artsmoker.ui.asset_viewer.three_d_src_completing'));
                 });
                 // Live measurement redraw as the user tweaks amounts. Snap any

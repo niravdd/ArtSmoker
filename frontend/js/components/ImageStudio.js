@@ -319,7 +319,7 @@
                                 </div>
                             </div>
 
-                            <!-- OPTIONS ROW (different concepts) -->
+                            <!-- RESULTS: one compact card per OPTION, each carrying its own variation filmstrip -->
                             <div id="gen-options-section" class="hidden">
                                 <div class="flex items-center justify-between mb-2">
                                     <h3 id="gen-options-header" class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
@@ -327,18 +327,7 @@
                                     </h3>
                                     <span id="gen-options-count" class="text-xs text-brand-text-muted"></span>
                                 </div>
-                                <div id="gen-options-grid" class="grid grid-cols-5 gap-3"></div>
-                            </div>
-
-                            <!-- VARIATIONS ROW (seed variants of selected option) -->
-                            <div id="gen-variations-section" class="hidden">
-                                <div class="flex items-center justify-between mb-2">
-                                    <h3 class="text-sm font-semibold text-brand-text-muted uppercase tracking-wide">
-                                        ${t('artsmoker.ui.image_studio.variations_header')}
-                                    </h3>
-                                    <span id="gen-variations-count" class="text-xs text-brand-text-muted"></span>
-                                </div>
-                                <div id="gen-variations-grid" class="grid grid-cols-5 gap-3"></div>
+                                <div id="gen-options-grid" class="results-masonry"></div>
                             </div>
 
                             <!-- Main Preview -->
@@ -362,6 +351,11 @@
                                         </div>
                                     </div>
                                     <img id="gen-result-img" class="hidden max-w-full max-h-[60vh] rounded-lg shadow-2xl" alt="${t('artsmoker.ui.image_studio.title')}" />
+                                    <!-- Hint that the big preview opens the AssetViewer on click. -->
+                                    <div id="gen-click-hint" class="hidden absolute bottom-3 right-3 bg-black/70 text-white text-[10px] font-medium px-2.5 py-1 rounded-full pointer-events-none flex items-center gap-1.5">
+                                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                                        ${t('artsmoker.ui.image_studio.click_to_edit')}
+                                    </div>
                                 </div>
 
                                 <!-- Download bar -->
@@ -1948,7 +1942,6 @@
                 document.getElementById('gen-result-img')?.classList.add('hidden');
                 document.getElementById('gen-download-bar')?.classList.add('hidden');
                 document.getElementById('gen-options-section')?.classList.add('hidden');
-                document.getElementById('gen-variations-section')?.classList.add('hidden');
                 document.getElementById('gen-concept-prompt')?.classList.add('hidden');
                 document.getElementById('gen-prompt-info')?.classList.add('hidden');
 
@@ -2160,13 +2153,15 @@
             if (!section || !grid) return;
 
             const isAllModels = this._result?.all_models;
-            const optsPerModel = this._result?.all_models_summary?.options_per_model || 1;
 
-            if (options.length <= 1 && !isAllModels) {
+            // Show the results grid when there's more than one option, All-Models
+            // mode, OR a single option that itself has multiple variations (so its
+            // filmstrip is reachable). A lone single-variant result = hero only.
+            const singleVariants = options[0]?.variants?.length || 0;
+            if (options.length <= 1 && !isAllModels && singleVariants <= 1) {
                 section.classList.add('hidden');
                 return;
             }
-
             section.classList.remove('hidden');
 
             const header = document.getElementById('gen-options-header');
@@ -2182,101 +2177,131 @@
                     : `${options.length} ${t('artsmoker.ui.image_studio.num_options').toLowerCase()}`;
             }
 
-            // Grouped layout: when All Models with multiple options per model
-            const useGrouped = isAllModels && optsPerModel > 1;
+            // One compact card per option. The model is shown in each card's badge,
+            // so no separate model-grouping headers are needed (keeps it uncluttered).
+            // nosemgrep -- SafeHtml from html`` (auto-escaped); joined then assigned
+            grid.innerHTML = options.map((opt, i) => {
+                const modelPart = opt.model_label || `${t('artsmoker.ui.image_studio.option')} ${i + 1}`;
+                return this._renderOptionCard(opt, i, `o${i + 1} · ${modelPart}`);
+            }).join('');
 
-            if (useGrouped) {
-                // Group options by model — 1 card per option (first variant thumbnail)
-                const groups = new Map();
-                options.forEach((opt, i) => {
-                    const mk = opt.image_model || 'unknown';
-                    if (!groups.has(mk)) groups.set(mk, []);
-                    groups.get(mk).push({ opt, globalIdx: i });
+            // Click the main image → select that option. Click a filmstrip thumb →
+            // select that option AND that specific variation.
+            // Wire each card. Hovering a mini thumb PEEKS that variation on THIS
+            // card's own image (the big preview below stays put — it only changes on
+            // click). Clicking a card, or a mini, loads that image into the big
+            // preview below, which itself opens the AssetViewer on click.
+            grid.querySelectorAll('.option-group-card').forEach(card => {
+                const oi = parseInt(card.dataset.optionIndex, 10);
+                const mainImg = card.querySelector('.option-main-img');
+                const srcOf = (vi) => this._result?.options?.[oi]?.variants?.[vi]?.png_path || '';
+                const shownVariant = () => parseInt(card.dataset.shownVariant || '0', 10);
+                if (!card.dataset.shownVariant) card.dataset.shownVariant = '0';
+
+                // Click the card image → load the card's committed variation below.
+                card.querySelector('.option-main')?.addEventListener('click', () => {
+                    if (oi !== this._selectedOption) this._selectOption(oi);
+                    this._selectVariant(shownVariant());
                 });
 
-                let html = '';
-                for (const [mk, entries] of groups) {
-                    const label = entries[0].opt.model_label || mk;
-                    const succCount = entries.filter(e => e.opt.status === 'success').length;
-                    const totalCount = entries.length;
-                    const statusBadge = succCount === totalCount
-                        // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
-                        ? `<span class="text-[9px] px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400">${succCount}/${totalCount}</span>`
-                        // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
-                        : `<span class="text-[9px] px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400">${succCount}/${totalCount}</span>`;
-
-                    const cols = Math.min(entries.length, 5);
-                    // nosemgrep -- hand-escaped raw HTML template (values via _esc/escAttr, i18n via t()); not the html`` helper
-                    html += `<div class="mb-4">
-                        <div class="flex items-center gap-2 mb-2">
-                            <h4 class="text-xs font-semibold text-brand-text">${this._escapeHtml(label)}</h4>
-                            ${statusBadge}
-                        </div>
-                        <div class="grid gap-2 grid-cols-${cols}">`;
-
-                    entries.forEach((e, conceptIdx) => {
-                        html += this._renderOptionCard(e.opt, e.globalIdx, `o${e.globalIdx + 1} · Concept ${conceptIdx + 1}`);
+                card.querySelectorAll('.variant-thumb').forEach(btn => {
+                    const vi = parseInt(btn.dataset.variantIndex, 10);
+                    // Hover → peek this variation on the card's own image. LOCK the
+                    // image height first so a different-aspect variation letterboxes
+                    // in place (object-contain) rather than resizing the card — a
+                    // resize would shift the thumb out from under the cursor and
+                    // cause a mouseenter/mouseleave flicker loop.
+                    btn.addEventListener('mouseenter', () => {
+                        if (!mainImg || !srcOf(vi)) return;
+                        if (mainImg.offsetHeight) mainImg.style.height = `${mainImg.offsetHeight}px`;
+                        mainImg.src = srcOf(vi);
                     });
-
-                    html += '</div></div>';
-                }
-                grid.className = '';
-                // nosemgrep
-                grid.innerHTML = raw(html);
-            } else {
-                // Flat layout (single-model or All Models with 1 option each)
-                const cols = options.length <= 5 ? options.length : 5;
-                grid.className = `grid gap-3 grid-cols-${cols}`;
-                // nosemgrep
-                grid.innerHTML = options.map((opt, i) => {
-                    const modelPart = opt.model_label || `${t('artsmoker.ui.image_studio.option')} ${i + 1}`;
-                    const cardLabel = `o${i + 1} · ${modelPart}`;
-                    return this._renderOptionCard(opt, i, cardLabel);
-                }).join('');
-            }
-
-            grid.querySelectorAll('.option-card').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    this._selectOption(parseInt(btn.dataset.optionIndex, 10));
+                    // Leave → revert to the committed variation + release the lock.
+                    btn.addEventListener('mouseleave', () => {
+                        if (!mainImg) return;
+                        if (srcOf(shownVariant())) mainImg.src = srcOf(shownVariant());
+                        mainImg.style.height = '';
+                    });
+                    // Click → commit this variation on the card AND load it below.
+                    btn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        card.dataset.shownVariant = String(vi);
+                        if (mainImg && srcOf(vi)) { mainImg.src = srcOf(vi); mainImg.style.height = ''; }
+                        if (oi !== this._selectedOption) this._selectOption(oi);
+                        this._selectVariant(vi);
+                    });
                 });
             });
         },
 
+        /**
+         * One OPTION as a compact card: a natural-aspect main image (the first
+         * variation) plus, when the option has more than one variation, a small
+         * filmstrip of variation thumbnails INSIDE the card — so an option and its
+         * variations stay visually grouped rather than living in a separate grid.
+         */
         _renderOptionCard(opt, index, label) {
-            const thumb = opt.variants?.[0];
-            const thumbSrc = thumb ? thumb.png_path : '';
-            const isAsync = thumb?.async_job || (opt.variants || []).some(v => v.async_job);
-            const asyncJobId = thumb?.async_job?.job_id || '';
-            const asyncAssetId = thumb?.id || '';
+            const variants = opt.variants || [];
+            const thumb = variants[0];
             const isSelected = index === (this._selectedOption || 0);
+            const isBad = opt.status === 'moderation_blocked' || opt.status === 'error' || opt.status === 'failed';
+
+            const mainAsync = !!(thumb?.async_job && !thumb?.png_path);
+            const mainJobId = thumb?.async_job?.job_id || '';
+            const mainAssetId = thumb?.id || '';
+            const showStrip = variants.length > 1;
+
             return html`
-                <button
-                    class="option-card group relative rounded-xl overflow-hidden border-2 transition-all duration-200 cursor-pointer
-                           ${isSelected ? 'border-brand-accent ring-2 ring-brand-accent/40 shadow-lg shadow-brand-accent/20' : 'border-brand-border hover:border-brand-accent/50'}"
-                    data-option-index="${index}" ${isAsync ? html`data-async-job="${asyncJobId}" data-async-asset="${asyncAssetId}"` : ''}
-                >
-                    <div class="aspect-square bg-brand-bg async-thumb-container">
-                        ${thumbSrc
-                            ? html`<img src="${thumbSrc}" alt="${label}" class="w-full h-full object-cover" loading="lazy" />`
-                            : isAsync
-                            ? html`<div class="async-placeholder w-full h-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Generating...</span></div>`
-                            : html`<div class="w-full h-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('artsmoker.ui.image_studio.no_image')}</div>`
+                <div class="option-group-card card overflow-hidden border-2 transition-all duration-200
+                            ${isSelected ? 'border-brand-accent ring-2 ring-brand-accent/40' : 'border-brand-border hover:border-brand-accent/50'}"
+                     data-option-index="${index}">
+                    <button
+                        class="option-main group relative block w-full cursor-pointer img-hover-zoom bg-brand-bg async-thumb-container"
+                        data-option-index="${index}"
+                        ${mainAsync ? html`data-async-job="${mainJobId}" data-async-asset="${mainAssetId}"` : ''}
+                    >
+                        ${thumb?.png_path
+                            ? html`<img src="${thumb.png_path}" alt="${label}" class="option-main-img w-full h-auto object-contain block" loading="lazy" />`
+                            : mainAsync
+                            ? html`<div class="async-placeholder aspect-square w-full flex flex-col items-center justify-center text-cyan-400/50 text-xs gap-2"><svg class="w-6 h-6 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg><span>Generating...</span></div>`
+                            : html`<div class="aspect-square w-full flex items-center justify-center text-brand-text-muted/30 text-xs">${t('artsmoker.ui.image_studio.no_image')}</div>`
                         }
-                    </div>
-                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
-                    <div class="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
-                        ${label}
-                    </div>
-                    ${opt.status === 'moderation_blocked' || opt.status === 'error' || opt.status === 'failed' ? html`
-                    <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
-                        <span class="px-2 py-1 rounded text-xs font-semibold ${opt.status === 'moderation_blocked' ? 'bg-amber-500/80 text-amber-950' : 'bg-red-500/80 text-white'}">
-                            ${opt.status === 'moderation_blocked' ? t('artsmoker.ui.image_studio.blocked_moderation') : t('artsmoker.ui.image_studio.failed')}
-                        </span>
+                        <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
+                        <div class="absolute top-1.5 left-1.5 bg-black/70 text-white text-[10px] font-bold px-1.5 py-0.5 rounded">
+                            ${label}
+                        </div>
+                        ${isBad ? html`
+                        <div class="absolute inset-0 bg-black/60 flex items-center justify-center">
+                            <span class="px-2 py-1 rounded text-xs font-semibold ${opt.status === 'moderation_blocked' ? 'bg-amber-500/80 text-amber-950' : 'bg-red-500/80 text-white'}">
+                                ${opt.status === 'moderation_blocked' ? t('artsmoker.ui.image_studio.blocked_moderation') : t('artsmoker.ui.image_studio.failed')}
+                            </span>
+                        </div>` : ''}
+                    </button>
+                    ${showStrip ? html`
+                    <div class="flex flex-wrap gap-1 p-1.5 bg-brand-surface border-t border-brand-border">
+                        ${variants.map((v, vi) => {
+                            const vAsync = !!(v.async_job && !v.png_path);
+                            const vJobId = v.async_job?.job_id || '';
+                            const vAssetId = v.id || '';
+                            const vSel = isSelected && vi === (this._selectedVariant || 0);
+                            return html`
+                            <button
+                                class="variant-thumb relative w-9 h-9 rounded-md overflow-hidden border-2 cursor-pointer transition-all duration-150
+                                       ${vSel ? 'border-emerald-400 ring-1 ring-emerald-400/40' : 'border-brand-border hover:border-emerald-400/60'}"
+                                data-option-index="${index}" data-variant-index="${vi}"
+                                ${vAsync ? html`data-async-job="${vJobId}" data-async-asset="${vAssetId}"` : ''}
+                                title="v${vi + 1}"
+                            >
+                                ${vAsync
+                                    ? html`<div class="async-placeholder w-full h-full flex items-center justify-center bg-brand-bg text-cyan-400/50"><svg class="w-3.5 h-3.5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg></div>`
+                                    : v.png_path
+                                    ? html`<img src="${v.png_path}" alt="v${vi + 1}" class="w-full h-full object-cover" loading="lazy" />`
+                                    : html`<div class="w-full h-full flex items-center justify-center bg-brand-bg text-brand-text-muted/30 text-[9px]">–</div>`
+                                }
+                            </button>`;
+                        })}
                     </div>` : ''}
-                    <div class="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/60 to-transparent p-2 pt-6">
-                        <p class="text-white text-[10px] leading-tight line-clamp-2">${(opt.enhanced_prompt || '').substring(0, 80)}...</p>
-                    </div>
-                </button>
+                </div>
             `;
         },
 
@@ -2290,17 +2315,16 @@
             this._selectedOption = index;
             this._selectedVariant = 0;
 
-            // Update option highlight
+            // Highlight the selected option card
             const grid = document.getElementById('gen-options-grid');
             if (grid) {
-                grid.querySelectorAll('.option-card').forEach((btn, i) => {
-                    if (i === index) {
-                        btn.classList.remove('border-brand-border');
-                        btn.classList.add('border-brand-accent', 'ring-2', 'ring-brand-accent/40', 'shadow-lg', 'shadow-brand-accent/20');
-                    } else {
-                        btn.classList.remove('border-brand-accent', 'ring-2', 'ring-brand-accent/40', 'shadow-lg', 'shadow-brand-accent/20');
-                        btn.classList.add('border-brand-border');
-                    }
+                grid.querySelectorAll('.option-group-card').forEach(card => {
+                    const sel = parseInt(card.dataset.optionIndex, 10) === index;
+                    card.classList.toggle('border-brand-accent', sel);
+                    card.classList.toggle('ring-2', sel);
+                    card.classList.toggle('ring-brand-accent/40', sel);
+                    card.classList.toggle('border-brand-border', !sel);
+                    card.classList.toggle('hover:border-brand-accent/50', !sel);
                 });
             }
 
@@ -2330,59 +2354,12 @@
                 negLabel.textContent = `${t('artsmoker.ui.image_studio.negative_prompt_exclusions')} \u2014 o${index + 1} · ${modelPart}`;
             }
 
-            // Render variations for this option
-            this._renderVariationsRow(option.variants || []);
+            // Update the big preview to this option's first variation (this also
+            // highlights the matching filmstrip thumb inside the selected card).
             this._selectVariant(0);
 
             // Scroll down to the preview area
             document.getElementById('gen-preview')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        },
-
-        _renderVariationsRow(variants) {
-            const section = document.getElementById('gen-variations-section');
-            const grid = document.getElementById('gen-variations-grid');
-            const countEl = document.getElementById('gen-variations-count');
-            if (!section || !grid) return;
-
-            if (variants.length <= 1) {
-                section.classList.add('hidden');
-                return;
-            }
-
-            section.classList.remove('hidden');
-            if (countEl) countEl.textContent = `${variants.length} ${t('artsmoker.ui.image_studio.num_variations').toLowerCase()}`;
-
-            grid.className = `grid gap-3 grid-cols-${Math.min(variants.length, 5)}`;
-
-            // nosemgrep
-            grid.innerHTML = variants.map((v, i) => {
-                const isAsync = v.async_job && !v.png_path;
-                const vAsyncJobId = v.async_job?.job_id || '';
-                const vAsyncAssetId = v.id || '';
-                return html`
-                <button
-                    class="variant-thumb group relative aspect-square rounded-lg overflow-hidden border-2 transition-all duration-200 cursor-pointer
-                           ${i === 0 ? 'border-emerald-400 ring-2 ring-emerald-400/30' : 'border-brand-border hover:border-emerald-400/50'}"
-                    data-variant-index="${i}" ${isAsync ? html`data-async-job="${vAsyncJobId}" data-async-asset="${vAsyncAssetId}"` : ''}
-                >
-                    ${isAsync
-                        ? html`<div class="async-placeholder w-full h-full flex flex-col items-center justify-center bg-brand-bg text-cyan-400/50 text-[10px] gap-1"><svg class="w-5 h-5 animate-pulse" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Generating</div>`
-                        : v.png_path
-                        ? html`<img src="${v.png_path}" alt="${t('artsmoker.ui.image_studio.variation')} ${i + 1}" class="w-full h-full object-cover" loading="lazy" />`
-                        : html`<div class="w-full h-full flex items-center justify-center bg-brand-bg text-brand-text-muted/30 text-xs">${t('artsmoker.ui.image_studio.no_image')}</div>`
-                    }
-                    <div class="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors"></div>
-                    <span class="absolute bottom-1 right-1 text-[10px] font-bold bg-black/60 text-white px-1.5 py-0.5 rounded">
-                        v${i + 1}
-                    </span>
-                </button>`;
-            }).join('');
-
-            grid.querySelectorAll('.variant-thumb').forEach(btn => {
-                btn.addEventListener('click', () => {
-                    this._selectVariant(parseInt(btn.dataset.variantIndex, 10));
-                });
-            });
         },
 
         _selectVariant(index) {
@@ -2396,17 +2373,17 @@
 
             this._selectedVariant = index;
 
-            // Update variation highlight
-            const grid = document.getElementById('gen-variations-grid');
+            // Update variation highlight — the filmstrip lives inside the selected
+            // option's card, so scope the query to that card.
+            const grid = document.getElementById('gen-options-grid');
             if (grid) {
-                grid.querySelectorAll('.variant-thumb').forEach((btn, i) => {
-                    if (i === index) {
-                        btn.classList.remove('border-brand-border');
-                        btn.classList.add('border-emerald-400', 'ring-2', 'ring-emerald-400/30');
-                    } else {
-                        btn.classList.remove('border-emerald-400', 'ring-2', 'ring-emerald-400/30');
-                        btn.classList.add('border-brand-border');
-                    }
+                grid.querySelectorAll(`.option-group-card[data-option-index="${this._selectedOption}"] .variant-thumb`).forEach(btn => {
+                    const sel = parseInt(btn.dataset.variantIndex, 10) === index;
+                    btn.classList.toggle('border-emerald-400', sel);
+                    btn.classList.toggle('ring-1', sel);
+                    btn.classList.toggle('ring-emerald-400/40', sel);
+                    btn.classList.toggle('border-brand-border', !sel);
+                    btn.classList.toggle('hover:border-emerald-400/60', !sel);
                 });
             }
 
@@ -2437,13 +2414,15 @@
                 img?.classList.add('hidden');
                 placeholder?.classList.remove('hidden');
             }
+            this._toggleClickHint(!isAsync && !!variant.png_path);
 
             if (downloadBar) {
                 downloadBar.classList.toggle('hidden', isAsync || !variant.png_path);
                 const info = document.getElementById('gen-result-info');
                 if (info) {
-                    // Show the filename as the label
-                    info.textContent = variant.png_filename || variant.id;
+                    // Show the descriptive name as the label, WITHOUT the extension
+                    // (the download link below still saves a real .png/.svg file).
+                    info.textContent = (variant.png_filename || variant.id || '').replace(/\.(png|svg)$/i, '');
                 }
                 const dlPng = document.getElementById('dl-png');
                 const dlSvg = document.getElementById('dl-svg');
@@ -2461,6 +2440,11 @@
                     }
                 }
             }
+        },
+
+        /** Show/hide the "Click to edit" hint over the big preview. */
+        _toggleClickHint(show) {
+            document.getElementById('gen-click-hint')?.classList.toggle('hidden', !show);
         },
 
         // ── Load batch from Gallery ──────────────────────────────────

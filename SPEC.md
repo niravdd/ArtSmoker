@@ -433,7 +433,7 @@ User prompt: "hospital building"
 | `model_status` | `{model, model_label, option_index, status, status_detail, completed, total}` | Per-model result in "All Models" mode |
 | `error` | `{detail}` | Unrecoverable error |
 
-**Smart filenames**: Each generated image gets a human-readable filename derived from the user's prompt slug plus the option/variation indices: `a-fierce-dragon_opt1_var2.png`. These filenames are stored in per-asset `metadata.json` and served via `Content-Disposition` headers on the gallery file endpoints.
+**Smart filenames**: Each generated image gets a human-readable filename derived from the user's prompt slug plus the option/variation indices: `a-fierce-dragon_opt1_var2.png`. These filenames are stored in per-asset `metadata.json` and served via `Content-Disposition` headers on the gallery file endpoints. This applies **uniformly** to both synchronous (Bedrock) generations and asynchronous custom-model (SageMaker) completions — the async completion path builds the same slug-based name, so every downloaded image carries a descriptive filename regardless of the generating model (the on-disk file is always `asset.png`; the smart name is metadata only, used as the download filename). The Image Studio download bar shows this name without the file extension.
 
 **Dynamic prompt length limits by model**: Each image model has a different prompt capacity, stored in the model registry (`prompt_limit` field per model):
 

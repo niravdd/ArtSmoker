@@ -3,7 +3,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.9-20260821_01"
+APP_VERSION = "1.9-20260824_01"
 
 class Settings(BaseSettings):
     # ── AWS ───────────────────────────────────────────────────────────────

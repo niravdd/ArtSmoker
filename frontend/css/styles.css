@@ -233,6 +233,34 @@ body {
     }
 }
 
+/* --- ImageStudio Results (compact masonry of grouped option cards) --- */
+/* Same natural-height multi-column masonry as the Gallery, but deliberately
+   TIGHTER: each card is a single generation OPTION carrying its own variation
+   filmstrip, so an option and its variations stay visually grouped. Narrower
+   column-width than .gallery-grid keeps the results area compact, not cluttered. */
+.results-masonry {
+    column-width: 175px;
+    column-gap: 0.75rem;
+}
+
+.results-masonry > .option-group-card {
+    break-inside: avoid;
+    -webkit-column-break-inside: avoid;
+    margin-bottom: 0.75rem;
+    display: inline-block;
+    width: 100%;
+}
+
+@media (max-width: 640px) {
+    .results-masonry {
+        column-width: 130px;
+        column-gap: 0.5rem;
+    }
+    .results-masonry > .option-group-card {
+        margin-bottom: 0.5rem;
+    }
+}
+
 /* --- Drag-and-Drop Upload Zone --- */
 .upload-zone {
     border: 2px dashed var(--border);

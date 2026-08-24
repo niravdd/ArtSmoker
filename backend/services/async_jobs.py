@@ -377,11 +377,25 @@ def _update_gallery_on_complete(job: dict, image_bytes: bytes):
             if job.get(k) is not None:
                 meta.setdefault(k, job.get(k))
 
+    # Descriptive download name (METADATA ONLY — the on-disk file is always
+    # asset.png; this is purely the suggested download filename). Match the sync
+    # path's "{slug}_opt{N}_var{M}.png" so custom-model downloads are as clear as
+    # Bedrock ones. Preserve a good name already set at submission; else build one.
+    existing_name = meta.get("png_filename")
+    if existing_name and existing_name != "asset.png":
+        png_filename = existing_name
+    else:
+        from backend.routers.generate import _slugify_prompt
+        slug = _slugify_prompt(meta.get("prompt") or meta.get("enhanced_prompt") or "asset")
+        oi = meta.get("option_index", 0)
+        vi = meta.get("variant_index", meta.get("variation_index", 0))
+        png_filename = f"{slug}_opt{oi + 1}_var{vi + 1}.png"
+
     meta.update({
         "async_status": "complete",
         "async_completed_at": datetime.now(timezone.utc).isoformat(),
         "png_path": f"/api/gallery/{asset_id}/png",
-        "png_filename": "asset.png",
+        "png_filename": png_filename,
         "svg_path": f"/api/gallery/{asset_id}/svg" if svg_path else None,
         "image_size_bytes": len(final_bytes),
     })
