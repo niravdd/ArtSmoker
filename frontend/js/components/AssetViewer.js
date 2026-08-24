@@ -3685,16 +3685,38 @@
                 </div>`;
         },
 
-        /** Map a GLB serve URL to its FBX sibling: insert "/fbx" before any query.
-         *  /api/gallery/{id}/3d/{ver}[?variant=X] → /api/gallery/{id}/3d/{ver}/fbx[?variant=X] */
-        _glbToFbxUrl(u) {
-            return (u || '').replace(/(\/3d\/\d+)(\?|$)/, '$1/fbx$2');
+        /** Build an engine-export URL for the current 3D asset/version/variant.
+         *  fmt ∈ glb|fbx|usd; GLB ignores target (served pristine, Y-up). */
+        _exportUrl(fmt, target) {
+            const id = encodeURIComponent(this._meta?.id || this._item?.id || '');
+            const ver = this._currentVersion || 1;
+            const q = new URLSearchParams({ target: target || 'generic' });
+            if (this._current3DVariant) q.set('variant', this._current3DVariant);
+            return `/api/gallery/${id}/3d/${ver}/export/${fmt}?${q.toString()}`;
+        },
+
+        /** Descriptive download filename for an engine export ({slug}_vN_{ts}_{target}.{ext}). */
+        _exportDownloadName(ext, target) {
+            const ver = this._currentVersion || 1;
+            const vrec = (this._meta?.versions || []).find(v => v.version === ver);
+            const base = this._versionDownloadName(ext, ver, vrec);   // {slug}_vN_{ts}.{ext}
+            return base.replace(new RegExp(`\\.${ext}$`, 'i'), `_${target}.${ext}`);
+        },
+
+        /** Point the FBX + USD download links at the currently-selected target/variant.
+         *  (GLB is target-independent and handled separately.) */
+        _refreshExportLinks() {
+            const target = document.getElementById('av-3d-target')?.value || 'generic';
+            const fbx = document.getElementById('av-3d-download-fbx');
+            const usd = document.getElementById('av-3d-download-usd');
+            if (fbx) { fbx.href = this._exportUrl('fbx', target); fbx.setAttribute('download', this._exportDownloadName('fbx', target)); }
+            if (usd) { usd.href = this._exportUrl('usd', target); usd.setAttribute('download', this._exportDownloadName('usdz', target)); }
         },
 
         _render3DComplete(container, data) {
             const fileSize = data.file_size ? this._formatBytes(data.file_size) : '—';
             const glbUrl = data.download_url || '#';
-            const fbxUrl = this._glbToFbxUrl(glbUrl);
+            this._current3DVariant = null;   // set when the variant switcher loads (≥2 variants)
             const pl = data.pipeline || {};
             const prm = data.params || {};
             // Build the "models & tools used" rows from the persisted pipeline
@@ -3795,22 +3817,34 @@
                         </div>
                     </div>
                     ${toolsHtml}
-                    <div class="flex items-center justify-center gap-3">
-                        <a id="av-3d-download" href="${glbUrl}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
-                            </svg>
-                            ${t('artsmoker.ui.asset_viewer.three_d_download')}
-                        </a>
-                        <a id="av-3d-download-fbx" href="${fbxUrl}" download class="btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}">
-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
-                            </svg>
-                            ${t('artsmoker.ui.asset_viewer.three_d_download_fbx')}
-                        </a>
-                        <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5">
-                            ${regenBtnLabel}
-                        </button>
+                    <div class="flex flex-col items-center gap-2">
+                        <div class="flex items-center justify-center gap-2 flex-wrap">
+                            <a id="av-3d-download" href="${glbUrl}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                                ${t('artsmoker.ui.asset_viewer.three_d_download')}
+                            </a>
+                            <a id="av-3d-download-fbx" download class="btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                                ${t('artsmoker.ui.asset_viewer.three_d_download_fbx')}
+                            </a>
+                            <a id="av-3d-download-usd" download class="btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                                ${t('artsmoker.ui.asset_viewer.three_d_download_usd')}
+                            </a>
+                            <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5">
+                                ${regenBtnLabel}
+                            </button>
+                        </div>
+                        <div class="flex items-center gap-1.5">
+                            <label class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.asset_viewer.three_d_target_engine')}</label>
+                            <select id="av-3d-target" class="input text-[10px] py-0.5"></select>
+                        </div>
                     </div>
                     <p class="text-[9px] text-brand-text-muted text-center">${t('artsmoker.ui.asset_viewer.three_d_viewer_hint')}</p>
                     <p class="text-[9px] text-brand-text-muted/70 text-center">${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}</p>
@@ -3884,16 +3918,37 @@
                 const vrec = (this._meta?.versions || []).find(v => v.version === ver);
                 glbDl.setAttribute('download', this._versionDownloadName('glb', ver, vrec));
             }
-            const fbxDl = container.querySelector('#av-3d-download-fbx');
-            if (fbxDl) {
-                const ver = this._currentVersion || 1;
-                const vrec = (this._meta?.versions || []).find(v => v.version === ver);
-                fbxDl.setAttribute('download', this._versionDownloadName('fbx', ver, vrec));
-                // First FBX export converts from the GLB server-side (headless
-                // Blender) and can take a moment — reassure the user on click.
-                fbxDl.addEventListener('click', () => {
-                    window.showToast?.(t('artsmoker.ui.asset_viewer.three_d_fbx_preparing'), 'info');
+            // Engine-export target dropdown → drives the FBX + USD download links.
+            // Populate from the config-driven target list; refresh links on change.
+            const targetSel = container.querySelector('#av-3d-target');
+            const wireExportBtns = () => {
+                this._refreshExportLinks();
+                // First export for a target converts server-side (headless Blender) and
+                // builds BOTH FBX + USD in one pass — reassure the user on click.
+                ['#av-3d-download-fbx', '#av-3d-download-usd'].forEach(sel => {
+                    const el = container.querySelector(sel);
+                    if (el && !el._wired) {
+                        el._wired = true;
+                        el.addEventListener('click', () => {
+                            window.showToast?.(t('artsmoker.ui.asset_viewer.three_d_export_preparing'), 'info');
+                        });
+                    }
                 });
+            };
+            if (targetSel) {
+                targetSel.addEventListener('change', () => this._refreshExportLinks());
+                (async () => {
+                    try {
+                        const data = await API.admin.exportTargets();
+                        // nosemgrep
+                        targetSel.innerHTML = (data.targets || [])
+                            .map(tt => html`<option value="${tt.key}">${tt.label}</option>`).join('');
+                        targetSel.value = data.default || 'generic';
+                    } catch { /* leave empty → generic default in the URL */ }
+                    wireExportBtns();
+                })();
+            } else {
+                wireExportBtns();
             }
 
             // Variant switcher: show alternative 3D models for this 2D
@@ -3975,7 +4030,6 @@
             // Point both the viewer AND the Download GLB link at a variant, so
             // "Download GLB" always grabs exactly what's on screen (not the default).
             const dlLink = container.querySelector('#av-3d-download');
-            const fbxLink = container.querySelector('#av-3d-download-fbx');
             const variantUrl = (vid) => `/api/gallery/${encodeURIComponent(assetId)}/3d/${ver}?variant=${encodeURIComponent(vid)}`;
             // GLB download name aligned with PNG/SVG: {slug}_v{N}_{variant}_{ts}.glb,
             // using the VARIANT's own created_at (falls back to the 2D version's
@@ -3994,9 +4048,6 @@
                 }
                 return base.replace(/\.glb$/i, `_${vid}.glb`).replace(/[^\w.\-]+/g, '-');
             };
-            // FBX name mirrors the GLB name with a .fbx extension (same slug/version/
-            // variant/timestamp scheme), so the two downloads stay consistent.
-            const fbxName = (vid) => glbName(vid).replace(/\.glb$/i, '.fbx');
             const showVariant = (vid) => {
                 previewId = vid;
                 if (viewer) viewer.src = `${variantUrl(vid)}&t=${Date.now()}`;
@@ -4004,10 +4055,9 @@
                     dlLink.href = variantUrl(vid);
                     dlLink.setAttribute('download', glbName(vid));
                 }
-                if (fbxLink) {
-                    fbxLink.href = this._glbToFbxUrl(variantUrl(vid));
-                    fbxLink.setAttribute('download', fbxName(vid));
-                }
+                // FBX/USD follow the selected variant (+ current target engine).
+                this._current3DVariant = vid;
+                this._refreshExportLinks();
                 refreshButtons();
             };
             // Initialize the download links to the default variant currently shown.
@@ -4015,9 +4065,9 @@
                 dlLink.href = variantUrl(defaultId);
                 dlLink.setAttribute('download', glbName(defaultId));
             }
-            if (fbxLink && defaultId) {
-                fbxLink.href = this._glbToFbxUrl(variantUrl(defaultId));
-                fbxLink.setAttribute('download', fbxName(defaultId));
+            if (defaultId) {
+                this._current3DVariant = defaultId;
+                this._refreshExportLinks();
             }
             bar.querySelectorAll('.av-3d-variant-btn').forEach((btn) => {
                 btn.addEventListener('click', () => showVariant(btn.dataset.variant));

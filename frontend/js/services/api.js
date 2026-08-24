@@ -413,6 +413,10 @@
             blenderUpdate() {
                 return request('/api/admin/blender/update', { method: 'POST' });
             },
+            /** Engine targets for the 3D export dropdown (key + label). */
+            exportTargets() {
+                return request('/api/admin/3d/export-targets');
+            },
             /** Get enabled video models for the Video Studio dropdown. */
             getVideoOptions() {
                 return request('/api/admin/models/video-options');
@@ -547,12 +551,6 @@
              *  always carries a query, so append cache-busting with `&t=…`. */
             sourcePreviewUrl(assetId, version = 1, prepared = false) {
                 return `/api/generate/3d/source-preview/${encodeURIComponent(assetId)}/${version}?prepared=${prepared ? 1 : 0}`;
-            },
-            /** URL of the FBX for a 3D version/variant. Converted lazily from the GLB
-             *  on first request (can take a moment), then cached server-side. */
-            fbxUrl(assetId, version = 1, variant = null) {
-                const q = variant ? `?variant=${encodeURIComponent(variant)}` : '';
-                return `/api/gallery/${encodeURIComponent(assetId)}/3d/${version}/fbx${q}`;
             },
             /** Prepare a version's 3D source in place via sidecars (no 2D versions).
              *  op: 'cutout' | 'extend' | 'inpaint' | 'reset'. Returns { ok, analysis }. */

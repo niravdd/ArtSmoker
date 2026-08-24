@@ -1054,16 +1054,26 @@ async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
     return FileResponse(path, media_type="model/gltf-binary", filename=f"{asset_id}_3d.glb")
 
 
-@router.get("/{asset_id}/3d/{version}/fbx")
-async def get_asset_3d_fbx(asset_id: str, version: int, variant: str | None = None):
-    """Serve an FBX for a generated 3D asset (Unreal/Unity standard).
+@router.get("/{asset_id}/3d/{version}/export/{fmt}")
+async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
+                              variant: str | None = None, target: str = "generic"):
+    """Serve an engine-ready export of a generated 3D asset.
 
-    Converted LAZILY from the version's GLB on first request via a headless Blender
-    subprocess (see services/mesh_export.py), then cached beside the GLB as
-    ``asset_3d*.fbx`` so repeat downloads are instant. Fidelity note: base color +
-    normal + UVs + geometry survive; metallic/roughness needs re-hookup on engine
-    import (an FBX format limitation, not a bug).
+    fmt ∈ {glb, fbx, usd}. GLB is served PRISTINE (glTF is Y-up by spec and importers
+    convert on load — a re-oriented GLB would be malformed). FBX + USD are oriented
+    for `target` (generic/unreal/unity/godot/maya/3dsmax) and converted LAZILY on
+    first request via ONE headless-Blender pass that produces BOTH (so the sibling
+    format is then instant), cached PER TARGET so switching targets never overwrites
+    a previously-built one. Fidelity note: geometry + UVs + base color + normal
+    survive; metallic/roughness re-hooks on engine import (a format limitation).
     """
+    from backend.services import mesh_export
+    fmt = (fmt or "").lower()
+    if fmt not in ("glb", "fbx", "usd"):
+        raise HTTPException(400, detail=f"Unsupported export format '{fmt}'.")
+    if target not in mesh_export.TARGETS:
+        target = mesh_export.DEFAULT_TARGET
+
     # Locate the source GLB using the SAME candidate order as the GLB endpoint.
     glb_candidates = []
     if variant:
@@ -1071,7 +1081,6 @@ async def get_asset_3d_fbx(asset_id: str, version: int, variant: str | None = No
     glb_candidates.append(f"asset_3d_v{version}.glb")
     if version == 1:
         glb_candidates.append("asset_3d.glb")
-
     glb_path = None
     glb_name = None
     for fn in glb_candidates:
@@ -1082,29 +1091,38 @@ async def get_asset_3d_fbx(asset_id: str, version: int, variant: str | None = No
     if glb_path is None:
         raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
 
-    # FBX cache mirrors the GLB filename (.glb -> .fbx), stored beside it.
-    fbx_name = glb_name[:-4] + ".fbx"
-    fbx_path = store.generated_asset_dir(asset_id) / fbx_name
+    # GLB: the pristine original, target-independent.
+    if fmt == "glb":
+        return FileResponse(glb_path, media_type="model/gltf-binary", filename=f"{asset_id}_3d.glb")
 
-    if not fbx_path.exists() or fbx_path.stat().st_size == 0:
+    # FBX / USD(z): per-target cache beside the GLB (…__{target}.fbx / …__{target}.usdz).
+    base = glb_name[:-4]  # strip ".glb"
+    ext = "fbx" if fmt == "fbx" else "usdz"
+    asset_dir = store.generated_asset_dir(asset_id)
+    out_path = asset_dir / f"{base}__{target}.{ext}"
+
+    if not out_path.exists() or out_path.stat().st_size == 0:
         import asyncio
-        from backend.services import mesh_export
         from backend.services.safe_write import named_write_lock
 
         def _convert():
-            # Serialize per-target across workers so two concurrent downloads don't
-            # both run Blender; the second waiter finds the finished cache.
-            with named_write_lock(f"fbx-{asset_id}-{version}-{variant or 'default'}"):
-                if fbx_path.exists() and fbx_path.stat().st_size > 0:
+            # Serialize per (asset, version, variant, target) across workers so two
+            # concurrent downloads don't both run Blender; second waiter finds cache.
+            with named_write_lock(f"export-{asset_id}-{version}-{variant or 'default'}-{target}"):
+                if out_path.exists() and out_path.stat().st_size > 0:
                     return
-                mesh_export.convert_glb_to_fbx(str(glb_path), str(fbx_path))
+                # One pass builds BOTH formats for this target.
+                mesh_export.convert_mesh(str(glb_path), {
+                    "fbx": asset_dir / f"{base}__{target}.fbx",
+                    "usd": asset_dir / f"{base}__{target}.usdz",
+                }, target)
 
         try:
-            # Blender is CPU-bound + blocking → run off the event loop.
-            await asyncio.to_thread(_convert)
+            await asyncio.to_thread(_convert)   # Blender is blocking → off the event loop
         except mesh_export.MeshExportError as e:
             from backend.services import telemetry
-            telemetry.track_error(error_type="fbx_export", message=str(e)[:200])
-            raise HTTPException(503, detail=f"FBX export unavailable: {e}")
+            telemetry.track_error(error_type="mesh_export", message=str(e)[:200])
+            raise HTTPException(503, detail=f"Export unavailable: {e}")
 
-    return FileResponse(fbx_path, media_type="application/octet-stream", filename=f"{asset_id}_3d.fbx")
+    return FileResponse(out_path, media_type="application/octet-stream",
+                        filename=f"{asset_id}_3d_{target}.{ext}")

@@ -428,37 +428,117 @@ def _linux_lib_hint() -> str:
             "libgl1 libglx-mesa0 libsm6 libice6 libxt6 libxext6")
 
 
-# ── conversion ────────────────────────────────────────────────────────────────
+# ── engine targets (axis/scale) + conversion ─────────────────────────────────
 
-def convert_glb_to_fbx(glb_path, fbx_path, *, timeout: int = 300) -> Path:
-    """Convert a GLB to FBX via headless Blender. Raises MeshExportError on failure."""
-    glb_path, fbx_path = Path(glb_path), Path(fbx_path)
+# Per-target orientation for FBX (export_scene.fbx) + USD (wm.usd_export). GLB is
+# intentionally NOT re-oriented — glTF is spec-locked to Y-up and importers convert
+# on load; only FBX/USD support and benefit from a target up-axis. Scale stays 1.0
+# (engines apply their own unit convention on import); we fix the far-more-impactful
+# AXIS so meshes import upright. Config-driven — add engines here, no code change.
+TARGETS = {
+    "generic": {"label": "Generic (glTF, Y-up)",
+                "fbx": {"axis_up": "Y", "axis_forward": "-Z"}, "usd": {"up": "Y", "fwd": "-Z"}},
+    "unreal":  {"label": "Unreal Engine (Z-up)",
+                "fbx": {"axis_up": "Z", "axis_forward": "X"},  "usd": {"up": "Z", "fwd": "Y"}},
+    "unity":   {"label": "Unity (Y-up)",
+                "fbx": {"axis_up": "Y", "axis_forward": "Z"},  "usd": {"up": "Y", "fwd": "Z"}},
+    "godot":   {"label": "Godot (Y-up)",
+                "fbx": {"axis_up": "Y", "axis_forward": "-Z"}, "usd": {"up": "Y", "fwd": "-Z"}},
+    "maya":    {"label": "Maya (Y-up)",
+                "fbx": {"axis_up": "Y", "axis_forward": "Z"},  "usd": {"up": "Y", "fwd": "Z"}},
+    "3dsmax":  {"label": "3ds Max (Z-up)",
+                "fbx": {"axis_up": "Z", "axis_forward": "-Y"}, "usd": {"up": "Z", "fwd": "Y"}},
+}
+DEFAULT_TARGET = "generic"
+EXPORT_FORMATS = ("fbx", "usd")   # GLB is served pristine, never re-exported
+
+_FBX_BASE = {"path_mode": "COPY", "embed_textures": True,
+             "use_selection": False, "bake_space_transform": False, "global_scale": 1.0}
+# USD export (wm.usd_export): export_textures_mode is an enum (NEW writes/packs
+# textures — for .usdz they're packaged into the single file). Orientation needs
+# convert_orientation=True + the up/forward SELECTION enums (which use the
+# NEGATIVE_* spelling, unlike FBX's "-Z").
+_USD_BASE = {"export_materials": True, "export_textures_mode": "NEW", "convert_orientation": True}
+
+# FBX axis enums use "-Z"; USD selection enums use "NEGATIVE_Z".
+_USD_AXIS = {"X": "X", "Y": "Y", "Z": "Z",
+             "-X": "NEGATIVE_X", "-Y": "NEGATIVE_Y", "-Z": "NEGATIVE_Z"}
+
+
+def _fbx_kwargs(target):
+    t = TARGETS.get(target, TARGETS[DEFAULT_TARGET])["fbx"]
+    return {**_FBX_BASE, "axis_up": t["axis_up"], "axis_forward": t["axis_forward"]}
+
+
+def _usd_kwargs(target):
+    t = TARGETS.get(target, TARGETS[DEFAULT_TARGET])["usd"]
+    return {**_USD_BASE,
+            "export_global_up_selection": _USD_AXIS.get(t["up"], t["up"]),
+            "export_global_forward_selection": _USD_AXIS.get(t["fwd"], t["fwd"])}
+
+
+def convert_mesh(glb_path, outputs: dict, target: str = DEFAULT_TARGET, *, timeout: int = 600) -> dict:
+    """Convert a GLB to the requested formats for `target` in ONE Blender pass.
+
+    outputs = {"fbx": <path>, "usd": <path>} (any subset). Returns {fmt: Path} for the
+    files actually written. Raises MeshExportError on failure.
+    """
+    import json as _json
+    import tempfile
+    glb_path = Path(glb_path)
     if not glb_path.exists():
         raise MeshExportError(f"source GLB not found: {glb_path}")
-
+    if not outputs:
+        raise MeshExportError("no output formats requested")
     inst = ensure_blender(allow_download=True)
     if inst is None:
-        raise MeshExportError("Blender is unavailable — cannot export FBX." + _linux_lib_hint())
+        raise MeshExportError("Blender is unavailable — cannot export." + _linux_lib_hint())
 
-    fbx_path.parent.mkdir(parents=True, exist_ok=True)
-    # nosemgrep -- fixed blender binary (detected/managed by us) + our own convert.py; GLB/FBX paths are server-generated, not user input
-    r = subprocess.run(
-        [inst.path, "--background", "--factory-startup", "--python-exit-code", "1",
-         "--python", str(_CONVERT_SCRIPT), "--", str(glb_path), str(fbx_path)],
-        capture_output=True, text=True, timeout=timeout,
-    )
-    ok = r.returncode == 0 and "ARTSMOKER_CONVERT_OK" in (r.stdout or "")
-    if not ok:
+    spec = {}
+    if "fbx" in outputs:
+        Path(outputs["fbx"]).parent.mkdir(parents=True, exist_ok=True)
+        spec["fbx"] = {"path": str(outputs["fbx"]), "kwargs": _fbx_kwargs(target)}
+    if "usd" in outputs:
+        Path(outputs["usd"]).parent.mkdir(parents=True, exist_ok=True)
+        spec["usd"] = {"path": str(outputs["usd"]), "kwargs": _usd_kwargs(target)}
+
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
+        _json.dump(spec, tf)
+        spec_path = tf.name
+    try:
+        # nosemgrep -- fixed blender binary (detected/managed by us) + our own convert.py; GLB path + spec are server-generated, not user input
+        r = subprocess.run(
+            [inst.path, "--background", "--factory-startup", "--python-exit-code", "1",
+             "--python", str(_CONVERT_SCRIPT), "--", str(glb_path), spec_path],
+            capture_output=True, text=True, timeout=timeout,
+        )
+    finally:
+        try:
+            os.unlink(spec_path)
+        except OSError:
+            pass
+
+    if r.returncode != 0 or "ARTSMOKER_CONVERT_OK" not in (r.stdout or ""):
         tail = (r.stderr or r.stdout or "").strip().splitlines()
         detail = tail[-1] if tail else "unknown error"
-        logger.error("Blender: FBX conversion failed (exit %s): %s", r.returncode, detail)
-        raise MeshExportError(f"Blender FBX conversion failed (exit {r.returncode}): {detail}")
-    if not fbx_path.exists() or fbx_path.stat().st_size == 0:
-        raise MeshExportError("Blender reported success but produced no FBX output")
+        logger.error("Blender: mesh convert failed (exit %s, target=%s): %s", r.returncode, target, detail)
+        raise MeshExportError(f"Blender export failed (exit {r.returncode}): {detail}")
 
-    logger.info("Blender: FBX export via v%s (%s → %s, %d bytes)",
-                _fmt(inst.version), glb_path.name, fbx_path.name, fbx_path.stat().st_size)
-    return fbx_path
+    written = {}
+    for fmt, p in outputs.items():
+        p = Path(p)
+        if p.exists() and p.stat().st_size > 0:
+            written[fmt] = p
+    if not written:
+        raise MeshExportError("Blender reported success but produced no output")
+    logger.info("Blender: exported %s for target '%s' via v%s (%s)",
+                "+".join(sorted(written)), target, _fmt(inst.version), glb_path.name)
+    return written
+
+
+def convert_glb_to_fbx(glb_path, fbx_path, *, timeout: int = 300) -> Path:
+    """Back-compat single-format helper (generic target, FBX only)."""
+    return convert_mesh(glb_path, {"fbx": Path(fbx_path)}, DEFAULT_TARGET, timeout=timeout)["fbx"]
 
 
 # ── update management (managed copy only) ─────────────────────────────────────

@@ -2114,6 +2114,16 @@ def _probe_and_record_temperature(model_id: str, region: str, registry: dict):
         logger.debug("Temperature probe skipped for %s: %s", model_id, exc)
 
 
+@router.get("/3d/export-targets")
+async def export_targets():
+    """Engine targets for the 3D export dropdown (key + label), config-driven."""
+    from backend.services import mesh_export
+    return {
+        "targets": [{"key": k, "label": v["label"]} for k, v in mesh_export.TARGETS.items()],
+        "default": mesh_export.DEFAULT_TARGET,
+    }
+
+
 @router.get("/blender/status")
 async def blender_status():
     """Status of the FBX exporter's Blender (reused system copy vs our managed
