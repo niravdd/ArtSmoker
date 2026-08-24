@@ -2114,6 +2114,26 @@ def _probe_and_record_temperature(model_id: str, region: str, registry: dict):
         logger.debug("Temperature probe skipped for %s: %s", model_id, exc)
 
 
+@router.get("/blender/status")
+async def blender_status():
+    """Status of the FBX exporter's Blender (reused system copy vs our managed
+    download, version, tools dir). Detection only — never triggers a download."""
+    from backend.services import mesh_export
+    import asyncio
+    # Detection runs a subprocess smoke-test → offload off the event loop.
+    return await asyncio.to_thread(mesh_export.get_status)
+
+
+@router.post("/blender/update")
+async def blender_update():
+    """On-demand check + update of the MANAGED Blender copy (the Model Settings
+    'Update Blender' button). Never touches a reused system Blender. May download
+    a new build → run off the event loop."""
+    from backend.services import mesh_export
+    import asyncio
+    return await asyncio.to_thread(mesh_export.check_for_update, True)
+
+
 @router.post("/discover/refresh-all")
 async def refresh_all_regions():
     """Scan ALL Bedrock-supported AWS regions and update the registry.

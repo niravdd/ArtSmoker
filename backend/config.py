@@ -3,7 +3,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.9-20260824_01"
+APP_VERSION = "1.9-20260824_02"
 
 class Settings(BaseSettings):
     # ── AWS ───────────────────────────────────────────────────────────────
@@ -65,6 +65,19 @@ class Settings(BaseSettings):
     # Override via ARTSMOKER_LOG_TO_FILE / ARTSMOKER_LOG_FILE (or .env).
     log_to_file: bool = True
     log_file: Path = Path(__file__).resolve().parent.parent / "logs" / "artsmoker.log"
+
+    # ── Mesh export (GLB→FBX via headless Blender) ─────────────────────────
+    # Blender is provisioned server-side ONLY (end-users never install anything):
+    # reuse a working system Blender if found, else silently download a portable
+    # copy into `blender_tools_dir`. `prefer_managed_latest` forces our managed
+    # copy even when a (possibly older) system Blender exists — default OFF so a
+    # working install is reused as-is (correct FBX; "latest" is only marginal
+    # fidelity). `blender_auto_update` gates the once-per-30-days opportunistic
+    # update-check of the MANAGED copy (a system Blender is never auto-updated);
+    # the Model Settings "Update Blender" button always forces a check.
+    blender_tools_dir: Path = Path(__file__).resolve().parent.parent / "tools"
+    blender_prefer_managed_latest: bool = False
+    blender_auto_update: bool = True
 
     # ── Generation defaults ───────────────────────────────────────────────
     default_image_width: int = 1024

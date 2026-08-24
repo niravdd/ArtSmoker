@@ -849,6 +849,15 @@ async def generate_3d(body: ThreeDGenerateRequest):
     # demand trigger (mirrors the 2D _ensure_poller on submit). Idempotent.
     start_3d_poller()
 
+    # Warm the FBX exporter (headless Blender) in the background now that a 3D model
+    # is being generated, so it's ready before the user clicks "Download FBX".
+    # Reuses a system Blender if present (no download); idempotent + never blocks.
+    try:
+        from backend.services import mesh_export
+        mesh_export.preprovision_async()
+    except Exception as exc:
+        logger.debug("Blender pre-provision skipped: %s", exc)
+
     # Dev-box convenience: auto-pin the endpoint warm (non-cumulative). Shares
     # the same helper as 2D async jobs. No-op outside dev mode.
     try:

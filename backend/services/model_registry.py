@@ -267,7 +267,7 @@ def registry_transaction():
 # Fields per model that are user-specific and should NOT be promoted to the base file
 _USER_ONLY_FIELDS = {"enabled", "deployment", "model_ready", "lifecycle_unavailable"}
 # Top-level sections that are user-specific
-_USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances", "three_d_defaults", "_warm_mode"}
+_USER_ONLY_SECTIONS = {"_meta", "_last_updated", "video_settings", "license_acceptances", "three_d_defaults", "_warm_mode", "_blender"}
 
 
 @_registry_write
@@ -499,6 +499,32 @@ def clear_warm_marker(endpoint_name: str):
 def get_warm_markers() -> dict:
     """Return all persisted keep-warm markers: {endpoint_name: {...}}."""
     return _read_user_prefs_raw().get("_warm_mode", {})
+
+
+# ── Blender / mesh-export managed-tool state (runtime, persisted in user.json) ─
+# Tracks OUR downloaded ("managed") Blender copy used for GLB->FBX export: which
+# version we last installed, its executable path, and when we last checked for an
+# update. A system Blender we merely REUSE is never recorded here (we don't manage
+# it). Stored under the "_blender" section (underscore-prefixed → survives
+# _save_nolock and is in _USER_ONLY_SECTIONS, so promote-to-base won't touch it).
+
+@_registry_write
+def set_blender_state(**fields):
+    """Merge fields into the persisted _blender state (managed_version, managed_exe,
+    last_update_check, ...). Locked + atomic like the warm-marker writers."""
+    prefs = _read_user_prefs_raw()
+    st = prefs.setdefault("_blender", {})
+    st.update(fields)
+    st["updated_at"] = datetime.now(timezone.utc).isoformat()
+    prefs["_last_updated"] = datetime.now(timezone.utc).isoformat()
+    atomic_write_text(_USER_PREFS_PATH, json.dumps(prefs, indent=2, default=str))
+    _registry["_blender"] = dict(st)
+
+
+def get_blender_state() -> dict:
+    """Return the persisted managed-Blender state: {managed_version, managed_exe,
+    last_update_check, ...} (empty dict if never set)."""
+    return _read_user_prefs_raw().get("_blender", {})
 
 
 # ── Format family definitions (code as source of truth) ──────────────────

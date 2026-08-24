@@ -36,3 +36,6 @@ data/trellis2_full_verify/
 
 # Runtime log files (file logging is on by default; see config.log_to_file)
 /logs/
+
+# Server-side managed tools (portable Blender downloaded on-demand for GLB→FBX export)
+/tools/

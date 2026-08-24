@@ -102,6 +102,10 @@
                             <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="registry-json">
                                 { }  ${t('artsmoker.ui.model_settings.tab_json')}
                             </button>
+                            <div class="border-t border-brand-border my-1"></div>
+                            <button class="ms-vtab w-full text-left text-sm px-4 py-2.5 hover:bg-white/5 transition-colors" data-ms-tab="maintenance">
+                                🛠️  ${t('artsmoker.ui.model_settings.tab_maintenance')}
+                            </button>
                         </div>
 
                         <!-- Tab content -->
@@ -231,6 +235,16 @@
                                 <button id="ms-json-save" class="btn btn-primary btn-sm text-xs">${t('artsmoker.ui.model_settings.save_json')}</button>
                                 <button id="ms-json-reset" class="btn btn-secondary btn-sm text-xs">${t('artsmoker.ui.model_settings.reset_json')}</button>
                                 <span id="ms-json-status" class="text-[10px] text-brand-text-muted"></span>
+                            </div>
+                        </div>
+
+                        <!-- Tab: Maintenance / system tools -->
+                        <div class="ms-tab-panel hidden" data-ms-panel="maintenance">
+                            <h3 class="text-sm font-semibold text-brand-text mb-1">${t('artsmoker.ui.model_settings.blender_title')}</h3>
+                            <p class="text-xs text-brand-text-muted mb-3">${t('artsmoker.ui.model_settings.blender_desc')}</p>
+                            <div class="flex items-center gap-3 flex-wrap">
+                                <button id="ms-blender-update" class="btn btn-secondary btn-sm text-xs">${t('artsmoker.ui.model_settings.blender_update_btn')}</button>
+                                <span id="ms-blender-status" class="text-[11px] text-brand-text-muted">${t('artsmoker.ui.model_settings.blender_status_loading')}</span>
                             </div>
                         </div>
                     </div>  <!-- end tab content -->
@@ -870,6 +884,35 @@
                             hfTokenBtn.addEventListener('click', () => this._manageHfToken(modal));
                         }
                     }
+                    // Maintenance tab: load Blender status + wire the Update button (once)
+                    if (tab.dataset.msTab === 'maintenance') {
+                        this._loadBlenderStatus(modal);
+                        const upd = modal.querySelector('#ms-blender-update');
+                        if (upd && !upd._wired) {
+                            upd._wired = true;
+                            upd.addEventListener('click', async () => {
+                                const orig = upd.textContent;
+                                upd.disabled = true;
+                                upd.textContent = t('artsmoker.ui.model_settings.blender_updating') || 'Checking…';
+                                try {
+                                    const r = await API.admin.blenderUpdate();
+                                    if (r.updated) {
+                                        window.showToast?.((t('artsmoker.ui.model_settings.blender_update_done') || 'Updated to {{v}}').replace('{{v}}', r.current || ''), 'success');
+                                    } else if (r.error) {
+                                        window.showToast?.((t('artsmoker.ui.model_settings.blender_update_failed') || 'Update failed') + ': ' + r.error, 'error');
+                                    } else {
+                                        window.showToast?.(t('artsmoker.ui.model_settings.blender_up_to_date') || 'Already up to date', 'info');
+                                    }
+                                } catch (e) {
+                                    window.showToast?.((t('artsmoker.ui.model_settings.blender_update_failed') || 'Update failed') + ': ' + (e.message || ''), 'error');
+                                } finally {
+                                    upd.disabled = false;
+                                    upd.textContent = orig;
+                                    this._loadBlenderStatus(modal);
+                                }
+                            });
+                        }
+                    }
                 });
             });
 
@@ -1237,6 +1280,30 @@
                 jsonStatus.textContent = t('artsmoker.ui.model_settings.reset_to_loaded');
                 jsonStatus.className = 'text-[10px] text-brand-text-muted';
             });
+        },
+
+        async _loadBlenderStatus(modal) {
+            const el = modal.querySelector('#ms-blender-status');
+            if (!el) return;
+            try {
+                const s = await API.admin.blenderStatus();
+                if (!s.available) {
+                    const none = t('artsmoker.ui.model_settings.blender_status_none')
+                        || 'Not installed — downloads automatically on first FBX export.';
+                    // Show WHERE it will be downloaded so the user knows the target dir.
+                    el.textContent = s.tools_dir ? `${none} → ${s.tools_dir}` : none;
+                    el.title = s.tools_dir || '';
+                    return;
+                }
+                const src = s.source === 'managed'
+                    ? (t('artsmoker.ui.model_settings.blender_status_managed') || 'Managed copy')
+                    : (t('artsmoker.ui.model_settings.blender_status_system') || 'System install (reused)');
+                // Include the exact path so the user knows which Blender is in use.
+                el.textContent = `${src} · Blender ${s.version} · ${s.path}`;
+                el.title = s.path || '';
+            } catch {
+                el.textContent = t('artsmoker.ui.model_settings.blender_status_error') || 'Status unavailable';
+            }
         },
 
         async _loadTemplates(modal) {

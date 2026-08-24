@@ -1024,3 +1024,59 @@ async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
     if path is None:
         raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
     return FileResponse(path, media_type="model/gltf-binary", filename=f"{asset_id}_3d.glb")
+
+
+@router.get("/{asset_id}/3d/{version}/fbx")
+async def get_asset_3d_fbx(asset_id: str, version: int, variant: str | None = None):
+    """Serve an FBX for a generated 3D asset (Unreal/Unity standard).
+
+    Converted LAZILY from the version's GLB on first request via a headless Blender
+    subprocess (see services/mesh_export.py), then cached beside the GLB as
+    ``asset_3d*.fbx`` so repeat downloads are instant. Fidelity note: base color +
+    normal + UVs + geometry survive; metallic/roughness needs re-hookup on engine
+    import (an FBX format limitation, not a bug).
+    """
+    # Locate the source GLB using the SAME candidate order as the GLB endpoint.
+    glb_candidates = []
+    if variant:
+        glb_candidates.append(f"asset_3d_v{version}__{variant}.glb")
+    glb_candidates.append(f"asset_3d_v{version}.glb")
+    if version == 1:
+        glb_candidates.append("asset_3d.glb")
+
+    glb_path = None
+    glb_name = None
+    for fn in glb_candidates:
+        p = store.get_generated_file_path(asset_id, fn)
+        if p is not None:
+            glb_path, glb_name = p, fn
+            break
+    if glb_path is None:
+        raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
+
+    # FBX cache mirrors the GLB filename (.glb -> .fbx), stored beside it.
+    fbx_name = glb_name[:-4] + ".fbx"
+    fbx_path = store.generated_asset_dir(asset_id) / fbx_name
+
+    if not fbx_path.exists() or fbx_path.stat().st_size == 0:
+        import asyncio
+        from backend.services import mesh_export
+        from backend.services.safe_write import named_write_lock
+
+        def _convert():
+            # Serialize per-target across workers so two concurrent downloads don't
+            # both run Blender; the second waiter finds the finished cache.
+            with named_write_lock(f"fbx-{asset_id}-{version}-{variant or 'default'}"):
+                if fbx_path.exists() and fbx_path.stat().st_size > 0:
+                    return
+                mesh_export.convert_glb_to_fbx(str(glb_path), str(fbx_path))
+
+        try:
+            # Blender is CPU-bound + blocking → run off the event loop.
+            await asyncio.to_thread(_convert)
+        except mesh_export.MeshExportError as e:
+            from backend.services import telemetry
+            telemetry.track_error(error_type="fbx_export", message=str(e)[:200])
+            raise HTTPException(503, detail=f"FBX export unavailable: {e}")
+
+    return FileResponse(fbx_path, media_type="application/octet-stream", filename=f"{asset_id}_3d.fbx")
