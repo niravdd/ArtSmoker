@@ -611,6 +611,27 @@ def convert_glb_to_fbx(glb_path, fbx_path, *, timeout: int = 300) -> Path:
 
 # ── Texture packing (per-engine presets; pure local Pillow channel ops) ──────
 
+def assert_packable(glb_path):
+    """Raise a CLEAR MeshExportError when texture packing is requested but the GLB
+    has nothing to pack — called BEFORE the (expensive) Blender run so the user
+    gets an immediate, honest answer instead of a late failure. Real-world asset
+    classes: full PBR (packable), albedo-only (no metallic-roughness — e.g. plain
+    TripoSG meshes), and untextured/vertex-colored (no material at all)."""
+    import trimesh
+    scene = trimesh.load(str(glb_path))
+    geoms = list(scene.geometry.values()) if hasattr(scene, "geometry") else [scene]
+    mat = next((g.visual.material for g in geoms
+                if getattr(getattr(g, "visual", None), "material", None) is not None), None)
+    if mat is None:
+        raise MeshExportError(
+            "This model has no textures — texture packing isn't applicable. "
+            "Set Textures to 'None' to download it.")
+    if getattr(mat, "metallicRoughnessTexture", None) is None:
+        raise MeshExportError(
+            "This model has no PBR (metallic-roughness) textures to pack — it is "
+            "albedo-only. Set Textures to 'None' to download it.")
+
+
 def pack_textures(glb_path, out_dir, preset: str, slug: str = "asset") -> list:
     """Extract the GLB's PBR textures and write the engine-specific packed set.
 

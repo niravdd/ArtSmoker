@@ -1122,6 +1122,16 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
         import asyncio
         from backend.services.safe_write import named_write_lock
 
+        # Fail FAST (before the expensive Blender run) when packing was requested
+        # but this GLB has nothing to pack (untextured or albedo-only asset). 400:
+        # it's a property of the asset, not a server fault — the toast shows why.
+        if is_zip:
+            try:
+                await asyncio.to_thread(mesh_export.assert_packable, str(glb_path))
+            except mesh_export.MeshExportError as e:
+                logger.info("Export: packing not applicable for %s (%s)", asset_id, e)
+                raise HTTPException(400, detail=str(e))
+
         def _convert():
             # Serialize per full combination across workers; second waiter finds cache.
             with named_write_lock(f"export-{asset_id}-{version}-{variant or 'default'}-{target}-{fmt}-{token}"):
@@ -1160,10 +1170,16 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
         except mesh_export.MeshExportError as e:
             from backend.services import telemetry
             telemetry.track_error(error_type="mesh_export", message=str(e)[:200])
+            # nosemgrep -- logs the root cause for operators, then surfaces a clean 503; intentional error-level at the boundary
+            logger.error("Export failed for %s (fmt=%s target=%s ops=%s): %s",
+                         asset_id, fmt, target, token or "-", e)
             raise HTTPException(503, detail=f"Export unavailable: {e}")
         except Exception as e:
             from backend.services import telemetry
             telemetry.track_error(error_type="mesh_export", message=str(e)[:200])
+            # nosemgrep -- logs the root cause for operators, then surfaces a clean 503; intentional error-level at the boundary
+            logger.error("Export failed for %s (fmt=%s target=%s ops=%s): %s",
+                         asset_id, fmt, target, token or "-", e)
             raise HTTPException(503, detail=f"Export failed: {e}")
 
     # Adoption telemetry: an export download is always intentional (fetch-based UI).
