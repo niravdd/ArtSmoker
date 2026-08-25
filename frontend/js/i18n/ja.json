@@ -161,7 +161,7 @@
     "three_d_target_engine": "ターゲットエンジン",
     "three_d_export_preparing": "エクスポートを準備しています… 初回は少し時間がかかることがあります。",
     "three_d_export_status": "{{target}} 用の {{fmt}} を準備中…",
-    "three_d_export_status_hint": "処理が完了するとダウンロードボタンが利用可能になります（大きなモデルは数分かかることがあります）",
+    "three_d_export_status_hint": "処理が完了するとダウンロードできます（大きなモデルは数分かかることがあります）",
     "three_d_export_ready_badge": "生成済み — すぐにダウンロードできます",
     "three_d_export_failed": "エクスポートに失敗しました",
     "three_d_export_ready": "{{fmt}} のダウンロード準備ができました",

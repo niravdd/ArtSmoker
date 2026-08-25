@@ -954,7 +954,7 @@
     "three_d_target_engine": "Target engine",
     "three_d_export_preparing": "Preparing your export… the first one can take a moment.",
     "three_d_export_status": "Preparing {{fmt}} for {{target}}…",
-    "three_d_export_status_hint": "the Download button becomes available when processing finishes (large models can take a few minutes)",
+    "three_d_export_status_hint": "the download will be available when processing finishes (large models can take a few minutes)",
     "three_d_export_ready_badge": "Already generated — instant download",
     "three_d_export_failed": "Export failed",
     "three_d_export_ready": "{{fmt}} ready to download",

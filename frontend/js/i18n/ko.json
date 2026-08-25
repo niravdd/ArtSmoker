@@ -161,7 +161,7 @@
     "three_d_target_engine": "대상 엔진",
     "three_d_export_preparing": "내보내기 준비 중… 첫 번째는 다소 시간이 걸릴 수 있습니다.",
     "three_d_export_status": "{{target}}용 {{fmt}} 준비 중…",
-    "three_d_export_status_hint": "처리가 끝나면 다운로드 버튼이 활성화됩니다 (큰 모델은 몇 분이 걸릴 수 있습니다)",
+    "three_d_export_status_hint": "처리가 끝나면 다운로드할 수 있습니다 (큰 모델은 몇 분이 걸릴 수 있습니다)",
     "three_d_export_ready_badge": "이미 생성됨 — 즉시 다운로드",
     "three_d_export_failed": "내보내기 실패",
     "three_d_export_ready": "{{fmt}} 다운로드 준비 완료",
