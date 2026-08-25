@@ -397,9 +397,17 @@ async def translate_preview(body: TranslatePreviewRequest):
     detection hint — content signals still take precedence.
     """
     from backend.services.prompt_translator import translate_to_english
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    from backend.services.telemetry import track_aux_llm_cost
 
     if not body.text or not body.text.strip():
         return {"original": body.text, "translated": body.text, "source_lang": "en", "was_translated": False}
 
-    result = translate_to_english(body.text, source_lang=body.source_lang, ui_lang=body.ui_lang)
+    # This is a real billable LLM call — flush its cost like every other aux
+    # endpoint (previously it fired NO telemetry and orphaned the cost).
+    reset_costs()
+    try:
+        result = translate_to_english(body.text, source_lang=body.source_lang, ui_lang=body.ui_lang)
+    finally:
+        track_aux_llm_cost("translate_preview", round(get_total_cost(), 6))
     return result

@@ -374,6 +374,7 @@ def invoke_instruction_edit_sync(model_key: str, prompt: str, image_bytes: bytes
             payload[field_name] = spec["default"]
 
     sm_runtime = boto3.client("sagemaker-runtime", region_name=ep_region, config=_SM_CONFIG)
+    _t_start = time.time()
     input_location = _upload_async_input(endpoint_name, payload, region=ep_region,
                                          bucket=_endpoint_bucket(model_config))
     response = sm_runtime.invoke_endpoint_async(
@@ -402,6 +403,28 @@ def invoke_instruction_edit_sync(model_key: str, prompt: str, image_bytes: bytes
             image_b64 = result.get("image", "")
             if not image_b64:
                 raise RuntimeError(f"Edit model returned no image: {str(result)[:200]}")
+            # Compute-cost + invoke telemetry (mirrors the realtime invoke path) —
+            # this sync-wait edit runs real GPU time that was previously invisible.
+            try:
+                from backend.services.cost_tracker import add_cost
+                from backend.services.custom_models import get_instance_hourly_rate
+                from backend.services.telemetry import track_custom_model_invoke
+                _deploy = model_config.get("deployment") or {}
+                _elapsed = time.time() - _t_start
+                _hourly = get_instance_hourly_rate(
+                    _deploy.get("instance_type"), model_config.get("catalog_key"),
+                    _deploy.get("region") or ep_region)
+                _compute = round(_hourly * _elapsed / 3600, 6) if _hourly else 0.0
+                if _compute > 0:
+                    add_cost("custom_model", _compute,
+                             f"{model_config.get('label', model_key)} instruction edit: "
+                             f"{_elapsed:.0f}s × ${_hourly}/hr")
+                track_custom_model_invoke(
+                    model=model_key, cost_usd=_compute, latency_ms=_elapsed * 1000.0,
+                    predictor_type="image_edit", cost_is_estimate=(_hourly == 0.0),
+                )
+            except Exception:
+                logger.debug("instruction-edit cost tracking skipped (non-fatal)", exc_info=True)
             return _b64.b64decode(image_b64)
         raise RuntimeError(
             f"Instruction edit timed out after {timeout_seconds}s — the endpoint may be "

@@ -1227,14 +1227,18 @@ async def prepare_source(body: PrepareSourceRequest):
     # orphaned and discarded. Flush it to a telemetry cost event at each return.
     reset_costs()
 
-    def _flush_source_cost():
-        """Report the accumulated source-prep cost (Bedrock edits + vision LLM)."""
+    def _flush_source_cost(always: bool = False):
+        """Report the accumulated source-prep cost (Bedrock edits + vision LLM +
+        instruction-editor GPU compute). always=True (success paths) also fires the
+        action at cost 0 so free/local ops (rembg cutout) are counted; failure paths
+        use the default (flush only when spend exists, so validation errors that
+        billed nothing don't count as ops)."""
         try:
             total = get_total_cost()
-            if total > 0:
+            if total > 0 or always:
                 from backend.services.telemetry import track_image_edit
                 track_image_edit(edit_type=f"3d_source_{body.op}",
-                                 model="source_prep", cost_usd=total)
+                                 model="source_prep", cost_usd=round(total, 6))
         except Exception:
             pass
 
@@ -1245,7 +1249,7 @@ async def prepare_source(body: PrepareSourceRequest):
 
     if body.op == "cutout":
         result = {"ok": True, "analysis": _analyze_source_bytes(cutout.read_bytes(), meta)}
-        _flush_source_cost()
+        _flush_source_cost(always=True)
         return result
 
     try:
@@ -1302,8 +1306,10 @@ async def prepare_source(body: PrepareSourceRequest):
         else:
             raise HTTPException(400, detail=f"Unknown op '{body.op}'.")
     except HTTPException:
+        _flush_source_cost()   # partial spend (vision/edit already billed) — don't orphan
         raise
     except Exception as e:
+        _flush_source_cost()   # partial spend — don't orphan
         # Surface a validation-style error as 400, else 502.
         msg = str(e)
         code = 400 if "ValidationException" in type(e).__name__ or "ValidationException" in msg else 502
@@ -1316,7 +1322,7 @@ async def prepare_source(body: PrepareSourceRequest):
         logger.info("Post-%s re-strip failed for %s v%s (%s) — keeping as-is", body.op, aid, ver, e)
     saved = store.save_generated_image(aid, _sidecar_name(ver, "source"), out)
     result = {"ok": True, "analysis": _analyze_source_bytes(saved.read_bytes(), meta)}
-    _flush_source_cost()
+    _flush_source_cost(always=True)
     return result
 
 

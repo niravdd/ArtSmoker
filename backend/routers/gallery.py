@@ -2,6 +2,7 @@
 
 import io
 import logging
+import re
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -1123,5 +1124,59 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
             telemetry.track_error(error_type="mesh_export", message=str(e)[:200])
             raise HTTPException(503, detail=f"Export unavailable: {e}")
 
+    # Adoption telemetry: an export download is always intentional (fetch-based UI),
+    # so track unconditionally here. <a download> anchors are tracked separately via
+    # the /track-download beacon (this endpoint is never used as a display src).
+    try:
+        from backend.services.telemetry import track_download
+        _m = _get_meta(asset_id) or {}
+        track_download(file_format=fmt, asset_type=_m.get("asset_type", ""), kind="export",
+                       engine_target=target, model=_m.get("image_model", ""), variant=variant or "")
+    except Exception:
+        pass
     return FileResponse(out_path, media_type="application/octet-stream",
                         filename=f"{asset_id}_3d_{target}.{ext}")
+
+
+class TrackDownloadRequest(BaseModel):
+    url: str = ""
+
+
+# URL-path → (format, kind) patterns for the download beacon. Matched against the
+# path portion of the gallery serve URLs the <a download> anchors point at.
+_DL_PATTERNS = [
+    (re.compile(r"^/api/gallery/([^/]+)/png$"), "png", "asset"),
+    (re.compile(r"^/api/gallery/([^/]+)/svg$"), "svg", "asset"),
+    (re.compile(r"^/api/gallery/([^/]+)/version/\d+$"), "png", "version"),
+    (re.compile(r"^/api/gallery/([^/]+)/version-svg/\d+$"), "svg", "version"),
+    (re.compile(r"^/api/gallery/([^/]+)/cutout-png/\d+$"), "png", "cutout"),
+    (re.compile(r"^/api/gallery/([^/]+)/cutout-svg/\d+$"), "svg", "cutout"),
+    (re.compile(r"^/api/gallery/([^/]+)/3d/\d+$"), "glb", "asset"),
+]
+
+
+@router.post("/track-download")
+async def track_download_beacon(body: TrackDownloadRequest):
+    """Adoption telemetry beacon: the frontend fires this (sendBeacon) when a user
+    clicks any <a download> anchor. The URL is parsed server-side and enriched from
+    the asset's metadata — the serve endpoints themselves can't be hooked because
+    the SAME URLs render in-app previews (every thumbnail would count as a download).
+    """
+    from urllib.parse import urlparse, parse_qs
+    try:
+        parsed = urlparse(body.url or "")
+        path = parsed.path
+        for pat, fmt, kind in _DL_PATTERNS:
+            m = pat.match(path)
+            if not m:
+                continue
+            asset_id = m.group(1)
+            meta = _get_meta(asset_id) or {}
+            variant = (parse_qs(parsed.query).get("variant") or [""])[0]
+            from backend.services.telemetry import track_download
+            track_download(file_format=fmt, asset_type=meta.get("asset_type", ""), kind=kind,
+                           model=meta.get("image_model", ""), variant=variant)
+            return {"tracked": True}
+    except Exception:
+        pass
+    return {"tracked": False}

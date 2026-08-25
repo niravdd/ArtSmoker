@@ -610,6 +610,24 @@
         }),
     }).catch(() => {});
 
+    // Telemetry: track asset downloads (adoption signal — which formats users take).
+    // One DELEGATED listener catches every <a download> click anywhere in the app
+    // (PNG/SVG/GLB/version/cutout links, present and future). blob: URLs are skipped —
+    // those are the fetch-based FBX/USD exports, already tracked server-side at the
+    // export endpoint (which is never used as a display src, unlike /png and /3d).
+    document.addEventListener('click', (e) => {
+        const a = e.target?.closest?.('a[download]');
+        if (!a) return;
+        const href = a.getAttribute('href') || '';
+        if (!href.startsWith('/api/gallery/')) return;   // skips blob:, #, external
+        try {
+            const payload = JSON.stringify({ url: href });
+            if (!navigator.sendBeacon?.('/api/gallery/track-download', new Blob([payload], { type: 'application/json' }))) {
+                fetch('/api/gallery/track-download', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: payload, keepalive: true }).catch(() => {});
+            }
+        } catch { /* never interfere with the download itself */ }
+    }, true);
+
     // ============================================================
     //  Global error logging to server
     // ============================================================

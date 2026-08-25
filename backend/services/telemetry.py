@@ -296,6 +296,18 @@ def track_3d_generation(model: str = "", pipeline: str = "", asset_type: str = "
 
 # ── Gallery Import Event ─────────────────────────────────────────────
 
+def track_download(file_format: str = "", asset_type: str = "", kind: str = "",
+                   engine_target: str = "", model: str = "", variant: str = ""):
+    """A user downloaded an asset file — adoption signal for format/engine preference.
+
+    file_format: png | svg | glb | fbx | usd. kind: asset | version | cutout | export.
+    engine_target (fbx/usd only): generic/unreal/unity/godot/maya/3dsmax. model =
+    the generating model; variant = the 3D variant id where applicable. Cost 0.
+    """
+    _track("asset.download", format=file_format, asset_type=asset_type, kind=kind,
+           engine_target=engine_target, model=model, variant=variant, cost_usd=0)
+
+
 def track_image_import(asset_type: str = "", source_format: str = ""):
     """User imported an existing image into the gallery (no AI, no cost)."""
     _track("gallery.import", asset_type=asset_type, source_format=source_format)

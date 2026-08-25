@@ -1272,14 +1272,16 @@ def _track_completion(job: dict, duration_seconds: float, compute_cost: float):
     except Exception:
         pass
 
+    is_edit = job.get("job_kind") == "edit" or bool(job.get("edit_asset_id"))
     try:
         from backend.services.telemetry import track_custom_model_invoke, track_image_cost
-        # Invocation event with compute cost (for raw event visibility)
+        # Invocation event with compute cost (for raw event visibility). Label edit
+        # jobs correctly — they were previously reported as text_to_image.
         track_custom_model_invoke(
             model=job["model_key"],
             cost_usd=compute_cost,
             latency_ms=int(duration_seconds * 1000),
-            predictor_type="text_to_image",
+            predictor_type="image_edit" if is_edit else "text_to_image",
         )
         # Cost event (consistent with sync path)
         track_image_cost(
@@ -1288,6 +1290,19 @@ def _track_completion(job: dict, duration_seconds: float, compute_cost: float):
         )
     except Exception:
         pass
+
+    # Async EDITS additionally count as edits (the sync /edit path fires
+    # track_image_edit at completion; async ones previously never did, so
+    # image_studio.edit undercounted and lost edit_type/model attribution).
+    # cost_usd=0 here — the compute cost is already reported above (image_cost);
+    # a non-zero value would double-count in PulseBoard's edit.cost sum.
+    if is_edit:
+        try:
+            from backend.services.telemetry import track_image_edit
+            track_image_edit(edit_type=job.get("edit_purpose", "image_edit"),
+                             model=job.get("model_key", ""), cost_usd=0)
+        except Exception:
+            pass
 
 
 # ── S3 Cleanup & Persistence ────────────────────────────────────────────

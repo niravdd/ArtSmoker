@@ -1499,6 +1499,20 @@ async def analyze_reference(body: AnalyzeReferenceRequest):
 @router.post("/", response_model=GenerationResult)
 async def generate_asset(body: GenerationRequest):
     """Synchronous generation endpoint (no streaming progress)."""
+    # Same action-event telemetry as /stream (the event lives in the endpoint
+    # wrappers, not _run_generation — without this, sync single-model generations
+    # emitted a cost event but no image_studio.generate action).
+    if not body.all_models:
+        from backend.services.telemetry import track_image_generation, track_first_generation
+        track_first_generation(model=body.image_model or "", asset_type=body.asset_type.value if body.asset_type else "", studio="image")
+        track_image_generation(
+            model=body.image_model or "",
+            num_options=body.num_options,
+            num_variations=body.num_variations,
+            asset_type=body.asset_type.value if body.asset_type else "",
+            quality=body.quality or "",
+            reference_mode=(body.reference_mode if body.reference_images else ""),
+        )
     return _run_generation(body)
 
 
@@ -1790,6 +1804,15 @@ async def edit_image(body: ImageEditRequest):
         # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.error("EDIT-FAIL [%s]: model=%s source=%s error=%s",
                      edit_trace_id, body.model, body.source_image_id, exc)
+        # Flush any partial spend (a Bedrock call that billed before failing) so the
+        # cost isn't orphaned — the success-path event at the end never runs.
+        try:
+            _partial = get_total_cost()
+            if _partial > 0:
+                track_image_edit(edit_type=(get_image_model(body.model) or {}).get("model_purpose", "") if body.model else "",
+                                 model=body.model or "", cost_usd=round(_partial, 6))
+        except Exception:
+            pass
         # A model ValidationException is a bad-input problem (400), not a gateway
         # failure (502) — surface the underlying detail so the UI can show it.
         if "ValidationException" in type(exc).__name__ or "ValidationException" in str(exc):
