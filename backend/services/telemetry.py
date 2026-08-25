@@ -303,15 +303,15 @@ def track_download(file_format: str = "", asset_type: str = "", kind: str = "",
     PulseBoard aggregates ONLY by event NAME (event_types counters) — properties land
     on raw events but are never aggregated/shown per event. So the two preference
     dimensions are encoded IN the name (judiciously — ~15 distinct names, mirrors the
-    image_studio.edit.{type} pattern):
-        asset.download.png / .svg / .glb            (2D + pristine GLB)
-        asset.download.fbx.unreal / .usd.unity / …  (engine exports)
+    image_studio.edit.{type} pattern; "dl" keeps names short on the dashboard):
+        asset.dl.png / .svg / .glb            (2D + pristine GLB)
+        asset.dl.fbx.unreal / .usd.unity / …  (engine exports)
     file_format: png | svg | glb | fbx | usd. kind: asset | version | cutout | export.
     engine_target (fbx/usd only): generic/unreal/unity/godot/maya/3dsmax. Remaining
     detail (kind/model/variant) stays in properties for the raw-events view. Cost 0.
     """
     fmt = (file_format or "unknown").lower().replace(".", "_")
-    event = f"asset.download.{fmt}"
+    event = f"asset.dl.{fmt}"
     if engine_target and fmt in ("fbx", "usd"):
         event += f".{engine_target.lower().replace('.', '_')}"
     _track(event, format=fmt, asset_type=asset_type, kind=kind,
