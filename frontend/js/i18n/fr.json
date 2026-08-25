@@ -160,6 +160,7 @@
     "three_d_export_preparing": "Préparation de l'export… le premier peut prendre un moment.",
     "three_d_export_status": "Préparation du {{fmt}} pour {{target}}…",
     "three_d_export_status_hint": "les grands modèles avec LOD/collision peuvent prendre quelques minutes",
+    "three_d_export_ready_badge": "Déjà généré — téléchargement instantané",
     "three_d_export_failed": "Échec de l'export",
     "three_d_export_ready": "{{fmt}} prêt à télécharger",
     "three_d_fidelity_note": "Le FBX conserve la géométrie, les UV, la couleur de base et les cartes de normales ; reconnectez le métallique/rugosité à l'import.",

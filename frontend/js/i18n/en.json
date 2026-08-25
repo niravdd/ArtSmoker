@@ -953,6 +953,7 @@
     "three_d_export_preparing": "Preparing your export… the first one can take a moment.",
     "three_d_export_status": "Preparing {{fmt}} for {{target}}…",
     "three_d_export_status_hint": "large models with LODs/collision can take a few minutes",
+    "three_d_export_ready_badge": "Already generated — instant download",
     "three_d_export_failed": "Export failed",
     "three_d_export_ready": "{{fmt}} ready to download",
     "three_d_fidelity_note": "FBX keeps geometry, UVs, base color & normal maps; re-hook metallic/roughness on import.",

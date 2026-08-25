@@ -1060,7 +1060,8 @@ async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
 async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
                               variant: str | None = None, target: str = "generic",
                               pack: str = "none", lods: str = "none",
-                              collision: str = "none", uv2: str = "none"):
+                              collision: str = "none", uv2: str = "none",
+                              check: int = 0):
     """Serve an engine-ready export of a generated 3D asset.
 
     fmt ∈ {glb, fbx, usd}. GLB is served PRISTINE (glTF is Y-up by spec and importers
@@ -1118,6 +1119,11 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
     is_zip = ops["pack"] != "none"
     final_path = asset_dir / f"{base}{suffix}.{ext}.zip" if is_zip else model_path
 
+    # check=1: cheap cached-status probe (no conversion) — lets the UI show an
+    # "already generated — instant download" indicator for the current picks.
+    if check:
+        return {"cached": final_path.exists() and final_path.stat().st_size > 0}
+
     if not final_path.exists() or final_path.stat().st_size == 0:
         import asyncio
         from backend.services.safe_write import named_write_lock
@@ -1165,6 +1171,8 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
                 finally:
                     _shutil.rmtree(tmpdir, ignore_errors=True)
 
+        import time as _time
+        _t0 = _time.time()
         try:
             await asyncio.to_thread(_convert)   # Blender/CoACD are blocking → off the event loop
         except mesh_export.MeshExportError as e:
@@ -1181,6 +1189,36 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
             logger.error("Export failed for %s (fmt=%s target=%s ops=%s): %s",
                          asset_id, fmt, target, token or "-", e)
             raise HTTPException(503, detail=f"Export failed: {e}")
+
+        # Record the generated export in the asset's metadata (provenance + lets the
+        # UI mark this combination as ready-for-instant-download). Written ONCE at
+        # generation time, under the asset lock (SPEC §17: fresh-read → modify →
+        # atomic write). Cache hits never rewrite it.
+        try:
+            from backend.services.asset_locks import asset_write_lock
+            _blender = None
+            try:
+                _inst = mesh_export.ensure_blender(allow_download=False)
+                _blender = ".".join(str(x) for x in _inst.version) if _inst else None
+            except Exception:
+                pass
+            with asset_write_lock(asset_id):
+                _meta = store.load_generation_metadata(asset_id) or {}
+                _meta.setdefault("three_d_exports", {})[final_path.name] = {
+                    "format": fmt,
+                    "target": target,
+                    "ops": {k: v for k, v in ops.items() if v != "none"},
+                    "variant": variant or "",
+                    "version": version,
+                    "zip": is_zip,
+                    "size_bytes": final_path.stat().st_size,
+                    "duration_seconds": round(_time.time() - _t0, 1),
+                    "blender_version": _blender,
+                    "created_at": datetime.now(timezone.utc).isoformat(),
+                }
+                store.save_generation_metadata(asset_id, _meta)
+        except Exception as exc:
+            logger.warning("Could not record export in metadata for %s: %s", asset_id, exc)
 
     # Adoption telemetry: an export download is always intentional (fetch-based UI).
     # Chosen ops ride as a property (not in the event name — cardinality).

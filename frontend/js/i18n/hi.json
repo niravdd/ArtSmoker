@@ -898,6 +898,7 @@
     "three_d_export_preparing": "आपका एक्सपोर्ट तैयार हो रहा है… पहली बार में थोड़ा समय लग सकता है।",
     "three_d_export_status": "{{target}} के लिए {{fmt}} तैयार हो रहा है…",
     "three_d_export_status_hint": "LOD/कोलिज़न वाले बड़े मॉडल में कुछ मिनट लग सकते हैं",
+    "three_d_export_ready_badge": "पहले से तैयार — तुरंत डाउनलोड",
     "three_d_export_failed": "एक्सपोर्ट विफल",
     "three_d_export_ready": "{{fmt}} डाउनलोड के लिए तैयार",
     "three_d_fidelity_note": "FBX ज्यामिति, UV, बेस कलर और नॉर्मल मैप रखता है; मेटालिक/रफनेस को इम्पोर्ट पर फिर से जोड़ें।",

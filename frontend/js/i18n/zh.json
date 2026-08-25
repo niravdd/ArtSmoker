@@ -160,6 +160,7 @@
     "three_d_export_preparing": "正在准备导出… 首次可能需要一些时间。",
     "three_d_export_status": "正在为 {{target}} 准备 {{fmt}}…",
     "three_d_export_status_hint": "带 LOD/碰撞体的大模型可能需要几分钟",
+    "three_d_export_ready_badge": "已生成 — 可立即下载",
     "three_d_export_failed": "导出失败",
     "three_d_export_ready": "{{fmt}} 已可下载",
     "three_d_fidelity_note": "FBX 保留几何体、UV、基础色和法线贴图；金属度/粗糙度需在导入时重新连接。",

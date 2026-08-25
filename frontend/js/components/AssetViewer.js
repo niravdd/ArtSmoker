@@ -3711,6 +3711,28 @@
             return base.replace(new RegExp(`\\.${ext}$`, 'i'), `_${target}.${ext}`);
         },
 
+        /** Probe (debounced) whether the CURRENT picks are already generated and
+         *  cached server-side; show a ✓ on the FBX/USD buttons for instant ones.
+         *  Cached exports are never regenerated — the ✓ tells the user that. */
+        _refreshExportReady() {
+            clearTimeout(this._exportReadyTimer);
+            this._exportReadyTimer = setTimeout(async () => {
+                const hint = t('artsmoker.ui.asset_viewer.three_d_export_ready_badge')
+                    || 'Already generated — instant download';
+                for (const fmt of ['fbx', 'usd']) {
+                    const badge = document.getElementById(`av-3d-${fmt}-ready`);
+                    if (!badge) continue;
+                    try {
+                        const target = document.getElementById('av-3d-target')?.value || 'generic';
+                        const r = await fetch(this._exportUrl(fmt, target) + '&check=1');
+                        const d = r.ok ? await r.json() : { cached: false };
+                        badge.classList.toggle('hidden', !d.cached);
+                        badge.title = d.cached ? hint : '';
+                    } catch { badge.classList.add('hidden'); }
+                }
+            }, 250);
+        },
+
         /** Download an FBX/USD export: fetch (converting server-side on first use),
          *  show preparing/success/failure toasts, then save the blob. Fetch-based so
          *  a failure (Blender missing / conversion error → HTTP 503) surfaces a clear
@@ -3769,6 +3791,7 @@
                 statusEl?.classList.remove('flex');
                 statusEl?.classList.add('hidden');
                 [fbxBtn, usdBtn].forEach(b => { if (b) b.disabled = false; });
+                this._refreshExportReady();   // a fresh export is now cached → show ✓
             }
         },
 
@@ -3919,12 +3942,14 @@
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                                 </svg>
                                 ${t('artsmoker.ui.asset_viewer.three_d_download_fbx')}
+                                <span id="av-3d-fbx-ready" class="hidden text-emerald-300 font-bold">✓</span>
                             </button>
                             <button id="av-3d-download-usd" class="btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                                 </svg>
                                 ${t('artsmoker.ui.asset_viewer.three_d_download_usd')}
+                                <span id="av-3d-usd-ready" class="hidden text-emerald-300 font-bold">✓</span>
                             </button>
                             <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5">
                                 ${regenBtnLabel}
@@ -4031,7 +4056,10 @@
                         .map(v => html`<option value="${v}">${optLabel(v)}</option>`).join('');
                     sel.value = (lists[k] || []).includes(keep) ? keep : 'none';
                 }
+                this._refreshExportReady();
             };
+            // Any op change re-probes whether that combination is already cached.
+            Object.values(optSelects).forEach(sel => sel?.addEventListener('change', () => this._refreshExportReady()));
             if (targetSel) {
                 targetSel.addEventListener('change', fillOptions);
                 (async () => {
@@ -4167,6 +4195,7 @@
                 // FBX/USD read this at click time (+ the target dropdown).
                 this._current3DVariant = vid;
                 refreshMetaPanel(vid);
+                this._refreshExportReady();
                 refreshButtons();
             };
             // Initialize the download link + meta panel to the default variant shown.

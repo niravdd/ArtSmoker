@@ -160,6 +160,7 @@
     "three_d_export_preparing": "エクスポートを準備しています… 初回は少し時間がかかることがあります。",
     "three_d_export_status": "{{target}} 用の {{fmt}} を準備中…",
     "three_d_export_status_hint": "LOD/コリジョン付きの大きなモデルは数分かかることがあります",
+    "three_d_export_ready_badge": "生成済み — すぐにダウンロードできます",
     "three_d_export_failed": "エクスポートに失敗しました",
     "three_d_export_ready": "{{fmt}} のダウンロード準備ができました",
     "three_d_fidelity_note": "FBXはジオメトリ・UV・ベースカラー・法線マップを保持します。メタリック/ラフネスはインポート時に再接続してください。",

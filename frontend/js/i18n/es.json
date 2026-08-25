@@ -160,6 +160,7 @@
     "three_d_export_preparing": "Preparando la exportación… la primera puede tardar un momento.",
     "three_d_export_status": "Preparando {{fmt}} para {{target}}…",
     "three_d_export_status_hint": "los modelos grandes con LOD/colisión pueden tardar unos minutos",
+    "three_d_export_ready_badge": "Ya generado — descarga instantánea",
     "three_d_export_failed": "Error al exportar",
     "three_d_export_ready": "{{fmt}} listo para descargar",
     "three_d_fidelity_note": "El FBX conserva geometría, UV, color base y mapas de normales; vuelve a conectar metálico/rugosidad al importar.",
