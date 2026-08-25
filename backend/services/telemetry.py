@@ -300,11 +300,21 @@ def track_download(file_format: str = "", asset_type: str = "", kind: str = "",
                    engine_target: str = "", model: str = "", variant: str = ""):
     """A user downloaded an asset file — adoption signal for format/engine preference.
 
+    PulseBoard aggregates ONLY by event NAME (event_types counters) — properties land
+    on raw events but are never aggregated/shown per event. So the two preference
+    dimensions are encoded IN the name (judiciously — ~15 distinct names, mirrors the
+    image_studio.edit.{type} pattern):
+        asset.download.png / .svg / .glb            (2D + pristine GLB)
+        asset.download.fbx.unreal / .usd.unity / …  (engine exports)
     file_format: png | svg | glb | fbx | usd. kind: asset | version | cutout | export.
-    engine_target (fbx/usd only): generic/unreal/unity/godot/maya/3dsmax. model =
-    the generating model; variant = the 3D variant id where applicable. Cost 0.
+    engine_target (fbx/usd only): generic/unreal/unity/godot/maya/3dsmax. Remaining
+    detail (kind/model/variant) stays in properties for the raw-events view. Cost 0.
     """
-    _track("asset.download", format=file_format, asset_type=asset_type, kind=kind,
+    fmt = (file_format or "unknown").lower().replace(".", "_")
+    event = f"asset.download.{fmt}"
+    if engine_target and fmt in ("fbx", "usd"):
+        event += f".{engine_target.lower().replace('.', '_')}"
+    _track(event, format=fmt, asset_type=asset_type, kind=kind,
            engine_target=engine_target, model=model, variant=variant, cost_usd=0)
 
 
