@@ -161,6 +161,7 @@
     "three_d_generate_glb": "Generar GLB",
     "three_d_download_glb": "Descargar GLB",
     "three_d_pglb_hint": "GLB con las opciones seleccionadas (LOD/colisión/UV2) — el GLB original permanece intacto",
+    "three_d_ready_exports": "Listos para descargar:",
     "three_d_target_engine": "Motor de destino",
     "three_d_export_preparing": "Preparando la exportación… la primera puede tardar un momento.",
     "three_d_export_status": "Preparando {{fmt}} para {{target}}…",

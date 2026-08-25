@@ -161,6 +161,7 @@
     "three_d_generate_glb": "GLB 생성",
     "three_d_download_glb": "GLB 다운로드",
     "three_d_pglb_hint": "선택한 옵션(LOD/콜리전/UV2)이 적용된 GLB — 원본 GLB는 그대로 유지됩니다",
+    "three_d_ready_exports": "다운로드 가능:",
     "three_d_target_engine": "대상 엔진",
     "three_d_export_preparing": "내보내기 준비 중… 첫 번째는 다소 시간이 걸릴 수 있습니다.",
     "three_d_export_status": "{{target}}용 {{fmt}} 준비 중…",

@@ -3711,6 +3711,78 @@
             return base.replace(new RegExp(`\\.${ext}$`, 'i'), `_${target}.${ext}`);
         },
 
+        /** Render the "Ready to download" chip row: one compact chip per export
+         *  already generated for the CURRENT version (recorded in metadata's
+         *  three_d_exports). Click = instant download of that exact file; tooltip
+         *  carries the full option labels + size. Hidden when none exist. */
+        _renderReadyExports() {
+            const row = document.getElementById('av-3d-ready-exports');
+            if (!row) return;
+            const ver = this._currentVersion || 1;
+            const all = this._meta?.three_d_exports || {};
+            const items = Object.entries(all).filter(([, r]) => (r.version || 1) === ver);
+            if (!items.length) { row.classList.remove('flex'); row.classList.add('hidden'); return; }
+            const targetLabel = (key) => {
+                const hit = (this._exportTargets || []).find(tt => tt.key === key);
+                return hit ? hit.label : key;
+            };
+            const optLabel = (v) => t(`artsmoker.ui.asset_viewer.three_d_optval_${v}`) || v;
+            const fmtMB = (b) => b ? `${(b / 1048576).toFixed(1)} MB` : '';
+            // nosemgrep
+            row.innerHTML = html`
+                <span class="text-[10px] text-brand-text-muted">${t('artsmoker.ui.asset_viewer.three_d_ready_exports')}</span>
+                ${items.map(([fname, r]) => {
+                    const ops = Object.values(r.ops || {});
+                    const opsShort = ops.length ? ` · ${ops.join('+')}` : '';
+                    const tip = [targetLabel(r.target), ...ops.map(optLabel), fmtMB(r.size_bytes)]
+                        .filter(Boolean).join(' · ');
+                    return html`<button class="av-3d-ready-chip px-2 py-0.5 rounded-full text-[10px] border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 transition-colors cursor-pointer"
+                        data-fname="${fname}" title="${tip}">
+                        ⬇ ${(r.format || '').toUpperCase()}${r.zip ? '+tex' : ''} · ${targetLabel(r.target)}${opsShort}
+                    </button>`;
+                })}`;
+            row.classList.remove('hidden');
+            row.classList.add('flex');
+            row.querySelectorAll('.av-3d-ready-chip').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const r = (this._meta?.three_d_exports || {})[btn.dataset.fname];
+                    if (r) this._downloadReadyExport(r);
+                });
+            });
+        },
+
+        /** Download an already-generated export directly from its metadata record
+         *  (instant — the file is cached server-side; no regeneration). */
+        async _downloadReadyExport(r) {
+            const id = encodeURIComponent(this._meta?.id || this._item?.id || '');
+            const q = new URLSearchParams({ target: r.target || 'generic' });
+            if (r.variant) q.set('variant', r.variant);
+            for (const [k, v] of Object.entries(r.ops || {})) q.set(k, v);
+            const url = `/api/gallery/${id}/3d/${r.version || 1}/export/${r.format}?${q.toString()}`;
+            try {
+                const resp = await fetch(url);
+                if (!resp.ok) {
+                    let detail = '';
+                    try { detail = (await resp.json()).detail || ''; } catch { /* non-JSON */ }
+                    window.showToast?.((t('artsmoker.ui.asset_viewer.three_d_export_failed') || 'Export failed')
+                        + (detail ? `: ${detail}` : ''), 'error');
+                    return;
+                }
+                const blob = await resp.blob();
+                const cd = resp.headers.get('Content-Disposition') || '';
+                const m = cd.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+                const name = m ? decodeURIComponent(m[1].replace(/"/g, '')) : `asset.${r.format}`;
+                const u = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = u; a.download = name;
+                document.body.appendChild(a); a.click(); a.remove();
+                setTimeout(() => URL.revokeObjectURL(u), 5000);
+            } catch (e) {
+                window.showToast?.((t('artsmoker.ui.asset_viewer.three_d_export_failed') || 'Export failed')
+                    + (e?.message ? `: ${e.message}` : ''), 'error');
+            }
+        },
+
         /** Probe (debounced) whether the CURRENT picks are already generated and
          *  cached server-side, and drive the two-step button state: not cached →
          *  "Generate FBX/USD"; cached → "Download FBX/USD" + ✓ (instant).
@@ -3796,6 +3868,11 @@
                     }
                     window.showToast?.((t('artsmoker.ui.asset_viewer.three_d_export_ready') || '{{fmt}} ready to download')
                         .replace('{{fmt}}', fmt.toUpperCase()), 'success');
+                    // Refresh metadata so the new export appears in the ready-chips row.
+                    try {
+                        this._meta = await API.gallery.get(this._meta?.id || this._item?.id);
+                        this._renderReadyExports();
+                    } catch { /* chips refresh is best-effort */ }
                     return;   // step 1 done — the user downloads via the flipped button
                 }
                 const resp = await fetch(this._exportUrl(fmt, target));
@@ -4002,6 +4079,10 @@
                         </div>
                         <!-- Live export status (spinner) — shown while Blender runs. -->
                         <p id="av-3d-export-status" class="hidden text-[10px] text-cyan-400/90 text-center items-center justify-center gap-1.5"></p>
+                        <!-- Already-generated exports for this version: one chip per
+                             combination, click = instant download. Answers "what did I
+                             already generate?" after the dialog was closed and reopened. -->
+                        <div id="av-3d-ready-exports" class="hidden items-center justify-center gap-1.5 flex-wrap"></div>
                     </div>
                     <p class="text-[9px] text-brand-text-muted text-center">${t('artsmoker.ui.asset_viewer.three_d_viewer_hint')}</p>
                     <p class="text-[9px] text-brand-text-muted/70 text-center">${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}</p>
@@ -4116,8 +4197,10 @@
                             .map(tt => html`<option value="${tt.key}">${tt.label}</option>`).join('');
                         targetSel.value = data.default || 'generic';
                         this._exportOptions = data.options || null;
+                        this._exportTargets = data.targets || [];
                     } catch { /* leave empty → generic default + no ops in the URL */ }
                     fillOptions();
+                    this._renderReadyExports();   // needs target labels → after fetch
                 })();
             }
 

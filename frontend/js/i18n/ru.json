@@ -899,6 +899,7 @@
     "three_d_generate_glb": "Создать GLB",
     "three_d_download_glb": "Скачать GLB",
     "three_d_pglb_hint": "GLB с выбранными опциями (LOD/коллизия/UV2) — оригинальный GLB остаётся нетронутым",
+    "three_d_ready_exports": "Готово к скачиванию:",
     "three_d_target_engine": "Целевой движок",
     "three_d_export_preparing": "Подготовка экспорта… первый может занять некоторое время.",
     "three_d_export_status": "Подготовка {{fmt}} для {{target}}…",
