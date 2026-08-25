@@ -278,7 +278,7 @@ Das ist in jeder Phase von Bedeutung:
 
 ### 📝 1.9 3D-Modell-Generierung (Image-to-3D)
 
-Generieren Sie produktionsreife, vollständig texturierte 3D-Meshes aus jedem 2D-Bild — direkt im Asset Viewer. Wählen Sie ein **Game Asset**- oder **Character**-Bild, öffnen Sie die Registerkarte **3D Model** und klicken Sie auf Generate. Das Ergebnis ist eine spielengine-fertige GLB, die Sie umkreisen, zoomen und herunterladen können — ohne manuelle Modellierung, UV-Unwrapping oder Texture-Painting.
+Generieren Sie vollständig texturierte 3D-Meshes aus jedem 2D-Bild — direkt im Asset Viewer. Wählen Sie ein **Game Asset**- oder **Character**-Bild, öffnen Sie die Registerkarte **3D Model** und klicken Sie auf Generate. Das Ergebnis ist eine spielengine-fertige GLB, die Sie umkreisen, zoomen und herunterladen können — ohne manuelle Modellierung, UV-Unwrapping oder Texture-Painting.
 
 **Das generierte Modell — umkreisen, inspizieren, herunterladen:**
 
@@ -322,6 +322,42 @@ Die Hintergrundentfernung (der Freistell-Schritt) verwendet standardmäßig **Bi
 | Texturauflösung | 4096²-PBR-Atlas (Base Color + Metallic-Roughness + Alpha) |
 | Lizenzierung | Standardmäßig kommerziell unbedenklich (TRELLIS.2 MIT + BiRefNet MIT); nicht kommerzielle Backends mit vollständiger Offenlegung angeboten |
 | Unterstützte Asset-Typen | Game Asset, Character |
+
+### 📝 1.9.1 Engine-fertige Exporte (GLB · FBX · USD)
+
+Jedes generierte 3D-Modell kann **vorbereitet für Ihre Game-Engine** exportiert werden — direkt aus der 3D-Registerkarte des Asset Viewers:
+
+- **Ziel-Engine** — wählen Sie Generic (glTF, Y-up), Unreal Engine (Z-up), Unity, Godot, Maya oder 3ds Max. FBX- und USD-Exporte sind mit den korrekten Up-/Forward-Achsen für die jeweilige Engine ausgerichtet, sodass Modelle aufrecht importiert werden — keine manuellen Rotationskorrekturen.
+- **Optionale Aufbereitung, Ihre Wahl** (jeweils ein unabhängiges Dropdown — nichts wird erzwungen):
+  - **Textur-Packing** — engine-spezifische Textursätze: Unreal **ORM** (AO/Roughness/Metallic), Unity **Metallic + Smoothness-im-Alpha**, Unity **HDRP Mask Map**. Bei Auswahl wird der Export zu einem ZIP mit dem Modell plus einem `textures/`-Ordner.
+  - **LODs** — eine dezimierte **LOD0–LOD3-Kette** (100/50/20/5 %) mit einer echten FBX-LOD-Gruppe, die Unreal automatisch importiert; die `_LOD0…_LOD3`-Benennung entspricht zugleich der Unity-Konvention.
+  - **Kollision** — eine konvexe Hülle oder eine **konvexe CoACD-Dekomposition**, benannt nach der Konvention der jeweiligen Engine (`UCX_*` für den Unreal-Auto-Import, `-convcolonly`-Suffixe für Godot).
+  - **Lightmap-UV2** — ein zweiter, smart-projizierter UV-Kanal für gebackene Beleuchtung.
+- **Zweistufiger Ablauf** — Buttons zeigen **Generate FBX/USD/GLB** für eine Kombination, die noch nicht existiert; ein Klick konvertiert serverseitig (eine Statuszeile hält Sie auf dem Laufenden — bei großen Modellen kann es ein bis zwei Minuten dauern). Einmal erstellt, wechselt der Button zu **Download** mit einem ✓ und liefert sofort. Jede eindeutige Kombination wird zwischengespeichert — nichts wird jemals neu generiert.
+- **„Bereit zum Download"-Chips** — die 3D-Registerkarte listet jede Kombination auf, die Sie für die aktuelle Version bereits generiert haben; ein Klick genügt, um sie erneut herunterzuladen.
+- **Die Original-GLB ist unantastbar** — „Download GLB (original)" liefert immer die unveränderte, byte-identische Ausgabe der Generierungs-Pipeline. Verarbeitete Exporte (einschließlich einer verarbeiteten GLB mit eingebackenen LODs/Kollisionen) sind separat benannte Dateien daneben.
+- **Null Einrichtung** — Konvertierungen laufen serverseitig über ein verwaltetes headless Blender: Eine vorhandene Installation wird wiederverwendet, falls vorhanden, andernfalls wird bei der ersten Nutzung automatisch eine portable Kopie heruntergeladen (siehe Model Settings → Registerkarte Maintenance für Version und Updates). Endnutzer installieren nichts.
+
+### 📝 1.9.2 Was Sie von KI-generiertem 3D erwarten können — ein ehrlicher Leitfaden
+
+Image-to-3D ist eine junge Technologie, und es lohnt sich zu wissen, was die besten Modelle von heute (einschließlich derer, die ArtSmoker einsetzt) tatsächlich liefern — und was nicht. Die Ausgabe ist ein **dichtes Mesh im Stil eines gescannten Objekts**: bis zu ~1 Mio. unstrukturierte Dreiecke mit eingebackenen PBR-Texturen. Aus der Nähe fällt eine charakteristisch unebene Oberflächenqualität auf, und dünne Details (Haarsträhnen, Riemen, Stofffransen) sind die Schwachstelle von KI-Geometrie. Es gibt **keine saubere Quad-Topologie, keine animationsfreundlichen Edge Loops und kein Rig** — das ist der Stand der Technik in der gesamten Branche, keine Einschränkung eines einzelnen Werkzeugs.
+
+**Wo diese Assets glänzen — und wo sie einen Artist brauchen:**
+
+| Anwendungsfall | Direkt nutzbar? |
+|----------------|-----------------|
+| Props, Umgebungs-Details, Set Dressing | ✅ Ja — direkt verwendbar |
+| Hintergrund-/Mitteldistanz-Charaktere, Menschenmengen | ✅ Ja — auf Distanz verschwindet das Oberflächenrauschen; nutzen Sie die LOD-Kette |
+| Prototyping, Blockouts, Previz, Pitch-Demos | ✅ Ja — wohl der stärkste Anwendungsfall |
+| Mobile / stilisierte Spiele | ✅ Oft — die dezimierten LODs helfen |
+| Hero-Charaktere, Nahaufnahmen, animierte Charaktere | ⚠️ Ein Ausgangspunkt — planen Sie Retopologie, Bereinigung und Rigging durch einen Artist ein |
+
+Was ArtSmoker über das rohe Mesh hinaus liefert: Alles kommt **korrekt für Ihre Engine verpackt** an — die richtige Up-Achse pro Ziel, LOD-Kette, Kollisions-Proxys, engine-spezifisches Textur-Packing — sodass die verbleibende Arbeit kreativ ist, nicht technische Fleißarbeit.
+
+**Sie inspizieren Exporte in Blender (oder einem anderen DCC-Werkzeug)? Zwei Dinge werden seltsam aussehen — beides ist korrekt:**
+
+- **Mit LODs generiert?** Die Datei enthält **4 übereinanderliegende Kopien** des Modells (LOD0–3). Zusammen betrachtet flimmern sie (Z-Fighting) und wirken verrauscht — blenden Sie LOD1–3 im Outliner aus und beurteilen Sie die Qualität allein anhand von LOD0. Game-Engines zeigen immer genau ein LOD gleichzeitig, in der Engine passiert das also nie.
+- **Mit Kollision generiert?** Eine weiße, kantige Hülle aus `UCX_*`-Meshes **umschließt das Modell** — das ist der Physik-Proxy, nicht Ihr Asset. Blenden Sie diese Objekte aus, um das texturierte Modell darin zu sehen. Engines importieren sie automatisch als unsichtbare Kollision.
 
 <a id="get-started"></a>
 

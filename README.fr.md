@@ -277,7 +277,7 @@ Cela compte à chaque étape :
 
 ### 📝 1.9 Génération de modèles 3D (Image-to-3D)
 
-Générez des maillages 3D entièrement texturés et prêts pour la production à partir de n'importe quelle image 2D — directement dans l'Asset Viewer. Sélectionnez une image **Game Asset** ou **Character**, ouvrez l'onglet **3D Model**, et cliquez sur Generate. Le résultat est un GLB prêt pour le moteur de jeu que vous pouvez orbiter, zoomer et télécharger — sans modélisation manuelle, dépliage UV ni peinture de texture.
+Générez des maillages 3D entièrement texturés à partir de n'importe quelle image 2D — directement dans l'Asset Viewer. Sélectionnez une image **Game Asset** ou **Character**, ouvrez l'onglet **3D Model**, et cliquez sur Generate. Le résultat est un GLB prêt pour le moteur de jeu que vous pouvez orbiter, zoomer et télécharger — sans modélisation manuelle, dépliage UV ni peinture de texture.
 
 **Le modèle généré — orbitez, inspectez, téléchargez :**
 
@@ -321,6 +321,42 @@ La suppression d'arrière-plan (l'étape de détourage) utilise **BiRefNet (MIT)
 | Résolution de texture | Atlas PBR 4096² (couleur de base + métallique-rugosité + alpha) |
 | Licence | Exploitable commercialement par défaut (TRELLIS.2 MIT + BiRefNet MIT) ; backends non commerciaux proposés avec divulgation complète |
 | Types d'assets supportés | Game Asset, Character |
+
+### 📝 1.9.1 Exports prêts pour le moteur (GLB · FBX · USD)
+
+Chaque modèle 3D généré peut être exporté **préparé pour votre moteur de jeu**, directement depuis l'onglet 3D de l'Asset Viewer :
+
+- **Moteur cible** — choisissez Generic (glTF, axe Y vers le haut), Unreal Engine (axe Z vers le haut), Unity, Godot, Maya ou 3ds Max. Les exports FBX et USD sont orientés avec les bons axes haut/avant pour ce moteur, si bien que les modèles s'importent droits — sans corrections de rotation manuelles.
+- **Préparation optionnelle, à votre convenance** (chacune via un menu déroulant indépendant — rien n'est imposé) :
+  - **Packing de textures** — jeux de textures par moteur : **ORM** Unreal (AO/Roughness/Metallic), **Metallic + Smoothness dans l'alpha** pour Unity, **HDRP Mask Map** pour Unity. Une fois sélectionné, l'export devient un ZIP contenant le modèle plus un dossier `textures/`.
+  - **LODs** — une **chaîne LOD0–LOD3** décimée (100/50/20/5 %) avec un véritable groupe de LOD FBX qu'Unreal importe automatiquement ; le nommage `_LOD0…_LOD3` correspond aussi à la convention d'Unity.
+  - **Collision** — une enveloppe convexe ou une **décomposition convexe CoACD**, nommée selon la convention du moteur (`UCX_*` pour l'import automatique d'Unreal, suffixes `-convcolonly` pour Godot).
+  - **UV2 de lightmap** — un second canal UV, déplié par projection intelligente, pour l'éclairage précalculé.
+- **Flux en deux étapes** — les boutons affichent **Generate FBX/USD/GLB** pour une combinaison qui n'existe pas encore ; un clic déclenche la conversion côté serveur (une ligne de statut vous tient informé — les gros modèles peuvent prendre une minute ou deux). Une fois généré, le bouton passe à **Download** avec un ✓ et livre instantanément. Chaque combinaison distincte est mise en cache — rien n'est jamais régénéré.
+- **Pastilles « prêt à télécharger »** — l'onglet 3D liste toutes les combinaisons déjà générées pour la version courante, un clic pour retélécharger n'importe laquelle.
+- **Le GLB original est sacré** — « Download GLB (original) » renvoie toujours la sortie intacte, identique à l'octet près, du pipeline de génération. Les exports traités (y compris un GLB traité avec LODs/collision intégrés) sont des fichiers nommés séparément à côté de lui.
+- **Zéro installation** — les conversions s'exécutent côté serveur via un Blender headless géré : une installation existante est réutilisée si présente, sinon une copie portable se télécharge automatiquement à la première utilisation (voir l'onglet Model Settings → Maintenance pour la version et les mises à jour). Les utilisateurs finaux n'installent rien.
+
+### 📝 1.9.2 À quoi s'attendre de la 3D générée par IA — Un guide honnête
+
+L'image-to-3D est une technologie jeune, et il vaut la peine de savoir ce que les meilleurs modèles actuels (y compris ceux qu'exécute ArtSmoker) livrent réellement — et ce qu'ils ne livrent pas. La sortie est un **maillage dense de type objet scanné** : jusqu'à ~1M de triangles non structurés avec des textures PBR précalculées. De près, vous remarquerez une surface au grain irrégulier caractéristique, et les éléments fins (mèches de cheveux, sangles, franges de tissu) sont là où la géométrie IA est la plus faible. Il n'y a **ni topologie propre en quads, ni boucles d'arêtes adaptées à l'animation, ni rig** — c'est l'état de l'art dans toute l'industrie, pas une limitation propre à un outil en particulier.
+
+**Là où ces assets excellent — et là où il faut un artiste :**
+
+| Cas d'usage | Prêt à l'emploi ? |
+|-------------|-------------------|
+| Props, éléments de décor, habillage de scène | ✅ Oui — utilisable tel quel |
+| Personnages d'arrière-plan / de moyenne distance, foules | ✅ Oui — à distance, le bruit de surface disparaît ; utilisez la chaîne de LOD |
+| Prototypage, blockouts, préviz, démos de pitch | ✅ Oui — sans doute le cas d'usage le plus fort |
+| Jeux mobiles / stylisés | ✅ Souvent — les LODs décimés aident |
+| Personnages héros, gros plans, personnages animés | ⚠️ Un point de départ — prévoyez retopologie, nettoyage et rigging par un artiste |
+
+Ce qu'ArtSmoker ajoute par-dessus le maillage brut, c'est que tout arrive **correctement empaqueté pour votre moteur** — bon axe vertical par cible, chaîne de LOD, proxys de collision, packing de textures spécifique au moteur — pour que le travail restant soit créatif, pas de la plomberie.
+
+**Vous inspectez les exports dans Blender (ou un autre outil DCC) ? Deux choses paraîtront étranges — les deux sont normales :**
+
+- **Généré avec des LODs ?** Le fichier contient **4 copies empilées** du modèle (LOD0–3). Vues ensemble, elles scintillent (z-fighting) et paraissent bruitées — masquez LOD1–3 dans l'Outliner et jugez la qualité sur LOD0 seul. Les moteurs de jeu n'affichent qu'un seul LOD à la fois, donc cela n'arrive jamais en moteur.
+- **Généré avec collision ?** Une coque blanche et anguleuse de maillages `UCX_*` **enveloppe le modèle** — c'est le proxy physique, pas votre asset. Masquez ces objets pour voir le modèle texturé à l'intérieur. Les moteurs les importent automatiquement comme collision invisible.
 
 <a id="get-started"></a>
 

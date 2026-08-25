@@ -277,7 +277,7 @@ This matters at every stage:
 
 ### 📝 1.9 3D Model Generation (Image-to-3D)
 
-Generate production-ready, fully-textured 3D meshes from any 2D image — directly in the Asset Viewer. Select a **Game Asset** or **Character** image, open the **3D Model** tab, and click Generate. The result is a game-engine-ready GLB you can orbit, zoom, and download — with no manual modeling, UV unwrapping, or texture painting.
+Generate fully-textured 3D meshes from any 2D image — directly in the Asset Viewer. Select a **Game Asset** or **Character** image, open the **3D Model** tab, and click Generate. The result is a game-engine-ready GLB you can orbit, zoom, and download — with no manual modeling, UV unwrapping, or texture painting.
 
 **The generated model — orbit, inspect, download:**
 
@@ -321,6 +321,42 @@ Background removal (the cutout step) uses **BiRefNet (MIT)** by default — full
 | Texture resolution | 4096² PBR atlas (base color + metallic-roughness + alpha) |
 | Licensing | Commercially-safe by default (TRELLIS.2 MIT + BiRefNet MIT); non-commercial backends offered with full disclosure |
 | Supported asset types | Game Asset, Character |
+
+### 📝 1.9.1 Engine-Ready Exports (GLB · FBX · USD)
+
+Every generated 3D model can be exported **prepared for your game engine**, straight from the Asset Viewer's 3D tab:
+
+- **Target engine** — pick Generic (glTF, Y-up), Unreal Engine (Z-up), Unity, Godot, Maya, or 3ds Max. FBX and USD exports are oriented with the correct up/forward axes for that engine, so models import upright — no manual rotation fixes.
+- **Optional prep, your choice** (each an independent dropdown — nothing is forced):
+  - **Texture packing** — per-engine texture sets: Unreal **ORM** (AO/Roughness/Metallic), Unity **Metallic + Smoothness-in-alpha**, Unity **HDRP Mask Map**. When selected, the export becomes a ZIP with the model plus a `textures/` folder.
+  - **LODs** — a decimated **LOD0–LOD3 chain** (100/50/20/5%) with a real FBX LOD group that Unreal auto-imports; the `_LOD0…_LOD3` naming doubles as Unity's convention.
+  - **Collision** — a convex hull or a **CoACD convex decomposition**, named per engine convention (`UCX_*` for Unreal auto-import, `-convcolonly` suffixes for Godot).
+  - **Lightmap UV2** — a second, smart-projected UV channel for baked lighting.
+- **Two-step flow** — buttons read **Generate FBX/USD/GLB** for a combination that doesn't exist yet; clicking converts server-side (a status line keeps you informed — large models can take a minute or two). Once built, the button flips to **Download** with a ✓ and delivers instantly. Every distinct combination is cached — nothing is ever regenerated.
+- **Ready to download chips** — the 3D tab lists every combination you've already generated for the current version, one click to re-download any of them.
+- **The original GLB is sacred** — "Download GLB (original)" always returns the untouched, byte-exact output of the generation pipeline. Processed exports (including a processed GLB with LODs/collision baked in) are separately-named files beside it.
+- **Zero setup** — conversions run server-side through a managed headless Blender: an existing installation is reused if present, otherwise a portable copy downloads automatically on first use (see the Model Settings → Maintenance tab for version and updates). End users install nothing.
+
+### 📝 1.9.2 What to Expect from AI-Generated 3D — An Honest Guide
+
+Image-to-3D is a young technology, and it's worth knowing what today's best models (including the ones ArtSmoker runs) genuinely deliver — and what they don't. The output is a **dense, scanned-object-style mesh**: up to ~1M unstructured triangles with baked PBR textures. Up close you'll notice a characteristic lumpy surface quality, and thin features (hair strands, straps, fabric fringes) are where AI geometry is weakest. There is **no clean quad topology, no animation-friendly edge loops, and no rig** — that's the state of the art across the industry, not a limitation unique to any one tool.
+
+**Where these assets shine — and where they need an artist:**
+
+| Use case | Ready to use? |
+|----------|---------------|
+| Props, environment clutter, set dressing | ✅ Yes — usable as-is |
+| Background / mid-distance characters, crowds | ✅ Yes — at distance the surface noise disappears; use the LOD chain |
+| Prototyping, blockouts, previz, pitch demos | ✅ Yes — arguably the strongest use case |
+| Mobile / stylized games | ✅ Often — the decimated LODs help |
+| Hero characters, close-ups, animated characters | ⚠️ A starting point — plan on artist retopology, cleanup, and rigging |
+
+What ArtSmoker adds on top of the raw mesh is that everything arrives **correctly packaged for your engine** — right up-axis per target, LOD chain, collision proxies, engine-specific texture packing — so the remaining work is creative, not plumbing.
+
+**Inspecting exports in Blender (or another DCC tool)? Two things will look strange — both are correct:**
+
+- **Generated with LODs?** The file contains **4 stacked copies** of the model (LOD0–3). Viewed together they shimmer (z-fighting) and look noisy — hide LOD1–3 in the Outliner and judge quality from LOD0 alone. Game engines show exactly one LOD at a time, so this never happens in-engine.
+- **Generated with collision?** A white, blocky shell of `UCX_*` meshes **encloses the model** — that's the physics proxy, not your asset. Hide those objects to see the textured model inside. Engines import them as invisible collision automatically.
 
 <a id="get-started"></a>
 
