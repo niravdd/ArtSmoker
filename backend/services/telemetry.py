@@ -123,8 +123,13 @@ def track_prompt_refinement(cost_usd: float = 0, asset_type: str = ""):
         _track("image_studio.prompt_preview.cost", cost_usd=cost_usd)
 
 
-def track_voice_transcription():
-    _track("image_studio.voice_input")
+def track_voice_transcription(cost_usd: float = 0):
+    """Voice transcription action; cost (Nova Sonic tokens × registry price) is a
+    separate .cost event per convention — $0 until the Sync captures Sonic pricing
+    AND the stream reports usage (never a fabricated default rate)."""
+    _track("image_studio.voice_input", cost_usd=0)
+    if cost_usd > 0:
+        _track("image_studio.voice_input.cost", cost_usd=cost_usd)
 
 
 def track_aux_llm_cost(operation: str = "", cost_usd: float = 0, studio: str = "image_studio"):

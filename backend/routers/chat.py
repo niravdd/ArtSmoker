@@ -143,6 +143,9 @@ def _chat_stream_mantle(req: "ChatMessageRequest", model_id: str, region: str, i
                 if cost > 0:
                     from backend.services.cost_tracker import add_cost
                     add_cost("chat_llm", cost, f"{model_id} (mantle): {in_tok} in, {out_tok} out")
+                    # Server-side authoritative cost (see Converse path note).
+                    from backend.services.telemetry import track_chat_cost
+                    track_chat_cost(cost_usd=cost, model=model_id)
             except Exception:
                 pass
             yield sse({"type": "metadata", "input_tokens": in_tok, "output_tokens": out_tok,
@@ -247,6 +250,16 @@ async def chat_stream(req: ChatMessageRequest):
                     latency_ms = round((time.time() - start_time) * 1000)
                     cost = compute_llm_cost(model_id, in_tok, out_tok, region=region)
                     add_cost("chat_llm", cost, f"{model_id}: {in_tok} in, {out_tok} out")
+                    # Authoritative per-message cost, fired SERVER-SIDE so it can
+                    # never be lost (the client-reported session summary was the
+                    # only cost source before — gone if the tab died). The client
+                    # /telemetry endpoint no longer books cost → no double-count.
+                    if cost > 0:
+                        try:
+                            from backend.services.telemetry import track_chat_cost
+                            track_chat_cost(cost_usd=cost, model=model_id)
+                        except Exception:
+                            pass
 
                     yield sse({
                         "type": "metadata",
@@ -804,7 +817,7 @@ async def chat_telemetry(body: ChatTelemetryEvent):
     Called once when the user navigates away from a session — captures the
     full session's usage in a single PulseBoard event.
     """
-    from backend.services.telemetry import track_chat_session, track_chat_cost
+    from backend.services.telemetry import track_chat_session
     track_chat_session(
         model=body.model_id,
         messages=body.messages,
@@ -814,8 +827,11 @@ async def chat_telemetry(body: ChatTelemetryEvent):
         has_vision=body.has_vision,
         compacted=body.compacted,
     )
-    if body.cost_usd > 0:
-        track_chat_cost(cost_usd=body.cost_usd, model=body.model_id)
+    # Cost is NO LONGER booked here (audit item T-b): the server fires
+    # chat_studio.cost authoritatively per message at stream completion — it can't
+    # be lost with the tab, and booking the client-reported total too would
+    # double-count. This endpoint keeps only the session-shape summary (message
+    # count, duration, vision, compacted), which only the client can aggregate.
     return {"ok": True}
 
 

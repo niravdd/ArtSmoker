@@ -34,6 +34,10 @@ async def transcribe_audio_endpoint(file: UploadFile):
         content_type,
     )
 
+    # Aux-endpoint cost pattern: the transcriber add_cost()s registry-priced Sonic
+    # token cost into this request's accumulator (when usage + pricing exist).
+    from backend.services.cost_tracker import reset_costs, get_total_cost
+    reset_costs()
     try:
         text = transcribe_audio(audio_bytes, content_type)
     except Exception as exc:
@@ -47,6 +51,6 @@ async def transcribe_audio_endpoint(file: UploadFile):
     logger.info("Transcription complete: %d chars", len(text))
 
     from backend.services.telemetry import track_voice_transcription
-    track_voice_transcription()
+    track_voice_transcription(cost_usd=round(get_total_cost(), 6))
 
     return {"text": text}

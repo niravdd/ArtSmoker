@@ -108,13 +108,16 @@ async def generate_video(req: VideoGenerateRequest):
         except Exception as exc:
             logger.warning("Video prompt enhancement failed, using original: %s", exc)
 
-    # Track total cost: LLM enhancement (actual from cost_tracker) + estimated video model cost
-    llm_cost = get_total_cost()
-    total_estimated_cost = round(estimated_video_cost + llm_cost, 4)
+    # Cost split (audit item T-c): the LLM enhancement cost was ACTUALLY spent at
+    # request time → report it now. The video-model cost is reported at COMPLETION
+    # (in _finalize_completed_job) so a failed/cancelled job never books video
+    # spend that Bedrock didn't bill.
+    llm_cost = round(get_total_cost(), 6)
     track_first_generation(model=req.model_key, studio="video")
     track_video_generation(model=req.model_key, duration_seconds=dur,
                            task_type=req.task_type or "")
-    track_video_cost(cost_usd=total_estimated_cost, model=req.model_key)
+    if llm_cost > 0:
+        track_video_cost(cost_usd=llm_cost, model=req.model_key)
 
     # Decode source image if provided
     source_image = None
@@ -158,6 +161,8 @@ async def generate_video(req: VideoGenerateRequest):
     job["original_language_prompt"] = original_language_prompt
     job["enhanced_prompt"] = enhanced_prompt
     job["negative_concepts"] = negative_concepts
+    # Video-model cost, reported at completion (see _finalize_completed_job).
+    job["video_cost_usd"] = round(estimated_video_cost, 4)
     _active_jobs[job["job_id"]] = job
 
     return job
@@ -362,6 +367,18 @@ def _finalize_completed_job(job: dict):
     from backend.services.video_generator import (
         download_video_from_s3, extract_thumbnail, get_video_metadata,
     )
+
+    # Report the video-model cost NOW that generation actually completed (the
+    # per-second price × requested duration; Bedrock bills successful renders).
+    # Failed jobs never reach here → no phantom spend. The LLM-enhancement share
+    # was reported at request time, when it was actually incurred.
+    try:
+        _vcost = float(job.get("video_cost_usd") or 0)
+        if _vcost > 0:
+            from backend.services.telemetry import track_video_cost
+            track_video_cost(cost_usd=_vcost, model=job.get("model_key", ""))
+    except Exception:
+        pass
 
     job_id = job["job_id"]
     local_dir = settings.video_dir / job_id

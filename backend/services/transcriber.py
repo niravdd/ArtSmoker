@@ -111,6 +111,7 @@ def _attempt_streaming_transcription(
 
         # Collect transcript fragments from the response stream
         transcript_parts: list[str] = []
+        in_tokens = out_tokens = 0
         event_stream = response.get("body", [])
 
         for event in event_stream:
@@ -130,12 +131,34 @@ def _attempt_streaming_transcription(
                 if "text" in delta:
                     transcript_parts.append(delta["text"])
 
+                # Usage tokens, if the stream reports them (usageEvent /
+                # metadata.usage shapes) — feeds registry-priced cost tracking.
+                usage = event.get("usageEvent") or event.get("metadata", {}).get("usage") or event.get("usage")
+                if isinstance(usage, dict):
+                    in_tokens = usage.get("inputTokens", usage.get("input_tokens", in_tokens)) or in_tokens
+                    out_tokens = usage.get("outputTokens", usage.get("output_tokens", out_tokens)) or out_tokens
+
         if transcript_parts:
             full_transcript = " ".join(transcript_parts).strip()
             logger.info(
                 "Nova Sonic transcription complete: %d chars",
                 len(full_transcript),
             )
+            # Cost: ONLY from the registry's own price for this model — never a
+            # generic-default fallback (that would fabricate a wrong rate). Stays
+            # $0 until the Sync captures Sonic pricing AND the stream reports usage.
+            if in_tokens or out_tokens:
+                try:
+                    from backend.services.cost_tracker import _registry_llm_price, add_cost
+                    price = _registry_llm_price(model_id, region)
+                    if price:
+                        cost = round((in_tokens / 1e6) * price.get("input_per_mtok", 0)
+                                     + (out_tokens / 1e6) * price.get("output_per_mtok", 0), 6)
+                        if cost > 0:
+                            add_cost("transcription", cost,
+                                     f"{model_id}: {in_tokens} in, {out_tokens} out")
+                except Exception:
+                    logger.debug("Transcription cost tracking skipped", exc_info=True)
             return full_transcript
 
         logger.warning("Nova Sonic returned no transcript fragments.")
