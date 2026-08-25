@@ -323,5 +323,58 @@
   "last_edit_type": "outpainting",
   "last_edit_model": "stable_outpaint_v1",
   "last_edit_prompt": "Continue the warrior's legs downward \u2014 sun-darkened thighs into cloth-wrapped and leather-strapped shins, worn bandage wrappings, ending in weathered leather boots planted on faint drifting desert sand, muted teal cool pre-dawn light, painterly realism \u2014 extend the image on the right, bottom edge(s)",
-  "original_image_model": "stable_image_ultra"
+  "original_image_model": "stable_image_ultra",
+  "three_d_exports": {
+    "asset_3d_v3__triposg-trellis2__c720__unreal__orm-lod3-coldecomp-uv2.usdz.zip": {
+      "format": "usd",
+      "target": "unreal",
+      "ops": {
+        "pack": "orm",
+        "lods": "lod3",
+        "collision": "decomp",
+        "uv2": "generate"
+      },
+      "variant": "triposg-trellis2__c720",
+      "version": 3,
+      "zip": true,
+      "size_bytes": 141829770,
+      "duration_seconds": 64.7,
+      "blender_version": "5.2.0",
+      "created_at": "2026-08-25T03:08:35.490002+00:00"
+    },
+    "asset_3d_v3__triposg-trellis2__c720__unreal__orm-lod3-coldecomp-uv2.fbx.zip": {
+      "format": "fbx",
+      "target": "unreal",
+      "ops": {
+        "pack": "orm",
+        "lods": "lod3",
+        "collision": "decomp",
+        "uv2": "generate"
+      },
+      "variant": "triposg-trellis2__c720",
+      "version": 3,
+      "zip": true,
+      "size_bytes": 156793413,
+      "duration_seconds": 88.4,
+      "blender_version": "5.2.0",
+      "created_at": "2026-08-25T03:11:29.677958+00:00"
+    },
+    "asset_3d_v3__triposg-trellis2__c720__3dsmax__orm-lod3-colconvex-uv2.fbx.zip": {
+      "format": "fbx",
+      "target": "3dsmax",
+      "ops": {
+        "pack": "orm",
+        "lods": "lod3",
+        "collision": "convex",
+        "uv2": "generate"
+      },
+      "variant": "triposg-trellis2__c720",
+      "version": 3,
+      "zip": true,
+      "size_bytes": 156652802,
+      "duration_seconds": 55.5,
+      "blender_version": "5.2.0",
+      "created_at": "2026-08-25T03:12:56.014725+00:00"
+    }
+  }
 }
