@@ -885,7 +885,7 @@
     "three_d_pending_subtitle": "You can close this viewer and check back — it typically takes ~2–30 minutes depending on the model, instance, and cold-start.",
     "three_d_job_id": "Job",
     "three_d_complete": "3D model ready",
-    "three_d_regenerate": "Regenerate",
+    "three_d_regenerate": "Regenerate 3D Model",
     "three_d_variants_title": "3D Variants",
     "three_d_variants_count": "variants",
     "three_d_jobs_running": "Generating",

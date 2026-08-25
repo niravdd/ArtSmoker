@@ -960,7 +960,7 @@
     "meta_copy": "Копировать",
     "meta_copied": "Скопировано!",
     "three_d_viewer_hint": "Перетаскивайте для вращения, прокручивайте для масштабирования, ПКМ для панорамирования",
-    "three_d_regenerate": "Перегенерация",
+    "three_d_regenerate": "Пересоздать 3D-модель",
     "three_d_variants_title": "3D-варианты",
     "three_d_variants_count": "вариантов",
     "three_d_jobs_running": "Генерация",

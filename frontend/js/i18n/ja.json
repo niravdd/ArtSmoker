@@ -281,7 +281,7 @@
     "edit_prompt_placeholder_recolor": "新しい色や外観 — 例：鮮やかな赤、風化したブロンズ…",
     "edit_prompt_placeholder_replace": "置き換えるもの — 例：石のアーチ、赤い車…",
     "three_d_viewer_hint": "ドラッグで回転、スクロールでズーム、右クリックでパン",
-    "three_d_regenerate": "再生成",
+    "three_d_regenerate": "3Dモデルを再生成",
     "three_d_variants_title": "3Dバリアント",
     "three_d_variants_count": "バリアント",
     "three_d_jobs_running": "生成中",

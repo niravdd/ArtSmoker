@@ -3734,11 +3734,14 @@
                 ${items.map(([fname, r]) => {
                     const ops = Object.values(r.ops || {});
                     const opsShort = ops.length ? ` · ${ops.join('+')}` : '';
-                    const tip = [targetLabel(r.target), ...ops.map(optLabel), fmtMB(r.size_bytes)]
+                    // Show the variant's pipeline prefix so exports of DIFFERENT 3D
+                    // variants (e.g. TripoSG vs TRELLIS.2 Full) are distinguishable.
+                    const varShort = r.variant ? ` · ${r.variant.split('__')[0]}` : '';
+                    const tip = [targetLabel(r.target), r.variant, ...ops.map(optLabel), fmtMB(r.size_bytes)]
                         .filter(Boolean).join(' · ');
                     return html`<button class="av-3d-ready-chip px-2 py-0.5 rounded-full text-[10px] border border-emerald-500/40 text-emerald-300 hover:bg-emerald-500/10 transition-colors cursor-pointer"
                         data-fname="${fname}" title="${tip}">
-                        ⬇ ${(r.format || '').toUpperCase()}${r.zip ? '+tex' : ''} · ${targetLabel(r.target)}${opsShort}
+                        ⬇ ${(r.format || '').toUpperCase()}${r.zip ? '+tex' : ''} · ${targetLabel(r.target)}${varShort}${opsShort}
                     </button>`;
                 })}`;
             row.classList.remove('hidden');
@@ -3970,7 +3973,9 @@
             this._current3DVariant = null;   // set when the variant switcher loads (≥2 variants)
             // Parallel jobs: Regenerate is ALWAYS available — firing another job
             // adds it to the in-progress strip rather than blocking the view.
-            const regenBtnClass = 'btn btn-sm btn-secondary';
+            // Same primary styling as the tool's other Generate buttons (e.g. the 3D
+            // form's #av-3d-generate) — regenerating IS a generation action.
+            const regenBtnClass = 'btn btn-primary btn-sm';
             const regenBtnLabel = html`<svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg> ${t('artsmoker.ui.asset_viewer.three_d_regenerate')}`;
             // Untextured-fallback notice: the texture bake failed and the pipeline
             // shipped a usable but plain (untextured) mesh instead. We DON'T fail the

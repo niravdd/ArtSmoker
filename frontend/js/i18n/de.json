@@ -885,7 +885,7 @@
     "three_d_pending_subtitle": "Sie können diesen Viewer schließen und später wieder vorbeischauen — es dauert typischerweise ~2–30 Minuten, abhängig vom Modell, der Instanz und dem Kaltstart.",
     "three_d_job_id": "Auftrag",
     "three_d_complete": "3D-Modell bereit",
-    "three_d_regenerate": "Neu generieren",
+    "three_d_regenerate": "3D-Modell neu erzeugen",
     "three_d_variants_title": "3D-Varianten",
     "three_d_variants_count": "Varianten",
     "three_d_jobs_running": "Wird generiert",

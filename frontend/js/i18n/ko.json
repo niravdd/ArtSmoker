@@ -281,7 +281,7 @@
     "edit_prompt_placeholder_recolor": "새 색상 또는 외관 — 예: 밝은 빨간색, 풍화된 청동…",
     "edit_prompt_placeholder_replace": "대체할 내용 — 예: 돌 아치, 빨간 자동차…",
     "three_d_viewer_hint": "드래그하여 회전, 스크롤하여 줌, 우클릭하여 팬",
-    "three_d_regenerate": "재생성",
+    "three_d_regenerate": "3D 모델 재생성",
     "three_d_variants_title": "3D 변형",
     "three_d_variants_count": "개 변형",
     "three_d_jobs_running": "생성 중",

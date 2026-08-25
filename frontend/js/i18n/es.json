@@ -281,7 +281,7 @@
     "edit_prompt_placeholder_recolor": "Nuevo color o apariencia — ej. rojo brillante, bronce envejecido…",
     "edit_prompt_placeholder_replace": "Con qué reemplazarlo — ej. un arco de piedra, un auto rojo…",
     "three_d_viewer_hint": "Arrastra para orbitar, desplaza para zoom, clic derecho para mover",
-    "three_d_regenerate": "Regenerar",
+    "three_d_regenerate": "Regenerar modelo 3D",
     "three_d_variants_title": "Variantes 3D",
     "three_d_variants_count": "variantes",
     "three_d_jobs_running": "Generando",
