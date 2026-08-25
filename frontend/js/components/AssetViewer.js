@@ -3721,7 +3721,14 @@
                 const hint = t('artsmoker.ui.asset_viewer.three_d_export_ready_badge')
                     || 'Already generated — instant download';
                 this._exportCached = this._exportCached || {};
-                for (const fmt of ['fbx', 'usd']) {
+                // Processed-GLB button: only meaningful when an op that APPLIES to
+                // GLB is selected (packing doesn't — glTF has its own material spec);
+                // hidden otherwise, since it would just duplicate the original GLB.
+                const opVal = (id) => document.getElementById(id)?.value || 'none';
+                const glbOps = ['av-3d-opt-lods', 'av-3d-opt-collision', 'av-3d-opt-uv2']
+                    .some(id => opVal(id) !== 'none');
+                document.getElementById('av-3d-download-pglb')?.classList.toggle('hidden', !glbOps);
+                for (const fmt of ['fbx', 'usd', ...(glbOps ? ['glb'] : [])]) {
                     const badge = document.getElementById(`av-3d-${fmt}-ready`);
                     const label = document.getElementById(`av-3d-${fmt}-label`);
                     if (!badge || !label) continue;
@@ -3755,8 +3762,9 @@
             // keep an impatient user informed instead of re-clicking.
             const fbxBtn = document.getElementById('av-3d-download-fbx');
             const usdBtn = document.getElementById('av-3d-download-usd');
-            [fbxBtn, usdBtn].forEach(b => { if (b) b.disabled = true; });
-            const btn = fmt === 'usd' ? usdBtn : fbxBtn;
+            const pglbBtn = document.getElementById('av-3d-download-pglb');
+            [fbxBtn, usdBtn, pglbBtn].forEach(b => { if (b) b.disabled = true; });
+            const btn = fmt === 'usd' ? usdBtn : (fmt === 'glb' ? pglbBtn : fbxBtn);
             const statusEl = document.getElementById('av-3d-export-status');
             if (statusEl && !this._exportCached?.[fmt]) {   // spinner only for the Generate step
                 const base = (t('artsmoker.ui.asset_viewer.three_d_export_status') || 'Preparing {{fmt}} for {{target}}…')
@@ -3804,7 +3812,7 @@
                 const cd = resp.headers.get('Content-Disposition') || '';
                 const m = cd.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
                 let name = m ? decodeURIComponent(m[1].replace(/"/g, '')) : '';
-                if (!name) name = this._exportDownloadName(fmt === 'usd' ? 'usdz' : 'fbx', target);
+                if (!name) name = this._exportDownloadName(fmt === 'usd' ? 'usdz' : (fmt === 'glb' ? 'glb' : 'fbx'), target);
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url; a.download = name;
@@ -3818,7 +3826,7 @@
             } finally {
                 statusEl?.classList.remove('flex');
                 statusEl?.classList.add('hidden');
-                [fbxBtn, usdBtn].forEach(b => { if (b) b.disabled = false; });
+                [fbxBtn, usdBtn, pglbBtn].forEach(b => { if (b) b.disabled = false; });
                 this._refreshExportReady();   // a fresh export is now cached → show ✓
             }
         },
@@ -3979,6 +3987,15 @@
                                 <span id="av-3d-usd-label">${t('artsmoker.ui.asset_viewer.three_d_generate_usd')}</span>
                                 <span id="av-3d-usd-ready" class="hidden text-emerald-300 font-bold">✓</span>
                             </button>
+                            <!-- Processed GLB (LODs/collision/UV2 baked; separately named, original
+                                 untouched). Shown only when an applicable op is selected. -->
+                            <button id="av-3d-download-pglb" class="hidden btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_pglb_hint')}">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
+                                </svg>
+                                <span id="av-3d-glb-label">${t('artsmoker.ui.asset_viewer.three_d_generate_glb')}</span>
+                                <span id="av-3d-glb-ready" class="hidden text-emerald-300 font-bold">✓</span>
+                            </button>
                             <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5">
                                 ${regenBtnLabel}
                             </button>
@@ -4064,6 +4081,7 @@
             // the packing list refreshes per engine (Unity can't use UE-style ORM).
             container.querySelector('#av-3d-download-fbx')?.addEventListener('click', () => this._downloadExport('fbx'));
             container.querySelector('#av-3d-download-usd')?.addEventListener('click', () => this._downloadExport('usd'));
+            container.querySelector('#av-3d-download-pglb')?.addEventListener('click', () => this._downloadExport('glb'));
             const targetSel = container.querySelector('#av-3d-target');
             const optSelects = {
                 pack: container.querySelector('#av-3d-opt-pack'),

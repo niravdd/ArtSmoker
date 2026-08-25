@@ -1086,6 +1086,10 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
     if target not in mesh_export.TARGETS:
         target = mesh_export.DEFAULT_TARGET
     ops = mesh_export.normalize_export_ops(target, pack, lods, collision, uv2)
+    if fmt == "glb":
+        # Texture packing doesn't apply to GLB — glTF's material spec already embeds
+        # metallic-roughness its own way; engine repacks only make sense for FBX/USD.
+        ops["pack"] = "none"
     token = mesh_export.ops_cache_token(ops)
 
     # Locate the source GLB using the SAME candidate order as the GLB endpoint.
@@ -1105,13 +1109,20 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
     if glb_path is None:
         raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
 
-    # GLB: the pristine original, target-independent (prep ops don't apply).
-    if fmt == "glb":
+    # GLB with NO ops = the pristine original (never regenerated, target-independent).
+    # GLB WITH ops = a PROCESSED GLB (LODs/collision/UV2 baked) — a separately-named
+    # artifact that flows through the generic conversion path below; the original is
+    # never touched.
+    if fmt == "glb" and not token:
+        if check:
+            return {"cached": True}
+        if prepare:
+            return {"ready": True, "zip": False, "size_bytes": glb_path.stat().st_size}
         return FileResponse(glb_path, media_type="model/gltf-binary", filename=f"{asset_id}_3d.glb")
 
-    # FBX / USD(z): cache beside the GLB, keyed by target + chosen ops.
+    # FBX / USD(z) / processed GLB: cache beside the original, keyed by target + ops.
     base = glb_name[:-4]  # strip ".glb"
-    ext = "fbx" if fmt == "fbx" else "usdz"
+    ext = {"fbx": "fbx", "usd": "usdz", "glb": "glb"}[fmt]
     suffix = f"__{target}" + (f"__{token}" if token else "")
     asset_dir = store.generated_asset_dir(asset_id)
     model_path = asset_dir / f"{base}{suffix}.{ext}"
@@ -1237,9 +1248,10 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
     except Exception:
         pass
     dl_name = f"{asset_id}_3d_{target}" + (f"_{token}" if token else "") + (f".{ext}.zip" if is_zip else f".{ext}")
-    return FileResponse(final_path,
-                        media_type="application/zip" if is_zip else "application/octet-stream",
-                        filename=dl_name)
+    media = ("application/zip" if is_zip
+             else "model/gltf-binary" if fmt == "glb"
+             else "application/octet-stream")
+    return FileResponse(final_path, media_type=media, filename=dl_name)
 
 
 class TrackDownloadRequest(BaseModel):

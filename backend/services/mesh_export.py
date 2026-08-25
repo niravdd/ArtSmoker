@@ -569,6 +569,11 @@ def convert_mesh(glb_path, outputs: dict, target: str = DEFAULT_TARGET, *,
     if "usd" in outputs:
         Path(outputs["usd"]).parent.mkdir(parents=True, exist_ok=True)
         spec["usd"] = {"path": str(outputs["usd"]), "kwargs": _usd_kwargs(target)}
+    if "glb" in outputs:
+        # Processed GLB (LODs/collision/UV2 baked in). glTF is Y-up by spec, so no
+        # target orientation applies; textures re-embed automatically.
+        Path(outputs["glb"]).parent.mkdir(parents=True, exist_ok=True)
+        spec["glb"] = {"path": str(outputs["glb"]), "kwargs": {"export_format": "GLB"}}
 
     with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tf:
         _json.dump(spec, tf)

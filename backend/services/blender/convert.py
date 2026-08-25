@@ -142,6 +142,15 @@ def main():
             print(f"ARTSMOKER_CONVERT_ERROR: USD export failed: {e}", file=sys.stderr)
             sys.exit(6)
 
+    # Processed GLB (prep ops baked in; Y-up per glTF spec, textures embedded).
+    glb = spec.get("glb")
+    if glb:
+        try:
+            bpy.ops.export_scene.gltf(filepath=glb["path"], **glb.get("kwargs", {}))
+        except Exception as e:  # noqa: BLE001
+            print(f"ARTSMOKER_CONVERT_ERROR: GLB export failed: {e}", file=sys.stderr)
+            sys.exit(10)
+
     print("ARTSMOKER_CONVERT_OK")
 
 

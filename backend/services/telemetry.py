@@ -312,7 +312,9 @@ def track_download(file_format: str = "", asset_type: str = "", kind: str = "",
     """
     fmt = (file_format or "unknown").lower().replace(".", "_")
     event = f"asset.dl.{fmt}"
-    if engine_target and fmt in ("fbx", "usd"):
+    # Engine suffix for engine-prepared exports (incl. processed GLB); the RAW glb
+    # download comes via the beacon with no engine_target → stays asset.dl.glb.
+    if engine_target and fmt in ("fbx", "usd", "glb"):
         event += f".{engine_target.lower().replace('.', '_')}"
     _track(event, format=fmt, asset_type=asset_type, kind=kind,
            engine_target=engine_target, model=model, variant=variant, cost_usd=0)
