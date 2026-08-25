@@ -3717,8 +3717,30 @@
          *  message instead of the browser silently saving an error page. */
         async _downloadExport(fmt) {
             const target = document.getElementById('av-3d-target')?.value || 'generic';
-            const btn = document.getElementById(fmt === 'usd' ? 'av-3d-download-usd' : 'av-3d-download-fbx');
-            if (btn) btn.disabled = true;
+            const targetLabel = document.getElementById('av-3d-target')?.selectedOptions?.[0]?.textContent || target;
+            // Disable BOTH export buttons for the duration — a second heavy Blender
+            // run in parallel helps no one; the visual state + live status line below
+            // keep an impatient user informed instead of re-clicking.
+            const fbxBtn = document.getElementById('av-3d-download-fbx');
+            const usdBtn = document.getElementById('av-3d-download-usd');
+            [fbxBtn, usdBtn].forEach(b => { if (b) b.disabled = true; });
+            const btn = fmt === 'usd' ? usdBtn : fbxBtn;
+            const statusEl = document.getElementById('av-3d-export-status');
+            const t0 = Date.now();
+            let timer = null;
+            if (statusEl) {
+                const base = (t('artsmoker.ui.asset_viewer.three_d_export_status') || 'Preparing {{fmt}} for {{target}}…')
+                    .replace('{{fmt}}', fmt.toUpperCase()).replace('{{target}}', targetLabel);
+                const hint = t('artsmoker.ui.asset_viewer.three_d_export_status_hint')
+                    || 'large models with LODs/collision can take a few minutes';
+                const tick = () => {
+                    const s = Math.floor((Date.now() - t0) / 1000);
+                    statusEl.textContent = `${base} ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')} — ${hint}`;
+                };
+                statusEl.classList.remove('hidden');
+                tick();
+                timer = setInterval(tick, 1000);
+            }
             window.showToast?.(t('artsmoker.ui.asset_viewer.three_d_export_preparing'), 'info');
             try {
                 const resp = await fetch(this._exportUrl(fmt, target));
@@ -3747,7 +3769,9 @@
                 window.showToast?.((t('artsmoker.ui.asset_viewer.three_d_export_failed') || 'Export failed')
                     + (e?.message ? `: ${e.message}` : ''), 'error');
             } finally {
-                if (btn) btn.disabled = false;
+                if (timer) clearInterval(timer);
+                statusEl?.classList.add('hidden');
+                [fbxBtn, usdBtn].forEach(b => { if (b) b.disabled = false; });
             }
         },
 
@@ -3909,6 +3933,8 @@
                                 ${regenBtnLabel}
                             </button>
                         </div>
+                        <!-- Live export status (elapsed timer) — shown while Blender runs. -->
+                        <p id="av-3d-export-status" class="hidden text-[10px] text-cyan-400/90 text-center"></p>
                     </div>
                     <p class="text-[9px] text-brand-text-muted text-center">${t('artsmoker.ui.asset_viewer.three_d_viewer_hint')}</p>
                     <p class="text-[9px] text-brand-text-muted/70 text-center">${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}</p>
