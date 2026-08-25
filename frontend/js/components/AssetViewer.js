@@ -3712,23 +3712,33 @@
         },
 
         /** Probe (debounced) whether the CURRENT picks are already generated and
-         *  cached server-side; show a ✓ on the FBX/USD buttons for instant ones.
-         *  Cached exports are never regenerated — the ✓ tells the user that. */
+         *  cached server-side, and drive the two-step button state: not cached →
+         *  "Generate FBX/USD"; cached → "Download FBX/USD" + ✓ (instant).
+         *  Cached exports are never regenerated. */
         _refreshExportReady() {
             clearTimeout(this._exportReadyTimer);
             this._exportReadyTimer = setTimeout(async () => {
                 const hint = t('artsmoker.ui.asset_viewer.three_d_export_ready_badge')
                     || 'Already generated — instant download';
+                this._exportCached = this._exportCached || {};
                 for (const fmt of ['fbx', 'usd']) {
                     const badge = document.getElementById(`av-3d-${fmt}-ready`);
-                    if (!badge) continue;
+                    const label = document.getElementById(`av-3d-${fmt}-label`);
+                    if (!badge || !label) continue;
                     try {
                         const target = document.getElementById('av-3d-target')?.value || 'generic';
                         const r = await fetch(this._exportUrl(fmt, target) + '&check=1');
                         const d = r.ok ? await r.json() : { cached: false };
+                        this._exportCached[fmt] = !!d.cached;
                         badge.classList.toggle('hidden', !d.cached);
                         badge.title = d.cached ? hint : '';
-                    } catch { badge.classList.add('hidden'); }
+                        label.textContent = d.cached
+                            ? t(`artsmoker.ui.asset_viewer.three_d_download_${fmt}`)
+                            : t(`artsmoker.ui.asset_viewer.three_d_generate_${fmt}`);
+                    } catch {
+                        this._exportCached[fmt] = false;
+                        badge.classList.add('hidden');
+                    }
                 }
             }, 250);
         },
@@ -3748,7 +3758,7 @@
             [fbxBtn, usdBtn].forEach(b => { if (b) b.disabled = true; });
             const btn = fmt === 'usd' ? usdBtn : fbxBtn;
             const statusEl = document.getElementById('av-3d-export-status');
-            if (statusEl) {
+            if (statusEl && !this._exportCached?.[fmt]) {   // spinner only for the Generate step
                 const base = (t('artsmoker.ui.asset_viewer.three_d_export_status') || 'Preparing {{fmt}} for {{target}}…')
                     .replace('{{fmt}}', fmt.toUpperCase()).replace('{{target}}', targetLabel);
                 const hint = t('artsmoker.ui.asset_viewer.three_d_export_status_hint')
@@ -3760,8 +3770,26 @@
                 statusEl.classList.remove('hidden');
                 statusEl.classList.add('flex');
             }
-            window.showToast?.(t('artsmoker.ui.asset_viewer.three_d_export_preparing'), 'info');
+            // Two-step UX: when the current combination is NOT cached yet, this click
+            // GENERATES it (convert + cache server-side, no save dialog); the button
+            // then flips to "Download …" ✓ for the instant second step. When cached,
+            // this click downloads immediately.
+            const isGenerate = !this._exportCached?.[fmt];
+            if (isGenerate) window.showToast?.(t('artsmoker.ui.asset_viewer.three_d_export_preparing'), 'info');
             try {
+                if (isGenerate) {
+                    const prep = await fetch(this._exportUrl(fmt, target) + '&prepare=1');
+                    if (!prep.ok) {
+                        let detail = '';
+                        try { detail = (await prep.json()).detail || ''; } catch { /* non-JSON */ }
+                        window.showToast?.((t('artsmoker.ui.asset_viewer.three_d_export_failed') || 'Export failed')
+                            + (detail ? `: ${detail}` : ''), 'error');
+                        return;
+                    }
+                    window.showToast?.((t('artsmoker.ui.asset_viewer.three_d_export_ready') || '{{fmt}} ready to download')
+                        .replace('{{fmt}}', fmt.toUpperCase()), 'success');
+                    return;   // step 1 done — the user downloads via the flipped button
+                }
                 const resp = await fetch(this._exportUrl(fmt, target));
                 if (!resp.ok) {
                     let detail = '';
@@ -3941,14 +3969,14 @@
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                                 </svg>
-                                ${t('artsmoker.ui.asset_viewer.three_d_download_fbx')}
+                                <span id="av-3d-fbx-label">${t('artsmoker.ui.asset_viewer.three_d_generate_fbx')}</span>
                                 <span id="av-3d-fbx-ready" class="hidden text-emerald-300 font-bold">✓</span>
                             </button>
                             <button id="av-3d-download-usd" class="btn btn-secondary btn-sm inline-flex items-center gap-2" title="${t('artsmoker.ui.asset_viewer.three_d_fidelity_note')}">
                                 <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v2a2 2 0 002 2h12a2 2 0 002-2v-2M7 10l5 5 5-5M12 15V3"/>
                                 </svg>
-                                ${t('artsmoker.ui.asset_viewer.three_d_download_usd')}
+                                <span id="av-3d-usd-label">${t('artsmoker.ui.asset_viewer.three_d_generate_usd')}</span>
                                 <span id="av-3d-usd-ready" class="hidden text-emerald-300 font-bold">✓</span>
                             </button>
                             <button id="av-3d-regenerate" class="${regenBtnClass} inline-flex items-center gap-1.5">

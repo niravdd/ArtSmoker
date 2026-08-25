@@ -1061,7 +1061,7 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
                               variant: str | None = None, target: str = "generic",
                               pack: str = "none", lods: str = "none",
                               collision: str = "none", uv2: str = "none",
-                              check: int = 0):
+                              check: int = 0, prepare: int = 0):
     """Serve an engine-ready export of a generated 3D asset.
 
     fmt ∈ {glb, fbx, usd}. GLB is served PRISTINE (glTF is Y-up by spec and importers
@@ -1219,6 +1219,12 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
                 store.save_generation_metadata(asset_id, _meta)
         except Exception as exc:
             logger.warning("Could not record export in metadata for %s: %s", asset_id, exc)
+
+    # prepare=1 (the two-step UX "Generate" click): conversion + cache + metadata
+    # record are done — return status instead of streaming the file. The download
+    # telemetry below fires only on the actual Download click.
+    if prepare:
+        return {"ready": True, "zip": is_zip, "size_bytes": final_path.stat().st_size}
 
     # Adoption telemetry: an export download is always intentional (fetch-based UI).
     # Chosen ops ride as a property (not in the event name — cardinality).
