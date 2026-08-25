@@ -3685,13 +3685,21 @@
                 </div>`;
         },
 
-        /** Build an engine-export URL for the current 3D asset/version/variant.
-         *  fmt ∈ glb|fbx|usd; GLB ignores target (served pristine, Y-up). */
+        /** Build an engine-export URL for the current 3D asset/version/variant,
+         *  including the user's prep-op picks (packing/LODs/collision/UV2 — only
+         *  what was explicitly chosen). fmt ∈ glb|fbx|usd; GLB ignores all of it. */
         _exportUrl(fmt, target) {
             const id = encodeURIComponent(this._meta?.id || this._item?.id || '');
             const ver = this._currentVersion || 1;
             const q = new URLSearchParams({ target: target || 'generic' });
             if (this._current3DVariant) q.set('variant', this._current3DVariant);
+            const opt = (sel) => document.getElementById(sel)?.value || 'none';
+            const pack = opt('av-3d-opt-pack'), lods = opt('av-3d-opt-lods'),
+                  collision = opt('av-3d-opt-collision'), uv2 = opt('av-3d-opt-uv2');
+            if (pack !== 'none') q.set('pack', pack);
+            if (lods !== 'none') q.set('lods', lods);
+            if (collision !== 'none') q.set('collision', collision);
+            if (uv2 !== 'none') q.set('uv2', uv2);
             return `/api/gallery/${id}/3d/${ver}/export/${fmt}?${q.toString()}`;
         },
 
@@ -3722,7 +3730,12 @@
                     return;
                 }
                 const blob = await resp.blob();
-                const name = this._exportDownloadName(fmt === 'usd' ? 'usdz' : 'fbx', target);
+                // Prefer the server's filename (it encodes the chosen ops + .zip when
+                // texture packing adds files); fall back to the slug-based name.
+                const cd = resp.headers.get('Content-Disposition') || '';
+                const m = cd.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+                let name = m ? decodeURIComponent(m[1].replace(/"/g, '')) : '';
+                if (!name) name = this._exportDownloadName(fmt === 'usd' ? 'usdz' : 'fbx', target);
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.href = url; a.download = name;
@@ -3851,9 +3864,27 @@
                     <!-- Stats + Models&Tools panel — re-rendered per variant on switch. -->
                     <div id="av-3d-meta" class="space-y-3">${this._render3DMetaHtml(data)}</div>
                     <div class="flex flex-col items-center gap-2">
-                        <div class="flex items-center gap-1.5">
-                            <label class="text-[10px] text-brand-text-muted whitespace-nowrap">${t('artsmoker.ui.asset_viewer.three_d_target_engine')}</label>
-                            <select id="av-3d-target" class="input text-[10px] py-0.5"></select>
+                        <div class="flex items-center justify-center gap-x-4 gap-y-1.5 flex-wrap">
+                            <div class="flex items-center gap-1.5">
+                                <label class="text-[10px] text-brand-text-muted whitespace-nowrap">${t('artsmoker.ui.asset_viewer.three_d_target_engine')}</label>
+                                <select id="av-3d-target" class="input text-[10px] py-0.5"></select>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <label class="text-[10px] text-brand-text-muted whitespace-nowrap">${t('artsmoker.ui.asset_viewer.three_d_opt_packing')}</label>
+                                <select id="av-3d-opt-pack" class="input text-[10px] py-0.5"></select>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <label class="text-[10px] text-brand-text-muted whitespace-nowrap">${t('artsmoker.ui.asset_viewer.three_d_opt_lods')}</label>
+                                <select id="av-3d-opt-lods" class="input text-[10px] py-0.5"></select>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <label class="text-[10px] text-brand-text-muted whitespace-nowrap">${t('artsmoker.ui.asset_viewer.three_d_opt_collision')}</label>
+                                <select id="av-3d-opt-collision" class="input text-[10px] py-0.5"></select>
+                            </div>
+                            <div class="flex items-center gap-1.5">
+                                <label class="text-[10px] text-brand-text-muted whitespace-nowrap">${t('artsmoker.ui.asset_viewer.three_d_opt_uv2')}</label>
+                                <select id="av-3d-opt-uv2" class="input text-[10px] py-0.5"></select>
+                            </div>
                         </div>
                         <div class="flex items-center justify-center gap-2 flex-wrap">
                             <a id="av-3d-download" href="${glbUrl}" download class="btn btn-primary btn-sm inline-flex items-center gap-2">
@@ -3952,13 +3983,34 @@
                 glbDl.setAttribute('download', this._versionDownloadName('glb', ver, vrec));
             }
             // Engine-export: FBX/USD buttons fetch-download (converting server-side on
-            // first use, ONLY the requested format), with preparing/success/failure
-            // toasts. The target dropdown is populated from the config-driven list;
-            // the buttons read the selected target + variant live at click time.
+            // first use, processing EXACTLY the ops the user picked), with preparing/
+            // success/failure toasts. Dropdowns are config-driven from the backend;
+            // the packing list refreshes per engine (Unity can't use UE-style ORM).
             container.querySelector('#av-3d-download-fbx')?.addEventListener('click', () => this._downloadExport('fbx'));
             container.querySelector('#av-3d-download-usd')?.addEventListener('click', () => this._downloadExport('usd'));
             const targetSel = container.querySelector('#av-3d-target');
+            const optSelects = {
+                pack: container.querySelector('#av-3d-opt-pack'),
+                lods: container.querySelector('#av-3d-opt-lods'),
+                collision: container.querySelector('#av-3d-opt-collision'),
+                uv2: container.querySelector('#av-3d-opt-uv2'),
+            };
+            const optLabel = (v) => t(`artsmoker.ui.asset_viewer.three_d_optval_${v}`) || v;
+            const fillOptions = () => {
+                const opts = this._exportOptions?.[targetSel?.value] || null;
+                if (!opts) return;
+                const lists = { pack: opts.packing, lods: opts.lods, collision: opts.collision, uv2: opts.uv2 };
+                for (const [k, sel] of Object.entries(optSelects)) {
+                    if (!sel) continue;
+                    const keep = sel.value;   // preserve the pick when still offered
+                    // nosemgrep
+                    sel.innerHTML = (lists[k] || ['none'])
+                        .map(v => html`<option value="${v}">${optLabel(v)}</option>`).join('');
+                    sel.value = (lists[k] || []).includes(keep) ? keep : 'none';
+                }
+            };
             if (targetSel) {
+                targetSel.addEventListener('change', fillOptions);
                 (async () => {
                     try {
                         const data = await API.admin.exportTargets();
@@ -3966,7 +4018,9 @@
                         targetSel.innerHTML = (data.targets || [])
                             .map(tt => html`<option value="${tt.key}">${tt.label}</option>`).join('');
                         targetSel.value = data.default || 'generic';
-                    } catch { /* leave empty → generic default in the export URL */ }
+                        this._exportOptions = data.options || null;
+                    } catch { /* leave empty → generic default + no ops in the URL */ }
+                    fillOptions();
                 })();
             }
 

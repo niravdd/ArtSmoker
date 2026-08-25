@@ -64,6 +64,66 @@ def main():
         print(f"ARTSMOKER_CONVERT_ERROR: glTF import failed: {e}", file=sys.stderr)
         sys.exit(4)
 
+    # ── Optional prep ops (only what the user explicitly chose) ──────────────
+    prep = spec.get("prep") or {}
+
+    # Lightmap UV2: a second UV layer, smart-projected (validated headless).
+    if prep.get("uv2"):
+        try:
+            for ob in [o for o in bpy.data.objects if o.type == "MESH"]:
+                if len(ob.data.uv_layers) >= 2:
+                    continue  # already has a second channel
+                bpy.context.view_layer.objects.active = ob
+                lm = ob.data.uv_layers.new(name="Lightmap")
+                ob.data.uv_layers.active = lm
+                bpy.ops.object.mode_set(mode='EDIT')
+                bpy.ops.mesh.select_all(action='SELECT')
+                bpy.ops.uv.smart_project(island_margin=0.02)
+                bpy.ops.object.mode_set(mode='OBJECT')
+                # Restore the original UV set as the render-active one.
+                ob.data.uv_layers.active = ob.data.uv_layers[0]
+        except Exception as e:  # noqa: BLE001
+            print(f"ARTSMOKER_CONVERT_ERROR: UV2 generation failed: {e}", file=sys.stderr)
+            sys.exit(7)
+
+    # LOD chain: decimated copies under a LodGroup empty (fbx_type custom prop →
+    # the FBX exporter writes a real LodGroup node that Unreal auto-imports; the
+    # _LOD0.._LOD3 names double as Unity's LOD Group naming convention).
+    if prep.get("lod_ratios"):
+        try:
+            ratios = prep["lod_ratios"]
+            for ob in [o for o in bpy.data.objects if o.type == "MESH"]:
+                group = bpy.data.objects.new(ob.name + "_LODGroup", None)
+                group["fbx_type"] = "LodGroup"
+                bpy.context.scene.collection.objects.link(group)
+                base_name = ob.name
+                for i, r in enumerate(ratios):
+                    lod = ob.copy()
+                    lod.data = ob.data.copy()
+                    lod.name = f"{base_name}_LOD{i}"
+                    bpy.context.scene.collection.objects.link(lod)
+                    if r < 1.0:
+                        mod = lod.modifiers.new("dec", "DECIMATE")
+                        mod.ratio = r
+                        bpy.context.view_layer.objects.active = lod
+                        bpy.ops.object.modifier_apply(modifier="dec")
+                    lod.parent = group
+                # The original stays out of the export (LOD0 is its copy).
+                bpy.data.objects.remove(ob, do_unlink=True)
+        except Exception as e:  # noqa: BLE001
+            print(f"ARTSMOKER_CONVERT_ERROR: LOD generation failed: {e}", file=sys.stderr)
+            sys.exit(8)
+
+    # Collision hulls: import the pre-computed, convention-named hulls GLB
+    # (UCX_* for Unreal-style auto-import; -convcolonly suffixes for Godot).
+    if prep.get("collision_glb"):
+        try:
+            bpy.ops.import_scene.gltf(filepath=prep["collision_glb"])
+            # Hulls are proxies: no material/texture needed; leave names as-is.
+        except Exception as e:  # noqa: BLE001
+            print(f"ARTSMOKER_CONVERT_ERROR: collision import failed: {e}", file=sys.stderr)
+            sys.exit(9)
+
     # FBX (textures embedded → single self-contained file).
     fbx = spec.get("fbx")
     if fbx:

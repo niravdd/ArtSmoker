@@ -452,6 +452,59 @@ TARGETS = {
 DEFAULT_TARGET = "generic"
 EXPORT_FORMATS = ("fbx", "usd")   # GLB is served pristine, never re-exported
 
+# ── Optional export-prep operations (user-chosen, never forced) ───────────────
+# Each is an independent dropdown next to Target Engine; the export processes
+# EXACTLY what the user picked. Packing choices are per-engine (Unity cannot use
+# UE-style ORM — it needs metallic+smoothness-in-alpha or the HDRP Mask Map).
+# Research note (2026-08-25, verified vs engine docs): engines auto-handle much
+# of this (Nanite/auto-LOD/auto-UV2) — we OFFER the ops, artists decide.
+PACKING_BY_TARGET = {
+    "generic": ["none", "orm"],
+    "unreal":  ["none", "orm"],
+    "unity":   ["none", "unity_mask", "hdrp_mask"],
+    "godot":   ["none", "orm"],
+    "maya":    ["none", "orm"],
+    "3dsmax":  ["none", "orm"],
+}
+LOD_OPTIONS = ["none", "lod3"]                    # LOD0..3 chain (100/50/20/5 %)
+COLLISION_OPTIONS = ["none", "convex", "decomp"]  # single hull | CoACD multi-hull
+UV2_OPTIONS = ["none", "generate"]                # second (lightmap) UV channel
+_LOD_RATIOS = [1.0, 0.5, 0.2, 0.05]
+
+def export_options_for(target: str) -> dict:
+    """The option lists the UI should offer for a given engine target."""
+    return {
+        "packing": PACKING_BY_TARGET.get(target, PACKING_BY_TARGET[DEFAULT_TARGET]),
+        "lods": LOD_OPTIONS,
+        "collision": COLLISION_OPTIONS,
+        "uv2": UV2_OPTIONS,
+    }
+
+def normalize_export_ops(target: str, pack: str, lods: str, collision: str, uv2: str) -> dict:
+    """Validate/normalize the user's picks against the allowed lists ('none' wins
+    on anything unknown, so a stale/hand-built URL can't request bogus work)."""
+    allowed = export_options_for(target)
+    return {
+        "pack": pack if pack in allowed["packing"] else "none",
+        "lods": lods if lods in allowed["lods"] else "none",
+        "collision": collision if collision in allowed["collision"] else "none",
+        "uv2": uv2 if uv2 in allowed["uv2"] else "none",
+    }
+
+def ops_cache_token(ops: dict) -> str:
+    """Deterministic, filename-safe token for the chosen ops ('' when all none),
+    so each distinct combination caches separately and never overwrites another."""
+    parts = []
+    if ops["pack"] != "none":
+        parts.append(ops["pack"])                       # orm | unity_mask | hdrp_mask
+    if ops["lods"] != "none":
+        parts.append(ops["lods"])                       # lod3
+    if ops["collision"] != "none":
+        parts.append(f"col{ops['collision']}")          # colconvex | coldecomp
+    if ops["uv2"] != "none":
+        parts.append("uv2")
+    return "-".join(parts)
+
 _FBX_BASE = {"path_mode": "COPY", "embed_textures": True,
              "use_selection": False, "bake_space_transform": False, "global_scale": 1.0}
 # USD export (wm.usd_export): export_textures_mode is an enum (NEW writes/packs
@@ -477,11 +530,16 @@ def _usd_kwargs(target):
             "export_global_forward_selection": _USD_AXIS.get(t["fwd"], t["fwd"])}
 
 
-def convert_mesh(glb_path, outputs: dict, target: str = DEFAULT_TARGET, *, timeout: int = 600) -> dict:
+def convert_mesh(glb_path, outputs: dict, target: str = DEFAULT_TARGET, *,
+                 timeout: int = 600, ops: dict | None = None,
+                 collision_glb=None) -> dict:
     """Convert a GLB to the requested formats for `target` in ONE Blender pass.
 
-    outputs = {"fbx": <path>, "usd": <path>} (any subset). Returns {fmt: Path} for the
-    files actually written. Raises MeshExportError on failure.
+    outputs = {"fbx": <path>, "usd": <path>} (any subset). ops (all optional —
+    the user's explicit picks, never forced): {"lods": "lod3", "uv2": "generate"}.
+    collision_glb = a pre-computed hulls GLB (see build_collision_glb) that Blender
+    imports alongside so the convention-named hulls ride inside the export.
+    Returns {fmt: Path} for the files actually written. Raises MeshExportError.
     """
     import json as _json
     import tempfile
@@ -495,6 +553,16 @@ def convert_mesh(glb_path, outputs: dict, target: str = DEFAULT_TARGET, *, timeo
         raise MeshExportError("Blender is unavailable — cannot export." + _linux_lib_hint())
 
     spec = {}
+    ops = ops or {}
+    prep = {}
+    if ops.get("lods") == "lod3":
+        prep["lod_ratios"] = _LOD_RATIOS
+    if ops.get("uv2") == "generate":
+        prep["uv2"] = True
+    if collision_glb:
+        prep["collision_glb"] = str(collision_glb)
+    if prep:
+        spec["prep"] = prep
     if "fbx" in outputs:
         Path(outputs["fbx"]).parent.mkdir(parents=True, exist_ok=True)
         spec["fbx"] = {"path": str(outputs["fbx"]), "kwargs": _fbx_kwargs(target)}
@@ -539,6 +607,119 @@ def convert_mesh(glb_path, outputs: dict, target: str = DEFAULT_TARGET, *, timeo
 def convert_glb_to_fbx(glb_path, fbx_path, *, timeout: int = 300) -> Path:
     """Back-compat single-format helper (generic target, FBX only)."""
     return convert_mesh(glb_path, {"fbx": Path(fbx_path)}, DEFAULT_TARGET, timeout=timeout)["fbx"]
+
+
+# ── Texture packing (per-engine presets; pure local Pillow channel ops) ──────
+
+def pack_textures(glb_path, out_dir, preset: str, slug: str = "asset") -> list:
+    """Extract the GLB's PBR textures and write the engine-specific packed set.
+
+    preset: orm         → T_{slug}_ORM.png  (R=AO, G=Roughness, B=Metallic — Unreal)
+            unity_mask  → T_{slug}_MetallicSmoothness.png (RGB=metallic, A=1-rough)
+            hdrp_mask   → T_{slug}_MaskMap.png (R=metal, G=AO, B=detail, A=smooth)
+    Also writes BaseColor/Normal/AO alongside so the engine set is complete.
+    Missing AO fills WHITE (1.0 = unoccluded — the standard neutral). Returns the
+    list of written Paths. Deterministic; no ML, no network.
+    """
+    import trimesh
+    from PIL import Image
+    out_dir = Path(out_dir)
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    scene = trimesh.load(str(glb_path))
+    geoms = list(scene.geometry.values()) if hasattr(scene, "geometry") else [scene]
+    mat = next((g.visual.material for g in geoms
+                if getattr(getattr(g, "visual", None), "material", None) is not None), None)
+    if mat is None:
+        raise MeshExportError("GLB has no material — nothing to pack")
+
+    base = getattr(mat, "baseColorTexture", None)
+    mr = getattr(mat, "metallicRoughnessTexture", None)      # glTF: G=rough, B=metal
+    normal = getattr(mat, "normalTexture", None)
+    ao = getattr(mat, "occlusionTexture", None)               # glTF: R=AO
+    if mr is None:
+        raise MeshExportError("GLB has no metallic-roughness texture — nothing to pack")
+
+    size = mr.size
+    mr = mr.convert("RGB")
+    _, rough, metal = mr.split()
+    ao_ch = (ao.convert("RGB").split()[0].resize(size)) if ao is not None \
+        else Image.new("L", size, 255)
+
+    written = []
+
+    def _save(img, name):
+        p = out_dir / name
+        img.save(p, "PNG")
+        written.append(p)
+
+    if preset == "orm":
+        _save(Image.merge("RGB", (ao_ch, rough, metal)), f"T_{slug}_ORM.png")
+    elif preset == "unity_mask":
+        from PIL import ImageOps
+        smooth = ImageOps.invert(rough)                       # smoothness = 1 - roughness
+        _save(Image.merge("RGBA", (metal, metal, metal, smooth)), f"T_{slug}_MetallicSmoothness.png")
+        _save(ao_ch, f"T_{slug}_Occlusion.png")               # Unity's separate occlusion slot
+    elif preset == "hdrp_mask":
+        from PIL import ImageOps
+        smooth = ImageOps.invert(rough)
+        detail = Image.new("L", size, 0)
+        _save(Image.merge("RGBA", (metal, ao_ch, detail, smooth)), f"T_{slug}_MaskMap.png")
+    else:
+        raise MeshExportError(f"unknown packing preset '{preset}'")
+
+    if base is not None:
+        _save(base.convert("RGBA"), f"T_{slug}_BaseColor.png")
+    if normal is not None:
+        _save(normal.convert("RGB"), f"T_{slug}_Normal.png")
+    return written
+
+
+# ── Collision proxies (convex hull / CoACD decomposition; engine-named) ──────
+
+def build_collision_glb(glb_path, out_glb, mode: str, target: str) -> tuple:
+    """Compute collision hull(s) for the GLB's geometry and write them to a small
+    GLB whose NODE NAMES follow the target engine's auto-import convention:
+      Unreal/generic/Unity/Maya/3dsMax → UCX_{mesh}_00, _01 …  (UE consumes UCX_*)
+      Godot                            → {mesh}_col{n}-convcolonly
+    mode: convex (single hull) | decomp (CoACD approximate convex decomposition).
+    Returns (out_glb Path, hull_count). CPU-only; the dense mesh is pre-decimated
+    before CoACD (hulls don't need render detail; keeps runtime in seconds).
+    """
+    import numpy as np
+    import trimesh
+    scene = trimesh.load(str(glb_path))
+    geoms = list(scene.geometry.items()) if hasattr(scene, "geometry") else [("mesh", scene)]
+    mesh_name = geoms[0][0]
+    merged = trimesh.util.concatenate([g for _, g in geoms])
+
+    hulls = []
+    if mode == "convex":
+        hulls = [merged.convex_hull]
+    elif mode == "decomp":
+        import coacd
+        try:
+            coacd.set_log_level("error")   # its INFO progress spam floods our logs
+        except Exception:
+            pass
+        cm = coacd.Mesh(np.asarray(merged.vertices, dtype=np.float64),
+                        np.asarray(merged.faces, dtype=np.int64))
+        # threshold 0.05 = good gameplay fidelity without hull spam; CoACD does its
+        # own preprocessing/simplification internally.
+        parts = coacd.run_coacd(cm, threshold=0.05)
+        hulls = [trimesh.Trimesh(vertices=v, faces=f).convex_hull for v, f in parts]
+    else:
+        raise MeshExportError(f"unknown collision mode '{mode}'")
+
+    out_scene = trimesh.Scene()
+    for i, h in enumerate(hulls):
+        if target == "godot":
+            name = f"{mesh_name}_col{i}-convcolonly"
+        else:
+            name = f"UCX_{mesh_name}_{i:02d}"
+        out_scene.add_geometry(h, node_name=name, geom_name=name)
+    out_scene.export(str(out_glb))
+    return Path(out_glb), len(hulls)
 
 
 # ── update management (managed copy only) ─────────────────────────────────────

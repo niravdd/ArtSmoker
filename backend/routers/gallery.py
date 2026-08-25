@@ -4,6 +4,7 @@ import io
 import logging
 import re
 from datetime import datetime, timezone
+from pathlib import Path
 from uuid import uuid4
 
 from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
@@ -1057,17 +1058,25 @@ async def get_asset_3d(asset_id: str, version: int, variant: str | None = None):
 
 @router.get("/{asset_id}/3d/{version}/export/{fmt}")
 async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
-                              variant: str | None = None, target: str = "generic"):
+                              variant: str | None = None, target: str = "generic",
+                              pack: str = "none", lods: str = "none",
+                              collision: str = "none", uv2: str = "none"):
     """Serve an engine-ready export of a generated 3D asset.
 
     fmt ∈ {glb, fbx, usd}. GLB is served PRISTINE (glTF is Y-up by spec and importers
     convert on load — a re-oriented GLB would be malformed). FBX + USD are oriented
     for `target` (generic/unreal/unity/godot/maya/3dsmax) and converted LAZILY on
-    first request — ONLY the requested format is built (an explicit download is the
-    user's intent; we don't spawn formats they didn't ask for and clutter storage) —
-    cached PER TARGET so switching targets never overwrites a previously-built one.
-    Fidelity note: geometry + UVs + base color + normal survive; metallic/roughness
-    re-hooks on engine import (a format limitation).
+    first request — ONLY the requested format is built.
+
+    Optional prep ops — the USER's explicit picks, never forced (each an independent
+    dropdown in the UI; validated against the target's allowed lists):
+      pack:      none | orm | unity_mask | hdrp_mask  (per-engine texture packing —
+                 extra texture files ⇒ the download becomes a ZIP: model + textures/)
+      lods:      none | lod3       (LOD0-3 decimation chain; FBX LodGroup node for
+                 Unreal auto-import; _LOD0.._LOD3 names double as Unity's convention)
+      collision: none | convex | decomp  (hulls named UCX_* / -convcolonly per engine)
+      uv2:       none | generate   (second lightmap UV channel)
+    Each distinct (target, ops) combination caches separately — never overwrites.
     """
     from backend.services import mesh_export
     fmt = (fmt or "").lower()
@@ -1075,6 +1084,8 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
         raise HTTPException(400, detail=f"Unsupported export format '{fmt}'.")
     if target not in mesh_export.TARGETS:
         target = mesh_export.DEFAULT_TARGET
+    ops = mesh_export.normalize_export_ops(target, pack, lods, collision, uv2)
+    token = mesh_export.ops_cache_token(ops)
 
     # Locate the source GLB using the SAME candidate order as the GLB endpoint.
     glb_candidates = []
@@ -1093,49 +1104,82 @@ async def get_asset_3d_export(asset_id: str, version: int, fmt: str,
     if glb_path is None:
         raise HTTPException(404, detail=f"3D model not found for asset '{asset_id}' version {version}.")
 
-    # GLB: the pristine original, target-independent.
+    # GLB: the pristine original, target-independent (prep ops don't apply).
     if fmt == "glb":
         return FileResponse(glb_path, media_type="model/gltf-binary", filename=f"{asset_id}_3d.glb")
 
-    # FBX / USD(z): per-target cache beside the GLB (…__{target}.fbx / …__{target}.usdz).
+    # FBX / USD(z): cache beside the GLB, keyed by target + chosen ops.
     base = glb_name[:-4]  # strip ".glb"
     ext = "fbx" if fmt == "fbx" else "usdz"
+    suffix = f"__{target}" + (f"__{token}" if token else "")
     asset_dir = store.generated_asset_dir(asset_id)
-    out_path = asset_dir / f"{base}__{target}.{ext}"
+    model_path = asset_dir / f"{base}{suffix}.{ext}"
+    # Texture packing produces extra files → the artifact becomes a ZIP.
+    is_zip = ops["pack"] != "none"
+    final_path = asset_dir / f"{base}{suffix}.{ext}.zip" if is_zip else model_path
 
-    if not out_path.exists() or out_path.stat().st_size == 0:
+    if not final_path.exists() or final_path.stat().st_size == 0:
         import asyncio
         from backend.services.safe_write import named_write_lock
 
         def _convert():
-            # Serialize per (asset, version, variant, target, fmt) across workers so
-            # two concurrent downloads don't both run Blender; second waiter finds cache.
-            with named_write_lock(f"export-{asset_id}-{version}-{variant or 'default'}-{target}-{fmt}"):
-                if out_path.exists() and out_path.stat().st_size > 0:
+            # Serialize per full combination across workers; second waiter finds cache.
+            with named_write_lock(f"export-{asset_id}-{version}-{variant or 'default'}-{target}-{fmt}-{token}"):
+                if final_path.exists() and final_path.stat().st_size > 0:
                     return
-                # Build ONLY the requested format — don't spawn files the user didn't
-                # ask for. convert_mesh maps "usd" → the .usdz path we pass.
-                mesh_export.convert_mesh(str(glb_path), {fmt: out_path}, target)
+                import shutil as _shutil
+                import tempfile as _tempfile
+                import zipfile as _zipfile
+                tmpdir = Path(_tempfile.mkdtemp(prefix="artsmoker_export_"))
+                try:
+                    collision_glb = None
+                    if ops["collision"] != "none":
+                        collision_glb, n_hulls = mesh_export.build_collision_glb(
+                            str(glb_path), tmpdir / "hulls.glb", ops["collision"], target)
+                        logger.info("Export: %d collision hull(s) (%s) for %s",
+                                    n_hulls, ops["collision"], asset_id)
+                    mesh_export.convert_mesh(str(glb_path), {fmt: model_path}, target,
+                                             ops=ops, collision_glb=collision_glb)
+                    if is_zip:
+                        slug = ((_get_meta(asset_id) or {}).get("png_filename") or asset_id)
+                        slug = re.sub(r"\.[a-z0-9]+$", "", slug, flags=re.I)[:40] or "asset"
+                        tex_dir = tmpdir / "textures"
+                        mesh_export.pack_textures(str(glb_path), tex_dir, ops["pack"], slug=slug)
+                        zpath = tmpdir / "bundle.zip"
+                        with _zipfile.ZipFile(zpath, "w", _zipfile.ZIP_DEFLATED) as zf:
+                            zf.write(model_path, model_path.name)
+                            for f in sorted(tex_dir.iterdir()):
+                                zf.write(f, f"textures/{f.name}")
+                        _shutil.move(str(zpath), str(final_path))
+                        model_path.unlink(missing_ok=True)  # the zip IS the cache
+                finally:
+                    _shutil.rmtree(tmpdir, ignore_errors=True)
 
         try:
-            await asyncio.to_thread(_convert)   # Blender is blocking → off the event loop
+            await asyncio.to_thread(_convert)   # Blender/CoACD are blocking → off the event loop
         except mesh_export.MeshExportError as e:
             from backend.services import telemetry
             telemetry.track_error(error_type="mesh_export", message=str(e)[:200])
             raise HTTPException(503, detail=f"Export unavailable: {e}")
+        except Exception as e:
+            from backend.services import telemetry
+            telemetry.track_error(error_type="mesh_export", message=str(e)[:200])
+            raise HTTPException(503, detail=f"Export failed: {e}")
 
-    # Adoption telemetry: an export download is always intentional (fetch-based UI),
-    # so track unconditionally here. <a download> anchors are tracked separately via
-    # the /track-download beacon (this endpoint is never used as a display src).
+    # Adoption telemetry: an export download is always intentional (fetch-based UI).
+    # Chosen ops ride as a property (not in the event name — cardinality).
     try:
         from backend.services.telemetry import track_download
         _m = _get_meta(asset_id) or {}
         track_download(file_format=fmt, asset_type=_m.get("asset_type", ""), kind="export",
-                       engine_target=target, model=_m.get("image_model", ""), variant=variant or "")
+                       engine_target=target, model=_m.get("image_model", ""),
+                       variant=(variant or "") + (f"|ops:{token}" if token else ""))
     except Exception:
         pass
-    return FileResponse(out_path, media_type="application/octet-stream",
-                        filename=f"{asset_id}_3d_{target}.{ext}")
+    dl_name = f"{asset_id}_3d_{target}" + (f"_{token}" if token else "") + (f".{ext}.zip" if is_zip else f".{ext}")
+    return FileResponse(final_path,
+                        media_type="application/zip" if is_zip else "application/octet-stream",
+                        filename=dl_name)
 
 
 class TrackDownloadRequest(BaseModel):

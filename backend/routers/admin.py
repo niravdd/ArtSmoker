@@ -2116,11 +2116,14 @@ def _probe_and_record_temperature(model_id: str, region: str, registry: dict):
 
 @router.get("/3d/export-targets")
 async def export_targets():
-    """Engine targets for the 3D export dropdown (key + label), config-driven."""
+    """Engine targets + per-engine prep-op option lists for the 3D export
+    dropdowns (Target Engine / Texture Packing / LODs / Collision / Lightmap UV2).
+    Config-driven; the packing list varies per engine (Unity can't use UE ORM)."""
     from backend.services import mesh_export
     return {
         "targets": [{"key": k, "label": v["label"]} for k, v in mesh_export.TARGETS.items()],
         "default": mesh_export.DEFAULT_TARGET,
+        "options": {k: mesh_export.export_options_for(k) for k in mesh_export.TARGETS},
     }
 
 
