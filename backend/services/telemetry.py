@@ -226,11 +226,16 @@ def track_auto_update(updated: bool = False, from_version: str = "", to_version:
 
 def track_version_check(source: str = "", current: str = "", latest: str = "",
                         update_available: bool = False, error: str = ""):
-    """A version check was performed (startup | periodic | manual) — fired on EVERY
-    check regardless of outcome, so long-running servers emit a daily heartbeat and
-    the fleet's version-check cadence is visible. Distinct from system.auto_update,
-    which fires only when an update is actually applied (dashboard shows names only)."""
-    _track("system.version_check", source=source, current=current, latest=latest,
+    """A version check was performed — fired on EVERY check regardless of outcome,
+    so long-running servers emit a daily heartbeat and the fleet's version-check
+    cadence is visible. The SOURCE is encoded in the event NAME (PulseBoard
+    aggregates/displays by name only):
+        system.start.version_check   (server startup)
+        system.24h.version_check     (the daily background scheduler)
+        system.manual.version_check  (the /check-update endpoint)
+    Distinct from system.auto_update, which fires only when an update is applied."""
+    tag = {"startup": "start", "periodic": "24h", "manual": "manual"}.get(source, source or "unknown")
+    _track(f"system.{tag}.version_check", source=source, current=current, latest=latest,
            update_available=update_available, error=error[:200] if error else "")
 
 
