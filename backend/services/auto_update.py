@@ -115,10 +115,13 @@ def check_and_update() -> dict:
 
         result["checked"] = True
         local_ver = _read_version()
+        result["from_version"] = local_ver
 
         # Fetch remote and check version BEFORE pulling
         _git("fetch", "origin", "main", "--quiet")
         remote_ver = _read_remote_version()
+        # Always record what we saw — the startup version_check event reads these.
+        result["to_version"] = remote_ver if remote_ver and remote_ver != "unknown" else ""
 
         if not remote_ver or remote_ver == "unknown":
             result["skipped_reason"] = "Could not read remote version"
@@ -239,7 +242,17 @@ def _periodic_check_loop():
             _git("fetch", "origin", "main", "--quiet")
             remote_ver = _read_remote_version()
 
-            if not remote_ver or not _is_newer_version(remote_ver, local_ver):
+            # Every periodic check emits a version_check event (updated or not) —
+            # the daily heartbeat that a long-running server IS checking.
+            _newer = bool(remote_ver) and _is_newer_version(remote_ver, local_ver)
+            try:
+                from backend.services.telemetry import track_version_check
+                track_version_check(source="periodic", current=local_ver,
+                                    latest=remote_ver or "", update_available=_newer)
+            except Exception:
+                pass
+
+            if not _newer:
                 _update_status["checking"] = False
                 _update_status["last_check"] = time.time()
                 _update_status["message"] = ""
@@ -271,10 +284,20 @@ def _periodic_check_loop():
             _update_status["checking"] = False
             _update_status["message"] = ""
             logger.warning("Auto-update: pull failed: %s", e.stderr or e.stdout)
+            try:
+                from backend.services.telemetry import track_version_check
+                track_version_check(source="periodic", error=str(e.stderr or e.stdout or e))
+            except Exception:
+                pass
         except Exception as exc:
             _update_status["checking"] = False
             _update_status["message"] = ""
             logger.warning("Auto-update: periodic check failed: %s", exc)
+            try:
+                from backend.services.telemetry import track_version_check
+                track_version_check(source="periodic", error=str(exc))
+            except Exception:
+                pass
 
 
 # ── Core helpers ─────────────────────────────────────────────────────────

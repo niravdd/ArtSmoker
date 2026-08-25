@@ -480,16 +480,21 @@ async def lifespan(app: FastAPI):
         logger.warning("Model registry needs refresh — configure AWS credentials, then Sync from Model Settings.")
 
     # Initialize telemetry
-    from backend.services.telemetry import init as telemetry_init, track_server_start, track_server_stop, track_auto_update
+    from backend.services.telemetry import init as telemetry_init, track_server_start, track_server_stop
     telemetry_init()
 
-    # Track auto-update result first (happened before server_start)
+    # Track the startup version CHECK (happened before server_start). Note: an
+    # APPLIED update never reaches this line (check_and_update fires
+    # system.auto_update itself, then os.execv restarts) — so this event is the
+    # "checked, not updated" heartbeat, distinct by NAME for the dashboard.
     if update_result.get("checked"):
-        track_auto_update(
-            updated=update_result.get("updated", False),
-            from_version=update_result.get("from_version", ""),
-            to_version=update_result.get("to_version", ""),
-            skipped_reason=update_result.get("skipped_reason", ""),
+        from backend.services.telemetry import track_version_check
+        track_version_check(
+            source="startup",
+            current=update_result.get("from_version", ""),
+            latest=update_result.get("to_version", ""),
+            update_available=update_result.get("updated", False),
+            error=update_result.get("error", ""),
         )
 
     track_server_start()
@@ -818,6 +823,12 @@ async def check_for_update():
         except Exception:
             pass
 
+        try:
+            from backend.services.telemetry import track_version_check
+            track_version_check(source="manual", current=APP_VERSION,
+                                latest=remote_version, update_available=behind > 0)
+        except Exception:
+            pass
         return {
             "current_version": APP_VERSION,
             "latest_version": remote_version,
@@ -825,6 +836,11 @@ async def check_for_update():
             "commits_behind": behind,
         }
     except Exception as exc:
+        try:
+            from backend.services.telemetry import track_version_check
+            track_version_check(source="manual", current=APP_VERSION, error=str(exc))
+        except Exception:
+            pass
         return {
             "current_version": APP_VERSION,
             "latest_version": None,

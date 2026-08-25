@@ -224,6 +224,16 @@ def track_auto_update(updated: bool = False, from_version: str = "", to_version:
            to_version=to_version, commits=commits, skipped_reason=skipped_reason)
 
 
+def track_version_check(source: str = "", current: str = "", latest: str = "",
+                        update_available: bool = False, error: str = ""):
+    """A version check was performed (startup | periodic | manual) — fired on EVERY
+    check regardless of outcome, so long-running servers emit a daily heartbeat and
+    the fleet's version-check cadence is visible. Distinct from system.auto_update,
+    which fires only when an update is actually applied (dashboard shows names only)."""
+    _track("system.version_check", source=source, current=current, latest=latest,
+           update_available=update_available, error=error[:200] if error else "")
+
+
 # ── Custom Model Events ───────────────────────────────────────────
 # Prefixed with studio name so they group with their parent studio in PulseBoard.
 # e.g. image_studio.custom.deploy, video_studio.custom.invoke
