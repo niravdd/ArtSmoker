@@ -1469,6 +1469,73 @@ class AnalyzeSourceRequest(BaseModel):
     version: int = 1
 
 
+def _loads_tolerant_json_object(txt: str) -> dict:
+    """Parse the vision LLM's reply (from its first '{') into a dict, repairing the
+    failure modes actually seen in the wild: // line comments (echoed from a schema
+    example), trailing commas, prose after the object, and a reply TRUNCATED by
+    max_tokens (unterminated string / unclosed braces — the fields that DID
+    complete are salvaged). String-aware throughout, so '//' inside a value
+    survives. Raises json.JSONDecodeError if nothing parseable remains."""
+    import re as _re
+    try:
+        return json.loads(txt)
+    except json.JSONDecodeError:
+        pass
+    # Pass 1: strip // comments outside strings.
+    out, in_str, esc, i = [], False, False, 0
+    while i < len(txt):
+        ch = txt[i]
+        if in_str:
+            out.append(ch)
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+        elif ch == '"':
+            in_str = True
+            out.append(ch)
+        elif ch == "/" and i + 1 < len(txt) and txt[i + 1] == "/":
+            while i < len(txt) and txt[i] != "\n":
+                i += 1
+            continue
+        else:
+            out.append(ch)
+        i += 1
+    s = _re.sub(r",\s*([}\]])", r"\1", "".join(out))
+    # Pass 2: bracket scan — cut where the top-level object CLOSES (drops trailing
+    # prose); if it never closes, the reply was truncated → salvage below.
+    stack, in_str, esc = [], False, False
+    last_good, stack_at_good = 0, 0   # position just after the last COMPLETED value
+    for i, ch in enumerate(s):
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+                last_good, stack_at_good = i + 1, len(stack)
+        elif ch == '"':
+            in_str = True
+        elif ch in "{[":
+            stack.append("}" if ch == "{" else "]")
+        elif ch in "}]":
+            if stack:
+                stack.pop()
+            last_good, stack_at_good = i + 1, len(stack)
+            if not stack:
+                return json.loads(s[: i + 1])
+    # Truncated: keep up to the last completed value, drop any dangling
+    # partial key ("missing" / "missing":), then close what's still open.
+    cand = s[:last_good].rstrip().rstrip(",")
+    cand = _re.sub(r',\s*"(?:[^"\\]|\\.)*"\s*:?\s*$', "", cand)
+    cand = _re.sub(r'([{[])\s*"(?:[^"\\]|\\.)*"\s*:?\s*$', r"\1", cand)
+    closers = "".join(reversed(stack[:stack_at_good]))
+    return json.loads(cand + closers)
+
+
 def _analyze_source_bytes(img_bytes: bytes, meta: dict) -> dict:
     """Core completeness analysis on raw image bytes (shared by /analyze-source and
     /prepare-source). Vision LLM + deterministic alpha-edge override. Conservative:
@@ -1483,6 +1550,7 @@ def _analyze_source_bytes(img_bytes: bytes, meta: dict) -> dict:
         or "(no prompt recorded — judge purely from the image)"
     )[:1200]
 
+    txt = ""
     try:
         from backend.services.bedrock_client import invoke_llm
         from backend.services.prompt_templates import get_template, get_system_prompt
@@ -1493,15 +1561,25 @@ def _analyze_source_bytes(img_bytes: bytes, meta: dict) -> dict:
         # PNGs (~6.6 MB) that otherwise fail with a ValidationException, silently
         # defaulting the whole analysis to "complete".
         vision_bytes = _fit_image_for_vision(img_bytes)
+        # max_tokens must comfortably fit the full JSON: at 400 the reply was
+        # routinely TRUNCATED mid-outpaint_prompt (never closed → parse failure →
+        # "Couldn't auto-check" on every review).
         raw = invoke_llm(prompt, system=system, complexity="complex",
-                         images=[vision_bytes], max_tokens=400, temperature=0.0)
+                         images=[vision_bytes], max_tokens=1000, temperature=0.0)
         txt = (raw or "").strip()
         if "```" in txt:
             txt = txt.split("```")[1].lstrip("json").strip() if txt.count("```") >= 2 else txt
-        start, end = txt.find("{"), txt.rfind("}")
-        data = json.loads(txt[start:end + 1]) if start >= 0 and end > start else {}
+        start = txt.find("{")
+        # Take everything from the first '{' — NOT find('{')..rfind('}'): on a
+        # truncated reply rfind('}') is an inner object's brace, which silently
+        # hands the parser a mid-structure fragment. The tolerant parser trims
+        # any trailing prose/truncation itself.
+        data = _loads_tolerant_json_object(txt[start:]) if start >= 0 else {}
     except Exception as e:
-        logger.info("3D source analysis unavailable (%s) — defaulting to complete", e)
+        # Log a snippet of the raw reply so a recurring parse failure is
+        # diagnosable from the log alone (was: error message only).
+        logger.info("3D source analysis unavailable (%s) — defaulting to complete; raw: %r",
+                    e, txt[:300])
         return {"complete": True, "analyzed": False}
 
     complete = bool(data.get("complete", True))

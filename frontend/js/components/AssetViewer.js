@@ -2897,14 +2897,23 @@
             // Otherwise this is just a re-analysis, so show "Reviewing…".
             if (reviewBtn) {
                 reviewBtn.disabled = true;
-                // No removal needed if we've already prepared the cutout this session
-                // OR the current version is itself a background-removed edit (the
-                // server serves it directly, skipping removal). Check the version's
-                // recorded type/op — mirrors the backend's _version_is_bg_free.
+                // No removal needed if the version is itself background-free OR the
+                // cutout already exists SERVER-SIDE (it's cached across sessions —
+                // the per-session _sourceCutoutReady memory alone made reopened
+                // viewers claim "Removing background…" for work the server skips).
                 const vrec = (this._meta?.versions || []).find(v => v.version === version);
-                const alreadyBgFree = vrec && (vrec.type === 'remove_background'
+                const alreadyBgFree = vrec && (vrec.type === 'remove_background' || vrec.bg_free
                     || (vrec.edit_context && vrec.edit_context.op === 'remove_background'));
-                const needsBgRemoval = !this._sourceCutoutReady?.[version] && !alreadyBgFree;
+                let cutoutExists = !!this._sourceCutoutReady?.[version];
+                if (!cutoutExists && !alreadyBgFree) {
+                    // Cheap local probe of the shared cutout artefact (same one the
+                    // Export & Cutouts tab reports).
+                    try {
+                        const st = await API.gallery.exportStatus(this._item?.id, version);
+                        cutoutExists = !!st?.nobg_png?.exists;
+                    } catch { /* unknown → assume removal so the label never under-promises */ }
+                }
+                const needsBgRemoval = !cutoutExists && !alreadyBgFree;
                 // nosemgrep
                 reviewBtn.innerHTML = html`<span class="spinner-sm"></span> ${needsBgRemoval
                     ? t('artsmoker.ui.asset_viewer.three_d_src_removing_bg')
@@ -3108,7 +3117,13 @@
                             <summary class="px-3 py-2 text-[11px] text-brand-text-muted cursor-pointer">${t('artsmoker.ui.asset_viewer.three_d_src_pv_adjust')}</summary>
                             <div class="px-3 pb-3 pt-1 space-y-2">
                                 <div>
-                                    <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${t('artsmoker.ui.asset_viewer.three_d_src_prompt_label')}</label>
+                                    <div class="flex items-center justify-between">
+                                        <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${t('artsmoker.ui.asset_viewer.three_d_src_prompt_label')}</label>
+                                        <button id="av-sr-suggest" type="button" class="text-[10px] text-violet-300 hover:text-violet-200 flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-violet-500/10 transition-colors" title="${t('artsmoker.ui.asset_viewer.suggest_prompt_title')}">
+                                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                                            <span>${t('artsmoker.ui.asset_viewer.suggest_prompt')}</span>
+                                        </button>
+                                    </div>
                                     <textarea id="av-sr-prompt" rows="2" class="input text-xs w-full" placeholder="${t('artsmoker.ui.asset_viewer.three_d_src_prompt_ph')}"></textarea>
                                 </div>
                                 <!-- Optional edit-model override — shown only when an instruction editor is deployed. -->
@@ -3260,16 +3275,22 @@
                     }
                 };
 
-                // Extend: first click reveals the panel + ruler; with an amount set, runs.
+                // Extend: strictly two-step. The op only runs when the adjustment
+                // panel is OPEN — a first click always reveals the panel (with any
+                // seeded amounts/prompt) so the user can review before it fires.
+                // Previously, analysis-seeded directions made the FIRST click run
+                // the op immediately ("straight to Completing…") with values the
+                // user never saw.
                 extendBtn.addEventListener('click', () => {
                     if (working) return;
                     if (fillMode) disableFillMode();
                     const dirs = readDirs();
-                    if (!Object.values(dirs).some(v => v > 0)) {
+                    const panelOpen = !extendPanel.classList.contains('hidden') && extendPanel.open;
+                    if (!panelOpen || !Object.values(dirs).some(v => v > 0)) {
                         extendPanel.classList.remove('hidden'); extendPanel.open = true;
                         this._showMeasurement(backdrop);
                         const downInput = $('#av-sr-down');
-                        if (downInput && !parseInt(downInput.value, 10)) { downInput.value = 256; downInput.focus(); }
+                        if (downInput && !Object.values(dirs).some(v => v > 0)) { downInput.value = 256; downInput.focus(); }
                         this._redrawMeasurement?.();
                         return;
                     }
@@ -3284,6 +3305,46 @@
                         if (e.target && parseInt(e.target.value, 10) < 0) e.target.value = '0';
                         this._redrawMeasurement?.();
                     });
+                });
+
+                // ✨ Generate Prompt — the SAME vision suggester as the Edit tab's
+                // Extend mode (/suggest-edit-prompt): reads the version image +
+                // original prompt, fills the extend prompt, and seeds directions
+                // when it suggests any. Covers the case where the initial
+                // auto-check couldn't run (no prompt was seeded).
+                $('#av-sr-suggest')?.addEventListener('click', async () => {
+                    const sbtn = $('#av-sr-suggest'), sLabel = sbtn?.querySelector('span');
+                    const origLabel = sLabel?.textContent;
+                    if (sbtn) sbtn.disabled = true;
+                    if (sLabel) sLabel.textContent = t('artsmoker.ui.asset_viewer.suggest_prompt_working');
+                    try {
+                        const resp = await fetch('/api/generate/suggest-edit-prompt', {
+                            method: 'POST', headers: { 'Content-Type': 'application/json' },
+                            // nosemgrep -- serialized HTTP request body; key ordering is irrelevant (not used as an object/map key)
+                            body: JSON.stringify({
+                                asset_id: this._item?.id,
+                                version,
+                                mode: 'outpaint',
+                                model: $('#av-sr-edit-model')?.value || '',
+                            }),
+                        });
+                        if (!resp.ok) throw new Error(String(resp.status));
+                        const d = await resp.json();
+                        const p = $('#av-sr-prompt'); if (p && d.prompt) p.value = d.prompt;
+                        // Seed directions only when the suggestion has any — never
+                        // zero-out amounts the user already set.
+                        const sg = d.suggest_outpaint || {};
+                        if (['left', 'right', 'up', 'down'].some(dd => sg[dd] > 0)) {
+                            // nosemgrep -- $ is a local backdrop.querySelector shim (not jQuery); dd is a fixed left/right/up/down set, never user data
+                            ['left', 'right', 'up', 'down'].forEach(dd => { const el = $(`#av-sr-${dd}`); if (el && sg[dd] != null) el.value = sg[dd]; });
+                            this._redrawMeasurement?.();
+                        }
+                    } catch (e) {
+                        window.showToast?.(t('artsmoker.ui.asset_viewer.suggest_prompt_failed'), 'error');
+                    } finally {
+                        if (sbtn) sbtn.disabled = false;
+                        if (sLabel) sLabel.textContent = origLabel;
+                    }
                 });
 
                 // Fill: first click enters mask mode; second (with a mask) runs.

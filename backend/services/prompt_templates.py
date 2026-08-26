@@ -76,24 +76,25 @@ Return STRICT JSON with exactly these keys:
   "subject": "short noun naming the subject as you see it, grounded in the prompt (e.g. 'armored diver', 'four-wheeled buggy', 'winged dragon')",
   "expected_extent": "one phrase describing what the WHOLE subject should include, so completeness is checkable (e.g. 'full body head-to-feet with ground below', 'entire vehicle incl. all wheels', 'creature incl. tail and both wings')",
   "observed": "what you actually see relative to that extent — name any part that meets/exits a frame edge or looks broken (e.g. 'legs run off the bottom edge', 'rear wheel cut at right', 'all present and clean')",
-  "complete": true|false,                 // true only if the whole intended subject is in-frame AND clean
-  "crop_edges": ["bottom"|"top"|"left"|"right"],   // frame edges where the subject is cut off; [] if none
-  "missing": ["short parts, e.g. 'legs','tail','rear wheel'"],   // parts of the intended subject not fully visible; [] if none
-  "suggest_outpaint": {{"down": 0-512, "up": 0-512, "left": 0-512, "right": 0-512}}, // px to extend per cropped edge to reveal the rest; 0 where not needed
+  "complete": true|false,
+  "crop_edges": ["bottom"|"top"|"left"|"right"],
+  "missing": ["short parts, e.g. 'legs','tail','rear wheel'"],
+  "suggest_outpaint": {{"down": 0-512, "up": 0-512, "left": 0-512, "right": 0-512}},
   "outpaint_prompt": "describe what to draw in the EXTENDED area (the missing parts + material/colour/style detail to blend), scoped to the new region; '' if not cropped",
-  "defect": "none|cropped|artifact",      // none = complete & clean; cropped = part cut off by frame (outpaint); artifact = fully in-frame but a region is broken (inpaint)
+  "defect": "none|cropped|artifact",
   "defect_area": "short phrase naming the broken region (defect=artifact only; '' otherwise)",
   "reason": "one short sentence a user can read"
 }}
 
 Rules:
+- Key meanings: complete = true ONLY if the whole intended subject is in-frame AND clean. crop_edges = frame edges where the subject is cut off ([] if none). missing = parts of the intended subject not fully visible ([] if none). suggest_outpaint = px to extend per cropped edge to reveal the rest (0 where not needed). defect = none (complete & clean) | cropped (part cut off by frame → outpaint) | artifact (fully in-frame but a region is broken → inpaint).
 - Judge completeness against the INTENDED subject and its own natural form — never against a fixed 'head/torso/legs' template. Count only the parts THIS subject should have.
 - CROP TEST first: trace the subject to all four edges. Any expected part touching or sliced by an edge → defect="cropped", list the edge in crop_edges, set the matching suggest_outpaint direction, and describe the missing part in outpaint_prompt. (For a standing figure, feet you cannot fully see with a gap beneath = cropped.)
 - If fully in-frame but a region is malformed/garbled/blurred/fused/duplicated → complete=false, defect="artifact", all suggest_outpaint 0 (extending won't fix content), name the region in defect_area.
 - If the whole intended subject is present and clean → complete=true, defect="none", empty arrays, all outpaint values 0, outpaint_prompt "", defect_area "".
-- outpaint_prompt (cropped only): describe ONLY the extended region — the missing parts plus enough material/colour/style detail to blend seamlessly. Do NOT re-describe the whole scene, camera, or pose.
+- outpaint_prompt (cropped only): describe ONLY the extended region — the missing parts plus enough material/colour/style detail to blend seamlessly. Do NOT re-describe the whole scene, camera, or pose. Keep it under 50 words; keep every other prose field to one short phrase/sentence.
 - Be conservative: when genuinely unsure, prefer complete=true / defect="none" (avoid false alarms on well-framed, clean art).
-- Output ONLY the JSON object.""",
+- Output ONLY the JSON object — strict JSON: no // comments, no trailing commas, no markdown fences.""",
     },
     "edit_prompt_suggestion": {
         "label": "Edit Prompt Suggestion (per-mode, model-aware)",
