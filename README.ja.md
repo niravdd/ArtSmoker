@@ -17,7 +17,7 @@
 - **アーティストではなくエンジニア向けに作られている** — 最良のモデルは、クラウドコンソール、コマンドライン、SDK、REST APIの背後にあります。ディレクターやコンセプトアーティストが、アート作品を作るためにターミナルを必要とするべきではありません。
 - **明確なアイデア、難解なプロンプト** — アーティストは自分が何を求めているかを正確に分かっていますが、モデルは平易なクリエイティブ言語での指示を受け付けません。一貫した、ブリーフに沿った結果は、依然としてプロンプトの構造、ネガティブプロンプト、そしてブリーフと出力の間に横たわるモデル固有の言い回しに左右されます。
 - **最良のAIモデルは散在していて、動かすのが難しい** — 画像・編集・3D・動画向けの強力なAIモデルが、さまざまなプロバイダーやフォーマットで絶えずリリースされます。そのそれぞれを立ち上げること（パッケージング、GPU、量子化、スケーリング）は、それ自体が一つの本格的なエンジニアリングプロジェクトです。
-- **編集と3Dは別世界** — インペインティング、アウトペインティング、リライティング、参照ガイド編集、そして2Dコンセプトをテクスチャ付き3Dモデルに変えることは、通常それぞれに独自のツール、API、専門家を必要とします。
+- **編集と3Dは別世界** — インペインティング、アウトペインティング、リカラー、参照ガイド編集、そして2Dコンセプトをテクスチャ付き3Dモデルに変えることは、通常それぞれに独自のツール、API、専門家を必要とします。
 - **ブランドの統一は手作業** — すべてのアセットを確立されたルックに忠実に保つことは、通常、各生成を手作業で見守ることを意味します。
 
 ### 📝 ソリューション
@@ -26,7 +26,7 @@ ArtSmokerは、今日最良の生成モデルを1つのアーティストファ�
 
 - **平易な言葉で説明するだけ** — ArtSmokerが、プロンプトの分解、強化、モデル固有の最適化を裏側で処理します。ガイド付きの**Prompt Designer**では、個々のビジュアル要素（被写体、シーン、照明、色）をロック/バリエーションコントロールで形づくり、すでにうまくいっているものを失うことなく、真に異なる方向性を探れます。
 - **デフォルトでブランドに準拠** — ArtSmokerに既存のアートを与えると、そのビジョンモデルがあなたのビジュアルアイデンティティを学習するため、生成されるすべてのアセットがプロジェクトのルック＆フィールに合致します。
-- **2Dで、編集し、3Dへ — エンドツーエンド** — 生成し、その場でインペインティング、アウトペインティング、リライティング、検索＆置換、参照ガイド編集で改良できます。任意の2Dアセットを、Unity、Unreal、Blenderに直接ドロップできる**完全にテクスチャリングされた、ゲームエンジン対応の3Dモデル**へと変えます — 手動モデリング、UV展開、テクスチャペイントは不要です。さらに、シネマティックな動画と、アイデア出しのためのマルチモデルチャットスタジオも。
+- **2Dで、編集し、3Dへ — エンドツーエンド** — 生成し、その場でインペインティング、アウトペインティング、リカラー、検索＆置換、参照ガイド編集で改良できます。任意の2Dアセットを、Unity、Unreal、Blenderに直接ドロップできる**完全にテクスチャリングされた、ゲームエンジン対応の3Dモデル**へと変えます — 手動モデリング、UV展開、テクスチャペイントは不要です。さらに、シネマティックな動画と、アイデア出しのためのマルチモデルチャットスタジオも。
 - **あらゆるモデルを、ワンクリックで** — 各リージョンにわたる最新のホスト型モデルを使うか、キュレーションされたオープンソースモデル（Qwen-Image、FLUX.2、HunyuanImage、TripoSG、TRELLIS.2など）を、シングルクリックであなた自身のGPUにデプロイできます — パッケージング、量子化、オートスケーリング、ジョブトラッキングはすべて処理され、すべてのモデルは出荷前にエンドツーエンドで検証されています。
 - **好きな場所で動作 — そしてあなたのIPはあなたのもの** — 1人のアーティストのデスクトップにも、チーム全体で共有するインスタンスにもインストールできます。**あなた自身のGPUは不要**です（重い計算はマネージドなAWSサービス上、またはArtSmokerが立ち上げてゼロまでスケールバックしてくれるオートスケーリングエンドポイント上で実行されます）。接続先はあなた自身のAWSアカウントのみ — アートワーク、プロンプト、スタイル、生成されたアセットはあなたの環境内に留まり、サードパーティサービスには何も送られず、クリエイティブIPの完全な所有権を保持できます。
 
@@ -281,6 +281,7 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 | タイプ | 構図 | フレーミング | 技術的アプローチ |
 |------|-------------|---------|-------------------|
+| **Photorealistic Image** *(デフォルト)* | 自然な写真のようなフレーミング — 文脈に合った実在の環境の中の被写体。 | 実世界のカメラ視点：アイレベル、ポートレートは浅い被写界深度、風景はワイド。 | 写真用語で指示（ゴールデンアワー、スタジオソフトボックス、焦点距離の感覚）し、肌の質感・布のしわ・風化といった自然な不完全さを含む。イラスト用語やレンダリングエンジンの専門用語は使わない。 |
 | **Game Asset** | 透明背景に単一の分離されたオブジェクト。シーン、テキスト、UIなし。 | 正面またはアイソメトリック、オブジェクトがフレームの70〜80%を占める。 | 背景除去用のクリーンでシャープなエッジ、一貫した左上からの照明、地面の影なし。さまざまなスケールで他のゲームアセットと合成できるよう設計。 |
 | **Character** | クリーンな背景に分離された、フルボディまたは3/4ボディのフィギュア。キャラクターは1体のみ。 | キャラクターが縦の60〜75%を占め、頭からつま先まで、やや中心からずらして。 | 強く読みやすいシルエット（シルエットだけで識別可能）、パーソナリティを伝える表現力のあるポーズ、明確な顔の特徴と衣装のディテール。 |
 | **Icon** | 単一の大胆で認識しやすいシンボル、たっぷりのパディングで中央配置。最大限のシンプルさ。 | 正面またはわずかな3/4傾き、エッジに余白。 | 64x64ピクセルで明確に読めること。高コントラスト、最大3〜5色、大胆な形状、細い線や細かいディテールなし。 |
@@ -468,7 +469,7 @@ aws bedrock-runtime invoke-model --region us-west-2 \
 # (Substitute any Claude model ID you have access to — e.g. the current Sonnet
 #  inference profile from Test 1's list; the exact version rolls over time.)
 aws bedrock-runtime converse --region us-west-2 \
-  --model-id us.anthropic.claude-sonnet-4-6 \
+  --model-id us.anthropic.claude-sonnet-5 \
   --messages '[{"role":"user","content":[{"text":"hi"}]}]' \
   --inference-config '{"maxTokens":1}' \
   --query "output.message.content[0].text" --output text 2>&1 && echo "Converse: OK" || echo "Converse: FAILED"
@@ -554,8 +555,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
         "bedrock:GetCustomModel",
         "bedrock:GetImportedModel",
         "bedrock:ListProvisionedModelThroughputs",
-        "bedrock:ListCustomModelDeployments",
-        "bedrock:CreateInference"
+        "bedrock:ListCustomModelDeployments"
       ],
       "Resource": "*"
     },
@@ -670,7 +670,7 @@ ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not inst
 ### 📝 3.1 macOS
 
 ```bash
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
 # Option A: With virtual environment (recommended)
 python3 -m venv .venv
@@ -690,7 +690,7 @@ pip3 install -r backend/requirements.txt
 # Install Python if needed
 sudo apt update && sudo apt install python3 python3-pip python3-venv
 
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
 # Option A: With virtual environment (recommended)
 python3 -m venv .venv
@@ -707,7 +707,7 @@ pip3 install --user -r backend/requirements.txt
 ### 📝 3.3 Windows
 
 ```powershell
-git clone <repo-url>
+git clone https://github.com/niravdd/ArtSmoker.git
 cd ArtSmoker
 
 # Option A: With virtual environment (recommended)
@@ -836,7 +836,7 @@ aws ec2 associate-iam-instance-profile \
 sudo yum install -y python3 python3-pip git   # Amazon Linux
 # sudo apt install -y python3 python3-pip python3-venv git   # Ubuntu
 
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
@@ -917,7 +917,7 @@ ArtSmokerが起動したら、最良の結果を得るために次のステッ�
 
 **3. スタイルプロファイルをセットアップ**（オプション） — **Style Library**に移動し、新しいスタイルを作成し、リファレンス画像をアップロードして、**Analyze**をクリックします。これにより、ArtSmokerにあなたのビジュアルアイデンティティを教えます。
 
-**4. 言語を選択** — 英語以外のインターフェースを好む場合は、ナビバーの言語ボタン（EN | JA | ZH | KO | FR | ES）をクリックしてください。
+**4. 言語を選択** — 英語以外のインターフェースを好む場合は、ナビバーの言語ボタン（EN | 日 | 中 | 한 | हिं | РУ | FR | ES | DE）をクリックしてください。
 
 ## 📌 5. アーキテクチャ
 
@@ -1274,14 +1274,16 @@ Prompt Designerが開く前に、**AIアセットタイプ分類**が実行さ�
 すべてのAIモデル設定は`backend/model_registry.json`に集約されています — 信頼できる唯一の情報源です。モデル、リージョン、料金、品質ティア、フォーマットテンプレートはすべてここに保存され、UIまたはAPIを通じて管理されます：
 
 - 任意のスタジオのサイドバーで**「Model Settings」**をクリックすると管理モーダルが開きます — そのスタジオに関連するタブが開きます。
-- スタジオ別に整理された**7つのタブ**：
+- スタジオ別に整理された**9つのタブ**：
   - **Image Studio** — 画像生成モデル（SD 3.5 Large、Stable Image Ultra、Stable Image Core、さらにセルフホストのFLUX、HunyuanImage、Qwen-Image）、リージョン、品質ティア、プロンプト制限、モデレーション厳格度
   - **Video Studio** — 動画モデル（Nova Reel、Luma Ray）、S3バケット設定、リージョン、料金
   - **Chat Studio** — 検出されたチャット/LLMモデル（16プロバイダーから80以上）、コンテキストウィンドウ、ビジョン機能、1Kトークンあたりの料金
   - **Type Studio** — テキストレイアウト生成用のLLMモデル（Complexまたはfast LLM）
   - **Shared Studio** — スタジオ横断のLLMカテゴリ（Fast LLM、Complex LLM、Fallback LLM、Voice）、後処理モデル（背景削除、アップスケール）
+  - **Custom Models** — セルフホストモデルカタログ：SageMakerエンドポイントのデプロイ・監視・破棄（セクション6.12参照）
   - **Prompt Templates** — 6つのワークフローセクションに整理された28の編集可能なLLM指示プロンプト（セクション4.4参照）
   - **Registry JSON** — 完全なモデルレジストリ用の生のJSONエディタ
+  - **Maintenance** — マネージドツールの状態（例：FBX/USDエクスポート用のヘッドレスBlender — パス、バージョン、オンデマンド更新）
 - すべてのセクションは、素早いナビゲーションのための**Show All / Hide All**トグル付きで**折りたたみ可能**です。
 - LLMカテゴリと後処理は、**ドロップダウンモデルピッカー**（検出されたモデルから populate）を使用します — 生のテキストフィールドではありません。
 - **Sync from AWS**：すべてのBedrockサポート対象AWSリージョン（動的に検出）をスキャンし、新しい画像、動画、**チャットモデル**を自動登録し、リージョンの可用性を更新し、AWS Pricing APIからモデルごとの料金を取得し、利用できなくなったモデルを無効化します。**ライブ進捗オーバーレイ**が、スキャンされる各リージョンをストリーミングします。これはAWS検出APIを呼び出す**唯一の**アクションです — 他のすべての操作はキャッシュされたレジストリから読み取ります。
@@ -1333,13 +1335,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 
 **コスト見積もり**は、すべての選択（モデル×品質×リージョン×オプション×バリエーション）に基づいて動的に更新されます。
 
-**フォーマットファミリー**：モデルは、レジストリ（`format_families`）からリクエストテンプレートを読み取る汎用インボーカー（`invoke_image_model`）を通じて呼び出されます。現在、画像生成（2）、画像編集（8）、後処理（2）、動画生成（2）をカバーする15ファミリー：
-- **画像生成**：`stability_text_to_image`（SD 3.5 Large、Stable Image Ultra、Stable Image Core）、さらにFLUX、HunyuanImage、Qwen-Image用のセルフホストファミリー（`sagemaker_*`）
-- **画像編集**：`amazon_inpainting`、`amazon_outpainting`、`stability_inpaint`、`stability_outpaint`、`stability_erase`、`stability_search_replace`、`stability_search_recolor`、`stability_control`、`stability_style_transfer`
-- **後処理**：`stability_remove_bg`、`stability_upscale`
-- **動画**：`nova_reel`、`luma_ray`
-
-新しいBedrock画像モデルの追加にはコード変更が一切不要です — 正しいフォーマットファミリーで、Admin APIまたは自動検出を通じて登録するだけです。
+**フォーマットファミリー**：モデルは、レジストリ（`format_families`）からリクエストテンプレートを読み取る汎用インボーカーを通じて呼び出されます — 生成、編集、後処理、動画のすべてがテンプレート駆動です。新しいBedrock画像モデルの追加には**コード変更が一切不要**：正しいフォーマットファミリーで（自動検出またはAdmin API経由で）登録するだけです。ファミリーの完全なカタログは[SPEC.md](SPEC.md)にあります。
 
 **モデル最適化されたプロンプトエンジニアリング**：プロンプトは、[AWSドキュメント](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html)に従って、コマンドではなく説明的なキャプションとして自動的に構造化されます。否定語はメインプロンプトから削除され、除外用語は別の**ネガティブプロンプト**として送信されます。プロンプトは、レジストリの各モデル固有の`prompt_limit`に切り詰められます。
 
@@ -1358,7 +1354,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 | AI (チャット) | Bedrock ConverseStream経由で16プロバイダーから80以上のLLM（Claude、Nova、Llama、Mistralなど） |
 | AI (動画) | Nova Reel v1.0/v1.1（最大2分）、Luma AI Ray v2（最大9秒） |
 | AI (音声) | Nova Sonic（双方向ストリーミング経由の音声テキスト変換） |
-| i18n | カスタムt()関数、817キー×6言語、逆引きDOM翻訳 |
+| i18n | カスタムt()関数、約1,500キー×9言語、逆引きDOM翻訳 |
 | SVG変換 | vtracer（主要）、potrace（フォールバック）、Pillow（最終手段） |
 | テキストレンダリング | Pillow（影、アウトライン、グロー効果） |
 | ストレージ | ローカルファイルシステム（S3対応インターフェース） |
@@ -1501,12 +1497,8 @@ ArtSmoker/
 │       ├── app.js               # SPA router + DOM caching + navigation + showConfirm()
 │       ├── i18n/
 │       │   ├── i18n.js          # Core: t() function, language switching, reverse lookup
-│       │   ├── en.json          # English (base) — 817 keys
-│       │   ├── ja.json          # Japanese
-│       │   ├── zh.json          # Simplified Chinese
-│       │   ├── ko.json          # Korean
-│       │   ├── fr.json          # French
-│       │   └── es.json          # Spanish
+│       │   ├── en.json          # English (base) — ~1,500 keys
+│       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 translations
 │       ├── services/api.js      # Backend API client
 │       └── components/
 │           ├── ImageStudio.js   # 2D Image Studio (options × variations)

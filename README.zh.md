@@ -17,7 +17,7 @@
 - **它是为工程师而非艺术家打造的** —— 最好的模型都藏在云控制台、命令行、SDK 和 REST API 之后。没有哪位导演或概念艺术家应该为了创作一件作品而去使用终端。
 - **清晰的创意，晦涩的提示词** —— 艺术家清楚自己想要什么，但模型并不接受用平实创意语言下达的指令；一致且贴合简报的结果，仍然取决于夹在简报与成品之间的提示词结构、负面提示词和模型特定措辞。
 - **最好的 AI 模型分散且难以运行** —— 强大的图像、编辑、3D 和视频 AI 模型不断跨越不同供应商和格式推出；把每一个都搭建起来（打包、GPU、量化、缩放）本身就是一个完整的工程项目。
-- **编辑与 3D 是彼此割裂的世界** —— 局部重绘、扩展绘制、重新打光、参考引导编辑，以及将 2D 概念转换为带纹理的 3D 模型，通常各自都需要独立的工具、API 和专家。
+- **编辑与 3D 是彼此割裂的世界** —— 局部重绘、扩展绘制、重新着色、参考引导编辑，以及将 2D 概念转换为带纹理的 3D 模型，通常各自都需要独立的工具、API 和专家。
 - **保持品牌一致靠人工** —— 让每个资产都忠于您既定的外观，通常意味着要手动盯着每一次生成。
 
 ### 📝 解决方案
@@ -26,7 +26,7 @@ ArtSmoker 是一个自托管的创意工作室，将当今最好的生成式模�
 
 - **用自然语言描述** —— ArtSmoker 在幕后处理提示词分解、增强和模型特定优化。引导式 **Prompt Designer** 让您塑造每个视觉元素 —— 主体、场景、光照、颜色 —— 并借助锁定/变化控制去探索真正不同的方向，同时不丢失已经奏效的部分。
 - **默认贴合品牌** —— 把您现有的美术作品交给 ArtSmoker，它的视觉模型会学习您的视觉标识，因此每个资产产出时都会匹配您项目的外观与风格。
-- **2D、编辑与 3D —— 端到端** —— 先生成，再用局部重绘、扩展绘制、重新打光、搜索替换和参考引导编辑就地精调；将任意 2D 资产转换为**完全纹理化、游戏引擎可用的 3D 模型**，可直接放入 Unity、Unreal 或 Blender —— 无需手动建模、UV 展开或纹理绘制。另外还有电影级视频和用于构思的多模型聊天工作室。
+- **2D、编辑与 3D —— 端到端** —— 先生成，再用局部重绘、扩展绘制、重新着色、搜索替换和参考引导编辑就地精调；将任意 2D 资产转换为**完全纹理化、游戏引擎可用的 3D 模型**，可直接放入 Unity、Unreal 或 Blender —— 无需手动建模、UV 展开或纹理绘制。另外还有电影级视频和用于构思的多模型聊天工作室。
 - **每个模型，一键搞定** —— 跨区域使用最新的托管模型，或将精选的开源模型（Qwen-Image、FLUX.2、HunyuanImage、TripoSG、TRELLIS.2 等）一键部署到您自己的 GPU 上 —— 打包、量化、自动缩放和任务跟踪全部处理妥当，每个模型在发布前都经过端到端验证。
 - **在您想要的地方运行 —— 您的 IP 始终归您所有** —— 将它安装在单个艺术家的桌面上，或安装在供整个团队共享的实例上；**无需您自己的 GPU**（繁重的计算运行在托管的 AWS 服务上，或运行在 ArtSmoker 为您启动并在空闲时缩回至零的自动缩放端点上）。它只连接到您自己的 AWS 账户 —— 作品、提示词、风格和生成的资产都留在您的环境中，没有任何内容流向第三方服务，您对自己的创意 IP 保留完全的所有权。
 
@@ -281,6 +281,7 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 | 类型 | 构图 | 取景 | 技术方法 |
 |------|-------------|---------|-------------------|
+| **Photorealistic Image** *(默认)* | 自然、照片般的构图 —— 主体处于符合语境的真实场景中。 | 真实相机视角：平视角度，人像用浅景深，风景用广角。 | 以摄影语言描述（黄金时刻、影棚柔光箱、焦距感），保留自然瑕疵 —— 皮肤纹理、织物褶皱、风化痕迹。绝不使用插画词汇或渲染引擎术语。 |
 | **Game Asset** | 透明背景上的单个分离对象。无场景、无文字、无 UI。 | 正面或等距视角，对象占据画面的 70-80%。 | 用于背景去除的干净锐利边缘，一致的左上方光照，无地面阴影。设计用于在各种比例下与其他游戏资产组合。 |
 | **Character** | 干净背景上分离的全身或 3/4 身人物。仅一个角色。 | 角色占垂直空间的 60-75%，从头到脚，略偏离中心。 | 强可读的轮廓（仅凭轮廓即可识别），传达个性的表现力姿势，清晰的面部特征和服装细节。 |
 | **Icon** | 单个醒目的可识别符号，居中放置并留有充足内边距。追求最大简洁性。 | 正面或略微 3/4 倾斜，边缘留有余量。 | 必须在 64x64 像素下清晰可读。高对比度，最多 3-5 种颜色，粗体形状，无细线或精细细节。 |
@@ -468,7 +469,7 @@ aws bedrock-runtime invoke-model --region us-west-2 \
 # （替换为任意您有权访问的 Claude 模型 ID —— 例如测试 1 列表中当前的
 #  Sonnet 推理配置文件；具体版本会随时间滚动。）
 aws bedrock-runtime converse --region us-west-2 \
-  --model-id us.anthropic.claude-sonnet-4-6 \
+  --model-id us.anthropic.claude-sonnet-5 \
   --messages '[{"role":"user","content":[{"text":"hi"}]}]' \
   --inference-config '{"maxTokens":1}' \
   --query "output.message.content[0].text" --output text 2>&1 && echo "Converse: OK" || echo "Converse: FAILED"
@@ -554,8 +555,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
         "bedrock:GetCustomModel",
         "bedrock:GetImportedModel",
         "bedrock:ListProvisionedModelThroughputs",
-        "bedrock:ListCustomModelDeployments",
-        "bedrock:CreateInference"
+        "bedrock:ListCustomModelDeployments"
       ],
       "Resource": "*"
     },
@@ -670,7 +670,7 @@ ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not inst
 ### 📝 3.1 macOS
 
 ```bash
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
 # 选项 A：使用虚拟环境（推荐）
 python3 -m venv .venv
@@ -690,7 +690,7 @@ pip3 install -r backend/requirements.txt
 # 如需要，安装 Python
 sudo apt update && sudo apt install python3 python3-pip python3-venv
 
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
 # 选项 A：使用虚拟环境（推荐）
 python3 -m venv .venv
@@ -707,7 +707,7 @@ pip3 install --user -r backend/requirements.txt
 ### 📝 3.3 Windows
 
 ```powershell
-git clone <repo-url>
+git clone https://github.com/niravdd/ArtSmoker.git
 cd ArtSmoker
 
 # 选项 A：使用虚拟环境（推荐）
@@ -836,7 +836,7 @@ aws ec2 associate-iam-instance-profile \
 sudo yum install -y python3 python3-pip git   # Amazon Linux
 # sudo apt install -y python3 python3-pip python3-venv git   # Ubuntu
 
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
@@ -917,7 +917,7 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 
 **3. 设置风格档案**（可选）—— 进入 **Style Library**，创建新风格，上传参考图像，然后点击 **Analyze**。这会让 ArtSmoker 学习您的视觉标识。
 
-**4. 选择您的语言** —— 如果您偏好非英语界面，点击导航栏中的语言按钮（EN | JA | ZH | KO | FR | ES）。
+**4. 选择您的语言** —— 如果您偏好非英语界面，点击导航栏中的语言按钮（EN | 日 | 中 | 한 | हिं | РУ | FR | ES | DE）。
 
 ## 📌 5. 架构
 
@@ -1274,14 +1274,16 @@ ArtSmoker 运行起来后，完成以下步骤以获得最佳效果：
 所有 AI 模型配置都集中在 `backend/model_registry.json` —— 唯一可信来源。模型、区域、定价、质量等级和格式模板全都存储于此，并通过 UI 或 API 管理：
 
 - 点击任意工作室侧边栏中的 **"Model Settings"** 打开管理模态框 —— 它会打开到该工作室的相关选项卡。
-- 按工作室组织的 **7 个选项卡**：
+- 按工作室组织的 **9 个选项卡**：
   - **Image Studio** —— 图像生成模型（SD 3.5 Large、Stable Image Ultra、Stable Image Core，以及自托管的 FLUX、HunyuanImage、Qwen-Image）、区域、质量等级、提示词限制、审核严格度
   - **Video Studio** —— 视频模型（Nova Reel、Luma Ray）、S3 存储桶设置、区域、定价
   - **Chat Studio** —— 发现的聊天/LLM 模型（来自 16 个供应商的 80 多个）、上下文窗口、视觉能力、每 1K token 定价
   - **Type Studio** —— 用于文字布局生成的 LLM 模型（Complex 或 Fast LLM）
   - **Shared Studio** —— 跨工作室的 LLM 分类（Fast LLM、Complex LLM、Fallback LLM、Voice）、后处理模型（移除背景、放大）
+  - **Custom Models** —— 自托管模型目录：部署、监控和拆除 SageMaker 端点（见第 6.12 节）
   - **Prompt Templates** —— 28 个可编辑的 LLM 指令提示词，组织为 6 个工作流部分（见第 4.4 节）
   - **Registry JSON** —— 完整模型注册表的原始 JSON 编辑器
+  - **Maintenance** —— 托管工具状态（例如用于 FBX/USD 导出的无头 Blender：路径、版本、按需更新）
 - 所有部分都**可折叠**，带 **Show All / Hide All** 切换以便快速导航。
 - LLM 分类和后处理使用**下拉模型选择器**（由发现的模型填充）—— 而非原始文本字段。
 - **Sync from AWS**：扫描所有支持 Bedrock 的 AWS 区域（动态发现），自动注册新的图像、视频和**聊天模型**，更新区域可用性，从 AWS Pricing API 获取每个模型的定价，并禁用不再可用的模型。**实时进度叠加层**会在每个区域被扫描时流式展示。这是**唯一**调用 AWS 发现 API 的操作 —— 所有其他操作都从缓存的注册表读取。
@@ -1333,13 +1335,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 
 **成本估算**会根据所有选择（模型 × 质量 × 区域 × 选项 × 变体）动态更新。
 
-**格式族**：模型通过一个通用调用器（`invoke_image_model`）调用，该调用器从注册表（`format_families`）读取请求模板。目前有 15 个族，涵盖图像生成（2）、图像编辑（8）、后处理（2）和视频生成（2）：
-- **图像生成**：`stability_text_to_image`（SD 3.5 Large、Stable Image Ultra、Stable Image Core），以及用于 FLUX、HunyuanImage 和 Qwen-Image 的自托管族（`sagemaker_*`）
-- **图像编辑**：`amazon_inpainting`、`amazon_outpainting`、`stability_inpaint`、`stability_outpaint`、`stability_erase`、`stability_search_replace`、`stability_search_recolor`、`stability_control`、`stability_style_transfer`
-- **后处理**：`stability_remove_bg`、`stability_upscale`
-- **视频**：`nova_reel`、`luma_ray`
-
-添加新的 Bedrock 图像模型无需任何代码更改 —— 只需通过管理 API 或自动发现以正确的格式族注册它。
+**格式族**：模型通过一个从注册表（`format_families`）读取请求模板的通用调用器调用 —— 生成、编辑、后处理和视频全部由模板驱动。添加新的 Bedrock 图像模型**无需任何代码更改**：只需（通过自动发现或管理 API）以正确的格式族注册即可。完整的格式族目录见 [SPEC.md](SPEC.md)。
 
 **模型优化的提示词工程**：提示词会按照 [AWS 文档](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html)自动构造为描述性说明（而非命令）。否定词会从主提示词中移除，排除术语作为单独的**负面提示词**发送。提示词会截断到注册表中每个模型特定的 `prompt_limit`。
 
@@ -1358,7 +1354,7 @@ aws iam attach-role-policy --role-name ArtSmokerEC2Role \
 | AI (聊天) | 通过 Bedrock ConverseStream 的来自 16 个供应商的 80 多个 LLM（Claude、Nova、Llama、Mistral 等） |
 | AI (视频) | Nova Reel v1.0/v1.1（最长 2 分钟）、Luma AI Ray v2（最长 9 秒） |
 | AI (语音) | Nova Sonic（通过双向流式传输的语音转文字） |
-| i18n | 自定义 t() 函数、817 个键 × 6 种语言、反向查找 DOM 翻译 |
+| i18n | 自定义 t() 函数、约 1,500 个键 × 9 种语言、反向查找 DOM 翻译 |
 | SVG 转换 | vtracer（主要）、potrace（备选）、Pillow（最后手段） |
 | 文字渲染 | Pillow（阴影、描边、发光效果） |
 | 存储 | 本地文件系统（兼容 S3 的接口） |
@@ -1501,12 +1497,8 @@ ArtSmoker/
 │       ├── app.js               # SPA 路由 + DOM 缓存 + 导航 + showConfirm()
 │       ├── i18n/
 │       │   ├── i18n.js          # 核心：t() 函数、语言切换、反向查找
-│       │   ├── en.json          # 英语（基础）—— 817 个键
-│       │   ├── ja.json          # 日语
-│       │   ├── zh.json          # 简体中文
-│       │   ├── ko.json          # 韩语
-│       │   ├── fr.json          # 法语
-│       │   └── es.json          # 西班牙语
+│       │   ├── en.json          # 英语（基础）—— 约 1,500 个键
+│       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 种翻译
 │       ├── services/api.js      # 后端 API 客户端
 │       └── components/
 │           ├── ImageStudio.js   # 2D Image Studio（选项 × 变体）

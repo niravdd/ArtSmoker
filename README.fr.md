@@ -17,7 +17,7 @@ Les équipes créatives des studios de jeux vidéo et de médias veulent tirer p
 - **C'est conçu pour les ingénieurs, pas pour les artistes** — les meilleurs modèles se trouvent derrière des consoles cloud, des lignes de commande, des SDK et des API REST. Aucun directeur artistique ni concept artist ne devrait avoir besoin d'un terminal pour créer une œuvre.
 - **Des idées claires, des prompts obscurs** — les artistes savent exactement ce qu'ils veulent, mais les modèles ne comprennent pas les consignes formulées en langage créatif ordinaire ; des résultats cohérents et conformes au brief dépendent encore de la structure du prompt, des prompts négatifs et d'une formulation spécifique à chaque modèle qui s'interposent entre le brief et le résultat.
 - **Les meilleurs modèles d'IA sont dispersés et difficiles à faire tourner** — de puissants modèles d'IA pour l'image, l'édition, la 3D et la vidéo sortent en permanence chez différents fournisseurs et dans différents formats ; mettre en place chacun d'eux (empaquetage, GPU, quantification, mise à l'échelle) constitue à lui seul un projet d'ingénierie complet.
-- **L'édition et la 3D sont des mondes distincts** — l'inpainting, l'outpainting, le rééclairage, les éditions guidées par référence et la transformation d'un concept 2D en modèle 3D texturé nécessitent normalement chacun leurs propres outils, API et spécialistes.
+- **L'édition et la 3D sont des mondes distincts** — l'inpainting, l'outpainting, la recoloration, les éditions guidées par référence et la transformation d'un concept 2D en modèle 3D texturé nécessitent normalement chacun leurs propres outils, API et spécialistes.
 - **Rester fidèle à votre charte est un travail manuel** — faire en sorte que chaque asset respecte votre apparence établie implique généralement de surveiller chaque génération à la main.
 
 ### 📝 La solution
@@ -26,7 +26,7 @@ ArtSmoker est un studio créatif auto-hébergé qui place les meilleurs modèles
 
 - **Décrivez-le en langage naturel** — ArtSmoker gère la décomposition des prompts, leur amélioration et l'optimisation spécifique à chaque modèle en coulisses. Un **Prompt Designer** guidé vous permet de façonner chaque élément visuel — sujet, scène, éclairage, couleur — avec des contrôles verrouiller/varier pour explorer des directions véritablement différentes sans perdre ce qui fonctionne déjà.
 - **Fidèle à votre charte par défaut** — fournissez à ArtSmoker votre art existant et ses modèles de vision apprennent votre identité visuelle, de sorte que chaque asset produit correspond à l'apparence et à l'atmosphère de votre projet.
-- **2D, édité et en 3D — de bout en bout** — générez, puis affinez sur place avec l'inpainting, l'outpainting, le rééclairage, le rechercher-remplacer et les éditions guidées par référence ; transformez n'importe quel asset 2D en un **modèle 3D entièrement texturé et prêt pour le moteur de jeu** qui s'intègre directement dans Unity, Unreal ou Blender — sans modélisation manuelle, dépliage UV ni peinture de textures. Plus de la vidéo cinématique et un studio de chat multi-modèle pour l'idéation.
+- **2D, édité et en 3D — de bout en bout** — générez, puis affinez sur place avec l'inpainting, l'outpainting, la recoloration, le rechercher-remplacer et les éditions guidées par référence ; transformez n'importe quel asset 2D en un **modèle 3D entièrement texturé et prêt pour le moteur de jeu** qui s'intègre directement dans Unity, Unreal ou Blender — sans modélisation manuelle, dépliage UV ni peinture de textures. Plus de la vidéo cinématique et un studio de chat multi-modèle pour l'idéation.
 - **Chaque modèle, en un clic** — utilisez les derniers modèles hébergés à travers les régions, ou déployez des modèles open source sélectionnés (Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2, et plus) sur vos propres GPU en un seul clic — empaquetage, quantification, mise à l'échelle automatique et suivi des tâches entièrement pris en charge, chaque modèle validé de bout en bout avant sa publication.
 - **Fonctionne où vous le voulez — et votre IP reste la vôtre** — installez-le sur le poste d'un seul artiste ou sur une instance partagée pour toute l'équipe ; **aucun GPU personnel requis** (les calculs lourds s'exécutent sur des services AWS managés, ou sur des endpoints à mise à l'échelle automatique qu'ArtSmoker démarre et ramène à zéro pour vous). Il ne se connecte qu'à votre propre compte AWS — œuvres, prompts, styles et assets générés restent dans votre environnement, rien ne part vers des services tiers, et vous conservez la pleine propriété de votre IP créative.
 
@@ -281,6 +281,7 @@ Le **type d'asset** sélectionné change fondamentalement la façon dont l'IA in
 
 | Type | Composition | Cadrage | Approche technique |
 |------|-------------|---------|-------------------|
+| **Photorealistic Image** *(par défaut)* | Cadrage naturel, de type photographique — le sujet dans un environnement réel adapté au contexte. | Perspective de caméra réelle : hauteur d'œil, faible profondeur de champ pour les portraits, grand angle pour les paysages. | Dirigé dans le langage de la photographie (heure dorée, softbox de studio, sensation de focale) avec des imperfections naturelles — texture de peau, plis de tissu, patine. Jamais de vocabulaire d'illustration ni de jargon de moteur de rendu. |
 | **Game Asset** | Objet unique isolé sur fond transparent. Pas de scène, pas de texte, pas d'UI. | Vue frontale ou isométrique, l'objet remplit 70-80% du cadre. | Bords nets et propres pour la suppression de fond, éclairage cohérent depuis le haut-gauche, pas d'ombres au sol. Conçu pour être composé avec d'autres assets de jeu à différentes échelles. |
 | **Character** | Figure en pied ou 3/4, isolée sur fond propre. Un seul personnage. | Le personnage remplit 60-75% de la hauteur, de la tête aux pieds, légèrement décentré. | Silhouette lisible et forte (identifiable par la silhouette seule), pose expressive transmettant la personnalité, traits du visage et détails du costume clairs. |
 | **Icon** | Symbole unique, gras et reconnaissable, centré avec un padding généreux. Simplicité maximale. | Vue frontale ou légère inclinaison 3/4, espace respirant aux bords. | Doit être clairement lisible à 64x64 pixels. Contraste élevé, 3-5 couleurs maximum, formes audacieuses, pas de lignes fines ni de détails fins. |
@@ -466,7 +467,7 @@ aws bedrock-runtime invoke-model --region us-west-2 \
 # (Substitute any Claude model ID you have access to — e.g. the current Sonnet
 #  inference profile from Test 1's list; the exact version rolls over time.)
 aws bedrock-runtime converse --region us-west-2 \
-  --model-id us.anthropic.claude-sonnet-4-6 \
+  --model-id us.anthropic.claude-sonnet-5 \
   --messages '[{"role":"user","content":[{"text":"hi"}]}]' \
   --inference-config '{"maxTokens":1}' \
   --query "output.message.content[0].text" --output text 2>&1 && echo "Converse: OK" || echo "Converse: FAILED"
@@ -552,8 +553,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
         "bedrock:GetCustomModel",
         "bedrock:GetImportedModel",
         "bedrock:ListProvisionedModelThroughputs",
-        "bedrock:ListCustomModelDeployments",
-        "bedrock:CreateInference"
+        "bedrock:ListCustomModelDeployments"
       ],
       "Resource": "*"
     },
@@ -668,7 +668,7 @@ ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not inst
 ### 📝 3.1 macOS
 
 ```bash
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
 # Option A: With virtual environment (recommended)
 python3 -m venv .venv
@@ -688,7 +688,7 @@ pip3 install -r backend/requirements.txt
 # Install Python if needed
 sudo apt update && sudo apt install python3 python3-pip python3-venv
 
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
 # Option A: With virtual environment (recommended)
 python3 -m venv .venv
@@ -705,7 +705,7 @@ pip3 install --user -r backend/requirements.txt
 ### 📝 3.3 Windows
 
 ```powershell
-git clone <repo-url>
+git clone https://github.com/niravdd/ArtSmoker.git
 cd ArtSmoker
 
 # Option A: With virtual environment (recommended)
@@ -834,7 +834,7 @@ aws ec2 associate-iam-instance-profile \
 sudo yum install -y python3 python3-pip git   # Amazon Linux
 # sudo apt install -y python3 python3-pip python3-venv git   # Ubuntu
 
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
@@ -915,7 +915,7 @@ Les templates se chargent depuis `backend/prompt_templates.json` — la source d
 
 **3. Configurer un profil de style** (optionnel) — Allez dans **Style Library**, créez un nouveau style, téléchargez des images de référence, et cliquez sur **Analyze**. Cela apprend à ArtSmoker votre identité visuelle.
 
-**4. Choisir votre langue** — Cliquez sur un bouton de langue dans la barre de navigation (EN | JA | ZH | KO | FR | ES) si vous préférez une interface non anglaise.
+**4. Choisir votre langue** — Cliquez sur un bouton de langue dans la barre de navigation (EN | 日 | 中 | 한 | हिं | РУ | FR | ES | DE) si vous préférez une interface non anglaise.
 
 ## 📌 5. Architecture
 
@@ -1272,14 +1272,16 @@ Ordre de navigation : **Style Library → 2D Image Studio → Type Studio → Vi
 Toute la configuration des modèles d'IA est centralisée dans `backend/model_registry.json` — la source de vérité unique. Modèles, régions, tarifs, niveaux de qualité et templates de format sont tous stockés ici et gérés via l'UI ou l'API :
 
 - Cliquez sur **« Model Settings »** dans la barre latérale de n'importe quel studio pour ouvrir la modale d'administration — elle s'ouvre sur l'onglet pertinent pour ce studio.
-- **7 onglets** organisés par studio :
+- **9 onglets** organisés par studio :
   - **Image Studio** — Modèles de génération d'images (SD 3.5 Large, Stable Image Ultra, Stable Image Core, plus FLUX, HunyuanImage, Qwen-Image auto-hébergés), régions, niveaux de qualité, limites de prompt, sévérité de modération
   - **Video Studio** — Modèles vidéo (Nova Reel, Luma Ray), paramètres de bucket S3, régions, tarifs
   - **Chat Studio** — Modèles chat/LLM découverts (80+ de 16 fournisseurs), fenêtres de contexte, capacité vision, tarif par 1K tokens
   - **Type Studio** — Modèle LLM pour la génération de mise en page de texte (Complex ou Fast LLM)
   - **Shared Studio** — Catégories LLM inter-studios (Fast LLM, Complex LLM, Fallback LLM, Voice), modèles de post-traitement (Remove Background, Upscale)
+  - **Custom Models** — le catalogue de modèles auto-hébergés : déployer, surveiller et démanteler les endpoints SageMaker (voir section 6.12)
   - **Prompt Templates** — 28 prompts directifs LLM éditables organisés en 6 sections de workflow (voir section 4.4)
   - **Registry JSON** — Éditeur JSON brut pour le registre complet des modèles
+  - **Maintenance** — état des outils gérés (p. ex. le Blender headless utilisé pour l'export FBX/USD : chemin, version, mise à jour à la demande)
 - Toutes les sections sont **repliables** avec des bascules **Show All / Hide All** pour une navigation rapide.
 - Les catégories LLM et le post-traitement utilisent des **sélecteurs de modèles en menu déroulant** (peuplés à partir des modèles découverts) — pas des champs de texte bruts.
 - **Sync from AWS** : Scanne toutes les régions AWS supportées par Bedrock (découvertes dynamiquement), auto-enregistre les nouveaux modèles d'image, vidéo et **chat**, met à jour la disponibilité régionale, récupère les tarifs par modèle depuis l'API AWS Pricing, et désactive les modèles qui ne sont plus disponibles. Une **superposition de progression en direct** streame chaque région au fur et à mesure de son scan. C'est la **seule** action qui appelle les API de découverte AWS — toutes les autres opérations lisent depuis le registre en cache.
@@ -1331,13 +1333,7 @@ Le menu déroulant **Image Model** est la sélection principale. En dessous, une
 
 Une **estimation des coûts** se met à jour dynamiquement en fonction de toutes les sélections (modèle × qualité × région × options × variations).
 
-**Familles de format** : Les modèles sont invoqués via un invocateur générique (`invoke_image_model`) qui lit les templates de requête depuis le registre (`format_families`). Actuellement 15 familles couvrant la génération d'images (2), l'édition d'images (8), le post-traitement (2), et la génération vidéo (2) :
-- **Génération d'images** : `stability_text_to_image` (SD 3.5 Large, Stable Image Ultra, Stable Image Core), plus les familles auto-hébergées (`sagemaker_*`) pour FLUX, HunyuanImage et Qwen-Image
-- **Édition d'images** : `amazon_inpainting`, `amazon_outpainting`, `stability_inpaint`, `stability_outpaint`, `stability_erase`, `stability_search_replace`, `stability_search_recolor`, `stability_control`, `stability_style_transfer`
-- **Post-traitement** : `stability_remove_bg`, `stability_upscale`
-- **Vidéo** : `nova_reel`, `luma_ray`
-
-Ajouter un nouveau modèle d'image Bedrock ne nécessite aucun changement de code — enregistrez-le simplement via l'Admin API ou l'auto-découverte avec la bonne famille de format.
+**Familles de format** : Les modèles sont invoqués via un invocateur générique qui lit les templates de requête depuis le registre (`format_families`) — génération, édition, post-traitement et vidéo sont entièrement pilotés par templates. Ajouter un nouveau modèle d'image Bedrock ne nécessite **aucun changement de code** : enregistrez-le simplement (via l'auto-découverte ou l'Admin API) avec la bonne famille de format. Le catalogue complet des familles se trouve dans [SPEC.md](SPEC.md).
 
 **Ingénierie de prompts optimisée par modèle** : Les prompts sont automatiquement structurés en légendes descriptives (pas en commandes) selon la [documentation AWS](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html). Les mots de négation sont retirés du prompt principal et les termes d'exclusion sont envoyés comme un **prompt négatif** distinct. Le prompt est tronqué au `prompt_limit` spécifique de chaque modèle depuis le registre.
 
@@ -1356,7 +1352,7 @@ Ajouter un nouveau modèle d'image Bedrock ne nécessite aucun changement de cod
 | IA (Chat) | 80+ LLM de 16 fournisseurs via Bedrock ConverseStream (Claude, Nova, Llama, Mistral, etc.) |
 | IA (Vidéo) | Nova Reel v1.0/v1.1 (jusqu'à 2 min), Luma AI Ray v2 (jusqu'à 9 s) |
 | IA (Voix) | Nova Sonic (voix vers texte via streaming bidirectionnel) |
-| i18n | Fonction t() personnalisée, 817 clés × 6 langues, traduction DOM par recherche inversée |
+| i18n | Fonction t() personnalisée, ~1 500 clés × 9 langues, traduction DOM par recherche inversée |
 | Conversion SVG | vtracer (principal), potrace (fallback), Pillow (dernier recours) |
 | Rendu texte | Pillow (ombre, contour, effets de lueur) |
 | Stockage | Système de fichiers local (interface compatible S3) |
@@ -1499,12 +1495,8 @@ ArtSmoker/
 │       ├── app.js               # SPA router + DOM caching + navigation + showConfirm()
 │       ├── i18n/
 │       │   ├── i18n.js          # Core: t() function, language switching, reverse lookup
-│       │   ├── en.json          # English (base) — 817 keys
-│       │   ├── ja.json          # Japanese
-│       │   ├── zh.json          # Simplified Chinese
-│       │   ├── ko.json          # Korean
-│       │   ├── fr.json          # French
-│       │   └── es.json          # Spanish
+│       │   ├── en.json          # Anglais (base) — ~1 500 clés
+│       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 traductions
 │       ├── services/api.js      # Backend API client
 │       └── components/
 │           ├── ImageStudio.js   # 2D Image Studio (options × variations)

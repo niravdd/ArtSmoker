@@ -17,7 +17,7 @@ Creative teams in game and media studios want the leverage of generative AI — 
 - **It's built for engineers, not artists** — the best models live behind cloud consoles, command lines, SDKs, and REST APIs. No director or concept artist should need a terminal to make a piece of art.
 - **Clear ideas, cryptic prompts** — artists know exactly what they want, but the models don't take direction in plain creative language; consistent, on-brief results still hinge on prompt structure, negative prompts, and model-specific phrasing that sit between the brief and the output.
 - **The best AI models are scattered and hard to run** — powerful AI models for image, editing, 3D, and video ship constantly across different providers and formats; standing each one up (packaging, GPUs, quantization, scaling) is a full engineering project on its own.
-- **Editing and 3D are separate worlds** — inpainting, outpainting, relighting, reference-guided edits, and turning a 2D concept into a textured 3D model each normally need their own tools, APIs, and specialists.
+- **Editing and 3D are separate worlds** — inpainting, outpainting, recoloring, reference-guided edits, and turning a 2D concept into a textured 3D model each normally need their own tools, APIs, and specialists.
 - **Staying on-brand is manual** — keeping every asset true to your established look usually means babysitting each generation by hand.
 
 ### 📝 The Solution
@@ -26,7 +26,7 @@ ArtSmoker is a self-hosted creative studio that puts today's best generative mod
 
 - **Describe it in plain language** — ArtSmoker handles prompt decomposition, enhancement, and model-specific optimization behind the scenes. A guided **Prompt Designer** lets you shape each visual element — subject, scene, lighting, colour — with lock/vary controls to explore genuinely different directions without losing what's already working.
 - **On-brand by default** — feed ArtSmoker your existing art and its vision models learn your visual identity, so every asset comes out matching your project's look and feel.
-- **2D, edited, and in 3D — end to end** — generate, then refine in place with inpainting, outpainting, relighting, search-and-replace, and reference-guided edits; turn any 2D asset into a **fully-textured, game-engine-ready 3D model** that drops straight into Unity, Unreal, or Blender — no manual modeling, UV unwrapping, or texture painting. Plus cinematic video and a multi-model chat studio for ideation.
+- **2D, edited, and in 3D — end to end** — generate, then refine in place with inpainting, outpainting, recoloring, search-and-replace, and reference-guided edits; turn any 2D asset into a **fully-textured, game-engine-ready 3D model** that drops straight into Unity, Unreal, or Blender — no manual modeling, UV unwrapping, or texture painting. Plus cinematic video and a multi-model chat studio for ideation.
 - **Every model, one click** — use the latest hosted models across regions, or deploy curated open-source models (Qwen-Image, FLUX.2, HunyuanImage, TripoSG, TRELLIS.2, and more) to your own GPUs with a single click — packaging, quantization, auto-scaling, and job tracking all handled, every model validated end-to-end before it ships.
 - **Runs where you want — and your IP stays yours** — install it on a single artist's desktop or a shared instance for the whole team; **no GPU of your own required** (the heavy compute runs on managed AWS services, or on auto-scaling endpoints ArtSmoker spins up and scales back to zero for you). It connects only to your own AWS account — artwork, prompts, styles, and generated assets stay in your environment, nothing goes to third-party services, and you keep full ownership of your creative IP.
 
@@ -205,7 +205,7 @@ An optional **"Model-optimized prompts"** toggle tailors the prompt to each mode
 Beyond writing a prompt from scratch, you can generate **from 1–3 reference images plus an instruction** — pick the mode with the segmented control at the top of the Image Studio prompt area:
 
 - **Match the reference** — keep the subject, product, or character from your reference and change the rest (theme, background, wardrobe, lighting) exactly as your instruction says. Ideal for consistent characters or product shots across scenes. This mode runs on a self-hosted instruction editor (Qwen-Image-Edit) and appears **once it's deployed** — if it isn't, ArtSmoker points you straight to deploy it from Custom Models (one click, same flow as the 3D pipelines). Commercial-safe (Apache-2.0).
-- **Inspired by the reference** — ArtSmoker's vision AI reads your reference(s) and instruction, writes an enhanced prompt (shown to you first), then generates with your normal text-to-image models. **Always available** — no deployment needed. Great for borrowing a look, palette, or composition without copying the subject.
+- **Inspired by the reference** — ArtSmoker's vision AI reads your reference(s) and instruction, writes the enhanced prompt(s), then generates with your normal text-to-image models — your full model selection, Options, and Variations are honored, with one **distinct interpretation per option**. The derived prompts are previewed as **editable text** before generating, so what you approve is exactly what runs. **Always available** — no deployment needed. Great for borrowing a look, palette, or composition without copying the subject.
 
 Both modes require an instruction so you stay in control of what the reference is *for*. Reference-guided generation is separate from the Style Library (which analyzes many images into a reusable style profile) — use it for one-off, image-driven generations.
 
@@ -281,6 +281,7 @@ The selected **Asset Type** fundamentally changes how the AI interprets your pro
 
 | Type | Composition | Framing | Technical Approach |
 |------|-------------|---------|-------------------|
+| **Photorealistic Image** *(default)* | Natural, photograph-like framing — the subject in a contextually appropriate real setting. | Real-world camera perspective: eye-level, shallow depth of field for portraits, wide for landscapes. | Directed in photography language (golden hour, studio softbox, focal-length feel) with natural imperfections — skin texture, fabric wrinkles, weathering. Never illustration terms or render-engine jargon. |
 | **Game Asset** | Single isolated object on transparent background. No scene, no text, no UI. | Straight-on or isometric, object fills 70-80% of frame. | Clean sharp edges for bg removal, consistent top-left lighting, no ground shadows. Designed to compose with other game assets at various scales. |
 | **Character** | Full-body or 3/4-body figure, isolated on clean background. One character only. | Character fills 60-75% vertical, head-to-toe, slightly off-center. | Strong readable silhouette (identifiable from silhouette alone), expressive pose conveying personality, clear facial features and costume details. |
 | **Icon** | Single bold recognizable symbol, centered with generous padding. Maximum simplicity. | Front-facing or slight 3/4 tilt, breathing room at edges. | Must read clearly at 64x64 pixels. High contrast, 3-5 colors maximum, bold shapes, no thin lines or fine detail. |
@@ -466,7 +467,7 @@ aws bedrock-runtime invoke-model --region us-west-2 \
 # (Substitute any Claude model ID you have access to — e.g. the current Sonnet
 #  inference profile from Test 1's list; the exact version rolls over time.)
 aws bedrock-runtime converse --region us-west-2 \
-  --model-id us.anthropic.claude-sonnet-4-6 \
+  --model-id us.anthropic.claude-sonnet-5 \
   --messages '[{"role":"user","content":[{"text":"hi"}]}]' \
   --inference-config '{"maxTokens":1}' \
   --query "output.message.content[0].text" --output text 2>&1 && echo "Converse: OK" || echo "Converse: FAILED"
@@ -552,8 +553,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
         "bedrock:GetCustomModel",
         "bedrock:GetImportedModel",
         "bedrock:ListProvisionedModelThroughputs",
-        "bedrock:ListCustomModelDeployments",
-        "bedrock:CreateInference"
+        "bedrock:ListCustomModelDeployments"
       ],
       "Resource": "*"
     },
@@ -668,7 +668,7 @@ ffprobe -version 2>&1 | head -1 && echo "ffprobe: OK" || echo "ffprobe: not inst
 ### 📝 3.1 macOS
 
 ```bash
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
 # Option A: With virtual environment (recommended)
 python3 -m venv .venv
@@ -688,7 +688,7 @@ pip3 install -r backend/requirements.txt
 # Install Python if needed
 sudo apt update && sudo apt install python3 python3-pip python3-venv
 
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 
 # Option A: With virtual environment (recommended)
 python3 -m venv .venv
@@ -705,7 +705,7 @@ pip3 install --user -r backend/requirements.txt
 ### 📝 3.3 Windows
 
 ```powershell
-git clone <repo-url>
+git clone https://github.com/niravdd/ArtSmoker.git
 cd ArtSmoker
 
 # Option A: With virtual environment (recommended)
@@ -718,7 +718,7 @@ pip install -r backend\requirements.txt
 ```
 
 > [!NOTE]
-> On Windows, use `python` (not `python3`). Install Python from [python.org](https://www.python.org/downloads/) — check "Add to PATH" during installation. The Type Studio font picker detects fonts from `C:\Windows\Fonts` (system font detection is currently macOS/Linux only — Windows users can use global or style-specific custom fonts).
+> On Windows, use `python` (not `python3`). Install Python from [python.org](https://www.python.org/downloads/) — check "Add to PATH" during installation. If PowerShell refuses to run `.venv\Scripts\activate` ("running scripts is disabled"), allow it once with `Set-ExecutionPolicy -Scope CurrentUser RemoteSigned`, or use `.venv\Scripts\activate.bat` from cmd. The Type Studio font picker detects fonts from `C:\Windows\Fonts` (system font detection is currently macOS/Linux only — Windows users can use global or style-specific custom fonts).
 
 ## 📌 4. Running
 
@@ -834,7 +834,7 @@ aws ec2 associate-iam-instance-profile \
 sudo yum install -y python3 python3-pip git   # Amazon Linux
 # sudo apt install -y python3 python3-pip python3-venv git   # Ubuntu
 
-git clone <repo-url> && cd ArtSmoker
+git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -r backend/requirements.txt
@@ -915,7 +915,7 @@ Templates load from `backend/prompt_templates.json` — the runtime source of tr
 
 **3. Set up a style profile** (optional) — Go to **Style Library**, create a new style, upload reference images, and click **Analyze**. This teaches ArtSmoker your visual identity.
 
-**4. Choose your language** — Click a language button in the nav bar (EN | JA | ZH | KO | FR | ES) if you prefer a non-English interface.
+**4. Choose your language** — Click a language button in the nav bar (EN | 日 | 中 | 한 | हिं | РУ | FR | ES | DE) if you prefer a non-English interface.
 
 ## 📌 5. Architecture
 
@@ -1176,8 +1176,8 @@ Common triggers include copyrighted IP names and character references, violence/
 
 1. Go to the **Style Library** tab.
 2. Click **Create New Style** — enter a name and optionally add generation hints. In the create modal, use the **"Import References From"** section with **Local** and **S3** browse buttons to select a source directory or bucket path. Browsing opens a server-side file/directory browser modal (single-click selects an item, double-click navigates into directories). Imported references are auto-analyzed on creation.
-3. Local directory imports scan **recursively** through all subdirectories for images (.png, .jpg, .jpeg, .gif, .bmp, .webp, .tiff, .tif, .tga, .ico, .svg) and 3D models (.glb, .gltf). Image files are **symlinked** using **relative symlinks** (no duplication, portable across machines). 3D model files (.glb/.gltf) have their embedded textures **automatically extracted** — base64 data URIs, binary buffer chunks, and external texture references are all handled. Extracted textures are saved as copies (prefixed with the model name to avoid collisions). S3 imports list recursively with pagination and **download** files locally. Up to **100 reference images** are imported per style. Supported extensions are centralized in `backend/config.py` (`IMAGE_EXTENSIONS` and `MODEL_EXTENSIONS_WITH_TEXTURES`).
-4. **Two-phase cohesion-aware analysis**: Phase 1 sends 8 images to Claude Sonnet to determine cohesion level (high/medium/low) — high means unified style, medium means shared structure with different themes, low means diverse styles. Phase 2 feeds the cohesion assessment to Claude Opus alongside the reference images, guiding it to analyze appropriately for the collection type. When a style has more than 20 references, the analyzer selects a diverse representative subset of 20 for the Opus vision call — ensuring coverage across filename groups and file-size diversity. The AI is told how many total images exist vs. how many it is seeing. The analysis prompt is specifically designed for game assets on transparent backgrounds — asks for material-specific rendering details, proportion system, and shadow/lighting specifics. Extracts 9 style attributes including `materials` (how stone, wood, metal are rendered) and `detail_level` (what surface details are visible vs simplified). Generation hints are expanded to 200 words covering 8 dimensions: perspective, rendering, materials, color palette, proportions, edge treatment, shadow/lighting, detail level, and background — specific enough that generated assets visually blend with existing references.
+3. Local directory imports scan **recursively** and **symlink** images (no duplication, portable relative links); 3D models (.glb/.gltf) get their embedded textures **auto-extracted**. S3 imports list recursively and download locally. Up to **100 reference images** per style (supported formats are listed in section 1's Style-Guided Mode).
+4. **Two-phase cohesion-aware analysis**: a quick cohesion check (is the collection unified, structurally consistent, or diverse?) guides a deep vision analysis of a representative reference subset — extracting palette, materials, proportions, edge treatment, shadow/lighting, and detail-level attributes, plus ~200-word generation hints. Your own **generation hints** are fed in as "Artist's Guidance", so the profile captures intent, not just what's visible. (The full analysis mechanics — phases, models, subset selection — are in [SPEC.md](SPEC.md).)
 5. In the style detail view, use **"Import & Analyze"** to add more references and trigger analysis in one step. Drag-and-drop upload is also supported and **auto re-analyzes** when new images are added.
 6. **"Re-Analyze Style"** appears after the initial analysis, letting you manually re-run analysis at any time.
 7. **Generation hints** are part of the analysis context — the AI receives both reference images and your hints as "Artist's Guidance" when analyzing, so the style profile understands intent, not just visual appearance. Editing generation hints also triggers **automatic re-analysis**.
@@ -1272,14 +1272,16 @@ Navigation order: **Style Library → 2D Image Studio → Type Studio → Video 
 All AI model configuration is centralized in `backend/model_registry.json` — the single source of truth. Models, regions, pricing, quality tiers, and format templates are all stored here and managed through the UI or API:
 
 - Click **"Model Settings"** in the sidebar of any studio to open the admin modal — it opens to the relevant tab for that studio.
-- **7 tabs** organized by studio:
+- **9 tabs** organized by studio:
   - **Image Studio** — Image generation models (SD 3.5 Large, Stable Image Ultra, Stable Image Core, plus self-hosted FLUX, HunyuanImage, Qwen-Image), regions, quality tiers, prompt limits, moderation strictness
   - **Video Studio** — Video models (Nova Reel, Luma Ray), S3 bucket settings, regions, pricing
   - **Chat Studio** — Discovered chat/LLM models (80+ from 16 providers), context windows, vision capability, pricing per 1K tokens
   - **Type Studio** — LLM model for text layout generation (Complex or Fast LLM)
   - **Shared Studio** — Cross-studio LLM categories (Fast LLM, Complex LLM, Fallback LLM, Voice), post-processing models (Remove Background, Upscale)
+  - **Custom Models** — the self-hosted model catalog: deploy, monitor, and tear down SageMaker endpoints (see section 6.12)
   - **Prompt Templates** — 28 editable LLM directive prompts organized into 6 workflow sections (see section 4.4)
   - **Registry JSON** — Raw JSON editor for the full model registry
+  - **Maintenance** — managed tools status (e.g. the headless Blender used for FBX/USD export: path, version, on-demand update)
 - All sections are **collapsible** with **Show All / Hide All** toggles for quick navigation.
 - LLM categories and post-processing use **dropdown model pickers** (populated from discovered models) — not raw text fields.
 - **Sync from AWS**: Scans all Bedrock-supported AWS regions (discovered dynamically), auto-registers new image, video, and **chat models**, updates regional availability, fetches per-model pricing from the AWS Pricing API, and disables models no longer available. A **live progress overlay** streams each region as it's scanned. This is the **only** action that calls AWS discovery APIs — all other operations read from the cached registry.
@@ -1331,13 +1333,7 @@ The **Image Model** dropdown is the primary selection. Below it, a smart summary
 
 A **cost estimate** updates dynamically based on all selections (model × quality × region × options × variations).
 
-**Format families**: Models are invoked through a generic invoker (`invoke_image_model`) that reads request templates from the registry (`format_families`). Currently 15 families covering image generation (2), image editing (8), post-processing (2), and video generation (2):
-- **Image generation**: `stability_text_to_image` (SD 3.5 Large, Stable Image Ultra, Stable Image Core), plus self-hosted families (`sagemaker_*`) for FLUX, HunyuanImage, and Qwen-Image
-- **Image editing**: `amazon_inpainting`, `amazon_outpainting`, `stability_inpaint`, `stability_outpaint`, `stability_erase`, `stability_search_replace`, `stability_search_recolor`, `stability_control`, `stability_style_transfer`
-- **Post-processing**: `stability_remove_bg`, `stability_upscale`
-- **Video**: `nova_reel`, `luma_ray`
-
-Adding a new Bedrock image model requires zero code changes — just register it via the admin API or auto-discovery with the correct format family.
+**Format families**: Models are invoked through a generic invoker that reads request templates from the registry (`format_families`) — generation, editing, post-processing, and video are all template-driven. Adding a new Bedrock image model requires **zero code changes**: register it (via auto-discovery or the admin API) with the correct format family. The full family catalog lives in [SPEC.md](SPEC.md).
 
 **Model-optimized prompt engineering**: Prompts are automatically structured as descriptive captions (not commands) following [AWS documentation](https://docs.aws.amazon.com/nova/latest/userguide/prompting-image-generation.html). Negation words are removed from the main prompt and exclusion terms are sent as a separate **negative prompt**. The prompt is truncated to each model's specific `prompt_limit` from the registry.
 
@@ -1356,7 +1352,7 @@ Adding a new Bedrock image model requires zero code changes — just register it
 | AI (Chat) | 80+ LLMs from 16 providers via Bedrock ConverseStream (Claude, Nova, Llama, Mistral, etc.) |
 | AI (Video) | Nova Reel v1.0/v1.1 (up to 2min), Luma AI Ray v2 (up to 9s) |
 | AI (Voice) | Nova Sonic (speech-to-text via bidirectional streaming) |
-| i18n | Custom t() function, 817 keys × 6 languages, reverse-lookup DOM translation |
+| i18n | Custom t() function, ~1,500 keys × 9 languages, reverse-lookup DOM translation |
 | SVG Conversion | vtracer (primary), potrace (fallback), Pillow (last resort) |
 | Text Rendering | Pillow (shadow, outline, glow effects) |
 | Storage | Local filesystem (S3-ready interface) |
@@ -1458,9 +1454,11 @@ ArtSmoker/
 │   ├── requirements.txt
 │   ├── prompt_templates.json # Editable LLM directive prompts — runtime source of truth (28 templates)
 │   ├── routers/
-│   │   ├── generate.py      # Two-level asset generation + SSE streaming
+│   │   ├── generate.py      # Two-level asset generation + SSE streaming + reference-guided
+│   │   ├── generate_3d.py   # Image-to-3D: generation, source review, variants, async jobs
+│   │   ├── custom_deploy.py # Self-hosted model deploy/teardown (Amazon SageMaker)
 │   │   ├── styles.py        # Style profile CRUD + directory/S3 import + analysis
-│   │   ├── gallery.py       # Asset browsing + file serving + bulk delete
+│   │   ├── gallery.py       # Asset browsing + file serving + engine exports + bulk delete
 │   │   ├── typestudio.py    # Type Studio: text overlay, font serving, AI layout
 │   │   ├── video.py         # Video generation (async), job polling, MP4/thumbnail serving
 │   │   ├── chat.py          # Chat Studio: LLM streaming, sessions, export, context compaction
@@ -1484,6 +1482,8 @@ ArtSmoker/
 │   │   ├── cost_tracker.py      # Request-scoped cost accumulator
 │   │   ├── custom_models.py    # Self-hosted model catalog (extensible)
 │   │   ├── async_jobs.py       # Async generation job queue (Pending Jobs panel)
+│   │   ├── reference_analyzer.py # "Inspired by the reference" vision analysis
+│   │   ├── mesh_export.py      # Engine-ready 3D exports via managed headless Blender
 │   │   ├── sagemaker_deployer.py # Amazon SageMaker endpoint management (direct HF pull for HF models)
 │   │   └── sagemaker_invoker.py  # Routes inference to Amazon SageMaker endpoints
 │   ├── models/
@@ -1499,29 +1499,28 @@ ArtSmoker/
 │       ├── app.js               # SPA router + DOM caching + navigation + showConfirm()
 │       ├── i18n/
 │       │   ├── i18n.js          # Core: t() function, language switching, reverse lookup
-│       │   ├── en.json          # English (base) — 817 keys
-│       │   ├── ja.json          # Japanese
-│       │   ├── zh.json          # Simplified Chinese
-│       │   ├── ko.json          # Korean
-│       │   ├── fr.json          # French
-│       │   └── es.json          # Spanish
+│       │   ├── en.json          # English (base) — ~1,500 keys
+│       │   └── ja/zh/ko/hi/ru/fr/es/de.json   # 8 translations
 │       ├── services/api.js      # Backend API client
 │       └── components/
-│           ├── ImageStudio.js   # 2D Image Studio (options × variations)
+│           ├── ImageStudio.js   # 2D Image Studio (options × variations, multi-model)
+│           ├── PromptEditor.js  # Two-area prompt editor + compose
+│           ├── PromptDesigner.js # Structured prompt decomposition (lock/vary fields)
+│           ├── ReferenceStudio.js # Image Inspiration tab (reference-guided generation)
 │           ├── TypeStudio.js    # Type Studio (text overlay)
 │           ├── VideoStudio.js   # Video Studio (text-to-video generation)
 │           ├── ChatStudio.js    # Chat Studio (multi-model LLM chat)
 │           ├── Gallery.js       # Gallery grid + search + bulk ops
 │           ├── StyleLibrary.js  # Style management + file browser
-│           ├── AssetViewer.js   # Full-size preview + metadata + download
+│           ├── AssetViewer.js   # Full-size preview, edit, 3D, exports, metadata
 │           ├── ModelSettings.js # Model registry admin UI (modal)
-│           ├── PromptEditor.js  # Two-area prompt editor + compose
 │           └── VoiceInput.js    # MediaRecorder + transcription
 ├── data/
 │   ├── styles/              # Style profiles + reference images (symlinked)
 │   ├── generated/           # Output assets (PNG + SVG + metadata.json)
 │   ├── video/               # Video assets (MP4 + thumbnails + job metadata)
 │   └── chat/                # Chat sessions (JSON per session)
+├── tools/                   # Managed portable Blender (auto-downloaded; gitignored)
 ├── SPEC.md                  # Full technical specification (rebuild blueprint)
 └── README.md                # This file
 ```

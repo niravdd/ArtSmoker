@@ -2472,7 +2472,7 @@ For a lightweight production deployment (1-2 concurrent users), an EC2 instance 
   sudo apt install potrace                     # Ubuntu
   pip install vtracer                       # or: cargo install vtracer (needs Rust)
 
-  git clone <repo-url> && cd ArtSmoker
+  git clone https://github.com/niravdd/ArtSmoker.git && cd ArtSmoker
   python3 -m venv .venv
   source .venv/bin/activate
   pip install -r backend/requirements.txt
