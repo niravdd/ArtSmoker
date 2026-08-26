@@ -2867,13 +2867,28 @@
          * image". All work goes through /prepare-source sidecars — NO 2D versions
          * are created. NEVER triggers 3D generation (that's the form's Generate btn).
          */
-        async _reviewSource(reviewBtn) {
-            if (reviewBtn?.disabled) return;
-            // Re-sync to the true current version (backend truth) before reviewing.
+        /** Refresh metadata from the backend WITHOUT losing the user's selected
+         *  version. Both the Improve-the-Source review and 3D generation previously
+         *  adopted meta.current_version here — silently retargeting to a DIFFERENT
+         *  version than the one selected in the version bar (e.g. reviewing v3's
+         *  image and rendering v3's 3D model while "Original" was selected). The
+         *  version bar is an explicit user choice; fall back to current_version
+         *  only if the selected version no longer exists (deleted). */
+        async _refreshMetaKeepVersion() {
             try {
                 this._meta = await API.gallery.get(this._item.id);
-                if (this._meta?.current_version) this._currentVersion = this._meta.current_version;
-            } catch {}
+                const live = (this._meta?.versions || []).filter(v => !v.deleted).map(v => v.version);
+                const sel = this._currentVersion;
+                if (!sel || (live.length && !live.includes(sel))) {
+                    this._currentVersion = this._meta?.current_version || 1;
+                }
+            } catch { /* keep the cached meta */ }
+        },
+
+        async _reviewSource(reviewBtn) {
+            if (reviewBtn?.disabled) return;
+            // Fresh backend metadata; the SELECTED version stays authoritative.
+            await this._refreshMetaKeepVersion();
             const version = this._currentVersion || 1;
             // Label the button for what's ACTUALLY about to happen. BG removal is a
             // cached, at-most-once step (server reuses the __cutout sidecar and skips
@@ -2992,16 +3007,11 @@
 
             // Re-sync to the TRUE current version before generating. The backend's
             // current_version is the single source of truth — it advances on every
-            // edit (outpaint/inpaint/bg-removal) and asset.png always IS the current
-            // version. The local _currentVersion counter is written by many paths and
-            // can lag behind, so adopt the backend value to generate from the image
-            // the user actually last accepted. Source review is a SEPARATE explicit
-            // step (the Review button) — generation never triggers it, and this button
-            // is the ONE place a 3D job starts (visible job-strip feedback).
-            try {
-                this._meta = await API.gallery.get(this._item.id);
-                if (this._meta?.current_version) this._currentVersion = this._meta.current_version;
-            } catch {}
+            // Fresh backend metadata; the SELECTED version stays authoritative — the
+            // form promises "Generates from the currently selected image version",
+            // and adopting meta.current_version here silently generated from a
+            // different version than the one picked in the version bar.
+            await this._refreshMetaKeepVersion();
 
             const payload = {
                 asset_id: this._item?.id,
