@@ -39,3 +39,7 @@ data/trellis2_full_verify/
 
 # Server-side managed tools (portable Blender downloaded on-demand for GLB→FBX export)
 /tools/
+
+# Local Blender working files (e.g. FBX/USD import test scenes) — never repo content
+*.blend
+*.blend1
