@@ -121,9 +121,17 @@ Für Teams, die möchten, dass jedes generierte Asset zu einem vorhandenen Kunst
 
 ![2D Image Studio — Verbesserter Prompt und Generierungsergebnisse](docs/images/image-studio-results.png)
 
-**2D Image Studio — Modellvergleich** — Vergleichsraster nebeneinander über alle ausgewählten Modelle (7 Modelle abgebildet). Variationen der ausgewählten Option werden darunter angezeigt. Nachbearbeitungs-Umschalter (Hintergrund entfernen, In SVG konvertieren, Hochskalieren) links.
+**2D Image Studio — Modellvergleich** — Vergleichsraster nebeneinander über alle ausgewählten Modelle (8 abgebildet — Amazon Bedrock und selbst gehostete gleichermaßen). Jede Options-Karte trägt ihren eigenen Variationen-Filmstreifen; für die ausgewählte Option wird der modellspezifische Negativ-Prompt angezeigt. Nachbearbeitungs-Umschalter (Hintergrund entfernen, In SVG konvertieren, Hochskalieren) wirken ohne Neugenerierung auf vorhandene Ergebnisse.
 
 ![2D Image Studio — Multi-Modell-Vergleichsraster mit Variationen](docs/images/image-studio-comparison.png)
+
+**Image Inspiration (referenzgeführt)** — Legen Sie 1–3 Referenzbilder ab, beschreiben Sie Ihr Ziel und wählen Sie die Verwendung: **Getreu der Referenz** (pixelgetreue Bearbeitung auf einem bereitgestellten Bildbearbeitungsmodell) oder **Von der Referenz inspiriert** (eine Vision-KI schreibt den erweiterten Prompt — funktioniert mit jeder Modellauswahl, allen Optionen und Variationen). Der abgeleitete Prompt wird vor der Generierung als Vorschau angezeigt und ist vollständig bearbeitbar.
+
+![Image Inspiration — Referenzbilder, Anweisung und bearbeitbare Vorschau des erweiterten Prompts](docs/images/image-inspiration.png)
+
+**Image Inspiration — Ergebnisse** — Die Referenz wird zu einer neuen Kreation (hier eine Karikatur nach dem Referenzfoto); der exakt an das Modell gesendete Prompt und die Kosten pro Bild werden festgehalten.
+
+![Image Inspiration — aus einem Referenzbild generierte Karikaturen](docs/images/image-inspiration-results.png)
 
 **Prompt Designer** — Die KI zerlegt Ihren Prompt in bearbeitbare visuelle Komponenten (Motiv, Szene, Komposition, Beleuchtung, Stil & Farben). Jedes Feld kann einzeln mit Sperren/Variieren-Steuerelementen für wirklich unterschiedliche kreative Optionen bearbeitet werden.
 
@@ -143,17 +151,41 @@ Für Teams, die möchten, dass jedes generierte Asset zu einem vorhandenen Kunst
 
 ![Galerie — Raster generierter Assets mit Filtern](docs/images/gallery.png)
 
-**Asset Viewer** — Vorschau in voller Größe mit Registerkarten-Oberfläche (PNG, Bearbeiten, SVG, Metadaten, 3D-Modell). Laden Sie PNG und SVG direkt herunter. Das Compositing des transparenten Hintergrunds wird mit einem Schachbrettmuster dargestellt.
+**Asset Viewer** — Vorschau in voller Größe mit Registerkarten-Oberfläche (PNG, Bearbeiten, Export & Cutouts, Metadaten, 3D-Modell), Bildversionsleiste und direktem PNG/SVG-Download. Zoom-/Einpassen-/Mess-Steuerung über dem schachbrett-komponierten Bild.
 
 ![Asset Viewer — Vorschau in voller Größe mit Download-Optionen](docs/images/asset-viewer.png)
 
-**Asset Viewer — Bildbearbeitung** — Registerkarte „Bearbeiten" mit Inpainting: Malen Sie eine Maske über den zu ändernden Bereich, beschreiben Sie, was Sie möchten, wählen Sie ein Bearbeitungsmodell und wenden Sie es an. Versionsverlauf bleibt erhalten — Originale werden nie überschrieben.
+**Asset Viewer — Bildbearbeitung** — Fünf Bearbeitungsmodi: Füllen/Ersetzen, Entfernen, Erweitern, Suchen & Ersetzen, Umfärben. Abgebildet: **Erweitern** mit Messlineal, Pixelwerten je Seite und dem ✨ Prompt-generieren-Button, der das Bild liest und den Bearbeitungs-Prompt für Sie schreibt. Versionsverlauf bleibt erhalten — Originale werden nie überschrieben.
 
-![Asset Viewer — Inpainting mit Maske und Prompt](docs/images/asset-viewer-edit.png)
+![Asset Viewer — Erweitern mit Messlineal und KI-vorgeschlagenem Prompt](docs/images/asset-viewer-edit.png)
 
-**3D-Modell-Generierung** — Wandeln Sie jedes Game-Asset- oder Character-Bild in ein texturiertes 3D-Mesh (GLB) um. Konfigurieren Sie die Marching-Cubes-Auflösung, das Vordergrundverhältnis und die Generierungsparameter direkt in der Registerkarte „3D-Modell" des Asset Viewers.
+**Asset Viewer — Export & Cutouts** — Artefakte je Version, bereit für Ihr Spiel, Ihre Engine oder Ihr Design-Tool: Vektor-SVG des Gesamtbilds, freigestelltes Cutout-PNG und Cutout-SVG. Die Hintergrundentfernung läuft kostenlos auf Ihrem Gerät (ein kostenpflichtiger Amazon-Bedrock-Durchlauf ist optional).
+
+![Asset Viewer — Export & Cutouts mit Vektor-SVG und freigestellten Cutouts](docs/images/asset-viewer-export-cutouts.png)
+
+Nach einer Outpainting-Runde (v3 unten) erzeugt dieselbe Registerkarte alle drei Artefakte für die verbesserte Ganzkörper-Version neu.
+
+![Asset Viewer — Export & Cutouts für die outgepaintete Ganzkörper-Version](docs/images/asset-viewer-export-cutouts-outpainted.png)
+
+**Asset Viewer — Metadaten** — Die vollständige Prompt-Herkunft (Ihr Prompt → Prompt-Designer-Zerlegung → rekomponierter Prompt → das modellspezifisch verfeinerte Prompt), Generierungsdetails, Kostenaufschlüsselung und der komplette Versionsverlauf.
+
+![Asset Viewer — Metadaten mit vollständiger Prompt-Herkunft und Versionsverlauf](docs/images/asset-viewer-metadata.png)
+
+**3D-Modell-Generierung** — Die Registerkarte „3D-Modell" des Asset Viewers: Wählen Sie den bereitgestellten Pipeline-Endpunkt, die Qualitätsstufe (mit geschätzter Zeit und Kosten) und erweiterte Parameter. Das Lizenz-Panel zeigt die Bedingungen jeder Pipeline, und **Improve the Source** prüft das Bild visuell, bevor GPU-Zeit anfällt.
 
 ![3D-Modell-Generierung — Einstellungen und Generierung im Asset Viewer](docs/images/3d-model-generation.png)
+
+**Improve the Source** — Vor der Generierung vermisst ArtSmoker die Silhouette des Motivs und markiert Beschnitte (hier: an der Unterkante abgeschnitten), schlägt Erweiterungswerte und einen KI-geschriebenen Outpainting-Prompt vor — erweitern, füllen oder das Bild unverändert verwenden.
+
+![3D-Quellprüfung — automatische Beschnitt-Erkennung mit vorgeschlagener Erweiterung](docs/images/3d-source-review.png)
+
+**3D-Viewer + Engine-fertiger Export** — Umkreisen Sie das texturierte Mesh und bereiten Sie es für Ihre Engine vor: Ziel-Preset (Unreal, Unity, Godot, Blender, 3ds Max …), Textur-Packing, LOD-Kette, Kollisionsmesh und Lightmap-UV2 — lokal per Headless-Blender konvertiert; download-fertige Kombinationen werden je Version gemerkt.
+
+![3D-Viewer mit Werkzeugen je Variante und Engine-fertigen FBX/USD-Exportoptionen](docs/images/3d-model-viewer-export.png)
+
+**3D-Varianten** — Behalten Sie mehrere 3D-Ergebnisse je Bildversion (hier TripoSG gegenüber der vollständigen TRELLIS.2-Pipeline), wechseln Sie jederzeit oder setzen Sie den Standard; jede Variante hält die exakten Modelle & Werkzeuge fest, mit denen sie erstellt wurde.
+
+![3D-Varianten — TripoSG und TRELLIS.2 nebeneinander mit vollständiger Provenienz](docs/images/3d-model-variants.png)
 
 **Video Studio** — Einstellungen links (Modell, Generierungsmodus, Dauer, Region, Kostenschätzung), Prompt rechts. Unterstützt Nova Reel (Einzelaufnahme, Multi-Shot auto/manuell bis zu 2 Minuten) und Luma AI Ray (Seitenverhältnisse, Loop).
 

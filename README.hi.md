@@ -120,9 +120,17 @@ ArtSmoker दो मोड में काम करता है — **स्�
 
 ![2D Image Studio — Enhanced prompt and generation results](docs/images/image-studio-results.png)
 
-**2D Image Studio — मॉडल तुलना** — सभी चुने गए मॉडल्स (7 मॉडल दिखाए गए) पर साइड-बाय-साइड तुलना ग्रिड। चुने गए विकल्प के वेरिएशन नीचे प्रदर्शित। बाईं ओर पोस्ट-प्रोसेसिंग टॉगल (Remove Background, Convert to SVG, Upscale)।
+**2D Image Studio — मॉडल तुलना** — सभी चुने गए मॉडल्स (8 दिखाए गए — Amazon Bedrock और सेल्फ-होस्टेड, दोनों समान रूप से) पर साइड-बाय-साइड तुलना ग्रिड। हर विकल्प कार्ड की अपनी वेरिएशन फ़िल्मस्ट्रिप है; चुने गए विकल्प के लिए मॉडल-विशिष्ट नेगेटिव प्रॉम्प्ट दिखाया जाता है। पोस्ट-प्रोसेसिंग टॉगल (Remove Background, Convert to SVG, Upscale) बिना पुनः जनरेट किए मौजूदा परिणामों पर लागू होते हैं।
 
 ![2D Image Studio — Multi-model comparison grid with variations](docs/images/image-studio-comparison.png)
+
+**Image Inspiration (संदर्भ-निर्देशित)** — 1–3 संदर्भ चित्र डालें, बताएं कि आप क्या चाहते हैं, और उपयोग का तरीका चुनें: **Match the reference** (तैनात इमेज-संपादन मॉडल पर पिक्सेल-सटीक संपादन) या **Inspired by the reference** (विज़न AI उन्नत प्रॉम्प्ट लिखता है — किसी भी मॉडल चयन, विकल्प और वेरिएशन के साथ काम करता है)। व्युत्पन्न प्रॉम्प्ट जनरेट करने से पहले पूर्वावलोकन और पूरी तरह संपादन योग्य है।
+
+![Image Inspiration — reference images, instruction, and the editable enhanced-prompt preview](docs/images/image-inspiration.png)
+
+**Image Inspiration — परिणाम** — संदर्भ एक नई कृति बन जाता है (यहाँ, संदर्भ फ़ोटो से बनाई गई कैरिकेचर), जिसमें मॉडल को भेजा गया सटीक प्रॉम्प्ट और प्रति-चित्र लागत दर्ज होती है।
+
+![Image Inspiration — generated caricature results from a reference image](docs/images/image-inspiration-results.png)
 
 **Prompt Designer** — AI आपके प्रॉम्प्ट को संपादन योग्य विज़ुअल कम्पोनेंट्स (Subject, Scene, Composition, Lighting, Style & Colors) में विभाजित करता है। प्रत्येक फ़ील्ड को वास्तव में भिन्न क्रिएटिव विकल्पों के लिए लॉक/वैरी कंट्रोल्स से व्यक्तिगत रूप से संपादित किया जा सकता है।
 
@@ -142,17 +150,41 @@ ArtSmoker दो मोड में काम करता है — **स्�
 
 ![Gallery — Generated assets grid with filters](docs/images/gallery.png)
 
-**Asset Viewer** — टैब इंटरफ़ेस (PNG, Edit, SVG, Metadata, 3D Model) के साथ फ़ुल-साइज़ प्रीव्यू। PNG और SVG सीधे डाउनलोड करें। चेकरबोर्ड पैटर्न के साथ पारदर्शी पृष्ठभूमि कम्पोज़िटिंग दिखाई गई है।
+**Asset Viewer** — टैब इंटरफ़ेस (PNG, Edit, Export & Cutouts, Metadata, 3D Model), इमेज वर्शन बार और सीधे PNG/SVG डाउनलोड के साथ फ़ुल-साइज़ प्रीव्यू। चेकरबोर्ड-संयोजित चित्र पर ज़ूम/फ़िट/माप नियंत्रण।
 
 ![Asset Viewer — Full-size preview with download options](docs/images/asset-viewer.png)
 
-**Asset Viewer — इमेज एडिटिंग** — इनपेंटिंग के साथ एडिट टैब: बदलने वाले क्षेत्र पर एक मास्क पेंट करें, वर्णन करें कि आप क्या चाहते हैं, एक एडिटिंग मॉडल चुनें, और लागू करें। वर्शन इतिहास संरक्षित — मूल कभी ओवरराइट नहीं होते।
+**Asset Viewer — इमेज एडिटिंग** — पाँच संपादन मोड: Fill/Replace, Remove, Extend, Find & Replace, Recolor। दिखाया गया: **Extend** — माप रूलर, प्रति-दिशा पिक्सेल मान, और ✨ Generate Prompt बटन जो चित्र पढ़कर आपके लिए संपादन प्रॉम्प्ट लिखता है। वर्शन इतिहास संरक्षित — मूल कभी ओवरराइट नहीं होते।
 
-![Asset Viewer — Inpainting with mask and prompt](docs/images/asset-viewer-edit.png)
+![Asset Viewer — Extend editing with measurement ruler and AI-suggested prompt](docs/images/asset-viewer-edit.png)
 
-**3D मॉडल जनरेशन** — किसी भी Game Asset या Character इमेज को एक टेक्सचर्ड 3D मेश (GLB) में बदलें। Asset Viewer के 3D Model टैब में सीधे मार्चिंग क्यूब्स रेज़ोल्यूशन, फ़ोरग्राउंड रेशियो और जनरेशन पैरामीटर कॉन्फ़िगर करें।
+**Asset Viewer — Export & Cutouts** — आपके गेम, इंजन या डिज़ाइन टूल के लिए तैयार, प्रति-वर्शन आर्टिफ़ैक्ट: फ़ुल-इमेज वेक्टर SVG, पृष्ठभूमि-रहित कटआउट PNG, और कटआउट SVG। पृष्ठभूमि हटाना आपके डिवाइस पर निःशुल्क चलता है (सशुल्क Amazon Bedrock विकल्प भी उपलब्ध)।
+
+![Asset Viewer — Export & Cutouts with vector SVG and background-removed cutouts](docs/images/asset-viewer-export-cutouts.png)
+
+एक आउटपेंटिंग दौर के बाद (नीचे v3), वही टैब सुधरे हुए फ़ुल-बॉडी वर्शन के लिए तीनों आर्टिफ़ैक्ट फिर से बनाता है।
+
+![Asset Viewer — Export & Cutouts for the outpainted full-body version](docs/images/asset-viewer-export-cutouts-outpainted.png)
+
+**Asset Viewer — Metadata** — पूरा प्रॉम्प्ट वंशक्रम (आपका प्रॉम्प्ट → Prompt Designer विघटन → पुनर्संयोजित प्रॉम्प्ट → मॉडल-अनुकूलित परिष्कृत प्रॉम्प्ट), जनरेशन विवरण, लागत विवरण, और पूरा वर्शन इतिहास।
+
+![Asset Viewer — Metadata with full prompt lineage and version history](docs/images/asset-viewer-metadata.png)
+
+**3D मॉडल जनरेशन** — Asset Viewer का 3D Model टैब: तैनात पाइपलाइन एंडपॉइंट, गुणवत्ता स्तर (अनुमानित समय और लागत सहित) और उन्नत पैरामीटर चुनें। लाइसेंस पैनल हर पाइपलाइन की शर्तें दिखाता है, और **Improve the Source** GPU समय खर्च करने से पहले चित्र की विज़न-जाँच करता है।
 
 ![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
+
+**Improve the Source** — जनरेट करने से पहले, ArtSmoker विषय की छाया-रेखा मापकर कटाव चिह्नित करता है (यहाँ: निचले किनारे पर कटा हुआ), विस्तार मान और AI-लिखित आउटपेंट प्रॉम्प्ट सुझाता है — विस्तार करें, भरें, या चित्र को जस का तस उपयोग करें।
+
+![3D source review — automatic crop detection with suggested extension](docs/images/3d-source-review.png)
+
+**3D व्यूअर + इंजन-तैयार निर्यात** — टेक्सचर्ड मेश को घुमाकर देखें, फिर उसे अपने इंजन के लिए तैयार करें: टारगेट प्रीसेट (Unreal, Unity, Godot, Blender, 3ds Max…), टेक्सचर पैकिंग, LOD शृंखला, कोलिज़न मेश और लाइटमैप UV2 — हेडलेस Blender से स्थानीय रूप से रूपांतरित, और डाउनलोड-तैयार संयोजन प्रति-वर्शन याद रखे जाते हैं।
+
+![3D Model viewer with per-variant tools and engine-ready FBX/USD export options](docs/images/3d-model-viewer-export.png)
+
+**3D वेरिएंट** — प्रति इमेज वर्शन कई 3D परिणाम रखें (यहाँ TripoSG बनाम TRELLIS.2 पूर्ण पाइपलाइन), कभी भी बदलें या डिफ़ॉल्ट सेट करें; हर वेरिएंट उसे बनाने वाले सटीक मॉडल और टूल दर्ज करता है।
+
+![3D variants — TripoSG and TRELLIS.2 takes side by side with full provenance](docs/images/3d-model-variants.png)
 
 **Video Studio** — बाईं ओर सेटिंग्स (मॉडल, जनरेशन मोड, अवधि, रीजन, लागत अनुमान), दाईं ओर प्रॉम्प्ट। Nova Reel (सिंगल शॉट, 2 मिनट तक मल्टी-शॉट ऑटो/मैनुअल) और Luma AI Ray (आस्पेक्ट रेशियो, लूपिंग) का समर्थन करता है।
 

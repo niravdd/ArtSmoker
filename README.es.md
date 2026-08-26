@@ -120,9 +120,17 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 
 ![2D Image Studio — Prompt mejorado y resultados de generación](docs/images/image-studio-results.png)
 
-**2D Image Studio — Comparación de modelos** — Cuadrícula de comparación lado a lado de todos los modelos seleccionados (7 modelos mostrados). Las variaciones de la opción seleccionada se muestran abajo. Interruptores de postprocesamiento a la izquierda (Remove Background, Convert to SVG, Upscale).
+**2D Image Studio — Comparación de modelos** — Cuadrícula de comparación lado a lado de todos los modelos seleccionados (8 mostrados — Amazon Bedrock y autoalojados por igual). Cada tarjeta de opción lleva su propia tira de variaciones; para la opción seleccionada se muestra el prompt negativo específico del modelo. Los interruptores de postprocesamiento (Remove Background, Convert to SVG, Upscale) se aplican a los resultados existentes sin regenerar.
 
 ![2D Image Studio — Cuadrícula de comparación multimodelo con variaciones](docs/images/image-studio-comparison.png)
+
+**Image Inspiration (guiada por referencia)** — Suelta de 1 a 3 imágenes de referencia, di lo que quieres y elige cómo usarlas: **Fiel a la referencia** (edición fiel al píxel en un modelo de edición de imágenes desplegado) o **Inspirado en la referencia** (una IA de visión escribe el prompt mejorado — funciona con cualquier selección de modelos, opciones y variaciones). El prompt derivado se previsualiza y es totalmente editable antes de generar.
+
+![Image Inspiration — imágenes de referencia, instrucción y vista previa editable del prompt mejorado](docs/images/image-inspiration.png)
+
+**Image Inspiration — Resultados** — La referencia se convierte en una nueva creación (aquí, una caricatura dibujada a partir de la foto de referencia), registrando el prompt exacto enviado al modelo y el coste por imagen.
+
+![Image Inspiration — caricaturas generadas a partir de una imagen de referencia](docs/images/image-inspiration-results.png)
 
 **Prompt Designer** — La IA descompone su prompt en componentes visuales editables (Subject, Scene, Composition, Lighting, Style & Colors). Cada campo se puede editar individualmente con controles de bloquear/variar para opciones creativas genuinamente distintas.
 
@@ -142,17 +150,41 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 
 ![Galería — Cuadrícula de recursos generados con filtros](docs/images/gallery.png)
 
-**Asset Viewer** — Vista previa a tamaño completo con interfaz de pestañas (PNG, Edit, SVG, Metadata, 3D Model). Descarga directa de PNG y SVG. La composición de fondo transparente se muestra con un patrón de tablero de ajedrez.
+**Asset Viewer** — Vista previa a tamaño completo con interfaz de pestañas (PNG, Edit, Export & Cutouts, Metadata, 3D Model), barra de versiones de la imagen y descarga directa de PNG/SVG. Controles de zoom/ajuste/medición sobre la imagen compuesta en tablero de ajedrez.
 
 ![Asset Viewer — Vista previa a tamaño completo con opciones de descarga](docs/images/asset-viewer.png)
 
-**Asset Viewer — Edición de imágenes** — Pestaña Edit con inpainting: pinte una máscara sobre el área a cambiar, describa lo que desea, seleccione un modelo de edición y aplique. El historial de versiones se conserva — los originales nunca se sobrescriben.
+**Asset Viewer — Edición de imágenes** — Cinco modos de edición: Rellenar/Reemplazar, Eliminar, Extender, Buscar y reemplazar, Recolorear. En la imagen: **Extender**, con la regla de medición, los valores en píxeles por lado y el botón ✨ Generar prompt, que lee la imagen y escribe el prompt de edición por ti. El historial de versiones se conserva — los originales nunca se sobrescriben.
 
-![Asset Viewer — Inpainting con máscara y prompt](docs/images/asset-viewer-edit.png)
+![Asset Viewer — Extensión con regla de medición y prompt sugerido por la IA](docs/images/asset-viewer-edit.png)
 
-**Generación de modelo 3D** — Convierta cualquier imagen de Game Asset o Character en una malla 3D texturizada (GLB). Configure la resolución de marching cubes, la proporción de primer plano y los parámetros de generación directamente en la pestaña 3D Model del Asset Viewer.
+**Asset Viewer — Export & Cutouts** — Artefactos por versión listos para tu juego, motor o herramienta de diseño: SVG vectorial de la imagen completa, recorte PNG sin fondo y recorte SVG. La eliminación de fondo se ejecuta gratis en tu equipo (un procesado de pago con Amazon Bedrock es opcional).
+
+![Asset Viewer — Export & Cutouts con SVG vectorial y recortes sin fondo](docs/images/asset-viewer-export-cutouts.png)
+
+Tras una ronda de outpainting (v3 abajo), la misma pestaña regenera los tres artefactos para la versión de cuerpo entero mejorada.
+
+![Asset Viewer — Export & Cutouts para la versión de cuerpo entero tras outpainting](docs/images/asset-viewer-export-cutouts-outpainted.png)
+
+**Asset Viewer — Metadata** — El linaje completo del prompt (tu prompt → descomposición del Prompt Designer → prompt recompuesto → prompt refinado adaptado al modelo), detalles de generación, desglose de costes y el historial completo de versiones.
+
+![Asset Viewer — Metadata con linaje completo del prompt e historial de versiones](docs/images/asset-viewer-metadata.png)
+
+**Generación de modelo 3D** — La pestaña 3D Model del Asset Viewer: elige el endpoint del pipeline desplegado, el nivel de calidad (con tiempo y coste estimados) y los parámetros avanzados. El panel de licencia muestra las condiciones de cada pipeline, e **Improve the Source** revisa visualmente la imagen antes de gastar tiempo de GPU.
 
 ![Generación de modelo 3D — Configuración y generación en el Asset Viewer](docs/images/3d-model-generation.png)
+
+**Improve the Source** — Antes de generar, ArtSmoker mide la silueta del sujeto y señala los recortes (aquí: cortado en el borde inferior), sugiriendo los valores de extensión y un prompt de outpainting escrito por la IA — extiende, rellena o usa la imagen tal cual.
+
+![Revisión de la fuente 3D — detección automática de recorte con extensión sugerida](docs/images/3d-source-review.png)
+
+**Visor 3D + exportación lista para motores** — Orbita la malla texturizada y prepárala para tu motor: preajuste de destino (Unreal, Unity, Godot, Blender, 3ds Max…), empaquetado de texturas, cadena de LOD, malla de colisión y lightmap UV2 — convertido localmente mediante Blender sin interfaz, con las combinaciones listas para descargar recordadas por versión.
+
+![Visor 3D con herramientas por variante y opciones de exportación FBX/USD listas para motores](docs/images/3d-model-viewer-export.png)
+
+**Variantes 3D** — Conserva varios resultados 3D por versión de imagen (aquí TripoSG frente al pipeline completo TRELLIS.2), cambia entre ellos o fija el predeterminado en cualquier momento; cada variante registra los modelos y herramientas exactos que la produjeron.
+
+![Variantes 3D — TripoSG y TRELLIS.2 lado a lado con procedencia completa](docs/images/3d-model-variants.png)
 
 **Video Studio** — Configuración a la izquierda (modelo, modo de generación, duración, región, estimación de costos), prompt a la derecha. Compatible con Nova Reel (toma única, multi-toma automática/manual hasta 2 minutos) y Luma AI Ray (relaciones de aspecto, bucle).
 

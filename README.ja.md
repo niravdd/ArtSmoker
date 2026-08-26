@@ -120,9 +120,17 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 
 ![2D Image Studio — Enhanced prompt and generation results](docs/images/image-studio-results.png)
 
-**2D Image Studio — モデル比較** — 選択したすべてのモデル（7モデルを表示）の横並び比較グリッド。選択したオプションのバリエーションが下部に表示されます。左側に後処理トグル（背景削除、SVG変換、アップスケール）。
+**2D Image Studio — モデル比較** — 選択したすべてのモデル（8モデルを表示 — Amazon Bedrockもセルフホストも同様に）の横並び比較グリッド。各オプションカードは独自のバリエーションフィルムストリップを持ち、選択中のオプションにはモデルごとのネガティブプロンプトが表示されます。後処理トグル（背景削除、SVG変換、アップスケール）は再生成なしで既存の結果に適用できます。
 
 ![2D Image Studio — Multi-model comparison grid with variations](docs/images/image-studio-comparison.png)
+
+**Image Inspiration（リファレンス誘導）** — 1〜3枚のリファレンス画像をドロップし、やりたいことを記述して、使い方を選択：**Match the reference**（デプロイ済みの画像編集モデルによるピクセル忠実な編集）または**Inspired by the reference**（ビジョンAIが強化プロンプトを作成 — 任意のモデル選択・オプション・バリエーションで動作）。導出されたプロンプトは生成前にプレビューでき、完全に編集可能です。
+
+![Image Inspiration — reference images, instruction, and the editable enhanced-prompt preview](docs/images/image-inspiration.png)
+
+**Image Inspiration — 結果** — リファレンスが新しい作品になります（ここではリファレンス写真から描かれた似顔絵）。モデルに送信された正確なプロンプトと画像ごとのコストが記録されます。
+
+![Image Inspiration — generated caricature results from a reference image](docs/images/image-inspiration-results.png)
 
 **Prompt Designer** — AIがプロンプトを編集可能なビジュアルコンポーネント（Subject、Scene、Composition、Lighting、Style & Colors）に分解します。各フィールドは、真に異なるクリエイティブオプションのためのロック/バリエーションコントロールで個別に編集できます。
 
@@ -142,17 +150,41 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 
 ![Gallery — Generated assets grid with filters](docs/images/gallery.png)
 
-**Asset Viewer** — タブ付きインターフェース（PNG、Edit、SVG、Metadata、3D Model）を備えたフルサイズプレビュー。PNGとSVGを直接ダウンロードできます。透明背景の合成はチェッカーボードパターンで表示されます。
+**Asset Viewer** — タブ付きインターフェース（PNG、Edit、Export & Cutouts、Metadata、3D Model）、画像バージョンバー、PNG/SVGの直接ダウンロードを備えたフルサイズプレビュー。チェッカーボード合成画像上のズーム/フィット/計測コントロール。
 
 ![Asset Viewer — Full-size preview with download options](docs/images/asset-viewer.png)
 
-**Asset Viewer — 画像編集** — インペインティング付きのEditタブ：変更したい領域にマスクをペイントし、望む内容を記述し、編集モデルを選択して適用します。バージョン履歴が保持され、オリジナルが上書きされることはありません。
+**Asset Viewer — 画像編集** — 5つの編集モード：Fill/Replace、Remove、Extend、Find & Replace、Recolor。表示中：計測ルーラー、辺ごとのピクセル量、画像を読み取って編集プロンプトを書いてくれる ✨ Generate Prompt ボタンを備えた**Extend**。バージョン履歴が保持され、オリジナルが上書きされることはありません。
 
-![Asset Viewer — Inpainting with mask and prompt](docs/images/asset-viewer-edit.png)
+![Asset Viewer — Extend editing with measurement ruler and AI-suggested prompt](docs/images/asset-viewer-edit.png)
 
-**3Dモデル生成** — 任意のGame AssetまたはCharacter画像をテクスチャ付き3Dメッシュ（GLB）に変換します。Asset Viewerの3D Modelタブで、マーチングキューブ解像度、前景比率、生成パラメータを直接設定できます。
+**Asset Viewer — Export & Cutouts** — ゲーム・エンジン・デザインツールにすぐ使えるバージョンごとのアーティファクト：フル画像のベクターSVG、背景除去済みカットアウトPNG、カットアウトSVG。背景除去はデバイス上で無料実行（有料のAmazon Bedrockパスも選択可能）。
+
+![Asset Viewer — Export & Cutouts with vector SVG and background-removed cutouts](docs/images/asset-viewer-export-cutouts.png)
+
+アウトペインティング後（下のv3）、同じタブが改善された全身バージョンの3つのアーティファクトすべてを再生成します。
+
+![Asset Viewer — Export & Cutouts for the outpainted full-body version](docs/images/asset-viewer-export-cutouts-outpainted.png)
+
+**Asset Viewer — Metadata** — 完全なプロンプト系譜（あなたのプロンプト → Prompt Designer分解 → 再構成プロンプト → モデル向けに調整された洗練プロンプト）、生成詳細、コスト内訳、完全なバージョン履歴。
+
+![Asset Viewer — Metadata with full prompt lineage and version history](docs/images/asset-viewer-metadata.png)
+
+**3Dモデル生成** — Asset Viewerの3D Modelタブ：デプロイ済みパイプラインのエンドポイント、品質ティア（推定時間とコスト付き）、詳細パラメータを選択。ライセンスパネルには各パイプラインの条件が表示され、**Improve the Source**がGPU時間を使う前に画像をビジョンチェックします。
 
 ![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
+
+**Improve the Source** — 生成前に、ArtSmokerが被写体のシルエットを計測して切れ（ここでは下端で切断）を検出し、拡張量とAIが書いたアウトペイントプロンプトを提案 — 拡張、塗りつぶし、またはそのまま使用できます。
+
+![3D source review — automatic crop detection with suggested extension](docs/images/3d-source-review.png)
+
+**3Dビューア + エンジン対応エクスポート** — テクスチャ付きメッシュをオービットで確認し、エンジン向けに準備：ターゲットプリセット（Unreal、Unity、Godot、Blender、3ds Max…）、テクスチャパッキング、LODチェーン、コリジョンメッシュ、ライトマップUV2 — ヘッドレスBlenderでローカル変換され、ダウンロード可能な組み合わせはバージョンごとに記憶されます。
+
+![3D Model viewer with per-variant tools and engine-ready FBX/USD export options](docs/images/3d-model-viewer-export.png)
+
+**3Dバリアント** — 画像バージョンごとに複数の3Dテイクを保持（ここではTripoSGとTRELLIS.2フルパイプライン）し、いつでも切り替えやデフォルト設定が可能。各バリアントは生成に使用した正確なモデルとツールを記録します。
+
+![3D variants — TripoSG and TRELLIS.2 takes side by side with full provenance](docs/images/3d-model-variants.png)
 
 **Video Studio** — 左側に設定（モデル、生成モード、長さ、リージョン、コスト見積もり）、右側にプロンプト。Nova Reel（シングルショット、最大2分のマルチショット自動/手動）とLuma AI Ray（アスペクト比、ループ）に対応。
 

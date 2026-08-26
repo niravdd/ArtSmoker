@@ -120,9 +120,17 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 
 ![2D Image Studio — 강화된 프롬프트와 생성 결과](docs/images/image-studio-results.png)
 
-**2D Image Studio — 모델 비교** — 선택한 모든 모델(7개 모델 표시)의 나란히 비교 그리드. 선택한 옵션의 배리에이션이 하단에 표시. 왼쪽에 후처리 토글(배경 제거, SVG 변환, 업스케일).
+**2D Image Studio — 모델 비교** — 선택한 모든 모델(8개 표시 — Amazon Bedrock과 셀프 호스팅 모델 모두)의 나란히 비교 그리드. 각 옵션 카드는 자체 배리에이션 필름스트립을 가지며, 선택한 옵션에는 모델별 네거티브 프롬프트가 표시됩니다. 후처리 토글(배경 제거, SVG 변환, 업스케일)은 재생성 없이 기존 결과에 적용됩니다.
 
 ![2D Image Studio — 멀티 모델 비교 그리드와 배리에이션](docs/images/image-studio-comparison.png)
+
+**Image Inspiration(참조 이미지 기반)** — 1~3장의 참조 이미지를 드롭하고, 원하는 것을 설명한 뒤, 사용 방식을 선택하세요: **참조에 충실하게**(배포된 이미지 편집 모델에서 픽셀 단위로 충실한 편집) 또는 **참조에서 영감받기**(비전 AI가 향상된 프롬프트를 작성 — 어떤 모델 선택, 옵션, 배리에이션과도 작동). 도출된 프롬프트는 생성 전에 미리 보고 자유롭게 편집할 수 있습니다.
+
+![Image Inspiration — 참조 이미지, 지시문, 편집 가능한 향상된 프롬프트 미리보기](docs/images/image-inspiration.png)
+
+**Image Inspiration — 결과** — 참조가 새로운 창작물이 됩니다(여기서는 참조 사진으로 그린 캐리커처). 모델에 전송된 정확한 프롬프트와 이미지당 비용이 기록됩니다.
+
+![Image Inspiration — 참조 이미지에서 생성된 캐리커처 결과](docs/images/image-inspiration-results.png)
 
 **Prompt Designer** — AI가 프롬프트를 편집 가능한 시각 컴포넌트(주체, 씬, 구도, 조명, 스타일 및 색상)로 분해. 각 필드는 잠금/변형 컨트롤로 개별 편집이 가능하여 진정으로 구별되는 크리에이티브 옵션을 만듭니다.
 
@@ -142,17 +150,41 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 
 ![갤러리 — 필터가 포함된 생성 에셋 그리드](docs/images/gallery.png)
 
-**Asset Viewer** — 탭 인터페이스(PNG, Edit, SVG, Metadata, 3D Model)가 포함된 전체 크기 미리보기. PNG와 SVG를 직접 다운로드. 체커보드 패턴으로 투명 배경 합성을 표시.
+**Asset Viewer** — 탭 인터페이스(PNG, Edit, Export & Cutouts, Metadata, 3D Model), 이미지 버전 바, PNG/SVG 직접 다운로드가 포함된 전체 크기 미리보기. 체커보드 합성 이미지 위에 확대/맞춤/측정 컨트롤 제공.
 
 ![Asset Viewer — 다운로드 옵션이 포함된 전체 크기 미리보기](docs/images/asset-viewer.png)
 
-**Asset Viewer — 이미지 편집** — 인페인팅 기능이 포함된 Edit 탭: 변경할 영역에 마스크를 페인트하고, 원하는 내용을 설명하고, 편집 모델을 선택하여 적용. 버전 히스토리가 보존됩니다 — 원본은 절대 덮어쓰이지 않습니다.
+**Asset Viewer — 이미지 편집** — 다섯 가지 편집 모드: 채우기/교체, 제거, 확장, 찾아 바꾸기, 색상 변경. 표시된 화면: 측정 눈금자, 변별 픽셀 값, 이미지를 읽고 편집 프롬프트를 대신 써 주는 ✨ 프롬프트 생성 버튼을 갖춘 **확장** 모드. 버전 히스토리가 보존됩니다 — 원본은 절대 덮어쓰이지 않습니다.
 
-![Asset Viewer — 마스크와 프롬프트를 사용한 인페인팅](docs/images/asset-viewer-edit.png)
+![Asset Viewer — 측정 눈금자와 AI 제안 프롬프트를 사용한 확장 편집](docs/images/asset-viewer-edit.png)
 
-**3D 모델 생성** — 모든 Game Asset 또는 Character 이미지를 텍스처링된 3D 메시(GLB)로 변환. Asset Viewer의 3D Model 탭에서 마칭 큐브 해상도, 전경 비율, 생성 파라미터를 직접 설정.
+**Asset Viewer — Export & Cutouts** — 게임, 엔진, 디자인 도구에 바로 쓸 수 있는 버전별 아티팩트: 전체 이미지 벡터 SVG, 배경 제거된 컷아웃 PNG, 컷아웃 SVG. 배경 제거는 기기에서 무료로 실행됩니다(유료 Amazon Bedrock 처리도 선택 가능).
+
+![Asset Viewer — 벡터 SVG와 배경 제거 컷아웃의 Export & Cutouts](docs/images/asset-viewer-export-cutouts.png)
+
+아웃페인팅 후(아래 v3), 같은 탭이 개선된 전신 버전에 대해 세 가지 아티팩트를 모두 재생성합니다.
+
+![Asset Viewer — 아웃페인팅된 전신 버전의 Export & Cutouts](docs/images/asset-viewer-export-cutouts-outpainted.png)
+
+**Asset Viewer — Metadata** — 전체 프롬프트 계보(내 프롬프트 → Prompt Designer 분해 → 재구성 프롬프트 → 모델 맞춤 정제 프롬프트), 생성 세부 정보, 비용 내역, 전체 버전 히스토리.
+
+![Asset Viewer — 전체 프롬프트 계보와 버전 히스토리가 포함된 Metadata](docs/images/asset-viewer-metadata.png)
+
+**3D 모델 생성** — Asset Viewer의 3D Model 탭: 배포된 파이프라인 엔드포인트, 품질 등급(예상 시간·비용 포함), 고급 파라미터를 선택합니다. 라이선스 패널에 각 파이프라인의 조건이 표시되고, **소스 개선**이 GPU 시간을 쓰기 전에 이미지를 비전 검사합니다.
 
 ![3D 모델 생성 — Asset Viewer에서의 설정 및 생성](docs/images/3d-model-generation.png)
+
+**소스 개선** — 생성 전에 ArtSmoker가 피사체의 실루엣을 측정해 잘림(여기서는 하단 가장자리)을 감지하고, 확장 값과 AI가 작성한 아웃페인트 프롬프트를 제안합니다 — 확장, 채우기 또는 그대로 사용할 수 있습니다.
+
+![3D 소스 검토 — 자동 잘림 감지와 제안된 확장 값](docs/images/3d-source-review.png)
+
+**3D 뷰어 + 엔진 대응 내보내기** — 텍스처 메시를 회전하며 살펴본 뒤 엔진에 맞게 준비: 타깃 프리셋(Unreal, Unity, Godot, Blender, 3ds Max…), 텍스처 패킹, LOD 체인, 콜리전 메시, 라이트맵 UV2 — 헤드리스 Blender로 로컬 변환되며, 다운로드 가능한 조합은 버전별로 기억됩니다.
+
+![3D 모델 뷰어 — 배리언트별 도구와 엔진 대응 FBX/USD 내보내기 옵션](docs/images/3d-model-viewer-export.png)
+
+**3D 배리언트** — 이미지 버전마다 여러 3D 결과물을 보관(여기서는 TripoSG와 TRELLIS.2 전체 파이프라인)하고 언제든 전환하거나 기본값으로 설정할 수 있습니다. 각 배리언트는 생성에 사용된 정확한 모델과 도구를 기록합니다.
+
+![3D 배리언트 — TripoSG와 TRELLIS.2 결과물 비교 및 전체 이력](docs/images/3d-model-variants.png)
 
 **Video Studio** — 왼쪽에 설정(모델, 생성 모드, 길이, 리전, 비용 추정), 오른쪽에 프롬프트. Nova Reel(싱글 숏, 최대 2분 멀티숏 자동/수동)과 Luma AI Ray(종횡비, 루핑)를 지원합니다.
 

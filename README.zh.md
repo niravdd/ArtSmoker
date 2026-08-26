@@ -120,9 +120,17 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 ![2D Image Studio — 增强提示词和生成结果](docs/images/image-studio-results.png)
 
-**2D Image Studio — 模型比较** —— 所有选定模型的并排比较网格（展示 7 个模型）。所选选项的变体显示在下方。左侧为后处理切换开关（移除背景、转换为 SVG、放大）。
+**2D Image Studio — 模型比较** —— 所有选定模型的并排比较网格（展示 8 个模型 —— Amazon Bedrock 与自托管模型一视同仁）。每个选项卡片带有自己的变体缩略条；所选选项显示对应模型的负面提示词。后处理开关（移除背景、转换为 SVG、放大）可直接应用于现有结果，无需重新生成。
 
 ![2D Image Studio — 多模型比较网格与变体](docs/images/image-studio-comparison.png)
+
+**Image Inspiration（参考图引导）** —— 拖入 1–3 张参考图，说明你想要什么，并选择使用方式：**忠于参考图**（在已部署的图像编辑模型上进行像素级忠实编辑）或**受参考图启发**（视觉 AI 撰写增强提示词 —— 适用于任意模型组合、选项和变体数量）。派生的提示词在生成前可预览并完全编辑。
+
+![Image Inspiration — 参考图、指令与可编辑的增强提示词预览](docs/images/image-inspiration.png)
+
+**Image Inspiration — 结果** —— 参考图变成新的创作（此处为根据参考照片绘制的漫画肖像），并记录发送给模型的确切提示词和每张图的成本。
+
+![Image Inspiration — 由参考图生成的漫画肖像结果](docs/images/image-inspiration-results.png)
 
 **Prompt Designer** —— AI 将提示词分解为可编辑的视觉组件（主体、场景、构图、光照、风格与颜色）。每个字段可通过锁定/变化控制单独编辑，生成真正与众不同的创意选项。
 
@@ -142,17 +150,41 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 ![画廊 — 带过滤器的生成资产网格](docs/images/gallery.png)
 
-**Asset Viewer** —— 带选项卡界面（PNG、编辑、SVG、元数据、3D 模型）的全尺寸预览。直接下载 PNG 和 SVG。棋盘格图案展示透明背景合成效果。
+**Asset Viewer** —— 带选项卡界面（PNG、编辑、Export & Cutouts、元数据、3D 模型）、图像版本栏以及 PNG/SVG 直接下载的全尺寸预览。棋盘格合成图像上提供缩放/适配/测量控件。
 
 ![Asset Viewer — 带下载选项的全尺寸预览](docs/images/asset-viewer.png)
 
-**Asset Viewer — 图像编辑** —— 编辑选项卡的局部重绘功能：在需要更改的区域绘制蒙版，描述想要的效果，选择编辑模型并应用。保留版本历史 —— 原始图像永远不会被覆盖。
+**Asset Viewer — 图像编辑** —— 五种编辑模式：填充/替换、移除、扩展、查找并替换、重新着色。图示为**扩展**模式：带测量标尺、每边像素数量，以及能读取图像并为你撰写编辑提示词的 ✨ 生成提示词按钮。保留版本历史 —— 原始图像永远不会被覆盖。
 
-![Asset Viewer — 蒙版和提示词局部重绘](docs/images/asset-viewer-edit.png)
+![Asset Viewer — 带测量标尺和 AI 建议提示词的扩展编辑](docs/images/asset-viewer-edit.png)
 
-**3D 模型生成** —— 将任何 Game Asset 或 Character 图像转换为带纹理的 3D 网格（GLB）。在 Asset Viewer 的 3D 模型选项卡中直接配置行进立方体分辨率、前景比例和生成参数。
+**Asset Viewer — Export & Cutouts** —— 按版本生成、可直接用于游戏、引擎或设计工具的产物：全图矢量 SVG、去背景抠图 PNG 和抠图 SVG。背景移除在本机免费运行（也可选用付费的 Amazon Bedrock 处理）。
+
+![Asset Viewer — 矢量 SVG 与去背景抠图的 Export & Cutouts](docs/images/asset-viewer-export-cutouts.png)
+
+一轮扩展绘制之后（下方 v3），同一选项卡会为改进后的全身版本重新生成全部三种产物。
+
+![Asset Viewer — 扩展绘制后全身版本的 Export & Cutouts](docs/images/asset-viewer-export-cutouts-outpainted.png)
+
+**Asset Viewer — 元数据** —— 完整的提示词脉络（你的提示词 → Prompt Designer 分解 → 重组提示词 → 针对模型定制的精炼提示词）、生成详情、成本明细，以及完整的版本历史。
+
+![Asset Viewer — 带完整提示词脉络与版本历史的元数据](docs/images/asset-viewer-metadata.png)
+
+**3D 模型生成** —— Asset Viewer 的 3D 模型选项卡：选择已部署的管线端点、质量档位（含预计时间和成本）与高级参数。许可面板显示各管线的条款，**改进源图**会在你消耗 GPU 时间之前对图像做视觉检查。
 
 ![3D 模型生成 — Asset Viewer 中的设置和生成](docs/images/3d-model-generation.png)
+
+**改进源图** —— 生成之前，ArtSmoker 会测量主体轮廓并标记裁切（此处：底边被切断），建议扩展量和 AI 撰写的扩展绘制提示词 —— 可扩展、填充，或按原样使用。
+
+![3D 源图审查 — 自动裁切检测与建议的扩展量](docs/images/3d-source-review.png)
+
+**3D 查看器 + 引擎就绪导出** —— 环绕查看带纹理的网格，然后为你的引擎做准备：目标预设（Unreal、Unity、Godot、Blender、3ds Max……）、纹理打包、LOD 链、碰撞网格和光照贴图 UV2 —— 通过无头 Blender 在本地转换，可下载的组合按版本记忆。
+
+![3D 模型查看器 — 各变体工具与引擎就绪的 FBX/USD 导出选项](docs/images/3d-model-viewer-export.png)
+
+**3D 变体** —— 每个图像版本可保留多个 3D 成品（此处为 TripoSG 与 TRELLIS.2 完整管线），随时切换或设为默认；每个变体都记录生成它的确切模型与工具。
+
+![3D 变体 — TripoSG 与 TRELLIS.2 成品并排展示及完整溯源](docs/images/3d-model-variants.png)
 
 **Video Studio** —— 左侧为设置（模型、生成模式、时长、区域、成本估算），右侧为提示词。支持 Nova Reel（单镜头、最长 2 分钟的多镜头自动/手动）和 Luma AI Ray（宽高比、循环）。
 

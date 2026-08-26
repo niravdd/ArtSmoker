@@ -120,9 +120,17 @@ For teams that want every generated asset to match an existing art style — upl
 
 ![2D Image Studio — Enhanced prompt and generation results](docs/images/image-studio-results.png)
 
-**2D Image Studio — Model Comparison** — Side-by-side comparison grid across all selected models (7 models shown). Variations of the selected option displayed below. Post-processing toggles (Remove Background, Convert to SVG, Upscale) on the left.
+**2D Image Studio — Model Comparison** — Side-by-side comparison grid across all selected models (8 shown — Amazon Bedrock and self-hosted alike). Each option card carries its own variation filmstrip; the per-model negative prompt is shown for the selected option. Post-processing toggles (Remove Background, Convert to SVG, Upscale) apply to existing results without regenerating.
 
 ![2D Image Studio — Multi-model comparison grid with variations](docs/images/image-studio-comparison.png)
+
+**Image Inspiration (reference-guided)** — Drop 1–3 reference images, say what you want, and pick how they're used: **Match the reference** (pixel-faithful edit on a deployed image-editing model) or **Inspired by the reference** (a vision AI writes the enhanced prompt — works with any model selection, options, and variations). The derived prompt is previewed and fully editable before generating.
+
+![Image Inspiration — reference images, instruction, and the editable enhanced-prompt preview](docs/images/image-inspiration.png)
+
+**Image Inspiration — Results** — The reference becomes a new creation (here, a caricature drawn from the reference photo), with the exact prompt sent to the model and the per-image cost recorded.
+
+![Image Inspiration — generated caricature results from a reference image](docs/images/image-inspiration-results.png)
 
 **Prompt Designer** — AI decomposes your prompt into editable visual components (Subject, Scene, Composition, Lighting, Style & Colors). Each field can be individually edited with lock/vary controls for genuinely distinct creative options.
 
@@ -142,17 +150,41 @@ For teams that want every generated asset to match an existing art style — upl
 
 ![Gallery — Generated assets grid with filters](docs/images/gallery.png)
 
-**Asset Viewer** — Full-size preview with tabbed interface (PNG, Edit, SVG, Metadata, 3D Model). Download PNG and SVG directly. Transparent background compositing shown with checkerboard pattern.
+**Asset Viewer** — Full-size preview with tabbed interface (PNG, Edit, Export & Cutouts, Metadata, 3D Model), the image version bar, and direct PNG/SVG downloads. Zoom/fit/measure controls over the checkerboard-composited image.
 
 ![Asset Viewer — Full-size preview with download options](docs/images/asset-viewer.png)
 
-**Asset Viewer — Image Editing** — Edit tab with inpainting: paint a mask over the area to change, describe what you want, select an editing model, and apply. Version history preserved — originals are never overwritten.
+**Asset Viewer — Image Editing** — Five edit modes: Fill/Replace, Remove, Extend, Find & Replace, Recolor. Shown: **Extend** with the measurement ruler, per-side pixel amounts, and the ✨ Generate Prompt button that reads the image and writes the edit prompt for you. Version history preserved — originals are never overwritten.
 
-![Asset Viewer — Inpainting with mask and prompt](docs/images/asset-viewer-edit.png)
+![Asset Viewer — Extend editing with measurement ruler and AI-suggested prompt](docs/images/asset-viewer-edit.png)
 
-**3D Model Generation** — Convert any Game Asset or Character image into a textured 3D mesh (GLB). Configure marching cubes resolution, foreground ratio, and generation parameters directly in the Asset Viewer's 3D Model tab.
+**Asset Viewer — Export & Cutouts** — Per-version artefacts ready for your game, engine, or design tool: full-image vector SVG, background-removed cutout PNG, and cutout SVG. Background removal runs on-device for free (a paid Amazon Bedrock pass is optional).
+
+![Asset Viewer — Export & Cutouts with vector SVG and background-removed cutouts](docs/images/asset-viewer-export-cutouts.png)
+
+After an outpainting round (v3 below), the same tab regenerates all three artefacts for the improved full-body version.
+
+![Asset Viewer — Export & Cutouts for the outpainted full-body version](docs/images/asset-viewer-export-cutouts-outpainted.png)
+
+**Asset Viewer — Metadata** — The full prompt lineage (your prompt → Prompt Designer decomposition → recomposed prompt → the model-tailored refined prompt), generation details, cost breakdown, and the complete version history.
+
+![Asset Viewer — Metadata with full prompt lineage and version history](docs/images/asset-viewer-metadata.png)
+
+**3D Model Generation** — The Asset Viewer's 3D Model tab: pick the deployed pipeline endpoint, quality tier (with est. time and cost), and advanced parameters. The licence panel shows each pipeline's terms, and **Improve the Source** vision-checks the image before you spend GPU time.
 
 ![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
+
+**Improve the Source** — Before generating, ArtSmoker measures the subject's silhouette and flags crops (here: cut off at the bottom edge), suggesting extension amounts and an AI-written outpaint prompt — extend, fill, or use the image as-is.
+
+![3D source review — automatic crop detection with suggested extension](docs/images/3d-source-review.png)
+
+**3D viewer + engine-ready export** — Orbit the textured mesh, then prepare it for your engine: target preset (Unreal, Unity, Godot, Blender, 3ds Max, …), texture packing, LOD chain, collision mesh, and lightmap UV2 — converted locally via headless Blender, with ready-to-download combinations remembered per version.
+
+![3D Model viewer with per-variant tools and engine-ready FBX/USD export options](docs/images/3d-model-viewer-export.png)
+
+**3D variants** — Keep multiple 3D takes per image version (here TripoSG vs the TRELLIS.2 full pipeline), switch between them or set the default at any time; every variant records the exact models & tools that produced it.
+
+![3D variants — TripoSG and TRELLIS.2 takes side by side with full provenance](docs/images/3d-model-variants.png)
 
 **Video Studio** — Settings on the left (model, generation mode, duration, region, cost estimate), prompt on the right. Supports Nova Reel (single shot, multi-shot auto/manual up to 2 minutes) and Luma AI Ray (aspect ratios, looping).
 
