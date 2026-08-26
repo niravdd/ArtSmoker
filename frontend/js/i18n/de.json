@@ -265,6 +265,7 @@
     "will_generate_info": "Es wird 1 Bild pro Modell generiert ({{count}} Modelle) = insgesamt {{count}} Bilder",
     "already_upscaled": "Bereits hochskaliert — kann nicht erneut hochskaliert werden",
     "batch_loaded_partial": "Stapel geladen: {{surviving}} von {{total}} Bildern verbleiben ({{deleted}} aus der Galerie gelöscht)",
+    "batch_models_unavailable": "{{n}} Modell(e) aus diesem Batch sind nicht mehr verfügbar und wurden übersprungen",
     "batch_loaded": "Stapel geladen: {{options}} Optionen × {{variations}} Variationen",
     "loading_batch": "Stapel wird geladen...",
     "original_prompt_label": "Ursprünglicher Prompt",

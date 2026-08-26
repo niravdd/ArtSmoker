@@ -600,6 +600,7 @@
     "batch": "배치",
     "batch_loaded": "배치 로드 완료: {{options}}개 옵션 × {{variations}}개 변형",
     "batch_loaded_partial": "배치 로드 완료: {{total}}개 중 {{surviving}}개 남음 ({{deleted}}개가 갤러리에서 삭제됨)",
+    "batch_models_unavailable": "이 배치의 모델 {{n}}개는 더 이상 사용할 수 없어 건너뛰었습니다",
     "best_effort_rewrite": "최선의 재작성:",
     "blocked_by_moderation": "콘텐츠 검토에 의해 차단됨",
     "blocked_moderation": "차단 — 콘텐츠 검토",

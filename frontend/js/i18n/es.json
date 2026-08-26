@@ -600,6 +600,7 @@
     "batch": "Lote",
     "batch_loaded": "Lote cargado: {{options}} opciones × {{variations}} variaciones",
     "batch_loaded_partial": "Lote cargado: {{surviving}} de {{total}} imágenes restantes ({{deleted}} eliminadas de la galería)",
+    "batch_models_unavailable": "{{n}} modelo(s) de este lote ya no están disponibles y se omitieron",
     "best_effort_rewrite": "Reescritura de mejor esfuerzo:",
     "blocked_by_moderation": "Bloqueado por moderación",
     "blocked_moderation": "Bloqueado — moderación",

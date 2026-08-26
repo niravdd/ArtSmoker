@@ -600,6 +600,7 @@
     "batch": "批次",
     "batch_loaded": "批次已加载：{{options}} 个选项 × {{variations}} 个变体",
     "batch_loaded_partial": "批次已加载：{{total}} 张图像中剩余 {{surviving}} 张（{{deleted}} 张已从图库删除）",
+    "batch_models_unavailable": "此批次中的 {{n}} 个模型已不可用，已跳过",
     "best_effort_rewrite": "尽力重写结果：",
     "blocked_by_moderation": "已被内容审核拦截",
     "blocked_moderation": "已拦截 — 内容审核",

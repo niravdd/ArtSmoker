@@ -265,6 +265,7 @@
     "will_generate_info": "Will generate 1 image per model ({{count}} models) = {{count}} images total",
     "already_upscaled": "Already upscaled — cannot upscale again",
     "batch_loaded_partial": "Batch loaded: {{surviving}} of {{total}} images remaining ({{deleted}} deleted from gallery)",
+    "batch_models_unavailable": "{{n}} model(s) from this batch are no longer available and were skipped",
     "batch_loaded": "Batch loaded: {{options}} options × {{variations}} variations",
     "loading_batch": "Loading batch...",
     "original_prompt_label": "Original prompt",

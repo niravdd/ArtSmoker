@@ -265,6 +265,7 @@
     "will_generate_info": "प्रति मॉडल 1 चित्र बनेगा ({{count}} मॉडल) = कुल {{count}} चित्र",
     "already_upscaled": "पहले से अपस्केल — दोबारा अपस्केल नहीं हो सकता",
     "batch_loaded_partial": "बैच लोड: {{total}} में से {{surviving}} चित्र शेष ({{deleted}} दीर्घा से हटाए गए)",
+    "batch_models_unavailable": "इस बैच के {{n}} मॉडल अब उपलब्ध नहीं हैं और छोड़ दिए गए",
     "batch_loaded": "बैच लोड: {{options}} विकल्प × {{variations}} भिन्नता",
     "loading_batch": "बैच लोड हो रहा है...",
     "original_prompt_label": "मूल प्रॉम्प्ट",

@@ -600,6 +600,7 @@
     "batch": "バッチ",
     "batch_loaded": "バッチを読み込みました：{{options}} オプション × {{variations}} バリエーション",
     "batch_loaded_partial": "バッチを読み込みました：{{total}} 件中 {{surviving}} 件が残存（{{deleted}} 件はギャラリーから削除済み）",
+    "batch_models_unavailable": "このバッチの{{n}}個のモデルは現在利用できないためスキップされました",
     "best_effort_rewrite": "ベストエフォートによる書き換え：",
     "blocked_by_moderation": "モデレーションによりブロックされました",
     "blocked_moderation": "ブロック済み — モデレーション",

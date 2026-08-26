@@ -265,6 +265,7 @@
     "will_generate_info": "Будет сгенерировано 1 изображение на модель ({{count}} моделей) = {{count}} изображений всего",
     "already_upscaled": "Уже апскейлено — повторный апскейл невозможен",
     "batch_loaded_partial": "Пакет загружен: {{surviving}} из {{total}} изображений осталось ({{deleted}} удалено из галереи)",
+    "batch_models_unavailable": "{{n}} модель(и) из этой партии больше недоступны и были пропущены",
     "batch_loaded": "Пакет загружен: {{options}} вариантов × {{variations}} вариаций",
     "loading_batch": "Загрузка пакета...",
     "original_prompt_label": "Исходный промпт",

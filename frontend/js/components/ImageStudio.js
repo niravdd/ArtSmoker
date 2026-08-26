@@ -2520,12 +2520,24 @@
                     this._promptEditor._galleryReload = !result.decomposed_data;
                 }
 
-                // Restore model selection from batch metadata
-                if (result.all_models && result.model_map) {
-                    const usedModels = [...new Set(Object.values(result.model_map))];
-                    this._selectedModels = usedModels.length ? usedModels : [result.image_model || MODELS[0]?.value].filter(Boolean);
-                } else if (result.image_model) {
-                    this._selectedModels = [result.image_model];
+                // Restore model selection from batch metadata, keeping only models
+                // that still exist — old batches can reference disabled models or
+                // torn-down deployments (deploy keys carry a per-deploy hash), and
+                // restoring those verbatim inflated the count/cost math and the
+                // submit payload. (If MODELS hasn't loaded yet, _loadModels applies
+                // the same valid-keys filter when it finishes.)
+                const restored = (result.all_models && result.model_map)
+                    ? [...new Set(Object.values(result.model_map))]
+                    : (result.image_model ? [result.image_model] : []);
+                if (restored.length) {
+                    const avail = new Set(MODELS.filter(m => m.value !== 'all_models').map(m => m.value));
+                    const kept = avail.size ? restored.filter(k => avail.has(k)) : restored;
+                    if (kept.length < restored.length) {
+                        window.showToast?.(
+                            (t('artsmoker.ui.image_studio.batch_models_unavailable') || '{{n}} model(s) from this batch are no longer available and were skipped')
+                                .replace('{{n}}', restored.length - kept.length), 'info', 6000);
+                    }
+                    this._selectedModels = kept.length ? kept : [MODELS[0]?.value].filter(Boolean);
                 }
                 this._syncModelCheckboxes();
 
@@ -2538,18 +2550,12 @@
 
                 // Model selector is restored above (handles all_models + deleted endpoints)
 
-                // Restore dimension preset — match the active presets by WIDTH/HEIGHT.
-                // (Option labels use a Unicode "×" and vary per model, so matching the
-                // "W x H" string always failed and fell back to the default. And a size
-                // like 1080×1920 only exists in the model's supported_sizes.)
-                // _syncModelCheckboxes above already rebuilt _activeSizePresets for the
-                // restored model set, and the option value is the index into it.
-                const sizeSel = document.getElementById('gen-size');
-                if (sizeSel && result.width && result.height) {
-                    const presets = this._activeSizePresets || SIZE_PRESETS;
-                    const idx = presets.findIndex(s => s.w === result.width && s.h === result.height);
-                    if (idx >= 0) sizeSel.value = String(idx);
-                }
+                // Restore the batch's requested dimensions. _selectSizePreset matches
+                // numerically against the active presets and APPENDS the size as a
+                // custom option when no current model declares it — so the restored
+                // dims survive later dropdown rebuilds (e.g. when the async model
+                // list finishes loading) instead of snapping back to 1024×1024.
+                this._selectSizePreset(result.width, result.height);
 
                 // Restore toggle switches
                 const removeBg = document.getElementById('gen-remove-bg');
@@ -2752,7 +2758,12 @@
             if (!sizeSel) return;
 
             const currentValue = sizeSel.value;
-            const currentSize = SIZE_PRESETS[parseInt(currentValue, 10)] || null;
+            // The dropdown's indices belong to the ACTIVE preset list (model-driven
+            // when set), not the static defaults — indexing SIZE_PRESETS here lost
+            // the user's selection on every rebuild (e.g. when the async model list
+            // finished loading after a Gallery-batch restore, snapping a restored
+            // 1080×1920 back to the 1024×1024 default).
+            const currentSize = (this._activeSizePresets || SIZE_PRESETS)[parseInt(currentValue, 10)] || null;
 
             // Collect supported_sizes from selected models
             const selectedData = this._selectedModels
@@ -2799,17 +2810,39 @@
             // Store current sizes for payload construction
             this._activeSizePresets = sizes;
 
-            // Try to restore previous selection by matching dimensions
+            // Restore the previous selection by matching dimensions. When the
+            // current selection isn't among the models' declared sizes (e.g. dims
+            // restored from a Gallery batch), PRESERVE it as an appended option —
+            // it's a valid request; models snap to their nearest supported size at
+            // generation (the dims dialog already communicates this).
             if (currentSize) {
-                const match = sizes.findIndex(s => s.w === currentSize.w && s.h === currentSize.h);
-                if (match >= 0) {
-                    sizeSel.value = match;
-                    return;
-                }
+                this._selectSizePreset(currentSize.w, currentSize.h);
+                return;
             }
-            // Default to 1024x1024 or index 2
+            // No prior selection — default to 1024x1024 or index 2
             const default1024 = sizes.findIndex(s => s.w === 1024 && s.h === 1024);
             sizeSel.value = default1024 >= 0 ? default1024 : Math.min(2, sizes.length - 1);
+        },
+
+        /** Select the (w, h) entry in the size dropdown, appending it as a custom
+         *  option when absent from the active presets — so a legitimate requested
+         *  size survives dropdown rebuilds instead of snapping back to a default. */
+        _selectSizePreset(w, h) {
+            const sizeSel = document.getElementById('gen-size');
+            if (!sizeSel || !w || !h) return;
+            let sizes = this._activeSizePresets || SIZE_PRESETS;
+            let idx = sizes.findIndex(s => s.w === w && s.h === h);
+            if (idx < 0) {
+                if (sizes === SIZE_PRESETS) sizes = sizes.slice();   // never mutate the shared defaults
+                sizes.push({ label: `${w} x ${h}`, w, h });
+                this._activeSizePresets = sizes;
+                const opt = document.createElement('option');
+                opt.value = String(sizes.length - 1);
+                opt.textContent = `${w} x ${h}`;
+                sizeSel.appendChild(opt);
+                idx = sizes.length - 1;
+            }
+            sizeSel.value = String(idx);
         },
 
         _updateMultiModelCostEstimate() {
