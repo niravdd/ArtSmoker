@@ -1472,10 +1472,54 @@ class AnalyzeSourceRequest(BaseModel):
 def _loads_tolerant_json_object(txt: str) -> dict:
     """Parse the vision LLM's reply (from its first '{') into a dict, repairing the
     failure modes actually seen in the wild: // line comments (echoed from a schema
-    example), trailing commas, prose after the object, and a reply TRUNCATED by
+    example), trailing commas, prose after the object, a reply TRUNCATED by
     max_tokens (unterminated string / unclosed braces — the fields that DID
-    complete are salvaged). String-aware throughout, so '//' inside a value
-    survives. Raises json.JSONDecodeError if nothing parseable remains."""
+    complete are salvaged), and UNESCAPED double-quotes inside string values
+    (e.g. a 6\" measurement or a "quoted phrase" in a prompt). String-aware
+    throughout, so '//' inside a value survives. Raises json.JSONDecodeError if
+    nothing parseable remains."""
+    try:
+        return _tolerant_json_pass(txt)
+    except json.JSONDecodeError:
+        # Second chance: escape quotes that are clearly CONTENT, not string
+        # closers (a real closer is followed by , : } ] or end-of-text), then
+        # run the same repair pipeline again.
+        return _tolerant_json_pass(_escape_inner_quotes(txt))
+
+
+def _escape_inner_quotes(txt: str) -> str:
+    """Escape unescaped '\"' characters INSIDE string values. Heuristic: while
+    inside a string, a '\"' only closes it if the next non-whitespace char is a
+    structural one (, : } ]) or the text ends — anything else means the model
+    wrote a literal quote (inches, a \"quoted phrase\", …) without escaping."""
+    out, in_str, i, n = [], False, 0, len(txt)
+    while i < n:
+        ch = txt[i]
+        if not in_str:
+            if ch == '"':
+                in_str = True
+            out.append(ch)
+        elif ch == "\\" and i + 1 < n:
+            out.append(ch)
+            out.append(txt[i + 1])
+            i += 1
+        elif ch == '"':
+            j = i + 1
+            while j < n and txt[j] in " \t\r\n":
+                j += 1
+            if j >= n or txt[j] in ",:}]":
+                in_str = False
+                out.append(ch)
+            else:
+                out.append('\\"')
+        else:
+            out.append(ch)
+        i += 1
+    return "".join(out)
+
+
+def _tolerant_json_pass(txt: str) -> dict:
+    """One pass of the repair pipeline (see _loads_tolerant_json_object)."""
     import re as _re
     try:
         return json.loads(txt)

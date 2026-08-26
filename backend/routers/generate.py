@@ -18,7 +18,7 @@ from datetime import datetime
 from uuid import uuid4
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from starlette.responses import StreamingResponse
 
 from backend.models.generation_request import AssetType, GenerationRequest, ImageModel
@@ -258,6 +258,161 @@ def _persist_reference_inputs(asset_id: str, body: GenerationRequest) -> dict:
     }
 
 
+def _prepare_reference_generation(body: GenerationRequest, progress_cb=None) -> None:
+    """Resolve a reference-guided ("Image Inspiration") job's prompts BEFORE
+    pipeline dispatch — shared by the single-model AND all-models paths. It MUST
+    run before the all_models dispatch: the multi-model pipeline has no reference
+    handling of its own and would silently ignore the images.
+
+      "match"    — the instruction is shaped for the deployed edit model and the
+                   reference image(s) are forwarded as pixel conditioning
+                   downstream (_generate_single_image). Genuinely single-model /
+                   single-concept: forced here regardless of what the UI sent,
+                   and the edit model is resolved + validated via the registry
+                   (never hardcoded to a specific model).
+      "inspired" — a vision LLM turns the reference(s) + instruction into
+                   num_options DISTINCT enhanced prompts in ONE call. If the
+                   frontend already previewed (and possibly edited) them, those
+                   are honored verbatim — no second vision call, no drift from
+                   what the user saw. The results are plain text-to-image
+                   prompts, so ANY model — and any model fan-out — can render
+                   them.
+
+    Mutates body: prompt / negative_prompt / num_options / pre_composed /
+    reference_prompt / reference_enhanced_prompts (+ for match: image_model,
+    all_models, selected_models). Sets model_optimized_prompts=False for both
+    modes — the vision analysis IS the single prompt enhancement for reference
+    jobs (no second per-model refine).
+    """
+    def emit(event):
+        if progress_cb:
+            progress_cb(event)
+
+    # Preserve the user's raw Step-2 instruction (as typed, pre-translation) so
+    # a Gallery reload restores exactly what they wrote.
+    body.reference_prompt = body.prompt
+    body.model_optimized_prompts = False
+
+    # Translate a non-English instruction first (same as the text flow) so the
+    # shaping/vision LLM works from English. The pipelines' own translate steps
+    # are skipped for reference jobs — this already covered it.
+    try:
+        from backend.services.prompt_translator import translate_to_english
+        tr = translate_to_english(body.prompt, ui_lang=body.ui_lang)
+        if tr["was_translated"]:
+            logger.info("Reference instruction translated from %s to English", tr["source_lang"])
+            body.prompt = tr["translated"]
+    except Exception as exc:
+        logger.warning("Reference instruction translation failed, using original: %s", exc)
+
+    if body.reference_mode == "match":
+        # Pixel-faithful edit: the reference images go to ONE deployed edit
+        # model — a model fan-out or multiple concepts genuinely don't apply.
+        body.all_models = False
+        body.selected_models = None
+        body.num_options = 1
+        body.reference_enhanced_prompts = None
+        # Resolve + validate the edit model via the registry: honor an explicit
+        # chooser pick when it's (still) deployed, else the newest deployed
+        # reference-capable instance. Registry-driven — new catalog models with
+        # capabilities.reference_guided light up with no code change.
+        from backend.services.reference_models import find_reference_model, supported_reference_models
+        mk, _cfg = find_reference_model(body.image_model)
+        if not mk:
+            mk, _cfg = find_reference_model()
+        if not mk:
+            supported = ", ".join(m["label"] for m in supported_reference_models())
+            raise HTTPException(400, detail=(
+                "“Match the reference” needs one of these image-editing models deployed: "
+                f"{supported or 'a reference-capable edit model'}. "
+                "Deploy one under Model Settings → Custom Models."))
+        body.image_model = mk
+
+        emit({"type": "stage", "stage": "prompts",
+              "message": "Preparing reference-matched generation..."})
+        # Shape the raw instruction into an optimal edit instruction for the
+        # edit model (registry-driven prompt tuning, same idea as refine_prompt
+        # for generators). Best-effort — falls back to the raw prompt on error.
+        try:
+            from backend.services.bedrock_client import invoke_llm
+            from backend.services.prompt_templates import get_template, get_system_prompt
+            from backend.services.prompt_engineer import get_model_guidance, get_prompt_limit
+            _guidance = get_model_guidance(body.image_model)
+            _tmpl = get_template("reference_edit_instruction").format(
+                user_prompt=body.prompt[:1500],
+                model_name=body.image_model or "the edit model",
+                model_specific_instructions=_guidance or "(no model-specific guidance)",
+                max_chars=get_prompt_limit(body.image_model),
+            )
+            _shaped = invoke_llm(
+                _tmpl, system=get_system_prompt("reference_edit_instruction"),
+                complexity="fast", max_tokens=400, temperature=0.3,
+            ).strip()
+            if _shaped:
+                body.prompt = _shaped
+        except Exception as exc:
+            logger.warning("Edit-instruction shaping failed, using raw prompt: %s", exc)
+        body.pre_composed = True
+        logger.info("Reference-guided generation: mode=match, %d reference image(s), "
+                    "model=%s, %d variation(s)",
+                    len(body.reference_images), body.image_model, body.num_variations)
+        return
+
+    # ── "inspired" ──────────────────────────────────────────────────────────
+    n_opts = max(1, min(5, body.num_options or 1))
+    analyzed_live = False
+    # Previewed (and possibly edited) prompts from the frontend win — the user
+    # saw and approved these exact texts.
+    concepts = [(p or "").strip()[:1500]
+                for p in (body.reference_enhanced_prompts or []) if (p or "").strip()]
+    concepts = concepts[:n_opts]
+    if concepts:
+        emit({"type": "stage", "stage": "prompts",
+              "message": "Using your previewed reference prompt(s)..."})
+    else:
+        emit({"type": "stage", "stage": "prompts",
+              "message": "Analyzing your reference image(s)..."})
+        try:
+            from backend.services.reference_analyzer import analyze_reference_images
+            import base64 as _b64
+            ref_imgs = []
+            for r in body.reference_images[:3]:
+                try:
+                    ref_imgs.append(_b64.b64decode(r))
+                except Exception:
+                    pass
+            analysis = analyze_reference_images(
+                ref_imgs, body.prompt, asset_type=body.asset_type.value,
+                num_options=n_opts,
+            )
+        except Exception as exc:
+            logger.warning("Reference analysis failed, using raw prompt: %s", exc)
+            analysis = None
+        if analysis and analysis.get("analyzed"):
+            analyzed_live = True
+            concepts = analysis.get("enhanced_prompts") or [analysis["enhanced_prompt"]]
+            if analysis.get("negative_prompt") and not body.negative_prompt:
+                body.negative_prompt = analysis["negative_prompt"]
+
+    if concepts:
+        body.reference_enhanced_prompts = concepts
+        body.num_options = len(concepts)
+        body.prompt = concepts[0]
+    else:
+        # Analysis unavailable → generate directly from the raw instruction,
+        # as a single concept (variations still vary by seed).
+        body.reference_enhanced_prompts = None
+        body.num_options = 1
+    body.pre_composed = True
+    logger.info(
+        "Reference-guided generation: mode=inspired, %d reference image(s), "
+        "%d option(s) × %d variation(s)%s%s",
+        len(body.reference_images), body.num_options, body.num_variations,
+        (" (vision-analyzed)" if analyzed_live else ""),
+        (" (user-previewed prompts)" if (concepts and not analyzed_live) else ""),
+    )
+
+
 def _build_variant(
     *,
     batch_id: str,
@@ -478,6 +633,12 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         from backend.services.bedrock_client import set_llm_notifier
         set_llm_notifier(progress_cb)
 
+    # Reference-guided ("Image Inspiration"): resolve the prompts BEFORE dispatch
+    # so BOTH pipelines (single-model and all-models) run from the same concepts.
+    # For "match" this also forces single-model (and may clear all_models).
+    if body.reference_images:
+        _prepare_reference_generation(body, progress_cb)
+
     # Dispatch to All Models pipeline if requested
     if body.all_models:
         return _run_all_models_generation(body, progress_cb)
@@ -512,92 +673,21 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
             "analyzed_style": style_profile.analyzed_style.model_dump() if style_profile.analyzed_style else None,
         }
 
-    # Translate non-English prompts to English before refinement
+    # Translate non-English prompts to English before refinement. Reference jobs
+    # skip this — _prepare_reference_generation already translated the raw
+    # instruction, and body.prompt now holds the (English) enhanced prompt.
     translation_result = None
-    try:
-        from backend.services.prompt_translator import translate_to_english
-        translation_result = translate_to_english(body.prompt, ui_lang=body.ui_lang)
-        if translation_result["was_translated"]:
-            logger.info("Prompt translated from %s to English: '%s' → '%s'",
-                        translation_result["source_lang"],
-                        body.prompt[:50], translation_result["translated"][:50])
-            body.prompt = translation_result["translated"]
-    except Exception as exc:
-        logger.warning("Prompt translation failed, using original: %s", exc)
-
-    # ── Reference-guided generation (Reference-guided tab) ──────────────────
-    # When the user supplied reference image(s) we bypass the Prompt Designer /
-    # decompose refinement entirely (that flow isn't used here). We resolve ONE
-    # concept prompt per mode and then flow through the normal single-concept
-    # ("pre_composed") machinery — variations still vary by seed as usual.
-    #   "inspired" → a vision LLM reads the image(s) + the user's instruction and
-    #                writes ONE enhanced text-to-image prompt (no custom model).
-    #   "match"    → the user's instruction IS the edit instruction; the decoded
-    #                reference image(s) are forwarded to the edit model downstream
-    #                (see _generate_single_image).
-    reference_analysis = None
-    if body.reference_images:
-        import base64 as _b64
-        # Capture the user's Step-2 instruction NOW, before body.prompt is replaced
-        # by the shaped edit instruction ("match") or the vision-enhanced prompt
-        # ("inspired") — so a reloaded Image-Inspiration job restores what the user
-        # actually typed, not the derived prompt.
-        body.reference_prompt = body.prompt
-        body.num_options = 1
-        n_opts = 1  # reference-guided produces a single concept; variations vary the seed
-        if body.reference_mode == "match":
-            emit({"type": "stage", "stage": "prompts",
-                  "message": "Preparing reference-matched generation..."})
-            # Shape the raw instruction into an optimal edit instruction for the
-            # edit model (registry-driven prompt tuning, same idea as refine_prompt
-            # for generators). Best-effort — falls back to the raw prompt on error.
-            try:
-                from backend.services.bedrock_client import invoke_llm
-                from backend.services.prompt_templates import get_template, get_system_prompt
-                from backend.services.prompt_engineer import get_model_guidance, get_prompt_limit
-                _guidance = get_model_guidance(body.image_model)
-                _tmpl = get_template("reference_edit_instruction").format(
-                    user_prompt=body.prompt[:1500],
-                    model_name=body.image_model or "the edit model",
-                    model_specific_instructions=_guidance or "(no model-specific guidance)",
-                    max_chars=get_prompt_limit(body.image_model),
-                )
-                _shaped = invoke_llm(
-                    _tmpl, system=get_system_prompt("reference_edit_instruction"),
-                    complexity="fast", max_tokens=400, temperature=0.3,
-                ).strip()
-                if _shaped:
-                    body.prompt = _shaped
-            except Exception as exc:
-                logger.warning("Edit-instruction shaping failed, using raw prompt: %s", exc)
-        else:  # "inspired"
-            emit({"type": "stage", "stage": "prompts",
-                  "message": "Analyzing your reference image(s)..."})
-            try:
-                from backend.services.reference_analyzer import analyze_reference_images
-                ref_imgs = []
-                for r in body.reference_images[:3]:
-                    try:
-                        ref_imgs.append(_b64.b64decode(r))
-                    except Exception:
-                        pass
-                reference_analysis = analyze_reference_images(
-                    ref_imgs, body.prompt, asset_type=body.asset_type.value,
-                )
-            except Exception as exc:
-                logger.warning("Reference analysis failed, using raw prompt: %s", exc)
-                reference_analysis = None
-            if reference_analysis and reference_analysis.get("analyzed"):
-                body.prompt = reference_analysis["enhanced_prompt"]
-                if reference_analysis.get("negative_prompt") and not body.negative_prompt:
-                    body.negative_prompt = reference_analysis["negative_prompt"]
-        # Route through the single-concept path (skips refinement, uses prompt as-is).
-        body.pre_composed = True
-        logger.info(
-            "Reference-guided generation: mode=%s, %d reference image(s), %d variation(s)%s",
-            body.reference_mode, len(body.reference_images), body.num_variations,
-            (" (vision-analyzed)" if (reference_analysis and reference_analysis.get("analyzed")) else ""),
-        )
+    if not body.reference_images:
+        try:
+            from backend.services.prompt_translator import translate_to_english
+            translation_result = translate_to_english(body.prompt, ui_lang=body.ui_lang)
+            if translation_result["was_translated"]:
+                logger.info("Prompt translated from %s to English: '%s' → '%s'",
+                            translation_result["source_lang"],
+                            body.prompt[:50], translation_result["translated"][:50])
+                body.prompt = translation_result["translated"]
+        except Exception as exc:
+            logger.warning("Prompt translation failed, using original: %s", exc)
 
     # Use decomposed/recomposed data from frontend if provided (Prompt Designer flow).
     # Otherwise the backend will decompose independently (direct Generate flow).
@@ -605,7 +695,16 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     recomposed_prompt = body.recomposed_prompt or None
 
     # Generate concept prompts (skip if pre-composed by the user)
-    if body.pre_composed and n_opts == 1:
+    if body.reference_enhanced_prompts:
+        # Reference-guided ("inspired"): the vision-derived (or user-previewed/
+        # edited) prompts ARE the option concepts — one per option, already the
+        # single enhancement pass. No further refinement.
+        concept_prompts = list(body.reference_enhanced_prompts)
+        emit({"type": "stage", "stage": "prompts",
+              "message": "Using your reference-enhanced prompt(s)..."})
+        logger.info("Using %d reference-enhanced concept(s) for batch %s (skipping refinement).",
+                    len(concept_prompts), batch_id)
+    elif body.pre_composed and n_opts == 1:
         # User already composed the prompt via "Compose Generation Prompt" — use as-is
         recomposed_prompt = recomposed_prompt or body.prompt
         concept_prompts = [body.prompt]
@@ -616,7 +715,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         emit({"type": "stage", "stage": "prompts",
               "message": f"Creating {n_opts} concept prompt{'s' if n_opts > 1 else ''}..."})
 
-    if not body.pre_composed or n_opts > 1:
+    if (not body.pre_composed or n_opts > 1) and not body.reference_enhanced_prompts:
         model_id = body.image_model
         try:
             if body.asset_type == AssetType.MARKETING_BANNER and n_opts == 1:
@@ -1017,17 +1116,20 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
             "analyzed_style": style_profile.analyzed_style.model_dump() if style_profile.analyzed_style else None,
         }
 
-    # Translate non-English prompts to English
+    # Translate non-English prompts to English. Reference jobs skip this —
+    # _prepare_reference_generation already translated the raw instruction and
+    # body.prompt now holds the (English) enhanced prompt.
     translation_result = None
-    try:
-        from backend.services.prompt_translator import translate_to_english
-        translation_result = translate_to_english(body.prompt, ui_lang=body.ui_lang)
-        if translation_result["was_translated"]:
-            logger.info("All-models: translated %s → English: '%s'",
-                        translation_result["source_lang"], translation_result["translated"][:50])
-            body.prompt = translation_result["translated"]
-    except Exception as exc:
-        logger.warning("Prompt translation failed in all-models, using original: %s", exc)
+    if not body.reference_images:
+        try:
+            from backend.services.prompt_translator import translate_to_english
+            translation_result = translate_to_english(body.prompt, ui_lang=body.ui_lang)
+            if translation_result["was_translated"]:
+                logger.info("All-models: translated %s → English: '%s'",
+                            translation_result["source_lang"], translation_result["translated"][:50])
+                body.prompt = translation_result["translated"]
+        except Exception as exc:
+            logger.warning("Prompt translation failed in all-models, using original: %s", exc)
 
     # ── Generate concept prompts ──────────────────────────────────────
     # concept_prompts: model_key → list of n_opts prompts
@@ -1069,7 +1171,15 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 logger.info("Model-optimized: %s got %d concept(s)", mk, len(concept_prompts[mk]))
         else:
             # Shared prompts: generate once, truncate per model
-            if body.pre_composed:
+            if body.reference_enhanced_prompts:
+                # Reference-guided ("inspired"): the vision-derived (or user-
+                # previewed/edited) prompts ARE the option concepts, shared by
+                # every model — already the single enhancement pass, so no
+                # re-refine here (and _prepare_reference_generation forces
+                # model_optimized_prompts off for reference jobs).
+                shared_prompts = list(body.reference_enhanced_prompts)
+                shared_negatives = [body.negative_prompt or ""] * len(shared_prompts)
+            elif body.pre_composed:
                 shared_prompts = [body.prompt]
                 shared_negatives = [body.negative_prompt or ""]
             elif n_opts == 1:
@@ -1287,6 +1397,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 num_options=n_opts,
                 num_variations=n_vars,
                 asset_type=body.asset_type.value if body.asset_type else "",
+                reference_mode=(body.reference_mode if body.reference_images else ""),
             )
 
     succeeded = sum(1 for o in options if o.status == "success")
@@ -1318,19 +1429,23 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
         cost_breakdown=cost_breakdown,
     )
 
-    # Persist recomposed + decomposed to all variant metadata
+    # Persist recomposed + decomposed to all variant metadata. Per-asset RMW —
+    # under asset_write_lock + atomic write (SPEC §17), never a bare write_text.
     if all_models_recomposed or all_models_decomposed:
+        from backend.services.asset_locks import asset_write_lock
+        from backend.services.safe_write import atomic_write_text
         for opt in options:
             for v in opt.variants:
                 try:
-                    meta_path = store.generated_asset_dir(v.id) / "metadata.json"
-                    if meta_path.exists():
-                        meta = json.loads(meta_path.read_text())
-                        if all_models_recomposed:
-                            meta["recomposed_prompt"] = all_models_recomposed
-                        if all_models_decomposed:
-                            meta["decomposed_data"] = all_models_decomposed
-                        meta_path.write_text(json.dumps(meta, indent=2))
+                    with asset_write_lock(v.id):
+                        meta_path = store.generated_asset_dir(v.id) / "metadata.json"
+                        if meta_path.exists():
+                            meta = json.loads(meta_path.read_text())
+                            if all_models_recomposed:
+                                meta["recomposed_prompt"] = all_models_recomposed
+                            if all_models_decomposed:
+                                meta["decomposed_data"] = all_models_decomposed
+                            atomic_write_text(meta_path, json.dumps(meta, indent=2))
                 except Exception:
                     pass
 
@@ -1443,11 +1558,14 @@ async def reference_generation_available():
 
 
 class AnalyzeReferenceRequest(BaseModel):
-    """Preview the 'Inspired by' enhanced prompt derived from reference images."""
+    """Preview the 'Inspired by' enhanced prompt(s) derived from reference images."""
     images: list[str]  # 1–3 base64-encoded PNGs
     prompt: str        # mandatory user instruction — what to do with the reference
     asset_type: str = "photorealistic"
     ui_lang: str = ""  # frontend language — soft hint for prompt translation
+    # One DISTINCT interpretation per generation option (mirrors the sidebar's
+    # Options setting) — the preview shows exactly what each option will render.
+    num_options: int = Field(default=1, ge=1, le=5)
 
 
 @router.post("/analyze-reference")
@@ -1487,7 +1605,8 @@ async def analyze_reference(body: AnalyzeReferenceRequest):
         except Exception:
             raise HTTPException(400, detail="Invalid base64 image data.")
 
-    result = analyze_reference_images(imgs, prompt, asset_type=body.asset_type)
+    result = analyze_reference_images(imgs, prompt, asset_type=body.asset_type,
+                                      num_options=body.num_options)
     _cost = round(get_total_cost(), 6)
     result["cost_usd"] = _cost
     # Report to PulseBoard — this standalone vision-LLM call was previously untracked.

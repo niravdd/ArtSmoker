@@ -449,6 +449,9 @@
                 try {
                     this._referenceStudio = new ReferenceStudio(container, {
                         assetType: () => this._getAssetType(),
+                        // Sidebar Options count — the inspired preview produces one
+                        // distinct interpretation per option.
+                        numOptions: () => parseInt(document.getElementById('gen-num-options')?.value, 10) || 1,
                     });
                 } catch (err) {
                     console.error('Failed to create ReferenceStudio:', err);
@@ -1057,21 +1060,34 @@
                 ...this._getIpDeclaration(),
             };
 
-            // Reference-guided overrides: single-concept, single model. "match" routes
-            // to the deployed reference edit model; "inspired" uses the selected T2I model.
+            // Reference-guided overrides. The Prompt-Designer machinery never
+            // applies here (the reference flow has its own prompt derivation).
+            //   "match"    — pixel-faithful edit on ONE deployed edit model (the
+            //                chooser pick): a model fan-out or multiple concepts
+            //                genuinely don't apply, so those are forced off.
+            //   "inspired" — the vision-derived prompts are plain text-to-image
+            //                prompts, so the user's model selection AND options ×
+            //                variations are fully honored (multi-model fans out
+            //                through the same pipeline as Text Inspiration).
             if (isReference && referencePatch) {
                 payload.reference_images = referencePatch.reference_images;
                 payload.reference_mode = referencePatch.reference_mode;
-                payload.all_models = false;
-                payload.selected_models = undefined;
-                payload.num_options = 1;  // reference-guided yields one concept; variations vary the seed
                 payload.pre_composed = false;
                 payload.decomposed_data = undefined;
                 payload.recomposed_prompt = undefined;
                 payload.vary_fields = undefined;
+                payload.model_optimized_prompts = false;  // the vision analysis IS the enhancement
                 if (referencePatch.reference_mode === 'match') {
-                    const refModelKey = this._referenceStudio?._available?.model_key;
+                    payload.all_models = false;
+                    payload.selected_models = undefined;
+                    payload.num_options = 1;  // one edit concept; variations vary the seed
+                    const refModelKey = referencePatch.reference_model_key
+                        || this._referenceStudio?._available?.model_key;
                     if (refModelKey) payload.image_model = refModelKey;
+                } else if (referencePatch.reference_enhanced_prompts?.length) {
+                    // Previewed (and possibly edited) interpretations — used
+                    // verbatim by the backend (no second vision call).
+                    payload.reference_enhanced_prompts = referencePatch.reference_enhanced_prompts;
                 }
             }
 
@@ -2612,6 +2628,9 @@
                             prompt: result.reference_prompt || '',
                             mode: result.reference_mode || 'inspired',
                             imageUrls: result.reference_image_urls || [],
+                            // Shown read-only in the Image Inspiration panel — the
+                            // enhanced prompt that actually drove this batch.
+                            enhancedPrompt: result.enhanced_prompt || '',
                         });
                     } catch (e) { /* non-fatal — the tab switch already happened */ }
                 } else if (this._activeTab === 'reference') {

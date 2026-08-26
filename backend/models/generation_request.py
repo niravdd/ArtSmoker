@@ -79,6 +79,13 @@ class GenerationRequest(BaseModel):
     # replaced by the edit/enhanced prompt, so an Image-Inspiration job can restore
     # the original instruction into the Reference Studio on Gallery reload.
     reference_prompt: str = ""
+    # "Inspired" mode enhanced prompts, one per option. The frontend sends these
+    # when the user PREVIEWED (and possibly edited) the interpretations — the
+    # backend then uses them verbatim (no second vision call). Also populated
+    # server-side by _prepare_reference_generation when the vision analysis runs
+    # at generate time, so both the single-model and all-models pipelines read
+    # the final option concepts from ONE place.
+    reference_enhanced_prompts: list[str] | None = None
 
     @field_validator("image_model")
     @classmethod

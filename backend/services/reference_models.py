@@ -80,13 +80,48 @@ def find_reference_model(model_key: str | None = None) -> tuple[str | None, dict
     return models[0]
 
 
+def supported_reference_models() -> list[dict]:
+    """The reference-capable models ArtSmoker SUPPORTS (catalog, not deployments).
+
+    Registry-driven: every custom_model_catalog entry with
+    ``capabilities.reference_guided`` — so the UI can name what's supported
+    generically (today Qwen-Image-Edit; any future catalog addition lights up
+    with no code change). Sorted by label for stable display.
+    """
+    out = []
+    catalog = get_catalog() or {}
+    for key in sorted(_reference_catalog_keys()):
+        entry = catalog.get(key, {}) or {}
+        out.append({"catalog_key": key, "label": entry.get("label", key)})
+    out.sort(key=lambda m: m["label"].lower())
+    return out
+
+
 def reference_generation_available() -> dict:
     """Is ANY reference-capable model deployed + enabled?
 
     Shape mirrors generate_3d.check_3d_available so the frontend can gate the
     "Match the reference" mode and, when unavailable, route the user to the
     Custom Models deploy flow for the recommended catalog model.
+
+    Also returns (registry-driven, never hardcoded):
+      - ``models``:    ALL deployed reference-capable instances (newest first) —
+                       powers the match-mode model chooser.
+      - ``supported``: the catalog models that CAN do this once deployed —
+                       powers a generic "deploy one of these" message.
     """
+    supported = supported_reference_models()
+    deployed = [
+        {
+            "model_key": key,
+            "label": cfg.get("label", key),
+            "endpoint_name": cfg.get("deployment", {}).get("endpoint_name"),
+            "model_ready": bool(cfg.get("model_ready")),
+        }
+        for key, cfg in list_reference_models()
+        if cfg.get("enabled", True)
+    ]
+
     model_key, cfg = find_reference_model()
     if not model_key or not cfg:
         # Point the user at the recommended catalog model to deploy.
@@ -99,6 +134,8 @@ def reference_generation_available() -> dict:
             "model_key": None,
             "endpoint_name": None,
             "deploy_catalog_key": deploy_key,
+            "models": [],
+            "supported": supported,
         }
 
     dep = cfg.get("deployment", {})
@@ -110,4 +147,6 @@ def reference_generation_available() -> dict:
         "endpoint_name": endpoint_name,
         "label": cfg.get("label", model_key),
         "model_ready": bool(cfg.get("model_ready")),
+        "models": deployed,
+        "supported": supported,
     }

@@ -38,10 +38,31 @@
         // ── Public ────────────────────────────────────────────────────
         getPayloadPatch() {
             // Fields merged into the generation payload by ImageStudio.
-            return {
+            const patch = {
                 reference_images: this._images.map(i => i.b64),
                 reference_mode: this._mode,
             };
+            if (this._mode === 'match') {
+                // The user's chooser pick (or the newest deployed instance).
+                patch.reference_model_key = this.container.querySelector('.rs-match-select')?.value
+                    || this._available?.model_key || '';
+            } else {
+                // Previewed (and possibly edited) interpretations — sent ONLY when
+                // still valid for the CURRENT options count, so the backend never
+                // renders fewer/more interpretations than the user asked for.
+                const prompts = this._previewPrompts();
+                const wanted = this.opts.numOptions?.() || 1;
+                if (this._analysis?.analyzed && prompts.length === wanted) {
+                    patch.reference_enhanced_prompts = prompts;
+                }
+            }
+            return patch;
+        }
+
+        /** The current (user-editable) preview prompt textarea values, non-empty. */
+        _previewPrompts() {
+            return [...this.container.querySelectorAll('.rs-preview-prompt')]
+                .map(el => (el.value || '').trim()).filter(Boolean);
         }
 
         getPrompt() {
@@ -108,19 +129,27 @@
                                 <div class="text-[10px] text-brand-text-muted/70 mt-0.5">${_t('image_studio.reference_mode_inspired_desc')}</div>
                             </button>
                         </div>
-                        <!-- Deploy gate notice (shown when "match" chosen but no model deployed) -->
+                        <!-- Match-mode model chooser (shown when "match" chosen and a
+                             reference-capable model IS deployed — auto-selects the newest). -->
+                        <div class="rs-match-model hidden mt-2 p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border">
+                            <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.reference_match_model')}</label>
+                            <select class="rs-match-select input text-xs w-full mt-1"></select>
+                        </div>
+                        <!-- Deploy gate notice (shown when "match" chosen but no model deployed).
+                             The message is built dynamically from the registry's supported models. -->
                         <div class="rs-gate hidden mt-2 p-2.5 rounded-lg bg-amber-950/20 border border-amber-500/30">
-                            <p class="text-[11px] text-amber-200/90">${_t('image_studio.reference_gate_msg')}</p>
+                            <p class="rs-gate-msg text-[11px] text-amber-200/90">${_t('image_studio.reference_gate_msg')}</p>
                             <button type="button" class="rs-gate-deploy btn btn-sm text-xs mt-1.5 bg-amber-600 hover:bg-amber-500 text-white">
                                 ${_t('image_studio.reference_gate_deploy')}
                             </button>
                         </div>
-                        <!-- Inspired-by preview -->
+                        <!-- Inspired-by preview: one EDITABLE prompt per option — what you
+                             see (and edit) here is exactly what each option will render. -->
                         <div class="rs-preview hidden mt-2">
                             <button type="button" class="rs-preview-btn text-[11px] w-full py-2 rounded-lg bg-amber-500/10 border border-amber-500/25 text-amber-300 hover:bg-amber-500/20 transition-all">
                                 ${_t('image_studio.reference_preview_btn')}
                             </button>
-                            <div class="rs-preview-out hidden mt-1.5 p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-[11px] text-brand-text/80 whitespace-pre-wrap max-h-32 overflow-auto"></div>
+                            <div class="rs-preview-out hidden mt-1.5 space-y-1.5 text-[11px] text-brand-text/80"></div>
                         </div>
                     </div>
                     <p class="text-[10px] text-brand-text-muted/40">${_t('image_studio.reference_draft_note')}</p>
@@ -160,7 +189,7 @@
             // Prompt persistence
             this._promptEl.addEventListener('input', () => {
                 this._promptWarn.classList.add('hidden');
-                this._analysis = null; // invalidate stale preview
+                this._invalidatePreview(); // instruction changed → preview is stale
                 this._saveDraft();
             });
 
@@ -194,7 +223,7 @@
                 } catch (e) { /* skip unreadable */ }
             }
             this._fileInput.value = '';
-            this._analysis = null;
+            this._invalidatePreview();
             this._renderThumbs();
             this._saveDraft();
         }
@@ -246,7 +275,7 @@
                 btn.addEventListener('click', (e) => {
                     e.stopPropagation();
                     this._images.splice(parseInt(btn.dataset.i, 10), 1);
-                    this._analysis = null;
+                    this._invalidatePreview();
                     this._renderThumbs();
                     this._saveDraft();
                 });
@@ -261,11 +290,43 @@
                 btn.classList.toggle('bg-brand-accent/5', active);
                 btn.classList.toggle('border-brand-border', !active);
             });
-            // Gate only applies to "match" (needs a deployed model). "inspired" never gated.
+            const deployed = this._available?.models || [];
+            // Match + deployed: show the model chooser (auto-selects the newest —
+            // no "model required" messaging when it's already there).
+            const matchEl = this.container.querySelector('.rs-match-model');
+            const showChooser = this._mode === 'match' && deployed.length > 0;
+            if (matchEl) {
+                matchEl.classList.toggle('hidden', !showChooser);
+                if (showChooser) this._fillMatchModels(deployed);
+            }
+            // Gate only applies to "match" with NOTHING deployed. Its message is
+            // built from the registry's supported model list — never hardcoded.
             const showGate = this._mode === 'match' && this._available && this._available.available === false;
             this._gateEl.classList.toggle('hidden', !showGate);
-            // Inspired-by preview only meaningful in "inspired" mode.
-            this._previewWrap.classList.toggle('hidden', this._mode !== 'inspired');
+            if (showGate) {
+                const supported = (this._available?.supported || []).map(m => m.label).join(', ');
+                const msgEl = this.container.querySelector('.rs-gate-msg');
+                if (msgEl) {
+                    msgEl.textContent = supported
+                        ? _t('image_studio.reference_gate_msg_dyn').replace('{{models}}', supported)
+                        : _t('image_studio.reference_gate_msg');
+                }
+            }
+            // Inspired-by preview only meaningful in "inspired" mode — except a
+            // reloaded job's read-only enhanced prompt, which shows for both modes.
+            this._previewWrap.classList.toggle('hidden', this._mode !== 'inspired' && !this._loadedEnhanced);
+        }
+
+        /** Populate the match-mode chooser with the DEPLOYED reference-capable
+         *  instances (newest first, from the registry), keeping any prior pick. */
+        _fillMatchModels(deployed) {
+            const sel = this.container.querySelector('.rs-match-select');
+            if (!sel) return;
+            const prev = sel.value;
+            // nosemgrep
+            sel.innerHTML = deployed.map(m =>
+                html`<option value="${m.model_key}">${m.label}</option>`).join('');
+            if (prev && deployed.some(m => m.model_key === prev)) sel.value = prev;
         }
 
         async _checkAvailability() {
@@ -298,6 +359,7 @@
             const prompt = this.getPrompt();
             if (!this.hasImages()) { window.showToast?.(_t('image_studio.reference_need_image'), 'error'); return; }
             if (!prompt) { this._promptWarn.classList.remove('hidden'); return; }
+            const numOptions = this.opts.numOptions?.() || 1;
             this._previewOut.classList.remove('hidden');
             this._previewOut.textContent = _t('image_studio.reference_preview_loading');
             try {
@@ -306,16 +368,61 @@
                     prompt,
                     asset_type: (this.opts.assetType?.() || 'photorealistic'),
                     ui_lang: (typeof I18n !== 'undefined' ? I18n.getLang() : ''),
+                    num_options: numOptions,
                 });
                 this._analysis = res;
-                if (res.analyzed && res.enhanced_prompt) {
-                    this._previewOut.textContent = res.enhanced_prompt + (res.notes ? `\n\n— ${res.notes}` : '');
+                const prompts = (res.analyzed && (res.enhanced_prompts?.length ? res.enhanced_prompts : [res.enhanced_prompt]).filter(Boolean)) || [];
+                if (prompts.length) {
+                    this._renderPreviewPrompts(prompts, res.notes || '');
                 } else {
+                    this._analysis = null;
                     this._previewOut.textContent = _t('image_studio.reference_preview_none');
                 }
             } catch (e) {
+                this._analysis = null;
                 this._previewOut.textContent = _t('image_studio.reference_preview_err');
             }
+        }
+
+        /** Render one EDITABLE textarea per interpretation — exactly what each
+         *  generation option will render. Edits are honored verbatim at generate
+         *  time (no re-analysis, no drift from what's shown here). */
+        _renderPreviewPrompts(prompts, notes) {
+            const multi = prompts.length > 1;
+            // nosemgrep
+            this._previewOut.innerHTML = html`
+                ${prompts.map((p, i) => html`
+                    <div>
+                        ${multi ? html`<label class="text-[9px] text-emerald-300/70 uppercase tracking-wider">${_t('image_studio.reference_interpretation').replace('{{n}}', i + 1)}</label>` : ''}
+                        <textarea class="rs-preview-prompt input w-full text-[11px] leading-snug bg-emerald-950/10 border-emerald-500/20" rows="4">${p}</textarea>
+                    </div>`)}
+                <p class="text-[9px] text-brand-text-muted/60">${_t('image_studio.reference_preview_edit_hint')}${notes ? html` — ${notes}` : ''}</p>`;
+            this._previewOut.classList.remove('hidden');
+        }
+
+        /** Drop a stale preview (images/prompt changed since it was produced):
+         *  clears the analysis AND the rendered prompts, so nothing outdated can
+         *  be shown or submitted. */
+        _invalidatePreview() {
+            this._analysis = null;
+            this._loadedEnhanced = false;
+            if (this._previewOut) {
+                this._previewOut.classList.add('hidden');
+                this._previewOut.innerHTML = '';
+            }
+        }
+
+        /** Read-only display of a RELOADED job's enhanced prompt (Gallery →
+         *  Image Inspiration restore): shows what actually drove the generation;
+         *  not editable — this batch already ran. */
+        _renderLoadedEnhanced(text) {
+            if (!text || !this._previewOut) return;
+            this._previewWrap.classList.remove('hidden');
+            // nosemgrep
+            this._previewOut.innerHTML = html`
+                <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.reference_loaded_prompt')}</label>
+                <div class="p-2 rounded-lg bg-emerald-950/10 border border-emerald-500/20 text-[11px] text-brand-text/80 whitespace-pre-wrap max-h-32 overflow-auto">${text}</div>`;
+            this._previewOut.classList.remove('hidden');
         }
 
         // ── Draft persistence ────────────────────────────────────────────
@@ -383,7 +490,7 @@
          *  image(s) served at /api/gallery/{id}/reference/N. Wins over any
          *  localStorage draft-restore that may still be in flight (via _batchLoaded).
          *  Called by ImageStudio.loadBatch after switching to the Image Inspiration tab. */
-        async loadFromMeta({ prompt = '', mode = 'inspired', imageUrls = [] } = {}) {
+        async loadFromMeta({ prompt = '', mode = 'inspired', imageUrls = [], enhancedPrompt = '' } = {}) {
             this._batchLoaded = true;
             if (this._promptEl) this._promptEl.value = prompt || '';
             this._mode = (mode === 'match') ? 'match' : 'inspired';
@@ -396,7 +503,12 @@
             }
             this._images = imgs;   // assign atomically at the end (no interleave)
             this._renderThumbs();
+            // Show the enhanced prompt that actually drove this batch (read-only —
+            // it already ran). Cleared as soon as the user changes anything.
+            this._loadedEnhanced = !!(enhancedPrompt || '').trim();
             this._reflectMode();
+            if (this._loadedEnhanced) this._renderLoadedEnhanced(enhancedPrompt.trim());
+            else this._invalidatePreview();
         }
 
         clearDraft() {
@@ -412,6 +524,7 @@
             this._batchLoaded = false;
             if (this._promptEl) this._promptEl.value = '';
             this.clearDraft();
+            this._invalidatePreview?.();
             this._renderThumbs?.();
             this._reflectMode?.();
             this._promptWarn?.classList.add('hidden');
