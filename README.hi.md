@@ -170,21 +170,7 @@ ArtSmoker दो मोड में काम करता है — **स्�
 
 ![Asset Viewer — Metadata with full prompt lineage and version history](docs/images/asset-viewer-metadata.png)
 
-**3D मॉडल जनरेशन** — Asset Viewer का 3D Model टैब: तैनात पाइपलाइन एंडपॉइंट, गुणवत्ता स्तर (अनुमानित समय और लागत सहित) और उन्नत पैरामीटर चुनें। लाइसेंस पैनल हर पाइपलाइन की शर्तें दिखाता है, और **Improve the Source** GPU समय खर्च करने से पहले चित्र की विज़न-जाँच करता है।
-
-![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
-
-**Improve the Source** — जनरेट करने से पहले, ArtSmoker विषय की छाया-रेखा मापकर कटाव चिह्नित करता है (यहाँ: निचले किनारे पर कटा हुआ), विस्तार मान और AI-लिखित आउटपेंट प्रॉम्प्ट सुझाता है — विस्तार करें, भरें, या चित्र को जस का तस उपयोग करें।
-
-![3D source review — automatic crop detection with suggested extension](docs/images/3d-source-review.png)
-
-**3D व्यूअर + इंजन-तैयार निर्यात** — टेक्सचर्ड मेश को घुमाकर देखें, फिर उसे अपने इंजन के लिए तैयार करें: टारगेट प्रीसेट (Unreal, Unity, Godot, Blender, 3ds Max…), टेक्सचर पैकिंग, LOD शृंखला, कोलिज़न मेश और लाइटमैप UV2 — हेडलेस Blender से स्थानीय रूप से रूपांतरित, और डाउनलोड-तैयार संयोजन प्रति-वर्शन याद रखे जाते हैं।
-
-![3D Model viewer with per-variant tools and engine-ready FBX/USD export options](docs/images/3d-model-viewer-export.png)
-
-**3D वेरिएंट** — प्रति इमेज वर्शन कई 3D परिणाम रखें (यहाँ TripoSG बनाम TRELLIS.2 पूर्ण पाइपलाइन), कभी भी बदलें या डिफ़ॉल्ट सेट करें; हर वेरिएंट उसे बनाने वाले सटीक मॉडल और टूल दर्ज करता है।
-
-![3D variants — TripoSG and TRELLIS.2 takes side by side with full provenance](docs/images/3d-model-variants.png)
+*3D पाइपलाइन के स्क्रीनशॉट — जनरेशन, सोर्स समीक्षा, इंजन-तैयार निर्यात और वेरिएंट — नीचे खंड 1.9 (3D मॉडल जनरेशन) में उन्हीं सुविधाओं के साथ दिखाए गए हैं जिन्हें वे दर्शाते हैं।*
 
 **Video Studio** — बाईं ओर सेटिंग्स (मॉडल, जनरेशन मोड, अवधि, रीजन, लागत अनुमान), दाईं ओर प्रॉम्प्ट। Nova Reel (सिंगल शॉट, 2 मिनट तक मल्टी-शॉट ऑटो/मैनुअल) और Luma AI Ray (आस्पेक्ट रेशियो, लूपिंग) का समर्थन करता है।
 
@@ -321,12 +307,24 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 एक अकेली 2D कैरेक्टर इमेज (बाईं ओर, PNG टैब में) एक पूर्ण रूप से टेक्सचर्ड 3D मेश बन जाती है जिसे आप ब्राउज़र में स्वतंत्र रूप से घुमा सकते हैं। **3D Model** टैब अब प्रत्येक एसेट को बनाने में उपयोग किए गए सटीक **मॉडल और टूल्स** (जियोमेट्री मॉडल, टेक्सचरिंग बैकएंड, आउटपुट टाइप, इंस्टेंस और जनरेशन पैरामीटर) भी सूचीबद्ध करता है — पूर्ण प्रोवेनेंस के लिए एसेट के मेटाडेटा में संग्रहीत।
 
+**जनरेट करना** — Asset Viewer का 3D Model टैब: तैनात पाइपलाइन एंडपॉइंट, गुणवत्ता स्तर (अनुमानित समय और लागत सहित) और उन्नत पैरामीटर चुनें। लाइसेंस पैनल हर पाइपलाइन की शर्तें दिखाता है, और **Improve the Source** GPU समय खर्च करने से पहले चित्र की विज़न-जाँच करता है।
+
+![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
+
+**Improve the Source** — जनरेट करने से पहले, ArtSmoker विषय की छाया-रेखा मापकर कटाव चिह्नित करता है (यहाँ: निचले किनारे पर कटा हुआ), विस्तार मान और AI-लिखित आउटपेंट प्रॉम्प्ट सुझाता है — विस्तार करें, भरें, या चित्र को जस का तस उपयोग करें।
+
+![3D source review — automatic crop detection with suggested extension](docs/images/3d-source-review.png)
+
 **दो पाइपलाइन — आपकी पसंद।** ArtSmoker किसी इमेज को एक टेक्सचर्ड 3D मॉडल में बदलने के दो तरीके देता है। दोनों में से किसी एक को (या दोनों को) Custom Models से डिप्लॉय करें; जब दोनों लाइव हों, तो आप Asset Viewer में प्रति-जनरेशन चुनते हैं — प्रत्येक अपनी अनुमानित लागत, समय और लाइसेंस दिखाता है ताकि आप जानकारी के आधार पर निर्णय लें:
 
 | पाइपलाइन | यह कैसे काम करती है | लाइसेंस | व्यावसायिक उपयोग | किसके लिए सर्वश्रेष्ठ |
 |----------|--------------------|---------|------------------|----------------------|
 | **TripoSG + texture backend** | TripoSG मेश बनाता है; एक चुना गया टेक्सचर बैकएंड (TRELLIS.2 / Hunyuan3D-Paint) उसे पेंट करता है | प्रति बैकएंड (नीचे) | प्रति बैकएंड | जियोमेट्री + एक विशिष्ट टेक्सचरर को मिलाना |
 | **TRELLIS.2 (Full)** | एक ही मॉडल जियोमेट्री और PBR टेक्सचर **दोनों** जनरेट करता है (SLAT) | MIT | ✅ हाँ — "Built with DINOv3" एट्रिब्यूशन | प्रोडक्शन, व्यावसायिक एसेट्स, सबसे सरल रास्ता |
+
+**3D वेरिएंट** — प्रति इमेज वर्शन कई 3D परिणाम रखें (यहाँ TripoSG बनाम TRELLIS.2 पूर्ण पाइपलाइन), कभी भी बदलें या डिफ़ॉल्ट सेट करें; हर वेरिएंट उसे बनाने वाले सटीक मॉडल और टूल दर्ज करता है।
+
+![3D variants — TripoSG and TRELLIS.2 takes side by side with full provenance](docs/images/3d-model-variants.png)
 
 **TripoSG पाइपलाइन कैसे काम करती है:**
 
@@ -359,6 +357,8 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 | समर्थित एसेट टाइप | Game Asset, Character |
 
 ### 📝 1.9.1 इंजन-रेडी एक्सपोर्ट (GLB · FBX · USD)
+
+![3D Model viewer with per-variant tools and engine-ready FBX/USD export options](docs/images/3d-model-viewer-export.png)
 
 हर जनरेट किया गया 3D मॉडल **आपके गेम इंजन के लिए तैयार करके** एक्सपोर्ट किया जा सकता है — सीधे Asset Viewer के 3D टैब से:
 

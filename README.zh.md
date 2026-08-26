@@ -170,21 +170,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 
 ![Asset Viewer — 带完整提示词脉络与版本历史的元数据](docs/images/asset-viewer-metadata.png)
 
-**3D 模型生成** —— Asset Viewer 的 3D 模型选项卡：选择已部署的管线端点、质量档位（含预计时间和成本）与高级参数。许可面板显示各管线的条款，**改进源图**会在你消耗 GPU 时间之前对图像做视觉检查。
-
-![3D 模型生成 — Asset Viewer 中的设置和生成](docs/images/3d-model-generation.png)
-
-**改进源图** —— 生成之前，ArtSmoker 会测量主体轮廓并标记裁切（此处：底边被切断），建议扩展量和 AI 撰写的扩展绘制提示词 —— 可扩展、填充，或按原样使用。
-
-![3D 源图审查 — 自动裁切检测与建议的扩展量](docs/images/3d-source-review.png)
-
-**3D 查看器 + 引擎就绪导出** —— 环绕查看带纹理的网格，然后为你的引擎做准备：目标预设（Unreal、Unity、Godot、Blender、3ds Max……）、纹理打包、LOD 链、碰撞网格和光照贴图 UV2 —— 通过无头 Blender 在本地转换，可下载的组合按版本记忆。
-
-![3D 模型查看器 — 各变体工具与引擎就绪的 FBX/USD 导出选项](docs/images/3d-model-viewer-export.png)
-
-**3D 变体** —— 每个图像版本可保留多个 3D 成品（此处为 TripoSG 与 TRELLIS.2 完整管线），随时切换或设为默认；每个变体都记录生成它的确切模型与工具。
-
-![3D 变体 — TripoSG 与 TRELLIS.2 成品并排展示及完整溯源](docs/images/3d-model-variants.png)
+*3D 管线的截图 —— 生成、源图审查、引擎就绪导出与变体 —— 展示在下方第 1.9 节（3D 模型生成）中，与其对应的功能相伴呈现。*
 
 **Video Studio** —— 左侧为设置（模型、生成模式、时长、区域、成本估算），右侧为提示词。支持 Nova Reel（单镜头、最长 2 分钟的多镜头自动/手动）和 Luma AI Ray（宽高比、循环）。
 
@@ -321,12 +307,24 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 一张 2D 角色图像（左侧，PNG 选项卡）即可变成可在浏览器中自由旋转的完全纹理化 3D 网格。**3D Model** 选项卡现在还会列出生成每个资产所用的确切**模型与工具**（几何模型、纹理后端、输出类型、实例和生成参数）—— 持久化到资产的元数据中，实现完整溯源。
 
+**生成** —— Asset Viewer 的 3D 模型选项卡：选择已部署的管线端点、质量档位（含预计时间和成本）与高级参数。许可面板显示各管线的条款，**改进源图**会在你消耗 GPU 时间之前对图像做视觉检查。
+
+![3D 模型生成 — Asset Viewer 中的设置和生成](docs/images/3d-model-generation.png)
+
+**改进源图** —— 生成之前，ArtSmoker 会测量主体轮廓并标记裁切（此处：底边被切断），建议扩展量和 AI 撰写的扩展绘制提示词 —— 可扩展、填充，或按原样使用。
+
+![3D 源图审查 — 自动裁切检测与建议的扩展量](docs/images/3d-source-review.png)
+
 **两条流程 —— 由您选择。** ArtSmoker 提供两种将图像转换为带纹理 3D 模型的方式。可在 Custom Models 中部署其一（或两者）；当两者都已上线时，您可在 Asset Viewer 中按次生成进行选择 —— 每种方式都会展示其预估成本、时间和许可，让您在充分知情的前提下决定：
 
 | 流程 | 工作原理 | 许可 | 商业用途 | 最适用于 |
 |----------|--------------|---------|----------------|----------|
 | **TripoSG + 纹理后端** | TripoSG 构建网格；由所选纹理后端（TRELLIS.2 / Hunyuan3D-Paint）为其上色 | 取决于后端（见下文） | 取决于后端 | 几何模型与特定纹理器的自由组合 |
 | **TRELLIS.2（完整）** | 单一模型**同时**生成几何与 PBR 纹理（SLAT） | MIT | ✅ 可以 —— 需标注 "Built with DINOv3" 署名 | 生产环境、商业资产、最简路径 |
+
+**3D 变体** —— 每个图像版本可保留多个 3D 成品（此处为 TripoSG 与 TRELLIS.2 完整管线），随时切换或设为默认；每个变体都记录生成它的确切模型与工具。
+
+![3D 变体 — TripoSG 与 TRELLIS.2 成品并排展示及完整溯源](docs/images/3d-model-variants.png)
 
 **TripoSG 流程的工作原理：**
 
@@ -359,6 +357,8 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 | 支持的资产类型 | Game Asset、Character |
 
 ### 📝 1.9.1 面向引擎的导出（GLB · FBX · USD）
+
+![3D 模型查看器 — 各变体工具与引擎就绪的 FBX/USD 导出选项](docs/images/3d-model-viewer-export.png)
 
 每个生成的 3D 模型都可以**按目标游戏引擎的要求准备好**后导出，直接在 Asset Viewer 的 3D 选项卡中完成：
 

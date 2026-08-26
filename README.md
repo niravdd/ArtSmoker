@@ -170,21 +170,7 @@ After an outpainting round (v3 below), the same tab regenerates all three artefa
 
 ![Asset Viewer — Metadata with full prompt lineage and version history](docs/images/asset-viewer-metadata.png)
 
-**3D Model Generation** — The Asset Viewer's 3D Model tab: pick the deployed pipeline endpoint, quality tier (with est. time and cost), and advanced parameters. The licence panel shows each pipeline's terms, and **Improve the Source** vision-checks the image before you spend GPU time.
-
-![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
-
-**Improve the Source** — Before generating, ArtSmoker measures the subject's silhouette and flags crops (here: cut off at the bottom edge), suggesting extension amounts and an AI-written outpaint prompt — extend, fill, or use the image as-is.
-
-![3D source review — automatic crop detection with suggested extension](docs/images/3d-source-review.png)
-
-**3D viewer + engine-ready export** — Orbit the textured mesh, then prepare it for your engine: target preset (Unreal, Unity, Godot, Blender, 3ds Max, …), texture packing, LOD chain, collision mesh, and lightmap UV2 — converted locally via headless Blender, with ready-to-download combinations remembered per version.
-
-![3D Model viewer with per-variant tools and engine-ready FBX/USD export options](docs/images/3d-model-viewer-export.png)
-
-**3D variants** — Keep multiple 3D takes per image version (here TripoSG vs the TRELLIS.2 full pipeline), switch between them or set the default at any time; every variant records the exact models & tools that produced it.
-
-![3D variants — TripoSG and TRELLIS.2 takes side by side with full provenance](docs/images/3d-model-variants.png)
+*The 3D pipeline's screenshots — generation, source review, engine-ready export, and variants — are shown in section 1.9 (3D Model Generation) below, alongside the features they illustrate.*
 
 **Video Studio** — Settings on the left (model, generation mode, duration, region, cost estimate), prompt on the right. Supports Nova Reel (single shot, multi-shot auto/manual up to 2 minutes) and Luma AI Ray (aspect ratios, looping).
 
@@ -321,12 +307,24 @@ Generate fully-textured 3D meshes from any 2D image — directly in the Asset Vi
 
 A single 2D character image (left, in the PNG tab) becomes a fully-textured 3D mesh you can rotate freely in-browser. The **3D Model** tab now also lists the exact **models & tools** used to produce each asset (geometry model, texturing backend, output type, instance, and generation parameters) — persisted to the asset's metadata for full provenance.
 
+**Generating** — the Asset Viewer's 3D Model tab: pick the deployed pipeline endpoint, quality tier (with est. time and cost), and advanced parameters. The licence panel shows each pipeline's terms, and **Improve the Source** vision-checks the image before you spend GPU time.
+
+![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
+
+**Improve the Source** — Before generating, ArtSmoker measures the subject's silhouette and flags crops (here: cut off at the bottom edge), suggesting extension amounts and an AI-written outpaint prompt — extend, fill, or use the image as-is.
+
+![3D source review — automatic crop detection with suggested extension](docs/images/3d-source-review.png)
+
 **Two pipelines — your choice.** ArtSmoker offers two ways to turn an image into a textured 3D model. Deploy either (or both) from Custom Models; when both are live, you pick per generation in the Asset Viewer — each shows its est. cost, time, and licence so you decide informed:
 
 | Pipeline | How it works | Licence | Commercial use | Best for |
 |----------|--------------|---------|----------------|----------|
 | **TripoSG + texture backend** | TripoSG builds the mesh; a chosen texture backend (TRELLIS.2 / Hunyuan3D-Paint) paints it | per backend (below) | per backend | Mixing geometry + a specific texturer |
 | **TRELLIS.2 (Full)** | One model generates **both** geometry and PBR texture (SLAT) | MIT | ✅ Yes — "Built with DINOv3" attribution | Production, commercial assets, simplest path |
+
+**3D variants** — Keep multiple 3D takes per image version (here TripoSG vs the TRELLIS.2 full pipeline), switch between them or set the default at any time; every variant records the exact models & tools that produced it.
+
+![3D variants — TripoSG and TRELLIS.2 takes side by side with full provenance](docs/images/3d-model-variants.png)
 
 **How the TripoSG pipeline works:**
 
@@ -359,6 +357,8 @@ Background removal (the cutout step) uses **BiRefNet (MIT)** by default — full
 | Supported asset types | Game Asset, Character |
 
 ### 📝 1.9.1 Engine-Ready Exports (GLB · FBX · USD)
+
+![3D Model viewer with per-variant tools and engine-ready FBX/USD export options](docs/images/3d-model-viewer-export.png)
 
 Every generated 3D model can be exported **prepared for your game engine**, straight from the Asset Viewer's 3D tab:
 

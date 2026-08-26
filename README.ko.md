@@ -170,21 +170,7 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 
 ![Asset Viewer — 전체 프롬프트 계보와 버전 히스토리가 포함된 Metadata](docs/images/asset-viewer-metadata.png)
 
-**3D 모델 생성** — Asset Viewer의 3D Model 탭: 배포된 파이프라인 엔드포인트, 품질 등급(예상 시간·비용 포함), 고급 파라미터를 선택합니다. 라이선스 패널에 각 파이프라인의 조건이 표시되고, **소스 개선**이 GPU 시간을 쓰기 전에 이미지를 비전 검사합니다.
-
-![3D 모델 생성 — Asset Viewer에서의 설정 및 생성](docs/images/3d-model-generation.png)
-
-**소스 개선** — 생성 전에 ArtSmoker가 피사체의 실루엣을 측정해 잘림(여기서는 하단 가장자리)을 감지하고, 확장 값과 AI가 작성한 아웃페인트 프롬프트를 제안합니다 — 확장, 채우기 또는 그대로 사용할 수 있습니다.
-
-![3D 소스 검토 — 자동 잘림 감지와 제안된 확장 값](docs/images/3d-source-review.png)
-
-**3D 뷰어 + 엔진 대응 내보내기** — 텍스처 메시를 회전하며 살펴본 뒤 엔진에 맞게 준비: 타깃 프리셋(Unreal, Unity, Godot, Blender, 3ds Max…), 텍스처 패킹, LOD 체인, 콜리전 메시, 라이트맵 UV2 — 헤드리스 Blender로 로컬 변환되며, 다운로드 가능한 조합은 버전별로 기억됩니다.
-
-![3D 모델 뷰어 — 배리언트별 도구와 엔진 대응 FBX/USD 내보내기 옵션](docs/images/3d-model-viewer-export.png)
-
-**3D 배리언트** — 이미지 버전마다 여러 3D 결과물을 보관(여기서는 TripoSG와 TRELLIS.2 전체 파이프라인)하고 언제든 전환하거나 기본값으로 설정할 수 있습니다. 각 배리언트는 생성에 사용된 정확한 모델과 도구를 기록합니다.
-
-![3D 배리언트 — TripoSG와 TRELLIS.2 결과물 비교 및 전체 이력](docs/images/3d-model-variants.png)
+*3D 파이프라인의 스크린샷 — 생성, 소스 검토, 엔진 대응 내보내기, 배리언트 — 은 아래 1.9절(3D 모델 생성)에서 해당 기능과 함께 보여드립니다.*
 
 **Video Studio** — 왼쪽에 설정(모델, 생성 모드, 길이, 리전, 비용 추정), 오른쪽에 프롬프트. Nova Reel(싱글 숏, 최대 2분 멀티숏 자동/수동)과 Luma AI Ray(종횡비, 루핑)를 지원합니다.
 
@@ -321,12 +307,24 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 한 장의 2D 캐릭터 이미지(왼쪽, PNG 탭)가 브라우저에서 자유롭게 회전할 수 있는 완전 텍스처링된 3D 메시가 됩니다. **3D Model** 탭은 이제 각 에셋 생성에 사용된 정확한 **모델 및 도구**(지오메트리 모델, 텍스처링 백엔드, 출력 타입, 인스턴스, 생성 파라미터)도 나열하며 — 에셋 메타데이터에 저장되어 완전한 출처 추적을 제공합니다.
 
+**생성하기** — Asset Viewer의 3D Model 탭: 배포된 파이프라인 엔드포인트, 품질 등급(예상 시간·비용 포함), 고급 파라미터를 선택합니다. 라이선스 패널에 각 파이프라인의 조건이 표시되고, **소스 개선**이 GPU 시간을 쓰기 전에 이미지를 비전 검사합니다.
+
+![3D 모델 생성 — Asset Viewer에서의 설정 및 생성](docs/images/3d-model-generation.png)
+
+**소스 개선** — 생성 전에 ArtSmoker가 피사체의 실루엣을 측정해 잘림(여기서는 하단 가장자리)을 감지하고, 확장 값과 AI가 작성한 아웃페인트 프롬프트를 제안합니다 — 확장, 채우기 또는 그대로 사용할 수 있습니다.
+
+![3D 소스 검토 — 자동 잘림 감지와 제안된 확장 값](docs/images/3d-source-review.png)
+
 **두 가지 파이프라인 — 직접 선택하세요.** ArtSmoker는 이미지를 텍스처링된 3D 모델로 변환하는 두 가지 방법을 제공합니다. Custom Models에서 둘 중 하나(또는 둘 다)를 배포하세요. 둘 다 활성화되어 있으면, Asset Viewer에서 생성할 때마다 선택할 수 있으며 — 각각 추정 비용, 시간, 라이선스를 표시하여 정보에 입각해 결정할 수 있습니다:
 
 | 파이프라인 | 작동 방식 | 라이선스 | 상업적 사용 | 적합한 용도 |
 |------------|-----------|----------|-------------|-------------|
 | **TripoSG + 텍스처 백엔드** | TripoSG가 메시를 생성하고, 선택한 텍스처 백엔드(TRELLIS.2 / Hunyuan3D-Paint)가 페인팅 | 백엔드별(아래) | 백엔드별 | 지오메트리 + 특정 텍스처러 조합 |
 | **TRELLIS.2 (Full)** | 하나의 모델이 지오메트리와 PBR 텍스처(SLAT)를 **모두** 생성 | MIT | ✅ 가능 — "Built with DINOv3" 출처 표기 | 프로덕션, 상업용 에셋, 가장 간단한 경로 |
+
+**3D 배리언트** — 이미지 버전마다 여러 3D 결과물을 보관(여기서는 TripoSG와 TRELLIS.2 전체 파이프라인)하고 언제든 전환하거나 기본값으로 설정할 수 있습니다. 각 배리언트는 생성에 사용된 정확한 모델과 도구를 기록합니다.
+
+![3D 배리언트 — TripoSG와 TRELLIS.2 결과물 비교 및 전체 이력](docs/images/3d-model-variants.png)
 
 **TripoSG 파이프라인 작동 방식:**
 
@@ -359,6 +357,8 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 | 지원 에셋 타입 | Game Asset, Character |
 
 ### 📝 1.9.1 엔진 대응 내보내기(GLB · FBX · USD)
+
+![3D 모델 뷰어 — 배리언트별 도구와 엔진 대응 FBX/USD 내보내기 옵션](docs/images/3d-model-viewer-export.png)
 
 생성된 모든 3D 모델은 Asset Viewer의 3D 탭에서 곧바로 **사용할 게임 엔진에 맞게 준비된 상태로** 내보낼 수 있습니다:
 

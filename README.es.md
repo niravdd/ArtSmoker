@@ -170,21 +170,7 @@ Tras una ronda de outpainting (v3 abajo), la misma pestaña regenera los tres ar
 
 ![Asset Viewer — Metadata con linaje completo del prompt e historial de versiones](docs/images/asset-viewer-metadata.png)
 
-**Generación de modelo 3D** — La pestaña 3D Model del Asset Viewer: elige el endpoint del pipeline desplegado, el nivel de calidad (con tiempo y coste estimados) y los parámetros avanzados. El panel de licencia muestra las condiciones de cada pipeline, e **Improve the Source** revisa visualmente la imagen antes de gastar tiempo de GPU.
-
-![Generación de modelo 3D — Configuración y generación en el Asset Viewer](docs/images/3d-model-generation.png)
-
-**Improve the Source** — Antes de generar, ArtSmoker mide la silueta del sujeto y señala los recortes (aquí: cortado en el borde inferior), sugiriendo los valores de extensión y un prompt de outpainting escrito por la IA — extiende, rellena o usa la imagen tal cual.
-
-![Revisión de la fuente 3D — detección automática de recorte con extensión sugerida](docs/images/3d-source-review.png)
-
-**Visor 3D + exportación lista para motores** — Orbita la malla texturizada y prepárala para tu motor: preajuste de destino (Unreal, Unity, Godot, Blender, 3ds Max…), empaquetado de texturas, cadena de LOD, malla de colisión y lightmap UV2 — convertido localmente mediante Blender sin interfaz, con las combinaciones listas para descargar recordadas por versión.
-
-![Visor 3D con herramientas por variante y opciones de exportación FBX/USD listas para motores](docs/images/3d-model-viewer-export.png)
-
-**Variantes 3D** — Conserva varios resultados 3D por versión de imagen (aquí TripoSG frente al pipeline completo TRELLIS.2), cambia entre ellos o fija el predeterminado en cualquier momento; cada variante registra los modelos y herramientas exactos que la produjeron.
-
-![Variantes 3D — TripoSG y TRELLIS.2 lado a lado con procedencia completa](docs/images/3d-model-variants.png)
+*Las capturas del pipeline 3D — generación, revisión de la fuente, exportación lista para motores y variantes — se muestran más abajo, en la sección 1.9 (Generación de modelo 3D), junto a las funciones que ilustran.*
 
 **Video Studio** — Configuración a la izquierda (modelo, modo de generación, duración, región, estimación de costos), prompt a la derecha. Compatible con Nova Reel (toma única, multi-toma automática/manual hasta 2 minutos) y Luma AI Ray (relaciones de aspecto, bucle).
 
@@ -321,12 +307,24 @@ Genere mallas 3D completamente texturizadas a partir de cualquier imagen 2D — 
 
 Una sola imagen 2D de personaje (a la izquierda, en la pestaña PNG) se convierte en una malla 3D completamente texturizada que puede rotar libremente en el navegador. La pestaña **3D Model** ahora también lista los **modelos y herramientas** exactos usados para producir cada recurso (modelo de geometría, backend de texturizado, tipo de salida, instancia y parámetros de generación) — persistidos en los metadatos del recurso para una trazabilidad completa.
 
+**Generar** — La pestaña 3D Model del Asset Viewer: elige el endpoint del pipeline desplegado, el nivel de calidad (con tiempo y coste estimados) y los parámetros avanzados. El panel de licencia muestra las condiciones de cada pipeline, e **Improve the Source** revisa visualmente la imagen antes de gastar tiempo de GPU.
+
+![Generación de modelo 3D — Configuración y generación en el Asset Viewer](docs/images/3d-model-generation.png)
+
+**Improve the Source** — Antes de generar, ArtSmoker mide la silueta del sujeto y señala los recortes (aquí: cortado en el borde inferior), sugiriendo los valores de extensión y un prompt de outpainting escrito por la IA — extiende, rellena o usa la imagen tal cual.
+
+![Revisión de la fuente 3D — detección automática de recorte con extensión sugerida](docs/images/3d-source-review.png)
+
 **Dos pipelines — usted elige.** ArtSmoker ofrece dos formas de convertir una imagen en un modelo 3D texturizado. Despliegue cualquiera de ellos (o ambos) desde Custom Models; cuando ambos están activos, usted elige por generación en el Asset Viewer — cada uno muestra su costo est., tiempo y licencia para que decida con conocimiento de causa:
 
 | Pipeline | Cómo funciona | Licencia | Uso comercial | Ideal para |
 |----------|--------------|---------|----------------|------------|
 | **TripoSG + backend de texturizado** | TripoSG construye la malla; un backend de texturizado elegido (TRELLIS.2 / Hunyuan3D-Paint) la pinta | según el backend (abajo) | según el backend | Combinar geometría + un texturizador específico |
 | **TRELLIS.2 (Full)** | Un solo modelo genera **tanto** la geometría como la textura PBR (SLAT) | MIT | ✅ Sí — atribución "Built with DINOv3" | Producción, recursos comerciales, el camino más simple |
+
+**Variantes 3D** — Conserva varios resultados 3D por versión de imagen (aquí TripoSG frente al pipeline completo TRELLIS.2), cambia entre ellos o fija el predeterminado en cualquier momento; cada variante registra los modelos y herramientas exactos que la produjeron.
+
+![Variantes 3D — TripoSG y TRELLIS.2 lado a lado con procedencia completa](docs/images/3d-model-variants.png)
 
 **Cómo funciona el pipeline de TripoSG:**
 
@@ -359,6 +357,8 @@ La eliminación de fondo (el paso de recorte) usa **BiRefNet (MIT)** de forma pr
 | Tipos de recurso soportados | Game Asset, Character |
 
 ### 📝 1.9.1 Exportaciones listas para el motor (GLB · FBX · USD)
+
+![Visor 3D con herramientas por variante y opciones de exportación FBX/USD listas para motores](docs/images/3d-model-viewer-export.png)
 
 Todo modelo 3D generado puede exportarse **preparado para su motor de juego**, directamente desde la pestaña 3D del Asset Viewer:
 

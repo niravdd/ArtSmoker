@@ -170,21 +170,7 @@ ArtSmokerは2つのモードで動作します — **スタンドアロン**（�
 
 ![Asset Viewer — Metadata with full prompt lineage and version history](docs/images/asset-viewer-metadata.png)
 
-**3Dモデル生成** — Asset Viewerの3D Modelタブ：デプロイ済みパイプラインのエンドポイント、品質ティア（推定時間とコスト付き）、詳細パラメータを選択。ライセンスパネルには各パイプラインの条件が表示され、**Improve the Source**がGPU時間を使う前に画像をビジョンチェックします。
-
-![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
-
-**Improve the Source** — 生成前に、ArtSmokerが被写体のシルエットを計測して切れ（ここでは下端で切断）を検出し、拡張量とAIが書いたアウトペイントプロンプトを提案 — 拡張、塗りつぶし、またはそのまま使用できます。
-
-![3D source review — automatic crop detection with suggested extension](docs/images/3d-source-review.png)
-
-**3Dビューア + エンジン対応エクスポート** — テクスチャ付きメッシュをオービットで確認し、エンジン向けに準備：ターゲットプリセット（Unreal、Unity、Godot、Blender、3ds Max…）、テクスチャパッキング、LODチェーン、コリジョンメッシュ、ライトマップUV2 — ヘッドレスBlenderでローカル変換され、ダウンロード可能な組み合わせはバージョンごとに記憶されます。
-
-![3D Model viewer with per-variant tools and engine-ready FBX/USD export options](docs/images/3d-model-viewer-export.png)
-
-**3Dバリアント** — 画像バージョンごとに複数の3Dテイクを保持（ここではTripoSGとTRELLIS.2フルパイプライン）し、いつでも切り替えやデフォルト設定が可能。各バリアントは生成に使用した正確なモデルとツールを記録します。
-
-![3D variants — TripoSG and TRELLIS.2 takes side by side with full provenance](docs/images/3d-model-variants.png)
+*3Dパイプラインのスクリーンショット — 生成、ソースレビュー、エンジン対応エクスポート、バリアント — は、下のセクション1.9（3Dモデル生成）で、それぞれが示す機能とともに掲載しています。*
 
 **Video Studio** — 左側に設定（モデル、生成モード、長さ、リージョン、コスト見積もり）、右側にプロンプト。Nova Reel（シングルショット、最大2分のマルチショット自動/手動）とLuma AI Ray（アスペクト比、ループ）に対応。
 
@@ -321,12 +307,24 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 1枚の2Dキャラクター画像（左、PNGタブ）が、ブラウザ内で自由に回転できる完全テクスチャ付き3Dメッシュになります。**3D Model**タブには、各アセットの生成に使用した正確な**モデルとツール**（ジオメトリモデル、テクスチャリングバックエンド、出力タイプ、インスタンス、生成パラメータ）も一覧表示され — アセットのメタデータに保存されて完全なプロベナンスを提供します。
 
+**生成する** — Asset Viewerの3D Modelタブ：デプロイ済みパイプラインのエンドポイント、品質ティア（推定時間とコスト付き）、詳細パラメータを選択。ライセンスパネルには各パイプラインの条件が表示され、**Improve the Source**がGPU時間を使う前に画像をビジョンチェックします。
+
+![3D Model Generation — Settings and generation in the Asset Viewer](docs/images/3d-model-generation.png)
+
+**Improve the Source** — 生成前に、ArtSmokerが被写体のシルエットを計測して切れ（ここでは下端で切断）を検出し、拡張量とAIが書いたアウトペイントプロンプトを提案 — 拡張、塗りつぶし、またはそのまま使用できます。
+
+![3D source review — automatic crop detection with suggested extension](docs/images/3d-source-review.png)
+
 **2つのパイプライン — 選べるのはあなた。** ArtSmokerは、画像をテクスチャ付き3Dモデルに変換する方法を2通り用意しています。Custom Modelsからどちらか（または両方）をデプロイできます。両方が稼働している場合は、Asset Viewerで生成ごとに選択します — 各オプションには推定コスト、時間、ライセンスが表示されるため、情報を踏まえて判断できます：
 
 | パイプライン | 仕組み | ライセンス | 商用利用 | 最適な用途 |
 |----------|--------------|---------|----------------|----------|
 | **TripoSG + テクスチャバックエンド** | TripoSGがメッシュを構築し、選択したテクスチャバックエンド（TRELLIS.2 / Hunyuan3D-Paint）がペイント | バックエンドごと（下記参照） | バックエンドごと | ジオメトリ＋特定のテクスチャラーの組み合わせ |
 | **TRELLIS.2（フル）** | 1つのモデルがジオメトリとPBRテクスチャの**両方**を生成（SLAT） | MIT | ✅ 可 — 「Built with DINOv3」のクレジット表記 | プロダクション、商用アセット、最もシンプルな経路 |
+
+**3Dバリアント** — 画像バージョンごとに複数の3Dテイクを保持（ここではTripoSGとTRELLIS.2フルパイプライン）し、いつでも切り替えやデフォルト設定が可能。各バリアントは生成に使用した正確なモデルとツールを記録します。
+
+![3D variants — TripoSG and TRELLIS.2 takes side by side with full provenance](docs/images/3d-model-variants.png)
 
 **TripoSGパイプラインの仕組み：**
 
@@ -359,6 +357,8 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 | サポートするアセットタイプ | Game Asset、Character |
 
 ### 📝 1.9.1 エンジン対応エクスポート（GLB · FBX · USD）
+
+![3D Model viewer with per-variant tools and engine-ready FBX/USD export options](docs/images/3d-model-viewer-export.png)
 
 生成したすべての3Dモデルは、Asset Viewerの3Dタブから直接、**ゲームエンジン向けに準備した状態で**エクスポートできます：
 
