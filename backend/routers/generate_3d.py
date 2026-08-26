@@ -1588,7 +1588,14 @@ def _analyze_source_bytes(img_bytes: bytes, meta: dict) -> dict:
         try: return max(0, min(512, int(v)))
         except (TypeError, ValueError): return 0
     suggest = {d: _clamp(outp.get(d, 0)) for d in ("down", "up", "left", "right")}
-    crop_edges = data.get("crop_edges", []) or []
+    # Canonicalize edge names: the LLM speaks bottom/top (per the template), the
+    # alpha check speaks down/up (outpaint directions) — unmerged, the SAME edge
+    # appeared twice ("bottom, down") in the stored verdict and the user-facing
+    # reason sentence.
+    _EDGE_NAME = {"down": "bottom", "up": "top", "bottom": "bottom", "top": "top",
+                  "left": "left", "right": "right"}
+    crop_edges = [_EDGE_NAME.get(str(e).strip().lower(), str(e))
+                  for e in (data.get("crop_edges", []) or [])]
 
     # Deterministic alpha-edge crop check OVERRIDES the LLM when it fires (a
     # silhouette touching a frame edge is provable, unlike the LLM which is fooled
@@ -1597,7 +1604,7 @@ def _analyze_source_bytes(img_bytes: bytes, meta: dict) -> dict:
     alpha_override = bool(alpha and alpha["crop_edges"])
     if alpha_override:
         complete = False
-        crop_edges = sorted(set(crop_edges) | set(alpha["crop_edges"]))
+        crop_edges = sorted(set(crop_edges) | {_EDGE_NAME.get(e, e) for e in alpha["crop_edges"]})
         for d, v in alpha["suggest_outpaint"].items():
             suggest[d] = max(suggest.get(d, 0), _clamp(v))
 
