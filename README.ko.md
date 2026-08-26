@@ -311,6 +311,10 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 임의의 2D 이미지에서 완전 텍스처링된 3D 메시를 생성합니다 — Asset Viewer에서 직접 수행합니다. **Game Asset** 또는 **Character** 이미지를 선택하고, **3D Model** 탭을 열어 Generate를 클릭합니다. 결과물은 게임 엔진에 바로 사용할 수 있는 GLB로, 오빗·줌·다운로드가 가능하며 — 수작업 모델링, UV 언래핑, 텍스처 페인팅이 전혀 필요 없습니다.
 
+**최종 결과를 먼저:** ArtSmoker로 생성한 캐릭터를 엔진 대응 FBX로 내보내 순정 Blender에서 연 모습 — LOD 체인(LOD0–LOD3)이 아웃라이너에 그대로 유지되고 텍스처도 바인딩된 상태로, 리깅을 다시 하거나 손으로 고칠 것이 없습니다. 아래에서는 텍스트 프롬프트에서 여기까지 도달하는 방법을 차례로 보여줍니다.
+
+![ArtSmoker FBX를 Blender에서 연 모습 — LOD 그룹 계층과 텍스처가 그대로 유지](docs/images/fbx-in-blender.png)
+
 **생성된 모델 — 오빗, 검사, 다운로드:**
 
 ![3D 모델 생성 — 생성된 군인 메시를 인터랙티브 3D 뷰어에서 여러 각도로 표시](docs/images/3d-model-result.png)

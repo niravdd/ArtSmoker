@@ -311,6 +311,10 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 从任意 2D 图像生成完全纹理化的 3D 网格 —— 直接在 Asset Viewer 中操作。选择一张 **Game Asset** 或 **Character** 图像，打开 **3D Model** 选项卡，点击 Generate。结果是可直接导入游戏引擎的 GLB，您可以对其进行轨道旋转、缩放和下载 —— 无需手动建模、UV 展开或纹理绘制。
 
+**先看最终成果：** ArtSmoker 生成的角色，导出为引擎就绪的 FBX 并在原生 Blender 中打开 —— LOD 链（LOD0–LOD3）完整保留在大纲视图中，纹理已绑定，无需重新绑骨或手工修复。下文将展示如何从一条文本提示词一步步走到这里。
+
+![ArtSmoker FBX 在 Blender 中打开 — LOD 组层级完整、纹理已绑定](docs/images/fbx-in-blender.png)
+
 **生成的模型 —— 轨道旋转、检查、下载：**
 
 ![3D 模型生成 — 在交互式 3D 查看器中从多个角度查看生成的士兵网格](docs/images/3d-model-result.png)

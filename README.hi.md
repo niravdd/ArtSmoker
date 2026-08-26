@@ -311,6 +311,10 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 किसी भी 2D इमेज से पूर्ण रूप से टेक्सचर्ड 3D मेश जनरेट करें — सीधे Asset Viewer में। एक **Game Asset** या **Character** इमेज चुनें, **3D Model** टैब खोलें, और Generate क्लिक करें। परिणाम एक गेम-इंजन-रेडी GLB है जिसे आप ऑर्बिट, ज़ूम और डाउनलोड कर सकते हैं — बिना किसी मैन्युअल मॉडलिंग, UV अनरैपिंग, या टेक्सचर पेंटिंग के।
 
+**पहले अंतिम परिणाम:** ArtSmoker से जनरेट किया गया पात्र, इंजन-तैयार FBX के रूप में निर्यात कर सामान्य Blender में खोला गया — LOD शृंखला (LOD0–LOD3) आउटलाइनर में ज्यों की त्यों, टेक्सचर बंधे हुए, न कोई री-रिगिंग न कोई हाथ से सुधार। नीचे दिखाया गया है कि एक टेक्स्ट प्रॉम्प्ट से यहाँ तक कैसे पहुँचें।
+
+![ArtSmoker FBX opened in Blender — LOD group hierarchy intact with textures bound](docs/images/fbx-in-blender.png)
+
 **जनरेट किया गया मॉडल — ऑर्बिट करें, निरीक्षण करें, डाउनलोड करें:**
 
 ![3D Model Generation — the generated soldier mesh viewed from multiple angles in the interactive 3D viewer](docs/images/3d-model-result.png)

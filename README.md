@@ -311,6 +311,10 @@ This matters at every stage:
 
 Generate fully-textured 3D meshes from any 2D image — directly in the Asset Viewer. Select a **Game Asset** or **Character** image, open the **3D Model** tab, and click Generate. The result is a game-engine-ready GLB you can orbit, zoom, and download — with no manual modeling, UV unwrapping, or texture painting.
 
+**The end result, first:** an ArtSmoker-generated character, exported as engine-ready FBX and opened in stock Blender — the LOD chain (LOD0–LOD3) intact in the Outliner, textures bound, nothing re-rigged or fixed by hand. Everything below shows how to get here from a text prompt.
+
+![ArtSmoker FBX opened in Blender — LOD group hierarchy intact with textures bound](docs/images/fbx-in-blender.png)
+
 **The generated model — orbit, inspect, download:**
 
 ![3D Model Generation — the generated soldier mesh viewed from multiple angles in the interactive 3D viewer](docs/images/3d-model-result.png)

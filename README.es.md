@@ -311,6 +311,10 @@ Esto importa en cada etapa:
 
 Genere mallas 3D completamente texturizadas a partir de cualquier imagen 2D — directamente en el Asset Viewer. Seleccione una imagen de **Game Asset** o **Character**, abra la pestaña **3D Model** y haga clic en Generate. El resultado es un GLB listo para el motor de juego que puede orbitar, ampliar y descargar — sin modelado manual, desenvolvimiento UV ni pintado de texturas.
 
+**El resultado final, primero:** un personaje generado por ArtSmoker, exportado como FBX listo para motores y abierto en un Blender estándar — la cadena de LOD (LOD0–LOD3) intacta en el Outliner, texturas vinculadas, sin re-rigging ni arreglos manuales. Todo lo que sigue muestra cómo llegar hasta aquí desde un prompt de texto.
+
+![FBX de ArtSmoker abierto en Blender — jerarquía del grupo LOD intacta con texturas vinculadas](docs/images/fbx-in-blender.png)
+
 **El modelo generado — orbite, inspeccione, descargue:**
 
 ![Generación de modelo 3D — la malla del soldado generada vista desde múltiples ángulos en el visor 3D interactivo](docs/images/3d-model-result.png)

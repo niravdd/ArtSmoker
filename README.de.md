@@ -312,6 +312,10 @@ Das ist in jeder Phase von Bedeutung:
 
 Generieren Sie vollständig texturierte 3D-Meshes aus jedem 2D-Bild — direkt im Asset Viewer. Wählen Sie ein **Game Asset**- oder **Character**-Bild, öffnen Sie die Registerkarte **3D Model** und klicken Sie auf Generate. Das Ergebnis ist eine spielengine-fertige GLB, die Sie umkreisen, zoomen und herunterladen können — ohne manuelle Modellierung, UV-Unwrapping oder Texture-Painting.
 
+**Zuerst das Endergebnis:** eine mit ArtSmoker generierte Figur, als engine-fertiges FBX exportiert und in einem unveränderten Blender geöffnet — die LOD-Kette (LOD0–LOD3) intakt im Outliner, Texturen gebunden, nichts neu geriggt oder von Hand repariert. Alles Weitere zeigt, wie Sie von einem Text-Prompt hierher gelangen.
+
+![ArtSmoker-FBX in Blender geöffnet — LOD-Gruppenhierarchie intakt mit gebundenen Texturen](docs/images/fbx-in-blender.png)
+
 **Das generierte Modell — umkreisen, inspizieren, herunterladen:**
 
 ![3D-Modell-Generierung — das generierte Soldaten-Mesh aus mehreren Blickwinkeln im interaktiven 3D-Viewer betrachtet](docs/images/3d-model-result.png)

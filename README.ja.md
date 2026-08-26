@@ -311,6 +311,10 @@ aws s3api create-bucket --bucket artsmoker-video-YOUR_ORG --region us-west-2 \
 
 任意の2D画像から、完全にテクスチャリングされた3Dメッシュを生成します — Asset Viewer内で直接。**Game Asset**または**Character**画像を選択し、**3D Model**タブを開いてGenerateをクリックします。結果は、オービット・ズーム・ダウンロードが可能な、ゲームエンジン対応のGLBです — 手動モデリング、UV展開、テクスチャペイントは一切不要です。
 
+**まず、最終成果から：** ArtSmokerで生成したキャラクターを、エンジン対応FBXとしてエクスポートし、素のBlenderで開いた状態 — LODチェーン（LOD0〜LOD3）はアウトライナーにそのまま残り、テクスチャもバインド済み。リギングのやり直しも手作業の修正も一切なし。以下では、テキストプロンプトからここに到達する方法を順に示します。
+
+![ArtSmoker FBX opened in Blender — LOD group hierarchy intact with textures bound](docs/images/fbx-in-blender.png)
+
 **生成されたモデル — オービット、検査、ダウンロード：**
 
 ![3D Model Generation — the generated soldier mesh viewed from multiple angles in the interactive 3D viewer](docs/images/3d-model-result.png)

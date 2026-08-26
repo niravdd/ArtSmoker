@@ -311,6 +311,10 @@ Cela compte à chaque étape :
 
 Générez des maillages 3D entièrement texturés à partir de n'importe quelle image 2D — directement dans l'Asset Viewer. Sélectionnez une image **Game Asset** ou **Character**, ouvrez l'onglet **3D Model**, et cliquez sur Generate. Le résultat est un GLB prêt pour le moteur de jeu que vous pouvez orbiter, zoomer et télécharger — sans modélisation manuelle, dépliage UV ni peinture de texture.
 
+**Le résultat final, d'abord :** un personnage généré par ArtSmoker, exporté en FBX prêt pour moteur et ouvert dans un Blender standard — la chaîne de LOD (LOD0–LOD3) intacte dans l'Outliner, textures liées, sans re-rigging ni correction manuelle. Tout ce qui suit montre comment y parvenir à partir d'un prompt texte.
+
+![FBX ArtSmoker ouvert dans Blender — hiérarchie du groupe LOD intacte avec textures liées](docs/images/fbx-in-blender.png)
+
 **Le modèle généré — orbitez, inspectez, téléchargez :**
 
 ![Génération de modèle 3D — le maillage du soldat généré vu sous plusieurs angles dans la visionneuse 3D interactive](docs/images/3d-model-result.png)
