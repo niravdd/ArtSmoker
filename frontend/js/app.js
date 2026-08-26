@@ -377,6 +377,9 @@
                 _applyVersion();
                 setTimeout(_applyVersion, 500);
             }
+            // Server boot id — components scope their work-in-progress drafts to
+            // the current server run (a restart invalidates them).
+            if (data.boot_id) window._serverBootId = data.boot_id;
             // Surface background notices (e.g. a deploy that failed while the
             // user was offline → auto-torn-down). Shown once per load; dismissible.
             if (Array.isArray(data.notices) && data.notices.length) {

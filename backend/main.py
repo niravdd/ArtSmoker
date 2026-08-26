@@ -5,8 +5,14 @@ as static files, and ensures data directories exist on startup.
 """
 
 import logging
+import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# Unique per server PROCESS (regenerated on every start/restart). Exposed via
+# /api/health so the frontend can invalidate client-side work-in-progress drafts
+# that predate the current server run.
+BOOT_ID = uuid.uuid4().hex
 
 # ── Coloured logging with timestamps ──────────────────────────────────────
 
@@ -774,6 +780,9 @@ async def health_check():
         notices = []
     return {
         "version": APP_VERSION,
+        # New uuid per server PROCESS — lets the frontend scope client-side drafts
+        # to the current server run (a restart invalidates in-flight work state).
+        "boot_id": BOOT_ID,
         "status": "ok" if _server_state["ready"] else "starting",
         "ready": _server_state["ready"],
         "sync_in_progress": _server_state["sync_in_progress"],

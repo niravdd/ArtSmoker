@@ -2590,6 +2590,12 @@
                 if (regionSel && result.region && [...regionSel.options].some(o => o.value === result.region))
                     regionSel.value = result.region;
 
+                // Loading a Gallery job is a NEW TASK — discard any in-progress
+                // Reference Studio draft/state so it can't bleed into this work.
+                // (A reference-guided batch repopulates fresh via loadFromMeta below.)
+                this._referenceStudio?.clear?.();
+                window.ReferenceStudio?.clearDraftStorage?.();
+
                 // Reference-guided ("Image Inspiration") batch → reopen in the Image
                 // Inspiration tab with the reference images, mode, and original
                 // instruction restored. A normal text batch stays on Text Inspiration.
@@ -2602,6 +2608,10 @@
                             imageUrls: result.reference_image_urls || [],
                         });
                     } catch (e) { /* non-fatal — the tab switch already happened */ }
+                } else if (this._activeTab === 'reference') {
+                    // A TEXT batch loaded while the reference tab was showing — the
+                    // loaded prompt lives in the Text tab, so switch to it.
+                    this._switchTab('prompt');
                 }
 
                 // Render the results

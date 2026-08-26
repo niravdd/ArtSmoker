@@ -318,22 +318,48 @@
             }
         }
 
-        // ── Draft persistence (localStorage) ────────────────────────────
+        // ── Draft persistence ────────────────────────────────────────────
+        // SCOPE (deliberate): the draft covers CURRENT work-in-progress only —
+        // it survives in-app navigation (Gallery and back), browser tab switches,
+        // and same-tab reloads, but NOT the tab closing (sessionStorage), NOT a
+        // server restart (boot-id stamp checked on restore), and NOT a task
+        // switch (loading a Gallery job clears it — see ImageStudio.loadBatch).
         _saveDraft() {
             try {
-                localStorage.setItem(DRAFT_KEY, JSON.stringify({
+                sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
                     prompt: this.getPrompt(),
                     mode: this._mode,
                     images: this._images.map(i => i.dataUrl),
+                    boot: window._serverBootId || '',
                 }));
             } catch { /* quota — ignore */ }
         }
 
+        /** Server boot id (shared, fetched once). app.js usually warms
+         *  window._serverBootId at load; this covers the constructor race. */
+        _bootId() {
+            if (window._serverBootId) return Promise.resolve(window._serverBootId);
+            window._bootIdPromise ||= fetch('/api/health')
+                .then(r => r.json())
+                .then(d => { window._serverBootId = d.boot_id || ''; return window._serverBootId; })
+                .catch(() => '');
+            return window._bootIdPromise;
+        }
+
         async _restoreDraft() {
+            // One-time migration: drafts used to live in localStorage, which made
+            // them effectively immortal (survived browser AND server restarts).
+            try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
             if (this._batchLoaded) return;   // an explicit Gallery batch-load wins
             let draft;
-            try { draft = JSON.parse(localStorage.getItem(DRAFT_KEY) || 'null'); } catch { draft = null; }
+            try { draft = JSON.parse(sessionStorage.getItem(DRAFT_KEY) || 'null'); } catch { draft = null; }
             if (!draft) return;
+            // A draft from a previous server run is stale work — discard it.
+            const boot = await this._bootId();
+            if (!draft.boot || (boot && draft.boot !== boot)) {
+                this.clearDraft();
+                return;
+            }
             if (draft.prompt) this._promptEl.value = draft.prompt;
             if (draft.mode) this._mode = draft.mode;
             if (Array.isArray(draft.images) && draft.images.length) {
@@ -374,7 +400,8 @@
         }
 
         clearDraft() {
-            try { localStorage.removeItem(DRAFT_KEY); } catch {}
+            try { sessionStorage.removeItem(DRAFT_KEY); } catch {}
+            try { localStorage.removeItem(DRAFT_KEY); } catch {}   // legacy location
         }
 
         /** Full reset (Reset button): wipe images, prompt, mode, the persisted draft,
@@ -390,6 +417,13 @@
             this._promptWarn?.classList.add('hidden');
         }
     }
+
+    // Static: clear the persisted draft without needing an instance (used by
+    // ImageStudio.loadBatch — starting a new task discards in-progress drafts).
+    ReferenceStudio.clearDraftStorage = function () {
+        try { sessionStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+        try { localStorage.removeItem(DRAFT_KEY); } catch { /* ignore */ }
+    };
 
     window.ReferenceStudio = ReferenceStudio;
 })();
