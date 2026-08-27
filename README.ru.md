@@ -463,7 +463,7 @@ aws bedrock-runtime invoke-model --region us-west-2 \
   --body '{"prompt":"test","aspect_ratio":"1:1"}' \
   /dev/null 2>&1 && echo "InvokeModel: OK" || echo "InvokeModel: FAILED"
 
-# Test 3: Can you use the Converse API? (requires bedrock:Converse)
+# Test 3: Can you use the Converse API? (authorizes via bedrock:InvokeModel)
 # (Substitute any Claude model ID you have access to — e.g. the current Sonnet
 #  inference profile from Test 1's list; the exact version rolls over time.)
 aws bedrock-runtime converse --region us-west-2 \
@@ -486,7 +486,7 @@ aws bedrock list-custom-models --region us-east-1 \
 | Разрешение | Используется для |
 |------------|------------------|
 | `bedrock:InvokeModel` | Генерация изображений, редактирование изображений, постобработка (все модели изображений) |
-| `bedrock:Converse` | Вызовы LLM — доработка промптов, анализ стиля, генерация концепций |
+| `bedrock:InvokeModelWithResponseStream` | Потоковые ответы LLM (Chat Studio) — API ConverseStream авторизуется через это действие. Непотоковый API Converse (доработка промптов, анализ стиля, генерация концепций) авторизуется через `bedrock:InvokeModel` — отдельного действия `bedrock:Converse` не существует |
 | `bedrock:InvokeModelWithBidirectionalStream` | Голосовая транскрипция (опционально — приложение работает и без неё) |
 | `bedrock:StartAsyncInvoke` | Генерация видео (асинхронный вызов) |
 | `bedrock:GetAsyncInvoke` | Опрос статуса задания генерации видео |
@@ -508,6 +508,7 @@ aws bedrock list-custom-models --region us-east-1 \
 | `sts:GetCallerIdentity` | Валидация учётных данных при запуске; также лежит в основе локально подписанного bearer-токена Mantle |
 | `pricing:GetProducts` | Получение цен на модели во время Sync from AWS (опционально) |
 | `sagemaker:*` | Self-hosted пользовательские модели на Amazon SageMaker (опционально — только при использовании Custom Models) |
+| Набор среды выполнения Custom Models: `application-autoscaling:*` (цели/политики), `cloudwatch:PutMetricAlarm`/`DeleteAlarms`/`DescribeAlarms`, `logs:` (чтение + retention), `servicequotas:GetServiceQuota`/`RequestServiceQuotaIncrease`, `ecr:DescribeRepositories`, `iam:CreateServiceLinkedRole` (только при первом авто-масштабировании) | Масштабирование эндпоинтов до нуля/с нуля, аларм очереди, сканирование готовности, проверка GPU-квот, разрешение образа DLC (опционально — только Custom Models; полный список в масштабированной политике ниже) |
 | `iam:PassRole` | Разрешить Amazon SageMaker использовать вашу роль (опционально — только для Custom Models) |
 | `iam:CreateRole` / `iam:AttachRolePolicy` | Автосоздание роли выполнения Amazon SageMaker при первом развёртывании (опционально — только для Custom Models) |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Автонастройка существующей роли для доверия Amazon SageMaker (опционально) |
@@ -542,7 +543,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
       "Effect": "Allow",
       "Action": [
         "bedrock:InvokeModel",
-        "bedrock:Converse",
+        "bedrock:InvokeModelWithResponseStream",
         "bedrock:InvokeModelWithBidirectionalStream",
         "bedrock:StartAsyncInvoke",
         "bedrock:GetAsyncInvoke",
@@ -572,7 +573,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
     {
       "Sid": "S3VideoStorage",
       "Effect": "Allow",
-      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject", "s3:HeadBucket"],
+      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject", "s3:HeadBucket", "s3:GetLifecycleConfiguration", "s3:PutLifecycleConfiguration"],
       "Resource": ["arn:aws:s3:::artsmoker-*", "arn:aws:s3:::artsmoker-*/*"]
     },
     {
@@ -584,7 +585,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
     {
       "Sid": "Utility",
       "Effect": "Allow",
-      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts"],
+      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts", "s3:ListAllMyBuckets"],
       "Resource": "*"
     },
     {
@@ -592,21 +593,49 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
       "Effect": "Allow",
       "Action": [
         "sagemaker:CreateModel", "sagemaker:CreateEndpointConfig", "sagemaker:CreateEndpoint",
-        "sagemaker:DeleteModel", "sagemaker:DeleteEndpointConfig", "sagemaker:DeleteEndpoint",
-        "sagemaker:DescribeEndpoint", "sagemaker:InvokeEndpoint", "sagemaker:InvokeEndpointAsync"
+        "sagemaker:UpdateEndpoint", "sagemaker:DeleteModel", "sagemaker:DeleteEndpointConfig",
+        "sagemaker:DeleteEndpoint", "sagemaker:DescribeEndpoint", "sagemaker:DescribeEndpointConfig",
+        "sagemaker:InvokeEndpoint", "sagemaker:InvokeEndpointAsync"
       ],
       "Resource": "arn:aws:sagemaker:*:*:*artsmoker*"
     },
     {
+      "Sid": "SageMakerList",
+      "Effect": "Allow",
+      "Action": ["sagemaker:ListModels", "sagemaker:ListEndpointConfigs"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CustomModelsRuntime",
+      "Effect": "Allow",
+      "Action": [
+        "application-autoscaling:RegisterScalableTarget", "application-autoscaling:DeregisterScalableTarget",
+        "application-autoscaling:DescribeScalableTargets", "application-autoscaling:PutScalingPolicy",
+        "application-autoscaling:DeleteScalingPolicy", "application-autoscaling:DescribeScalingPolicies",
+        "cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms", "cloudwatch:DescribeAlarms",
+        "logs:DescribeLogStreams", "logs:FilterLogEvents", "logs:GetLogEvents", "logs:PutRetentionPolicy",
+        "servicequotas:GetServiceQuota", "servicequotas:RequestServiceQuotaIncrease",
+        "ecr:DescribeRepositories"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AutoScalingServiceLinkedRole",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/sagemaker.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint",
+      "Condition": {"StringLike": {"iam:AWSServiceName": "sagemaker.application-autoscaling.amazonaws.com"}}
+    },
+    {
       "Sid": "SageMakerRoleManagement",
       "Effect": "Allow",
-      "Action": ["iam:CreateRole", "iam:AttachRolePolicy", "iam:GetRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole"],
+      "Action": ["iam:CreateRole", "iam:AttachRolePolicy", "iam:PutRolePolicy", "iam:GetRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole"],
       "Resource": ["arn:aws:iam::*:role/ArtSmoker*"]
     },
     {
       "Sid": "SecretsManagerHFTokens",
       "Effect": "Allow",
-      "Action": ["secretsmanager:CreateSecret", "secretsmanager:UpdateSecret", "secretsmanager:GetSecretValue", "secretsmanager:DeleteSecret"],
+      "Action": ["secretsmanager:CreateSecret", "secretsmanager:UpdateSecret", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "secretsmanager:DeleteSecret"],
       "Resource": "arn:aws:secretsmanager:*:*:secret:artsmoker/*"
     }
   ]
@@ -616,6 +645,11 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/ArtSmokerAccess
 ```
+
+> [!NOTE]
+> **Две вещи, которые нужно подстроить под ваш аккаунт:** (1) Стейтмент S3 ограничен бакетами с именами `artsmoker-*` — если вы указали ArtSmoker бакет с другим именем (Video Settings позволяет выбрать любой существующий), расширьте `Resource` до ARN вашего бакета. (2) Ресурсы SageMaker, создаваемые ArtSmoker, называются `artsmoker-*`, поэтому ограниченный `Resource` работает как есть; действия `sagemaker:List*` не поддерживают ограничение по ресурсам и вынесены в отдельный стейтмент.
+>
+> **Не хватает разрешения во время работы?** ArtSmoker отслеживает каждый вызов AWS: если вызов отклонён, в лог записывается точная пара `service:Operation`, а в приложении появляется постоянное уведомление с именем действия, которое нужно добавить, — пробел в правах никогда не проваливается молча.
 
 > [!TIP]
 > **Для EC2/ECS/App Runner** — создайте IAM-роль вместо прикрепления к пользователю. Полные команды создания роли см. в разделе [Развёртывание на EC2](#43-ec2--cloud-deployment). Ключи доступа не нужны — boto3 автоматически обнаруживает роль через сервис метаданных инстанса.

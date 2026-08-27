@@ -234,6 +234,15 @@ async def lifespan(app: FastAPI):
     """Application lifespan handler — runs on startup and shutdown."""
     global _aws_status
 
+    # Install the process-wide AWS permission monitor FIRST, before any boto3
+    # call: every access-denied AWS error is logged with the exact
+    # service:Operation and surfaced as a user notice (see bedrock_client).
+    try:
+        from backend.services.bedrock_client import install_permission_monitor
+        install_permission_monitor()
+    except Exception as exc:  # observation-only — never block startup
+        logger.warning("AWS permission monitor not installed: %s", exc)
+
     # Auto-update: check GitHub for new version and pull if available.
     # If code was updated, the process restarts here (os.execv) and this
     # function runs again with the new code — the second pass finds

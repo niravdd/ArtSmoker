@@ -463,7 +463,7 @@ aws bedrock-runtime invoke-model --region us-west-2 \
   --body '{"prompt":"test","aspect_ratio":"1:1"}' \
   /dev/null 2>&1 && echo "InvokeModel: OK" || echo "InvokeModel: FAILED"
 
-# Test 3: Can you use the Converse API? (requires bedrock:Converse)
+# Test 3: Can you use the Converse API? (authorizes via bedrock:InvokeModel)
 # (Substitute any Claude model ID you have access to — e.g. the current Sonnet
 #  inference profile from Test 1's list; the exact version rolls over time.)
 aws bedrock-runtime converse --region us-west-2 \
@@ -486,7 +486,7 @@ aws bedrock list-custom-models --region us-east-1 \
 | अनुमति | किसके लिए उपयोग होती है |
 |--------|------------------------|
 | `bedrock:InvokeModel` | इमेज जनरेशन, इमेज एडिटिंग, पोस्ट-प्रोसेसिंग (सभी इमेज मॉडल) |
-| `bedrock:Converse` | LLM कॉल्स — प्रॉम्प्ट शोधन, स्टाइल विश्लेषण, कॉन्सेप्ट जनरेशन |
+| `bedrock:InvokeModelWithResponseStream` | स्ट्रीमिंग LLM प्रतिक्रियाएँ (Chat Studio) — ConverseStream API इसी एक्शन से अधिकृत होता है। नॉन-स्ट्रीमिंग Converse API (प्रॉम्प्ट शोधन, स्टाइल विश्लेषण, कॉन्सेप्ट जनरेशन) `bedrock:InvokeModel` से अधिकृत होता है — कोई अलग `bedrock:Converse` एक्शन मौजूद नहीं है |
 | `bedrock:InvokeModelWithBidirectionalStream` | वॉइस ट्रांसक्रिप्शन (वैकल्पिक — ऐप इसके बिना काम करता है) |
 | `bedrock:StartAsyncInvoke` | वीडियो जनरेशन (एसिंक इनवोकेशन) |
 | `bedrock:GetAsyncInvoke` | वीडियो जनरेशन जॉब स्टेटस पोल करें |
@@ -508,6 +508,7 @@ aws bedrock list-custom-models --region us-east-1 \
 | `sts:GetCallerIdentity` | स्टार्टअप क्रेडेंशियल सत्यापन; लोकली-साइन्ड Mantle बियरर टोकन को भी आधार देता है |
 | `pricing:GetProducts` | Sync from AWS के दौरान मॉडल मूल्य निर्धारण लाएँ (वैकल्पिक) |
 | `sagemaker:*` | Amazon SageMaker पर सेल्फ-होस्टेड कस्टम मॉडल्स (वैकल्पिक — केवल यदि Custom Models का उपयोग कर रहे हों) |
+| Custom Models रनटाइम सेट: `application-autoscaling:*` (टारगेट/नीतियाँ), `cloudwatch:PutMetricAlarm`/`DeleteAlarms`/`DescribeAlarms`, `logs:` (पढ़ना + रिटेंशन), `servicequotas:GetServiceQuota`/`RequestServiceQuotaIncrease`, `ecr:DescribeRepositories`, `iam:CreateServiceLinkedRole` (केवल पहली ऑटो-स्केलिंग पर) | एंडपॉइंट स्केल-टू-ज़ीरो/फ़्रॉम-ज़ीरो, बैकलॉग अलार्म, रेडीनेस स्कैन, GPU कोटा जाँच, DLC इमेज समाधान (वैकल्पिक — केवल Custom Models; पूरी सूची नीचे की स्कोप्ड नीति में) |
 | `iam:PassRole` | Amazon SageMaker को आपके रोल का उपयोग करने दें (वैकल्पिक — केवल Custom Models के लिए) |
 | `iam:CreateRole` / `iam:AttachRolePolicy` | पहले डिप्लॉय पर Amazon SageMaker एक्ज़ीक्यूशन रोल ऑटो-क्रिएट करें (वैकल्पिक — केवल Custom Models के लिए) |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Amazon SageMaker ट्रस्ट के लिए मौजूदा रोल ऑटो-कॉन्फ़िगर करें (वैकल्पिक) |
@@ -542,7 +543,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
       "Effect": "Allow",
       "Action": [
         "bedrock:InvokeModel",
-        "bedrock:Converse",
+        "bedrock:InvokeModelWithResponseStream",
         "bedrock:InvokeModelWithBidirectionalStream",
         "bedrock:StartAsyncInvoke",
         "bedrock:GetAsyncInvoke",
@@ -572,7 +573,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
     {
       "Sid": "S3VideoStorage",
       "Effect": "Allow",
-      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject", "s3:HeadBucket"],
+      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject", "s3:HeadBucket", "s3:GetLifecycleConfiguration", "s3:PutLifecycleConfiguration"],
       "Resource": ["arn:aws:s3:::artsmoker-*", "arn:aws:s3:::artsmoker-*/*"]
     },
     {
@@ -584,7 +585,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
     {
       "Sid": "Utility",
       "Effect": "Allow",
-      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts"],
+      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts", "s3:ListAllMyBuckets"],
       "Resource": "*"
     },
     {
@@ -592,21 +593,49 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
       "Effect": "Allow",
       "Action": [
         "sagemaker:CreateModel", "sagemaker:CreateEndpointConfig", "sagemaker:CreateEndpoint",
-        "sagemaker:DeleteModel", "sagemaker:DeleteEndpointConfig", "sagemaker:DeleteEndpoint",
-        "sagemaker:DescribeEndpoint", "sagemaker:InvokeEndpoint", "sagemaker:InvokeEndpointAsync"
+        "sagemaker:UpdateEndpoint", "sagemaker:DeleteModel", "sagemaker:DeleteEndpointConfig",
+        "sagemaker:DeleteEndpoint", "sagemaker:DescribeEndpoint", "sagemaker:DescribeEndpointConfig",
+        "sagemaker:InvokeEndpoint", "sagemaker:InvokeEndpointAsync"
       ],
       "Resource": "arn:aws:sagemaker:*:*:*artsmoker*"
     },
     {
+      "Sid": "SageMakerList",
+      "Effect": "Allow",
+      "Action": ["sagemaker:ListModels", "sagemaker:ListEndpointConfigs"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CustomModelsRuntime",
+      "Effect": "Allow",
+      "Action": [
+        "application-autoscaling:RegisterScalableTarget", "application-autoscaling:DeregisterScalableTarget",
+        "application-autoscaling:DescribeScalableTargets", "application-autoscaling:PutScalingPolicy",
+        "application-autoscaling:DeleteScalingPolicy", "application-autoscaling:DescribeScalingPolicies",
+        "cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms", "cloudwatch:DescribeAlarms",
+        "logs:DescribeLogStreams", "logs:FilterLogEvents", "logs:GetLogEvents", "logs:PutRetentionPolicy",
+        "servicequotas:GetServiceQuota", "servicequotas:RequestServiceQuotaIncrease",
+        "ecr:DescribeRepositories"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AutoScalingServiceLinkedRole",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/sagemaker.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint",
+      "Condition": {"StringLike": {"iam:AWSServiceName": "sagemaker.application-autoscaling.amazonaws.com"}}
+    },
+    {
       "Sid": "SageMakerRoleManagement",
       "Effect": "Allow",
-      "Action": ["iam:CreateRole", "iam:AttachRolePolicy", "iam:GetRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole"],
+      "Action": ["iam:CreateRole", "iam:AttachRolePolicy", "iam:PutRolePolicy", "iam:GetRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole"],
       "Resource": ["arn:aws:iam::*:role/ArtSmoker*"]
     },
     {
       "Sid": "SecretsManagerHFTokens",
       "Effect": "Allow",
-      "Action": ["secretsmanager:CreateSecret", "secretsmanager:UpdateSecret", "secretsmanager:GetSecretValue", "secretsmanager:DeleteSecret"],
+      "Action": ["secretsmanager:CreateSecret", "secretsmanager:UpdateSecret", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "secretsmanager:DeleteSecret"],
       "Resource": "arn:aws:secretsmanager:*:*:secret:artsmoker/*"
     }
   ]
@@ -616,6 +645,11 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/ArtSmokerAccess
 ```
+
+> [!NOTE]
+> **अपने खाते के लिए समायोजित करने योग्य दो बातें:** (1) S3 स्टेटमेंट `artsmoker-*` नाम वाले बकेट तक सीमित है — यदि आप कोई अन्य नाम वाला बकेट उपयोग करते हैं (Video Settings में कोई भी मौजूदा बकेट चुना जा सकता है), तो उस `Resource` को अपने बकेट के ARN तक विस्तृत करें। (2) ArtSmoker द्वारा बनाए गए SageMaker संसाधनों के नाम `artsmoker-*` होते हैं, इसलिए स्कोप्ड `Resource` वैसे ही काम करता है; `sagemaker:List*` एक्शन संसाधन-स्तरीय स्कोपिंग का समर्थन नहीं करते, इसलिए वे अलग स्टेटमेंट में हैं।
+>
+> **रनटाइम पर कोई अनुमति गायब है?** ArtSmoker हर AWS कॉल की निगरानी करता है: यदि कोई कॉल अस्वीकृत होती है, तो विफल `service:Operation` को सटीक रूप से लॉग करता है और जोड़ी जाने वाली एक्शन का नाम बताते हुए एक स्थायी इन-ऐप सूचना दिखाता है — अनुमति की कमी कभी चुपचाप विफल नहीं होती।
 
 > [!TIP]
 > **EC2/ECS/App Runner के लिए** — किसी उपयोगकर्ता से अटैच करने के बजाय एक IAM रोल बनाएँ। पूर्ण रोल निर्माण कमांड के लिए [EC2 Deployment](#43-ec2--cloud-deployment) अनुभाग देखें। किसी एक्सेस key की ज़रूरत नहीं — boto3 इंस्टेंस मेटाडेटा सर्विस से रोल को ऑटो-डिस्कवर करता है।

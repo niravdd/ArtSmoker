@@ -1444,13 +1444,23 @@ This ensures users can always submit async jobs to models they've previously val
 - Fresh build: ~10 min (80B model download from HuggingFace)
 - Inference: ~68s/image with FlashInfer fused MoE kernels (vs ~19 min with INT8 BnB dequantization)
 
-**Amazon SageMaker IAM requirements:**
+**Amazon SageMaker IAM requirements** (the full Custom Models set — SageMaker itself plus the companion services deploys actually call):
 ```
-sagemaker:CreateModel, sagemaker:CreateEndpointConfig, sagemaker:CreateEndpoint
+sagemaker:CreateModel, sagemaker:CreateEndpointConfig, sagemaker:CreateEndpoint, sagemaker:UpdateEndpoint
 sagemaker:DeleteModel, sagemaker:DeleteEndpointConfig, sagemaker:DeleteEndpoint
-sagemaker:DescribeEndpoint, sagemaker:InvokeEndpoint, sagemaker:InvokeEndpointAsync
-iam:PassRole (to pass Amazon SageMaker execution role)
-secretsmanager:CreateSecret, secretsmanager:UpdateSecret, secretsmanager:GetSecretValue, secretsmanager:DeleteSecret
+sagemaker:DescribeEndpoint, sagemaker:DescribeEndpointConfig, sagemaker:ListModels, sagemaker:ListEndpointConfigs
+sagemaker:InvokeEndpoint, sagemaker:InvokeEndpointAsync
+application-autoscaling:RegisterScalableTarget / DeregisterScalableTarget / DescribeScalableTargets
+application-autoscaling:PutScalingPolicy / DeleteScalingPolicy / DescribeScalingPolicies   (scale-to-zero + scale-from-zero)
+cloudwatch:PutMetricAlarm, cloudwatch:DeleteAlarms, cloudwatch:DescribeAlarms              (scale-from-zero backlog alarm)
+logs:DescribeLogStreams, logs:FilterLogEvents, logs:GetLogEvents, logs:PutRetentionPolicy  (readiness scanner + retention)
+servicequotas:GetServiceQuota, servicequotas:RequestServiceQuotaIncrease                   (GPU quota check / increase)
+ecr:DescribeRepositories                                                                    (DLC image resolution)
+iam:PassRole (to pass the Amazon SageMaker execution role)
+iam:CreateServiceLinkedRole (first-ever endpoint auto-scaling auto-creates
+  AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint — skip if it already exists)
+secretsmanager:CreateSecret, secretsmanager:UpdateSecret, secretsmanager:GetSecretValue,
+secretsmanager:DescribeSecret, secretsmanager:DeleteSecret
 ```
 
 **Role discovery** (fully automatic — no environment variable needed):
@@ -1777,10 +1787,10 @@ The IAM principal (user, role, or SSO session) needs the following permissions:
 
 | Permission | Purpose |
 |------------|---------|
-| `bedrock:InvokeModel` | Image generation, image editing, post-processing (all image models) |
-| `bedrock:Converse` | LLM calls — prompt refinement, style analysis, concept generation |
+| `bedrock:InvokeModel` | Image generation, editing, post-processing — and all non-streaming LLM calls (the **Converse API authorizes via this action**; there is no separate `bedrock:Converse` IAM action) |
+| `bedrock:InvokeModelWithResponseStream` | Streaming LLM responses (Chat Studio) — the **ConverseStream API authorizes via this action** |
 | `bedrock:InvokeModelWithBidirectionalStream` | Voice transcription (optional — app works without it) |
-| `bedrock:StartAsyncInvoke` | Video generation (async invocation) |
+| `bedrock:StartAsyncInvoke` | Video generation (async invocation; the operation itself authorizes via `bedrock:InvokeModel`, which is also granted) |
 | `bedrock:GetAsyncInvoke` | Poll video generation job status |
 | `bedrock:ListAsyncInvokes` | List video generation jobs |
 | `bedrock:ListFoundationModels` | Foundation model discovery (Sync from AWS) |
@@ -1813,7 +1823,7 @@ For a scoped IAM policy:
       "Effect": "Allow",
       "Action": [
         "bedrock:InvokeModel",
-        "bedrock:Converse",
+        "bedrock:InvokeModelWithResponseStream",
         "bedrock:InvokeModelWithBidirectionalStream",
         "bedrock:StartAsyncInvoke",
         "bedrock:GetAsyncInvoke",
@@ -1856,12 +1866,12 @@ For a scoped IAM policy:
     },
     {
       "Effect": "Allow",
-      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket", "s3:HeadBucket"],
+      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:DeleteObject", "s3:ListBucket", "s3:HeadBucket", "s3:GetLifecycleConfiguration", "s3:PutLifecycleConfiguration"],
       "Resource": ["arn:aws:s3:::artsmoker-*", "arn:aws:s3:::artsmoker-*/*"]
     },
     {
       "Effect": "Allow",
-      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts"],
+      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts", "s3:ListAllMyBuckets"],
       "Resource": "*"
     }
   ]
@@ -1869,7 +1879,9 @@ For a scoped IAM policy:
 ```
 > Note: `Comment` is illustrative only — strip it before applying (IAM rejects unknown keys). The dedicated Mantle statement mirrors the managed policy `AmazonBedrockMantleInferenceAccess`; attaching that managed policy instead is simpler and AWS keeps it current.
 >
-> This is the **core** policy (Bedrock + Mantle + S3 + discovery). **Self-hosted Custom Models on Amazon SageMaker** need an additional set of permissions (`sagemaker:*` for endpoints, `iam:PassRole`/`CreateRole`/`AttachRolePolicy`, `secretsmanager:*` for the gated-model HF token) — see the **Amazon SageMaker IAM requirements** under §5.10. Skip those if you won't deploy Custom Models.
+> This is the **core** policy (Bedrock + Mantle + S3 + discovery). **Self-hosted Custom Models on Amazon SageMaker** need an additional set: `sagemaker:*` for endpoints, **Application Auto Scaling** (scale-to-zero/from-zero) + **CloudWatch alarms** + **CloudWatch Logs** (readiness scanner) + **Service Quotas** + `ecr:DescribeRepositories`, `iam:PassRole`/`CreateRole`/`AttachRolePolicy`/`PutRolePolicy` (+ `iam:CreateServiceLinkedRole` for first-ever endpoint auto-scaling), and `secretsmanager:*` for the gated-model HF token — the complete verified list is under **Amazon SageMaker IAM requirements** in §5.10. Skip those if you won't deploy Custom Models.
+>
+> **Runtime detection:** ArtSmoker monitors every AWS call (a process-wide botocore hook in `bedrock_client.install_permission_monitor`) — an access-denied call is logged with the exact `service:Operation` and surfaced as a persistent user notice (deduped, 1/hour per action), so a permission gap never fails silently. bedrock-runtime data-plane denials are log-only (they usually mean model access, which the app handles in-flow).
 
 **Apply the policy via CLI:**
 
@@ -2570,7 +2582,7 @@ AWS App Runner
 3. **App Runner setup**:
    - Create an ECR repository, push the Docker image.
    - Create an App Runner service pointing at the ECR image.
-   - Attach an IAM instance role with `bedrock:InvokeModel`, `bedrock:Converse`, `s3:GetObject`, `s3:PutObject`, `s3:ListBucket`, `s3:DeleteObject`.
+   - Attach an IAM instance role with `bedrock:InvokeModel`, `bedrock:InvokeModelWithResponseStream`, `s3:GetObject`, `s3:PutObject`, `s3:ListBucket`, `s3:DeleteObject`.
    - Configure auto-scaling: min 1 instance, max based on expected load (each instance handles ~10 concurrent generation requests via the thread pool).
    - App Runner handles HTTPS termination, health checks (`/api/health`), and rolling deployments.
 

@@ -113,6 +113,98 @@ def get_images_client():
     return _get_client(settings.aws_region_images)
 
 
+# ── AWS permission-failure monitor ──────────────────────────────────────────
+# A missing IAM action used to surface only as a buried log line or a generic
+# feature failure. install_permission_monitor() wraps botocore's
+# BaseClient._make_api_call ONCE (covers every boto3 client in the process,
+# any Session): a denied call is logged with the exact service:Operation,
+# recorded as a persistent user notice (deduped, once per hour per action),
+# and counted in telemetry. The exception always re-raises unchanged — every
+# existing error path (fallbacks, retries, per-feature messages) is untouched.
+# Deliberate exception: bedrock-runtime data-plane denials are log-only — they
+# usually mean a MODEL isn't enabled/available, which the app already handles
+# in-flow (model fallback, canary dialogs, lifecycle exclusion); an "IAM
+# permission missing" toast there would be noise and often wrong.
+
+_PERM_DENIED_CODES = {
+    "AccessDeniedException", "AccessDenied", "UnauthorizedOperation",
+    "Forbidden", "NotAuthorized", "AuthorizationError", "AuthFailure",
+}
+_PERM_QUIET_SERVICES = {"bedrock-runtime"}
+_PERM_SUPPRESS_SECONDS = 3600
+_perm_seen: dict = {}
+_perm_lock = __import__("threading").Lock()
+
+
+def _report_permission_denied(service: str, operation: str, code: str, message: str) -> None:
+    key = f"{service}:{operation}"
+    now = time.monotonic()
+    with _perm_lock:
+        last = _perm_seen.get(key)
+        if last is not None and (now - last) < _PERM_SUPPRESS_SECONDS:
+            return
+        _perm_seen[key] = now
+
+    quiet = service in _PERM_QUIET_SERVICES
+    logger.warning(
+        "AWS permission denied: %s (%s: %s)%s",
+        key, code, (message or "")[:200],
+        (" — handled in-flow (model access), no notice raised" if quiet else
+         " — the current IAM identity lacks this action. Add it to your IAM "
+         "policy (see README section 2.2 / SPEC section 7.2)."),
+    )
+    if quiet:
+        return
+    try:
+        from backend.services.notices import add_notice
+        add_notice(
+            "aws_permission_denied",
+            f"AWS permission missing: {key}",
+            (f"An AWS call was denied ({code}). The IAM identity running "
+             f"ArtSmoker lacks the '{key}' action — the related feature will "
+             "fail until it is granted. The required permissions are listed "
+             "in README section 2.2 (scoped policy) and SPEC section 7.2."),
+            level="warning",
+            dedup_key=f"awsperm:{key}",
+        )
+    except Exception:
+        logger.debug("Could not record permission notice for %s", key, exc_info=True)
+    try:
+        from backend.services.telemetry import track_error
+        track_error(error_type="aws_permission_denied", message=key)
+    except Exception:
+        pass
+
+
+def install_permission_monitor() -> None:
+    """Wrap botocore's BaseClient._make_api_call (idempotent, process-wide)."""
+    import botocore.client
+
+    if getattr(botocore.client.BaseClient, "_artsmoker_perm_monitor", False):
+        return
+    original = botocore.client.BaseClient._make_api_call
+
+    def _monitored(self, operation_name, api_params):
+        try:
+            return original(self, operation_name, api_params)
+        except ClientError as exc:
+            try:
+                err = (exc.response or {}).get("Error", {})
+                code = err.get("Code", "")
+                status = (exc.response or {}).get("ResponseMetadata", {}).get("HTTPStatusCode")
+                if code in _PERM_DENIED_CODES or status == 403:
+                    service = getattr(self.meta, "service_model", None)
+                    service = getattr(service, "service_name", "aws")
+                    _report_permission_denied(service, operation_name, code, err.get("Message", ""))
+            except Exception:
+                logger.debug("Permission-monitor inspection failed", exc_info=True)
+            raise
+
+    botocore.client.BaseClient._make_api_call = _monitored
+    botocore.client.BaseClient._artsmoker_perm_monitor = True
+    logger.info("AWS permission monitor installed (denied calls are logged + surfaced as notices)")
+
+
 # ── Startup validation ────────────────────────────────────────────────────
 
 def validate_aws_credentials() -> dict:

@@ -463,7 +463,7 @@ aws bedrock-runtime invoke-model --region us-west-2 \
   --body '{"prompt":"test","aspect_ratio":"1:1"}' \
   /dev/null 2>&1 && echo "InvokeModel: OK" || echo "InvokeModel: FAILED"
 
-# Test 3: Can you use the Converse API? (requires bedrock:Converse)
+# Test 3: Can you use the Converse API? (authorizes via bedrock:InvokeModel)
 # (Substitute any Claude model ID you have access to — e.g. the current Sonnet
 #  inference profile from Test 1's list; the exact version rolls over time.)
 aws bedrock-runtime converse --region us-west-2 \
@@ -486,7 +486,7 @@ IAM 사용자, 역할, 인스턴스 프로필에는 다음 권한이 필요합�
 | 권한 | 용도 |
 |------|------|
 | `bedrock:InvokeModel` | 이미지 생성, 이미지 편집, 후처리(모든 이미지 모델) |
-| `bedrock:Converse` | LLM 호출 — 프롬프트 정제, 스타일 분석, 컨셉 생성 |
+| `bedrock:InvokeModelWithResponseStream` | 스트리밍 LLM 응답(Chat Studio) — ConverseStream API는 이 액션으로 인가됩니다. 비스트리밍 Converse API(프롬프트 정제, 스타일 분석, 컨셉 생성)는 `bedrock:InvokeModel`로 인가됩니다 — 별도의 `bedrock:Converse` 액션은 존재하지 않습니다 |
 | `bedrock:InvokeModelWithBidirectionalStream` | 음성 전사(선택 — 없어도 앱 작동) |
 | `bedrock:StartAsyncInvoke` | 동영상 생성(비동기 호출) |
 | `bedrock:GetAsyncInvoke` | 동영상 생성 작업 상태 폴링 |
@@ -508,6 +508,7 @@ IAM 사용자, 역할, 인스턴스 프로필에는 다음 권한이 필요합�
 | `sts:GetCallerIdentity` | 시작 시 인증 정보 검증; 로컬 서명 Mantle 베어러 토큰의 기반이기도 함 |
 | `pricing:GetProducts` | Sync from AWS 중 모델 요금 조회(선택) |
 | `sagemaker:*` | Amazon SageMaker의 셀프 호스팅 커스텀 모델(선택 — Custom Models 사용 시에만) |
+| Custom Models 런타임 세트: `application-autoscaling:*`(타깃/정책), `cloudwatch:PutMetricAlarm`/`DeleteAlarms`/`DescribeAlarms`, `logs:`(읽기+보존 설정), `servicequotas:GetServiceQuota`/`RequestServiceQuotaIncrease`, `ecr:DescribeRepositories`, `iam:CreateServiceLinkedRole`(최초 오토스케일링 시 1회) | 엔드포인트 스케일-투-제로/프롬-제로, 백로그 알람, 준비 상태 스캔, GPU 쿼터 확인, DLC 이미지 결정(선택 — Custom Models 전용; 전체 목록은 아래 범위 지정 정책 참조) |
 | `iam:PassRole` | Amazon SageMaker가 역할을 사용하도록 허용(선택 — Custom Models 전용) |
 | `iam:CreateRole` / `iam:AttachRolePolicy` | 최초 배포 시 Amazon SageMaker 실행 역할 자동 생성(선택 — Custom Models 전용) |
 | `iam:GetRole` / `iam:UpdateAssumeRolePolicy` | Amazon SageMaker 신뢰를 위해 기존 역할 자동 구성(선택) |
@@ -542,7 +543,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
       "Effect": "Allow",
       "Action": [
         "bedrock:InvokeModel",
-        "bedrock:Converse",
+        "bedrock:InvokeModelWithResponseStream",
         "bedrock:InvokeModelWithBidirectionalStream",
         "bedrock:StartAsyncInvoke",
         "bedrock:GetAsyncInvoke",
@@ -572,7 +573,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
     {
       "Sid": "S3VideoStorage",
       "Effect": "Allow",
-      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject", "s3:HeadBucket"],
+      "Action": ["s3:CreateBucket", "s3:PutObject", "s3:GetObject", "s3:ListBucket", "s3:DeleteObject", "s3:HeadBucket", "s3:GetLifecycleConfiguration", "s3:PutLifecycleConfiguration"],
       "Resource": ["arn:aws:s3:::artsmoker-*", "arn:aws:s3:::artsmoker-*/*"]
     },
     {
@@ -584,7 +585,7 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
     {
       "Sid": "Utility",
       "Effect": "Allow",
-      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts"],
+      "Action": ["sts:GetCallerIdentity", "pricing:GetProducts", "s3:ListAllMyBuckets"],
       "Resource": "*"
     },
     {
@@ -592,21 +593,49 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
       "Effect": "Allow",
       "Action": [
         "sagemaker:CreateModel", "sagemaker:CreateEndpointConfig", "sagemaker:CreateEndpoint",
-        "sagemaker:DeleteModel", "sagemaker:DeleteEndpointConfig", "sagemaker:DeleteEndpoint",
-        "sagemaker:DescribeEndpoint", "sagemaker:InvokeEndpoint", "sagemaker:InvokeEndpointAsync"
+        "sagemaker:UpdateEndpoint", "sagemaker:DeleteModel", "sagemaker:DeleteEndpointConfig",
+        "sagemaker:DeleteEndpoint", "sagemaker:DescribeEndpoint", "sagemaker:DescribeEndpointConfig",
+        "sagemaker:InvokeEndpoint", "sagemaker:InvokeEndpointAsync"
       ],
       "Resource": "arn:aws:sagemaker:*:*:*artsmoker*"
     },
     {
+      "Sid": "SageMakerList",
+      "Effect": "Allow",
+      "Action": ["sagemaker:ListModels", "sagemaker:ListEndpointConfigs"],
+      "Resource": "*"
+    },
+    {
+      "Sid": "CustomModelsRuntime",
+      "Effect": "Allow",
+      "Action": [
+        "application-autoscaling:RegisterScalableTarget", "application-autoscaling:DeregisterScalableTarget",
+        "application-autoscaling:DescribeScalableTargets", "application-autoscaling:PutScalingPolicy",
+        "application-autoscaling:DeleteScalingPolicy", "application-autoscaling:DescribeScalingPolicies",
+        "cloudwatch:PutMetricAlarm", "cloudwatch:DeleteAlarms", "cloudwatch:DescribeAlarms",
+        "logs:DescribeLogStreams", "logs:FilterLogEvents", "logs:GetLogEvents", "logs:PutRetentionPolicy",
+        "servicequotas:GetServiceQuota", "servicequotas:RequestServiceQuotaIncrease",
+        "ecr:DescribeRepositories"
+      ],
+      "Resource": "*"
+    },
+    {
+      "Sid": "AutoScalingServiceLinkedRole",
+      "Effect": "Allow",
+      "Action": "iam:CreateServiceLinkedRole",
+      "Resource": "arn:aws:iam::*:role/aws-service-role/sagemaker.application-autoscaling.amazonaws.com/AWSServiceRoleForApplicationAutoScaling_SageMakerEndpoint",
+      "Condition": {"StringLike": {"iam:AWSServiceName": "sagemaker.application-autoscaling.amazonaws.com"}}
+    },
+    {
       "Sid": "SageMakerRoleManagement",
       "Effect": "Allow",
-      "Action": ["iam:CreateRole", "iam:AttachRolePolicy", "iam:GetRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole"],
+      "Action": ["iam:CreateRole", "iam:AttachRolePolicy", "iam:PutRolePolicy", "iam:GetRole", "iam:UpdateAssumeRolePolicy", "iam:PassRole"],
       "Resource": ["arn:aws:iam::*:role/ArtSmoker*"]
     },
     {
       "Sid": "SecretsManagerHFTokens",
       "Effect": "Allow",
-      "Action": ["secretsmanager:CreateSecret", "secretsmanager:UpdateSecret", "secretsmanager:GetSecretValue", "secretsmanager:DeleteSecret"],
+      "Action": ["secretsmanager:CreateSecret", "secretsmanager:UpdateSecret", "secretsmanager:GetSecretValue", "secretsmanager:DescribeSecret", "secretsmanager:DeleteSecret"],
       "Resource": "arn:aws:secretsmanager:*:*:secret:artsmoker/*"
     }
   ]
@@ -616,6 +645,11 @@ aws iam create-policy --policy-name ArtSmokerAccess --policy-document '{
 aws iam attach-user-policy --user-name YOUR_USERNAME \
   --policy-arn arn:aws:iam::YOUR_ACCOUNT_ID:policy/ArtSmokerAccess
 ```
+
+> [!NOTE]
+> **계정에 맞게 조정할 두 가지:** (1) S3 문(statement)은 `artsmoker-*` 이름의 버킷으로 범위가 지정되어 있습니다 — 다른 이름의 버킷을 사용한다면(Video Settings에서 기존 버킷을 자유롭게 선택 가능) 해당 `Resource`를 그 버킷의 ARN으로 넓히세요. (2) ArtSmoker가 생성하는 SageMaker 리소스는 `artsmoker-*`로 명명되므로 범위 지정된 `Resource`가 그대로 작동합니다. `sagemaker:List*` 액션은 리소스 범위 지정을 지원하지 않아 별도의 문으로 분리되어 있습니다.
+>
+> **실행 중에 권한이 부족하다면?** ArtSmoker는 모든 AWS 호출을 모니터링합니다. 호출이 거부되면 실패한 정확한 `service:Operation`을 로그에 기록하고, 추가해야 할 액션을 명시한 지속적인 인앱 알림을 표시합니다 — 권한 공백이 조용히 실패하는 일은 없습니다.
 
 > [!TIP]
 > **EC2/ECS/App Runner의 경우** — 사용자에 연결하는 대신 IAM 역할을 생성하세요. 전체 역할 생성 명령은 [EC2 배포](#43-ec2--cloud-deployment) 섹션을 참조하세요. 액세스 키가 필요 없습니다 — boto3가 인스턴스 메타데이터 서비스에서 역할을 자동으로 검색합니다.
