@@ -111,12 +111,17 @@ def reference_generation_available() -> dict:
                        powers a generic "deploy one of these" message.
     """
     supported = supported_reference_models()
+    # Warm/cold per-edit economics (scale-to-zero endpoints bill GPU time, not
+    # per image) — shared computation with the Edit tab's cost hint.
+    from backend.services.custom_models import get_custom_model_economics
+    economics = get_custom_model_economics()
     deployed = [
         {
             "model_key": key,
             "label": cfg.get("label", key),
             "endpoint_name": cfg.get("deployment", {}).get("endpoint_name"),
             "model_ready": bool(cfg.get("model_ready")),
+            "economics": economics.get(key),
         }
         for key, cfg in list_reference_models()
         if cfg.get("enabled", True)

@@ -1356,6 +1356,8 @@
     "search_models": "Rechercher des modèles...",
     "no_search_results": "Aucun modèle trouvé",
     "cold_start_warning": "Modèle auto-hébergé — la première requête peut prendre 5 à 15 min si le point de terminaison se réveille après une période d'inactivité (démarrage à froid). Les requêtes suivantes sont rapides.",
+    "warm_per_run": "~${{cost}}/exécution à chaud",
+    "warm_cost_hint": "S'exécute sur votre endpoint GPU (~${{hourly}}/h) — environ ${{warm}} par exécution à chaud. La première exécution après une période d'inactivité ajoute un démarrage à froid de ~5–15 min (≈${{coldlo}}–${{coldhi}} facturés) — regroupez votre travail pendant que l'endpoint est chaud.",
     "delete_token_confirm": "Supprimer le jeton HuggingFace partagé ? Les modèles restreints échoueront au prochain démarrage à froid sans ce jeton.",
     "delete_token_title": "Supprimer le jeton HF",
     "warming_up": "Déployé, chargement du modèle...",

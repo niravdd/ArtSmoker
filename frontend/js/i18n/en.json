@@ -1398,6 +1398,8 @@
     "search_models": "Search models...",
     "no_search_results": "No models found",
     "cold_start_warning": "Self-hosted model — first request may take 5-15 min if the endpoint is waking up from idle (cold start). Subsequent requests are fast.",
+    "warm_per_run": "~${{cost}}/run warm",
+    "warm_cost_hint": "Runs on your GPU endpoint (~${{hourly}}/hr) — about ${{warm}} per run while it's warm. The first run after idle adds a ~5–15 min cold start (≈${{coldlo}}–${{coldhi}} billed), so batch your work while the endpoint is warm.",
     "delete_token_confirm": "Delete the shared HuggingFace token? Gated models will fail on next cold start without it.",
     "delete_token_title": "Delete HF Token",
     "warming_up": "Deployed, loading model...",

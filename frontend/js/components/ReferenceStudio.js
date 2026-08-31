@@ -134,6 +134,7 @@
                         <div class="rs-match-model hidden mt-2 p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border">
                             <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.reference_match_model')}</label>
                             <select class="rs-match-select input text-xs w-full mt-1"></select>
+                            <p class="rs-match-cost text-[10px] text-amber-300/80 mt-1 hidden"></p>
                         </div>
                         <!-- Deploy gate notice (shown when "match" chosen but no model deployed).
                              The message is built dynamically from the registry's supported models. -->
@@ -318,15 +319,36 @@
         }
 
         /** Populate the match-mode chooser with the DEPLOYED reference-capable
-         *  instances (newest first, from the registry), keeping any prior pick. */
+         *  instances (newest first, from the registry), keeping any prior pick.
+         *  Each entry may carry warm/cold `economics` (server-computed, same
+         *  sources as the Image Studio estimate) — shown as an option tag +
+         *  a cold-start cost hint, since scale-to-zero endpoints bill GPU time. */
         _fillMatchModels(deployed) {
             const sel = this.container.querySelector('.rs-match-select');
             if (!sel) return;
             const prev = sel.value;
             // nosemgrep
-            sel.innerHTML = deployed.map(m =>
-                html`<option value="${m.model_key}">${m.label}</option>`).join('');
+            sel.innerHTML = deployed.map(m => {
+                const tag = m.economics
+                    ? ' (' + _t('custom_models.warm_per_run').replace('{{cost}}', m.economics.warm_cost_usd.toFixed(2)) + ')'
+                    : '';
+                return html`<option value="${m.model_key}">${m.label}${tag}</option>`;
+            }).join('');
             if (prev && deployed.some(m => m.model_key === prev)) sel.value = prev;
+            const updateHint = () => {
+                const hint = this.container.querySelector('.rs-match-cost');
+                if (!hint) return;
+                const e = deployed.find(m => m.model_key === sel.value)?.economics;
+                if (!e) { hint.classList.add('hidden'); return; }
+                hint.textContent = _t('custom_models.warm_cost_hint')
+                    .replace('{{hourly}}', e.hourly_usd.toFixed(2))
+                    .replace('{{warm}}', e.warm_cost_usd.toFixed(2))
+                    .replace('{{coldlo}}', e.cold_cost_min_usd.toFixed(2))
+                    .replace('{{coldhi}}', e.cold_cost_max_usd.toFixed(2));
+                hint.classList.remove('hidden');
+            };
+            if (!sel._costWired) { sel._costWired = true; sel.addEventListener('change', updateHint); }
+            updateHint();
         }
 
         async _checkAvailability() {

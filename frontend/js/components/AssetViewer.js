@@ -285,6 +285,8 @@
                                         ${t('artsmoker.ui.asset_viewer.apply_edit')}
                                     </button>
                                 </div>
+                                <!-- Warm/cold economics for self-hosted editors (hidden for Bedrock models). -->
+                                <p id="av-edit-cost-hint" class="text-[10px] text-amber-300/80 mt-1 hidden"></p>
                                 <p class="text-[10px] text-brand-text-dim mt-1">${t('artsmoker.ui.asset_viewer.edit_hint_full')}</p>
                                 <div id="av-edit-status" class="text-xs text-brand-text-muted hidden"></div>
                             </div>
@@ -1839,6 +1841,9 @@
                 if (maskControls) maskControls.classList.toggle('hidden', this._selectedEditModelIsMaskFree());
                 // A mask-free model lifts the gate; a mask-requiring one restores it.
                 this._updateApplyEditGate?.();
+                // Warm/cold economics hint follows the selection (custom editors only).
+                this._customEconomics().then(eco =>
+                    this._updateEditCostHint(this._overlay?.querySelector('#av-edit-model'), eco));
             });
 
             // ✨ Generate Prompt — vision LLM reads the image + original prompt and
@@ -2098,7 +2103,55 @@
                 // mask-free knowledge) is loaded — the canvas-load evaluation may
                 // have run before this fetch resolved.
                 this._updateApplyEditGate?.();
+                // Warm/cold economics for self-hosted editors: tag their options
+                // with the warm per-run cost and show the cold-start cost hint.
+                this._applyEditEconomics(sel);
             }).catch(() => {});
+        },
+
+        /** Fetch (once) the warm/cold economics for deployed custom models —
+         *  { key: {hourly_usd, warm_cost_usd, cold_cost_min_usd, cold_cost_max_usd} }.
+         *  Server-computed from the SAME hourly-rate + latency sources as the
+         *  Image Studio estimate, so the numbers can't drift. */
+        _customEconomics() {
+            this._economicsPromise ||= fetch('/api/custom-models/economics')
+                .then(r => r.json()).catch(() => ({}));
+            return this._economicsPromise;
+        },
+
+        /** Decorate custom-editor <option>s with their warm per-run cost and keep
+         *  the cold-start hint under the model select in sync with the selection.
+         *  Scale-to-zero endpoints bill GPU time — a single edit against an idle
+         *  endpoint pays the 5–15 min spin-up too, which is invisible in a flat
+         *  per-image price. Bedrock editors are unaffected (hint stays hidden). */
+        _applyEditEconomics(sel) {
+            this._customEconomics().then(eco => {
+                if (!sel || !eco || !Object.keys(eco).length) return;
+                for (const opt of sel.options) {
+                    const e = eco[opt.value];
+                    if (e && !opt.dataset.ecoTagged) {
+                        opt.dataset.ecoTagged = '1';
+                        opt.textContent += ' (' + t('artsmoker.ui.custom_models.warm_per_run')
+                            .replace('{{cost}}', e.warm_cost_usd.toFixed(2)) + ')';
+                    }
+                }
+                // The cost hint element lives in the Edit tab only — the 3D
+                // dialog's selector gets option tags but no hint.
+                if (sel.id === 'av-edit-model') this._updateEditCostHint(sel, eco);
+            });
+        },
+
+        _updateEditCostHint(sel, eco) {
+            const hint = this._overlay?.querySelector('#av-edit-cost-hint');
+            if (!hint) return;
+            const e = eco?.[sel?.value];
+            if (!e) { hint.classList.add('hidden'); return; }
+            hint.textContent = t('artsmoker.ui.custom_models.warm_cost_hint')
+                .replace('{{hourly}}', e.hourly_usd.toFixed(2))
+                .replace('{{warm}}', e.warm_cost_usd.toFixed(2))
+                .replace('{{coldlo}}', e.cold_cost_min_usd.toFixed(2))
+                .replace('{{coldhi}}', e.cold_cost_max_usd.toFixed(2));
+            hint.classList.remove('hidden');
         },
 
         /**
@@ -2136,6 +2189,9 @@
                 }
                 // Only reveal the selector when there's a real alternative to Auto.
                 if (row) row.classList.toggle('hidden', sel.options.length <= 1);
+                // Tag self-hosted editors with their warm per-run cost (same shared
+                // economics the Edit tab shows; the dialog stays compact — no hint).
+                if (sel.options.length > 1) this._applyEditEconomics(sel);
             }).catch(() => {});
         },
 

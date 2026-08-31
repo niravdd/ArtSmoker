@@ -1356,6 +1356,8 @@
     "search_models": "Buscar modelos...",
     "no_search_results": "No se encontraron modelos",
     "cold_start_warning": "Modelo auto-alojado — la primera solicitud puede tardar 5-15 min si el endpoint se está despertando del reposo (arranque en frío). Las solicitudes posteriores son rápidas.",
+    "warm_per_run": "~${{cost}}/ejecución en caliente",
+    "warm_cost_hint": "Se ejecuta en tu endpoint de GPU (~${{hourly}}/h) — unos ${{warm}} por ejecución en caliente. La primera ejecución tras el reposo añade un arranque en frío de ~5–15 min (≈${{coldlo}}–${{coldhi}} facturados) — agrupa tu trabajo mientras el endpoint está caliente.",
     "delete_token_confirm": "¿Eliminar el token compartido de HuggingFace? Los modelos restringidos fallarán en el próximo arranque en frío sin él.",
     "delete_token_title": "Eliminar token HF",
     "warming_up": "Desplegado, cargando modelo...",

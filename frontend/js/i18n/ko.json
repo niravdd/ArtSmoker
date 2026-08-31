@@ -1356,6 +1356,8 @@
     "search_models": "모델 검색...",
     "no_search_results": "모델을 찾을 수 없습니다",
     "cold_start_warning": "셀프 호스팅 모델 — 엔드포인트가 유휴 상태에서 깨어나는 경우(콜드 스타트) 첫 번째 요청에 5~15분이 걸릴 수 있습니다. 이후 요청은 빠릅니다.",
+    "warm_per_run": "웜 상태 약 ${{cost}}/회",
+    "warm_cost_hint": "사용자의 GPU 엔드포인트(약 ${{hourly}}/시간)에서 실행 — 웜 상태에서는 1회당 약 ${{warm}}. 유휴 후 첫 실행에는 약 5~15분의 콜드 스타트(약 ${{coldlo}}~${{coldhi}} 과금)가 추가되므로, 엔드포인트가 웜 상태일 때 작업을 몰아서 하세요.",
     "delete_token_confirm": "공유 HuggingFace 토큰을 삭제하시겠습니까? 게이트 모델은 다음 콜드 스타트 시 토큰 없이 실패합니다.",
     "delete_token_title": "HF 토큰 삭제",
     "warming_up": "배포 완료, 모델 로딩 중...",

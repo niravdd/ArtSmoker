@@ -1398,6 +1398,8 @@
     "search_models": "Modelle suchen...",
     "no_search_results": "Keine Modelle gefunden",
     "cold_start_warning": "Selbst gehostetes Modell — die erste Anfrage kann 5–15 Min. dauern, wenn der Endpunkt aus dem Leerlauf aufwacht (Kaltstart). Nachfolgende Anfragen sind schnell.",
+    "warm_per_run": "~${{cost}}/Durchlauf warm",
+    "warm_cost_hint": "Läuft auf Ihrem GPU-Endpunkt (~${{hourly}}/Std.) — etwa ${{warm}} pro Durchlauf im warmen Zustand. Der erste Durchlauf nach dem Leerlauf kostet zusätzlich einen ~5–15-minütigen Kaltstart (≈${{coldlo}}–${{coldhi}} abgerechnet) — bündeln Sie Ihre Arbeit, solange der Endpunkt warm ist.",
     "delete_token_confirm": "Den gemeinsamen HuggingFace-Token löschen? Gesperrte Modelle schlagen ohne ihn beim nächsten Kaltstart fehl.",
     "delete_token_title": "HF-Token löschen",
     "warming_up": "Bereitgestellt, Modell wird geladen...",

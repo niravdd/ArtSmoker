@@ -990,6 +990,14 @@ def check_deployment_status(model_key: str):
     return check_endpoint_status(endpoint_name)
 
 
+@router.get("/economics")
+def custom_model_economics():
+    """Warm/cold per-generation economics for deployed custom models (read-only;
+    powers the cost hints in the Edit tab and the Reference 'Match' chooser)."""
+    from backend.services.custom_models import get_custom_model_economics
+    return get_custom_model_economics()
+
+
 # ── HuggingFace Token Management ─────────────────────────────────────────
 
 @router.get("/hf-token-status")

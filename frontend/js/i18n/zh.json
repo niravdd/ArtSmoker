@@ -1356,6 +1356,8 @@
     "search_models": "搜索模型...",
     "no_search_results": "未找到模型",
     "cold_start_warning": "自托管模型——如果端点正在从空闲状态唤醒（冷启动），首次请求可能需要 5-15 分钟。后续请求速度很快。",
+    "warm_per_run": "预热时约 ${{cost}}/次",
+    "warm_cost_hint": "在你的 GPU 端点上运行（约 ${{hourly}}/小时）—— 预热状态下每次约 ${{warm}}。空闲后的首次运行会增加约 5-15 分钟的冷启动（计费约 ${{coldlo}}–${{coldhi}}），请趁端点预热时批量处理。",
     "delete_token_confirm": "删除共享的 HuggingFace 令牌？受限模型在下次冷启动时将因缺少令牌而失败。",
     "delete_token_title": "删除 HF 令牌",
     "warming_up": "已部署，正在加载模型...",

@@ -121,6 +121,50 @@ def _fetch_instance_rate_ondemand(instance_type: str, region: str | None, reg: d
     return 0.0
 
 
+def get_custom_model_economics() -> dict:
+    """Per-generation economics for every DEPLOYED custom-hosted image model.
+
+    Scale-to-zero endpoints bill by GPU time, not per image — a warm request
+    costs hourly × typical latency, while a single request against an idle
+    endpoint also pays the ~5–15 min cold-start spin-up. This is the ONE shared
+    computation the UI surfaces (Edit tab, Reference "Match" chooser) so the
+    warm/cold numbers can never drift from the pricing the rest of the app uses
+    (same get_instance_hourly_rate + invoke.typical_latency_seconds sources as
+    the Image Studio estimate).
+
+    Returns { model_key: { hourly_usd, typical_latency_seconds, warm_cost_usd,
+                           cold_cost_min_usd, cold_cost_max_usd } } — entries
+    appear only when BOTH an hourly rate and a latency are known (no fabricated
+    numbers, per the registry-only pricing rule).
+    """
+    from backend.services.model_registry import get_registry
+
+    COLD_MIN_MINUTES, COLD_MAX_MINUTES = 5, 15  # matches the cold_start_warning copy
+    out: dict = {}
+    for key, cfg in (get_registry().get("image_models", {}) or {}).items():
+        if cfg.get("model_source") != "custom_hosted":
+            continue
+        dep = cfg.get("deployment") or {}
+        instance = dep.get("instance_type")
+        if not instance:
+            continue
+        latency = (cfg.get("invoke") or {}).get("typical_latency_seconds")
+        try:
+            hourly = get_instance_hourly_rate(instance, cfg.get("catalog_key"), dep.get("region"))
+        except Exception:
+            hourly = 0
+        if not hourly or not latency:
+            continue
+        out[key] = {
+            "hourly_usd": round(hourly, 4),
+            "typical_latency_seconds": latency,
+            "warm_cost_usd": round(hourly * latency / 3600.0, 4),
+            "cold_cost_min_usd": round(hourly * COLD_MIN_MINUTES / 60.0, 2),
+            "cold_cost_max_usd": round(hourly * COLD_MAX_MINUTES / 60.0, 2),
+        }
+    return out
+
+
 def get_catalog_by_category(category: str) -> dict:
     """Return models filtered by category."""
     return {k: v for k, v in get_catalog().items() if v.get("category") == category}
