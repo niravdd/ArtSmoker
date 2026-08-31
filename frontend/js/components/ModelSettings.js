@@ -745,11 +745,13 @@
                             const badge = source === 'imported'
                                 ? raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-cyan-500/15 text-cyan-400 border border-cyan-500/20 font-medium">Imported</span>')
                                 : raw('<span class="text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-400 border border-purple-500/20 font-medium">Custom</span>');
-                            const enabledBadge = m.enabled
+                            // enabled is default-TRUE when the key is absent (the
+                            // registry doesn't persist the default).
+                            const enabledBadge = m.enabled !== false
                                 ? html`<span class="text-[9px] text-emerald-400">${t('artsmoker.ui.model_settings.ready')}</span>`
                                 : html`<span class="text-[9px] text-amber-400">${t('artsmoker.ui.model_settings.needs_throughput')}</span>`;
                             return html`
-                                <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-60'}">
+                                <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled !== false ? '' : 'opacity-60'}">
                                     <div class="flex items-center gap-2 mb-1">
                                         <span class="text-sm font-medium">${m.label || key}</span>
                                         ${badge}
@@ -810,10 +812,10 @@
             const fallbackOpt = !hasMatch && currentId ? `<option value="${this._esc(currentId)}" selected>${this._esc(m.label || currentId)}</option>` : '';
 
             return html`
-                <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled ? '' : 'opacity-50'}" data-pp="${key}">
+                <div class="p-3 rounded-lg bg-brand-bg/40 border border-brand-border ${m.enabled !== false ? '' : 'opacity-50'}" data-pp="${key}">
                     <div class="flex items-center gap-2 mb-2">
                         <label class="toggle toggle-sm">
-                            <input type="checkbox" class="ms-pp-toggle" data-key="${key}" ${m.enabled ? 'checked' : ''} />
+                            <input type="checkbox" class="ms-pp-toggle" data-key="${key}" ${m.enabled !== false ? 'checked' : ''} />
                             <span class="toggle-slider"></span>
                         </label>
                         <span class="text-sm font-medium">${m.label || key}</span>

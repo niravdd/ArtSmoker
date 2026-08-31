@@ -2057,7 +2057,11 @@
                     // alongside the Stability models when deployed).
                     const capMatch = cfg.model_purpose === 'image_edit'
                         && cfg.capabilities && cfg.capabilities[purpose];
-                    if ((cfg.model_purpose === purpose || capMatch) && cfg.enabled) {
+                    // enabled is default-TRUE when absent (the registry deliberately
+                    // does not persist the default — see model_registry.py) — a
+                    // truthy check here hid e.g. stable_outpaint_v1 ("No models
+                    // available for this edit type") while edits still ran fine.
+                    if ((cfg.model_purpose === purpose || capMatch) && cfg.enabled !== false) {
                         this._maskFreeEditModels[key] = cfg.model_purpose === 'image_edit';
                         const opt = document.createElement('option');
                         opt.value = key;
@@ -2120,7 +2124,8 @@
                 auto.textContent = t('artsmoker.ui.asset_viewer.edit_model_auto');
                 sel.appendChild(auto);
                 for (const [key, cfg] of Object.entries(models)) {
-                    if (cfg.enabled && cfg.model_purpose === 'image_edit' && cfg.capabilities?.outpainting) {
+                    // enabled defaults to TRUE when absent (never persisted) — see above.
+                    if (cfg.enabled !== false && cfg.model_purpose === 'image_edit' && cfg.capabilities?.outpainting) {
                         const opt = document.createElement('option');
                         opt.value = key;
                         const _p = cfg.base_price_usd;
