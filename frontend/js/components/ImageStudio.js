@@ -171,6 +171,15 @@
                                     </div>
                                 </div>
 
+                                <div>
+                                    <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.image_studio.seed_label')}</label>
+                                    <div class="flex gap-1.5">
+                                        <input id="gen-seed" type="number" min="0" max="2147483647" step="1" class="input flex-1" />
+                                        <button id="gen-seed-dice" type="button" class="btn text-sm px-2.5" title="${t('artsmoker.ui.image_studio.seed_reroll')}">🎲</button>
+                                    </div>
+                                    <p class="text-[10px] text-brand-text-muted mt-0.5">${t('artsmoker.ui.image_studio.seed_caption')}</p>
+                                </div>
+
                             </div>
 
                             <!-- Intellectual Property & Content Check -->
@@ -612,6 +621,7 @@
             await this._loadModels();
             await this._loadStyles();
             this._ensurePromptEditor();
+            this._initSeed();
 
             // Refresh models when Model Settings closes (enable/disable, deploy/teardown)
             window.addEventListener('model-settings-closed', () => this._loadModels());
@@ -1192,6 +1202,7 @@
                 height: size.h,
                 num_options: numOptions,
                 num_variations: numVariations,
+                seed: this._getSeed(),  // undefined = server-random
                 remove_background: document.getElementById('gen-remove-bg').checked,
                 generate_svg: document.getElementById('gen-svg').checked,
                 upscale: document.getElementById('gen-upscale').checked,
@@ -2482,6 +2493,11 @@
             this._selectedOption = index;
             this._selectedVariant = 0;
 
+            // Anchor the seed box to the clicked image — "branch from this one":
+            // tweak the prompt/settings and regenerate around this exact seed.
+            const optSeed = option.variants?.[0]?.seed;
+            if (optSeed != null) this._setSeed(optSeed);
+
             // Highlight the selected option card
             const grid = document.getElementById('gen-options-grid');
             if (grid) {
@@ -2539,6 +2555,9 @@
             if (!variant) return;
 
             this._selectedVariant = index;
+
+            // Seed box follows the viewed image (see _selectOption).
+            if (variant.seed != null) this._setSeed(variant.seed);
 
             // Update variation highlight — the filmstrip lives inside the selected
             // option's card, so scope the query to that card.
@@ -2729,13 +2748,18 @@
 
                 const upscale = document.getElementById('gen-upscale');
                 if (upscale) {
+                    // Reflect the batch's setting but keep the toggle USABLE —
+                    // loading a job is the start of a regeneration, and a locked
+                    // toggle blocked re-running with upscale on (and the lock was
+                    // never released when a non-upscaled batch loaded next).
                     upscale.checked = result.upscale ?? false;
-                    // If images were already upscaled, lock the toggle
-                    if (result.upscale) {
-                        upscale.disabled = true;
-                        upscale.closest('label')?.setAttribute('title', t('artsmoker.ui.image_studio.already_upscaled'));
-                    }
+                    upscale.disabled = false;
+                    upscale.closest('label')?.removeAttribute('title');
                 }
+
+                // Restore the batch's base seed so pressing Generate reproduces
+                // this batch (clicking an option/variant re-anchors to that image).
+                if (result.seed != null) this._setSeed(result.seed);
 
                 // Restore options/variations counts — use the ORIGINAL generation
                 // settings. (result.num_options is the surviving option-GROUP count,
@@ -2991,6 +3015,37 @@
             const default1024 = sizes.findIndex(s => s.w === 1024 && s.h === 1024);
             sizeSel.value = default1024 >= 0 ? default1024 : Math.min(2, sizes.length - 1);
             this._updateAspectHint();
+        },
+
+        /** Seed helpers. The base seed is user-visible (next to Options ×
+         *  Variations), generated CLIENT-side and cached in localStorage so a
+         *  page reload keeps it. The backend derives one deterministic seed per
+         *  (option, variation) slot from this base — same base + same settings
+         *  reproduce the same batch. Blank = server-random (legacy). */
+        _rollSeed() {
+            return Math.floor(Math.random() * 2147483648);  // [0, 2^31 - 1]
+        },
+        _setSeed(value, { persist = true } = {}) {
+            const input = document.getElementById('gen-seed');
+            if (!input) return;
+            const v = parseInt(value, 10);
+            if (!Number.isFinite(v)) { input.value = ''; return; }
+            const clamped = Math.min(Math.max(v, 0), 2147483647);
+            input.value = String(clamped);
+            if (persist) try { localStorage.setItem('artsmoker_gen_seed', String(clamped)); } catch { /* quota/private mode */ }
+        },
+        _getSeed() {
+            const v = parseInt(document.getElementById('gen-seed')?.value, 10);
+            return Number.isFinite(v) ? Math.min(Math.max(v, 0), 2147483647) : undefined;
+        },
+        _initSeed() {
+            const input = document.getElementById('gen-seed');
+            if (!input) return;
+            let cached = NaN;
+            try { cached = parseInt(localStorage.getItem('artsmoker_gen_seed'), 10); } catch { /* unavailable */ }
+            this._setSeed(Number.isFinite(cached) ? cached : this._rollSeed());
+            input.addEventListener('change', () => this._setSeed(input.value));
+            document.getElementById('gen-seed-dice')?.addEventListener('click', () => this._setSeed(this._rollSeed()));
         },
 
         /** The full-body framing nudge (roadmap A): a landscape canvas

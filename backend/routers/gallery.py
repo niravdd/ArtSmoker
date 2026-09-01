@@ -292,6 +292,7 @@ async def get_batch(batch_id: str):
             "svg_filename": meta.get("svg_filename"),
             "model_used": meta.get("image_model"),
             "model_label": meta.get("model_label"),
+            "seed": meta.get("seed"),
         }
         # Carry async job info so frontend shows proper status
         if async_status and async_status != "complete":
@@ -371,6 +372,9 @@ async def get_batch(batch_id: str):
         "height": first.get("height", 1024),
         "quality": first.get("quality", ""),
         "region": first.get("region", ""),
+        # Batch base seed: o0_v0's stored seed IS the base under the derived-seed
+        # scheme (offset 0), and a sensible restore anchor for legacy random batches.
+        "seed": first.get("seed"),
         # Reference-guided ("Image Inspiration") provenance — lets Image Studio
         # reopen the batch in the Image Inspiration tab with the reference images,
         # mode, and original instruction restored. Empty/false for normal jobs.

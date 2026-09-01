@@ -54,6 +54,10 @@ class GenerationRequest(BaseModel):
     height: int = 1024
     num_options: int = Field(default=5, ge=1, le=5)
     num_variations: int = Field(default=5, ge=1, le=5)
+    # User-chosen base seed (None = server-random, the legacy behavior). Each
+    # (option, variation) slot derives a deterministic distinct seed from it —
+    # same base + same settings reproduce the same batch.
+    seed: int | None = Field(default=None, ge=0, le=2**31 - 1)
     remove_background: bool = True
     generate_svg: bool = True
     upscale: bool = False

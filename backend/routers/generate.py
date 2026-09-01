@@ -43,6 +43,19 @@ router = APIRouter(prefix="/api/generate", tags=["generate"])
 _SEED_MAX = 2**31 - 1
 
 
+def _derive_seed(base: int | None, option_index: int, variant_index: int, n_vars: int) -> int:
+    """Per-image seed for one (option, variation) slot.
+
+    With a user base seed, every slot gets a deterministic, distinct offset
+    (wrapped into the valid range) — so the same base + same settings reproduce
+    the same batch, and in an all-models run the same (concept, variation) slot
+    shares its seed across models, keeping outputs comparable. No base = the
+    legacy behavior: an independent random seed per image."""
+    if base is None:
+        return random.randint(0, _SEED_MAX)
+    return (int(base) + option_index * max(1, n_vars) + variant_index) % (_SEED_MAX + 1)
+
+
 def _get_model_price(model_key) -> float:
     """Get the per-image price for a model from the registry."""
     key = model_key.value if hasattr(model_key, 'value') else str(model_key)
@@ -676,6 +689,7 @@ def _build_variant(
         svg_path=svg_url,
         png_filename=png_filename,
         svg_filename=svg_filename,
+        seed=seed,
     )
 
     # Notify progress
@@ -869,7 +883,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     completed = 0
 
     # ── Canary request: test first concept prompt before dispatching batch ──
-    canary_seed = random.randint(0, _SEED_MAX)
+    canary_seed = _derive_seed(body.seed, 0, 0, n_vars)
     emit({"type": "stage", "stage": "canary",
           "message": "Testing prompt with image model..."})
     try:
@@ -922,7 +936,10 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     # Build remaining tasks (exclude o0_v0 which was the canary)
     all_tasks = []
     for oi, concept_prompt in enumerate(concept_prompts):
-        seeds = random.sample(range(0, _SEED_MAX), n_vars)
+        # User base seed → deterministic per-slot seeds; else random per option.
+        seeds = ([_derive_seed(body.seed, oi, vi, n_vars) for vi in range(n_vars)]
+                 if body.seed is not None
+                 else random.sample(range(0, _SEED_MAX), n_vars))
         for vi in range(n_vars):
             if oi == 0 and vi == 0:
                 continue  # Already done as canary
@@ -1340,7 +1357,9 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
             }
             variant_map[flat_idx] = []
             for var_idx in range(n_vars):
-                seed = random.randint(0, _SEED_MAX)
+                # Derived from (concept, variation) — NOT the flat index — so the
+                # same slot shares its seed across models (comparable outputs).
+                seed = _derive_seed(body.seed, concept_idx, var_idx, n_vars)
                 all_tasks.append((flat_idx, var_idx, mk, prompts[concept_idx],
                                   negatives[concept_idx] if concept_idx < len(negatives) else "",
                                   seed))
