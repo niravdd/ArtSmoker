@@ -36,6 +36,17 @@
 
     const COUNT_OPTIONS = [1, 2, 3, 4, 5];
 
+    // Orientation glyph prefixed to every size label — language-neutral (no
+    // i18n), reads in a native <select> where images/SVG can't render:
+    // ■ square, ▭ landscape, ▯ portrait.
+    const sizeGlyph = (w, h) => (w === h ? '■' : w > h ? '▭' : '▯');
+
+    // Asset types whose subject is a standing figure — a landscape canvas
+    // geometrically forces an upper-body crop (the model can't fit a tall
+    // subject in a wide frame at readable scale), so the UI nudges toward
+    // portrait/square. A NUDGE only — an explicit user choice is respected.
+    const FULL_BODY_ASSET_TYPES = ['character', 'game_asset'];
+
     window.ImageStudio = {
         _styles: [],
         _promptEditor: null,
@@ -111,9 +122,10 @@
                                     <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.image_studio.dimensions')}</label>
                                     <div class="select-expand-wrap">
                                         <select id="gen-size" class="input">
-                                            ${SIZE_PRESETS.map((s, i) => html`<option value="${i}" ${i === 2 ? 'selected' : ''}>${s.label}</option>`)}
+                                            ${SIZE_PRESETS.map((s, i) => html`<option value="${i}" ${i === 2 ? 'selected' : ''}>${sizeGlyph(s.w, s.h)} ${s.label}</option>`)}
                                         </select>
                                     </div>
+                                    <p id="gen-aspect-hint" class="hidden text-[10px] text-amber-300/80 mt-1"></p>
                                 </div>
 
                                 <!-- Advanced: Quality + Region (collapsible) -->
@@ -519,6 +531,7 @@
             if (caption) caption.textContent = remix
                 ? t('artsmoker.ui.image_studio.remix_strengths_caption')
                 : t('artsmoker.ui.image_studio.different_designs');
+            this._updateAspectHint();  // remix toggles the size select's disabled state
             this._applyReferenceModelFilter(mode);
         },
 
@@ -608,6 +621,7 @@
             });
             document.getElementById('gen-asset-type')?.addEventListener('change', () => {
                 if (this._promptEditor) this._promptEditor.setContext({ assetType: this._getAssetType() });
+                this._updateAspectHint();
             });
             // Closing the dropdown with nothing selected auto-picks the first
             // ELIGIBLE model. Under a reference-mode filter, eligible means the
@@ -675,7 +689,10 @@
                 this._updateMultiModelCostEstimate();
             });
             document.getElementById('gen-region')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
-            document.getElementById('gen-size')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
+            document.getElementById('gen-size')?.addEventListener('change', () => {
+                this._updateMultiModelCostEstimate();
+                this._updateAspectHint();
+            });
             document.getElementById('gen-num-options')?.addEventListener('change', () => {
                 this._updateMultiModelCostEstimate();
                 // Remix: the strength-ladder readout mirrors the Options count.
@@ -2954,7 +2971,7 @@
             sizes.forEach((s, i) => {
                 const opt = document.createElement('option');
                 opt.value = i;
-                opt.textContent = s.label;
+                opt.textContent = `${sizeGlyph(s.w, s.h)} ${s.label}`;
                 sizeSel.appendChild(opt);
             });
 
@@ -2973,6 +2990,26 @@
             // No prior selection — default to 1024x1024 or index 2
             const default1024 = sizes.findIndex(s => s.w === 1024 && s.h === 1024);
             sizeSel.value = default1024 >= 0 ? default1024 : Math.min(2, sizes.length - 1);
+            this._updateAspectHint();
+        },
+
+        /** The full-body framing nudge (roadmap A): a landscape canvas
+         *  geometrically forces character/game_asset subjects into upper-body
+         *  crops (verified 2026-07 across SD3.5/Ultra/Core — prompt directives
+         *  alone can't beat a wide frame). Shown under the Dimensions select
+         *  when the combination applies; never blocks or overrides the choice. */
+        _updateAspectHint() {
+            const hintEl = document.getElementById('gen-aspect-hint');
+            const sizeSel = document.getElementById('gen-size');
+            if (!hintEl || !sizeSel) return;
+            const assetType = this._getAssetType();
+            const sizes = this._activeSizePresets || SIZE_PRESETS;
+            const size = sizes[parseInt(sizeSel.value, 10)];
+            const show = !sizeSel.disabled                    // remix disables dims
+                && FULL_BODY_ASSET_TYPES.includes(assetType)
+                && !!size && size.w > size.h;
+            if (show) hintEl.textContent = t('artsmoker.ui.image_studio.aspect_hint_fullbody');
+            hintEl.classList.toggle('hidden', !show);
         },
 
         /** Select the (w, h) entry in the size dropdown, appending it as a custom
@@ -2989,11 +3026,12 @@
                 this._activeSizePresets = sizes;
                 const opt = document.createElement('option');
                 opt.value = String(sizes.length - 1);
-                opt.textContent = `${w} x ${h}`;
+                opt.textContent = `${sizeGlyph(w, h)} ${w} x ${h}`;
                 sizeSel.appendChild(opt);
                 idx = sizes.length - 1;
             }
             sizeSel.value = String(idx);
+            this._updateAspectHint();
         },
 
         _updateMultiModelCostEstimate() {
