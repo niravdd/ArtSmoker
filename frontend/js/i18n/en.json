@@ -311,7 +311,7 @@
     "remix_subtle": "Subtle — stays close",
     "remix_wild": "Wild — reimagines",
     "remix_ladder": "{{n}} options → strengths {{list}}",
-    "remix_strength_help": "Strength is how far the model may depart from your image: ~0.2 re-renders it almost as-is, ~0.5 repaints the details while keeping the layout, 0.8+ lets your prompt take over and treats the image as loose inspiration.",
+    "remix_strength_help": "Strength is how far the model may depart from your image: ~20% re-renders it almost as-is, ~50% repaints the details while keeping the layout, 80%+ lets your prompt take over and treats the image as loose inspiration.",
     "aspect_hint_fullbody": "For full-body characters and game assets, ▯ portrait or ■ square frames work best — wide ▭ frames usually crop the figure to the upper body.",
     "remix_dims_note": "Output size follows your reference image — the Dimensions setting doesn't apply in Remix.",
     "remix_num_strengths": "Strengths",

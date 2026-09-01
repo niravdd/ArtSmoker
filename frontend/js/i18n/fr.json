@@ -816,7 +816,7 @@
     "remix_subtle": "Subtil — reste proche",
     "remix_wild": "Audacieux — réinvente",
     "remix_ladder": "{{n}} options → forces {{list}}",
-    "remix_strength_help": "La force détermine jusqu'où le modèle peut s'écarter de votre image : ~0,2 la re-rend presque telle quelle, ~0,5 repeint les détails en gardant la composition, 0,8+ laisse le prompt prendre le dessus et traite l'image comme une inspiration libre.",
+    "remix_strength_help": "La force détermine jusqu'où le modèle peut s'écarter de votre image : ~20 % la re-rend presque telle quelle, ~50 % repeint les détails en gardant la composition, 80 %+ laisse le prompt prendre le dessus et traite l'image comme une inspiration libre.",
     "aspect_hint_fullbody": "Pour les personnages en pied et les assets de jeu, les cadres ▯ portrait ou ■ carrés donnent les meilleurs résultats — les cadres larges ▭ coupent généralement la figure au buste.",
     "remix_dims_note": "La taille de sortie suit l'image de référence — le réglage Dimensions ne s'applique pas au Remix.",
     "remix_num_strengths": "Forces",

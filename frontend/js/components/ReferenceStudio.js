@@ -148,7 +148,7 @@
                             <div>
                                 <div class="flex items-center justify-between">
                                     <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.remix_strength')}</label>
-                                    <span class="rs-remix-value text-[10px] text-fuchsia-300 font-mono">0.50</span>
+                                    <span class="rs-remix-value text-[10px] text-fuchsia-300 font-mono">50%</span>
                                 </div>
                                 <input type="range" class="rs-remix-strength w-full" min="0.1" max="0.9" step="0.05" value="0.5">
                                 <div class="flex justify-between text-[9px] text-brand-text-muted/60">
@@ -369,13 +369,15 @@
             const el = this.container.querySelector('.rs-remix-ladder');
             const val = this.container.querySelector('.rs-remix-value');
             const c = parseFloat(this.container.querySelector('.rs-remix-strength')?.value) || 0.5;
-            if (val) val.textContent = c.toFixed(2);
+            // Displayed as a percentage (creative-team friendly); the slider,
+            // drafts, metadata and the API payload all stay 0–1 decimals.
+            if (val) val.textContent = `${Math.round(c * 100)}%`;
             if (!el) return;
             const ladder = this._remixLadder();
             if (ladder.length <= 1) { el.classList.add('hidden'); return; }
             el.textContent = _t('image_studio.remix_ladder')
                 .replace('{{n}}', ladder.length)
-                .replace('{{list}}', ladder.map(s => s.toFixed(2)).join(' / '));
+                .replace('{{list}}', ladder.map(s => `${Math.round(s * 100)}%`).join(' / '));
             el.classList.remove('hidden');
         }
 
