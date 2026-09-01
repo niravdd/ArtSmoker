@@ -46,6 +46,11 @@
                 // The user's chooser pick (or the newest deployed instance).
                 patch.reference_model_key = this.container.querySelector('.rs-match-select')?.value
                     || this._available?.model_key || '';
+            } else if (this._mode === 'remix') {
+                // Strength ladder: one strength per sidebar Option, centered on
+                // the slider — what's shown in the panel is exactly what runs.
+                patch.reference_model_key = this.container.querySelector('.rs-remix-select')?.value || '';
+                patch.reference_strengths = this._remixLadder();
             } else {
                 // Previewed (and possibly edited) interpretations — sent ONLY when
                 // still valid for the CURRENT options count, so the backend never
@@ -113,13 +118,20 @@
                             <span class="text-[10px] font-bold text-emerald-400/70 bg-emerald-400/10 rounded px-1.5 py-0.5">${_t('prompt_editor.step', 'STEP')} 3</span>
                             <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${_t('image_studio.reference_step3')}</span>
                         </div>
-                        <div class="grid grid-cols-2 gap-2">
+                        <div class="grid grid-cols-3 gap-2">
                             <button type="button" data-mode="match" class="rs-mode text-left p-2.5 rounded-lg border border-brand-border hover:border-brand-accent/50 transition-all">
                                 <div class="text-xs font-semibold flex items-center gap-1.5">
                                     <svg class="w-3.5 h-3.5 text-brand-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                                     ${_t('image_studio.reference_mode_match')}
                                 </div>
                                 <div class="text-[10px] text-brand-text-muted/70 mt-0.5">${_t('image_studio.reference_mode_match_desc')}</div>
+                            </button>
+                            <button type="button" data-mode="remix" class="rs-mode text-left p-2.5 rounded-lg border border-brand-border hover:border-brand-accent/50 transition-all">
+                                <div class="text-xs font-semibold flex items-center gap-1.5">
+                                    <svg class="w-3.5 h-3.5 text-fuchsia-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                                    ${_t('image_studio.reference_mode_remix')}
+                                </div>
+                                <div class="text-[10px] text-brand-text-muted/70 mt-0.5">${_t('image_studio.reference_mode_remix_desc')}</div>
                             </button>
                             <button type="button" data-mode="inspired" class="rs-mode text-left p-2.5 rounded-lg border border-brand-border hover:border-brand-accent/50 transition-all">
                                 <div class="text-xs font-semibold flex items-center gap-1.5">
@@ -135,6 +147,27 @@
                             <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.reference_match_model')}</label>
                             <select class="rs-match-select input text-xs w-full mt-1"></select>
                             <p class="rs-match-cost text-[10px] text-amber-300/80 mt-1 hidden"></p>
+                        </div>
+                        <!-- Remix panel: model chooser (registry image_to_image capability) +
+                             strength slider. Options in the sidebar become the strength ladder. -->
+                        <div class="rs-remix-panel hidden mt-2 p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border space-y-2">
+                            <div>
+                                <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.remix_model')}</label>
+                                <select class="rs-remix-select input text-xs w-full mt-1"></select>
+                            </div>
+                            <div>
+                                <div class="flex items-center justify-between">
+                                    <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.remix_strength')}</label>
+                                    <span class="rs-remix-value text-[10px] text-fuchsia-300 font-mono">0.50</span>
+                                </div>
+                                <input type="range" class="rs-remix-strength w-full" min="0.1" max="0.9" step="0.05" value="0.5">
+                                <div class="flex justify-between text-[9px] text-brand-text-muted/60">
+                                    <span>${_t('image_studio.remix_subtle')}</span>
+                                    <span>${_t('image_studio.remix_wild')}</span>
+                                </div>
+                                <p class="rs-remix-ladder text-[10px] text-brand-text-muted mt-1 hidden"></p>
+                            </div>
+                            <p class="text-[9px] text-brand-text-muted/60">${_t('image_studio.remix_dims_note')}</p>
                         </div>
                         <!-- Deploy gate notice (shown when "match" chosen but no model deployed).
                              The message is built dynamically from the registry's supported models. -->
@@ -210,6 +243,12 @@
 
             // Inspired-by preview
             this.container.querySelector('.rs-preview-btn')?.addEventListener('click', () => this._runPreview());
+
+            // Remix strength slider — live value + ladder readout.
+            this.container.querySelector('.rs-remix-strength')?.addEventListener('input', () => {
+                this._updateRemixLadder();
+                this._saveDraft();
+            });
         }
 
         // ── Images ────────────────────────────────────────────────────
@@ -300,6 +339,13 @@
                 matchEl.classList.toggle('hidden', !showChooser);
                 if (showChooser) this._fillMatchModels(deployed);
             }
+            // Remix panel: strength slider + Bedrock image-to-image model chooser.
+            const remixEl = this.container.querySelector('.rs-remix-panel');
+            if (remixEl) {
+                remixEl.classList.toggle('hidden', this._mode !== 'remix');
+                if (this._mode === 'remix') { this._loadRemixModels(); this._updateRemixLadder(); }
+            }
+            this.opts.onModeChange?.(this._mode);
             // Gate only applies to "match" with NOTHING deployed. Its message is
             // built from the registry's supported model list — never hardcoded.
             const showGate = this._mode === 'match' && this._available && this._available.available === false;
@@ -316,6 +362,53 @@
             // Inspired-by preview only meaningful in "inspired" mode — except a
             // reloaded job's read-only enhanced prompt, which shows for both modes.
             this._previewWrap.classList.toggle('hidden', this._mode !== 'inspired' && !this._loadedEnhanced);
+        }
+
+        /** The remix strength ladder: one strength per sidebar Option, evenly
+         *  spread ±0.15 around the slider (clamped 0.1–0.9). n=1 → just the
+         *  slider value. The SAME values are sent to the backend, so the hint
+         *  line shows exactly what will run. */
+        _remixLadder() {
+            const c = parseFloat(this.container.querySelector('.rs-remix-strength')?.value) || 0.5;
+            const n = this.opts.numOptions?.() || 1;
+            if (n <= 1) return [Math.round(c * 100) / 100];
+            const lo = Math.max(0.1, c - 0.15), hi = Math.min(0.9, c + 0.15);
+            return Array.from({ length: n }, (_, i) =>
+                Math.round((lo + (hi - lo) * i / (n - 1)) * 100) / 100);
+        }
+
+        _updateRemixLadder() {
+            const el = this.container.querySelector('.rs-remix-ladder');
+            const val = this.container.querySelector('.rs-remix-value');
+            const c = parseFloat(this.container.querySelector('.rs-remix-strength')?.value) || 0.5;
+            if (val) val.textContent = c.toFixed(2);
+            if (!el) return;
+            const ladder = this._remixLadder();
+            if (ladder.length <= 1) { el.classList.add('hidden'); return; }
+            el.textContent = _t('image_studio.remix_ladder')
+                .replace('{{n}}', ladder.length)
+                .replace('{{list}}', ladder.map(s => s.toFixed(2)).join(' / '));
+            el.classList.remove('hidden');
+        }
+
+        /** Populate the remix chooser with registry image-to-image capable Bedrock
+         *  models (capability-flagged — a new capable model appears with no code
+         *  change), with their per-image price. Fetched once. */
+        _loadRemixModels() {
+            const sel = this.container.querySelector('.rs-remix-select');
+            if (!sel || sel.options.length) return;
+            fetch('/api/admin/models').then(r => r.json()).then(data => {
+                for (const [key, cfg] of Object.entries(data.image_models || {})) {
+                    if ((cfg.capabilities || {}).image_to_image
+                            && cfg.enabled !== false && cfg.model_source !== 'custom_hosted') {
+                        const opt = document.createElement('option');
+                        opt.value = key;
+                        const p = cfg.base_price_usd;
+                        opt.textContent = (p != null && p > 0) ? `${cfg.label} ($${p.toFixed(2)}/img)` : cfg.label;
+                        sel.appendChild(opt);
+                    }
+                }
+            }).catch(() => {});
         }
 
         /** Populate the match-mode chooser with the DEPLOYED reference-capable
@@ -458,6 +551,7 @@
                 sessionStorage.setItem(DRAFT_KEY, JSON.stringify({
                     prompt: this.getPrompt(),
                     mode: this._mode,
+                    strength: parseFloat(this.container.querySelector('.rs-remix-strength')?.value) || 0.5,
                     images: this._images.map(i => i.dataUrl),
                     boot: window._serverBootId || '',
                 }));
@@ -491,6 +585,10 @@
             }
             if (draft.prompt) this._promptEl.value = draft.prompt;
             if (draft.mode) this._mode = draft.mode;
+            if (draft.strength != null) {
+                const slider = this.container.querySelector('.rs-remix-strength');
+                if (slider) slider.value = String(draft.strength);
+            }
             if (Array.isArray(draft.images) && draft.images.length) {
                 for (const dataUrl of draft.images.slice(0, MAX_IMAGES)) {
                     if (this._batchLoaded) return;   // batch-load raced in — stand down
@@ -512,10 +610,14 @@
          *  image(s) served at /api/gallery/{id}/reference/N. Wins over any
          *  localStorage draft-restore that may still be in flight (via _batchLoaded).
          *  Called by ImageStudio.loadBatch after switching to the Image Inspiration tab. */
-        async loadFromMeta({ prompt = '', mode = 'inspired', imageUrls = [], enhancedPrompt = '' } = {}) {
+        async loadFromMeta({ prompt = '', mode = 'inspired', imageUrls = [], enhancedPrompt = '', strength = null } = {}) {
             this._batchLoaded = true;
             if (this._promptEl) this._promptEl.value = prompt || '';
-            this._mode = (mode === 'match') ? 'match' : 'inspired';
+            this._mode = ['match', 'remix'].includes(mode) ? mode : 'inspired';
+            if (mode === 'remix' && strength != null) {
+                const slider = this.container.querySelector('.rs-remix-strength');
+                if (slider) slider.value = String(strength);
+            }
             const imgs = [];
             for (const url of (imageUrls || []).slice(0, MAX_IMAGES)) {
                 try {

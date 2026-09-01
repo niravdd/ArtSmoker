@@ -850,10 +850,13 @@ def invoke_image_model(
     if mask_prompt and family.get("mask_prompt_path"):
         _set_nested(body, family["mask_prompt_path"], mask_prompt)
 
-    # Set dimensions or aspect ratio (only for text-to-image families)
+    # Set dimensions or aspect ratio (only for text-to-image families).
+    # Stability's aspect_ratio is "only valid for text-to-image requests" — in
+    # image-to-image (Remix) the output follows the input image, so omit it.
     dims_mode = family.get("dimensions_mode")
     if dims_mode == "aspect_ratio":
-        body["aspect_ratio"] = _dimensions_to_aspect_ratio(width, height)
+        if (extra_params or {}).get("mode") != "image-to-image":
+            body["aspect_ratio"] = _dimensions_to_aspect_ratio(width, height)
     elif dims_mode == "pixels":
         dim_paths = family.get("dimensions_paths", {})
         if dim_paths.get("width"):

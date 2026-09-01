@@ -86,6 +86,10 @@ class GenerationRequest(BaseModel):
     # at generate time, so both the single-model and all-models pipelines read
     # the final option concepts from ONE place.
     reference_enhanced_prompts: list[str] | None = None
+    # "Remix" mode strengths, one per option (the strength ladder — what the UI
+    # shows is exactly what runs). Each is Stability image-to-image strength:
+    # lower = closer to the reference. Clamped server-side to [0.05, 0.95].
+    reference_strengths: list[float] | None = None
 
     @field_validator("image_model")
     @classmethod

@@ -39,6 +39,9 @@
     "sd35_large": {
       "label": "Stable Diffusion 3.5 Large",
       "model_id": "stability.sd3-5-large-v1:0",
+      "capabilities": {
+        "image_to_image": true
+      },
       "region": "us-west-2",
       "available_regions": [
         "us-west-2"
@@ -71,6 +74,9 @@
     "stable_image_ultra": {
       "label": "Stable Image Ultra",
       "model_id": "stability.stable-image-ultra-v1:1",
+      "capabilities": {
+        "image_to_image": true
+      },
       "region": "us-west-2",
       "available_regions": [
         "us-west-2"
@@ -888,10 +894,13 @@
       }
     },
     "stability_text_to_image": {
-      "description": "Stability AI text-to-image models. Flat prompt field with aspect ratios.",
+      "description": "Stability AI text-to-image models. Flat prompt field with aspect ratios. Also serves image-to-image (Remix): the reference image lands in 'image', with 'mode'/'strength' via extra_params (aspect_ratio is then omitted — output follows the input image).",
       "prompt_path": "prompt",
       "negative_prompt_path": "negative_prompt",
       "seed_path": "seed",
+      "reference_image_paths": [
+        "image"
+      ],
       "dimensions_mode": "aspect_ratio",
       "response_image_path": "images[0]",
       "body_template": {

@@ -377,6 +377,8 @@ async def get_batch(batch_id: str):
         "reference_guided": first.get("reference_guided", False),
         "reference_mode": first.get("reference_mode", "inspired"),
         "reference_prompt": first.get("reference_prompt", ""),
+        # Remix restore: the strength the first surviving option ran at (slider default).
+        "reference_strength": first.get("reference_strength"),
         "reference_image_urls": [
             f"/api/gallery/{first['id']}/reference/{fn}"
             for fn in (first.get("reference_images") or [])

@@ -169,6 +169,7 @@ def _generate_single_image(
     seed: int,
     negative_prompt: str = "",
     model_override: ImageModel | None = None,
+    option_index: int = 0,
     status_callback=None,
 ) -> tuple[bytes | dict, str | None]:
     effective_model = model_override or body.image_model
@@ -176,20 +177,30 @@ def _generate_single_image(
     model_key_str = effective_model.value if hasattr(effective_model, 'value') else str(effective_model)
     gen_w, gen_h = _resolve_model_size(model_key_str, body.width, body.height)
 
-    # Reference-guided "Match the reference" mode: forward the decoded reference
-    # image(s) to the edit model (e.g. Qwen-Image-Edit) as pixel conditioning.
-    # "Inspired by" mode carries no images here — its guidance is already baked
-    # into enhanced_prompt upstream, so it generates as a normal text-to-image.
+    # Reference-guided pixel conditioning:
+    #   "match" — forward the decoded reference image(s) to the edit model
+    #             (e.g. Qwen-Image-Edit).
+    #   "remix" — forward the FIRST reference to a Bedrock image-to-image model
+    #             with the option's strength (the strength ladder: options share
+    #             one prompt, each runs at its own strength).
+    #   "inspired" carries no images here — its guidance is already baked into
+    #   enhanced_prompt upstream, so it generates as a normal text-to-image.
     ref_bytes = None
-    if body.reference_mode == "match" and body.reference_images:
+    extra_params = None
+    if body.reference_images and body.reference_mode in ("match", "remix"):
         import base64 as _b64
+        limit = 1 if body.reference_mode == "remix" else 3
         ref_bytes = []
-        for ref in body.reference_images[:3]:
+        for ref in body.reference_images[:limit]:
             try:
                 ref_bytes.append(_b64.b64decode(ref))
             except Exception:
                 pass
         ref_bytes = ref_bytes or None
+        if body.reference_mode == "remix" and ref_bytes:
+            strengths = body.reference_strengths or [0.5]
+            strength = strengths[min(option_index, len(strengths) - 1)]
+            extra_params = {"mode": "image-to-image", "strength": strength}
 
     result = generate_image(
         enhanced_prompt=enhanced_prompt,
@@ -201,6 +212,7 @@ def _generate_single_image(
         quality=body.quality,
         region_override=body.region,
         reference_images=ref_bytes,
+        extra_params=extra_params,
         status_callback=status_callback,
     )
 
@@ -227,13 +239,15 @@ def _generate_single_image(
     return final_bytes, svg_url
 
 
-def _persist_reference_inputs(asset_id: str, body: GenerationRequest) -> dict:
+def _persist_reference_inputs(asset_id: str, body: GenerationRequest,
+                              option_index: int = 0) -> dict:
     """For reference-guided ('Image Inspiration') jobs, save the reference image(s)
     into the asset dir and return the metadata needed to fully restore the job on
     Gallery reload. Returns {} for normal text-to-image jobs.
 
     Images are copied PER-ASSET (self-contained) so a reload always finds them even
-    if sibling variants are later deleted.
+    if sibling variants are later deleted. Remix assets also record the strength
+    THIS option ran at (the ladder maps one strength per option).
     """
     if not body.reference_images:
         return {}
@@ -250,12 +264,16 @@ def _persist_reference_inputs(asset_id: str, body: GenerationRequest) -> dict:
             filenames.append(fn)
         except Exception as exc:
             logger.warning("Could not persist reference image %s for %s: %s", i, asset_id, exc)
-    return {
+    meta = {
         "reference_guided": True,
         "reference_mode": body.reference_mode or "inspired",
         "reference_prompt": (body.reference_prompt or "").strip(),
         "reference_images": filenames,
     }
+    if body.reference_mode == "remix" and body.reference_strengths:
+        s = body.reference_strengths
+        meta["reference_strength"] = s[min(option_index, len(s) - 1)]
+    return meta
 
 
 def _prepare_reference_generation(body: GenerationRequest, progress_cb=None) -> None:
@@ -356,6 +374,59 @@ def _prepare_reference_generation(body: GenerationRequest, progress_cb=None) -> 
         logger.info("Reference-guided generation: mode=match, %d reference image(s), "
                     "model=%s, %d variation(s)",
                     len(body.reference_images), body.image_model, body.num_variations)
+        return
+
+    if body.reference_mode == "remix":
+        # Classic strength-based img2img: the reference PIXELS go straight to a
+        # Bedrock image-to-image model — no vision analysis, no deploy. Keeps
+        # composition/palette (not identity); the strength ladder maps one
+        # strength per option (same prompt across all of them).
+        body.all_models = False
+        body.selected_models = None
+        # Resolve + validate the model via the registry capability flag —
+        # honor the chooser pick when capable, else the first capable enabled
+        # model. Never hardcoded; a new capable model lights up automatically.
+        from backend.services.model_registry import get_enabled_image_models
+        capable = {k: c for k, c in get_enabled_image_models().items()
+                   if (c.get("capabilities") or {}).get("image_to_image")
+                   and c.get("model_source") != "custom_hosted"}
+        if not capable:
+            raise HTTPException(400, detail=(
+                "“Remix the reference” needs an image-to-image capable model "
+                "(e.g. Stable Diffusion 3.5 Large) enabled in the registry."))
+        if body.image_model not in capable:
+            body.image_model = next(iter(capable))
+        # Strength ladder: what the UI showed is exactly what runs (clamped).
+        strengths = [max(0.05, min(0.95, float(s)))
+                     for s in (body.reference_strengths or []) if s is not None]
+        if not strengths:
+            strengths = [0.5]
+        strengths = strengths[:5]
+        body.reference_strengths = strengths
+        body.num_options = len(strengths)
+
+        emit({"type": "stage", "stage": "prompts",
+              "message": "Preparing reference remix..."})
+        # ONE standard enhancement pass (same refine as a plain generation —
+        # style- and model-aware); the pixels carry the reference, so a refusal
+        # or failure safely falls back to the raw instruction.
+        try:
+            style_profile = None
+            if body.style_id:
+                _sdata = store.load_style_profile(body.style_id)
+                if _sdata:
+                    style_profile = StyleProfile(**_sdata)
+            enhanced = refine_prompt(body.prompt, style_profile, body.asset_type,
+                                     image_model=body.image_model)
+            if enhanced:
+                body.prompt = enhanced
+        except Exception as exc:
+            logger.warning("Remix prompt refinement failed, using raw instruction: %s", exc)
+        # Same prompt for every option — options differ by STRENGTH, not concept.
+        body.reference_enhanced_prompts = [body.prompt] * len(strengths)
+        body.pre_composed = True
+        logger.info("Reference-guided generation: mode=remix, model=%s, strengths=%s, "
+                    "%d variation(s)", body.image_model, strengths, body.num_variations)
         return
 
     # ── "inspired" ──────────────────────────────────────────────────────────
@@ -460,6 +531,7 @@ def _build_variant(
         seed=seed,
         negative_prompt=negative_prompt,
         model_override=model_override,
+        option_index=option_index,
         status_callback=_status_cb,
     )
 
@@ -467,7 +539,7 @@ def _build_variant(
     if isinstance(gen_result, dict) and gen_result.get("async_submitted"):
         # Save FULL metadata now (identical to sync jobs) — image arrives later
         effective_model = model_override or body.image_model
-        _ref_meta = _persist_reference_inputs(asset_id, body)
+        _ref_meta = _persist_reference_inputs(asset_id, body, option_index)
         store.save_generation_metadata(asset_id, {
             "id": asset_id,
             "batch_id": batch_id,
@@ -542,7 +614,7 @@ def _build_variant(
     svg_filename = f"{prompt_slug}_opt{option_index + 1}_var{variant_index + 1}.svg" if svg_url else None
 
     effective_model = model_override or body.image_model
-    _ref_meta = _persist_reference_inputs(asset_id, body)
+    _ref_meta = _persist_reference_inputs(asset_id, body, option_index)
     store.save_generation_metadata(asset_id, {
         "id": asset_id,
         "batch_id": batch_id,

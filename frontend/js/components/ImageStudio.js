@@ -144,11 +144,11 @@
                                 <!-- Two-level counts -->
                                 <div class="grid grid-cols-2 gap-3">
                                     <div>
-                                        <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.image_studio.num_options')}</label>
+                                        <label id="gen-options-label" class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.image_studio.num_options')}</label>
                                         <select id="gen-num-options" class="input">
                                             ${COUNT_OPTIONS.map(n => html`<option value="${n}" ${n === 5 ? 'selected' : ''}>${n}</option>`)}
                                         </select>
-                                        <p class="text-[10px] text-brand-text-muted mt-0.5">${t('artsmoker.ui.image_studio.different_designs')}</p>
+                                        <p id="gen-options-caption" class="text-[10px] text-brand-text-muted mt-0.5">${t('artsmoker.ui.image_studio.different_designs')}</p>
                                     </div>
                                     <div>
                                         <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.image_studio.num_variations')}</label>
@@ -450,8 +450,13 @@
                     this._referenceStudio = new ReferenceStudio(container, {
                         assetType: () => this._getAssetType(),
                         // Sidebar Options count — the inspired preview produces one
-                        // distinct interpretation per option.
+                        // distinct interpretation per option; remix maps one
+                        // STRENGTH per option (the ladder).
                         numOptions: () => parseInt(document.getElementById('gen-num-options')?.value, 10) || 1,
+                        // Remix repurposes two sidebar controls: Dimensions become
+                        // meaningless (output follows the reference image) and
+                        // Options mean strengths — reflect that in the sidebar.
+                        onModeChange: (mode) => this._applyReferenceMode(mode),
                     });
                 } catch (err) {
                     console.error('Failed to create ReferenceStudio:', err);
@@ -485,6 +490,32 @@
             };
             setActive(document.getElementById('tab-prompt'), !isRef);
             setActive(document.getElementById('tab-reference'), isRef);
+            // Sidebar adjustments follow the ACTIVE surface: entering the
+            // reference tab applies its current mode; leaving restores defaults.
+            this._applyReferenceMode(isRef ? this._referenceStudio?._mode : null);
+        },
+
+        /** Reflect the active reference mode on the sidebar. Remix repurposes two
+         *  controls: Dimensions are meaningless (Stability image-to-image ignores
+         *  aspect_ratio — the output follows the reference image) so the select is
+         *  disabled with an explanatory tooltip, and Options mean STRENGTHS (the
+         *  ladder), so the label says so. Everything else stays untouched. */
+        _applyReferenceMode(mode) {
+            const remix = mode === 'remix' && this._activeTab === 'reference';
+            const size = document.getElementById('gen-size');
+            if (size) {
+                size.disabled = remix;
+                size.title = remix ? t('artsmoker.ui.image_studio.remix_dims_note') : '';
+                size.classList.toggle('opacity-50', remix);
+            }
+            const label = document.getElementById('gen-options-label');
+            if (label) label.textContent = remix
+                ? t('artsmoker.ui.image_studio.remix_num_strengths')
+                : t('artsmoker.ui.image_studio.num_options');
+            const caption = document.getElementById('gen-options-caption');
+            if (caption) caption.textContent = remix
+                ? t('artsmoker.ui.image_studio.remix_strengths_caption')
+                : t('artsmoker.ui.image_studio.different_designs');
         },
 
         async init() {
@@ -565,7 +596,11 @@
             });
             document.getElementById('gen-region')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
             document.getElementById('gen-size')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
-            document.getElementById('gen-num-options')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
+            document.getElementById('gen-num-options')?.addEventListener('change', () => {
+                this._updateMultiModelCostEstimate();
+                // Remix: the strength-ladder readout mirrors the Options count.
+                this._referenceStudio?._updateRemixLadder?.();
+            });
             document.getElementById('gen-num-variations')?.addEventListener('change', () => this._updateMultiModelCostEstimate());
             document.getElementById('btn-generate')?.addEventListener('click', () => this._handleGenerate());
             // Prompt ⇄ Reference-guided tab switching (ImageStudio binds via
@@ -1084,6 +1119,13 @@
                     const refModelKey = referencePatch.reference_model_key
                         || this._referenceStudio?._available?.model_key;
                     if (refModelKey) payload.image_model = refModelKey;
+                } else if (referencePatch.reference_mode === 'remix') {
+                    // Single Bedrock image-to-image model; Options = the strength
+                    // ladder (one strength per option, same prompt across them).
+                    payload.all_models = false;
+                    payload.selected_models = undefined;
+                    payload.reference_strengths = referencePatch.reference_strengths;
+                    if (referencePatch.reference_model_key) payload.image_model = referencePatch.reference_model_key;
                 } else if (referencePatch.reference_enhanced_prompts?.length) {
                     // Previewed (and possibly edited) interpretations — used
                     // verbatim by the backend (no second vision call).
@@ -2631,6 +2673,8 @@
                             // Shown read-only in the Image Inspiration panel — the
                             // enhanced prompt that actually drove this batch.
                             enhancedPrompt: result.enhanced_prompt || '',
+                            // Remix: restore the slider to the strength this batch ran at.
+                            strength: result.reference_strength,
                         });
                     } catch (e) { /* non-fatal — the tab switch already happened */ }
                 } else if (this._activeTab === 'reference') {
