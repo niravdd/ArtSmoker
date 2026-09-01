@@ -609,23 +609,29 @@
             document.getElementById('gen-asset-type')?.addEventListener('change', () => {
                 if (this._promptEditor) this._promptEditor.setContext({ assetType: this._getAssetType() });
             });
+            // Closing the dropdown with nothing selected auto-picks the first
+            // ELIGIBLE model. Under a reference-mode filter, eligible means the
+            // filtered set (remix: image-to-image capable; match: the injected
+            // deployed editors) — with none deployed there is nothing to pick,
+            // so the empty "Select models..." state correctly stands.
+            const autoSelectIfEmpty = () => {
+                if (this._selectedModels.length) return;
+                let eligible = MODELS.filter(m => m.value !== 'all_models');
+                if (this._refModelFilter === 'remix') eligible = eligible.filter(m => m.capabilities?.image_to_image);
+                else if (this._refModelFilter === 'match') eligible = eligible.filter(m => m._refTemp);
+                if (!eligible.length) return;
+                this._selectedModels = [eligible[0].value];
+                this._syncModelCheckboxes();
+                window.showToast?.(t('artsmoker.ui.image_studio.selected_model_required').replace('{{model}}', eligible[0].label), 'info');
+            };
             // Multi-select model dropdown: toggle open/close
-            // Multi-select dropdown: toggle
             document.getElementById('gen-model-btn')?.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const dd = document.getElementById('gen-model-dropdown');
                 if (!dd) return;
                 const wasOpen = !dd.classList.contains('hidden');
                 dd.classList.toggle('hidden');
-                // If closing and nothing selected, auto-select first
-                if (wasOpen && !this._selectedModels.length) {
-                    const realModels = MODELS.filter(m => m.value !== 'all_models');
-                    if (realModels.length) {
-                        this._selectedModels = [realModels[0].value];
-                        this._syncModelCheckboxes();
-                        window.showToast?.(t('artsmoker.ui.image_studio.selected_model_required').replace('{{model}}', realModels[0].label), 'info');
-                    }
-                }
+                if (wasOpen) autoSelectIfEmpty();
             });
             // Close dropdown on outside click — auto-select first model if empty
             document.addEventListener('click', (e) => {
@@ -633,14 +639,7 @@
                     const dd = document.getElementById('gen-model-dropdown');
                     if (dd && !dd.classList.contains('hidden')) {
                         dd.classList.add('hidden');
-                        if (!this._selectedModels.length) {
-                            const realModels = MODELS.filter(m => m.value !== 'all_models');
-                            if (realModels.length) {
-                                this._selectedModels = [realModels[0].value];
-                                this._syncModelCheckboxes();
-                                window.showToast?.(t('artsmoker.ui.image_studio.selected_model_required').replace('{{model}}', realModels[0].label), 'info');
-                            }
-                        }
+                        autoSelectIfEmpty();
                     }
                 }
             });
