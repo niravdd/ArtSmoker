@@ -42,16 +42,12 @@
                 reference_images: this._images.map(i => i.b64),
                 reference_mode: this._mode,
             };
-            if (this._mode === 'match') {
-                // The user's chooser pick (or the newest deployed instance).
-                patch.reference_model_key = this.container.querySelector('.rs-match-select')?.value
-                    || this._available?.model_key || '';
-            } else if (this._mode === 'remix') {
+            if (this._mode === 'remix') {
                 // Strength ladder: one strength per sidebar Option, centered on
                 // the slider — what's shown in the panel is exactly what runs.
-                patch.reference_model_key = this.container.querySelector('.rs-remix-select')?.value || '';
+                // (The model comes from the mode-filtered MAIN dropdown.)
                 patch.reference_strengths = this._remixLadder();
-            } else {
+            } else if (this._mode !== 'match') {
                 // Previewed (and possibly edited) interpretations — sent ONLY when
                 // still valid for the CURRENT options count, so the backend never
                 // renders fewer/more interpretations than the user asked for.
@@ -141,20 +137,14 @@
                                 <div class="text-[10px] text-brand-text-muted/70 mt-0.5">${_t('image_studio.reference_mode_inspired_desc')}</div>
                             </button>
                         </div>
-                        <!-- Match-mode model chooser (shown when "match" chosen and a
-                             reference-capable model IS deployed — auto-selects the newest). -->
+                        <!-- Match mode: the MAIN sidebar model dropdown is filtered to the
+                             deployed editors; this panel carries only the cost economics. -->
                         <div class="rs-match-model hidden mt-2 p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border">
-                            <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.reference_match_model')}</label>
-                            <select class="rs-match-select input text-xs w-full mt-1"></select>
-                            <p class="rs-match-cost text-[10px] text-amber-300/80 mt-1 hidden"></p>
+                            <p class="rs-match-cost text-[10px] text-amber-300/80 hidden"></p>
                         </div>
-                        <!-- Remix panel: model chooser (registry image_to_image capability) +
-                             strength slider. Options in the sidebar become the strength ladder. -->
+                        <!-- Remix panel: the model lives in the (filtered) main dropdown;
+                             here only the strength slider. Sidebar Options = strength ladder. -->
                         <div class="rs-remix-panel hidden mt-2 p-2.5 rounded-lg bg-brand-bg/40 border border-brand-border space-y-2">
-                            <div>
-                                <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.remix_model')}</label>
-                                <select class="rs-remix-select input text-xs w-full mt-1"></select>
-                            </div>
                             <div>
                                 <div class="flex items-center justify-between">
                                     <label class="text-[9px] text-brand-text-muted uppercase tracking-wider">${_t('image_studio.remix_strength')}</label>
@@ -166,6 +156,7 @@
                                     <span>${_t('image_studio.remix_wild')}</span>
                                 </div>
                                 <p class="rs-remix-ladder text-[10px] text-brand-text-muted mt-1 hidden"></p>
+                                <p class="text-[9px] text-brand-text-muted/60 mt-1">${_t('image_studio.remix_strength_help')}</p>
                             </div>
                             <p class="text-[9px] text-brand-text-muted/60">${_t('image_studio.remix_dims_note')}</p>
                         </div>
@@ -331,21 +322,18 @@
                 btn.classList.toggle('border-brand-border', !active);
             });
             const deployed = this._available?.models || [];
-            // Match + deployed: show the model chooser (auto-selects the newest —
-            // no "model required" messaging when it's already there).
+            // Match + deployed: the MAIN model dropdown is filtered to the deployed
+            // editors (via onModeChange); this panel only shows the cost economics.
             const matchEl = this.container.querySelector('.rs-match-model');
-            const showChooser = this._mode === 'match' && deployed.length > 0;
-            if (matchEl) {
-                matchEl.classList.toggle('hidden', !showChooser);
-                if (showChooser) this._fillMatchModels(deployed);
-            }
-            // Remix panel: strength slider + Bedrock image-to-image model chooser.
+            if (matchEl) matchEl.classList.toggle('hidden', !(this._mode === 'match' && deployed.length > 0));
+            // Remix panel: strength slider (the model lives in the filtered dropdown).
             const remixEl = this.container.querySelector('.rs-remix-panel');
             if (remixEl) {
                 remixEl.classList.toggle('hidden', this._mode !== 'remix');
-                if (this._mode === 'remix') { this._loadRemixModels(); this._updateRemixLadder(); }
+                if (this._mode === 'remix') this._updateRemixLadder();
             }
             this.opts.onModeChange?.(this._mode);
+            this.updateModeHints();
             // Gate only applies to "match" with NOTHING deployed. Its message is
             // built from the registry's supported model list — never hardcoded.
             const showGate = this._mode === 'match' && this._available && this._available.available === false;
@@ -391,57 +379,23 @@
             el.classList.remove('hidden');
         }
 
-        /** Populate the remix chooser with registry image-to-image capable Bedrock
-         *  models (capability-flagged — a new capable model appears with no code
-         *  change), with their per-image price. Fetched once. */
-        _loadRemixModels() {
-            const sel = this.container.querySelector('.rs-remix-select');
-            if (!sel || sel.options.length) return;
-            fetch('/api/admin/models').then(r => r.json()).then(data => {
-                for (const [key, cfg] of Object.entries(data.image_models || {})) {
-                    if ((cfg.capabilities || {}).image_to_image
-                            && cfg.enabled !== false && cfg.model_source !== 'custom_hosted') {
-                        const opt = document.createElement('option');
-                        opt.value = key;
-                        const p = cfg.base_price_usd;
-                        opt.textContent = (p != null && p > 0) ? `${cfg.label} ($${p.toFixed(2)}/img)` : cfg.label;
-                        sel.appendChild(opt);
-                    }
-                }
-            }).catch(() => {});
-        }
-
-        /** Populate the match-mode chooser with the DEPLOYED reference-capable
-         *  instances (newest first, from the registry), keeping any prior pick.
-         *  Each entry may carry warm/cold `economics` (server-computed, same
-         *  sources as the Image Studio estimate) — shown as an option tag +
-         *  a cold-start cost hint, since scale-to-zero endpoints bill GPU time. */
-        _fillMatchModels(deployed) {
-            const sel = this.container.querySelector('.rs-match-select');
-            if (!sel) return;
-            const prev = sel.value;
-            // nosemgrep
-            sel.innerHTML = deployed.map(m => {
-                const tag = m.economics
-                    ? ' (' + _t('custom_models.warm_per_run').replace('{{cost}}', m.economics.warm_cost_usd.toFixed(2)) + ')'
-                    : '';
-                return html`<option value="${m.model_key}">${m.label}${tag}</option>`;
-            }).join('');
-            if (prev && deployed.some(m => m.model_key === prev)) sel.value = prev;
-            const updateHint = () => {
-                const hint = this.container.querySelector('.rs-match-cost');
-                if (!hint) return;
-                const e = deployed.find(m => m.model_key === sel.value)?.economics;
-                if (!e) { hint.classList.add('hidden'); return; }
-                hint.textContent = _t('custom_models.warm_cost_hint')
-                    .replace('{{hourly}}', e.hourly_usd.toFixed(2))
-                    .replace('{{warm}}', e.warm_cost_usd.toFixed(2))
-                    .replace('{{coldlo}}', e.cold_cost_min_usd.toFixed(2))
-                    .replace('{{coldhi}}', e.cold_cost_max_usd.toFixed(2));
-                hint.classList.remove('hidden');
-            };
-            if (!sel._costWired) { sel._costWired = true; sel.addEventListener('change', updateHint); }
-            updateHint();
+        /** Refresh the mode-specific cost hints from the SIDEBAR model pick (the
+         *  main dropdown is mode-filtered — match: deployed editors; remix:
+         *  image-to-image capable Bedrock models). Called by ImageStudio whenever
+         *  the dropdown selection or the mode changes. */
+        updateModeHints() {
+            const hint = this.container.querySelector('.rs-match-cost');
+            if (!hint) return;
+            if (this._mode !== 'match') { hint.classList.add('hidden'); return; }
+            const key = this.opts.selectedModel?.() || this._available?.model_key;
+            const e = (this._available?.models || []).find(m => m.model_key === key)?.economics;
+            if (!e) { hint.classList.add('hidden'); return; }
+            hint.textContent = _t('custom_models.warm_cost_hint')
+                .replace('{{hourly}}', e.hourly_usd.toFixed(2))
+                .replace('{{warm}}', e.warm_cost_usd.toFixed(2))
+                .replace('{{coldlo}}', e.cold_cost_min_usd.toFixed(2))
+                .replace('{{coldhi}}', e.cold_cost_max_usd.toFixed(2));
+            hint.classList.remove('hidden');
         }
 
         async _checkAvailability() {

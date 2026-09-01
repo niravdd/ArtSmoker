@@ -453,9 +453,12 @@
                         // distinct interpretation per option; remix maps one
                         // STRENGTH per option (the ladder).
                         numOptions: () => parseInt(document.getElementById('gen-num-options')?.value, 10) || 1,
-                        // Remix repurposes two sidebar controls: Dimensions become
-                        // meaningless (output follows the reference image) and
-                        // Options mean strengths — reflect that in the sidebar.
+                        // The sidebar dropdown pick (filtered per mode) — panels use
+                        // it for the mode-specific cost hints.
+                        selectedModel: () => this._selectedModels[0] || '',
+                        // Remix/match repurpose sidebar controls: the model dropdown
+                        // filters to capable models, Dimensions become meaningless in
+                        // remix (output follows the reference), Options mean strengths.
                         onModeChange: (mode) => this._applyReferenceMode(mode),
                     });
                 } catch (err) {
@@ -516,6 +519,80 @@
             if (caption) caption.textContent = remix
                 ? t('artsmoker.ui.image_studio.remix_strengths_caption')
                 : t('artsmoker.ui.image_studio.different_designs');
+            this._applyReferenceModelFilter(mode);
+        },
+
+        /** Filter the MAIN model dropdown by the active reference mode — the ONE
+         *  canonical model selector, instead of a second chooser in the panel:
+         *    remix → only image-to-image capable models (registry capability flag)
+         *    match → only DEPLOYED reference-capable editors (injected as
+         *            temporary entries — they aren't text-to-image, so the normal
+         *            list never contains them; their hourly/latency economics ride
+         *            along so the summary + cost estimate stay truthful)
+         *  Both are single-select. The pre-filter selection is stashed and fully
+         *  restored (rows, entries, checkboxes) when leaving the mode/tab. */
+        _applyReferenceModelFilter(mode) {
+            const filter = (this._activeTab === 'reference' && (mode === 'remix' || mode === 'match')) ? mode : null;
+            const dropdown = document.getElementById('gen-model-dropdown');
+            if (!dropdown) return;
+            if (!filter) {
+                if (!this._refModelFilter) return;  // nothing to restore
+                dropdown.querySelectorAll('[data-ref-temp]').forEach(r => r.remove());
+                dropdown.querySelectorAll('label').forEach(r => r.classList.remove('hidden'));
+                document.getElementById('gen-model-all-row')?.classList.remove('hidden');
+                MODELS = MODELS.filter(m => !m._refTemp);
+                // Restore the stash; either way drop keys whose entries are gone
+                // (a temp match model must never leak into the normal flow).
+                const pool = this._stashedModels?.length ? this._stashedModels : this._selectedModels;
+                this._selectedModels = pool.filter(k => MODELS.some(m => m.value === k));
+                this._stashedModels = null;
+                this._refModelFilter = null;
+                this._syncModelCheckboxes();
+                return;
+            }
+            if (!this._refModelFilter) this._stashedModels = [...this._selectedModels];
+            this._refModelFilter = filter;
+            document.getElementById('gen-model-all-row')?.classList.add('hidden');
+            // Clean any previous temp entries (mode may have switched match↔remix).
+            dropdown.querySelectorAll('[data-ref-temp]').forEach(r => r.remove());
+            MODELS = MODELS.filter(m => !m._refTemp);
+
+            let allowed = [];
+            if (filter === 'remix') {
+                allowed = MODELS.filter(m => m.value !== 'all_models' && m.capabilities?.image_to_image)
+                                .map(m => m.value);
+            } else {
+                // Deployed editors from the availability payload, with their
+                // warm/cold economics so the existing custom-hosted cost math works.
+                for (const dm of (this._referenceStudio?._available?.models || [])) {
+                    allowed.push(dm.model_key);
+                    MODELS.push({
+                        value: dm.model_key,
+                        label: `⚡ ${dm.label} (self-hosted)`,
+                        model_source: 'custom_hosted',
+                        custom_hourly_usd: dm.economics?.hourly_usd || null,
+                        typical_latency_seconds: dm.economics?.typical_latency_seconds || null,
+                        available_regions: [], region_pricing: [], quality_options: [],
+                        capabilities: {}, _refTemp: true,
+                    });
+                    const row = document.createElement('label');
+                    row.className = 'flex items-center gap-2 text-xs cursor-pointer py-1.5 px-3 hover:bg-brand-bg/60';
+                    row.dataset.refTemp = '1';
+                    // nosemgrep -- html`` escapes every interpolation (model_key/label)
+                    row.innerHTML = html`<input type="checkbox" class="gen-model-cb rounded border-brand-border" value="${dm.model_key}" />
+                        <span class="whitespace-nowrap">⚡ ${dm.label} (self-hosted)</span>`;
+                    dropdown.insertBefore(row, document.getElementById('gen-model-all-row'));
+                }
+            }
+            dropdown.querySelectorAll('label').forEach(r => {
+                const v = r.querySelector('.gen-model-cb')?.value;
+                if (v) r.classList.toggle('hidden', !allowed.includes(v));
+            });
+            // Single-select: keep the current pick if capable, else the first capable.
+            const kept = this._selectedModels.find(k => allowed.includes(k));
+            this._selectedModels = kept ? [kept] : (allowed.length ? [allowed[0]] : []);
+            this._syncModelCheckboxes();
+            this._referenceStudio?.updateModeHints?.();
         },
 
         async init() {
@@ -575,7 +652,9 @@
                     this._selectedModels = cb.checked ? realModels.map(m => m.value) : [];
                 } else if (cb.classList.contains('gen-model-cb')) {
                     if (cb.checked) {
-                        if (!this._selectedModels.includes(cb.value)) this._selectedModels.push(cb.value);
+                        // Reference match/remix run ONE model — checking moves the pick.
+                        if (this._refModelFilter) this._selectedModels = [cb.value];
+                        else if (!this._selectedModels.includes(cb.value)) this._selectedModels.push(cb.value);
                     } else {
                         this._selectedModels = this._selectedModels.filter(v => v !== cb.value);
                     }
@@ -585,6 +664,8 @@
                     this._promptEditor.setContext({ imageModel: this._selectedModels[0] });
                 }
                 this._syncModelCheckboxes();
+                // Mode-specific cost hints in the reference panel follow the pick.
+                if (this._refModelFilter) this._referenceStudio?.updateModeHints?.();
             });
 
             // Quality change: update region prices + summary
@@ -710,6 +791,7 @@
                         quality_options: m.quality_options || [],
                         default_quality: m.default_quality || '',
                         base_price_usd: m.base_price_usd || null,
+                        capabilities: m.capabilities || {},
                         // Custom-hosted (hourly-billed): per-gen cost = hourly × latency/3600.
                         custom_hourly_usd: m.custom_hourly_usd || null,
                         typical_latency_seconds: m.typical_latency_seconds || null,
@@ -746,6 +828,7 @@
 
             // "All Available Models" toggle at the bottom
             const sep = document.createElement('div');
+            sep.id = 'gen-model-all-row';
             sep.className = 'border-t border-brand-border/50 mt-1 pt-1 px-3 pb-1';
             // nosemgrep
             sep.innerHTML = html`<label class="flex items-center gap-2 text-xs cursor-pointer py-1 hover:bg-brand-bg/60 rounded px-1">
@@ -763,6 +846,11 @@
                 this._selectedModels = [realModels[0].value];
             }
             this._syncModelCheckboxes();
+            // A re-render wipes any reference-mode filtering — re-apply it.
+            this._refModelFilter = null;
+            if (this._activeTab === 'reference') {
+                this._applyReferenceMode(this._referenceStudio?._mode);
+            }
         },
 
         _updateQualityForModel(modelKey) {
@@ -1116,16 +1204,17 @@
                     payload.all_models = false;
                     payload.selected_models = undefined;
                     payload.num_options = 1;  // one edit concept; variations vary the seed
-                    const refModelKey = referencePatch.reference_model_key
+                    // The main dropdown is filtered to deployed editors in this mode.
+                    const refModelKey = this._selectedModels[0]
                         || this._referenceStudio?._available?.model_key;
                     if (refModelKey) payload.image_model = refModelKey;
                 } else if (referencePatch.reference_mode === 'remix') {
-                    // Single Bedrock image-to-image model; Options = the strength
-                    // ladder (one strength per option, same prompt across them).
+                    // Single Bedrock image-to-image model (the filtered dropdown pick);
+                    // Options = the strength ladder (one strength per option).
                     payload.all_models = false;
                     payload.selected_models = undefined;
                     payload.reference_strengths = referencePatch.reference_strengths;
-                    if (referencePatch.reference_model_key) payload.image_model = referencePatch.reference_model_key;
+                    if (this._selectedModels[0]) payload.image_model = this._selectedModels[0];
                 } else if (referencePatch.reference_enhanced_prompts?.length) {
                     // Previewed (and possibly edited) interpretations — used
                     // verbatim by the backend (no second vision call).

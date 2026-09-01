@@ -474,6 +474,9 @@ def get_image_model_options(region: str | None = Query(default=None)):
             "default_quality": cfg.get("default_quality"),
             "base_price_usd": cfg.get("base_price_usd"),
             "model_source": cfg.get("model_source", "foundation"),
+            # Capability flags (e.g. image_to_image) — the Image Studio filters
+            # the model dropdown by these in reference "Remix" mode.
+            "capabilities": cfg.get("capabilities") or {},
             # Custom-hosted models are hourly-billed: expose the live rate + typical
             # latency so the studio shows a compute-time-based estimate, not per-image.
             "custom_hourly_usd": (
