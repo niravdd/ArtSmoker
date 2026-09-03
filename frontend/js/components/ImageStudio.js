@@ -183,6 +183,7 @@
                                         </select>
                                     </div>
                                     <p class="text-[10px] text-brand-text-muted mt-0.5">${t('artsmoker.ui.image_studio.seed_caption')}</p>
+                                    <p id="gen-seed-mode-hint" class="text-[10px] text-brand-text-dim mt-0.5"></p>
                                 </div>
 
                             </div>
@@ -3060,8 +3061,16 @@
                 let saved = null;
                 try { saved = localStorage.getItem('artsmoker_gen_seed_mode'); } catch { /* unavailable */ }
                 if (saved && [...mode.options].some(o => o.value === saved)) mode.value = saved;
+                // Visible one-line explanation of the active mode (select title
+                // tooltips are unreliable/undiscoverable, esp. on <select>).
+                const hint = document.getElementById('gen-seed-mode-hint');
+                const updateHint = () => {
+                    if (hint) hint.textContent = t(`artsmoker.ui.image_studio.seed_mode_hint_${mode.value}`);
+                };
+                updateHint();
                 mode.addEventListener('change', () => {
                     try { localStorage.setItem('artsmoker_gen_seed_mode', mode.value); } catch { /* quota */ }
+                    updateHint();
                 });
             }
         },
