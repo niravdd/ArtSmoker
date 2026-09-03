@@ -795,7 +795,7 @@
                 this._selectedVariant = 0;
                 this._lastNegativePrompt = '';
                 this._loadedConcepts = null;
-                this._loadedJob = false;  // caption back to "Generate" (view rebuilds with the default)
+                this._loadedBatch = false;  // caption back to "Generate" (view rebuilds with the default)
                 this._promptEditor = null;
                 this._stopAsyncPolling();
                 this._notifiedJobIds = new Set();
@@ -1189,7 +1189,7 @@
             const decomposedData = this._promptEditor?._decomposedData || null;
             const recomposedPrompt = this._promptEditor?._recomposedPrompt || null;
 
-            // Unchanged re-run of a RELOADED job → send its stored per-option
+            // Unchanged re-run of a RELOADED batch → send its stored per-option
             // final prompts so the backend skips concept generation (the
             // nondeterministic step) and, with the same seed, repeats the batch
             // exactly. Any edit to the prompt, options count, or model set
@@ -2781,9 +2781,9 @@
                 // this batch (clicking an option/variant re-anchors to that image).
                 if (result.seed != null) this._setSeed(result.seed);
 
-                // A Gallery job is now loaded — pressing the button re-runs it,
+                // A Gallery batch is now loaded — pressing the button re-runs it,
                 // so it reads "Regenerate" (like the 3D tab's regenerate).
-                this._loadedJob = true;
+                this._loadedBatch = true;
                 this._updateGenerateLabel();
 
                 // Stash the job's STORED per-option final prompts (grouped by
@@ -3074,14 +3074,14 @@
             this._updateAspectHint();
         },
 
-        /** Generate-button caption: "Regenerate" while a Gallery job is loaded
+        /** Generate-button caption: "Regenerate" while a Gallery batch is loaded
          *  (mirrors the 3D tab's "Regenerate 3D Model"), "Generate" otherwise.
          *  The flag is IN-MEMORY only — a Reset, hard refresh, or server
          *  restart naturally falls back to "Generate". */
         _updateGenerateLabel() {
             const btn = document.getElementById('btn-generate');
             if (!btn) return;
-            const label = t(`artsmoker.ui.image_studio.${this._loadedJob ? 'regenerate' : 'generate'}`);
+            const label = t(`artsmoker.ui.image_studio.${this._loadedBatch ? 'regenerate' : 'generate'}`);
             // nosemgrep -- html`` escapes the interpolation; the svg is static trusted markup
             btn.innerHTML = html`<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${label}`;
         },

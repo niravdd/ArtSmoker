@@ -780,7 +780,7 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
     decomposed_data = body.decomposed_data or {}
     recomposed_prompt = body.recomposed_prompt or None
 
-    # A reloaded job's stored per-option final prompts for THIS model — reused
+    # A reloaded batch's stored per-option final prompts for THIS model — reused
     # verbatim (no concept LLM) so an unchanged re-run reproduces the batch.
     _saved_concepts = None
     if body.saved_concept_prompts and not body.reference_enhanced_prompts:
@@ -799,11 +799,11 @@ def _run_generation(body: GenerationRequest, progress_cb=None):
         logger.info("Using %d reference-enhanced concept(s) for batch %s (skipping refinement).",
                     len(concept_prompts), batch_id)
     elif _saved_concepts:
-        # Unchanged re-run of a reloaded job: its recorded final prompts ARE
+        # Unchanged re-run of a reloaded batch: its recorded final prompts ARE
         # the option concepts — reused verbatim for an exact repeat.
         concept_prompts = _saved_concepts
         emit({"type": "stage", "stage": "prompts",
-              "message": "Reusing this job's saved prompts..."})
+              "message": "Reusing this batch's saved prompts..."})
         logger.info("Reusing %d saved concept prompt(s) for batch %s (skipping refinement).",
                     len(concept_prompts), batch_id)
     elif body.pre_composed and n_opts == 1:
@@ -1268,7 +1268,7 @@ def _run_all_models_generation(body: GenerationRequest, progress_cb=None):
                 concept_prompts[mk] = _saved_all[mk]
                 negative_prompts[mk] = [body.negative_prompt or ""] * n_opts
             emit({"type": "stage", "stage": "prompts",
-                  "message": "Reusing this job's saved prompts..."})
+                  "message": "Reusing this batch's saved prompts..."})
             logger.info("Reusing saved concepts for %d model(s) (skipping refinement).",
                         len(model_keys))
         elif body.model_optimized_prompts:
