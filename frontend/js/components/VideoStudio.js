@@ -162,6 +162,7 @@
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                     </svg>
                                     ${t('artsmoker.ui.common.prompt')}
+                                    <span id="vs-voice-input" class="ml-auto"></span>
                                 </h2>
                                 <textarea id="vs-prompt" rows="4" class="input w-full"
                                     placeholder="${t('artsmoker.ui.video_studio.prompt_placeholder')}"></textarea>
@@ -319,10 +320,25 @@
 
         async init() {
             this._attachEvents();
+            this._initVoiceInput();
             await this._loadVideoSettings();
             await this._loadModels();
             await this._loadRecentJobs();
             window.addEventListener('model-settings-closed', () => this._loadModels());
+        },
+
+        /** Mic button next to the Prompt heading — appends the transcript to
+         *  the prompt (same reusable VoiceInput as the other studios). */
+        _initVoiceInput() {
+            const mount = document.getElementById('vs-voice-input');
+            if (!mount || typeof window.VoiceInput === 'undefined') return;
+            const voice = new window.VoiceInput(mount);
+            voice.onTranscript((text) => {
+                const ta = document.getElementById('vs-prompt');
+                if (!ta) return;
+                ta.value = (ta.value.trim() ? ta.value.trim() + ' ' : '') + text;
+                ta.dispatchEvent(new Event('input', { bubbles: true }));
+            });
         },
 
         onShow() {

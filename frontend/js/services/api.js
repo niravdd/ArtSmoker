@@ -252,10 +252,22 @@
             });
         },
 
-        /** Transcribe an audio blob to text */
-        transcribe(audioBlob) {
+        /** Transcribe an audio blob to text. Converts the recording to the
+         *  16 kHz mono PCM WAV Nova Sonic needs — done HERE (the single choke
+         *  point) so every recorder (VoiceInput, Type Studio inline mics)
+         *  benefits without duplicating the conversion. */
+        async transcribe(audioBlob) {
+            let blob = audioBlob, name = 'recording.webm';
+            if (window.VoiceInput?.toWav16k) {
+                try {
+                    blob = await window.VoiceInput.toWav16k(audioBlob);
+                    name = 'recording.wav';
+                } catch (e) {
+                    console.warn('WAV conversion failed; sending original recording', e);
+                }
+            }
             const fd = new FormData();
-            fd.append('file', audioBlob, 'recording.webm');
+            fd.append('file', blob, name);
             return request('/api/transcribe/', {
                 method: 'POST',
                 body: fd,

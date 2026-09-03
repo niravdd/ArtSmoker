@@ -193,5 +193,44 @@
         }
     }
 
+    /**
+     * Convert any recorded audio blob to 16 kHz 16-bit mono PCM WAV — the
+     * format Nova Sonic requires. Decode + resample happen in-browser
+     * (WebAudio), so the server needs no transcoder. Called by API.transcribe
+     * for EVERY recorder (this component + Type Studio's inline mics).
+     */
+    VoiceInput.toWav16k = async function (blob) {
+        const buf = await blob.arrayBuffer();
+        const AC = window.AudioContext || window.webkitAudioContext;
+        const probe = new AC();
+        let decoded;
+        try {
+            decoded = await probe.decodeAudioData(buf);
+        } finally {
+            probe.close();
+        }
+        const rate = 16000;
+        const len = Math.max(1, Math.round(decoded.duration * rate));
+        const oac = new OfflineAudioContext(1, len, rate);
+        const src = oac.createBufferSource();
+        src.buffer = decoded;
+        src.connect(oac.destination);
+        src.start();
+        const rendered = await oac.startRendering();
+        const ch = rendered.getChannelData(0);
+        const out = new DataView(new ArrayBuffer(44 + ch.length * 2));
+        const wstr = (o, s) => { for (let i = 0; i < s.length; i++) out.setUint8(o + i, s.charCodeAt(i)); };
+        wstr(0, 'RIFF'); out.setUint32(4, 36 + ch.length * 2, true); wstr(8, 'WAVE');
+        wstr(12, 'fmt '); out.setUint32(16, 16, true); out.setUint16(20, 1, true);
+        out.setUint16(22, 1, true); out.setUint32(24, rate, true);
+        out.setUint32(28, rate * 2, true); out.setUint16(32, 2, true); out.setUint16(34, 16, true);
+        wstr(36, 'data'); out.setUint32(40, ch.length * 2, true);
+        for (let i = 0; i < ch.length; i++) {
+            const s = Math.max(-1, Math.min(1, ch[i]));
+            out.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+        }
+        return new Blob([out], { type: 'audio/wav' });
+    };
+
     window.VoiceInput = VoiceInput;
 })();

@@ -39,7 +39,7 @@ async def transcribe_audio_endpoint(file: UploadFile):
     from backend.services.cost_tracker import reset_costs, get_total_cost
     reset_costs()
     try:
-        text = transcribe_audio(audio_bytes, content_type)
+        text = await transcribe_audio(audio_bytes, content_type)
     except Exception as exc:
         # nosemgrep -- logs the root cause for operators, then re-raises; intentional error-level at the boundary
         logger.exception("Transcription failed for file '%s'.", file.filename)

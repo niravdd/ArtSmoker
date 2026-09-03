@@ -580,13 +580,14 @@ This ensures that if the original style profile is later deleted or modified, th
 **GalleryItem** — a flat summary model for the gallery listing endpoint:
 - id, prompt, style_id, asset_type, png_url, svg_url, created_at, has_3d (bool — true when a generated `.glb` exists for the asset; drives the "3D" badge and the "3D Models" media filter).
 
-### 4.5 Voice Input (Nova Sonic)
+### 4.5 Voice Input (Nova Sonic 2.0)
 
-- Browser captures audio via `MediaRecorder` API (WebM/Opus format).
-- Audio file sent to backend `POST /api/transcribe/` as a multipart upload.
-- Backend attempts Nova Sonic bidirectional streaming transcription (`invoke_model_with_bidirectional_stream`).
-- **Current limitation**: Nova Sonic requires the bidirectional streaming API, which depends on a compatible boto3 version. If the streaming API is unavailable, access is denied, or the API call fails, the service returns a placeholder message indicating audio was received but transcription requires streaming setup. Full transcription works when Nova Sonic streaming is properly configured in the us-east-1 region.
-- Transcribed text displayed in prompt editor for user review/editing.
+- **Where**: every studio prompt surface — Image Studio Step 1 (via PromptEditor), the Image Inspiration instruction (Step 2), Video Studio prompt, and Type Studio per-line mics. All use the ONE reusable `VoiceInput` component (or, for Type Studio's inline mics, the same `API.transcribe` choke point).
+- **Capture + conversion (browser)**: `MediaRecorder` records WebM/Opus, then `VoiceInput.toWav16k` decodes and resamples it in-browser (WebAudio `OfflineAudioContext`) to the **16 kHz 16-bit mono PCM WAV** Nova Sonic requires — no server-side transcoder (no ffmpeg). The conversion runs inside `API.transcribe`, so every recorder benefits; on conversion failure the original blob is sent and the backend falls back gracefully.
+- **Backend streaming** (`transcriber.py`): boto3 has NO bidirectional-stream support, so this uses the experimental Smithy-based SDK (`aws_sdk_bedrock_runtime`, async) with the **AWSCRT transport** (the default aiohttp transport can't do duplex event streaming) and credentials bridged from the app's boto3 session (same chain: env/profile/SSO/role). Protocol specifics learned the hard way: the first content block MUST be SYSTEM-role text; Sonic detects end-of-speech via VAD, so pre-recorded audio gets **2 s of trailing silence appended** and the audio content block **stays open until the transcript arrives** (closing it and going quiet trips Sonic's 55 s idle timeout). The transcript is the **USER-role** `textOutput` (Sonic's ASR of the input); the assistant's spoken reply is discarded. Model/region come from the registry `categories.voice` (`amazon.nova-2-sonic-v1:0`, us-east-1 — v1 hits EOL 2026-09-14).
+- **Cost**: the stream's `usageEvent` totals × the registry-priced Sonic token rates (stamped by the AWS Sync pricing pass onto `categories.voice`) → `add_cost("transcription", …)` → the `image_studio.voice_input.cost` telemetry event. Measured ~$0.0002–0.0005 per short dictation.
+- IAM: `bedrock:InvokeModelWithBidirectionalStream` (documented in the README permission set; the feature degrades to a recognizable placeholder without it).
+- Transcribed text is appended to the target prompt field for user review/editing.
 
 ### 4.6 Frontend Design
 

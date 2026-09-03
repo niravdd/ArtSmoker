@@ -13,3 +13,5 @@ requests>=2.31  # Anthropic Messages API over the Mantle endpoint
 vtracer>=1.0.0a3  # Local PNG->true-vector SVG tracing. >=1.0.0a3 = the pyo3-0.26/abi3 V1.0 rewrite that fixes the CPython 3.14 kwargs segfault (visioncortex/vtracer #124); the pre-release marker in the spec lets pip select it. New API: vtracer.Config + convert_file (see post_processor._VTRACER_CHILD).
 rembg[cpu]>=2.0.65  # Local background removal (MIT lib + u2net Apache-2.0 weights); runs on CPU via onnxruntime — no per-use cost
 coacd>=1.0.5  # Approximate convex decomposition (MIT) for the optional 3D-export collision proxies; CPU-only, local
+aws_sdk_bedrock_runtime>=0.11.0  # Nova Sonic voice transcription — bidirectional streaming (boto3 has no duplex-stream support); experimental Smithy-based SDK
+smithy-http[awscrt]>=0.5.0  # CRT HTTP transport for the above (the default aiohttp transport cannot do duplex event streaming)

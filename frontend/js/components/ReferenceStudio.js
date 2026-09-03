@@ -102,6 +102,7 @@
                         <div class="flex items-center gap-2 mb-1.5">
                             <span class="text-[10px] font-bold text-brand-accent bg-brand-accent/10 rounded px-1.5 py-0.5">${_t('prompt_editor.step', 'STEP')} 2</span>
                             <span class="text-[10px] text-brand-text-muted uppercase tracking-wide">${_t('image_studio.reference_step2')}</span>
+                            <span class="rs-voice-input ml-auto"></span>
                         </div>
                         <textarea class="rs-prompt input w-full min-h-[90px]" rows="3"
                             placeholder="${_t('image_studio.reference_prompt_ph')}"></textarea>
@@ -191,6 +192,19 @@
             this._gateEl = this.container.querySelector('.rs-gate');
             this._previewWrap = this.container.querySelector('.rs-preview');
             this._previewOut = this.container.querySelector('.rs-preview-out');
+
+            // Mic on the instruction (Step 2) — same reusable VoiceInput as
+            // the other studios; appends the transcript to the instruction.
+            const voiceMount = this.container.querySelector('.rs-voice-input');
+            if (voiceMount && typeof window.VoiceInput !== 'undefined') {
+                const voice = new window.VoiceInput(voiceMount);
+                voice.onTranscript((text) => {
+                    if (!this._promptEl) return;
+                    const cur = this._promptEl.value.trim();
+                    this._promptEl.value = (cur ? cur + ' ' : '') + text;
+                    this._promptEl.dispatchEvent(new Event('input', { bubbles: true }));
+                });
+            }
 
             this._wire();
             this._reflectMode();
