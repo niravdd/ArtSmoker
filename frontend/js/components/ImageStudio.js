@@ -174,8 +174,13 @@
                                 <div>
                                     <label class="block text-sm font-medium mb-1.5">${t('artsmoker.ui.image_studio.seed_label')}</label>
                                     <div class="flex gap-1.5">
-                                        <input id="gen-seed" type="number" min="0" max="2147483647" step="1" class="input flex-1" />
+                                        <input id="gen-seed" type="number" min="0" max="2147483647" step="1" class="input flex-1 min-w-0" />
                                         <button id="gen-seed-dice" type="button" class="btn text-sm px-2.5" title="${t('artsmoker.ui.image_studio.seed_reroll')}">🎲</button>
+                                        <select id="gen-seed-mode" class="input text-xs w-auto" title="${t('artsmoker.ui.image_studio.seed_mode_title')}">
+                                            <option value="increment">${t('artsmoker.ui.image_studio.seed_mode_increment')}</option>
+                                            <option value="keep">${t('artsmoker.ui.image_studio.seed_mode_keep')}</option>
+                                            <option value="random">${t('artsmoker.ui.image_studio.seed_mode_random')}</option>
+                                        </select>
                                     </div>
                                     <p class="text-[10px] text-brand-text-muted mt-0.5">${t('artsmoker.ui.image_studio.seed_caption')}</p>
                                 </div>
@@ -1431,6 +1436,7 @@
                     this._selectedOption = 0;
                     this._selectedVariant = 0;
                     this._renderResults(result);
+                    this._advanceSeed(payload);
 
                     // Build summary toast
                     const succeeded = (result.options || []).filter(o => o.status === 'success').length;
@@ -1462,6 +1468,7 @@
                     this._selectedOption = 0;
                     this._selectedVariant = 0;
                     this._renderResults(result);
+                    this._advanceSeed(payload);
 
                     const blocked = result.blocked_count || 0;
                     const costStr = result.total_cost_usd ? ` (Cost: $${result.total_cost_usd.toFixed(4)})` : '';
@@ -3046,6 +3053,31 @@
             this._setSeed(Number.isFinite(cached) ? cached : this._rollSeed());
             input.addEventListener('change', () => this._setSeed(input.value));
             document.getElementById('gen-seed-dice')?.addEventListener('click', () => this._setSeed(this._rollSeed()));
+            // After-generation behavior (persisted): step past the batch (default),
+            // keep for an exact repeat, or re-roll random.
+            const mode = document.getElementById('gen-seed-mode');
+            if (mode) {
+                let saved = null;
+                try { saved = localStorage.getItem('artsmoker_gen_seed_mode'); } catch { /* unavailable */ }
+                if (saved && [...mode.options].some(o => o.value === saved)) mode.value = saved;
+                mode.addEventListener('change', () => {
+                    try { localStorage.setItem('artsmoker_gen_seed_mode', mode.value); } catch { /* quota */ }
+                });
+            }
+        },
+        /** Advance the seed after a completed generation, per the mode select.
+         *  "increment" steps by the batch's options × variations — one past the
+         *  highest derived slot seed, so consecutive runs never reuse a slot —
+         *  keeping every run different yet still reproducible from its own
+         *  recorded base. Computed from the SUBMITTED seed (not the field, which
+         *  result-clicks may have re-anchored meanwhile). */
+        _advanceSeed(payload) {
+            if (payload?.seed == null) return;  // ran server-random — nothing to advance
+            const mode = document.getElementById('gen-seed-mode')?.value || 'increment';
+            if (mode === 'keep') return;
+            if (mode === 'random') { this._setSeed(this._rollSeed()); return; }
+            const step = (payload.num_options || 1) * (payload.num_variations || 1);
+            this._setSeed((payload.seed + step) % 2147483648);
         },
 
         /** The full-body framing nudge (roadmap A): a landscape canvas
