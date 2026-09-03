@@ -235,6 +235,13 @@ def _registry_llm_price(model_id: str, region: str | None = None) -> dict | None
             if mid and (mid in model_id or model_id in mid):
                 p = _priced(cm)
                 if p: return p
+        # 4) LLM-category entries (e.g. categories.voice = Nova Sonic) — models
+        # that never enter chat_models (speech-only input) but get token prices
+        # stamped by the same AWS Sync pricing pass.
+        for cat in (get_registry().get("categories", {}) or {}).values():
+            if isinstance(cat, dict) and cat.get("current") == model_id:
+                p = _priced(cat)
+                if p: return p
     except Exception:
         pass
     return None

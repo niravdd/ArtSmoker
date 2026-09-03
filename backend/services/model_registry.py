@@ -841,11 +841,14 @@ _DEFAULT_CATEGORIES = {
         "description": "Fallback on AccessDeniedException from primary models",
     },
     "voice": {
-        "current": "amazon.nova-sonic-v1:0",
+        # nova-sonic-v1 hits END OF LIFE 2026-09-14 — default to Sonic 2.0
+        # (the registry's stored category already points here; this code
+        # default only matters if the category is ever missing).
+        "current": "amazon.nova-2-sonic-v1:0",
         "region": "us-east-1",
         "provider": "Amazon",
         "api_type": "bidirectional_stream",
-        "label": "Voice (Nova Sonic)",
+        "label": "Voice (Nova Sonic 2.0)",
         "description": "Speech-to-text transcription via bidirectional streaming",
     },
 }

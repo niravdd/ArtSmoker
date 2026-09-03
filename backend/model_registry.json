@@ -2514,6 +2514,9 @@
     "claude_fable_5": {
       "label": "Claude Fable 5",
       "model_id": "us.anthropic.claude-fable-5",
+      "input_price_per_1k": 0.01,
+      "output_price_per_1k": 0.05,
+      "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "ap-northeast-1",
       "available_regions": [
         "ap-northeast-1",
@@ -4053,6 +4056,9 @@
     "claude_opus_4_6_v1": {
       "label": "Claude Opus 4.6",
       "model_id": "us.anthropic.claude-opus-4-6-v1",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
+      "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "ap-northeast-1",
       "available_regions": [
         "ap-northeast-1",
@@ -4520,6 +4526,9 @@
     "claude_opus_4_8": {
       "label": "Claude Opus 4.8",
       "model_id": "us.anthropic.claude-opus-4-8",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
+      "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "ap-northeast-1",
       "available_regions": [
         "ap-northeast-1",
@@ -4567,6 +4576,9 @@
     "claude_opus_4_7": {
       "label": "Claude Opus 4.7",
       "model_id": "us.anthropic.claude-opus-4-7",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
+      "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "ap-northeast-1",
       "available_regions": [
         "ap-northeast-1",
@@ -5256,6 +5268,9 @@
     "claude_opus_4_5_20251101_v1": {
       "label": "Claude Opus 4.5",
       "model_id": "us.anthropic.claude-opus-4-5-20251101-v1:0",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
+      "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "ap-northeast-1",
       "available_regions": [
         "ap-northeast-1",
@@ -6700,6 +6715,9 @@
     "claude_opus_4_1_20250805_v1": {
       "label": "Claude Opus 4.1",
       "model_id": "us.anthropic.claude-opus-4-1-20250805-v1:0",
+      "input_price_per_1k": 0.015,
+      "output_price_per_1k": 0.075,
+      "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "us-east-1",
       "available_regions": [
         "us-east-1",
@@ -7309,6 +7327,9 @@
     "claude_sonnet_5": {
       "label": "Claude Sonnet 5",
       "model_id": "us.anthropic.claude-sonnet-5",
+      "input_price_per_1k": 0.002,
+      "output_price_per_1k": 0.01,
+      "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "ap-northeast-1",
       "available_regions": [
         "ap-northeast-1",
@@ -7357,6 +7378,9 @@
     "claude_opus_5": {
       "label": "Claude Opus 5",
       "model_id": "us.anthropic.claude-opus-5",
+      "input_price_per_1k": 0.005,
+      "output_price_per_1k": 0.025,
+      "pricing_source": "platform.claude.com pricing (manual, 2026-09-03)",
       "region": "ap-northeast-1",
       "available_regions": [
         "ap-northeast-1",

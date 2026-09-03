@@ -1513,43 +1513,54 @@ def _fetch_llm_pricing() -> dict:
         import json as _json
         client = boto3.Session().client("pricing", region_name="us-east-1")
         prices: dict = {}
-        next_token, pages = None, 0
-        while pages < 120:  # bound the scan (token SKUs across all models/regions)
-            pages += 1
-            kwargs = {"ServiceCode": "AmazonBedrock", "MaxResults": 100}
-            if next_token:
-                kwargs["NextToken"] = next_token
-            resp = client.get_products(**kwargs)
-            for p in resp.get("PriceList", []):
-                pd = _json.loads(p)
-                attrs = pd.get("product", {}).get("attributes", {})
-                model_name = attrs.get("model", "")
-                region = attrs.get("regionCode", "")
-                usage = (attrs.get("usagetype", "") or "").lower()
-                if not model_name or not region:
-                    continue
-                # Only token-priced input/output rows (skip images, throughput, etc.).
-                is_input = "input-tokens" in usage or "input_tokens" in usage
-                is_output = "output-tokens" in usage or "output_tokens" in usage
-                if not (is_input or is_output):
-                    continue
-                for terms in pd.get("terms", {}).get("OnDemand", {}).values():
-                    for dim in terms.get("priceDimensions", {}).values():
-                        unit = dim.get("unit", "")
-                        price = float(dim.get("pricePerUnit", {}).get("USD", "0") or 0)
-                        if price <= 0 or unit not in ("1K tokens", "1M tokens"):
-                            continue
-                        per_1k = price if unit == "1K tokens" else price / 1000.0
-                        key = f"{model_name}|{region}"
-                        entry = prices.setdefault(key, {})
-                        # Prefer the standard (non-priority/batch/cache) tier: keep the
-                        # LOWEST price seen per direction (batch/cache < priority).
-                        fld = "input_per_1k" if is_input else "output_per_1k"
-                        if fld not in entry or per_1k < entry[fld]:
-                            entry[fld] = round(per_1k, 8)
-            next_token = resp.get("NextToken")
-            if not next_token:
-                break
+        # Non-standard billing tiers to EXCLUDE from the on-demand token price.
+        # The old "keep the LOWEST price per direction" heuristic silently
+        # recorded the -batch rows (HALF the standard rate — e.g. Claude
+        # Sonnet 4 batch $1.50/$7.50 vs standard $3/$15 per MTok), so costs
+        # under-reported. Standard rows carry none of these markers.
+        _SKIP_TIERS = ("batch", "cache", "priority", "reserved",
+                       "long-context", "long_context", "longcontext")
+        # Modern Anthropic (Claude 3.5+) SKUs live under the separate
+        # "AmazonBedrockService" service code — the "AmazonBedrock" code only
+        # has legacy Claude 2.x/3 rows. Scan both.
+        for service_code in ("AmazonBedrock", "AmazonBedrockService"):
+            next_token, pages = None, 0
+            while pages < 120:  # bound the scan (token SKUs across all models/regions)
+                pages += 1
+                kwargs = {"ServiceCode": service_code, "MaxResults": 100}
+                if next_token:
+                    kwargs["NextToken"] = next_token
+                resp = client.get_products(**kwargs)
+                for p in resp.get("PriceList", []):
+                    pd = _json.loads(p)
+                    attrs = pd.get("product", {}).get("attributes", {})
+                    model_name = attrs.get("model", "")
+                    region = attrs.get("regionCode", "")
+                    usage = (attrs.get("usagetype", "") or "").lower()
+                    if not model_name or not region:
+                        continue
+                    # Only STANDARD-tier token-priced input/output rows.
+                    is_input = "input-tokens" in usage or "input_tokens" in usage
+                    is_output = "output-tokens" in usage or "output_tokens" in usage
+                    if not (is_input or is_output) or any(t in usage for t in _SKIP_TIERS):
+                        continue
+                    for terms in pd.get("terms", {}).get("OnDemand", {}).values():
+                        for dim in terms.get("priceDimensions", {}).values():
+                            unit = dim.get("unit", "")
+                            price = float(dim.get("pricePerUnit", {}).get("USD", "0") or 0)
+                            if price <= 0 or unit not in ("1K tokens", "1M tokens"):
+                                continue
+                            per_1k = price if unit == "1K tokens" else price / 1000.0
+                            key = f"{model_name}|{region}"
+                            entry = prices.setdefault(key, {})
+                            # Multiple standard rows per direction (e.g. runtime vs
+                            # mantle surfaces) — keep the lowest of the STANDARD rows.
+                            fld = "input_per_1k" if is_input else "output_per_1k"
+                            if fld not in entry or per_1k < entry[fld]:
+                                entry[fld] = round(per_1k, 8)
+                next_token = resp.get("NextToken")
+                if not next_token:
+                    break
         logger.info("Fetched LLM token pricing for %d model-region combos from AWS Pricing API", len(prices))
         return prices
     except Exception as exc:
@@ -1627,6 +1638,31 @@ def _apply_llm_pricing(registry: dict, llm_pricing: dict) -> int:
             else:
                 cm.pop("token_pricing_by_region", None)  # prices uniform → default only
             priced += 1
+
+    # Voice category (Nova Sonic): speech-input models never enter chat_models
+    # (the sync filter requires TEXT input), so stamp the token price onto the
+    # category entry itself — _registry_llm_price checks categories as its last
+    # step, which prices voice transcription (image_studio.voice_input.cost).
+    voice = (registry.get("categories", {}) or {}).get("voice")
+    if isinstance(voice, dict) and voice.get("current"):
+        # Normalize the FULL model id (keep the ":0" version digit): e.g.
+        # "amazon.nova-2-sonic-v1:0" → {amazon,nova,2,sonic,v1,0}, so the
+        # Pricing API's "Nova Sonic 2.0" ({nova,sonic,2,0}) is a subset.
+        vtok = set(_norm(voice["current"]).split())
+        # BEST match (most tokens), not first: "Nova Sonic" and "Nova Sonic 2.0"
+        # are both subsets of nova-2-sonic-v1 — the longer name is the right one.
+        best = None
+        for pname, byreg in by_name.items():
+            ptok = set(pname.split())
+            if pname and ptok.issubset(vtok) and (best is None or len(ptok) > len(best[0])):
+                best = (ptok, byreg)
+        if best:
+            byreg = best[1]
+            px = byreg.get(voice.get("region")) or next(iter(byreg.values()), None)
+            if px and (px.get("input_per_1k") or px.get("output_per_1k")):
+                voice["input_price_per_1k"] = px.get("input_per_1k", 0)
+                voice["output_price_per_1k"] = px.get("output_per_1k", 0)
+                priced += 1
     return priced
 
 
