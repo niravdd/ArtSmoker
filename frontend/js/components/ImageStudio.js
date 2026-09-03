@@ -3087,21 +3087,20 @@
         },
 
         /** Seed helpers. The base seed is user-visible (next to Options ×
-         *  Variations), generated CLIENT-side and cached in localStorage so a
-         *  page reload keeps it. The backend derives one deterministic seed per
-         *  (option, variation) slot from this base — same base + same settings
+         *  Variations) and generated CLIENT-side, FRESH on every page load —
+         *  nothing is persisted (in-session it still follows loads/result
+         *  clicks). The backend derives one deterministic seed per (option,
+         *  variation) slot from this base — same base + same settings
          *  reproduce the same batch. Blank = server-random (legacy). */
         _rollSeed() {
             return Math.floor(Math.random() * 2147483648);  // [0, 2^31 - 1]
         },
-        _setSeed(value, { persist = true } = {}) {
+        _setSeed(value) {
             const input = document.getElementById('gen-seed');
             if (!input) return;
             const v = parseInt(value, 10);
             if (!Number.isFinite(v)) { input.value = ''; return; }
-            const clamped = Math.min(Math.max(v, 0), 2147483647);
-            input.value = String(clamped);
-            if (persist) try { localStorage.setItem('artsmoker_gen_seed', String(clamped)); } catch { /* quota/private mode */ }
+            input.value = String(Math.min(Math.max(v, 0), 2147483647));
         },
         _getSeed() {
             const v = parseInt(document.getElementById('gen-seed')?.value, 10);
@@ -3110,9 +3109,7 @@
         _initSeed() {
             const input = document.getElementById('gen-seed');
             if (!input) return;
-            let cached = NaN;
-            try { cached = parseInt(localStorage.getItem('artsmoker_gen_seed'), 10); } catch { /* unavailable */ }
-            this._setSeed(Number.isFinite(cached) ? cached : this._rollSeed());
+            this._setSeed(this._rollSeed());  // fresh client-side value every page load
             input.addEventListener('change', () => this._setSeed(input.value));
             document.getElementById('gen-seed-dice')?.addEventListener('click', () => this._setSeed(this._rollSeed()));
             // After-generation behavior: step past the batch (default), keep for
