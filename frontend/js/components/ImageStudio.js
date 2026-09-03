@@ -795,6 +795,7 @@
                 this._selectedVariant = 0;
                 this._lastNegativePrompt = '';
                 this._loadedConcepts = null;
+                this._loadedJob = false;  // caption back to "Generate" (view rebuilds with the default)
                 this._promptEditor = null;
                 this._stopAsyncPolling();
                 this._notifiedJobIds = new Set();
@@ -1277,8 +1278,7 @@
             const _resetBtn = () => {
                 if (btn) {
                     btn.disabled = false;
-                    // nosemgrep
-                    btn.innerHTML = html`<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${t('artsmoker.ui.image_studio.generate')}`;
+                    this._updateGenerateLabel();
                 }
             };
             if (btn) {
@@ -2152,12 +2152,7 @@
                 this._startProgress(total, payload);
             } else {
                 btn.disabled = false;
-                // nosemgrep
-                btn.innerHTML = html`
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
-                    </svg>
-                    ${t('artsmoker.ui.image_studio.generate')}`;
+                this._updateGenerateLabel();
                 loadingEl?.classList.add('hidden');
                 this._stopProgress();
             }
@@ -2786,6 +2781,11 @@
                 // this batch (clicking an option/variant re-anchors to that image).
                 if (result.seed != null) this._setSeed(result.seed);
 
+                // A Gallery job is now loaded — pressing the button re-runs it,
+                // so it reads "Regenerate" (like the 3D tab's regenerate).
+                this._loadedJob = true;
+                this._updateGenerateLabel();
+
                 // Stash the job's STORED per-option final prompts (grouped by
                 // model). An unchanged re-run sends them back verbatim so the
                 // concept LLM is skipped — with the same seed that means an
@@ -3072,6 +3072,18 @@
             const default1024 = sizes.findIndex(s => s.w === 1024 && s.h === 1024);
             sizeSel.value = default1024 >= 0 ? default1024 : Math.min(2, sizes.length - 1);
             this._updateAspectHint();
+        },
+
+        /** Generate-button caption: "Regenerate" while a Gallery job is loaded
+         *  (mirrors the 3D tab's "Regenerate 3D Model"), "Generate" otherwise.
+         *  The flag is IN-MEMORY only — a Reset, hard refresh, or server
+         *  restart naturally falls back to "Generate". */
+        _updateGenerateLabel() {
+            const btn = document.getElementById('btn-generate');
+            if (!btn) return;
+            const label = t(`artsmoker.ui.image_studio.${this._loadedJob ? 'regenerate' : 'generate'}`);
+            // nosemgrep -- html`` escapes the interpolation; the svg is static trusted markup
+            btn.innerHTML = html`<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg> ${label}`;
         },
 
         /** Seed helpers. The base seed is user-visible (next to Options ×

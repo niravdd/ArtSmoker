@@ -323,6 +323,7 @@
     "seed_mode_hint_increment": "Each job starts just past the previous batch's seeds — fresh results every time, and any job can be re-created later from its own recorded seeds.",
     "seed_mode_hint_keep": "The seed carries into the next job. Re-running a reloaded job unchanged reuses its saved prompts — a pixel-exact repeat. New jobs (or any change to the prompt, options, or models) write fresh AI concepts, so results differ even with the same seed.",
     "seed_mode_hint_random": "A new random base seed for every job (each press of Generate).",
+    "regenerate": "Regenerate",
     "remix_dims_note": "Output size follows your reference image — the Dimensions setting doesn't apply in Remix.",
     "remix_num_strengths": "Strengths",
     "remix_strengths_caption": "One strength per option",

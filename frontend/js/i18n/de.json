@@ -323,6 +323,7 @@
     "seed_mode_hint_increment": "Jeder Job beginnt direkt hinter den Seeds des vorherigen Batches — jedes Mal neue Ergebnisse, und jeder Job bleibt über seine gespeicherten Seeds reproduzierbar.",
     "seed_mode_hint_keep": "Der Seed wird in den nächsten Job übernommen. Ein unverändert erneut ausgeführter, neu geladener Job verwendet seine gespeicherten Prompts wieder — eine pixelgenaue Wiederholung. Neue Jobs (oder jede Änderung an Prompt, Optionen oder Modellen) lassen die KI neue Konzepte schreiben — die Ergebnisse unterscheiden sich auch bei gleichem Seed.",
     "seed_mode_hint_random": "Ein neuer zufälliger Basis-Seed für jeden Job (jeden Klick auf Generieren).",
+    "regenerate": "Neu generieren",
     "remix_dims_note": "Die Ausgabegröße folgt dem Referenzbild — die Größeneinstellung gilt im Remix nicht.",
     "remix_num_strengths": "Stärken",
     "remix_strengths_caption": "Eine Stärke pro Option",

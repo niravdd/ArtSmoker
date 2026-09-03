@@ -828,6 +828,7 @@
     "seed_mode_hint_increment": "每个任务从上一批种子之后开始 — 每次都是新结果，且任何任务都可凭其记录的种子在之后复现。",
     "seed_mode_hint_keep": "种子沿用到下一个任务。原样重跑一个重新加载的任务会复用其已保存的提示词 — 像素级精确重复。新任务（或提示词、选项、模型有任何改动）会让 AI 重写概念，即使种子相同结果也会不同。",
     "seed_mode_hint_random": "每个任务（每按一次生成）使用一个新的随机基础种子。",
+    "regenerate": "重新生成",
     "remix_dims_note": "输出尺寸跟随参考图 —— 重绘模式下尺寸设置不生效。",
     "remix_num_strengths": "强度",
     "remix_strengths_caption": "每个选项一个强度",

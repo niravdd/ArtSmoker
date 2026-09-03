@@ -828,6 +828,7 @@
     "seed_mode_hint_increment": "Chaque job démarre juste après les graines du lot précédent — des résultats nouveaux à chaque fois, et tout job reste reproductible via ses graines enregistrées.",
     "seed_mode_hint_keep": "La graine est reprise au job suivant. Relancer un job rechargé sans le modifier réutilise ses prompts enregistrés — répétition exacte au pixel près. Un nouveau job (ou tout changement de prompt, d'options ou de modèles) fait écrire de nouveaux concepts à l'IA : les résultats diffèrent même à graine égale.",
     "seed_mode_hint_random": "Une nouvelle graine de base aléatoire à chaque job (chaque clic sur Générer).",
+    "regenerate": "Régénérer",
     "remix_dims_note": "La taille de sortie suit l'image de référence — le réglage Dimensions ne s'applique pas au Remix.",
     "remix_num_strengths": "Forces",
     "remix_strengths_caption": "Une force par option",

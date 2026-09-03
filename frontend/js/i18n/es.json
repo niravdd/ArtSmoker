@@ -828,6 +828,7 @@
     "seed_mode_hint_increment": "Cada trabajo empieza justo después de las semillas del lote anterior — resultados nuevos cada vez, y cualquier trabajo puede recrearse luego con sus semillas registradas.",
     "seed_mode_hint_keep": "La semilla pasa al siguiente trabajo. Volver a ejecutar sin cambios un trabajo recargado reutiliza sus prompts guardados — repetición exacta al píxel. Los trabajos nuevos (o cualquier cambio de prompt, opciones o modelos) hacen que la IA escriba conceptos nuevos: los resultados difieren aun con la misma semilla.",
     "seed_mode_hint_random": "Una nueva semilla base aleatoria por cada trabajo (cada pulsación de Generar).",
+    "regenerate": "Regenerar",
     "remix_dims_note": "El tamaño de salida sigue a la imagen de referencia — el ajuste de Dimensiones no se aplica en Remix.",
     "remix_num_strengths": "Fuerzas",
     "remix_strengths_caption": "Una fuerza por opción",
