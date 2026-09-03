@@ -6,6 +6,8 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
+![ArtSmoker ウォークスルー — テキストプロンプトから、本番品質の2Dアート、そして完全にテクスチャリングされたゲームエンジン対応3Dモデルまで](docs/images/artsmoker-walkthrough.gif)
+
 ## 📌 0. 概要
 
 **ArtSmokerは、アイデアをゲームエンジン対応のアートへと変えます — 数分で、あなたが管理すべきパイプラインは一切なしに。** キャラクター、小道具、環境、キーアートを自然言語で説明するだけで、プロダクション対応の2Dアート、完全にテクスチャリングされた3Dモデル、動画が得られます — すべてがプロジェクトのビジュアルアイデンティティに合致し、すべてがあなた自身の環境内に留まります。最新のAI画像・編集・3D・動画モデルが、本物のクリエイティブコントロールを備えた1つのクリーンでアーティストファーストなインターフェースの背後に収まっています：ArtSmokerが制作パイプライン全体をあなたの代わりに動かすため、チームは機械の操作に追われることなく、ルックの方向づけに専念できます。

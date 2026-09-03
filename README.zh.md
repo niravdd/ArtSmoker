@@ -6,6 +6,8 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
+![ArtSmoker 演示 — 从文本提示词到生产级 2D 美术，再到带完整纹理、可直接用于游戏引擎的 3D 模型](docs/images/artsmoker-walkthrough.gif)
+
 ## 📌 0. 概述
 
 **ArtSmoker 让一个创意在几分钟内变成游戏引擎可用的美术资产 —— 无需您管理任何流程。** 用自然语言描述一个角色、道具、场景或主视觉，即可获得生产就绪的 2D 美术、完全纹理化的 3D 模型和视频 —— 全部匹配您项目的视觉标识，全部保留在您自己的环境中。最新的 AI 图像、编辑、3D 和视频模型都置于一个简洁、艺术家优先、带有真正创意控制的界面之后：ArtSmoker 为您运行整条生产流程，让您的团队专注于把控外观，而非摆弄底层机器。

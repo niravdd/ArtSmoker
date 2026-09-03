@@ -6,6 +6,8 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
+![ArtSmoker walkthrough — from a text prompt to production-ready 2D art to a fully-textured, game-engine-ready 3D model](docs/images/artsmoker-walkthrough.gif)
+
 ## 📌 0. Overview
 
 **ArtSmoker turns an idea into game-engine-ready art — in minutes, with no pipeline for you to manage.** Describe a character, prop, environment, or piece of key art in plain language and get production-ready 2D art, fully-textured 3D models, and video — all matched to your project's visual identity, all kept within your own environment. The newest AI image, editing, 3D, and video models sit behind one clean, artist-first interface with real creative controls: ArtSmoker runs the entire production pipeline for you, so your team directs the look instead of wrangling the machinery.

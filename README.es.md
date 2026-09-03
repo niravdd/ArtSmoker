@@ -6,6 +6,8 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
+![Recorrido por ArtSmoker — del prompt de texto al arte 2D listo para producción y al modelo 3D totalmente texturizado, listo para el motor de juego](docs/images/artsmoker-walkthrough.gif)
+
 ## 📌 0. Descripción general
 
 **ArtSmoker convierte una idea en arte listo para el motor de juego — en minutos y sin ningún pipeline que usted deba gestionar.** Describa un personaje, un accesorio, un entorno o una pieza de key art en lenguaje sencillo y obtenga arte 2D listo para producción, modelos 3D completamente texturizados y video — todo en consonancia con la identidad visual de su proyecto, todo dentro de su propio entorno. Los modelos de IA más recientes de imagen, edición, 3D y video se sitúan tras una interfaz única, limpia y orientada al artista, con controles creativos reales: ArtSmoker ejecuta todo el pipeline de producción por usted, para que su equipo dirija la apariencia en lugar de lidiar con la maquinaria.

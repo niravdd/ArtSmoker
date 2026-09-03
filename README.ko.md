@@ -6,6 +6,8 @@
 ![Amazon Bedrock](https://img.shields.io/badge/Amazon-Bedrock-orange?logo=amazonaws&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT--0-yellow)
 
+![ArtSmoker 워크스루 — 텍스트 프롬프트에서 프로덕션급 2D 아트, 완전히 텍스처링된 게임 엔진용 3D 모델까지](docs/images/artsmoker-walkthrough.gif)
+
 ## 📌 0. 개요
 
 **ArtSmoker는 아이디어를 게임 엔진에 바로 사용할 수 있는 아트로 바꿉니다 — 관리할 파이프라인 없이, 단 몇 분 만에.** 캐릭터, 소품, 환경, 키 아트를 자연어로 설명하기만 하면 프로덕션 대응의 2D 아트, 완전 텍스처링된 3D 모델, 동영상을 얻을 수 있습니다 — 모두 프로젝트의 비주얼 아이덴티티에 맞춰지고, 모두 자체 환경 내에 유지됩니다. 최신 AI 이미지·편집·3D·동영상 모델이 실질적인 크리에이티브 컨트롤을 갖춘 하나의 깔끔한 아티스트 우선 인터페이스 뒤에 자리합니다: ArtSmoker가 전체 제작 파이프라인을 대신 실행하므로, 팀은 기계 장치를 다루는 대신 룩을 디렉팅하는 데 집중합니다.
