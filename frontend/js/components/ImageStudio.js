@@ -794,6 +794,7 @@
                 this._selectedOption = 0;
                 this._selectedVariant = 0;
                 this._lastNegativePrompt = '';
+                this._loadedConcepts = null;
                 this._promptEditor = null;
                 this._stopAsyncPolling();
                 this._notifiedJobIds = new Set();
@@ -1187,6 +1188,21 @@
             const decomposedData = this._promptEditor?._decomposedData || null;
             const recomposedPrompt = this._promptEditor?._recomposedPrompt || null;
 
+            // Unchanged re-run of a RELOADED job → send its stored per-option
+            // final prompts so the backend skips concept generation (the
+            // nondeterministic step) and, with the same seed, repeats the batch
+            // exactly. Any edit to the prompt, options count, or model set
+            // fails this compare and fresh concepts are written.
+            let savedConcepts;
+            const lc = this._loadedConcepts;
+            if (lc && !isReference
+                && userPrompt.trim() === lc.userPrompt
+                && (hasComposed ? prompt.trim() : '') === lc.composed
+                && numOptions === lc.numOptions
+                && JSON.stringify([...this._selectedModels].sort()) === JSON.stringify(lc.models)) {
+                savedConcepts = lc.byModel;
+            }
+
             const payload = {
                 prompt: hasComposed ? prompt : userPrompt,
                 original_prompt: userPrompt,
@@ -1209,6 +1225,7 @@
                 num_options: numOptions,
                 num_variations: numVariations,
                 seed: this._getSeed(),  // undefined = server-random
+                saved_concept_prompts: savedConcepts,  // undefined = fresh concepts
                 remove_background: document.getElementById('gen-remove-bg').checked,
                 generate_svg: document.getElementById('gen-svg').checked,
                 upscale: document.getElementById('gen-upscale').checked,
@@ -2768,6 +2785,38 @@
                 // Restore the batch's base seed so pressing Generate reproduces
                 // this batch (clicking an option/variant re-anchors to that image).
                 if (result.seed != null) this._setSeed(result.seed);
+
+                // Stash the job's STORED per-option final prompts (grouped by
+                // model). An unchanged re-run sends them back verbatim so the
+                // concept LLM is skipped — with the same seed that means an
+                // exact repeat. Any change (prompt, options, models) simply
+                // fails the compare at generate time → fresh concepts.
+                this._loadedConcepts = null;
+                if (!result.reference_guided) {
+                    const opts = result.options || [];
+                    const nOpts = parseInt(result.original_num_options || result.num_options, 10) || opts.length;
+                    const byModel = {};
+                    if (result.all_models && result.model_map) {
+                        opts.forEach(o => {
+                            const mk = result.model_map[o.option_index] ?? result.model_map[String(o.option_index)];
+                            if (mk && o.enhanced_prompt) (byModel[mk] = byModel[mk] || []).push(o.enhanced_prompt);
+                        });
+                    } else if (result.image_model) {
+                        byModel[result.image_model] = opts.map(o => o.enhanced_prompt).filter(Boolean);
+                    }
+                    // Only a COMPLETE set is reusable (partial batches regenerate).
+                    const complete = Object.keys(byModel).length > 0
+                        && Object.values(byModel).every(list => list.length === nOpts);
+                    if (complete) {
+                        this._loadedConcepts = {
+                            userPrompt: (result.original_prompt || result.prompt || '').trim(),
+                            composed: (result.enhanced_prompt || '').trim(),
+                            numOptions: nOpts,
+                            models: [...this._selectedModels].sort(),
+                            byModel,
+                        };
+                    }
+                }
 
                 // Restore options/variations counts — use the ORIGINAL generation
                 // settings. (result.num_options is the surviving option-GROUP count,

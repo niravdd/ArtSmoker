@@ -58,6 +58,13 @@ class GenerationRequest(BaseModel):
     # (option, variation) slot derives a deterministic distinct seed from it —
     # same base + same settings reproduce the same batch.
     seed: int | None = Field(default=None, ge=0, le=2**31 - 1)
+    # A RELOADED job's stored per-option final prompts, keyed by model
+    # ({model_key: [prompt per option]}). When present and complete for the
+    # requested models × options, concept generation is SKIPPED and these run
+    # verbatim — the piece that makes "same seed = same images" true for
+    # multi-option re-runs (the concept LLM is nondeterministic). The frontend
+    # sends this only when the loaded job's prompt/models/options are unchanged.
+    saved_concept_prompts: dict[str, list[str]] | None = None
     remove_background: bool = True
     generate_svg: bool = True
     upscale: bool = False
