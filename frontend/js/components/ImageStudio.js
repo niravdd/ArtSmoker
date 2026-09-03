@@ -3115,13 +3115,12 @@
             this._setSeed(Number.isFinite(cached) ? cached : this._rollSeed());
             input.addEventListener('change', () => this._setSeed(input.value));
             document.getElementById('gen-seed-dice')?.addEventListener('click', () => this._setSeed(this._rollSeed()));
-            // After-generation behavior (persisted): step past the batch (default),
-            // keep for an exact repeat, or re-roll random.
+            // After-generation behavior: step past the batch (default), keep for
+            // an exact repeat, or re-roll random. Deliberately NOT persisted —
+            // Keep/Re-roll are session choices, so a page reload always comes
+            // back to Auto-step (only the seed VALUE survives reloads).
             const mode = document.getElementById('gen-seed-mode');
             if (mode) {
-                let saved = null;
-                try { saved = localStorage.getItem('artsmoker_gen_seed_mode'); } catch { /* unavailable */ }
-                if (saved && [...mode.options].some(o => o.value === saved)) mode.value = saved;
                 // Visible one-line explanation of the active mode (select title
                 // tooltips are unreliable/undiscoverable, esp. on <select>).
                 const hint = document.getElementById('gen-seed-mode-hint');
@@ -3129,10 +3128,7 @@
                     if (hint) hint.textContent = t(`artsmoker.ui.image_studio.seed_mode_hint_${mode.value}`);
                 };
                 updateHint();
-                mode.addEventListener('change', () => {
-                    try { localStorage.setItem('artsmoker_gen_seed_mode', mode.value); } catch { /* quota */ }
-                    updateHint();
-                });
+                mode.addEventListener('change', updateHint);
             }
         },
         /** Advance the seed after a completed generation, per the mode select.
