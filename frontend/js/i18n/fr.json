@@ -1535,6 +1535,13 @@
     "in_bedrock": "dans Amazon Bedrock",
     "server_timeout": "Le serveur n'a pas répondu après 8 minutes. Vérifiez qu'il est en cours d'exécution.",
     "refresh": "Actualiser",
+    "update_restarting": "Mise à jour du serveur — redémarrage avec le nouveau code. Veuillez patienter...",
+    "update_applied": "Serveur mis à jour — rechargement...",
+    "update_ready": "Une nouvelle version est prête à être installée.",
+    "update_staged_manual": "Une nouvelle version est préparée — redémarrez le serveur pour l'appliquer.",
+    "restart_now": "Redémarrer maintenant",
+    "restart_busy": "Le serveur est actuellement occupé.",
+    "restart_anyway": "Redémarrer quand même",
     "page_not_found": "Page introuvable.",
     "network_error": "Erreur réseau"
   },

@@ -669,15 +669,45 @@
                 if (!resp.ok) return;
                 const status = await resp.json();
 
-                // Stop polling entirely if auto-update is disabled on this server
-                if (status.disabled) {
-                    updateDisabled = true;
+                // Version-skew guard: the server is now running a DIFFERENT version
+                // than this page was loaded with — it restarted/updated out from
+                // under us (auto-update, manual restart, or supervised respawn), so
+                // the SPA code in this tab is stale. Reload to pull fresh frontend
+                // and avoid old-JS ↔ new-API drift. Guarded on _appVersion being
+                // known so the first poll (before /api/health resolves) can't
+                // false-trigger.
+                if (status.current_version && _appVersion &&
+                    status.current_version !== _appVersion) {
+                    _removePendingBanner();
+                    showRestartBanner(t('artsmoker.ui.onboarding.update_applied'));
+                    if (restartBanner) {
+                        restartBanner.className = restartBanner.className.replace('bg-amber-600', 'bg-emerald-600');
+                    }
+                    setTimeout(() => location.reload(), 1200);
                     return;
                 }
 
                 if (status.restarting) {
+                    _removePendingBanner();
                     showRestartBanner();
                     waitForServerRestart();
+                    return;
+                }
+
+                // An update is staged but the server is still on the old code,
+                // awaiting a (possibly manual) restart — the HOLD state used on
+                // unmanaged / headless boxes.
+                if (status.restart_pending) {
+                    showPendingBanner(status);
+                } else {
+                    _removePendingBanner();
+                }
+
+                // Stop polling if auto-update is disabled on this server
+                // (dev/maintainer box). Done LAST so the skew guard still runs once.
+                if (status.disabled) {
+                    updateDisabled = true;
+                    return;
                 }
             } catch {
                 // Server unreachable but we weren't expecting a restart —
@@ -687,15 +717,75 @@
             }
         }
 
-        function showRestartBanner() {
+        function showRestartBanner(message) {
             if (restartBanner) return;
             restartBanner = document.createElement('div');
             restartBanner.className = 'fixed top-0 inset-x-0 z-[200] bg-amber-600 text-white text-center py-2 text-sm font-medium shadow-lg';
-            restartBanner.innerHTML = `
+            // nosemgrep
+            restartBanner.innerHTML = html`
                 <span class="animate-pulse mr-2">⟳</span>
-                Server updating — restarting with new code. Please wait... <span class="elapsed-time text-white/70 ml-1"></span>
-            `;
+                ${message || t('artsmoker.ui.onboarding.update_restarting')} <span class="elapsed-time text-white/70 ml-1"></span>`;
             document.body.appendChild(restartBanner);
+        }
+
+        // HOLD-state banner: an update is staged but the server is still serving
+        // the OLD code, awaiting a (possibly manual) restart. Offer a one-click
+        // restart when the server can restart itself (supervised / gunicorn), else
+        // tell the operator to restart manually. Dismissible; re-shown while the
+        // pending state persists. This is the primary channel for headless boxes.
+        let pendingBanner = null;
+        function _removePendingBanner() {
+            if (pendingBanner) { pendingBanner.remove(); pendingBanner = null; }
+        }
+
+        function showPendingBanner(status) {
+            if (pendingBanner || restartBanner) return;
+            const ver = status.staged_version ? ` (v${status.staged_version})` : '';
+            const label = (status.restart_capable
+                ? t('artsmoker.ui.onboarding.update_ready')
+                : t('artsmoker.ui.onboarding.update_staged_manual')) + ver;
+            pendingBanner = document.createElement('div');
+            pendingBanner.className = 'fixed top-0 inset-x-0 z-[200] bg-sky-700 text-white py-2 px-4 text-sm font-medium shadow-lg flex items-center justify-center gap-3';
+            // nosemgrep
+            pendingBanner.innerHTML = html`
+                <span class="flex-shrink-0">⬆</span>
+                <span>${label}</span>
+                ${status.restart_capable
+                    ? html`<button class="pb-restart underline font-semibold hover:text-white/80">${t('artsmoker.ui.onboarding.restart_now')}</button>`
+                    : ''}
+                <button class="pb-dismiss text-white/60 hover:text-white ml-2" aria-label="Dismiss">✕</button>`;
+            const restartBtn = pendingBanner.querySelector('.pb-restart');
+            if (restartBtn) restartBtn.addEventListener('click', () => triggerRestart(false));
+            pendingBanner.querySelector('.pb-dismiss').addEventListener('click', _removePendingBanner);
+            document.body.appendChild(pendingBanner);
+        }
+
+        // POST /api/restart-server — the single mode-aware restart control. On 409
+        // (server busy) confirm before forcing. On success, hand off to the
+        // restarting-wait flow, which reloads the page once the server is back.
+        async function triggerRestart(force) {
+            try {
+                const resp = await fetch('/api/restart-server', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ force: !!force }),
+                });
+                if (resp.status === 409) {
+                    const data = await resp.json().catch(() => ({}));
+                    const reasons = Array.isArray(data.busy) ? data.busy.join('; ') : '';
+                    const ok = await window.showConfirm(
+                        t('artsmoker.ui.onboarding.restart_busy'),
+                        { detail: reasons, confirmLabel: t('artsmoker.ui.onboarding.restart_anyway'), danger: true });
+                    if (ok) return triggerRestart(true);
+                    return;
+                }
+                if (!resp.ok) return;
+                _removePendingBanner();
+                showRestartBanner();
+                waitForServerRestart();
+            } catch {
+                // Network hiccup — the next status poll re-evaluates and re-offers.
+            }
         }
 
         function waitForServerRestart() {
@@ -722,7 +812,8 @@
                             // Server is back with new code — reload page for fresh frontend
                             clearInterval(poll);
                             if (restartBanner) {
-                                restartBanner.innerHTML = '<span class="mr-2">✓</span> Server updated — reloading...';
+                                // nosemgrep
+                                restartBanner.innerHTML = html`<span class="mr-2">✓</span> ${t('artsmoker.ui.onboarding.update_applied')}`;
                                 restartBanner.className = restartBanner.className.replace('bg-amber-600', 'bg-emerald-600');
                             }
                             setTimeout(() => location.reload(), 1000);

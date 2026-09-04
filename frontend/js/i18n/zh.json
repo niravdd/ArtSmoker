@@ -1535,6 +1535,13 @@
     "in_bedrock": "在 Amazon Bedrock 中",
     "server_timeout": "服务器 8 分钟未响应。请检查服务器是否正在运行。",
     "refresh": "刷新",
+    "update_restarting": "服务器正在更新 — 正在使用新代码重启。请稍候...",
+    "update_applied": "服务器已更新 — 正在重新加载...",
+    "update_ready": "新版本已可安装。",
+    "update_staged_manual": "新版本已就绪 — 请重启服务器以应用。",
+    "restart_now": "立即重启",
+    "restart_busy": "服务器当前繁忙。",
+    "restart_anyway": "仍然重启",
     "page_not_found": "页面未找到。",
     "network_error": "网络错误"
   },

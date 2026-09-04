@@ -1535,6 +1535,13 @@
     "in_bedrock": "Amazon Bedrock에서",
     "server_timeout": "서버가 8분간 응답하지 않았습니다. 서버가 실행 중인지 확인하세요.",
     "refresh": "새로고침",
+    "update_restarting": "서버 업데이트 중 — 새 코드로 다시 시작하고 있습니다. 잠시 기다려 주세요...",
+    "update_applied": "서버가 업데이트되었습니다 — 다시 불러오는 중...",
+    "update_ready": "새 버전을 설치할 수 있습니다.",
+    "update_staged_manual": "새 버전이 준비되었습니다 — 적용하려면 서버를 다시 시작하세요.",
+    "restart_now": "지금 다시 시작",
+    "restart_busy": "서버가 현재 사용 중입니다.",
+    "restart_anyway": "그래도 다시 시작",
     "page_not_found": "페이지를 찾을 수 없습니다.",
     "network_error": "네트워크 오류"
   },
