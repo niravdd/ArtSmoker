@@ -20,7 +20,6 @@ Safety:
   - Set ARTSMOKER_AUTO_UPDATE=false to disable both modes
 """
 
-import atexit
 import hashlib
 import hmac
 import logging
@@ -39,12 +38,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 # ── Shared state ─────────────────────────────────────────────────────────
 
 _last_request_time: float = 0.0  # Updated by middleware on every request
-_restart_pending: bool = False    # Set when a restart is needed after update
+_restart_pending: bool = False    # An update was applied; a restart is needed to activate it
 _update_status: dict = {          # Readable by frontend via /api/update-status
     "checking": False,
     "last_check": 0,
     "last_update": 0,
-    "restarting": False,
+    "restarting": False,       # a restart is actively in progress
+    "restart_pending": False,  # update staged on disk; waiting for a (possibly manual) restart
+    "staged_version": "",      # the version staged on disk awaiting restart
+    "restart_mode": "",        # how the last restart was dispatched (supervised/gunicorn/…)
     "message": "",
 }
 
@@ -121,6 +123,150 @@ def request_restart() -> bool:
 def restart_requested() -> bool:
     """Whether a restart was requested during this process's lifetime."""
     return _restart_requested.is_set()
+
+
+def _gunicorn_master_pid():
+    """Return the gunicorn master PID if we are a gunicorn worker, else None.
+
+    Detection: SIGHUP exists (POSIX — gunicorn has no Windows support), gunicorn
+    is imported in the process (true for the arbiter and its forked workers, not
+    for a bare `uvicorn` CLI launch), and our parent is that arbiter. HUP-ing the
+    master triggers a graceful worker reload onto fresh code with no master
+    downtime — the right restart for the documented multi-worker deployment.
+    """
+    if not hasattr(signal, "SIGHUP"):
+        return None
+    if "gunicorn" not in sys.modules:
+        return None
+    ppid = os.getppid()
+    return ppid if ppid and ppid > 1 else None
+
+
+def _mark_restarting(mode: str, message: str) -> None:
+    _update_status["restarting"] = True
+    _update_status["restart_pending"] = True
+    _update_status["restart_mode"] = mode
+    _update_status["message"] = message
+
+
+def mark_restart_pending(staged_version: str = "", message: str = "") -> None:
+    """Flag that an update is staged on disk and a restart is needed to activate.
+
+    Used for the unmanaged/HOLD case where we cannot safely self-restart: the
+    server keeps serving the OLD code but advertises the pending restart through
+    /api/update-status (remotely reachable) so a headless operator can act.
+    """
+    global _restart_pending
+    _restart_pending = True
+    _update_status["restart_pending"] = True
+    _update_status["restarting"] = False
+    if staged_version:
+        _update_status["staged_version"] = staged_version
+    _update_status["message"] = message or (
+        f"Update to v{staged_version} staged — restart the server to activate it."
+        if staged_version else "Update staged — restart the server to activate it."
+    )
+
+
+def perform_restart(explicit: bool = False) -> dict:
+    """Restart the running server via the best mechanism for how it was launched.
+
+    Priority:
+      1. Supervised child (`python -m backend.main`) → request_restart(): uvicorn
+         graceful shutdown, child exits RESTART_EXIT_CODE, supervisor respawns on
+         fresh code. Cross-OS, self-healing.
+      2. Gunicorn worker (POSIX) → SIGHUP the master: graceful worker reload, no
+         master downtime.
+      3. Unmanaged bare process → cannot guarantee a clean restart:
+           • explicit=True (operator asked via /api/restart-server): honor intent
+             — SIGTERM ourselves for a graceful shutdown (a process manager
+             relaunches us; if none, the operator does). On a platform without
+             SIGTERM (Windows bare launch) report manual-required instead of a
+             hard kill.
+           • explicit=False (background auto-update): DO NOT exit an unmanaged
+             process — stage it (mark_restart_pending) and surface it, so nobody
+             is left with a silently-dead headless box.
+
+    Returns {"mode", "restarting", "message"}.
+    """
+    if is_supervised():
+        request_restart()
+        msg = "Restarting to activate the update…"
+        _mark_restarting("supervised", msg)
+        logger.info("Auto-update: supervised restart requested — child will respawn on fresh code.")
+        return {"mode": "supervised", "restarting": True, "message": msg}
+
+    master = _gunicorn_master_pid()
+    if master is not None:
+        try:
+            os.kill(master, signal.SIGHUP)  # graceful worker reload onto fresh code
+            msg = "Reloading workers to activate the update…"
+            _mark_restarting("gunicorn", msg)
+            logger.info("Auto-update: signaled gunicorn master (pid %d) to reload workers.", master)
+            return {"mode": "gunicorn", "restarting": True, "message": msg}
+        except Exception as exc:
+            logger.warning("Auto-update: gunicorn reload signal failed (%s) — falling back.", exc)
+
+    # Unmanaged bare process (e.g. plain `uvicorn`, nohup).
+    if explicit and hasattr(signal, "SIGTERM"):
+        msg = ("Stopping to restart — a process manager will relaunch it; "
+               "if there is none, start it again manually.")
+        _mark_restarting("unmanaged-exit", msg)
+        logger.info("Auto-update: operator requested restart on an unmanaged process — "
+                    "sending SIGTERM for a graceful shutdown.")
+
+        def _self_terminate():
+            # Brief delay so the HTTP response for /api/restart-server flushes first.
+            time.sleep(1.0)  # nosemgrep --deliberate: let the response flush before shutdown
+            try:
+                os.kill(os.getpid(), signal.SIGTERM)
+            except Exception:
+                pass
+
+        threading.Thread(target=_self_terminate, daemon=True, name="restart-self-term").start()
+        return {"mode": "unmanaged-exit", "restarting": True, "message": msg}
+
+    # No safe automatic restart available — stage it and ask for a manual one.
+    mark_restart_pending(
+        message=("Update staged. This process cannot restart itself automatically — "
+                 "restart it manually, or relaunch via `python -m backend.main` for "
+                 "automatic restarts."),
+    )
+    logger.warning("Auto-update: applied update but cannot self-restart (unmanaged, non-supervised). "
+                   "Holding on current code; restart required. Status at /api/update-status.")
+    return {"mode": "manual", "restarting": False, "message": _update_status["message"]}
+
+
+def get_pending_work() -> list:
+    """Best-effort list of reasons the server is 'busy' (for restart quiescence).
+
+    Empty list ⇒ quiescent. Async image/3D jobs are intentionally NOT hard
+    blockers — they are persisted to S3 and resumed after a restart by design —
+    but they are reported so an operator can choose to wait. Never raises.
+    """
+    reasons = []
+    try:
+        from backend.app import _server_state
+        if _server_state.get("sync_in_progress"):
+            reasons.append("a model-registry Sync is running")
+    except Exception:
+        pass
+    try:
+        from backend.services.async_jobs import get_pending_count
+        n = get_pending_count()
+        if n:
+            reasons.append(f"{n} image job(s) in progress (will resume after restart)")
+    except Exception:
+        pass
+    try:
+        from backend.routers import generate_3d
+        n3d = sum(1 for j in getattr(generate_3d, "_3d_jobs", {}).values()
+                  if j.get("status") not in ("complete", "failed"))
+        if n3d:
+            reasons.append(f"{n3d} 3D job(s) in progress (will resume after restart)")
+    except Exception:
+        pass
+    return reasons
 
 
 # A single maintainer workstation must skip auto-update so that a
@@ -327,8 +473,9 @@ def _periodic_check_loop():
             commits = _do_pull()
 
             _update_status["last_update"] = time.time()
+            _update_status["staged_version"] = remote_ver
             _update_status["message"] = f"Updated {local_ver} → {remote_ver}. Restarting..."
-            _update_status["restarting"] = True
+            _update_status["restart_pending"] = True
             logger.info("Auto-update: %s → %s (%d commits). Restarting server...", local_ver, remote_ver, commits)
 
             # Track telemetry before restart
@@ -341,8 +488,13 @@ def _periodic_check_loop():
             # Give frontend 2 seconds to see the "restarting" status
             time.sleep(2)  # nosemgrep --deliberate pre-restart delay
 
-            # Trigger graceful shutdown → atexit handler will re-exec
-            _schedule_restart()
+            # Restart via the best mechanism for how this server was launched
+            # (supervised respawn / gunicorn reload / unmanaged HOLD). Background
+            # update ⇒ explicit=False, so an unmanaged process is never killed
+            # from under the operator — it holds and advertises restart_pending.
+            outcome = perform_restart(explicit=False)
+            logger.info("Auto-update: applied %s → %s; restart mode=%s (%s)",
+                        local_ver, remote_ver, outcome["mode"], outcome["message"])
 
         except subprocess.CalledProcessError as e:
             _update_status["checking"] = False
@@ -444,37 +596,26 @@ def _do_pull() -> int:
 
 
 def _restart_process():
-    """Replace the current process with a fresh one (pre-event-loop only).
+    """Restart right after applying a STARTUP update (before the app serves).
 
-    Uses os.execv which replaces the process image — all modules reload fresh.
-    Only safe to call BEFORE the event loop starts (no open connections/sockets).
+    This runs early in the lifespan handler — the socket may be bound but no
+    requests are served yet and no pollers are running, so an abrupt exit is
+    safe (nothing to drain).
+
+      • Supervised child → exit with RESTART_EXIT_CODE; the supervisor respawns
+        us on fresh code. Cross-OS clean (no os.execv).
+      • Otherwise → re-exec in place with os.execv (long-standing bare-launch
+        behavior). For a bare Windows launch, prefer `python -m backend.main`
+        (supervised) for reliable restarts.
     """
-    logger.info("Restarting process with updated code...")
+    if is_supervised():
+        logger.info("Auto-update: restarting (supervised) to load updated code...")
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os._exit(RESTART_EXIT_CODE)
+    logger.info("Auto-update: restarting process with updated code...")
     # Re-exec THIS interpreter with its own argv — no external/untrusted input.
     os.execv(sys.executable, [sys.executable] + sys.argv)  # nosemgrep
-
-
-def _schedule_restart():
-    """Trigger a graceful shutdown that will re-exec the process.
-
-    For use when the event loop is running (periodic update). The atexit
-    handler performs the actual os.execv after uvicorn finishes cleanup.
-    """
-    global _restart_pending
-    _restart_pending = True
-    # SIGINT triggers uvicorn's graceful shutdown
-    os.kill(os.getpid(), signal.SIGINT)
-
-
-def _atexit_restart():
-    """atexit handler — re-exec the process if a restart was scheduled."""
-    if _restart_pending:
-        logger.info("Performing scheduled restart with updated code...")
-        # Re-exec THIS interpreter with its own argv — no external/untrusted input.
-        os.execv(sys.executable, [sys.executable] + sys.argv)  # nosemgrep
-
-# Register the atexit handler (runs after uvicorn's shutdown is complete)
-atexit.register(_atexit_restart)
 
 
 def _git(*args) -> str:

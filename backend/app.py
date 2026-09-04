@@ -687,12 +687,73 @@ async def _unhandled_exception_handler(request, exc):
 
 @app.get("/api/update-status", tags=["health"])
 async def get_update_status():
-    """Check auto-update status — frontend polls this to detect pending restarts."""
-    from backend.services.auto_update import get_update_status, is_dev_mode
+    """Check auto-update status — frontend polls this to detect pending restarts.
+
+    Remotely reachable status is the primary channel for headless boxes: it
+    reports whether an update is staged (restart_pending), the version staged,
+    and whether this process can restart itself (supervised child or gunicorn
+    worker) so the frontend can offer a one-click restart vs. a manual prompt.
+    """
+    from backend.services.auto_update import (
+        get_update_status, is_dev_mode, is_supervised, _gunicorn_master_pid,
+    )
+    from backend.config import APP_VERSION
     status = get_update_status()
     import os as _os
     status["disabled"] = is_dev_mode() or _os.environ.get("ARTSMOKER_AUTO_UPDATE", "").lower() in ("false", "0", "no")
+    status["current_version"] = APP_VERSION
+    supervised = is_supervised()
+    gunicorn_managed = _gunicorn_master_pid() is not None
+    status["supervised"] = supervised
+    status["gunicorn_managed"] = gunicorn_managed
+    # Whether POST /api/restart-server can bring the server back automatically.
+    # Unmanaged bare launches can still be restarted on POSIX (SIGTERM + a process
+    # manager), but that is not guaranteed, so we don't advertise it as automatic.
+    status["restart_capable"] = supervised or gunicorn_managed
     return status
+
+
+@app.post("/api/restart-server", tags=["health"])
+async def restart_server(request: Request):
+    """Restart the server to activate a staged update (single mode-aware control).
+
+    Works in every launch topology (see auto_update.perform_restart): supervised
+    respawn, gunicorn worker reload, or — for an unmanaged process — a graceful
+    self-stop that a process manager relaunches (with a clear message when no
+    automatic restart is possible). This is BOTH the operator's manual button and
+    the path the auto-updater converges on.
+
+    Idempotent while a restart is in flight. Refuses (409) if the server is busy
+    (Sync / in-progress jobs) unless the JSON body sets {"force": true}. Async
+    image/3D jobs are persisted and resume after restart, so they are advisory,
+    not hard blockers.
+    """
+    from starlette.responses import JSONResponse
+    from backend.services.auto_update import (
+        perform_restart, get_pending_work, get_update_status,
+    )
+
+    st = get_update_status()
+    if st.get("restarting"):
+        return {"ok": True, "already": True, "restarting": True,
+                "message": st.get("message") or "Restart already in progress."}
+
+    force = False
+    try:
+        body = await request.json()
+        force = bool(body.get("force"))
+    except Exception:
+        force = False
+
+    busy = get_pending_work()
+    if busy and not force:
+        return JSONResponse(status_code=409, content={
+            "ok": False, "restarting": False, "busy": busy,
+            "message": "Server is busy (" + "; ".join(busy) + "). Pass force=true to restart anyway.",
+        })
+
+    outcome = perform_restart(explicit=True)
+    return {"ok": True, **outcome}
 
 
 @app.post("/api/ping", tags=["telemetry"])
