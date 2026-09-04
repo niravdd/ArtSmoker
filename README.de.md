@@ -109,7 +109,7 @@ Für Teams, die möchten, dass jedes generierte Asset zu einem vorhandenen Kunst
 - 🔧 **Selbst gehostete Modelle — 1-Klick-Deployment** — Durchstöbern Sie einen kuratierten Katalog vorab getesteter Open-Source-Modelle (HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG und mehr), wählen Sie eine GPU-Instanz und klicken Sie auf Deploy. ArtSmoker übernimmt alles: Packaging des Inferenz-Handlers, Konfiguration der Quantisierung, Auswahl des richtigen CUDA-Toolkits, Einrichtung des Auto-Scalings, Registrierung von CloudWatch-Alarmen und Verdrahtung des asynchronen Job-Trackings. Jedes Modell im Katalog wurde durchgängig validiert — vom Kaltstart über die Generierung bis zur Auslieferung in die Galerie — sodass Sie keine GPU-Treiber, Speicherüberläufe oder Container-Kompatibilität debuggen müssen. Unterstützt BF16 + FlashInfer für beste Qualität, NF4 für Kosteneffizienz, automatische Multi-GPU-Erkennung, skaliert automatisch auf null ($0 im Leerlauf), und dasselbe Modell läuft ohne Neukonfiguration auf verschiedenen Instanztypen
 - 🧊 **Image-to-3D-Generierung** — Wandeln Sie jedes Game-Asset- oder Character-Bild mit einem Klick in ein texturiertes 3D-Mesh (GLB) um. Multi-View-Synthese + Texture-Baking erzeugen spielengine-fertige Assets. Interaktiver 3D-Viewer mit Orbit/Zoom/Schwenk
 - 🩹 **Intelligente Quellen-Vervollständigung für 3D** — Image-to-3D kann nur das aufbauen, was sichtbar ist, sodass ein zugeschnittener Charakter (abgeschnittene Beine) zu einem beinlosen Mesh wird. Vor der Generierung prüft ArtSmoker die Quelle per Vision und **bietet** an, sie bei Zuschnitt per Outpainting zu vervollständigen (ein KI-vorgeschlagener, vollständig bearbeitbarer Prompt) — zeigt eine Vorher/Nachher-Vorschau, prüft das Ergebnis erneut, lässt Sie erneut erweitern oder verwerfen und speichert es als neue Bildversion. Opt-in und nicht blockierend; gut gerahmte Bilder werden direkt generiert
-- 🔄 **Auto-Update** — Versionsgesteuertes Git-Pull beim Start, Selbst-Neustart bei Update, 24-Stunden-Periodenprüfung (`ARTSMOKER_AUTO_UPDATE=false` zum Deaktivieren)
+- 🔄 **Auto-Update** — Versionsgesteuert beim Start + eine 24-Stunden-Periodenprüfung; aktualisiert per `git` (Checkout) oder per **Tarball-Download-und-Ersetzen** für Installationen ohne git, startet sich dann direkt an Ort und Stelle neu (überwachter Respawn / gunicorn-Reload) oder bietet einen Ein-Klick-**Neustart** an — überschreibt niemals Ihr `data/` oder Ihre `.env` (`ARTSMOKER_AUTO_UPDATE=false` zum Deaktivieren)
 
 ### 📝 1.2 Screenshots
 
@@ -792,6 +792,14 @@ ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # Date
 ```
 
 (Oder setzen Sie `log_to_file` / `log_file` in einer lokalen `.env`. Bei mehreren Workern hängt jeder Worker an dieselbe Datei an.)
+
+**Selbst-Neustart (optional, alle Plattformen).** Die obigen Befehle funktionieren allesamt unverändert. Damit ArtSmoker sich zusätzlich **an Ort und Stelle selbst neu starten** kann — sodass ein Auto-Update oder die In-App-Schaltfläche **Neustart** neuen Code lädt, ohne dass Sie erneut starten müssen — führen Sie es stattdessen unter dem integrierten plattformübergreifenden Supervisor aus:
+
+```bash
+python -m backend.main            # bei Bedarf --host / --port ergänzen; Ctrl-C beendet ihn sauber
+```
+
+Dies funktioniert auf **jedem Betriebssystem, einschließlich Windows**. Der Supervisor führt die App in einem Kindprozess aus und startet sie bei einer Neustartanforderung neu. (Der Betrieb unter gunicorn oder einem Dienstmanager wie systemd ermöglicht denselben Neustart an Ort und Stelle — siehe §4.2 und §6.)
 
 ### 📝 4.2 Mehrbenutzer / gemeinsame Testmaschine / Produktion (macOS / Linux)
 
@@ -1566,7 +1574,7 @@ Einstellungen in `backend/config.py` können über Umgebungsvariablen (Präfix `
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Region für Claude- + Stability-AI-Modelle |
 | `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Region für Amazon (Nova Sonic Sprache, Nova Reel Video) |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWS-Profilname (nutzt Standardkette, falls nicht gesetzt) |
-| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Git-Pull beim Start + 24-Std.-Periodenprüfung, Selbst-Neustart bei Update |
+| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Versionsgesteuertes Update beim Start + 24-Std.-Periodenprüfung (git oder Tarball), dann Neustart an Ort und Stelle |
 
 Das Reduzieren von `max_analysis_images` senkt die KI-Vision-Kosten pro Analyse. Das Reduzieren von `max_reference_images` begrenzt den Speicher. Beide können basierend auf dem Budget angepasst werden.
 

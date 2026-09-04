@@ -110,7 +110,7 @@ For teams that want every generated asset to match an existing art style — upl
 - 🔧 **Self-Hosted Models — 1-Click Deploy** — Browse a curated catalog of pre-tested open-source models (Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2, and more), pick a GPU instance, and click Deploy. ArtSmoker handles everything: packaging the inference handler, configuring quantisation, selecting the right CUDA toolkit, setting up auto-scaling, registering CloudWatch alarms, and wiring async job tracking. Every model in the catalog has been validated end-to-end — from cold start through generation to gallery delivery — so you don't have to debug GPU drivers, memory overflows, or container compatibility. Supports BF16 + FlashInfer for best quality, NF4 for cost efficiency, multi-GPU auto-detection, auto-scales to zero ($0 idle), and the same model runs on different instance types without reconfiguration
 - 🧊 **Image-to-3D Generation** — Convert any Game Asset or Character image into a textured 3D mesh (GLB) with one click. Multi-view synthesis + texture baking produces game-engine-ready assets. Interactive 3D viewer with orbit/zoom/pan
 - 🩹 **Smart source completion for 3D** — image-to-3D can only build what's visible, so a cropped character (legs cut off) becomes a legless mesh. Before generating, ArtSmoker vision-checks the source and, if it's cropped, **offers** to complete it via outpainting (an AI-suggested, fully editable prompt) — previews the before/after, re-reviews the result, lets you extend again or discard, and saves it as a new image version. Opt-in and non-blocking; well-framed images generate straight through
-- 🔄 **Auto-Update** — Version-gated git pull on startup, self-restart on update, 24h periodic check (`ARTSMOKER_AUTO_UPDATE=false` to disable)
+- 🔄 **Auto-Update** — Version-gated on startup + a 24h periodic check; updates via `git` (checkout) or a **tarball download-and-replace** for installs without git, then restarts in place (supervised respawn / gunicorn reload) or offers a one-click **Restart** — never clobbers your `data/` or `.env` (`ARTSMOKER_AUTO_UPDATE=false` to disable)
 
 ### 📝 1.2 Screenshots
 
@@ -800,6 +800,14 @@ ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # disa
 ```
 
 (Or set `log_to_file` / `log_file` in a local `.env`. With multiple workers, every worker appends to the same file.)
+
+**Auto-restart (optional, all platforms).** The commands above all work as-is. To also let ArtSmoker **restart itself in place** — so an auto-update, or the in-app **Restart** button, reloads new code without you re-launching — start it under the built-in cross-platform supervisor instead:
+
+```bash
+python -m backend.main            # add --host / --port as needed; Ctrl-C stops it cleanly
+```
+
+This works on **every OS, including Windows**. The supervisor runs the app in a child process and respawns it on a restart request. (Running under gunicorn or a service manager like systemd gives the same in-place restart — see §4.2 and §6.)
 
 ### 📝 4.2 Multi-User / Shared Test Box / Production (macOS / Linux)
 
@@ -1581,7 +1589,7 @@ Settings in `backend/config.py` can be overridden via environment variables (pre
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Region for Claude + Stability AI models |
 | `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Region for Amazon (Nova Sonic voice, Nova Reel video) |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWS profile name (uses default chain if unset) |
-| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Git pull on startup + 24h periodic check, self-restart on update |
+| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Version-gated update on startup + 24h periodic check (git or tarball), then in-place restart |
 
 Reducing `max_analysis_images` reduces AI vision costs per analysis. Reducing `max_reference_images` limits storage. Both can be tuned based on budget.
 

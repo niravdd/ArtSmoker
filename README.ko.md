@@ -110,7 +110,7 @@ ArtSmoker는 두 가지 모드로 작동합니다 — **독립 모드**(아트 �
 - 🔧 **셀프 호스팅 모델 — 원클릭 배포** — 사전 테스트된 오픈소스 모델(Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2 등)의 큐레이션 카탈로그를 탐색하고, GPU 인스턴스를 선택한 후 Deploy를 클릭합니다. ArtSmoker가 추론 핸들러 패키징, 양자화 구성, 올바른 CUDA 툴킷 선택, 오토 스케일링 설정, CloudWatch 알람 등록, 비동기 작업 추적 연결까지 모든 것을 처리합니다. 카탈로그의 모든 모델은 콜드 스타트부터 생성, 갤러리 전달까지 엔드투엔드로 검증되었으므로 — GPU 드라이버, 메모리 오버플로, 컨테이너 호환성을 디버깅할 필요가 없습니다. 최고 품질을 위한 BF16 + FlashInfer, 비용 효율을 위한 NF4, 멀티 GPU 자동 감지를 지원하고, 유휴 시 제로로 오토 스케일링($0 유휴 비용)되며, 동일 모델이 재구성 없이 다른 인스턴스 유형에서 실행됩니다
 - 🧊 **이미지-투-3D 생성** — 모든 Game Asset 또는 Character 이미지를 원클릭으로 텍스처링된 3D 메시(GLB)로 변환합니다. 멀티뷰 합성 + 텍스처 베이킹으로 게임 엔진에 바로 사용할 수 있는 에셋을 생성합니다. 오빗/줌/팬이 가능한 인터랙티브 3D 뷰어
 - 🩹 **3D용 스마트 소스 완성** — 이미지-투-3D는 보이는 부분만 생성할 수 있어, 잘린 캐릭터(다리가 잘림)는 다리 없는 메시가 됩니다. 생성 전에 ArtSmoker가 소스를 비전으로 확인하고, 잘려 있으면 아웃페인팅으로 **완성할 것을 제안**합니다(AI가 제안하고 완전히 편집 가능한 프롬프트) — 전/후를 미리 보고, 결과를 재검토하며, 다시 확장하거나 버릴 수 있고, 새 이미지 버전으로 저장됩니다. 옵트인이며 비차단형이고, 잘 구성된 이미지는 그대로 생성됩니다
-- 🔄 **Auto-Update** — 시작 시 버전 게이트 git pull, 업데이트 시 자동 재시작, 24시간 주기 확인(`ARTSMOKER_AUTO_UPDATE=false`로 비활성화)
+- 🔄 **Auto-Update** — 시작 시 버전 게이트 확인 + 24시간 주기 확인, `git`(checkout)로 업데이트하거나 git이 없는 설치 환경에서는 **tarball 다운로드 후 교체** 방식으로 업데이트한 뒤, 그 자리에서 재시작(감독 프로세스 재기동 / gunicorn reload)하거나 원클릭 **Restart**를 제공합니다 — `data/`나 `.env`는 절대 덮어쓰지 않습니다(`ARTSMOKER_AUTO_UPDATE=false`로 비활성화)
 
 ### 📝 1.2 스크린샷
 
@@ -793,6 +793,14 @@ ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # disa
 ```
 
 (또는 로컬 `.env`에 `log_to_file` / `log_file`을 설정하세요. 여러 워커가 있는 경우, 모든 워커가 동일한 파일에 추가합니다.)
+
+**자동 재시작(선택 사항, 모든 플랫폼).** 위 명령들은 모두 그대로 작동합니다. ArtSmoker가 **그 자리에서 스스로 재시작**하도록 — 자동 업데이트나 앱 내 **Restart** 버튼이 다시 실행하지 않아도 새 코드를 로드하도록 — 하려면, 대신 내장된 크로스 플랫폼 감독 프로세스로 실행하세요:
+
+```bash
+python -m backend.main            # 필요하면 --host / --port 추가; Ctrl-C로 깔끔하게 중지
+```
+
+이 방식은 **Windows를 포함한 모든 OS**에서 작동합니다. 감독 프로세스는 앱을 자식 프로세스로 실행하고, 재시작 요청이 있으면 다시 기동합니다. (gunicorn이나 systemd 같은 서비스 매니저로 실행해도 동일한 그 자리 재시작이 가능합니다 — §4.2 및 §6 참조.)
 
 ### 📝 4.2 멀티 유저 / 공유 테스트 박스 / 프로덕션(macOS / Linux)
 
@@ -1567,7 +1575,7 @@ ArtSmoker/
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Claude + Stability AI 모델용 리전 |
 | `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Amazon용 리전(Nova Sonic 음성, Nova Reel 동영상) |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWS 프로필 이름(미설정 시 기본 체인 사용) |
-| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | 시작 시 + 24시간 주기 git pull, 업데이트 시 자동 재시작 |
+| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | 시작 시 버전 게이트 업데이트 + 24시간 주기 확인(git 또는 tarball), 이후 그 자리에서 재시작 |
 
 `max_analysis_images`를 줄이면 분석당 AI 비전 비용이 줄어듭니다. `max_reference_images`를 줄이면 스토리지가 제한됩니다. 둘 다 예산에 따라 조정할 수 있습니다.
 

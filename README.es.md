@@ -110,7 +110,7 @@ Para equipos que desean que cada recurso generado coincida con un estilo artíst
 - 🔧 **Modelos autoalojados — Despliegue en 1 clic** — Explore un catálogo curado de modelos de código abierto preprobados (Qwen-Image, Qwen-Image-Edit, HunyuanImage 3.0, FLUX.2, FLUX.1, TripoSG, TRELLIS.2 y más), elija una instancia de GPU y haga clic en Deploy. ArtSmoker gestiona todo: el empaquetado del manejador de inferencia, la configuración de la cuantización, la selección del toolkit de CUDA correcto, la configuración del escalado automático, el registro de alarmas de CloudWatch y la conexión del seguimiento asíncrono de trabajos. Cada modelo del catálogo se ha validado de extremo a extremo — desde el arranque en frío pasando por la generación hasta la entrega a la galería — para que no tenga que depurar controladores de GPU, desbordamientos de memoria ni compatibilidad de contenedores. Soporta BF16 + FlashInfer para la mejor calidad, NF4 para eficiencia de costos, detección automática multi-GPU, escala a cero automáticamente ($0 en reposo) y el mismo modelo funciona en distintos tipos de instancia sin reconfiguración
 - 🧊 **Generación de imagen a 3D** — Convierta cualquier imagen de Game Asset o Character en una malla 3D texturizada (GLB) con un clic. La síntesis multivista + el baking de texturas producen recursos listos para el motor de juego. Visor 3D interactivo con órbita/zoom/panorámica
 - 🩹 **Completado inteligente del origen para 3D** — la conversión a 3D solo puede construir lo que es visible, así que un personaje recortado (piernas cortadas) se convierte en una malla sin piernas. Antes de generar, ArtSmoker revisa con visión la imagen de origen y, si está recortada, **ofrece** completarla mediante outpainting (un prompt sugerido por IA, totalmente editable) — muestra una vista previa del antes/después, vuelve a revisar el resultado, permite extender de nuevo o descartar, y lo guarda como una nueva versión de imagen. Opcional y no bloqueante; las imágenes bien encuadradas se generan directamente
-- 🔄 **Auto-Update** — Git pull con control de versión al inicio, auto-reinicio tras la actualización, verificación periódica cada 24h (`ARTSMOKER_AUTO_UPDATE=false` para desactivar)
+- 🔄 **Auto-Update** — Controlado por versión al inicio + una verificación periódica cada 24h; se actualiza mediante `git` (checkout) o una **descarga y reemplazo de tarball** para instalaciones sin git, y luego se reinicia en el mismo lugar (respawn supervisado / recarga de gunicorn) u ofrece un botón de **Reiniciar** con un solo clic — nunca sobrescribe tu `data/` ni tu `.env` (`ARTSMOKER_AUTO_UPDATE=false` para desactivar)
 
 ### 📝 1.2 Capturas de pantalla
 
@@ -793,6 +793,14 @@ ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # disa
 ```
 
 (O establezca `log_to_file` / `log_file` en un `.env` local. Con varios workers, cada worker anexa al mismo archivo.)
+
+**Auto-reinicio (opcional, todas las plataformas).** Todos los comandos anteriores funcionan tal cual. Para permitir además que ArtSmoker **se reinicie a sí mismo en el mismo lugar** — de modo que una auto-actualización, o el botón **Reiniciar** dentro de la app, recargue el código nuevo sin que tengas que relanzarlo — inícialo bajo el supervisor multiplataforma integrado:
+
+```bash
+python -m backend.main            # añade --host / --port según sea necesario; Ctrl-C lo detiene limpiamente
+```
+
+Esto funciona en **cualquier sistema operativo, incluido Windows**. El supervisor ejecuta la app en un proceso hijo y lo vuelve a lanzar ante una solicitud de reinicio. (Ejecutarlo bajo gunicorn o un gestor de servicios como systemd ofrece el mismo reinicio en el mismo lugar — consulta §4.2 y §6.)
 
 ### 📝 4.2 Multiusuario / máquina de pruebas compartida / producción (macOS / Linux)
 
@@ -1567,7 +1575,7 @@ Los ajustes en `backend/config.py` se pueden anular mediante variables de entorn
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Región para los modelos Claude + Stability AI |
 | `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Región para Amazon (voz Nova Sonic, video Nova Reel) |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | Nombre del perfil de AWS (usa la cadena predeterminada si no se establece) |
-| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Git pull al inicio + verificación periódica cada 24h, auto-reinicio tras la actualización |
+| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | Actualización controlada por versión al inicio + verificación periódica cada 24h (git o tarball), luego reinicio en el mismo lugar |
 
 Reducir `max_analysis_images` reduce los costos de visión de IA por análisis. Reducir `max_reference_images` limita el almacenamiento. Ambos se pueden ajustar según el presupuesto.
 

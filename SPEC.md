@@ -950,7 +950,7 @@ prompt_templates.user.json   (gitignored, user edits only)
 
 **Sync from AWS**: Writes discovered models, pricing, and regions to `model_registry.json`. Sync data (discovered models, pricing, regions) goes to the main file. User preferences in `.user.json` are preserved — a user who disabled a model keeps it disabled even after Sync re-discovers it.
 
-**Git pull / auto-update**: Version-gated — only pulls when remote `APP_VERSION` > local. Compares semantic versions from `config.py`. Dev mode (`ARTSMOKER_DEV_MODE=true`) disables all auto-updates. On successful pull, triggers self-restart via `os.execv` to reload updated code. An `atexit` handler provides runtime restart capability (e.g., after admin-triggered update). Frontend monitor checks `/api/update-status` once on page load and every 24 hours — shows a restart banner when an update is available. Updates `model_registry.json` (format families, code defaults) and `prompt_templates.json` (the git-tracked template file; code `_DEFAULTS` only backfills templates missing from it). User `.user.json` files are gitignored and untouched.
+**Auto-update**: Version-gated — only applies when remote `APP_VERSION` > local (semantic compare from `config.py`), so incomplete/untested commits never trigger an update. Disable entirely with `ARTSMOKER_AUTO_UPDATE=false`. Two update methods are auto-detected: a **git** checkout uses `git fetch` + `git reset --hard origin/main`; an install **without** a `.git` dir (unpacked release / "Download ZIP") uses the **zip** method — download the main-branch tarball from GitHub and replace tracked files in place (atomic per-file writes; a `.update_manifest` tracks installed files so ones dropped upstream get deleted; changed dependencies are `pip install`ed *before* any code is written, so a dependency failure aborts with the tree untouched; `data/`, `.env`, `.venv`, `logs/`, `tools/` are never written or deleted, so user content is never lost). Restart to activate the new code is **topology-aware** (see §17.x / restart control): a supervised child (`python -m backend.main`) respawns in place, a gunicorn worker reloads via `SIGHUP` to the master, and an unmanaged process either self-stops on an explicit request or *holds* on the old code and advertises `restart_pending` via `/api/update-status` (the remotely-reachable channel headless boxes rely on) — it is never silently killed. Frontend monitor polls `/api/update-status` (page load + every 24h): reloads on a version change, shows a restart banner while a restart is in flight, and offers a one-click restart (POST `/api/restart-server`) when an update is staged. Updates `model_registry.json` (format families, code defaults) and `prompt_templates.json`; user `.user.json` files are gitignored and untouched.
 
 **Deleting `.user.json`**: Restores all settings to defaults. No user preferences leak into the main files.
 
@@ -961,7 +961,7 @@ prompt_templates.user.json   (gitignored, user edits only)
 **Prompt templates**: `prompt_templates.json` (git-tracked) is the runtime source of truth. `_load()` reads it first; the code `_DEFAULTS` dict is a backfill/regeneration seed that only fills in templates **missing** from the JSON (never overwrites existing entries), so a fresh clone or a newly added template self-heals. User edits are stored in `prompt_templates.user.json` (gitignored) with only the changed `text` and/or `system_prompt` fields and are overlaid on top; reset restores the JSON default.
 
 **Startup sequence**:
-1. Auto-update: compare local `APP_VERSION` against remote, pull if remote is newer (skipped if `ARTSMOKER_DEV_MODE=true`), self-restart via `os.execv` if code changed
+1. Auto-update: compare local `APP_VERSION` against remote, apply if remote is newer (git or zip method; disabled by `ARTSMOKER_AUTO_UPDATE=false`), then restart via the topology-aware path (supervised respawn / gunicorn reload / unmanaged self-stop) to load the new code
 2. Check config freshness: prompt templates loaded from `prompt_templates.json` (code seed backfills any missing), registry checked for `aws_account_discovered` field
 3. Ensure data directories
 4. Validate AWS credentials + Bedrock access
@@ -1632,7 +1632,8 @@ Non-blocking generation for self-hosted models on Amazon SageMaker async endpoin
 |--------|----------|-------------|
 | GET | `/api/health` | Health check — returns `{status, version, aws: {credentials, identity, bedrock_models, bedrock_images, errors}}`. |
 | GET | `/api/sync-progress` | SSE stream of live AWS-Sync progress (per-region log lines + running model counts, final `done` event). Powers the first-run "Setting Up" modal and the Custom Models "Sync with AWS" overlay. |
-| GET | `/api/update-status` | Check for available updates. Returns `{update_available, local_version, remote_version, dev_mode}`. Used by frontend monitor. |
+| GET | `/api/update-status` | Auto-update / restart state for the frontend monitor and headless operators. Returns `{checking, restarting, restart_pending, staged_version, current_version, update_method ("git"\|"zip"), supervised, gunicorn_managed, restart_capable, disabled, message}`. |
+| POST | `/api/restart-server` | Single mode-aware restart control (operator button **and** the path auto-update converges on). Works across supervised / gunicorn / unmanaged topologies. Idempotent while a restart is in flight; returns 409 with `busy` reasons if the server is busy (a Sync or in-progress jobs) unless `{"force": true}`. Async jobs are advisory (they resume after restart). |
 | POST | `/api/ping` | Fire-and-forget ping on frontend page load; accepts optional client info (OS, browser, screen). |
 | POST | `/api/log` | Receive client-side log entries. Body: `{ "level": "error", "message": "...", "context": {} }`. Logged server-side with `[CLIENT]` prefix. |
 | GET | `/docs` | Swagger UI (auto-generated by FastAPI). |
@@ -2165,6 +2166,11 @@ Infrastructure settings live in `backend/config.py` with sensible defaults that 
    # Windows (without venv)
    cd ArtSmoker && python -m uvicorn backend.main:app --reload
    ```
+   All the commands above still work verbatim. To also get **in-place auto-restart** (so an auto-update — or the operator's Restart button — reloads the code without you re-launching), start it under the built-in cross-platform supervisor instead (works on every OS, including Windows):
+   ```bash
+   cd ArtSmoker && python -m backend.main            # add --host / --port as needed
+   ```
+   The supervisor runs the app (`backend.app:app`) in a child process and respawns it in place on a restart request; `Ctrl-C` / `SIGTERM` stops the whole thing cleanly. (`backend.main` still exports `app`, so the `uvicorn`/`gunicorn` commands are unchanged.)
 2. **Check startup output**: The console should show "All AWS checks passed" or a warning about specific Bedrock regions. If credentials are missing, a prominent error box explains what to configure.
 3. **Open frontend**: Navigate to `http://localhost:8000` — the frontend is served as static files by FastAPI. No separate web server needed.
 3. **Create a style profile**: Use the Style Library view to create a profile and upload reference images (or use directory import).
@@ -2716,11 +2722,11 @@ ArtSmoker is designed to run **multi-worker** in production (`gunicorn -w 2 …`
 
 ### 17.2 Cross-process locking (`_WriteLock`)
 
-`_WriteLock` combines a **reentrant** in-process `threading.RLock` (per key) with a cross-process `fcntl.flock(LOCK_EX)` on a lock file under `data/.locks/` (gitignored). It serializes a read-modify-write across BOTH threads in one worker AND separate worker processes on the same host.
+`_WriteLock` combines a **reentrant** in-process `threading.RLock` (per key) with a cross-process OS file lock on a lock file under `data/.locks/` (gitignored) — `fcntl.flock(LOCK_EX)` on POSIX, `msvcrt.locking` on Windows, chosen once at import behind one `_os_lock`/`_os_unlock` pair. It serializes a read-modify-write across BOTH threads in one worker AND separate worker processes on the same host, on every OS.
 
 - **Reentrant**: the flock is opened once and reference-counted by depth (`_flock_state`), so a thread that already holds a key can re-acquire it (e.g. a transaction body calling a leaf writer that shares the same lock) without self-deadlocking. Distinct threads/processes still block each other — full mutual exclusion.
 - Supports both `with lock:` and explicit `acquire()` / `release()`.
-- **Graceful degradation**: if `flock` is unavailable (non-POSIX / odd filesystem) it degrades to in-process-only locking and logs a **one-time WARNING**, so a lost-update on a shared host is diagnosable. Atomic writes still apply regardless.
+- **Graceful degradation**: if no OS file lock is available (an exotic platform with neither `fcntl` nor `msvcrt`, or an odd filesystem) it degrades to in-process-only locking and logs a **one-time WARNING**, so a lost-update on a shared host is diagnosable. Atomic writes still apply regardless.
 - Factories: `named_write_lock(name)` (registries) and `asset_write_lock(asset_id)` (`backend/services/asset_locks.py`).
 
 ### 17.3 Per-asset metadata writes
@@ -2750,14 +2756,14 @@ The AWS Sync (`admin.py` `_run_refresh_all_regions`) and the startup auto-Sync (
 
 ### 17.6 File logging
 
-Configured in `backend/config.py`: `log_to_file` (default **True**) and `log_file` (default `logs/artsmoker.log`), both overridable via `ARTSMOKER_LOG_TO_FILE` / `ARTSMOKER_LOG_FILE` (or `.env`). `_setup_file_logging()` in `main.py` attaches an **append-only** `FileHandler` (plain `_PlainFormatter`, no ANSI) to the root logger AND the uvicorn loggers (`uvicorn`, `uvicorn.error`, `uvicorn.access` — which have `propagate=False`, so a root-only handler would miss them). Every worker process appends to the same file; log records are single writes under `O_APPEND`, so lines from concurrent workers interleave line-safely, and `StreamHandler.emit` flushes after every record (nothing buffered at risk, even on a hard kill).
+Configured in `backend/config.py`: `log_to_file` (default **True**) and `log_file` (default `logs/artsmoker.log`), both overridable via `ARTSMOKER_LOG_TO_FILE` / `ARTSMOKER_LOG_FILE` (or `.env`). `_setup_file_logging()` in `backend/app.py` (the app process; the `backend.main` supervisor mirrors a minimal copy for its own restart/rollback lines) attaches an **append-only** `FileHandler` (plain `_PlainFormatter`, no ANSI) to the root logger AND the uvicorn loggers (`uvicorn`, `uvicorn.error`, `uvicorn.access` — which have `propagate=False`, so a root-only handler would miss them). Every worker process appends to the same file; log records are single writes under `O_APPEND`, so lines from concurrent workers interleave line-safely, and `StreamHandler.emit` flushes after every record (nothing buffered at risk, even on a hard kill).
 
 Session framing (written straight to the file, so the banners stay file-only and clean):
 
 - **SESSION START** on attach: launched (UTC), version, pid, host, python, cwd, logfile.
 - **SESSION SHUTDOWN**: stop time, version, pid, duration — written from the FastAPI **lifespan shutdown** (reliable under uvicorn's signal handling), with an `atexit` fallback and an idempotency guard so it's written exactly once.
 
-The active log path is echoed in the startup messages. No external launcher is needed — the app writes the file itself regardless of how it is started (`uvicorn`, `gunicorn`, tests).
+The active log path is echoed in the startup messages. No external launcher is needed — the app writes the file itself regardless of how it is started (`uvicorn`, `gunicorn`, `python -m backend.main`, tests).
 
 ## 18. Disclaimer
 

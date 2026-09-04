@@ -110,7 +110,7 @@ ArtSmoker 以两种模式运行 —— **独立模式**（无需设置艺术风�
 - 🔧 **自托管模型 —— 一键部署** —— 浏览精选的预测试开源模型目录（Qwen-Image、Qwen-Image-Edit、HunyuanImage 3.0、FLUX.2、FLUX.1、TripoSG、TRELLIS.2 等），选择 GPU 实例，点击 Deploy。ArtSmoker 处理一切：打包推理处理器、配置量化、选择正确的 CUDA 工具包、设置自动缩放、注册 CloudWatch 告警，以及连接异步任务跟踪。目录中每个模型从冷启动到生成再到画廊交付都经过端到端验证 —— 因此您无需调试 GPU 驱动、内存溢出或容器兼容性问题。支持 BF16 + FlashInfer 获得最佳质量，NF4 实现成本效率，多 GPU 自动检测，空闲时自动缩容至零（$0），同一模型无需重新配置即可在不同实例类型上运行
 - 🧊 **图像到 3D 生成** —— 将任何 Game Asset 或 Character 图像一键转换为带纹理的 3D 网格（GLB）。多视图合成 + 纹理烘焙生成游戏引擎可用的资产。交互式 3D 查看器支持轨道旋转/缩放/平移
 - 🩹 **面向 3D 的智能源图补全** —— 图像转 3D 只能构建可见部分，因此被裁剪的角色（腿被截断）会生成没有腿的网格。生成前，ArtSmoker 会用视觉模型检查源图，若被裁剪则**提供**通过外绘补全（AI 建议且可完全编辑的提示词）—— 预览补全前后、重新审查结果、可再次扩展或放弃，并另存为新的图像版本。选择性启用且非阻塞；构图完整的图像直接生成
-- 🔄 **Auto-Update** —— 启动时版本门控 git pull、更新后自动重启、24 小时定期检查（`ARTSMOKER_AUTO_UPDATE=false` 可禁用）
+- 🔄 **Auto-Update** —— 启动时进行版本门控更新 + 每 24 小时定期检查；通过 `git`（checkout）更新，或对没有 git 的安装采用**下载 tarball 并替换**的方式，然后原地重启（受监督的子进程重生 / gunicorn 重载），或提供一键**重启**（Restart）—— 绝不会覆盖您的 `data/` 或 `.env`（`ARTSMOKER_AUTO_UPDATE=false` 可禁用）
 
 ### 📝 1.2 屏幕截图
 
@@ -795,6 +795,14 @@ ARTSMOKER_LOG_TO_FILE=false uvicorn backend.main:app                      # 禁�
 ```
 
 （或在本地 `.env` 中设置 `log_to_file` / `log_file`。使用多个 worker 时，每个 worker 都追加到同一个文件。）
+
+**自动重启（可选，适用于所有平台）。** 上述命令均可直接使用。若还想让 ArtSmoker **原地重启自身** —— 使自动更新或应用内的**重启**（Restart）按钮无需您重新启动即可加载新代码 —— 请改用内置的跨平台监督器来启动它：
+
+```bash
+python -m backend.main            # 按需添加 --host / --port；Ctrl-C 可干净地停止它
+```
+
+这在**每一种操作系统上都有效，包括 Windows**。监督器会在子进程中运行应用，并在收到重启请求时将其重生。（在 gunicorn 或 systemd 等服务管理器下运行也能获得同样的原地重启 —— 见 §4.2 与 §6。）
 
 ### 📝 4.2 多用户 / 共享测试机 / 生产环境（macOS / Linux）
 
@@ -1569,7 +1577,7 @@ ArtSmoker/
 | `aws_region_models` | `ARTSMOKER_AWS_REGION_MODELS` | us-west-2 | Claude + Stability AI 模型的区域 |
 | `aws_region_images` | `ARTSMOKER_AWS_REGION_IMAGES` | us-east-1 | Amazon 服务的区域（Nova Sonic 语音、Nova Reel 视频） |
 | `aws_profile` | `ARTSMOKER_AWS_PROFILE` | None | AWS 配置文件名称（未设置时使用默认链） |
-| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | 启动时 git pull + 24 小时定期检查，更新时自动重启 |
+| `auto_update` | `ARTSMOKER_AUTO_UPDATE` | true | 启动时进行版本门控更新 + 每 24 小时定期检查（git 或 tarball），然后原地重启 |
 
 减少 `max_analysis_images` 可降低每次分析的 AI 视觉成本。减少 `max_reference_images` 可限制存储。两者都可以根据预算调整。
 
