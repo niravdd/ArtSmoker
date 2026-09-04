@@ -243,16 +243,19 @@ async def lifespan(app: FastAPI):
     except Exception as exc:  # observation-only — never block startup
         logger.warning("AWS permission monitor not installed: %s", exc)
 
-    # Auto-update: check GitHub for new version and pull if available.
-    # If code was updated, the process restarts here (os.execv) and this
-    # function runs again with the new code — the second pass finds
-    # "Already up to date" and continues normally.
+    # Auto-update: check GitHub for a new version and apply it if available.
+    # If it updated, the process usually restarts INSIDE check_and_update
+    # (supervised → os._exit(42); bare uvicorn → os.execv) and this function runs
+    # again on the new code, finding "Already up to date". The one case that
+    # RETURNS after updating is a gunicorn worker — it SIGHUPs the master and keeps
+    # serving until recycled — so everything below must stay safe to run
+    # post-update (it is: it just finishes normal startup).
     update_result = {}
     try:
         from backend.services.auto_update import check_and_update
         update_result = check_and_update()
-        # If updated, check_and_update() calls os.execv — we never reach here.
-        # If we're here, either no update or update was skipped.
+        # Reached when: no update, update skipped, or a gunicorn worker applied one
+        # and is awaiting the master's reload. All are safe to continue from.
         if update_result.get("skipped_reason"):
             logger.info("Auto-update: %s", update_result["skipped_reason"])
         elif update_result.get("error"):
@@ -498,10 +501,10 @@ async def lifespan(app: FastAPI):
     from backend.services.telemetry import init as telemetry_init, track_server_start, track_server_stop
     telemetry_init()
 
-    # Track the startup version CHECK (happened before server_start). Note: an
-    # APPLIED update never reaches this line (check_and_update fires
-    # system.auto_update itself, then os.execv restarts) — so this event is the
-    # "checked, not updated" heartbeat, distinct by NAME for the dashboard.
+    # Track the startup version CHECK (happened before server_start) — the
+    # "checked" heartbeat, distinct by NAME from system.auto_update for the
+    # dashboard. Supervised/bare-uvicorn restarts don't reach here after applying
+    # an update; a gunicorn worker does (updated=True), which is fine to record.
     if update_result.get("checked"):
         from backend.services.telemetry import track_version_check
         track_version_check(
