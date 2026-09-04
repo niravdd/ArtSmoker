@@ -7,11 +7,11 @@ set-default / source-review writers, and version delete / commit-source) holds
 writers can compute the same next_version and clobber each other's records.
 
 Cross-process: the app runs multi-worker in production (gunicorn — see README),
-so the lock combines an in-process threading.Lock with a POSIX fcntl.flock on a
-per-asset lock file (data/.locks/asset_<id>.lock). That serializes both threads
-in one worker AND separate worker processes on the same host. See
-services/safe_write._WriteLock. Paired with atomic_write_text in the store, a
-concurrent read never sees a partial file and no write is lost.
+so the lock combines an in-process threading.Lock with an OS file lock (fcntl on
+POSIX, msvcrt on Windows) on a per-asset lock file (data/.locks/asset_<id>.lock).
+That serializes both threads in one worker AND separate worker processes on the
+same host. See services/safe_write._WriteLock. Paired with atomic_write_text in
+the store, a concurrent read never sees a partial file and no write is lost.
 """
 
 from backend.services.safe_write import _WriteLock, _LOCK_DIR

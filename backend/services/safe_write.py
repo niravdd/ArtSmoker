@@ -11,13 +11,14 @@ model/prompt registries:
 
 2. write_lock() / asset_write_lock() / named_write_lock() — a lock that serializes
    a read-modify-write across BOTH threads in one worker (threading.Lock) AND
-   processes on the same host (fcntl.flock on a lock file). So concurrent
+   processes on the same host (an OS file lock on a lock file). So concurrent
    collaborators — whether served by one multi-threaded uvicorn worker or several
    worker processes on a shared EC2 box — can't lost-update the same file.
 
-flock is POSIX (Linux/macOS — our dev + EC2 targets). On a platform without it,
-the lock degrades to in-process only (still correct for single-worker) and writes
-stay atomic regardless.
+The cross-process file lock uses fcntl.flock on POSIX (Linux/macOS — our dev + EC2
+targets) and msvcrt.locking on Windows, chosen once at import. On an exotic
+platform with neither, the lock degrades to in-process only (still correct for
+single-worker) and writes stay atomic regardless.
 """
 
 import json
@@ -25,15 +26,50 @@ import logging
 import os
 import tempfile
 import threading
+import time
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
+# Cross-process advisory lock backend, chosen once at import: fcntl on POSIX,
+# msvcrt on Windows. Both expose the same _os_lock/_os_unlock — a blocking
+# exclusive lock, and its release, over one byte of the lock file. _HAS_OSLOCK is
+# False only on a platform with neither backend → the lock degrades to in-process
+# only (see _WriteLock.acquire).
 try:
-    import fcntl  # POSIX advisory file locks
-    _HAS_FLOCK = True
-except ImportError:  # pragma: no cover - non-POSIX
-    _HAS_FLOCK = False
+    import fcntl  # POSIX advisory file locks (Linux/macOS)
+
+    def _os_lock(fh):
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+
+    def _os_unlock(fh):
+        fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+
+    _HAS_OSLOCK = True
+except ImportError:  # pragma: no cover - non-POSIX (Windows)
+    try:
+        import msvcrt  # Windows mandatory byte-range locks
+
+        def _os_lock(fh):
+            # msvcrt locks a byte range at the current file position; we always
+            # use one byte at offset 0. LK_LOCK retries internally for ~10s then
+            # raises — loop so we block indefinitely, matching flock's LOCK_EX.
+            fh.seek(0)
+            while True:
+                try:
+                    msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)
+                    return
+                except OSError:
+                    time.sleep(0.2)
+
+        def _os_unlock(fh):
+            # Must release the exact range that was locked (offset 0, one byte).
+            fh.seek(0)
+            msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+
+        _HAS_OSLOCK = True
+    except ImportError:  # pragma: no cover - neither backend available
+        _HAS_OSLOCK = False
 
 # Warn ONCE per process if cross-process locking degrades — a persistent
 # environmental condition, so repeating it on every acquire would just spam.
@@ -90,7 +126,7 @@ def _tlock_for(key: str) -> "threading.RLock":
 
 
 class _WriteLock:
-    """Combined in-process (RLock) + cross-process (fcntl.flock) lock.
+    """Combined in-process (RLock) + cross-process (OS file lock) lock.
 
     Held around a read-modify-write so neither a sibling thread nor another
     worker process can interleave. Supports both `with lock:` and the explicit
@@ -113,7 +149,7 @@ class _WriteLock:
         # RLock first: for a re-entrant acquire this returns immediately and
         # guarantees the flock state below is only ever touched by its owner.
         self._tlock.acquire()
-        if _HAS_FLOCK:
+        if _HAS_OSLOCK:
             with _flock_guard:
                 st = _flock_state.get(self._key)
                 if st is not None:
@@ -123,10 +159,10 @@ class _WriteLock:
                 try:
                     self._lock_path.parent.mkdir(parents=True, exist_ok=True)
                     # Deliberately long-lived: the handle must stay open while the
-                    # flock is held; it's closed in release() and on the failure
+                    # OS lock is held; it's closed in release() and on the failure
                     # path below — not a leak.
                     fh = open(self._lock_path, "a+")  # nosemgrep
-                    fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+                    _os_lock(fh)
                     _flock_state[self._key] = {"depth": 1, "fh": fh}
                 except Exception as exc:
                     # flock unavailable/failed → degrade to in-process lock only.
@@ -149,14 +185,14 @@ class _WriteLock:
         return self
 
     def release(self):
-        if _HAS_FLOCK:
+        if _HAS_OSLOCK:
             with _flock_guard:
                 st = _flock_state.get(self._key)
                 if st is not None:
                     st["depth"] -= 1
                     if st["depth"] <= 0:
                         try:
-                            fcntl.flock(st["fh"].fileno(), fcntl.LOCK_UN)
+                            _os_unlock(st["fh"])
                         except Exception:
                             pass
                         try:

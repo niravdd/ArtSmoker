@@ -58,10 +58,11 @@ class Settings(BaseSettings):
     deploy_scale_in_grace_minutes: int = 20
 
     # ── Logging ────────────────────────────────────────────────────────────
-    # File logging is applied by the run.py launcher (the canonical entry point).
-    # It writes to a file when EITHER gate is on: this config flag (default TRUE)
-    # OR a --log-file given on the command line. When on, run.py mirrors the
-    # server's full console output to the file (append-only, session-framed).
+    # File logging is configured in backend.app at startup (and mirrored by the
+    # supervisor process in backend.main for headless boxes). When this flag is
+    # on (default TRUE) the server's full console output is also appended to
+    # log_file (append-only, session-framed) under any launch method
+    # (uvicorn/gunicorn/`python -m backend.main`).
     # Override via ARTSMOKER_LOG_TO_FILE / ARTSMOKER_LOG_FILE (or .env).
     log_to_file: bool = True
     log_file: Path = Path(__file__).resolve().parent.parent / "logs" / "artsmoker.log"
