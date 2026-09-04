@@ -1214,7 +1214,7 @@ async def keep_warm(model_key: str, hours: float = 8.0):
     if not is_dev_mode():
         raise HTTPException(
             status_code=403,
-            detail="Keep-warm is a dev-only feature (set ARTSMOKER_DEV_MODE).",
+            detail="Keep-warm is a maintainer-only feature.",
         )
     from backend.services.sagemaker_deployer import set_keep_warm
     try:
@@ -1236,7 +1236,7 @@ async def reset_warm(model_key: str, cooldown_seconds: int | None = None):
     if not is_dev_mode():
         raise HTTPException(
             status_code=403,
-            detail="Reset-warm is a dev-only feature (set ARTSMOKER_DEV_MODE).",
+            detail="Reset-warm is a maintainer-only feature.",
         )
     from backend.services.sagemaker_deployer import reset_warm_mode
     try:
@@ -1270,7 +1270,7 @@ async def push_overlay(model_key: str):
     if not is_dev_mode():
         raise HTTPException(
             status_code=403,
-            detail="Hot-reload overlay is a dev-only feature (set ARTSMOKER_DEV_MODE).",
+            detail="Hot-reload overlay is a maintainer-only feature.",
         )
     from backend.services.sagemaker_deployer import push_dev_overlay
     try:
@@ -1286,7 +1286,7 @@ async def remove_overlay(model_key: str):
     if not is_dev_mode():
         raise HTTPException(
             status_code=403,
-            detail="Hot-reload overlay is a dev-only feature (set ARTSMOKER_DEV_MODE).",
+            detail="Hot-reload overlay is a maintainer-only feature.",
         )
     from backend.services.sagemaker_deployer import clear_dev_overlay
     return clear_dev_overlay(model_key)

@@ -21,6 +21,8 @@ Safety:
 """
 
 import atexit
+import hashlib
+import hmac
 import logging
 import os
 import signal
@@ -71,20 +73,32 @@ def get_update_status() -> dict:
     return dict(_update_status)
 
 
-def is_dev_mode() -> bool:
-    """Whether this is a development box (enables hot-reload + keep-warm).
+# A single maintainer workstation must skip auto-update so that a
+# `git reset --hard` restart never discards in-flight uncommitted work (it also
+# enables hot-reload + keep-warm for dev iteration). That box carries an opaque
+# token in its gitignored .env; only the token's hash lives here, matched in
+# constant time. Every normal install lacks the token → is_dev_mode() is False
+# → auto-update runs. This digest is a one-way hash, not a secret.
+_MAINTAINER_INSTANCE_DIGEST = "3641fbb31385a4ccd86b731d1cd7a88d24dd60a1776519b0c92683871e73bf83"  # gitleaks:allow -- SHA-256 of a token; not reversible, safe to commit
 
-    Resolves from two sources, either of which enables it:
-      1. config Settings.dev_mode — loaded from the gitignored .env file
-         (ARTSMOKER_DEV_MODE), so it persists across server restarts.
-      2. The raw ARTSMOKER_DEV_MODE environment variable — an inline override
-         (e.g. `ARTSMOKER_DEV_MODE=true uvicorn ...`) for one-off sessions.
+
+def is_dev_mode() -> bool:
+    """Whether this is the maintainer workstation (hot-reload + keep-warm,
+    and auto-update is skipped here only).
+
+    The only signal is the opaque per-instance token in the gitignored .env
+    (config Settings.instance_key). We compare its hash against an embedded
+    digest — the token itself never appears in the source. Absent/mismatched
+    token → False, so all normal installs auto-update. Fail-safe: any error
+    resolves to False (auto-update proceeds).
     """
-    if os.environ.get("ARTSMOKER_DEV_MODE", "").lower() in ("true", "1", "yes"):
-        return True
     try:
         from backend.config import settings
-        return bool(getattr(settings, "dev_mode", False))
+        token = (getattr(settings, "instance_key", "") or "").strip()
+        if not token:
+            return False
+        digest = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        return hmac.compare_digest(digest, _MAINTAINER_INSTANCE_DIGEST)
     except Exception:
         return False
 

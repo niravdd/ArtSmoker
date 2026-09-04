@@ -3,7 +3,7 @@
 from pathlib import Path
 from pydantic_settings import BaseSettings
 
-APP_VERSION = "1.9-20260903_02"
+APP_VERSION = "1.9-20260904_01"
 
 class Settings(BaseSettings):
     # ── AWS ───────────────────────────────────────────────────────────────
@@ -32,12 +32,12 @@ class Settings(BaseSettings):
     # ── Telemetry ──────────────────────────────────────────────────────────
     telemetry_enabled: bool = True
 
-    # ── Dev box ────────────────────────────────────────────────────────────
-    # Marks this machine as a development box. When true, custom-model deploys
-    # auto-bake hot-reload + keep-warm into the SageMaker container so a
-    # hard-won instance survives dev iteration. Set via ARTSMOKER_DEV_MODE in
-    # .env (loaded below). is_dev_mode() reads this OR the raw env var.
-    dev_mode: bool = False
+    # ── Instance identity ──────────────────────────────────────────────────
+    # Opaque per-instance token, present ONLY in a maintainer workstation's
+    # gitignored .env (absent on every normal install). It is never compared in
+    # plain text: is_dev_mode() matches its hash against an embedded digest, so
+    # the source carries nothing copyable and normal boxes always auto-update.
+    instance_key: str = ""
 
     # Auto keep-warm: when true, submitting an inference job pins its endpoint
     # warm (MinCapacity=1) for DEFAULT_WARM_HOURS so dev iteration doesn't pay
@@ -87,8 +87,8 @@ class Settings(BaseSettings):
 
     model_config = {
         "env_prefix": "ARTSMOKER_",
-        # Load a local, gitignored .env so dev-box settings (e.g. dev_mode)
-        # persist across server restarts without an inline env var. Use an
+        # Load a local, gitignored .env so per-instance settings persist
+        # across server restarts without an inline env var. Use an
         # ABSOLUTE path (project root) so it loads regardless of the working
         # directory the server is launched from.
         "env_file": str(Path(__file__).resolve().parent.parent / ".env"),
