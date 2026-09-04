@@ -73,6 +73,56 @@ def get_update_status() -> dict:
     return dict(_update_status)
 
 
+# ── Restart control (supervisor-aware, cross-OS) ─────────────────────────
+# The supervisor (`python -m backend.main`) runs the app in a child process and
+# respawns it when the child exits with RESTART_EXIT_CODE. These primitives let
+# any code (auto-update, the /api/restart-server endpoint) ask the running
+# server to stop gracefully so it can be restarted with fresh code — WITHOUT
+# os.execv / os.kill, which are unreliable on Windows and under process managers.
+
+RESTART_EXIT_CODE = 42  # child exits with this to ask the supervisor to respawn
+
+_uvicorn_server = None            # set by the child runner when supervised
+_restart_requested = threading.Event()
+
+
+def is_supervised() -> bool:
+    """True when this process was launched by our supervisor (child role).
+
+    The supervisor sets ARTSMOKER_SUPERVISED in the child's environment; a bare
+    `uvicorn`/`gunicorn` launch never has it.
+    """
+    return bool(os.environ.get("ARTSMOKER_SUPERVISED"))
+
+
+def register_server(server) -> None:
+    """Child runner registers its live uvicorn Server so a restart can stop it."""
+    global _uvicorn_server
+    _uvicorn_server = server
+
+
+def request_restart() -> bool:
+    """Ask the running (supervised) server to stop for a fresh-code restart.
+
+    Sets the restart flag and trips uvicorn's graceful-shutdown switch. When the
+    child's server.run() returns, the child exits with RESTART_EXIT_CODE and the
+    supervisor respawns it. Returns True if an in-process supervised stop was
+    triggered; False when this process is not our supervised child (the caller
+    then falls back to gunicorn-reload / manager-exit / manual per topology).
+    """
+    _restart_requested.set()
+    srv = _uvicorn_server
+    if srv is not None:
+        srv.should_exit = True  # uvicorn graceful shutdown → server.run() returns
+        return True
+    return False
+
+
+def restart_requested() -> bool:
+    """Whether a restart was requested during this process's lifetime."""
+    return _restart_requested.is_set()
+
+
 # A single maintainer workstation must skip auto-update so that a
 # `git reset --hard` restart never discards in-flight uncommitted work (it also
 # enables hot-reload + keep-warm for dev iteration). That box carries an opaque
