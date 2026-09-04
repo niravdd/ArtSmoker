@@ -69,7 +69,7 @@
     "dismiss": "Schließen"
   },
   "image_studio": {
-    "title": "2D-Bild-Studio",
+    "title": "Bild-Studio",
     "subtitle": "Erstellen Sie KI-gestützte Kunst-Assets aus Text-Prompts",
     "model": "Bildmodell",
     "model_loading": "Modelle werden geladen...",

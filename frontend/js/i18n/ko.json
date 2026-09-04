@@ -761,7 +761,7 @@
     "switched_to": "Stable Diffusion 3.5 Large로 전환되었습니다",
     "testing_alternative": "대체 모델에서 프롬프트 테스트 중...",
     "testing_prompt": "프롬프트 테스트 중...",
-    "title": "2D 이미지 스튜디오",
+    "title": "이미지 스튜디오",
     "try_anyway": "그래도 {{model}} 시도",
     "upscale": "업스케일 (크리에이티브)",
     "use_rewrite_review": "이 재작성 사용 및 검토",

@@ -761,7 +761,7 @@
     "switched_to": "Basculé vers Stable Diffusion 3.5 Large",
     "testing_alternative": "Test de votre prompt sur des modèles alternatifs...",
     "testing_prompt": "Test du prompt...",
-    "title": "Studio Image 2D",
+    "title": "Studio Image",
     "try_anyway": "Essayer {{model}} quand même",
     "upscale": "Agrandir (créatif)",
     "use_rewrite_review": "Utiliser cette réécriture et vérifier",

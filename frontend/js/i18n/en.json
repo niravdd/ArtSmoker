@@ -69,7 +69,7 @@
     "dismiss": "Dismiss"
   },
   "image_studio": {
-    "title": "2D Image Studio",
+    "title": "Image Studio",
     "subtitle": "Generate AI-powered art assets from text prompts",
     "model": "Image Model",
     "model_loading": "Loading models...",

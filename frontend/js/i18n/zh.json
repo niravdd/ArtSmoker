@@ -761,7 +761,7 @@
     "switched_to": "已切换至 Stable Diffusion 3.5 Large",
     "testing_alternative": "正在备用模型上测试您的提示词...",
     "testing_prompt": "正在测试提示词...",
-    "title": "2D 图像工作室",
+    "title": "图像工作室",
     "try_anyway": "仍然尝试 {{model}}",
     "upscale": "放大（创意模式）",
     "use_rewrite_review": "使用此改写并审阅",

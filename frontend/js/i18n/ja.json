@@ -761,7 +761,7 @@
     "switched_to": "Stable Diffusion 3.5 Large に切り替えました",
     "testing_alternative": "代替モデルでプロンプトをテスト中...",
     "testing_prompt": "プロンプトをテスト中...",
-    "title": "2D画像スタジオ",
+    "title": "画像スタジオ",
     "try_anyway": "{{model}} で試す",
     "upscale": "アップスケール（クリエイティブ）",
     "use_rewrite_review": "このリライトを使用して確認",
