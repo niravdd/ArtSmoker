@@ -155,10 +155,19 @@ def _supervise(host, port, child_cmd=None):
     import signal
     import subprocess
     import sys
+    import time
 
     from backend.services.auto_update import RESTART_EXIT_CODE
 
     log = _setup_supervisor_logging()
+
+    # Crash-loop guard: a healthy restart is rare (an applied update, gated by a
+    # version bump). If the child keeps exiting RESTART_EXIT_CODE in a tight loop
+    # (a bug that re-triggers a restart every boot), stop respawning instead of
+    # busy-spinning. A normal crash exits non-42 and already stops the supervisor.
+    _RESTART_BURST_MAX = 5      # respawns...
+    _RESTART_BURST_WINDOW = 60  # ...allowed within this many seconds
+    _restart_times: list = []
 
     child_env = dict(os.environ)
     # Per-launch nonce: marks the child as supervised (auto_update.is_supervised()).
@@ -220,6 +229,14 @@ def _supervise(host, port, child_cmd=None):
             log.info("Supervisor stopping (child exit %s).", rc)
             return 0
         if rc == RESTART_EXIT_CODE:
+            now = time.monotonic()
+            _restart_times[:] = [t for t in _restart_times if now - t < _RESTART_BURST_WINDOW]
+            _restart_times.append(now)
+            if len(_restart_times) > _RESTART_BURST_MAX:
+                log.error("Child requested %d restarts within %ds — likely a restart loop. "
+                          "Supervisor giving up to avoid a busy-spin; fix the app and relaunch.",
+                          len(_restart_times), _RESTART_BURST_WINDOW)
+                return 1
             log.info("Child requested restart — respawning with current code.")
             continue
         log.info("Child exited (code %s) with no restart request — supervisor exiting.", rc)

@@ -256,8 +256,11 @@ def perform_restart(explicit: bool = False) -> dict:
         except Exception as exc:
             logger.warning("Auto-update: gunicorn reload signal failed (%s) — falling back.", exc)
 
-    # Unmanaged bare process (e.g. plain `uvicorn`, nohup).
-    if explicit and hasattr(signal, "SIGTERM"):
+    # Unmanaged bare process (e.g. plain `uvicorn`, nohup). POSIX-only: gate on
+    # os.fork, NOT signal.SIGTERM — Windows DEFINES signal.SIGTERM but os.kill
+    # there is an ungraceful TerminateProcess (no clean shutdown, no relaunch),
+    # so on Windows we fall through to the manual-restart HOLD instead.
+    if explicit and hasattr(os, "fork"):
         msg = ("Stopping to restart — a process manager will relaunch it; "
                "if there is none, start it again manually.")
         _mark_restarting("unmanaged-exit", msg)
@@ -373,56 +376,67 @@ def check_and_update() -> dict:
             return result
 
         result["checked"] = True
-        local_ver = _read_version()
-        result["from_version"] = local_ver
 
-        # Fetch remote and check version BEFORE pulling
-        _fetch_remote()
-        remote_ver = _read_remote_version()
-        # Always record what we saw — the startup version_check event reads these.
-        result["to_version"] = remote_ver if remote_ver and remote_ver != "unknown" else ""
+        # Single-flight across processes: under gunicorn -w N (and any multi-worker
+        # launch) EVERY worker runs this at startup. Serialize the whole
+        # fetch→pull→restart under the cross-process lock so workers don't race on
+        # git (`.git/index.lock`) or the shared zip scratch dir, and re-read the
+        # LOCAL version INSIDE the lock so a worker that acquires it after another
+        # already updated sees the new version and skips. The lock auto-releases on
+        # process exit (flock) for the supervised/exec paths.
+        from backend.services.safe_write import named_write_lock
+        with named_write_lock("auto_update"):
+            local_ver = _read_version()
+            result["from_version"] = local_ver
 
-        if not remote_ver or remote_ver == "unknown":
-            result["skipped_reason"] = "Could not read remote version"
-            return result
+            # Fetch remote and check version BEFORE pulling
+            _fetch_remote()
+            remote_ver = _read_remote_version()
+            # Always record what we saw — the startup version_check event reads these.
+            result["to_version"] = remote_ver if remote_ver and remote_ver != "unknown" else ""
 
-        if not _is_newer_version(remote_ver, local_ver):
-            result["skipped_reason"] = f"Already up to date (v{local_ver})"
-            return result
+            if not remote_ver or remote_ver == "unknown":
+                result["skipped_reason"] = "Could not read remote version"
+                return result
 
-        # Remote version is newer — pull the update
-        logger.info("Auto-update: newer version available: %s → %s", local_ver, remote_ver)
-        commits = _do_pull()
+            if not _is_newer_version(remote_ver, local_ver):
+                result["skipped_reason"] = f"Already up to date (v{local_ver})"
+                return result
 
-        if commits == 0:
-            result["skipped_reason"] = f"Already up to date (v{local_ver})"
-            return result
+            # Remote version is newer — pull the update
+            logger.info("Auto-update: newer version available: %s → %s", local_ver, remote_ver)
+            commits = _do_pull()
 
-        result["updated"] = True
-        result["from_version"] = local_ver
-        result["to_version"] = remote_ver
-        result["commits"] = commits
+            if commits == 0:
+                result["skipped_reason"] = f"Already up to date (v{local_ver})"
+                return result
 
-        logger.info(
-            "╔══════════════════════════════════════════════════════════════╗\n"
-            "║  AUTO-UPDATE COMPLETE — RESTARTING                         ║\n"
-            "║  %s → %s (%d commit(s))%s║\n"
-            "╚══════════════════════════════════════════════════════════════╝",
-            local_ver, remote_ver, commits,
-            " " * max(1, 39 - len(local_ver) - len(remote_ver) - len(str(commits))),
-        )
+            result["updated"] = True
+            result["from_version"] = local_ver
+            result["to_version"] = remote_ver
+            result["commits"] = commits
 
-        # Send telemetry before restart (won't have another chance)
-        try:
-            from backend.services.telemetry import init as _telemetry_init, track_auto_update
-            _telemetry_init()
-            track_auto_update(updated=True, from_version=local_ver, to_version=remote_ver, commits=commits)
-        except Exception:
-            pass
+            logger.info(
+                "╔══════════════════════════════════════════════════════════════╗\n"
+                "║  AUTO-UPDATE COMPLETE — RESTARTING                         ║\n"
+                "║  %s → %s (%d commit(s))%s║\n"
+                "╚══════════════════════════════════════════════════════════════╝",
+                local_ver, remote_ver, commits,
+                " " * max(1, 39 - len(local_ver) - len(remote_ver) - len(str(commits))),
+            )
 
-        # Restart — since we're pre-event-loop, os.execv is safe
-        _restart_process()
-        # _restart_process replaces the process, so this line is never reached
+            # Send telemetry before restart (won't have another chance)
+            try:
+                from backend.services.telemetry import init as _telemetry_init, track_auto_update
+                _telemetry_init()
+                track_auto_update(updated=True, from_version=local_ver, to_version=remote_ver, commits=commits)
+            except Exception:
+                pass
+
+            # Restart. Supervised → os._exit(42); bare uvicorn → os.execv (neither
+            # returns). Gunicorn → SIGHUP master + return True (worker keeps serving
+            # old code until the master recycles it onto the update).
+            _restart_process()
 
     except Exception as exc:
         result["error"] = str(exc)
@@ -475,8 +489,16 @@ def _periodic_check_loop():
         if _scheduler_stop.is_set():
             break
 
-        # Time to check — but only if conditions are met
-        if not _can_update():
+        # Time to check — but only if conditions are met. Guard the call: for a
+        # git checkout _can_update() shells out to git, which can raise on a
+        # transient error (index lock, FS hiccup); an unguarded raise here would
+        # kill this daemon thread and stop ALL future periodic checks until a
+        # manual restart.
+        try:
+            if not _can_update():
+                continue
+        except Exception as exc:
+            logger.warning("Auto-update: pre-check failed this cycle (%s) — retrying next interval.", exc)
             continue
 
         # Wait for idle (check every 30s, give up after 30 minutes)
@@ -497,53 +519,59 @@ def _periodic_check_loop():
             _update_status["checking"] = True
             _update_status["message"] = "Checking for updates..."
 
-            local_ver = _read_version()
-            _fetch_remote()
-            remote_ver = _read_remote_version()
+            # Single-flight across processes (same lock as the startup path): stops
+            # multiple workers racing on git / the shared zip scratch dir, and the
+            # local version is re-read inside so a worker that grabs the lock after
+            # another already updated sees the new version and skips.
+            from backend.services.safe_write import named_write_lock
+            with named_write_lock("auto_update"):
+                local_ver = _read_version()
+                _fetch_remote()
+                remote_ver = _read_remote_version()
 
-            # Every periodic check emits a version_check event (updated or not) —
-            # the daily heartbeat that a long-running server IS checking.
-            _newer = bool(remote_ver) and _is_newer_version(remote_ver, local_ver)
-            try:
-                from backend.services.telemetry import track_version_check
-                track_version_check(source="periodic", current=local_ver,
-                                    latest=remote_ver or "", update_available=_newer)
-            except Exception:
-                pass
+                # Every periodic check emits a version_check event (updated or not) —
+                # the daily heartbeat that a long-running server IS checking.
+                _newer = bool(remote_ver) and _is_newer_version(remote_ver, local_ver)
+                try:
+                    from backend.services.telemetry import track_version_check
+                    track_version_check(source="periodic", current=local_ver,
+                                        latest=remote_ver or "", update_available=_newer)
+                except Exception:
+                    pass
 
-            if not _newer:
-                _update_status["checking"] = False
-                _update_status["last_check"] = time.time()
-                _update_status["message"] = ""
-                logger.debug("Auto-update: no newer version (local=%s, remote=%s)", local_ver, remote_ver)
-                continue
+                if not _newer:
+                    _update_status["checking"] = False
+                    _update_status["last_check"] = time.time()
+                    _update_status["message"] = ""
+                    logger.debug("Auto-update: no newer version (local=%s, remote=%s)", local_ver, remote_ver)
+                    continue
 
-            logger.info("Auto-update: newer version %s → %s, updating...", local_ver, remote_ver)
-            commits = _do_pull()
+                logger.info("Auto-update: newer version %s → %s, updating...", local_ver, remote_ver)
+                commits = _do_pull()
 
-            _update_status["last_update"] = time.time()
-            _update_status["staged_version"] = remote_ver
-            _update_status["message"] = f"Updated {local_ver} → {remote_ver}. Restarting..."
-            _update_status["restart_pending"] = True
-            logger.info("Auto-update: %s → %s (%d commits). Restarting server...", local_ver, remote_ver, commits)
+                _update_status["last_update"] = time.time()
+                _update_status["staged_version"] = remote_ver
+                _update_status["message"] = f"Updated {local_ver} → {remote_ver}. Restarting..."
+                _update_status["restart_pending"] = True
+                logger.info("Auto-update: %s → %s (%d commits). Restarting server...", local_ver, remote_ver, commits)
 
-            # Track telemetry before restart
-            try:
-                from backend.services.telemetry import track_auto_update
-                track_auto_update(updated=True, from_version=local_ver, to_version=remote_ver, commits=commits)
-            except Exception:
-                pass
+                # Track telemetry before restart
+                try:
+                    from backend.services.telemetry import track_auto_update
+                    track_auto_update(updated=True, from_version=local_ver, to_version=remote_ver, commits=commits)
+                except Exception:
+                    pass
 
-            # Give frontend 2 seconds to see the "restarting" status
-            time.sleep(2)  # nosemgrep --deliberate pre-restart delay
+                # Give frontend 2 seconds to see the "restarting" status
+                time.sleep(2)  # nosemgrep --deliberate pre-restart delay
 
-            # Restart via the best mechanism for how this server was launched
-            # (supervised respawn / gunicorn reload / unmanaged HOLD). Background
-            # update ⇒ explicit=False, so an unmanaged process is never killed
-            # from under the operator — it holds and advertises restart_pending.
-            outcome = perform_restart(explicit=False)
-            logger.info("Auto-update: applied %s → %s; restart mode=%s (%s)",
-                        local_ver, remote_ver, outcome["mode"], outcome["message"])
+                # Restart via the best mechanism for how this server was launched
+                # (supervised respawn / gunicorn reload / unmanaged HOLD). Background
+                # update ⇒ explicit=False, so an unmanaged process is never killed
+                # from under the operator — it holds and advertises restart_pending.
+                outcome = perform_restart(explicit=False)
+                logger.info("Auto-update: applied %s → %s; restart mode=%s (%s)",
+                            local_ver, remote_ver, outcome["mode"], outcome["message"])
 
         except subprocess.CalledProcessError as e:
             _update_status["checking"] = False
@@ -675,15 +703,26 @@ def _restart_process():
 
       • Supervised child → exit with RESTART_EXIT_CODE; the supervisor respawns
         us on fresh code. Cross-OS clean (no os.execv).
-      • Otherwise → re-exec in place with os.execv (long-standing bare-launch
-        behavior). For a bare Windows launch, prefer `python -m backend.main`
-        (supervised) for reliable restarts.
+      • Gunicorn worker → SIGHUP the master for a graceful worker reload (os.execv
+        here would replace the worker with a rogue detached arbiter fighting for
+        the port). Returns True; the caller keeps serving until the master recycles
+        this worker onto the updated code.
+      • Otherwise (bare uvicorn/nohup) → re-exec in place with os.execv. For a bare
+        Windows launch, prefer `python -m backend.main` (supervised) instead.
     """
     if is_supervised():
         logger.info("Auto-update: restarting (supervised) to load updated code...")
         sys.stdout.flush()
         sys.stderr.flush()
         os._exit(RESTART_EXIT_CODE)
+    master = _gunicorn_master_pid()
+    if master is not None:
+        try:
+            os.kill(master, signal.SIGHUP)  # graceful reload of all workers
+            logger.info("Auto-update: signaled gunicorn master (pid %d) to reload workers onto updated code.", master)
+            return True  # do NOT os.execv — the master owns the reload
+        except Exception as exc:
+            logger.warning("Auto-update: gunicorn reload signal failed (%s) — falling back to re-exec.", exc)
     logger.info("Auto-update: restarting process with updated code...")
     # Re-exec THIS interpreter with its own argv — no external/untrusted input.
     os.execv(sys.executable, [sys.executable] + sys.argv)  # nosemgrep

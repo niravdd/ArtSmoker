@@ -9,7 +9,7 @@ model/prompt registries:
    never a half-written/corrupt file — and a crash mid-write leaves the previous
    file intact. This is the primary defence against corruption on a shared host.
 
-2. write_lock() / asset_write_lock() / named_write_lock() — a lock that serializes
+2. named_write_lock() / asset_write_lock() — a lock that serializes
    a read-modify-write across BOTH threads in one worker (threading.Lock) AND
    processes on the same host (an OS file lock on a lock file). So concurrent
    collaborators — whether served by one multi-threaded uvicorn worker or several
