@@ -8,6 +8,14 @@ Two modes:
      server has been idle (no requests for 60+ seconds), pulls and restarts.
      The frontend is notified before restart so users can re-submit.
 
+Update method (auto-detected):
+  - git   — a .git checkout: `git fetch` + `git reset --hard origin/main`.
+  - zip   — no .git (unpacked release / "Download ZIP"): download the main-branch
+            tarball from GitHub and replace tracked files in place (atomic
+            per-file writes; a manifest tracks installed files so ones dropped
+            upstream get deleted; new dependencies are pip-installed FIRST so a
+            dependency failure aborts before any code is touched).
+
 Version gating:
   - Only updates if remote APP_VERSION in config.py is NEWER than local
   - This prevents pulling incomplete/untested code — only version bumps trigger updates
@@ -15,25 +23,66 @@ Version gating:
 
 Safety:
   - Runtime state is in gitignored .user.json files — never lost
-  - User data is in data/ directory — never touched by git
+  - User data is in data/ directory — never touched (git nor the zip installer:
+    data/, .env, .venv, logs/, tools/ are on the zip method's forbidden list)
   - If anything fails, the server continues with existing code
   - Set ARTSMOKER_AUTO_UPDATE=false to disable both modes
 """
 
 import hashlib
 import hmac
+import json
 import logging
 import os
+import shutil
 import signal
 import subprocess
 import sys
+import tarfile
 import threading
 import time
+import urllib.request
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+
+# ── GitHub source for the download-and-replace (zip) update path ───────────
+# Installs WITHOUT a .git dir (unpacked release / "Download ZIP") can't `git
+# pull`, so they update by downloading the main-branch tarball and replacing
+# tracked files in place. Mirrors origin (README's clone URL). Public repo → no
+# auth. Host is asserted before every network call (see _assert_github_host).
+GITHUB_OWNER = "niravdd"
+GITHUB_REPO = "ArtSmoker"
+GITHUB_BRANCH = "main"
+_RAW_HOST_PREFIX = "https://raw.githubusercontent.com/"
+_TARBALL_HOST_PREFIX = "https://codeload.github.com/"
+_RAW_CONFIG_URL = f"{_RAW_HOST_PREFIX}{GITHUB_OWNER}/{GITHUB_REPO}/{GITHUB_BRANCH}/backend/config.py"
+_TARBALL_URL = f"{_TARBALL_HOST_PREFIX}{GITHUB_OWNER}/{GITHUB_REPO}/tar.gz/refs/heads/{GITHUB_BRANCH}"
+_USER_AGENT = f"ArtSmoker-updater/{GITHUB_REPO}"
+
+# Project-local scratch (never the system temp dir): avoids cross-filesystem
+# os.replace, keeps the download on the same volume as the install, and is easy
+# to clean up / reason about. Gitignored. The manifest records the set of files
+# the zip updater installed, so a later update can delete ones dropped upstream.
+_UPDATE_TMP_DIR = PROJECT_ROOT / ".update_tmp"
+_UPDATE_MANIFEST = PROJECT_ROOT / ".update_manifest"
+_HTTP_TIMEOUT = 300  # seconds — generous for the full-repo tarball on a slow link
+
+# Top-level paths the zip updater must NEVER write to or delete: user data, local
+# config, runtime, and the environment. Most are gitignored (absent from the
+# tarball); `data/` is the exception — some of it is committed, so it DOES ship
+# in the tarball, but the tarball can't distinguish a committed default from a
+# user's edited copy at the same path. `git reset --hard` would clobber the edit;
+# the zip method deliberately does NOT — it skips `data/` wholesale so a ZIP
+# install never loses user content. The cost is that committed `data/` defaults
+# aren't refreshed by the zip method (safety over completeness). This is also a
+# hard guard against a tampered manifest pointing outside the code tree.
+_UPDATE_FORBIDDEN_TOP = {
+    ".git", ".venv", ".env", "data", "logs", "tools",
+    ".update_tmp", ".update_manifest", "CLAUDE.md", ".claude",
+}
 
 # ── Shared state ─────────────────────────────────────────────────────────
 
@@ -328,7 +377,7 @@ def check_and_update() -> dict:
         result["from_version"] = local_ver
 
         # Fetch remote and check version BEFORE pulling
-        _git("fetch", "origin", "main", "--quiet")
+        _fetch_remote()
         remote_ver = _read_remote_version()
         # Always record what we saw — the startup version_check event reads these.
         result["to_version"] = remote_ver if remote_ver and remote_ver != "unknown" else ""
@@ -449,7 +498,7 @@ def _periodic_check_loop():
             _update_status["message"] = "Checking for updates..."
 
             local_ver = _read_version()
-            _git("fetch", "origin", "main", "--quiet")
+            _fetch_remote()
             remote_ver = _read_remote_version()
 
             # Every periodic check emits a version_check event (updated or not) —
@@ -518,13 +567,19 @@ def _periodic_check_loop():
 
 # ── Core helpers ─────────────────────────────────────────────────────────
 
-def _can_update() -> bool:
-    """Check if auto-update is possible."""
-    _can_update._reason = ""
+def _update_method() -> str:
+    """How this install updates: 'git' for a checkout, else 'zip' (download).
 
-    if not (PROJECT_ROOT / ".git").is_dir():
-        _can_update._reason = "Not a git repository"
-        return False
+    A .git directory ⇒ we can `git fetch`/`reset --hard` (the original, tested
+    path). No .git (unpacked release / "Download ZIP") ⇒ fall back to downloading
+    the main-branch tarball and replacing tracked files in place.
+    """
+    return "git" if (PROJECT_ROOT / ".git").is_dir() else "zip"
+
+
+def _can_update() -> bool:
+    """Check if auto-update is possible (either git or zip method)."""
+    _can_update._reason = ""
 
     if os.environ.get("ARTSMOKER_AUTO_UPDATE", "").lower() in ("false", "0", "no"):
         _can_update._reason = "Disabled (ARTSMOKER_AUTO_UPDATE=false)"
@@ -534,11 +589,12 @@ def _can_update() -> bool:
         _can_update._reason = "Skipped"
         return False
 
-    branch = _git("rev-parse", "--abbrev-ref", "HEAD").strip()
-    if branch != "main":
-        _can_update._reason = f"Not on main branch (on '{branch}')"
-        return False
-
+    if _update_method() == "git":
+        branch = _git("rev-parse", "--abbrev-ref", "HEAD").strip()
+        if branch != "main":
+            _can_update._reason = f"Not on main branch (on '{branch}')"
+            return False
+    # zip method: no branch concept — always tracks GITHUB_BRANCH from origin.
     return True
 
 _can_update._reason = ""
@@ -556,43 +612,58 @@ def _is_newer_version(remote: str, local: str) -> bool:
     return remote > local
 
 
-def _read_remote_version() -> str:
-    """Read APP_VERSION from the remote origin/main config.py (without pulling).
-
-    Uses git show to read the file content from the fetched remote branch.
-    """
-    try:
-        content = _git("show", "origin/main:backend/config.py")
-        for line in content.splitlines():
-            if line.startswith("APP_VERSION"):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    except Exception:
-        pass
+def _parse_version_from(text: str) -> str:
+    """Extract the APP_VERSION literal from a config.py's text. 'unknown' if absent."""
+    for line in text.splitlines():
+        if line.startswith("APP_VERSION"):
+            return line.split("=", 1)[1].strip().strip('"').strip("'")
     return "unknown"
 
 
-def _do_pull() -> int:
-    """Pull latest code from origin/main. Returns commit count.
+def _fetch_remote() -> None:
+    """Refresh knowledge of the remote HEAD. Git method only; no-op for zip.
 
-    For non-dev machines: uses git reset --hard (always succeeds).
-    Runtime state is in gitignored .user.json files — safe to overwrite
-    all tracked files.
+    (The zip method reads the remote version straight from raw.githubusercontent
+    in _read_remote_version, so there is nothing to pre-fetch.)
     """
-    local_sha = _git("rev-parse", "HEAD").strip()
-    remote_sha = _git("rev-parse", "origin/main").strip()
+    if _update_method() == "git":
+        _git("fetch", "origin", "main", "--quiet")
 
-    if local_sha == remote_sha:
-        return 0
 
-    behind = int(_git("rev-list", "--count", f"HEAD..origin/main").strip())
+def _read_remote_version() -> str:
+    """Read APP_VERSION from the remote main config.py (without applying it).
 
-    # Force reset to origin/main — safe because:
-    # (a) _can_update() blocks dev mode machines
-    # (b) runtime state is in .user.json (gitignored)
-    # (c) user data is in data/ (gitignored)
-    _git("reset", "--hard", "origin/main")
+    Git method: `git show origin/main:…` from the fetched ref. Zip method: fetch
+    just backend/config.py from raw.githubusercontent (cheap — no tarball yet).
+    """
+    if _update_method() == "git":
+        try:
+            return _parse_version_from(_git("show", "origin/main:backend/config.py"))
+        except Exception:
+            return "unknown"
+    try:
+        return _parse_version_from(_http_get_text(_RAW_CONFIG_URL))
+    except Exception as exc:
+        logger.debug("Auto-update (zip): remote version fetch failed: %s", exc)
+        return "unknown"
 
-    return behind
+
+def _do_pull() -> int:
+    """Apply the latest main code. Returns a change count (0 ⇒ nothing to do).
+
+    Git method: `git reset --hard origin/main` (always succeeds; safe because
+    _can_update() blocks dev machines, runtime state is in gitignored .user.json,
+    and user data is in gitignored data/). Zip method: download-and-replace.
+    """
+    if _update_method() == "git":
+        local_sha = _git("rev-parse", "HEAD").strip()
+        remote_sha = _git("rev-parse", "origin/main").strip()
+        if local_sha == remote_sha:
+            return 0
+        behind = int(_git("rev-list", "--count", "HEAD..origin/main").strip())
+        _git("reset", "--hard", "origin/main")
+        return behind
+    return _apply_zip_update()
 
 
 def _restart_process():
@@ -633,9 +704,187 @@ def _read_version() -> str:
     """Read APP_VERSION from the local config.py."""
     config_path = PROJECT_ROOT / "backend" / "config.py"
     try:
-        for line in config_path.read_text().splitlines():
-            if line.startswith("APP_VERSION"):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
+        return _parse_version_from(config_path.read_text())
     except Exception:
-        pass
-    return "unknown"
+        return "unknown"
+
+
+# ── Zip update method (installs without a .git dir) ────────────────────────
+# Download the main-branch tarball, verify it stays inside the project, replace
+# tracked files atomically, delete files upstream dropped (via a manifest), and
+# install new dependencies FIRST so a pip failure aborts before any code is
+# touched. Every step is best-effort and raises on failure; the caller keeps the
+# server running on the current code and surfaces the error.
+
+def _assert_github_host(url: str, allowed_prefixes) -> None:
+    """Refuse any URL not on an expected GitHub host (SSRF / redirect guard)."""
+    if not any(url.startswith(p) for p in allowed_prefixes):
+        raise ValueError(f"refusing non-GitHub update URL: {url}")
+
+
+def _http_get_text(url: str) -> str:
+    """GET a small text resource from raw.githubusercontent (version check)."""
+    _assert_github_host(url, (_RAW_HOST_PREFIX,))
+    req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    # nosemgrep -- fixed raw.githubusercontent URL (host asserted above); no user input
+    with urllib.request.urlopen(req, timeout=30) as resp:  # nosec B310 -- https GitHub, audited host
+        return resp.read().decode("utf-8", "replace")
+
+
+def _download_tarball(dest: Path) -> None:
+    """Stream the main-branch tarball from codeload.github.com to `dest`."""
+    _assert_github_host(_TARBALL_URL, (_TARBALL_HOST_PREFIX,))
+    logger.info("Auto-update (zip): downloading %s", _TARBALL_URL)
+    req = urllib.request.Request(_TARBALL_URL, headers={"User-Agent": _USER_AGENT})
+    # nosemgrep -- fixed codeload.github.com tarball URL (host asserted above); no user input
+    with urllib.request.urlopen(req, timeout=_HTTP_TIMEOUT) as resp:  # nosec B310 -- https GitHub, audited host
+        with open(dest, "wb") as fh:
+            shutil.copyfileobj(resp, fh, length=1024 * 1024)
+
+
+def _within_project(path: Path) -> bool:
+    """True only if `path` resolves to somewhere inside the project root."""
+    root = PROJECT_ROOT.resolve()
+    try:
+        rp = path.resolve()
+    except OSError:
+        return False
+    return rp == root or root in rp.parents
+
+
+def _extract_tarball(tar_path: Path, dest_dir: Path) -> Path:
+    """Safely extract the tarball into dest_dir; return its single top-level dir.
+
+    Two layers of traversal defence: an explicit per-member check that the
+    resolved target stays inside dest_dir, AND tarfile's 'data' filter (py3.12+,
+    which also blocks absolute paths and unsafe links).
+    """
+    dest_dir.mkdir(parents=True, exist_ok=True)
+    dest_resolved = dest_dir.resolve()
+    # Every member is validated to stay within dest_dir (loop below) and the
+    # extraction uses tarfile's 'data' filter (blocks .., absolute paths, links).
+    with tarfile.open(tar_path, "r:gz") as tf:  # nosemgrep -- members guarded below + 'data' filter
+        for m in tf.getmembers():
+            target = (dest_dir / m.name).resolve()
+            if target != dest_resolved and dest_resolved not in target.parents:
+                raise ValueError(f"unsafe path in tarball: {m.name!r}")
+        tf.extractall(dest_dir, filter="data")  # nosec B202 -- members guarded above + data filter
+    roots = [p for p in dest_dir.iterdir() if p.is_dir()]
+    if len(roots) != 1:
+        raise ValueError(f"unexpected tarball layout (roots={[p.name for p in roots]})")
+    return roots[0]
+
+
+def _iter_relative_files(root: Path):
+    """Yield every regular file under `root`, as a path relative to `root`.
+
+    Symlinks are skipped — the tarball's 'data' filter already neutralised any,
+    and we only ever install real file content.
+    """
+    for p in root.rglob("*"):
+        if p.is_file() and not p.is_symlink():
+            yield p.relative_to(root)
+
+
+def _read_manifest() -> set:
+    """Set of relative paths the zip updater installed last time (for deletions).
+
+    Empty on the first-ever zip update (nothing recorded yet) — so the first run
+    never deletes; it only overwrites. Harmless: stale code files aren't imported.
+    """
+    try:
+        data = json.loads(_UPDATE_MANIFEST.read_text(encoding="utf-8"))
+        return set(data.get("files", [])) if isinstance(data, dict) else set()
+    except Exception:
+        return set()
+
+
+def _write_manifest(rel_paths) -> None:
+    from backend.services.safe_write import atomic_write_json
+    atomic_write_json(_UPDATE_MANIFEST, {
+        "files": sorted(rel_paths),
+        "version": _read_version(),
+        "updated_at": time.time(),
+    })
+
+
+def _maybe_pip_install(new_req: Path) -> None:
+    """Install dependencies IF requirements.txt changed vs the installed one.
+
+    Runs before any code file is written, so a failed install aborts the whole
+    update with the tree untouched — never a half-updated install that crashes on
+    the next restart. Uses the running interpreter's own pip. Raises on failure.
+    """
+    if not new_req.is_file():
+        return
+    current = PROJECT_ROOT / "backend" / "requirements.txt"
+    new_bytes = new_req.read_bytes()
+    old_bytes = current.read_bytes() if current.is_file() else b""
+    if hashlib.sha256(new_bytes).hexdigest() == hashlib.sha256(old_bytes).hexdigest():
+        return  # dependencies unchanged — nothing to install
+    logger.info("Auto-update (zip): requirements.txt changed — installing dependencies…")
+    cmd = [sys.executable, "-m", "pip", "install", "-r", str(new_req)]
+    # nosemgrep -- fixed pip invocation on our own interpreter + the downloaded requirements file; no user input
+    r = subprocess.run(cmd, capture_output=True, text=True, timeout=1800)
+    if r.returncode != 0:
+        raise RuntimeError(
+            f"pip install failed (exit {r.returncode}): "
+            f"{(r.stderr or r.stdout or '').strip()[:500]}")
+
+
+def _apply_zip_update() -> int:
+    """Download the main tarball and replace tracked files in place.
+
+    Returns files-written + files-removed (>0 when anything changed). Raises on
+    any failure; the caller logs it and the server keeps running the old code.
+    Order is deliberate: download → verify layout → install deps → write code →
+    delete removed files → record manifest. Deps before code means a dependency
+    failure leaves the install completely untouched.
+    """
+    from backend.services.safe_write import atomic_write_bytes
+    try:
+        _UPDATE_TMP_DIR.mkdir(parents=True, exist_ok=True)
+        tar_path = _UPDATE_TMP_DIR / "main.tar.gz"
+        _download_tarball(tar_path)
+        root = _extract_tarball(tar_path, _UPDATE_TMP_DIR / "extracted")
+
+        # Files we will actually manage: everything in the tarball except paths
+        # under a forbidden top (a real tarball has none — those are gitignored —
+        # but a tampered one might; the manifest must only ever list what we own).
+        managed_rel = [rel for rel in sorted(_iter_relative_files(root), key=lambda p: p.as_posix())
+                       if rel.parts and rel.parts[0] not in _UPDATE_FORBIDDEN_TOP]
+        managed_set = {p.as_posix() for p in managed_rel}
+        if not managed_set:
+            raise ValueError("tarball contained no installable files")
+
+        # Dependencies first — a pip failure here aborts before any code changes.
+        _maybe_pip_install(root / "backend" / "requirements.txt")
+
+        written = 0
+        for rel in managed_rel:
+            dst = PROJECT_ROOT / rel
+            if not _within_project(dst):
+                continue  # defensive: never escape the project root
+            atomic_write_bytes(dst, (root / rel).read_bytes())
+            written += 1
+
+        # Delete files this updater installed previously but upstream has dropped.
+        deleted = 0
+        for rel in _read_manifest() - managed_set:
+            parts = Path(rel).parts
+            if not parts or parts[0] in _UPDATE_FORBIDDEN_TOP:
+                continue
+            target = PROJECT_ROOT / rel
+            if _within_project(target) and target.is_file():
+                try:
+                    target.unlink()
+                    deleted += 1
+                except OSError:
+                    pass
+
+        _write_manifest(managed_set)
+        logger.info("Auto-update (zip): applied %d file(s), removed %d.", written, deleted)
+        return written + deleted
+    finally:
+        # Always clean the scratch dir — success or failure.
+        shutil.rmtree(_UPDATE_TMP_DIR, ignore_errors=True)

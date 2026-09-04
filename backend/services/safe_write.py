@@ -96,6 +96,30 @@ def atomic_write_text(path: "Path | str", text: str, encoding: str = "utf-8") ->
         raise
 
 
+def atomic_write_bytes(path: "Path | str", data: bytes) -> None:
+    """Atomically write `data` to `path` (temp-in-same-dir + fsync + os.replace).
+
+    The bytes-mode twin of atomic_write_text — for content that must land
+    byte-for-byte (e.g. images/fonts written by the auto-update file installer).
+    Same atomicity guarantee: a reader sees the whole old or whole new file.
+    """
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "wb") as f:
+            f.write(data)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)  # atomic
+    except Exception:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
+
+
 def atomic_write_json(path: "Path | str", data, *, indent: int = 2,
                       ensure_ascii: bool = False, default=str) -> None:
     """atomic_write_text of json.dumps(data, …)."""

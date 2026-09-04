@@ -696,12 +696,14 @@ async def get_update_status():
     """
     from backend.services.auto_update import (
         get_update_status, is_dev_mode, is_supervised, _gunicorn_master_pid,
+        _update_method,
     )
     from backend.config import APP_VERSION
     status = get_update_status()
     import os as _os
     status["disabled"] = is_dev_mode() or _os.environ.get("ARTSMOKER_AUTO_UPDATE", "").lower() in ("false", "0", "no")
     status["current_version"] = APP_VERSION
+    status["update_method"] = _update_method()  # "git" checkout vs "zip" download-and-replace
     supervised = is_supervised()
     gunicorn_managed = _gunicorn_master_pid() is not None
     status["supervised"] = supervised

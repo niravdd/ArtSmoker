@@ -26,6 +26,10 @@ data/video/
 # Cross-process write-lock files (runtime only)
 data/.locks/
 
+# Auto-update (zip method) scratch dir + installed-file manifest — runtime only
+.update_tmp/
+.update_manifest
+
 # Private style profiles (not for public repo)
 data/styles/prop-ludo-club/
 data/styles/manojs-swordman/
