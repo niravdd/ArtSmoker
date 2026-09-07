@@ -357,6 +357,14 @@ def promote_to_base():
                         del base_section[k]
                         logger.debug("Cleanup: removed %s.%s (custom_hosted — user-specific)", section, k)
                         continue
+                    # Mantle-reachable models are EXEMPT — they live on the
+                    # bedrock-mantle endpoint, which the per-region runtime scan
+                    # (list_foundation_models) structurally can't see, so they
+                    # legitimately have empty available_regions. The Sync prune
+                    # already exempts them; promote must too, or every Mantle-only
+                    # model (GPT-5.x, Grok, Gemma, …) gets deleted from base each Sync.
+                    if "bedrock-mantle" in (v.get("endpoints") or []):
+                        continue
                     if not v.get("available_regions"):
                         del base_section[k]
                         logger.debug("Cleanup: removed %s.%s (no available regions — deprecated)", section, k)
